@@ -634,6 +634,24 @@ button:disabled {
   padding: 10px;
 }
 
+.settings-language-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-language-btn {
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.settings-language-btn.is-active {
+  border-color: #0a5fbf;
+  background: #e9f3ff;
+  color: #0a5fbf;
+  font-weight: 600;
+}
+
 .settings-actions {
   display: flex;
   gap: 8px;

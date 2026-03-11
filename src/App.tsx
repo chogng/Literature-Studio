@@ -28,6 +28,13 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import {
+  detectInitialLocale,
+  getLocaleMessages,
+  localeStorageKey,
+  toDocumentLang,
+  type Locale,
+} from './language/i18n';
 import Titlebar, { type TitlebarAction } from './titlebar';
 
 type Article = {
@@ -50,11 +57,9 @@ type AppSettingsPayload = {
 };
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
-type Locale = 'zh' | 'en';
 
 const defaultArticleUrl = '';
 const defaultHomepageUrl = 'https://arxiv.org/list/cs/new';
-const localeStorageKey = 'journal-reader-locale';
 const minPanePercent = 20;
 const maxPanePercent = 80;
 const minPreviewZoom = 0.7;
@@ -314,16 +319,6 @@ function tryGetHost(input: string): string {
   }
 }
 
-function detectInitialLocale(): Locale {
-  if (typeof window === 'undefined') return 'zh';
-  const stored = window.localStorage.getItem(localeStorageKey);
-  if (stored === 'zh' || stored === 'en') return stored;
-
-  const browserLanguage = window.navigator.language.toLowerCase();
-  if (browserLanguage.startsWith('zh')) return 'zh';
-  return 'en';
-}
-
 export default function App() {
   const [activePage, setActivePage] = useState<'reader' | 'settings'>('reader');
   const [locale, setLocale] = useState<Locale>(() => detectInitialLocale());
@@ -389,67 +384,7 @@ export default function App() {
       }) as CSSProperties,
     [contentGridWidth, leftPanePercent],
   );
-  const isZh = locale === 'zh';
-  const ui = useMemo(
-    () => ({
-      appName: isZh ? 'Journal Reader' : 'Journal Reader',
-      menuTitle: isZh ? '浏览器' : 'Browser',
-      loadHistory: isZh ? '加载历史' : 'Load history',
-      loadHistoryBusy: isZh ? '加载历史中' : 'Loading history',
-      clearHistory: isZh ? '清空历史' : 'Clear history',
-      exportFilteredJson: isZh ? '导出筛选 JSON' : 'Export filtered JSON',
-      exportFilteredCsv: isZh ? '导出筛选 CSV' : 'Export filtered CSV',
-      clearRightList: isZh ? '清空右侧列表' : 'Clear right list',
-      articleUrlPlaceholder: isZh ? '文章链接，例如 https://example.com/paper' : 'Article URL, e.g. https://example.com/paper',
-      navigateWeb: isZh ? '网页跳转' : 'Navigate',
-      fetchCurrentBusy: isZh ? '抓取中...' : 'Fetching...',
-      fetchCurrent: isZh ? '抓取当前文章' : 'Fetch current article',
-      homepageUrlPlaceholder: isZh ? '期刊首页 / 最新文章页链接' : 'Journal homepage / latest article page URL',
-      batchCount: isZh ? '数量' : 'Count',
-      sameDomainOnly: isZh ? '仅同域' : 'Same domain only',
-      startDate: isZh ? '开始日期' : 'Start date',
-      endDate: isZh ? '结束日期' : 'End date',
-      fetchLatestBusy: isZh ? '批量抓取中...' : 'Batch fetching...',
-      fetchLatest: isZh ? '抓取首页最新' : 'Fetch latest from homepage',
-      keywordFilterPlaceholder: isZh ? '关键词过滤（标题/DOI/作者/摘要）' : 'Keyword filter (title/DOI/authors/abstract)',
-      journalFilterPlaceholder: isZh ? '期刊/来源过滤（URL片段）' : 'Journal/source filter (URL fragment)',
-      resetFilter: isZh ? '重置过滤' : 'Reset filters',
-      showing: isZh ? '显示' : 'Showing',
-      total: isZh ? '总计' : 'Total',
-      settingsToolbarText: isZh
-        ? '在设置页配置默认下载目录，保存后将自动用于后续 PDF 下载。'
-        : 'Configure a default download directory in Settings. It will be used for later PDF downloads after saving.',
-      splitterAria: isZh ? '调整左右视图宽度' : 'Adjust left and right pane width',
-      resultPanelTitle: isZh ? '右侧：抓取结果 / 历史记录' : 'Right: fetched results / history',
-      untitled: isZh ? '无标题' : 'Untitled',
-      unknown: isZh ? '未识别' : 'Unknown',
-      authors: isZh ? '作者：' : 'Authors:',
-      abstract: isZh ? '摘要：' : 'Abstract:',
-      publishedAt: isZh ? '发布日期：' : 'Published:',
-      source: isZh ? '来源：' : 'Source:',
-      fetchedAt: isZh ? '抓取时间：' : 'Fetched at:',
-      emptyFiltered: isZh ? '已有数据，但当前过滤条件没有匹配结果。' : 'Data exists, but no results match current filters.',
-      emptyAll: isZh ? '暂无数据。可先单篇抓取，或点击“抓取首页最新 / 加载历史”。' : 'No data yet. Fetch one article first, or click "Fetch latest from homepage / Load history".',
-      settingsTitle: isZh ? '设置' : 'Settings',
-      settingsLoading: isZh ? '设置加载中...' : 'Loading settings...',
-      defaultPdfDir: isZh ? '默认 PDF 下载目录' : 'Default PDF download directory',
-      downloadDirPlaceholder: isZh ? '留空则使用系统 Downloads 目录' : 'Leave empty to use the system Downloads folder',
-      chooseDirectory: isZh ? '选择目录' : 'Choose directory',
-      resetDefault: isZh ? '恢复默认' : 'Reset',
-      saving: isZh ? '保存中...' : 'Saving...',
-      saveSettings: isZh ? '保存设置' : 'Save settings',
-      settingsHintPath: isZh ? '建议填写绝对路径；也支持 `~` 开头路径。' : 'Use an absolute path. `~` paths are also supported.',
-      currentDir: isZh ? '当前生效目录：' : 'Current active directory:',
-      systemDownloads: isZh ? '系统 Downloads 目录' : 'System Downloads folder',
-      statusError: isZh ? '错误' : 'Error',
-      statusInfo: isZh ? '状态' : 'Status',
-      statusHint: isZh ? '提示' : 'Hint',
-      statusReady: isZh ? '就绪' : 'Ready',
-      previewModeDesktop: isZh ? 'Electron 嵌入 iframe' : 'Electron embedded iframe',
-      previewModeWeb: isZh ? '浏览器 iframe' : 'Browser iframe',
-    }),
-    [isZh],
-  );
+  const ui = useMemo(() => getLocaleMessages(locale), [locale]);
 
   const filteredArticles = useMemo(() => {
     const keyword = filterKeyword.trim().toLowerCase();
@@ -623,7 +558,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(localeStorageKey, locale);
-    document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+    document.documentElement.lang = toDocumentLang(locale);
   }, [locale]);
 
   useEffect(() => {
@@ -1111,10 +1046,16 @@ export default function App() {
       {electronRuntime ? (
         <Titlebar
           appName={ui.appName}
-          locale={locale}
+          labels={{
+            controlsAriaLabel: ui.titlebarControls,
+            settingsLabel: ui.titlebarSettings,
+            minimizeLabel: ui.titlebarMinimize,
+            maximizeLabel: ui.titlebarMaximize,
+            restoreLabel: ui.titlebarRestore,
+            closeLabel: ui.titlebarClose,
+          }}
           isWindowMaximized={isWindowMaximized}
           onWindowControl={handleWindowControl}
-          onToggleLocale={() => setLocale((prev) => (prev === 'zh' ? 'en' : 'zh'))}
           onToggleSettings={() => setActivePage((prev) => (prev === 'settings' ? 'reader' : 'settings'))}
         />
       ) : null}
@@ -1739,6 +1680,29 @@ export default function App() {
             <div className="panel-title">{ui.settingsTitle}</div>
             <div className="settings-content">
               {isSettingsLoading ? <p className="settings-hint">{ui.settingsLoading}</p> : null}
+
+              <div className="settings-field">
+                <span>{ui.settingsLanguage}</span>
+                <div className="settings-language-toggle" role="group" aria-label={ui.settingsLanguage}>
+                  <button
+                    type="button"
+                    className={locale === 'zh' ? 'settings-language-btn is-active' : 'settings-language-btn'}
+                    onClick={() => setLocale('zh')}
+                    aria-pressed={locale === 'zh'}
+                  >
+                    {ui.languageChinese}
+                  </button>
+                  <button
+                    type="button"
+                    className={locale === 'en' ? 'settings-language-btn is-active' : 'settings-language-btn'}
+                    onClick={() => setLocale('en')}
+                    aria-pressed={locale === 'en'}
+                  >
+                    {ui.languageEnglish}
+                  </button>
+                </div>
+                <p className="settings-hint">{ui.settingsLanguageHint}</p>
+              </div>
 
               <label className="settings-field">
                 {ui.defaultPdfDir}
