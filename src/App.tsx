@@ -1,4 +1,4 @@
-﻿import {
+import {
   type ComponentType,
   useCallback,
   useEffect,
@@ -21,6 +21,7 @@ import {
 } from './language/i18n';
 import Sidebar from './sidebar';
 import * as TitlebarModule from './titlebar';
+import { ToastContainer, toast } from './components/Toast';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -236,6 +237,7 @@ export default function App() {
 
     setError(null);
     setBrowserUrl(normalized);
+    toast.success(`正在跳转至: ${normalized}`);
   };
 
   const handleBrowserRefresh = () => {
@@ -709,8 +711,8 @@ export default function App() {
           <span className="status-bar-label">{statusBarState.label}</span>
           <span className="status-bar-message">{statusBarState.message}</span>
         </footer>
+        <ToastContainer />
       </div>
     </div>
   );
 }
-
