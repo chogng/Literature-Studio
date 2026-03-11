@@ -9,21 +9,13 @@
 import { createPortal } from 'react-dom';
 import * as Checkbox from '@radix-ui/react-checkbox';
 import * as RadioGroup from '@radix-ui/react-radio-group';
-import * as Switch from '@radix-ui/react-switch';
 import {
-  ArrowLeft,
   ArrowRight,
-  BookOpen,
   Bug,
   Check,
-  Download,
-  Eraser,
   ExternalLink,
   FolderOpen,
-  RefreshCcw,
   RotateCcw,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import {
   detectInitialLocale,
@@ -65,9 +57,6 @@ type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
 const defaultHomepageUrl = 'https://arxiv.org/list/cs/new';
-const minPreviewZoom = 0.7;
-const maxPreviewZoom = 1.2;
-const defaultPreviewZoom = 0.9;
 
 type PreviewBounds = { left: number; top: number; width: number; height: number };
 
@@ -96,10 +85,6 @@ function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
   }
 
   return merged;
-}
-
-function clampPreviewZoom(value: number): number {
-  return Math.min(maxPreviewZoom, Math.max(minPreviewZoom, value));
 }
 
 function escapeHtmlAttribute(value: string): string {
@@ -308,9 +293,7 @@ export default function App() {
   const [filterJournal, setFilterJournal] = useState('');
   const [iframeReloadKey, setIframeReloadKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [previewZoom, setPreviewZoom] = useState(defaultPreviewZoom);
   const [pdfDownloadDir, setPdfDownloadDir] = useState('');
-  const [readingModeEnabled, setReadingModeEnabled] = useState(false);
   const [webDebugOpen, setWebDebugOpen] = useState(false);
   const [webPreviewSource, setWebPreviewSource] = useState<'url' | 'html'>('url');
   const [webPreviewImplementation, setWebPreviewImplementation] = useState<'embed' | 'overlay'>('embed');
@@ -626,23 +609,6 @@ export default function App() {
     setIframeReloadKey((prev) => prev + 1);
   };
 
-  const handleClosePreview = () => {
-    if (!browserUrl) return;
-    setStatus(null);
-    setError(null);
-    setBrowserUrl('');
-  };
-
-  const handlePreviewNavigate = async (direction: 'back' | 'forward') => {
-    if (!browserUrl) return;
-    setStatus(
-      direction === 'back'
-        ? 'Electron 嵌入预览暂不支持后退。'
-        : 'Electron 嵌入预览暂不支持前进。',
-    );
-    setError(null);
-  };
-
   const handleChoosePdfDownloadDir = async () => {
     if (!desktopRuntime) {
       setStatus('浏览器 Web 模式不支持系统目录选择，请在桌面端运行。');
@@ -725,24 +691,6 @@ export default function App() {
     }
   };
 
-  const handleZoomOut = () => {
-    setPreviewZoom((prev) => clampPreviewZoom(Number((prev - 0.1).toFixed(2))));
-  };
-
-  const handleZoomIn = () => {
-    setPreviewZoom((prev) => clampPreviewZoom(Number((prev + 0.1).toFixed(2))));
-  };
-
-  const handleZoomReset = () => {
-    setPreviewZoom(1);
-  };
-
-  const handleToggleReadingMode = (nextValue?: boolean) => {
-    setReadingModeEnabled((prev) => (typeof nextValue === 'boolean' ? nextValue : !prev));
-    setStatus('Electron 版本暂未实现深度阅读注入，此开关仅保留为实验项。');
-    setError(null);
-  };
-
   const handleFetchSingle = async () => {
     if (!desktopRuntime) {
       setStatus('浏览器 Web 模式暂不支持抓取（需要桌面端后端命令）。请在桌面端运行或先只用左侧预览调试布局。');
@@ -822,7 +770,6 @@ export default function App() {
     setFilterJournal('');
   };
 
-  const previewModeLabel = electronRuntime ? ui.previewModeDesktop : ui.previewModeWeb;
   const handleWindowControl = (action: TitlebarAction) => {
     window.electronAPI?.windowControls?.perform(action);
   };
@@ -854,6 +801,12 @@ export default function App() {
           }
           onToggleSidebar={activePage === 'reader' ? () => setIsSidebarOpen((prev) => !prev) : undefined}
           onToggleSettings={() => setActivePage((prev) => (prev === 'settings' ? 'reader' : 'settings'))}
+          browserUrl={browserUrl}
+          canDownload={!!desktopRuntime}
+          onNavigateBack={() => setStatus('Electron 嵌入预览暂不支持后退。')}
+          onNavigateForward={() => setStatus('Electron 嵌入预览暂不支持前进。')}
+          onRefresh={handleBrowserRefresh}
+          onDownloadPdf={() => void handlePreviewDownloadPdf()}
         />
       ) : null}
 
@@ -1022,120 +975,6 @@ export default function App() {
 
           <section className="panel web-panel">
             <div className="panel-title web-panel-title">
-              <div className="web-nav-row">
-                <button
-                  className="icon-btn"
-                  type="button"
-                  onClick={() => void handlePreviewNavigate('back')}
-                  disabled={!browserUrl}
-                  title="后退（暂不支持）"
-                  aria-label="后退"
-                >
-                  <ArrowLeft size={16} />
-                </button>
-                <button
-                  className="icon-btn"
-                  type="button"
-                  onClick={() => void handlePreviewNavigate('forward')}
-                  disabled={!browserUrl}
-                  title="前进（暂不支持）"
-                  aria-label="前进"
-                >
-                  <ArrowRight size={16} />
-                </button>
-                <button
-                  className="icon-btn"
-                  type="button"
-                  onClick={() => void handlePreviewDownloadPdf()}
-                  disabled={!browserUrl || !desktopRuntime}
-                  title={desktopRuntime ? '下载 PDF' : '仅桌面端可用'}
-                  aria-label="下载 PDF"
-                >
-                  <Download size={16} />
-                </button>
-	                <button
-	                  className="icon-btn"
-	                  type="button"
-	                  onClick={handleBrowserRefresh}
-	                  disabled={!browserUrl}
-	                  title="刷新"
-	                  aria-label="刷新"
-	                >
-	                  <RefreshCcw size={16} />
-	                </button>
-	                <button
-	                  className="icon-btn"
-	                  type="button"
-	                  onClick={handleClosePreview}
-	                  disabled={!browserUrl}
-	                  title="关闭预览"
-	                  aria-label="关闭预览"
-	                >
-	                  <Eraser size={16} />
-	                </button>
-	                <div className="zoom-controls">
-	                  <button
-	                    className="icon-btn"
-	                    type="button"
-	                    onClick={handleZoomOut}
-                    disabled={!browserUrl || previewZoom <= minPreviewZoom}
-                    title="缩小"
-                    aria-label="缩小"
-                  >
-                    <ZoomOut size={16} />
-                  </button>
-                  <button type="button" onClick={handleZoomReset} disabled={!browserUrl}>
-                    {Math.round(previewZoom * 100)}%
-                  </button>
-                  <button
-                    className="icon-btn"
-                    type="button"
-                    onClick={handleZoomIn}
-                    disabled={!browserUrl || previewZoom >= maxPreviewZoom}
-                    title="放大"
-                    aria-label="放大"
-                  >
-                    <ZoomIn size={16} />
-                  </button>
-                  <span
-                    className="reading-switch-wrap"
-                    title={
-                      readingModeEnabled ? '关闭深度阅读（实验）' : '开启深度阅读（实验）'
-                    }
-                  >
-                    <BookOpen size={16} />
-                    <Switch.Root
-                      className="reading-switch"
-                      checked={readingModeEnabled}
-                      onCheckedChange={(checked: boolean) => handleToggleReadingMode(checked)}
-                      disabled={!browserUrl}
-                      aria-label={readingModeEnabled ? '关闭深度阅读' : '开启深度阅读'}
-                    >
-                      <Switch.Thumb className="reading-switch-thumb" />
-                    </Switch.Root>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className={webDebugOpen ? 'icon-btn debug-btn is-active' : 'icon-btn debug-btn'}
-                  onClick={() => setWebDebugOpen((prev) => !prev)}
-                  title={webDebugOpen ? '关闭 Web 调试' : '打开 Web 调试'}
-                  aria-label={webDebugOpen ? '关闭 Web 调试' : '打开 Web 调试'}
-                >
-                  <Bug size={16} />
-                </button>
-                <span className="web-mode-tag">
-                  预览模式：{previewModeLabel}
-                </span>
-                <input
-                  className="web-current-url"
-                  type="text"
-                  value={browserUrl}
-                  placeholder="未设置预览地址"
-                  readOnly
-                  aria-label="当前预览地址"
-                />
-              </div>
               {webDebugOpen ? (
                 <div className="web-debug-panel">
                   <div className="web-debug-row">
@@ -1272,22 +1111,11 @@ export default function App() {
             <div className="web-frame-container">
               {webPreviewSource === 'url' && browserUrl ? (
                 <div className="web-frame-note">
-                  <span>
-                    当前是 Electron 嵌入 iframe 预览。
-                    {webUrlProxyEnabled
-                      ? '已启用 Web 代理模式（由本地开发服务器转发页面），可绕过多数 X-Frame-Options / frame-ancestors 限制。'
-                      : '若目标站点设置了 X-Frame-Options / frame-ancestors（例如 Nature），浏览器会拒绝嵌入，这是站点策略，不是跳转失败。'}
-                  </span>
-                  {previewNoiseHint ? (
-                    <span className="web-frame-note-warning">
-                      提示：{previewNoiseHint}
-                    </span>
-                  ) : null}
                   <button
                     type="button"
                     className="icon-btn web-frame-note-btn"
                     onClick={() => setWebUrlProxyEnabled((prev) => !prev)}
-                    title={webUrlProxyEnabled ? '关闭 Web 代理' : '启用 Web 代理'}
+                    title={webUrlProxyEnabled ? '关闭 Web 代理' : '启用 Web 代理（绕过 iframe 限制）'}
                     aria-label={webUrlProxyEnabled ? '关闭 Web 代理' : '启用 Web 代理'}
                   >
                     {webUrlProxyEnabled ? '关闭 Web 代理' : '启用 Web 代理'}
@@ -1306,12 +1134,12 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    className="icon-btn web-frame-note-btn"
-                    onClick={() => setWebPreviewSource('html')}
-                    title="切换到 HTML 调试"
-                    aria-label="切换到 HTML 调试"
+                    className={`icon-btn web-frame-note-btn${webDebugOpen ? ' is-active' : ''}`}
+                    onClick={() => setWebDebugOpen((prev) => !prev)}
+                    title={webDebugOpen ? '关闭 Web 调试' : '打开 Web 调试'}
+                    aria-label={webDebugOpen ? '关闭 Web 调试' : '打开 Web 调试'}
                   >
-                    切换到 HTML 调试
+                    <Bug size={14} />
                   </button>
                 </div>
               ) : null}
