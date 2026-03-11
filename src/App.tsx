@@ -7,7 +7,6 @@ import {
 } from 'react';
 import * as Checkbox from '@radix-ui/react-checkbox';
 import {
-  ArrowRight,
   Check,
   FolderOpen,
   RotateCcw,
@@ -428,6 +427,14 @@ export default function App() {
           onNavigateForward={() => toast.info(ui.toastPreviewForwardUnsupported)}
           onRefresh={handleBrowserRefresh}
           onDownloadPdf={() => void handlePreviewDownloadPdf()}
+          webUrl={webUrl}
+          onWebUrlChange={setWebUrl}
+          onNavigateWeb={handleNavigateWeb}
+          onFetchSingle={handleFetchSingle}
+          isSingleLoading={isSingleLoading}
+          articleUrlPlaceholder={ui.articleUrlPlaceholder}
+          fetchLabel={ui.fetchCurrent}
+          fetchBusyLabel={ui.fetchCurrentBusy}
         />
       ) : null}
 
@@ -435,39 +442,6 @@ export default function App() {
         {activePage === 'reader' ? (
           <header className="toolbar">
             <div className="menu-bar">
-              <div className="menu-fetch-strip">
-                <input
-                  className="url-input menu-fetch-input"
-                  type="text"
-                  value={webUrl}
-                  onChange={(event) => setWebUrl(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      handleNavigateWeb();
-                    }
-                  }}
-                  placeholder={ui.articleUrlPlaceholder}
-                />
-                <button
-                  className="icon-btn"
-                  type="button"
-                  onClick={handleNavigateWeb}
-                  disabled={isSingleLoading || isBatchLoading}
-                  title={ui.navigateWeb}
-                  aria-label={ui.navigateWeb}
-                >
-                  <ArrowRight size={16} />
-                </button>
-                <button
-                  className="primary-btn"
-                  type="button"
-                  onClick={handleFetchSingle}
-                  disabled={isSingleLoading || isBatchLoading}
-                >
-                  {isSingleLoading ? ui.fetchCurrentBusy : ui.fetchCurrent}
-                </button>
-              </div>
 
               <div className="menu-fetch-strip">
                 <input

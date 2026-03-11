@@ -29,6 +29,15 @@ type TitlebarProps = {
   onNavigateForward?: () => void;
   onRefresh?: () => void;
   onDownloadPdf?: () => void;
+  // URL Bar
+  webUrl?: string;
+  onWebUrlChange?: (url: string) => void;
+  onNavigateWeb?: () => void;
+  onFetchSingle?: () => void;
+  isSingleLoading?: boolean;
+  articleUrlPlaceholder?: string;
+  fetchLabel?: string;
+  fetchBusyLabel?: string;
 };
 
 export function Titlebar({
@@ -46,6 +55,14 @@ export function Titlebar({
   onNavigateForward,
   onRefresh,
   onDownloadPdf,
+  webUrl,
+  onWebUrlChange,
+  onNavigateWeb,
+  onFetchSingle,
+  isSingleLoading,
+  articleUrlPlaceholder,
+  fetchLabel,
+  fetchBusyLabel,
 }: TitlebarProps) {
   const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onDownloadPdf;
 
@@ -123,8 +140,49 @@ export function Titlebar({
             ) : null}
           </div>
         ) : null}
-        <div className="titlebar-drag-region"></div>
       </div>
+
+      <div className="titlebar-center">
+        {onWebUrlChange && (
+          <div className="titlebar-url-bar">
+            <input
+              type="text"
+              className="titlebar-url-input"
+              value={webUrl}
+              onChange={(e) => onWebUrlChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && onNavigateWeb) {
+                  onNavigateWeb();
+                }
+              }}
+              placeholder={articleUrlPlaceholder}
+            />
+            {onNavigateWeb && (
+              <Button
+                className="titlebar-url-nav-btn"
+                variant="ghost"
+                size="sm"
+                onClick={onNavigateWeb}
+                aria-label="前往"
+              >
+                <ArrowRight size={14} strokeWidth={1.5} />
+              </Button>
+            )}
+          </div>
+        )}
+        {onFetchSingle && (
+          <Button
+            className="titlebar-fetch-btn"
+            variant="primary"
+            size="sm"
+            onClick={onFetchSingle}
+            disabled={isSingleLoading}
+          >
+            {isSingleLoading ? fetchBusyLabel : fetchLabel}
+          </Button>
+        )}
+      </div>
+
       <div className="titlebar-controls" role="group" aria-label={labels.controlsAriaLabel}>
         {onToggleSettings && (
           <Button
