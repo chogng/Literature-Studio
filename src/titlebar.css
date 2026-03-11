@@ -5,7 +5,7 @@
   align-items: center;
   background: linear-gradient(180deg, #f2f6fb 0%, #ebf1f8 100%);
   border-bottom: 1px solid #cfdae7;
-  padding: 0 8px 0 12px;
+  padding: 0 0 0 12px;
   user-select: none;
 }
 
@@ -30,29 +30,39 @@
 .titlebar-controls {
   -webkit-app-region: no-drag;
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  align-items: stretch;
+  height: 100%;
 }
 
 .titlebar-btn {
-  width: 30px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid #c6d2df;
-  background: #f7fafd;
+  width: 46px;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  background: transparent;
   color: #1f2d3a;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  margin: 0;
+  transition: none;
 }
 
 .titlebar-btn:hover {
-  background: #edf3fa;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.titlebar-btn:active {
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .titlebar-btn-close:hover {
-  border-color: #c44545;
-  background: #d94e4e;
+  background: #e81123;
+  color: #fff;
+}
+
+.titlebar-btn-close:active {
+  background: #c50f1f;
   color: #fff;
 }

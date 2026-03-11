@@ -1,4 +1,4 @@
-import { Maximize2, Minimize2, X } from 'lucide-react';
+import { Copy, Minus, Square, X } from 'lucide-react';
 import './titlebar.css';
 
 export type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
@@ -27,7 +27,7 @@ export default function Titlebar({
           aria-label="最小化"
           title="最小化"
         >
-          <Minimize2 size={14} />
+          <Minus size={14} strokeWidth={1.5} />
         </button>
         <button
           className="titlebar-btn"
@@ -36,7 +36,7 @@ export default function Titlebar({
           aria-label={isWindowMaximized ? '还原窗口' : '最大化'}
           title={isWindowMaximized ? '还原窗口' : '最大化'}
         >
-          <Maximize2 size={14} />
+          {isWindowMaximized ? <Copy size={12} strokeWidth={1.5} /> : <Square size={12} strokeWidth={1.5} />}
         </button>
         <button
           className="titlebar-btn titlebar-btn-close"
@@ -45,7 +45,7 @@ export default function Titlebar({
           aria-label="关闭"
           title="关闭"
         >
-          <X size={14} />
+          <X size={14} strokeWidth={1.5} />
         </button>
       </div>
     </header>
