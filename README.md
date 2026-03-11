@@ -56,7 +56,7 @@ npm run start
 
 ## 说明
 
-- Electron 命令入口：`electron/main.cjs`，渲染进程桥接：`electron/preload.cjs`。
+- Electron 命令入口：`electron/main.ts`，渲染进程桥接：`electron/preload.ts`。
 - 抓取命令通过 `window.electronAPI.invoke` 转发，保持与原前端命令名一致：
   - `fetch_article`
   - `fetch_latest_articles`

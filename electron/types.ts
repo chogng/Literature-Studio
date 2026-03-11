@@ -1,0 +1,91 @@
+export interface Article {
+  title: string;
+  doi: string | null;
+  authors: string[];
+  abstractText: string | null;
+  publishedAt: string | null;
+  sourceUrl: string;
+  fetchedAt: string;
+}
+
+export interface DateRange {
+  start: string | null;
+  end: string | null;
+}
+
+export interface AppSettings {
+  defaultDownloadDir: string | null;
+}
+
+export type WindowControlAction =
+  | 'minimize'
+  | 'maximize'
+  | 'unmaximize'
+  | 'toggle-maximize'
+  | 'close';
+
+export interface WindowState {
+  isMaximized: boolean;
+}
+
+export interface FetchLatestArticlesPayload {
+  homepageUrl?: string;
+  limit?: number | string;
+  sameDomainOnly?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface PreviewDownloadPdfPayload {
+  pageUrl?: string;
+  customDownloadDir?: string;
+}
+
+export interface FetchArticlePayload {
+  url?: string;
+}
+
+export interface ListHistoryPayload {
+  limit?: number | string;
+}
+
+export interface SaveSettingsPayload {
+  settings?: Partial<AppSettings>;
+}
+
+export interface PdfDownloadResult {
+  filePath: string;
+  sourceUrl: string;
+}
+
+export interface AppCommandPayloadMap {
+  fetch_article: FetchArticlePayload;
+  fetch_latest_articles: FetchLatestArticlesPayload;
+  list_history: ListHistoryPayload;
+  clear_history: undefined;
+  load_settings: undefined;
+  save_settings: SaveSettingsPayload;
+  pick_download_directory: undefined;
+  preview_download_pdf: PreviewDownloadPdfPayload;
+}
+
+export interface AppCommandResultMap {
+  fetch_article: Article;
+  fetch_latest_articles: Article[];
+  list_history: Article[];
+  clear_history: null;
+  load_settings: AppSettings;
+  save_settings: AppSettings;
+  pick_download_directory: string | null;
+  preview_download_pdf: PdfDownloadResult;
+}
+
+export type AppCommand = keyof AppCommandPayloadMap;
+
+export interface StorageService {
+  listHistory(limit?: number): Promise<Article[]>;
+  clearHistory(): Promise<null>;
+  saveFetchedArticles(items: Article[]): Promise<void>;
+  loadSettings(): Promise<AppSettings>;
+  saveSettings(settings?: Partial<AppSettings>): Promise<AppSettings>;
+}
