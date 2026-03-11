@@ -88,7 +88,6 @@
 }
 
 .titlebar-btn-nav.btn-base {
-  -webkit-app-region: no-drag;
   width: 26px;
   height: 26px;
   border-radius: 6px;
@@ -96,6 +95,16 @@
 
 .titlebar-btn-nav.btn-base:disabled {
   opacity: 0.38;
+}
+
+.titlebar-nav-group {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 4px;
+  gap: 4px;
+  border-left: 1px solid #cfdae7;
 }
 
 .titlebar-btn-close.btn-base:hover {

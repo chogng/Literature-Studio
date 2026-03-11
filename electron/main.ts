@@ -4,10 +4,50 @@ import { app, BrowserWindow } from 'electron';
 
 import { registerAppIpc } from './ipc.js';
 import { createStorageService } from './services/storage.js';
-import { createMainWindow } from './window.js';
+import { createMainWindow, getMainWindow } from './window.js';
 
 function isDevMode() {
   return !app.isPackaged || Boolean(process.env.ELECTRON_RENDERER_URL);
+}
+
+function isDevToolsShortcut(input: Electron.Input) {
+  if (input.type !== 'keyDown') {
+    return false;
+  }
+
+  const key = input.key.toLowerCase();
+  const isF12 = key === 'f12';
+  const isCtrlShiftI = (input.control || input.meta) && input.shift && key === 'i';
+
+  return isF12 || isCtrlShiftI;
+}
+
+function toggleDevTools(targetContents?: Electron.WebContents) {
+  const fallbackWindow = BrowserWindow.getFocusedWindow() ?? getMainWindow();
+  const contents = targetContents ?? fallbackWindow?.webContents;
+
+  if (!contents || contents.isDestroyed()) {
+    return;
+  }
+
+  if (contents.isDevToolsOpened()) {
+    contents.closeDevTools();
+  } else {
+    contents.openDevTools({ mode: 'detach' });
+  }
+}
+
+function registerDevToolsInputHandlers() {
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('before-input-event', (event, input) => {
+      if (!isDevToolsShortcut(input)) {
+        return;
+      }
+
+      event.preventDefault();
+      toggleDevTools(contents);
+    });
+  });
 }
 
 app.whenReady().then(async () => {
@@ -19,6 +59,9 @@ app.whenReady().then(async () => {
     settingsFile: path.join(userDataDir, 'settings.json'),
   });
 
+  if (isDevMode()) {
+    registerDevToolsInputHandlers();
+  }
   registerAppIpc(storage);
   createMainWindow();
 
