@@ -220,104 +220,6 @@ button:disabled {
   overflow: hidden;
 }
 
-.web-panel > .panel-title {
-  flex-shrink: 0;
-}
-
-.panel-title.web-panel-title {
-  padding: 0;
-  border-bottom: none;
-  font-weight: 400;
-}
-
-.debug-btn.is-active {
-  border-color: #0a5fbf;
-  background: #e9f3ff;
-  color: #0a5fbf;
-}
-
-.web-debug-panel {
-  padding: 10px 12px 12px;
-  border-top: 1px solid #e5ebf1;
-  display: grid;
-  gap: 10px;
-  color: #2d4052;
-  font-size: 12px;
-  background: #fbfdff;
-}
-
-.web-debug-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.web-debug-label {
-  font-weight: 600;
-  color: #334455;
-}
-
-.web-debug-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.web-debug-inline-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.web-debug-pill {
-  border: 1px solid #c9d6e4;
-  border-radius: 999px;
-  background: #fff;
-  color: #425468;
-  padding: 4px 10px;
-  font-size: 12px;
-  line-height: 1.2;
-}
-
-.web-debug-pill[data-state='checked'] {
-  border-color: #0a5fbf;
-  background: #0a5fbf;
-  color: #fff;
-}
-
-.web-debug-spacer {
-  flex: 1;
-}
-
-.web-debug-input {
-  flex: 1;
-  min-width: 220px;
-  border: 1px solid #ccd7e3;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 12px;
-}
-
-.web-debug-textarea {
-  width: 100%;
-  border: 1px solid #ccd7e3;
-  border-radius: 10px;
-  padding: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-  font-size: 11px;
-  line-height: 1.4;
-  resize: vertical;
-}
-
-.web-debug-hint {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  color: #516271;
-}
-
 .web-frame-container {
   flex: 1;
   min-height: 0;
@@ -326,37 +228,6 @@ button:disabled {
   background: #fff;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.web-frame-note {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid #c8dcf3;
-  border-radius: 8px;
-  background: #eef6ff;
-  color: #2c455d;
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.web-frame-note-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 9px;
-  background: #fff;
-}
-
-.web-frame-note-warning {
-  color: #6f4a00;
-  background: #fff6de;
-  border: 1px solid #f3dfac;
-  border-radius: 999px;
-  padding: 2px 8px;
 }
 
 .native-webview-host {
@@ -381,22 +252,6 @@ button:disabled {
   overflow: auto;
   border: none;
   background: #fff;
-}
-
-.web-frame-overlay {
-  position: fixed;
-  z-index: 9999;
-  box-shadow: 0 10px 30px rgba(12, 23, 33, 0.25);
-  border-radius: 10px;
-}
-
-.web-frame-overlay-outline {
-  position: fixed;
-  z-index: 10000;
-  pointer-events: none;
-  border: 2px solid rgba(10, 95, 191, 0.7);
-  border-radius: 10px;
-  box-shadow: 0 0 0 4px rgba(10, 95, 191, 0.12);
 }
 
 .settings-page {
@@ -486,11 +341,6 @@ button:disabled {
   background: #fff7f7;
 }
 
-.status-bar.is-warning {
-  border-color: #f2dfb0;
-  background: #fffaf0;
-}
-
 .status-bar-label {
   flex: 0 0 auto;
   font-size: 12px;
@@ -508,12 +358,6 @@ button:disabled {
   background: #fdeeee;
 }
 
-.status-bar.is-warning .status-bar-label {
-  color: #744a00;
-  border-color: #f2dfb0;
-  background: #fff3d6;
-}
-
 .status-bar-message {
   min-width: 0;
   font-size: 12px;
@@ -525,10 +369,6 @@ button:disabled {
 
 .status-bar.is-error .status-bar-message {
   color: #9c1f1f;
-}
-
-.status-bar.is-warning .status-bar-message {
-  color: #744a00;
 }
 
 @media (max-width: 980px) {
