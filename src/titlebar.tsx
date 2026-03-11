@@ -51,7 +51,7 @@ export function Titlebar({
   return (
     <header className="titlebar">
       <div className="titlebar-start">
-        <div className="titlebar-drag-region">
+        <div className="titlebar-brand">
           <span className="titlebar-app-name">{appName}</span>
         </div>
         {onToggleSidebar && sidebarToggleLabel ? (
@@ -117,6 +117,7 @@ export function Titlebar({
             ) : null}
           </div>
         ) : null}
+        <div className="titlebar-drag-region"></div>
       </div>
       <div className="titlebar-controls" role="group" aria-label={labels.controlsAriaLabel}>
         {onToggleSettings && (
@@ -131,7 +132,7 @@ export function Titlebar({
           </button>
         )}
         <button
-          className="titlebar-btn"
+          className="titlebar-btn titlebar-btn-window"
           type="button"
           onClick={() => onWindowControl('minimize')}
           aria-label={labels.minimizeLabel}
@@ -140,7 +141,7 @@ export function Titlebar({
           <Minus size={14} strokeWidth={1.5} />
         </button>
         <button
-          className="titlebar-btn"
+          className="titlebar-btn titlebar-btn-window"
           type="button"
           onClick={() => onWindowControl('toggle-maximize')}
           aria-label={isWindowMaximized ? labels.restoreLabel : labels.maximizeLabel}
@@ -149,7 +150,7 @@ export function Titlebar({
           {isWindowMaximized ? <Copy size={12} strokeWidth={1.5} /> : <Square size={12} strokeWidth={1.5} />}
         </button>
         <button
-          className="titlebar-btn titlebar-btn-close"
+          className="titlebar-btn titlebar-btn-window titlebar-btn-close"
           type="button"
           onClick={() => onWindowControl('close')}
           aria-label={labels.closeLabel}
