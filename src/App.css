@@ -37,14 +37,14 @@ input {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
   padding: 8px;
   overflow: hidden;
 }
 
 .app-shell.app-shell-settings {
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .toolbar {
@@ -323,52 +323,6 @@ button:disabled {
   flex: 1;
   padding: 16px;
   color: #667788;
-}
-
-.status-bar {
-  min-height: 30px;
-  border: 1px solid #d8e0e8;
-  border-radius: 10px;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-}
-
-.status-bar.is-error {
-  border-color: #f0c3c3;
-  background: #fff7f7;
-}
-
-.status-bar-label {
-  flex: 0 0 auto;
-  font-size: 12px;
-  line-height: 1;
-  color: #4f6070;
-  border: 1px solid #d7e1ea;
-  background: #f4f7fb;
-  border-radius: 999px;
-  padding: 3px 7px;
-}
-
-.status-bar.is-error .status-bar-label {
-  color: #9c1f1f;
-  border-color: #f0c3c3;
-  background: #fdeeee;
-}
-
-.status-bar-message {
-  min-width: 0;
-  font-size: 12px;
-  color: #425464;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.status-bar.is-error .status-bar-message {
-  color: #9c1f1f;
 }
 
 @media (max-width: 980px) {

@@ -68,6 +68,13 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function formatLocalized(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => {
+    const value = values[key];
+    return value === undefined ? '' : String(value);
+  });
+}
+
 function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
   const seen = new Set<string>();
   const merged: Article[] = [];
@@ -103,8 +110,6 @@ export default function App() {
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
 
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [articles, setArticles] = useState<Article[]>([]);
 
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
@@ -113,16 +118,16 @@ export default function App() {
     return typeof window.electronAPI?.invoke === 'function';
   }, []);
   const desktopRuntime = electronRuntime;
+  const ui = useMemo(() => getLocaleMessages(locale), [locale]);
   const invokeDesktop = useCallback(
     async <T,>(command: string, args?: DesktopInvokeArgs): Promise<T> => {
       if (window.electronAPI?.invoke) {
         return window.electronAPI.invoke<T>(command, args);
       }
-      throw new Error('当前运行环境不支持该命令');
+      throw new Error(ui.desktopInvokeUnsupported);
     },
-    [],
+    [ui],
   );
-  const ui = useMemo(() => getLocaleMessages(locale), [locale]);
 
   const filteredArticles = useMemo(() => {
     const keyword = filterKeyword.trim().toLowerCase();
@@ -150,16 +155,6 @@ export default function App() {
   }, [articles, filterKeyword, filterJournal]);
 
   const hasData = articles.length > 0;
-
-  const statusBarState = useMemo(() => {
-    if (error) {
-      return { label: ui.statusError, message: error, className: 'status-bar is-error' };
-    }
-    if (status) {
-      return { label: ui.statusInfo, message: status, className: 'status-bar' };
-    }
-    return { label: ui.statusInfo, message: ui.statusReady, className: 'status-bar' };
-  }, [error, status, ui]);
 
   useEffect(() => {
     if (!electronRuntime || !window.electronAPI?.windowControls) {
@@ -219,25 +214,24 @@ export default function App() {
         const parsed = JSON.parse(raw) as Partial<AppSettingsPayload>;
         setPdfDownloadDir(typeof parsed.defaultDownloadDir === 'string' ? parsed.defaultDownloadDir : '');
       } catch (loadError) {
-        setError(`加载设置失败：${errorMessage(loadError)}`);
+        toast.error(formatLocalized(ui.toastLoadSettingsFailed, { error: errorMessage(loadError) }));
       } finally {
         setIsSettingsLoading(false);
       }
     };
 
     void loadSettings();
-  }, [desktopRuntime, invokeDesktop]);
+  }, [desktopRuntime, invokeDesktop, ui]);
 
   const handleNavigateWeb = () => {
     const normalized = normalizeUrl(webUrl);
     if (!normalized) {
-      setError('请先输入文章链接。');
+      toast.error(ui.toastEnterArticleUrl);
       return;
     }
 
-    setError(null);
     setBrowserUrl(normalized);
-    toast.success(`正在跳转至: ${normalized}`);
+    toast.success(formatLocalized(ui.toastNavigatingTo, { url: normalized }));
   };
 
   const handleBrowserRefresh = () => {
@@ -246,30 +240,25 @@ export default function App() {
 
   const handleChoosePdfDownloadDir = async () => {
     if (!desktopRuntime) {
-      setStatus('浏览器 Web 模式不支持系统目录选择，请在桌面端运行。');
+      toast.info(ui.toastDesktopDirPickerOnly);
       return;
     }
-
-    setStatus(null);
-    setError(null);
 
     try {
       const selected = await invokeDesktop<string | null>('pick_download_directory');
       if (!selected) {
-        setStatus('未选择目录，保持当前设置。');
+        toast.info(ui.toastDirNotSelected);
         return;
       }
 
       setPdfDownloadDir(selected);
-      setStatus(`已选择目录：${selected}（记得点击“保存设置”）`);
+      toast.success(formatLocalized(ui.toastDirSelected, { dir: selected }));
     } catch (pickError) {
-      setError(`选择目录失败：${errorMessage(pickError)}`);
+      toast.error(formatLocalized(ui.toastPickDirFailed, { error: errorMessage(pickError) }));
     }
   };
 
   const handleSaveSettings = async () => {
-    setStatus(null);
-    setError(null);
     setIsSettingsSaving(true);
 
     const nextDir = pdfDownloadDir.trim();
@@ -286,13 +275,13 @@ export default function App() {
         setPdfDownloadDir(nextDir);
       }
 
-      setStatus(
+      toast.success(
         nextDir
-          ? `设置已保存，默认下载目录：${nextDir}`
-          : '设置已保存，默认将使用系统 Downloads 目录',
+          ? formatLocalized(ui.toastSettingsSavedWithDir, { dir: nextDir })
+          : ui.toastSettingsSavedUseSystemDownloads,
       );
     } catch (saveError) {
-      setError(`保存设置失败：${errorMessage(saveError)}`);
+      toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: errorMessage(saveError) }));
     } finally {
       setIsSettingsSaving(false);
     }
@@ -300,56 +289,55 @@ export default function App() {
 
   const handleResetDownloadDir = () => {
     setPdfDownloadDir('');
-    setStatus('已清空目录输入，点击“保存设置”后将恢复系统 Downloads 目录。');
-    setError(null);
+    toast.info(ui.toastResetDirInput);
   };
 
   const handlePreviewDownloadPdf = async () => {
     if (!browserUrl) return;
 
     if (!desktopRuntime) {
-      setStatus('浏览器 Web 模式不支持本地 PDF 下载，请在桌面端运行。');
+      toast.info(ui.toastDesktopPdfDownloadOnly);
       return;
     }
-
-    setStatus(null);
-    setError(null);
 
     try {
       const result = await invokeDesktop<PdfDownloadResult>('preview_download_pdf', {
         pageUrl: browserUrl,
         customDownloadDir: pdfDownloadDir.trim() || null,
       });
-      setStatus(`PDF 已下载到：${result.filePath}（来源：${result.sourceUrl}）`);
+      toast.success(
+        formatLocalized(ui.toastPdfDownloaded, {
+          filePath: result.filePath,
+          sourceUrl: result.sourceUrl,
+        }),
+      );
     } catch (downloadError) {
-      setError(`下载 PDF 失败：${errorMessage(downloadError)}`);
+      toast.error(formatLocalized(ui.toastPdfDownloadFailed, { error: errorMessage(downloadError) }));
     }
   };
 
   const handleFetchSingle = async () => {
     if (!desktopRuntime) {
-      setStatus('浏览器 Web 模式暂不支持抓取（需要桌面端后端命令）。请在桌面端运行或先只用左侧预览调试布局。');
+      toast.info(ui.toastDesktopFetchOnly);
       return;
     }
 
     const normalized = normalizeUrl(webUrl);
     if (!normalized) {
-      setError('请先输入文章链接。');
+      toast.error(ui.toastEnterArticleUrl);
       return;
     }
 
     setIsSingleLoading(true);
-    setStatus(null);
-    setError(null);
     setBrowserUrl(normalized);
 
     try {
       const fetched = await invokeDesktop<Article>('fetch_article', { url: normalized });
       setArticles((prev) => mergeArticles([fetched], prev));
-      setStatus('单篇抓取完成并已写入历史。');
+      toast.success(ui.toastFetchSingleSucceeded);
     } catch (fetchError) {
       const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      setError(`单篇抓取失败：${message}`);
+      toast.error(formatLocalized(ui.toastFetchSingleFailed, { error: message }));
     } finally {
       setIsSingleLoading(false);
     }
@@ -357,24 +345,22 @@ export default function App() {
 
   const handleFetchLatestBatch = async () => {
     if (!desktopRuntime) {
-      setStatus('浏览器 Web 模式暂不支持批量抓取（需要桌面端后端命令）。请在桌面端运行。');
+      toast.info(ui.toastDesktopBatchFetchOnly);
       return;
     }
 
     const normalized = normalizeUrl(homepageUrl);
     if (!normalized) {
-      setError('请先输入期刊首页链接。');
+      toast.error(ui.toastEnterHomepageUrl);
       return;
     }
 
     if (batchStartDate && batchEndDate && batchStartDate > batchEndDate) {
-      setError('开始日期不能晚于结束日期。');
+      toast.error(ui.toastDateRangeInvalid);
       return;
     }
 
     setIsBatchLoading(true);
-    setStatus(null);
-    setError(null);
 
     try {
       const fetched = await invokeDesktop<Article[]>('fetch_latest_articles', {
@@ -386,7 +372,7 @@ export default function App() {
       });
 
       setArticles((prev) => mergeArticles(fetched, prev));
-      setStatus(`批量抓取完成：${fetched.length} 篇，已写入历史。`);
+      toast.success(formatLocalized(ui.toastBatchFetchSucceeded, { count: fetched.length }));
 
       if (fetched[0]) {
         setWebUrl(fetched[0].sourceUrl);
@@ -394,7 +380,7 @@ export default function App() {
       }
     } catch (fetchError) {
       const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      setError(`批量抓取失败：${message}`);
+      toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: message }));
     } finally {
       setIsBatchLoading(false);
     }
@@ -438,8 +424,8 @@ export default function App() {
           onToggleSettings={() => setActivePage((prev) => (prev === 'settings' ? 'reader' : 'settings'))}
           browserUrl={browserUrl}
           canDownload={!!desktopRuntime}
-          onNavigateBack={() => setStatus('Electron 嵌入预览暂不支持后退。')}
-          onNavigateForward={() => setStatus('Electron 嵌入预览暂不支持前进。')}
+          onNavigateBack={() => toast.info(ui.toastPreviewBackUnsupported)}
+          onNavigateForward={() => toast.info(ui.toastPreviewForwardUnsupported)}
           onRefresh={handleBrowserRefresh}
           onDownloadPdf={() => void handlePreviewDownloadPdf()}
         />
@@ -706,13 +692,9 @@ export default function App() {
           </section>
         </main>
       )}
-
-        <footer className={statusBarState.className} role="status" aria-live="polite">
-          <span className="status-bar-label">{statusBarState.label}</span>
-          <span className="status-bar-message">{statusBarState.message}</span>
-        </footer>
         <ToastContainer />
       </div>
     </div>
   );
 }
+
