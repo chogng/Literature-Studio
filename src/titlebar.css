@@ -9,8 +9,16 @@
   user-select: none;
 }
 
+.titlebar-start {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+
 .titlebar-drag-region {
   -webkit-app-region: drag;
+  flex: 1;
   min-width: 0;
   height: 100%;
   display: flex;
@@ -55,6 +63,15 @@
 
 .titlebar-btn:active {
   background: rgba(0, 0, 0, 0.1);
+}
+
+.titlebar-btn-sidebar {
+  -webkit-app-region: no-drag;
+  width: 34px;
+  height: 26px;
+  align-self: center;
+  margin-right: 6px;
+  border-radius: 8px;
 }
 
 .titlebar-btn-close:hover {

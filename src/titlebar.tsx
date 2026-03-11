@@ -1,4 +1,4 @@
-import { Copy, Minus, Settings, Square, X } from 'lucide-react';
+import { Copy, Minus, PanelLeftClose, PanelLeftOpen, Settings, Square, X } from 'lucide-react';
 import './titlebar.css';
 
 export type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
@@ -17,20 +17,39 @@ type TitlebarProps = {
   labels: TitlebarLabels;
   isWindowMaximized: boolean;
   onWindowControl: (action: TitlebarAction) => void;
+  isSidebarOpen?: boolean;
+  sidebarToggleLabel?: string;
+  onToggleSidebar?: () => void;
   onToggleSettings?: () => void;
 };
 
-export default function Titlebar({
+export function Titlebar({
   appName = 'Journal Reader',
   labels,
   isWindowMaximized,
   onWindowControl,
+  isSidebarOpen = true,
+  sidebarToggleLabel,
+  onToggleSidebar,
   onToggleSettings,
 }: TitlebarProps) {
   return (
     <header className="titlebar">
-      <div className="titlebar-drag-region">
-        <span className="titlebar-app-name">{appName}</span>
+      <div className="titlebar-start">
+        <div className="titlebar-drag-region">
+          <span className="titlebar-app-name">{appName}</span>
+        </div>
+        {onToggleSidebar && sidebarToggleLabel ? (
+          <button
+            className="titlebar-btn titlebar-btn-sidebar"
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label={sidebarToggleLabel}
+            title={sidebarToggleLabel}
+          >
+            {isSidebarOpen ? <PanelLeftClose size={14} strokeWidth={1.5} /> : <PanelLeftOpen size={14} strokeWidth={1.5} />}
+          </button>
+        ) : null}
       </div>
       <div className="titlebar-controls" role="group" aria-label={labels.controlsAriaLabel}>
         {onToggleSettings && (
@@ -75,3 +94,5 @@ export default function Titlebar({
     </header>
   );
 }
+
+export default Titlebar;

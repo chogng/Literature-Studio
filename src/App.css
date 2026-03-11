@@ -197,12 +197,12 @@ button:disabled {
 .content-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(420px, var(--left-pane, 58%)) 10px minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   gap: 8px;
 }
 
-.content-grid.is-resizing {
-  cursor: col-resize;
+.content-grid.is-sidebar-collapsed {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .panel {
@@ -214,34 +214,7 @@ button:disabled {
   display: grid;
 }
 
-.splitter {
-  align-self: stretch;
-  width: 10px;
-  border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    rgba(180, 196, 214, 0.2) 0%,
-    rgba(180, 196, 214, 0.9) 45%,
-    rgba(180, 196, 214, 0.9) 55%,
-    rgba(180, 196, 214, 0.2) 100%
-  );
-  cursor: col-resize;
-  outline: none;
-}
-
-.splitter:hover,
-.splitter:focus-visible {
-  background: linear-gradient(
-    to right,
-    rgba(10, 95, 191, 0.2) 0%,
-    rgba(10, 95, 191, 0.9) 45%,
-    rgba(10, 95, 191, 0.9) 55%,
-    rgba(10, 95, 191, 0.2) 100%
-  );
-}
-
 .web-panel {
-  grid-column: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -534,17 +507,6 @@ button:disabled {
   box-shadow: 0 0 0 4px rgba(10, 95, 191, 0.12);
 }
 
-.result-panel {
-  grid-column: 3;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.result-panel > .panel-title {
-  flex-shrink: 0;
-}
-
 .settings-page {
   min-height: 0;
   display: grid;
@@ -608,36 +570,6 @@ button:disabled {
   margin: 0;
   color: #5b6b7b;
   font-size: 13px;
-}
-
-.article-list {
-  flex: 1;
-  margin: 0;
-  padding: 12px;
-  list-style: none;
-  overflow: auto;
-  display: grid;
-  gap: 10px;
-}
-
-.article-card {
-  border: 1px solid #dce4ec;
-  border-radius: 10px;
-  padding: 10px;
-  display: grid;
-  gap: 6px;
-  background: #fbfdff;
-}
-
-.article-card h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.article-card p {
-  margin: 0;
-  font-size: 13px;
-  color: #334455;
 }
 
 .empty-state {
@@ -715,11 +647,11 @@ button:disabled {
 
   .content-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(220px, 40%) minmax(0, 1fr);
   }
 
-  .splitter {
-    display: none;
+  .content-grid.is-sidebar-collapsed {
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .count {

@@ -1,10 +1,10 @@
 ﻿import {
+  type ComponentType,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
 import * as Checkbox from '@radix-ui/react-checkbox';
@@ -32,7 +32,15 @@ import {
   toDocumentLang,
   type Locale,
 } from './language/i18n';
-import Titlebar, { type TitlebarAction } from './titlebar';
+import Sidebar from './sidebar';
+import * as TitlebarModule from './titlebar';
+
+type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
+
+const TitlebarView =
+  ((TitlebarModule as { Titlebar?: ComponentType<any>; default?: ComponentType<any> }).Titlebar ??
+    (TitlebarModule as { default?: ComponentType<any> }).default ??
+    (() => null)) as ComponentType<any>;
 
 type Article = {
   title: string;
@@ -57,8 +65,6 @@ type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
 const defaultHomepageUrl = 'https://arxiv.org/list/cs/new';
-const minPanePercent = 20;
-const maxPanePercent = 80;
 const minPreviewZoom = 0.7;
 const maxPreviewZoom = 1.2;
 const defaultPreviewZoom = 0.9;
@@ -78,12 +84,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function formatTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
-
 function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
   const seen = new Set<string>();
   const merged: Article[] = [];
@@ -96,10 +96,6 @@ function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
   }
 
   return merged;
-}
-
-function clampPanePercent(value: number): number {
-  return Math.min(maxPanePercent, Math.max(minPanePercent, value));
 }
 
 function clampPreviewZoom(value: number): number {
@@ -311,12 +307,10 @@ export default function App() {
   const [filterKeyword, setFilterKeyword] = useState('');
   const [filterJournal, setFilterJournal] = useState('');
   const [iframeReloadKey, setIframeReloadKey] = useState(0);
-  const [leftPanePercent, setLeftPanePercent] = useState(58);
-  const [contentGridWidth, setContentGridWidth] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [previewZoom, setPreviewZoom] = useState(defaultPreviewZoom);
   const [pdfDownloadDir, setPdfDownloadDir] = useState('');
   const [readingModeEnabled, setReadingModeEnabled] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
   const [webDebugOpen, setWebDebugOpen] = useState(false);
   const [webPreviewSource, setWebPreviewSource] = useState<'url' | 'html'>('url');
   const [webPreviewImplementation, setWebPreviewImplementation] = useState<'embed' | 'overlay'>('embed');
@@ -336,8 +330,6 @@ export default function App() {
   const [articles, setArticles] = useState<Article[]>([]);
 
   const webviewHostRef = useRef<HTMLDivElement | null>(null);
-  const contentGridRef = useRef<HTMLElement | null>(null);
-  const splitStartRef = useRef<{ x: number; leftPercent: number } | null>(null);
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
   const electronRuntime = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -352,15 +344,6 @@ export default function App() {
       throw new Error('当前运行环境不支持该命令');
     },
     [],
-  );
-  const contentGridStyle = useMemo(
-    () =>
-      ({
-        '--left-pane': contentGridWidth
-          ? `${Math.round((contentGridWidth * leftPanePercent) / 100)}px`
-          : `${leftPanePercent}%`,
-      }) as CSSProperties,
-    [contentGridWidth, leftPanePercent],
   );
   const ui = useMemo(() => getLocaleMessages(locale), [locale]);
 
@@ -390,7 +373,6 @@ export default function App() {
   }, [articles, filterKeyword, filterJournal]);
 
   const hasData = articles.length > 0;
-  const hasVisibleData = filteredArticles.length > 0;
   const detectedHtmlBaseUrl = useMemo(() => detectHtmlBaseHref(webPreviewHtml), [webPreviewHtml]);
   const previewNoiseHint = useMemo(() => {
     if (activePage !== 'reader') return null;
@@ -540,26 +522,6 @@ export default function App() {
   }, [locale]);
 
   useEffect(() => {
-    if (activePage !== 'reader') return;
-
-    const grid = contentGridRef.current;
-    if (!grid) return;
-
-    const update = () => {
-      setContentGridWidth(grid.getBoundingClientRect().width);
-    };
-
-    update();
-
-    const observer = new ResizeObserver(update);
-    observer.observe(grid);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [activePage]);
-
-  useEffect(() => {
     const loadSettings = async () => {
       setIsSettingsLoading(true);
 
@@ -621,92 +583,6 @@ export default function App() {
       if (rafId) window.cancelAnimationFrame(rafId);
     };
   }, [activePage, syncWebOverlayBounds, webDebugOpen, webPreviewImplementation]);
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const onPointerMove = (event: PointerEvent) => {
-      const start = splitStartRef.current;
-      const grid = contentGridRef.current;
-      if (!start || !grid) return;
-
-      const rect = grid.getBoundingClientRect();
-      if (rect.width <= 0) return;
-
-      const deltaX = event.clientX - start.x;
-      const next = start.leftPercent + (deltaX / rect.width) * 100;
-      setLeftPanePercent(clampPanePercent(next));
-    };
-
-    const onPointerUp = () => {
-      splitStartRef.current = null;
-      setIsResizing(false);
-    };
-
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-    };
-  }, [isResizing]);
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const previousCursor = document.body.style.cursor;
-    const previousUserSelect = document.body.style.userSelect;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-
-    return () => {
-      document.body.style.cursor = previousCursor;
-      document.body.style.userSelect = previousUserSelect;
-    };
-  }, [isResizing]);
-
-  const handleSplitterPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-
-    const grid = contentGridRef.current;
-    if (!grid) return;
-
-    const rect = grid.getBoundingClientRect();
-    if (rect.width <= 0) return;
-
-    splitStartRef.current = {
-      x: event.clientX,
-      leftPercent: leftPanePercent,
-    };
-    setIsResizing(true);
-    event.preventDefault();
-  };
-
-  const handleSplitterKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'ArrowLeft') {
-      setLeftPanePercent((prev) => clampPanePercent(prev - 2));
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === 'ArrowRight') {
-      setLeftPanePercent((prev) => clampPanePercent(prev + 2));
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === 'Home') {
-      setLeftPanePercent(minPanePercent);
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === 'End') {
-      setLeftPanePercent(maxPanePercent);
-      event.preventDefault();
-    }
-  };
 
   const handleNavigateWeb = () => {
     const normalized = normalizeUrl(webUrl);
@@ -954,7 +830,7 @@ export default function App() {
   return (
     <div className="app-window">
       {electronRuntime ? (
-        <Titlebar
+        <TitlebarView
           appName={ui.appName}
           labels={{
             controlsAriaLabel: ui.titlebarControls,
@@ -966,6 +842,17 @@ export default function App() {
           }}
           isWindowMaximized={isWindowMaximized}
           onWindowControl={handleWindowControl}
+          isSidebarOpen={isSidebarOpen}
+          sidebarToggleLabel={
+            locale === 'zh'
+              ? isSidebarOpen
+                ? '收起侧边栏'
+                : '展开侧边栏'
+              : isSidebarOpen
+                ? 'Collapse sidebar'
+                : 'Expand sidebar'
+          }
+          onToggleSidebar={activePage === 'reader' ? () => setIsSidebarOpen((prev) => !prev) : undefined}
           onToggleSettings={() => setActivePage((prev) => (prev === 'settings' ? 'reader' : 'settings'))}
         />
       ) : null}
@@ -1113,7 +1000,26 @@ export default function App() {
         ) : null}
 
       {activePage === 'reader' ? (
-        <main ref={contentGridRef} className={`content-grid ${isResizing ? 'is-resizing' : ''}`} style={contentGridStyle}>
+        <main className={`content-grid ${isSidebarOpen ? '' : 'is-sidebar-collapsed'}`.trim()}>
+          {isSidebarOpen ? (
+            <Sidebar
+              articles={filteredArticles}
+              hasData={hasData}
+              labels={{
+                resultPanelTitle: ui.resultPanelTitle,
+                untitled: ui.untitled,
+                unknown: ui.unknown,
+                authors: ui.authors,
+                abstract: ui.abstract,
+                publishedAt: ui.publishedAt,
+                source: ui.source,
+                fetchedAt: ui.fetchedAt,
+                emptyFiltered: ui.emptyFiltered,
+                emptyAll: ui.emptyAll,
+              }}
+            />
+          ) : null}
+
           <section className="panel web-panel">
             <div className="panel-title web-panel-title">
               <div className="web-nav-row">
@@ -1463,60 +1369,6 @@ export default function App() {
                 document.body,
               )
             : null}
-
-          <div
-            className="splitter"
-            role="separator"
-            tabIndex={0}
-            aria-label={ui.splitterAria}
-            aria-orientation="vertical"
-            aria-valuemin={minPanePercent}
-            aria-valuemax={maxPanePercent}
-            aria-valuenow={Math.round(leftPanePercent)}
-            onPointerDown={handleSplitterPointerDown}
-            onKeyDown={handleSplitterKeyDown}
-          />
-
-          <section className="panel result-panel">
-            <div className="panel-title">{ui.resultPanelTitle}</div>
-            {hasVisibleData ? (
-              <ul className="article-list">
-                {filteredArticles.map((article, index) => (
-                  <li key={`${article.sourceUrl}-${article.fetchedAt}-${index}`} className="article-card">
-                    <h3>{article.title || ui.untitled}</h3>
-                    <p>
-                      <strong>DOI：</strong>
-                      {article.doi ?? ui.unknown}
-                    </p>
-                    <p>
-                      <strong>{ui.authors}</strong>
-                      {article.authors.length > 0 ? article.authors.join(', ') : ui.unknown}
-                    </p>
-                    <p>
-                      <strong>{ui.abstract}</strong>
-                      {article.abstractText ?? ui.unknown}
-                    </p>
-                    <p>
-                      <strong>{ui.publishedAt}</strong>
-                      {article.publishedAt ?? ui.unknown}
-                    </p>
-                    <p>
-                      <strong>{ui.source}</strong>
-                      {article.sourceUrl}
-                    </p>
-                    <p>
-                      <strong>{ui.fetchedAt}</strong>
-                      {formatTime(article.fetchedAt)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : hasData ? (
-              <div className="empty-state">{ui.emptyFiltered}</div>
-            ) : (
-              <div className="empty-state">{ui.emptyAll}</div>
-            )}
-          </section>
         </main>
       ) : (
         <main className="settings-page">
