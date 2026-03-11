@@ -1,12 +1,5 @@
 const en = {
   appName: 'Journal Reader',
-  menuTitle: 'Browser',
-  loadHistory: 'Load history',
-  loadHistoryBusy: 'Loading history',
-  clearHistory: 'Clear history',
-  exportFilteredJson: 'Export filtered JSON',
-  exportFilteredCsv: 'Export filtered CSV',
-  clearRightList: 'Clear right list',
   articleUrlPlaceholder: 'Article URL, e.g. https://example.com/paper',
   navigateWeb: 'Navigate',
   fetchCurrentBusy: 'Fetching...',
@@ -23,8 +16,6 @@ const en = {
   resetFilter: 'Reset filters',
   showing: 'Showing',
   total: 'Total',
-  settingsToolbarText:
-    'Configure a default download directory in Settings. It will be used for later PDF downloads after saving.',
   splitterAria: 'Adjust left and right pane width',
   resultPanelTitle: 'Right: fetched results / history',
   untitled: 'Untitled',

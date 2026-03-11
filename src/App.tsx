@@ -14,15 +14,12 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  Braces,
   Bug,
   Check,
   Download,
   Eraser,
   ExternalLink,
-  FileSpreadsheet,
   FolderOpen,
-  History,
   RefreshCcw,
   RotateCcw,
   ZoomIn,
@@ -85,24 +82,6 @@ function formatTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString();
-}
-
-function toCsvValue(value: string): string {
-  const escaped = value.replaceAll('"', '""');
-  return `"${escaped}"`;
-}
-
-function downloadFile(content: string, fileName: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
-  const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = objectUrl;
-  anchor.download = fileName;
-  anchor.style.display = 'none';
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
 }
 
 function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
@@ -349,7 +328,6 @@ export default function App() {
 
   const [isSingleLoading, setIsSingleLoading] = useState(false);
   const [isBatchLoading, setIsBatchLoading] = useState(false);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
 
@@ -963,74 +941,6 @@ export default function App() {
     }
   };
 
-  const handleLoadHistory = async () => {
-    if (!desktopRuntime) {
-      setStatus('浏览器 Web 模式暂不支持读取历史（需要桌面端本地存储）。请在桌面端运行。');
-      return;
-    }
-
-    setIsHistoryLoading(true);
-    setStatus(null);
-    setError(null);
-
-    try {
-      const history = await invokeDesktop<Article[]>('list_history', { limit: 1000 });
-      setArticles(history);
-      setStatus(`历史加载完成：${history.length} 条。`);
-    } catch (fetchError) {
-      const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      setError(`读取历史失败：${message}`);
-    } finally {
-      setIsHistoryLoading(false);
-    }
-  };
-
-  const handleClearHistory = async () => {
-    if (!desktopRuntime) {
-      setStatus('浏览器 Web 模式暂不支持清空历史（需要桌面端本地存储）。请在桌面端运行。');
-      return;
-    }
-
-    setStatus(null);
-    setError(null);
-
-    try {
-      await invokeDesktop('clear_history');
-      setArticles([]);
-      setStatus('历史记录已清空。');
-    } catch (fetchError) {
-      const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      setError(`清空历史失败：${message}`);
-    }
-  };
-
-  const handleExportJson = () => {
-    if (!hasVisibleData) return;
-    const content = JSON.stringify(filteredArticles, null, 2);
-    downloadFile(content, 'articles-filtered.json', 'application/json;charset=utf-8');
-  };
-
-  const handleExportCsv = () => {
-    if (!hasVisibleData) return;
-
-    const header = ['title', 'doi', 'authors', 'abstract', 'published_at', 'source_url', 'fetched_at'];
-    const rows = filteredArticles.map((article) => {
-      const authors = article.authors.join('; ');
-      return [
-        toCsvValue(article.title),
-        toCsvValue(article.doi ?? ''),
-        toCsvValue(authors),
-        toCsvValue(article.abstractText ?? ''),
-        toCsvValue(article.publishedAt ?? ''),
-        toCsvValue(article.sourceUrl),
-        toCsvValue(article.fetchedAt),
-      ].join(',');
-    });
-
-    const content = [header.join(','), ...rows].join('\n');
-    downloadFile(content, 'articles-filtered.csv', 'text/csv;charset=utf-8');
-  };
-
   const handleResetFilters = () => {
     setFilterKeyword('');
     setFilterJournal('');
@@ -1060,66 +970,10 @@ export default function App() {
         />
       ) : null}
 
-      <div className="app-shell">
-      <header className="toolbar">
-        <div className="menu-bar">
-          <span className="menu-title">{ui.menuTitle}</span>
-          {activePage === 'reader' ? (
-            <div className="menu-actions">
-              <button
-                className="icon-btn"
-                type="button"
-                onClick={handleLoadHistory}
-                disabled={isHistoryLoading || isSingleLoading || isBatchLoading}
-                title={isHistoryLoading ? ui.loadHistoryBusy : ui.loadHistory}
-                aria-label={isHistoryLoading ? ui.loadHistoryBusy : ui.loadHistory}
-              >
-                <History size={16} />
-              </button>
-              <button
-                className="icon-btn"
-                type="button"
-                onClick={handleClearHistory}
-                disabled={isSingleLoading || isBatchLoading}
-                title={ui.clearHistory}
-                aria-label={ui.clearHistory}
-              >
-                <Eraser size={16} />
-              </button>
-              <button
-                className="icon-btn"
-                type="button"
-                onClick={handleExportJson}
-                disabled={!hasVisibleData}
-                title={ui.exportFilteredJson}
-                aria-label={ui.exportFilteredJson}
-              >
-                <Braces size={16} />
-              </button>
-              <button
-                className="icon-btn"
-                type="button"
-                onClick={handleExportCsv}
-                disabled={!hasVisibleData}
-                title={ui.exportFilteredCsv}
-                aria-label={ui.exportFilteredCsv}
-              >
-                <FileSpreadsheet size={16} />
-              </button>
-              <button
-                className="icon-btn"
-                type="button"
-                onClick={() => setArticles([])}
-                disabled={!hasData}
-                title={ui.clearRightList}
-                aria-label={ui.clearRightList}
-              >
-                <Eraser size={16} />
-              </button>
-            </div>
-          ) : null}
-          {activePage === 'reader' ? (
-            <>
+      <div className={`app-shell ${activePage === 'settings' ? 'app-shell-settings' : ''}`.trim()}>
+        {activePage === 'reader' ? (
+          <header className="toolbar">
+            <div className="menu-bar">
               <div className="menu-fetch-strip">
                 <input
                   className="url-input menu-fetch-input"
@@ -1224,12 +1078,8 @@ export default function App() {
                   {isBatchLoading ? ui.fetchLatestBusy : ui.fetchLatest}
                 </button>
               </div>
-            </>
-          ) : null}
-        </div>
+            </div>
 
-        {activePage === 'reader' ? (
-          <>
             <div className="toolbar-row">
               <input
                 className="filter-input"
@@ -1259,14 +1109,8 @@ export default function App() {
                 {ui.showing} {filteredArticles.length} / {ui.total} {articles.length}
               </span>
             </div>
-          </>
-        ) : (
-          <div className="toolbar-row settings-toolbar-row">
-            <span className="settings-toolbar-text">{ui.settingsToolbarText}</span>
-          </div>
-        )}
-
-      </header>
+          </header>
+        ) : null}
 
       {activePage === 'reader' ? (
         <main ref={contentGridRef} className={`content-grid ${isResizing ? 'is-resizing' : ''}`} style={contentGridStyle}>
