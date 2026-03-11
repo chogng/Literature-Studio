@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X } from 'lucide-react';
+import { Button } from './Button';
 import './Toast.css';
 
 export type ToastType = 'info' | 'success' | 'error' | 'warning';
@@ -74,9 +75,15 @@ export const ToastContainer: React.FC = () => {
             <ToastIcon type={t.type || 'info'} />
           </div>
           <div className="toast-content">{t.message}</div>
-          <button className="toast-close" onClick={() => toast.dismiss(t.id)}>
+          <Button
+            className="toast-close"
+            variant="ghost"
+            size="sm"
+            onClick={() => toast.dismiss(t.id)}
+            aria-label="关闭"
+          >
             <X size={14} />
-          </button>
+          </Button>
         </div>
       ))}
     </div>

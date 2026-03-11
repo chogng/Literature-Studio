@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowRight, Copy, Download, Minus, PanelLeftClose, PanelLeftOpen, RefreshCcw, Settings, Square, X } from 'lucide-react';
+import { Button } from './components/Button';
 import './titlebar.css';
 
 export type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
@@ -55,65 +56,70 @@ export function Titlebar({
           <span className="titlebar-app-name">{appName}</span>
         </div>
         {onToggleSidebar && sidebarToggleLabel ? (
-          <button
+          <Button
             className="titlebar-btn titlebar-btn-sidebar"
-            type="button"
+            variant="ghost"
+            size="sm"
             onClick={onToggleSidebar}
             aria-label={sidebarToggleLabel}
             title={sidebarToggleLabel}
           >
             {isSidebarOpen ? <PanelLeftClose size={14} strokeWidth={1.5} /> : <PanelLeftOpen size={14} strokeWidth={1.5} />}
-          </button>
+          </Button>
         ) : null}
         {hasBrowserNav ? (
           <div className="titlebar-nav-group">
             {onNavigateBack ? (
-              <button
+              <Button
                 className="titlebar-btn titlebar-btn-nav"
-                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={onNavigateBack}
                 disabled={!browserUrl}
                 aria-label="后退"
                 title="后退"
               >
                 <ArrowLeft size={14} strokeWidth={1.5} />
-              </button>
+              </Button>
             ) : null}
             {onNavigateForward ? (
-              <button
+              <Button
                 className="titlebar-btn titlebar-btn-nav"
-                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={onNavigateForward}
                 disabled={!browserUrl}
                 aria-label="前进"
                 title="前进"
               >
                 <ArrowRight size={14} strokeWidth={1.5} />
-              </button>
+              </Button>
             ) : null}
             {onRefresh ? (
-              <button
+              <Button
                 className="titlebar-btn titlebar-btn-nav"
-                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={onRefresh}
                 disabled={!browserUrl}
                 aria-label="刷新"
                 title="刷新"
               >
                 <RefreshCcw size={14} strokeWidth={1.5} />
-              </button>
+              </Button>
             ) : null}
             {onDownloadPdf ? (
-              <button
+              <Button
                 className="titlebar-btn titlebar-btn-nav"
-                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={onDownloadPdf}
                 disabled={!browserUrl || !canDownload}
                 aria-label="下载 PDF"
                 title={canDownload ? '下载 PDF' : '仅桌面端可用'}
               >
                 <Download size={14} strokeWidth={1.5} />
-              </button>
+              </Button>
             ) : null}
           </div>
         ) : null}
@@ -121,43 +127,47 @@ export function Titlebar({
       </div>
       <div className="titlebar-controls" role="group" aria-label={labels.controlsAriaLabel}>
         {onToggleSettings && (
-          <button
+          <Button
             className="titlebar-btn titlebar-btn-settings"
-            type="button"
+            variant="ghost"
+            size="sm"
             onClick={onToggleSettings}
             aria-label={labels.settingsLabel}
             title={labels.settingsLabel}
           >
             <Settings size={14} strokeWidth={1.5} />
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           className="titlebar-btn titlebar-btn-window"
-          type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => onWindowControl('minimize')}
           aria-label={labels.minimizeLabel}
           title={labels.minimizeLabel}
         >
           <Minus size={14} strokeWidth={1.5} />
-        </button>
-        <button
+        </Button>
+        <Button
           className="titlebar-btn titlebar-btn-window"
-          type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => onWindowControl('toggle-maximize')}
           aria-label={isWindowMaximized ? labels.restoreLabel : labels.maximizeLabel}
           title={isWindowMaximized ? labels.restoreLabel : labels.maximizeLabel}
         >
           {isWindowMaximized ? <Copy size={12} strokeWidth={1.5} /> : <Square size={12} strokeWidth={1.5} />}
-        </button>
-        <button
+        </Button>
+        <Button
           className="titlebar-btn titlebar-btn-window titlebar-btn-close"
-          type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => onWindowControl('close')}
           aria-label={labels.closeLabel}
           title={labels.closeLabel}
         >
           <X size={14} strokeWidth={1.5} />
-        </button>
+        </Button>
       </div>
     </header>
   );
