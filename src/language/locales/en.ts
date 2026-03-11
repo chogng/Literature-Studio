@@ -3,7 +3,7 @@ const en = {
   articleUrlPlaceholder: 'Article URL, e.g. https://example.com/paper',
   navigateWeb: 'Navigate',
   fetchCurrentBusy: 'Fetching...',
-  fetchCurrent: 'Fetch current article',
+  fetchCurrent: 'fetch',
   homepageUrlPlaceholder: 'Journal homepage / latest article page URL',
   batchCount: 'Count',
   sameDomainOnly: 'Same domain only',

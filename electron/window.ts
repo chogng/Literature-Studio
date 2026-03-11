@@ -1,11 +1,15 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BrowserWindow } from 'electron';
+import { app, BrowserWindow } from 'electron';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
+
+function isDevMode() {
+  return !app.isPackaged || Boolean(process.env.ELECTRON_RENDERER_URL);
+}
 
 function publishWindowState(window: BrowserWindow) {
   if (window.isDestroyed()) return;
@@ -41,6 +45,7 @@ export function createMainWindow() {
   });
 
   const window = mainWindow;
+  const enableDevToolsShortcut = isDevMode();
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
@@ -52,6 +57,25 @@ export function createMainWindow() {
   window.on('closed', () => {
     mainWindow = null;
   });
+
+  if (enableDevToolsShortcut) {
+    window.webContents.on('before-input-event', (event, input) => {
+      const key = input.key.toLowerCase();
+      const isF12 = key === 'f12';
+      const isCtrlShiftI = input.control && input.shift && key === 'i';
+
+      if (!isF12 && !isCtrlShiftI) {
+        return;
+      }
+
+      event.preventDefault();
+      if (window.webContents.isDevToolsOpened()) {
+        window.webContents.closeDevTools();
+      } else {
+        window.webContents.openDevTools({ mode: 'detach' });
+      }
+    });
+  }
 
   if (typeof window.removeMenu === 'function') {
     window.removeMenu();
