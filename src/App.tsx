@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useMemo,
@@ -10,9 +10,7 @@ import { createPortal } from 'react-dom';
 import * as Checkbox from '@radix-ui/react-checkbox';
 import * as RadioGroup from '@radix-ui/react-radio-group';
 import * as Switch from '@radix-ui/react-switch';
-import * as Tabs from '@radix-ui/react-tabs';
 import {
-  AppWindow,
   ArrowLeft,
   ArrowRight,
   BookOpen,
@@ -27,7 +25,6 @@ import {
   History,
   RefreshCcw,
   RotateCcw,
-  Settings,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -53,9 +50,11 @@ type AppSettingsPayload = {
 };
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
+type Locale = 'zh' | 'en';
 
 const defaultArticleUrl = '';
 const defaultHomepageUrl = 'https://arxiv.org/list/cs/new';
+const localeStorageKey = 'journal-reader-locale';
 const minPanePercent = 20;
 const maxPanePercent = 80;
 const minPreviewZoom = 0.7;
@@ -315,8 +314,19 @@ function tryGetHost(input: string): string {
   }
 }
 
+function detectInitialLocale(): Locale {
+  if (typeof window === 'undefined') return 'zh';
+  const stored = window.localStorage.getItem(localeStorageKey);
+  if (stored === 'zh' || stored === 'en') return stored;
+
+  const browserLanguage = window.navigator.language.toLowerCase();
+  if (browserLanguage.startsWith('zh')) return 'zh';
+  return 'en';
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState<'reader' | 'settings'>('reader');
+  const [locale, setLocale] = useState<Locale>(() => detectInitialLocale());
   const [webUrl, setWebUrl] = useState(defaultArticleUrl);
   const [browserUrl, setBrowserUrl] = useState(normalizeUrl(defaultArticleUrl));
   const [homepageUrl, setHomepageUrl] = useState(defaultHomepageUrl);
@@ -378,6 +388,67 @@ export default function App() {
           : `${leftPanePercent}%`,
       }) as CSSProperties,
     [contentGridWidth, leftPanePercent],
+  );
+  const isZh = locale === 'zh';
+  const ui = useMemo(
+    () => ({
+      appName: isZh ? 'Journal Reader' : 'Journal Reader',
+      menuTitle: isZh ? '浏览器' : 'Browser',
+      loadHistory: isZh ? '加载历史' : 'Load history',
+      loadHistoryBusy: isZh ? '加载历史中' : 'Loading history',
+      clearHistory: isZh ? '清空历史' : 'Clear history',
+      exportFilteredJson: isZh ? '导出筛选 JSON' : 'Export filtered JSON',
+      exportFilteredCsv: isZh ? '导出筛选 CSV' : 'Export filtered CSV',
+      clearRightList: isZh ? '清空右侧列表' : 'Clear right list',
+      articleUrlPlaceholder: isZh ? '文章链接，例如 https://example.com/paper' : 'Article URL, e.g. https://example.com/paper',
+      navigateWeb: isZh ? '网页跳转' : 'Navigate',
+      fetchCurrentBusy: isZh ? '抓取中...' : 'Fetching...',
+      fetchCurrent: isZh ? '抓取当前文章' : 'Fetch current article',
+      homepageUrlPlaceholder: isZh ? '期刊首页 / 最新文章页链接' : 'Journal homepage / latest article page URL',
+      batchCount: isZh ? '数量' : 'Count',
+      sameDomainOnly: isZh ? '仅同域' : 'Same domain only',
+      startDate: isZh ? '开始日期' : 'Start date',
+      endDate: isZh ? '结束日期' : 'End date',
+      fetchLatestBusy: isZh ? '批量抓取中...' : 'Batch fetching...',
+      fetchLatest: isZh ? '抓取首页最新' : 'Fetch latest from homepage',
+      keywordFilterPlaceholder: isZh ? '关键词过滤（标题/DOI/作者/摘要）' : 'Keyword filter (title/DOI/authors/abstract)',
+      journalFilterPlaceholder: isZh ? '期刊/来源过滤（URL片段）' : 'Journal/source filter (URL fragment)',
+      resetFilter: isZh ? '重置过滤' : 'Reset filters',
+      showing: isZh ? '显示' : 'Showing',
+      total: isZh ? '总计' : 'Total',
+      settingsToolbarText: isZh
+        ? '在设置页配置默认下载目录，保存后将自动用于后续 PDF 下载。'
+        : 'Configure a default download directory in Settings. It will be used for later PDF downloads after saving.',
+      splitterAria: isZh ? '调整左右视图宽度' : 'Adjust left and right pane width',
+      resultPanelTitle: isZh ? '右侧：抓取结果 / 历史记录' : 'Right: fetched results / history',
+      untitled: isZh ? '无标题' : 'Untitled',
+      unknown: isZh ? '未识别' : 'Unknown',
+      authors: isZh ? '作者：' : 'Authors:',
+      abstract: isZh ? '摘要：' : 'Abstract:',
+      publishedAt: isZh ? '发布日期：' : 'Published:',
+      source: isZh ? '来源：' : 'Source:',
+      fetchedAt: isZh ? '抓取时间：' : 'Fetched at:',
+      emptyFiltered: isZh ? '已有数据，但当前过滤条件没有匹配结果。' : 'Data exists, but no results match current filters.',
+      emptyAll: isZh ? '暂无数据。可先单篇抓取，或点击“抓取首页最新 / 加载历史”。' : 'No data yet. Fetch one article first, or click "Fetch latest from homepage / Load history".',
+      settingsTitle: isZh ? '设置' : 'Settings',
+      settingsLoading: isZh ? '设置加载中...' : 'Loading settings...',
+      defaultPdfDir: isZh ? '默认 PDF 下载目录' : 'Default PDF download directory',
+      downloadDirPlaceholder: isZh ? '留空则使用系统 Downloads 目录' : 'Leave empty to use the system Downloads folder',
+      chooseDirectory: isZh ? '选择目录' : 'Choose directory',
+      resetDefault: isZh ? '恢复默认' : 'Reset',
+      saving: isZh ? '保存中...' : 'Saving...',
+      saveSettings: isZh ? '保存设置' : 'Save settings',
+      settingsHintPath: isZh ? '建议填写绝对路径；也支持 `~` 开头路径。' : 'Use an absolute path. `~` paths are also supported.',
+      currentDir: isZh ? '当前生效目录：' : 'Current active directory:',
+      systemDownloads: isZh ? '系统 Downloads 目录' : 'System Downloads folder',
+      statusError: isZh ? '错误' : 'Error',
+      statusInfo: isZh ? '状态' : 'Status',
+      statusHint: isZh ? '提示' : 'Hint',
+      statusReady: isZh ? '就绪' : 'Ready',
+      previewModeDesktop: isZh ? 'Electron 嵌入 iframe' : 'Electron embedded iframe',
+      previewModeWeb: isZh ? '浏览器 iframe' : 'Browser iframe',
+    }),
+    [isZh],
   );
 
   const filteredArticles = useMemo(() => {
@@ -445,16 +516,16 @@ export default function App() {
 
   const statusBarState = useMemo(() => {
     if (error) {
-      return { label: '错误', message: error, className: 'status-bar is-error' };
+      return { label: ui.statusError, message: error, className: 'status-bar is-error' };
     }
     if (status) {
-      return { label: '状态', message: status, className: 'status-bar' };
+      return { label: ui.statusInfo, message: status, className: 'status-bar' };
     }
     if (previewNoiseHint) {
-      return { label: '提示', message: previewNoiseHint, className: 'status-bar is-warning' };
+      return { label: ui.statusHint, message: previewNoiseHint, className: 'status-bar is-warning' };
     }
-    return { label: '状态', message: '就绪', className: 'status-bar' };
-  }, [error, previewNoiseHint, status]);
+    return { label: ui.statusInfo, message: ui.statusReady, className: 'status-bar' };
+  }, [error, previewNoiseHint, status, ui]);
   const hasWebPreviewContent = useMemo(() => {
     if (webPreviewSource === 'url') {
       return Boolean(browserUrl);
@@ -548,6 +619,12 @@ export default function App() {
       unsubscribe();
     };
   }, [electronRuntime]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(localeStorageKey, locale);
+    document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+  }, [locale]);
 
   useEffect(() => {
     if (activePage !== 'reader') return;
@@ -1024,24 +1101,7 @@ export default function App() {
     setFilterJournal('');
   };
 
-  const handleOpenDevtools = async (target: 'app' | 'preview') => {
-    if (!desktopRuntime) {
-      setStatus('浏览器 Web 模式请直接使用浏览器开发者工具（F12 / ⌥⌘I）。');
-      return;
-    }
-
-    setStatus(null);
-    setError(null);
-
-    try {
-      await invokeDesktop('open_devtools', { target });
-      setStatus(target === 'app' ? '已打开本程序开发者工具。' : '已打开网页预览开发者工具。');
-    } catch (openError) {
-      setError(`打开开发者工具失败：${errorMessage(openError)}`);
-    }
-  };
-
-  const previewModeLabel = electronRuntime ? 'Electron 嵌入 iframe' : '浏览器 iframe';
+  const previewModeLabel = electronRuntime ? ui.previewModeDesktop : ui.previewModeWeb;
   const handleWindowControl = (action: TitlebarAction) => {
     window.electronAPI?.windowControls?.perform(action);
   };
@@ -1049,29 +1109,20 @@ export default function App() {
   return (
     <div className="app-window">
       {electronRuntime ? (
-        <Titlebar isWindowMaximized={isWindowMaximized} onWindowControl={handleWindowControl} />
+        <Titlebar
+          appName={ui.appName}
+          locale={locale}
+          isWindowMaximized={isWindowMaximized}
+          onWindowControl={handleWindowControl}
+          onToggleLocale={() => setLocale((prev) => (prev === 'zh' ? 'en' : 'zh'))}
+          onToggleSettings={() => setActivePage((prev) => (prev === 'settings' ? 'reader' : 'settings'))}
+        />
       ) : null}
 
       <div className="app-shell">
       <header className="toolbar">
         <div className="menu-bar">
-          <span className="menu-title">浏览器</span>
-          <Tabs.Root
-            className="menu-tabs-root"
-            value={activePage}
-            onValueChange={(value: string) => setActivePage(value === 'settings' ? 'settings' : 'reader')}
-          >
-            <Tabs.List className="menu-tabs" aria-label="页面切换">
-              <Tabs.Trigger className="menu-tab-btn" value="reader">
-                <BookOpen size={15} />
-                阅读
-              </Tabs.Trigger>
-              <Tabs.Trigger className="menu-tab-btn" value="settings">
-                <Settings size={15} />
-                设置
-              </Tabs.Trigger>
-            </Tabs.List>
-          </Tabs.Root>
+          <span className="menu-title">{ui.menuTitle}</span>
           {activePage === 'reader' ? (
             <div className="menu-actions">
               <button
@@ -1079,8 +1130,8 @@ export default function App() {
                 type="button"
                 onClick={handleLoadHistory}
                 disabled={isHistoryLoading || isSingleLoading || isBatchLoading}
-                title={isHistoryLoading ? '加载历史中' : '加载历史'}
-                aria-label={isHistoryLoading ? '加载历史中' : '加载历史'}
+                title={isHistoryLoading ? ui.loadHistoryBusy : ui.loadHistory}
+                aria-label={isHistoryLoading ? ui.loadHistoryBusy : ui.loadHistory}
               >
                 <History size={16} />
               </button>
@@ -1089,8 +1140,8 @@ export default function App() {
                 type="button"
                 onClick={handleClearHistory}
                 disabled={isSingleLoading || isBatchLoading}
-                title="清空历史"
-                aria-label="清空历史"
+                title={ui.clearHistory}
+                aria-label={ui.clearHistory}
               >
                 <Eraser size={16} />
               </button>
@@ -1099,8 +1150,8 @@ export default function App() {
                 type="button"
                 onClick={handleExportJson}
                 disabled={!hasVisibleData}
-                title="导出筛选 JSON"
-                aria-label="导出筛选 JSON"
+                title={ui.exportFilteredJson}
+                aria-label={ui.exportFilteredJson}
               >
                 <Braces size={16} />
               </button>
@@ -1109,8 +1160,8 @@ export default function App() {
                 type="button"
                 onClick={handleExportCsv}
                 disabled={!hasVisibleData}
-                title="导出筛选 CSV"
-                aria-label="导出筛选 CSV"
+                title={ui.exportFilteredCsv}
+                aria-label={ui.exportFilteredCsv}
               >
                 <FileSpreadsheet size={16} />
               </button>
@@ -1119,31 +1170,13 @@ export default function App() {
                 type="button"
                 onClick={() => setArticles([])}
                 disabled={!hasData}
-                title="清空右侧列表"
-                aria-label="清空右侧列表"
+                title={ui.clearRightList}
+                aria-label={ui.clearRightList}
               >
                 <Eraser size={16} />
               </button>
             </div>
           ) : null}
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={() => void handleOpenDevtools('app')}
-            title="应用 DevTools"
-            aria-label="应用 DevTools"
-          >
-            <AppWindow size={16} />
-          </button>
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={() => void handleOpenDevtools('preview')}
-            title="预览 DevTools"
-            aria-label="预览 DevTools"
-          >
-            <Bug size={16} />
-          </button>
           {activePage === 'reader' ? (
             <>
               <div className="menu-fetch-strip">
@@ -1158,15 +1191,15 @@ export default function App() {
                       handleNavigateWeb();
                     }
                   }}
-                  placeholder="文章链接，例如 https://example.com/paper"
+                  placeholder={ui.articleUrlPlaceholder}
                 />
                 <button
                   className="icon-btn"
                   type="button"
                   onClick={handleNavigateWeb}
                   disabled={isSingleLoading || isBatchLoading}
-                  title="网页跳转"
-                  aria-label="网页跳转"
+                  title={ui.navigateWeb}
+                  aria-label={ui.navigateWeb}
                 >
                   <ArrowRight size={16} />
                 </button>
@@ -1176,7 +1209,7 @@ export default function App() {
                   onClick={handleFetchSingle}
                   disabled={isSingleLoading || isBatchLoading}
                 >
-                  {isSingleLoading ? '抓取中...' : '抓取当前文章'}
+                  {isSingleLoading ? ui.fetchCurrentBusy : ui.fetchCurrent}
                 </button>
               </div>
 
@@ -1186,10 +1219,10 @@ export default function App() {
                   type="text"
                   value={homepageUrl}
                   onChange={(event) => setHomepageUrl(event.target.value)}
-                  placeholder="期刊首页 / 最新文章页链接"
+                  placeholder={ui.homepageUrlPlaceholder}
                 />
                 <label className="inline-field" htmlFor="batch-limit">
-                  数量
+                  {ui.batchCount}
                   <input
                     id="batch-limit"
                     className="number-input"
@@ -1220,10 +1253,10 @@ export default function App() {
                       <Check size={12} />
                     </Checkbox.Indicator>
                   </Checkbox.Root>
-                  仅同域
+                  {ui.sameDomainOnly}
                 </label>
                 <label className="inline-field" htmlFor="batch-start-date">
-                  开始日期
+                  {ui.startDate}
                   <input
                     id="batch-start-date"
                     className="date-input"
@@ -1233,7 +1266,7 @@ export default function App() {
                   />
                 </label>
                 <label className="inline-field" htmlFor="batch-end-date">
-                  结束日期
+                  {ui.endDate}
                   <input
                     id="batch-end-date"
                     className="date-input"
@@ -1247,7 +1280,7 @@ export default function App() {
                   onClick={handleFetchLatestBatch}
                   disabled={isSingleLoading || isBatchLoading}
                 >
-                  {isBatchLoading ? '批量抓取中...' : '抓取首页最新'}
+                  {isBatchLoading ? ui.fetchLatestBusy : ui.fetchLatest}
                 </button>
               </div>
             </>
@@ -1262,33 +1295,33 @@ export default function App() {
                 type="text"
                 value={filterKeyword}
                 onChange={(event) => setFilterKeyword(event.target.value)}
-                placeholder="关键词过滤（标题/DOI/作者/摘要）"
+                placeholder={ui.keywordFilterPlaceholder}
               />
               <input
                 className="filter-input"
                 type="text"
                 value={filterJournal}
                 onChange={(event) => setFilterJournal(event.target.value)}
-                placeholder="期刊/来源过滤（URL片段）"
+                placeholder={ui.journalFilterPlaceholder}
               />
               <button
                 className="icon-btn"
                 type="button"
                 onClick={handleResetFilters}
                 disabled={!filterKeyword && !filterJournal}
-                title="重置过滤"
-                aria-label="重置过滤"
+                title={ui.resetFilter}
+                aria-label={ui.resetFilter}
               >
                 <RotateCcw size={16} />
               </button>
               <span className="count">
-                显示 {filteredArticles.length} / 总计 {articles.length}
+                {ui.showing} {filteredArticles.length} / {ui.total} {articles.length}
               </span>
             </div>
           </>
         ) : (
           <div className="toolbar-row settings-toolbar-row">
-            <span className="settings-toolbar-text">在设置页配置默认下载目录，保存后将自动用于后续 PDF 下载。</span>
+            <span className="settings-toolbar-text">{ui.settingsToolbarText}</span>
           </div>
         )}
 
@@ -1650,7 +1683,7 @@ export default function App() {
             className="splitter"
             role="separator"
             tabIndex={0}
-            aria-label="调整左右视图宽度"
+            aria-label={ui.splitterAria}
             aria-orientation="vertical"
             aria-valuemin={minPanePercent}
             aria-valuemax={maxPanePercent}
@@ -1660,70 +1693,70 @@ export default function App() {
           />
 
           <section className="panel result-panel">
-            <div className="panel-title">右侧：抓取结果 / 历史记录</div>
+            <div className="panel-title">{ui.resultPanelTitle}</div>
             {hasVisibleData ? (
               <ul className="article-list">
                 {filteredArticles.map((article, index) => (
                   <li key={`${article.sourceUrl}-${article.fetchedAt}-${index}`} className="article-card">
-                    <h3>{article.title || '无标题'}</h3>
+                    <h3>{article.title || ui.untitled}</h3>
                     <p>
                       <strong>DOI：</strong>
-                      {article.doi ?? '未识别'}
+                      {article.doi ?? ui.unknown}
                     </p>
                     <p>
-                      <strong>作者：</strong>
-                      {article.authors.length > 0 ? article.authors.join(', ') : '未识别'}
+                      <strong>{ui.authors}</strong>
+                      {article.authors.length > 0 ? article.authors.join(', ') : ui.unknown}
                     </p>
                     <p>
-                      <strong>摘要：</strong>
-                      {article.abstractText ?? '未识别'}
+                      <strong>{ui.abstract}</strong>
+                      {article.abstractText ?? ui.unknown}
                     </p>
                     <p>
-                      <strong>发布日期：</strong>
-                      {article.publishedAt ?? '未识别'}
+                      <strong>{ui.publishedAt}</strong>
+                      {article.publishedAt ?? ui.unknown}
                     </p>
                     <p>
-                      <strong>来源：</strong>
+                      <strong>{ui.source}</strong>
                       {article.sourceUrl}
                     </p>
                     <p>
-                      <strong>抓取时间：</strong>
+                      <strong>{ui.fetchedAt}</strong>
                       {formatTime(article.fetchedAt)}
                     </p>
                   </li>
                 ))}
               </ul>
             ) : hasData ? (
-              <div className="empty-state">已有数据，但当前过滤条件没有匹配结果。</div>
+              <div className="empty-state">{ui.emptyFiltered}</div>
             ) : (
-              <div className="empty-state">暂无数据。可先单篇抓取，或点击“抓取首页最新 / 加载历史”。</div>
+              <div className="empty-state">{ui.emptyAll}</div>
             )}
           </section>
         </main>
       ) : (
         <main className="settings-page">
           <section className="panel settings-card">
-            <div className="panel-title">设置</div>
+            <div className="panel-title">{ui.settingsTitle}</div>
             <div className="settings-content">
-              {isSettingsLoading ? <p className="settings-hint">设置加载中...</p> : null}
+              {isSettingsLoading ? <p className="settings-hint">{ui.settingsLoading}</p> : null}
 
               <label className="settings-field">
-                默认 PDF 下载目录
+                {ui.defaultPdfDir}
                 <div className="settings-input-row">
                   <input
                     className="settings-input"
                     type="text"
                     value={pdfDownloadDir}
                     onChange={(event) => setPdfDownloadDir(event.target.value)}
-                    placeholder="留空则使用系统 Downloads 目录"
+                    placeholder={ui.downloadDirPlaceholder}
                   />
                   <button
                     className="icon-btn"
                     type="button"
                     onClick={() => void handleChoosePdfDownloadDir()}
                     disabled={!desktopRuntime || isSettingsSaving}
-                    title="选择目录"
-                    aria-label="选择目录"
+                    title={ui.chooseDirectory}
+                    aria-label={ui.chooseDirectory}
                   >
                     <FolderOpen size={16} />
                   </button>
@@ -1736,7 +1769,7 @@ export default function App() {
                   onClick={handleResetDownloadDir}
                   disabled={!pdfDownloadDir.trim() || isSettingsSaving}
                 >
-                  恢复默认
+                  {ui.resetDefault}
                 </button>
                 <button
                   className="primary-btn"
@@ -1744,13 +1777,13 @@ export default function App() {
                   onClick={() => void handleSaveSettings()}
                   disabled={isSettingsLoading || isSettingsSaving}
                 >
-                  {isSettingsSaving ? '保存中...' : '保存设置'}
+                  {isSettingsSaving ? ui.saving : ui.saveSettings}
                 </button>
               </div>
 
-              <p className="settings-hint">建议填写绝对路径；也支持 `~` 开头路径。</p>
+              <p className="settings-hint">{ui.settingsHintPath}</p>
               <p className="settings-hint">
-                当前生效目录：{pdfDownloadDir.trim() ? pdfDownloadDir.trim() : '系统 Downloads 目录'}
+                {ui.currentDir}{pdfDownloadDir.trim() ? pdfDownloadDir.trim() : ui.systemDownloads}
               </p>
             </div>
           </section>
