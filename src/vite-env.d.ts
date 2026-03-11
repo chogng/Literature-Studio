@@ -28,8 +28,6 @@ type AppCommandPayloadMap = {
     startDate?: string | null;
     endDate?: string | null;
   };
-  list_history: { limit?: number | string };
-  clear_history: undefined;
   load_settings: undefined;
   save_settings: { settings?: Partial<DesktopAppSettings> };
   pick_download_directory: undefined;
@@ -42,8 +40,6 @@ type AppCommandPayloadMap = {
 type AppCommandResultMap = {
   fetch_article: DesktopArticle;
   fetch_latest_articles: DesktopArticle[];
-  list_history: DesktopArticle[];
-  clear_history: null;
   load_settings: DesktopAppSettings;
   save_settings: DesktopAppSettings;
   pick_download_directory: string | null;

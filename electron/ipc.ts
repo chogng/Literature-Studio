@@ -6,7 +6,6 @@ import type {
   AppCommandResultMap,
   FetchArticlePayload,
   FetchLatestArticlesPayload,
-  ListHistoryPayload,
   PreviewDownloadPdfPayload,
   SaveSettingsPayload,
   StorageService,
@@ -42,10 +41,6 @@ async function invokeCommand<TCommand extends AppCommand>(
       return fetchArticle((payload as FetchArticlePayload)?.url, storage) as Promise<AppCommandResultMap[TCommand]>;
     case 'fetch_latest_articles':
       return fetchLatestArticles(payload as FetchLatestArticlesPayload, storage) as Promise<AppCommandResultMap[TCommand]>;
-    case 'list_history':
-      return storage.listHistory(Number((payload as ListHistoryPayload)?.limit)) as Promise<AppCommandResultMap[TCommand]>;
-    case 'clear_history':
-      return storage.clearHistory() as Promise<AppCommandResultMap[TCommand]>;
     case 'load_settings':
       return storage.loadSettings() as Promise<AppCommandResultMap[TCommand]>;
     case 'save_settings':

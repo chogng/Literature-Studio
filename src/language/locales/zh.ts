@@ -26,7 +26,7 @@ const zh = {
   source: '来源：',
   fetchedAt: '抓取时间：',
   emptyFiltered: '已有数据，但当前过滤条件没有匹配结果。',
-  emptyAll: '暂无数据。可先单篇抓取，或点击“抓取首页最新 / 加载历史”。',
+  emptyAll: '暂无数据。可先单篇抓取，或点击“抓取首页最新”。',
   settingsTitle: '设置',
   settingsLoading: '设置加载中...',
   defaultPdfDir: '默认 PDF 下载目录',

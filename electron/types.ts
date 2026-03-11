@@ -45,10 +45,6 @@ export interface FetchArticlePayload {
   url?: string;
 }
 
-export interface ListHistoryPayload {
-  limit?: number | string;
-}
-
 export interface SaveSettingsPayload {
   settings?: Partial<AppSettings>;
 }
@@ -61,8 +57,6 @@ export interface PdfDownloadResult {
 export interface AppCommandPayloadMap {
   fetch_article: FetchArticlePayload;
   fetch_latest_articles: FetchLatestArticlesPayload;
-  list_history: ListHistoryPayload;
-  clear_history: undefined;
   load_settings: undefined;
   save_settings: SaveSettingsPayload;
   pick_download_directory: undefined;
@@ -72,8 +66,6 @@ export interface AppCommandPayloadMap {
 export interface AppCommandResultMap {
   fetch_article: Article;
   fetch_latest_articles: Article[];
-  list_history: Article[];
-  clear_history: null;
   load_settings: AppSettings;
   save_settings: AppSettings;
   pick_download_directory: string | null;
@@ -83,8 +75,6 @@ export interface AppCommandResultMap {
 export type AppCommand = keyof AppCommandPayloadMap;
 
 export interface StorageService {
-  listHistory(limit?: number): Promise<Article[]>;
-  clearHistory(): Promise<null>;
   saveFetchedArticles(items: Article[]): Promise<void>;
   loadSettings(): Promise<AppSettings>;
   saveSettings(settings?: Partial<AppSettings>): Promise<AppSettings>;

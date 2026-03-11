@@ -26,7 +26,7 @@ const en = {
   source: 'Source:',
   fetchedAt: 'Fetched at:',
   emptyFiltered: 'Data exists, but no results match current filters.',
-  emptyAll: 'No data yet. Fetch one article first, or click "Fetch latest from homepage / Load history".',
+  emptyAll: 'No data yet. Fetch one article first, or click "Fetch latest from homepage".',
   settingsTitle: 'Settings',
   settingsLoading: 'Loading settings...',
   defaultPdfDir: 'Default PDF download directory',

@@ -41,17 +41,6 @@ export function createStorageService(paths: StoragePaths): StorageService {
   }
 
   return {
-    async listHistory(limit = 1000) {
-      const safeLimit = Math.min(1000, Math.max(1, Number.parseInt(String(limit), 10) || 1000));
-      const items = await readHistory();
-      return items.slice(0, safeLimit);
-    },
-
-    async clearHistory() {
-      await writeHistory([]);
-      return null;
-    },
-
     async saveFetchedArticles(items: Article[]) {
       const previous = await readHistory();
       const next = [...items, ...previous];
