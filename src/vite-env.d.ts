@@ -17,6 +17,9 @@ type DesktopPdfDownloadResult = {
 
 type DesktopAppSettings = {
   defaultDownloadDir: string | null;
+  defaultHomepageUrl: string;
+  defaultBatchLimit: number;
+  defaultSameDomainOnly: boolean;
 };
 
 type AppCommandPayloadMap = {

@@ -9,6 +9,10 @@ interface StoragePaths {
   settingsFile: string;
 }
 
+const defaultHomepageUrl = 'https://arxiv.org/list/cs/new';
+const defaultBatchLimit = 5;
+const defaultSameDomainOnly = true;
+
 async function readJson<T>(filePath: string, fallbackValue: T) {
   try {
     const raw = await fs.readFile(filePath, 'utf8');
@@ -24,9 +28,22 @@ async function writeJson(filePath: string, value: unknown) {
 }
 
 function normalizeSettings(payload: Partial<AppSettings> = {}): AppSettings {
-  const value = typeof payload.defaultDownloadDir === 'string' ? cleanText(payload.defaultDownloadDir) : '';
+  const downloadDir = typeof payload.defaultDownloadDir === 'string' ? cleanText(payload.defaultDownloadDir) : '';
+  const homepageValue =
+    typeof payload.defaultHomepageUrl === 'string' ? cleanText(payload.defaultHomepageUrl) : '';
+  const parsedLimit = Number.parseInt(String(payload.defaultBatchLimit), 10);
+  const normalizedLimit = Number.isNaN(parsedLimit)
+    ? defaultBatchLimit
+    : Math.min(20, Math.max(1, parsedLimit));
+
   return {
-    defaultDownloadDir: value || null,
+    defaultDownloadDir: downloadDir || null,
+    defaultHomepageUrl: homepageValue || defaultHomepageUrl,
+    defaultBatchLimit: normalizedLimit,
+    defaultSameDomainOnly:
+      typeof payload.defaultSameDomainOnly === 'boolean'
+        ? payload.defaultSameDomainOnly
+        : defaultSameDomainOnly,
   };
 }
 
@@ -38,6 +55,11 @@ export function createStorageService(paths: StoragePaths): StorageService {
 
   async function writeHistory(items: Article[]) {
     await writeJson(paths.historyFile, items);
+  }
+
+  async function readSettings() {
+    const payload = await readJson<Partial<AppSettings>>(paths.settingsFile, {});
+    return normalizeSettings(payload);
   }
 
   return {
@@ -58,12 +80,12 @@ export function createStorageService(paths: StoragePaths): StorageService {
     },
 
     async loadSettings() {
-      const payload = await readJson<Partial<AppSettings>>(paths.settingsFile, { defaultDownloadDir: null });
-      return normalizeSettings(payload);
+      return readSettings();
     },
 
     async saveSettings(settings = {}) {
-      const saved = normalizeSettings(settings);
+      const current = await readSettings();
+      const saved = normalizeSettings({ ...current, ...settings });
       await writeJson(paths.settingsFile, saved);
       return saved;
     },

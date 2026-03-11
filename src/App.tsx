@@ -46,12 +46,23 @@ type PdfDownloadResult = {
 
 type AppSettingsPayload = {
   defaultDownloadDir: string | null;
+  defaultHomepageUrl: string;
+  defaultBatchLimit: number;
+  defaultSameDomainOnly: boolean;
 };
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
 const defaultHomepageUrl = 'https://arxiv.org/list/cs/new';
+const defaultBatchLimit = 5;
+const defaultSameDomainOnly = true;
+
+function normalizeBatchLimit(input: unknown, fallback: number = defaultBatchLimit): number {
+  const parsed = Number.parseInt(String(input), 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.min(20, Math.max(1, parsed));
+}
 
 
 function normalizeUrl(input: string): string {
@@ -94,8 +105,8 @@ export default function App() {
   const [webUrl, setWebUrl] = useState(defaultArticleUrl);
   const [browserUrl, setBrowserUrl] = useState(normalizeUrl(defaultArticleUrl));
   const [homepageUrl, setHomepageUrl] = useState(defaultHomepageUrl);
-  const [batchLimit, setBatchLimit] = useState(5);
-  const [sameDomainOnly, setSameDomainOnly] = useState(true);
+  const [batchLimit, setBatchLimit] = useState(defaultBatchLimit);
+  const [sameDomainOnly, setSameDomainOnly] = useState(defaultSameDomainOnly);
   const [batchStartDate, setBatchStartDate] = useState('');
   const [batchEndDate, setBatchEndDate] = useState('');
   const [filterKeyword, setFilterKeyword] = useState('');
@@ -198,20 +209,34 @@ export default function App() {
       setIsSettingsLoading(true);
 
       try {
+        const applyLoadedSettings = (loaded: Partial<AppSettingsPayload>) => {
+          const configuredHomepage =
+            typeof loaded.defaultHomepageUrl === 'string' ? loaded.defaultHomepageUrl.trim() : '';
+
+          setPdfDownloadDir(typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '');
+          setHomepageUrl(configuredHomepage || defaultHomepageUrl);
+          setBatchLimit(normalizeBatchLimit(loaded.defaultBatchLimit, defaultBatchLimit));
+          setSameDomainOnly(
+            typeof loaded.defaultSameDomainOnly === 'boolean'
+              ? loaded.defaultSameDomainOnly
+              : defaultSameDomainOnly,
+          );
+        };
+
         if (desktopRuntime) {
           const loaded = await invokeDesktop<AppSettingsPayload>('load_settings');
-          setPdfDownloadDir(loaded.defaultDownloadDir ?? '');
+          applyLoadedSettings(loaded);
           return;
         }
 
         const raw = window.localStorage.getItem('journal-reader-settings');
         if (!raw) {
-          setPdfDownloadDir('');
+          applyLoadedSettings({});
           return;
         }
 
         const parsed = JSON.parse(raw) as Partial<AppSettingsPayload>;
-        setPdfDownloadDir(typeof parsed.defaultDownloadDir === 'string' ? parsed.defaultDownloadDir : '');
+        applyLoadedSettings(parsed);
       } catch (loadError) {
         toast.error(formatLocalized(ui.toastLoadSettingsFailed, { error: errorMessage(loadError) }));
       } finally {
@@ -261,17 +286,28 @@ export default function App() {
     setIsSettingsSaving(true);
 
     const nextDir = pdfDownloadDir.trim();
+    const nextHomepage = homepageUrl.trim() || defaultHomepageUrl;
+    const nextBatchLimit = normalizeBatchLimit(batchLimit, defaultBatchLimit);
     const payload: AppSettingsPayload = {
       defaultDownloadDir: nextDir || null,
+      defaultHomepageUrl: nextHomepage,
+      defaultBatchLimit: nextBatchLimit,
+      defaultSameDomainOnly: sameDomainOnly,
     };
 
     try {
       if (desktopRuntime) {
         const saved = await invokeDesktop<AppSettingsPayload>('save_settings', { settings: payload });
         setPdfDownloadDir(saved.defaultDownloadDir ?? '');
+        setHomepageUrl(saved.defaultHomepageUrl);
+        setBatchLimit(normalizeBatchLimit(saved.defaultBatchLimit, defaultBatchLimit));
+        setSameDomainOnly(saved.defaultSameDomainOnly);
       } else {
         window.localStorage.setItem('journal-reader-settings', JSON.stringify(payload));
         setPdfDownloadDir(nextDir);
+        setHomepageUrl(nextHomepage);
+        setBatchLimit(nextBatchLimit);
+        setSameDomainOnly(sameDomainOnly);
       }
 
       toast.success(
@@ -444,47 +480,10 @@ export default function App() {
             <div className="menu-bar">
 
               <div className="menu-fetch-strip">
-                <input
-                  className="url-input menu-fetch-input"
-                  type="text"
-                  value={homepageUrl}
-                  onChange={(event) => setHomepageUrl(event.target.value)}
-                  placeholder={ui.homepageUrlPlaceholder}
-                />
-                <label className="inline-field" htmlFor="batch-limit">
-                  {ui.batchCount}
-                  <input
-                    id="batch-limit"
-                    className="number-input"
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={batchLimit}
-                    onChange={(event) => {
-                      const parsed = Number.parseInt(event.target.value, 10);
-                      if (Number.isNaN(parsed)) {
-                        setBatchLimit(1);
-                        return;
-                      }
-                      setBatchLimit(Math.min(20, Math.max(1, parsed)));
-                    }}
-                  />
-                </label>
-                <label className="inline-field checkbox-field" htmlFor="same-domain-only">
-                  <Checkbox.Root
-                    id="same-domain-only"
-                    className="radix-checkbox"
-                    checked={sameDomainOnly}
-                    onCheckedChange={(checked: boolean | 'indeterminate') =>
-                      setSameDomainOnly(checked === true)
-                    }
-                  >
-                    <Checkbox.Indicator className="radix-checkbox-indicator">
-                      <Check size={12} />
-                    </Checkbox.Indicator>
-                  </Checkbox.Root>
-                  {ui.sameDomainOnly}
-                </label>
+                <span className="menu-fetch-config">
+                  {homepageUrl} · {ui.batchCount} {batchLimit} ·{' '}
+                  {sameDomainOnly ? ui.sameDomainOnly : ui.crossDomainAllowed}
+                </span>
                 <label className="inline-field" htmlFor="batch-start-date">
                   {ui.startDate}
                   <input
@@ -514,6 +513,7 @@ export default function App() {
                 </button>
               </div>
             </div>
+
 
             <div className="toolbar-row">
               <input
@@ -615,6 +615,51 @@ export default function App() {
                   </button>
                 </div>
                 <p className="settings-hint">{ui.settingsLanguageHint}</p>
+              </div>
+
+              <label className="settings-field">
+                {ui.settingsHomepageUrl}
+                <input
+                  className="settings-input"
+                  type="text"
+                  value={homepageUrl}
+                  onChange={(event) => setHomepageUrl(event.target.value)}
+                  placeholder={ui.homepageUrlPlaceholder}
+                />
+              </label>
+
+              <div className="settings-field">
+                <span>{ui.settingsBatchOptions}</span>
+                <div className="settings-batch-options">
+                  <label className="inline-field" htmlFor="settings-batch-limit">
+                    {ui.batchCount}
+                    <input
+                      id="settings-batch-limit"
+                      className="number-input"
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={batchLimit}
+                      onChange={(event) => setBatchLimit(normalizeBatchLimit(event.target.value, 1))}
+                    />
+                  </label>
+                  <label className="inline-field checkbox-field" htmlFor="settings-same-domain-only">
+                    <Checkbox.Root
+                      id="settings-same-domain-only"
+                      className="radix-checkbox"
+                      checked={sameDomainOnly}
+                      onCheckedChange={(checked: boolean | 'indeterminate') =>
+                        setSameDomainOnly(checked === true)
+                      }
+                    >
+                      <Checkbox.Indicator className="radix-checkbox-indicator">
+                        <Check size={12} />
+                      </Checkbox.Indicator>
+                    </Checkbox.Root>
+                    {ui.sameDomainOnly}
+                  </label>
+                </div>
+                <p className="settings-hint">{ui.settingsBatchHint}</p>
               </div>
 
               <label className="settings-field">

@@ -15,6 +15,9 @@ export interface DateRange {
 
 export interface AppSettings {
   defaultDownloadDir: string | null;
+  defaultHomepageUrl: string;
+  defaultBatchLimit: number;
+  defaultSameDomainOnly: boolean;
 }
 
 export type WindowControlAction =

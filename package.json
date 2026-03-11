@@ -10,6 +10,7 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "dev:electron": "npm run build:electron && wait-on tcp:1420 && cross-env ELECTRON_RENDERER_URL=http://localhost:1420 node dist-electron/launch.js dist-electron/main.js",
     "dev:web": "vite --config vite.web.config.ts",
+    "check:i18n": "node scripts/check-i18n-keys.mjs",
     "build": "npm run build:electron && tsc && vite build",
     "start": "npm run build:electron && node dist-electron/launch.js dist-electron/main.js",
     "preview": "vite preview"
