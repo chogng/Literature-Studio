@@ -513,7 +513,6 @@ export default function App() {
             electronRuntime={electronRuntime}
             previewRuntime={previewRuntime}
             labels={{
-              resultPanelTitle: ui.resultPanelTitle,
               untitled: ui.untitled,
               unknown: ui.unknown,
               authors: ui.authors,

@@ -16,7 +16,6 @@ const zh = {
   resetFilter: '重置过滤',
   showing: '显示',
   total: '总计',
-  resultPanelTitle: '右侧：抓取结果 / 历史记录',
   untitled: '无标题',
   unknown: '未识别',
   authors: '作者：',

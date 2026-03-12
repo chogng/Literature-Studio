@@ -16,7 +16,6 @@ const en = {
   resetFilter: 'Reset filters',
   showing: 'Showing',
   total: 'Total',
-  resultPanelTitle: 'Right: fetched results / history',
   untitled: 'Untitled',
   unknown: 'Unknown',
   authors: 'Authors:',

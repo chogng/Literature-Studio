@@ -13,7 +13,6 @@ export type SidebarArticle = {
 };
 
 type SidebarLabels = {
-  resultPanelTitle: string;
   untitled: string;
   unknown: string;
   authors: string;
@@ -87,7 +86,6 @@ export default function Sidebar({
           {isBatchLoading ? labels.fetchLatestBusy : labels.fetchLatest}
         </Button>
       </div>
-      <div className="panel-title">{labels.resultPanelTitle}</div>
       {hasVisibleData ? (
         <ul className="article-list">
           {articles.map((article, index) => (

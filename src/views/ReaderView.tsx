@@ -102,7 +102,6 @@ export default function ReaderView({
           articles={filteredArticles}
           hasData={hasData}
           labels={{
-            resultPanelTitle: labels.resultPanelTitle,
             untitled: labels.untitled,
             unknown: labels.unknown,
             authors: labels.authors,

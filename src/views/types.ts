@@ -2,7 +2,6 @@
 import type { SidebarArticle } from '../sidebar';
 
 export type ReaderViewLabels = {
-  resultPanelTitle: string;
   untitled: string;
   unknown: string;
   authors: string;
