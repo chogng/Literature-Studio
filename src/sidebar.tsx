@@ -27,6 +27,12 @@ type SidebarProps = {
   articles: SidebarArticle[];
   hasData: boolean;
   labels: SidebarLabels;
+  homepageUrl: string;
+  onHomepageUrlChange: (url: string) => void;
+  filterKeyword: string;
+  onFilterKeywordChange: (keyword: string) => void;
+  homepageUrlPlaceholder?: string;
+  keywordFilterPlaceholder?: string;
 };
 
 function formatTime(value: string): string {
@@ -35,11 +41,37 @@ function formatTime(value: string): string {
   return date.toLocaleString();
 }
 
-export default function Sidebar({ articles, hasData, labels }: SidebarProps) {
+export default function Sidebar({
+  articles,
+  hasData,
+  labels,
+  homepageUrl,
+  onHomepageUrlChange,
+  filterKeyword,
+  onFilterKeywordChange,
+  homepageUrlPlaceholder,
+  keywordFilterPlaceholder,
+}: SidebarProps) {
   const hasVisibleData = articles.length > 0;
 
   return (
     <section className="panel sidebar-panel">
+      <div className="sidebar-header">
+        <input
+          className="sidebar-input pill-input"
+          type="text"
+          value={homepageUrl}
+          onChange={(e) => onHomepageUrlChange(e.target.value)}
+          placeholder={homepageUrlPlaceholder}
+        />
+        <input
+          className="sidebar-input pill-input"
+          type="text"
+          value={filterKeyword}
+          onChange={(e) => onFilterKeywordChange(e.target.value)}
+          placeholder={keywordFilterPlaceholder}
+        />
+      </div>
       <div className="panel-title">{labels.resultPanelTitle}</div>
       {hasVisibleData ? (
         <ul className="article-list">

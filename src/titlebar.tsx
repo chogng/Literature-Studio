@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight, Copy, Download, Minus, PanelLeftClose, PanelLeftOpen, RefreshCcw, Settings, Square, X } from 'lucide-react';
 import { Button } from './components/Button';
+import { Input } from './components/Input';
 import './titlebar.css';
 
 export type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
@@ -34,10 +35,7 @@ type TitlebarProps = {
   onWebUrlChange?: (url: string) => void;
   onNavigateWeb?: () => void;
   onFetchSingle?: () => void;
-  isSingleLoading?: boolean;
   articleUrlPlaceholder?: string;
-  fetchLabel?: string;
-  fetchBusyLabel?: string;
 };
 
 export function Titlebar({
@@ -59,10 +57,7 @@ export function Titlebar({
   onWebUrlChange,
   onNavigateWeb,
   onFetchSingle,
-  isSingleLoading,
   articleUrlPlaceholder,
-  fetchLabel,
-  fetchBusyLabel,
 }: TitlebarProps) {
   const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onDownloadPdf;
 
@@ -145,41 +140,24 @@ export function Titlebar({
       <div className="titlebar-center">
         {onWebUrlChange && (
           <div className="titlebar-url-bar">
-            <input
-              type="text"
-              className="titlebar-url-input"
+            <Input
+              className="titlebar-input-field"
+              size="sm"
               value={webUrl}
               onChange={(e) => onWebUrlChange(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && onNavigateWeb) {
-                  onNavigateWeb();
+                if (e.key === 'Enter') {
+                  if (onFetchSingle) {
+                    onFetchSingle();
+                  } else if (onNavigateWeb) {
+                    onNavigateWeb();
+                  }
                 }
               }}
               placeholder={articleUrlPlaceholder}
+              clearable
             />
-            {onNavigateWeb && (
-              <Button
-                className="titlebar-url-nav-btn"
-                variant="ghost"
-                size="sm"
-                onClick={onNavigateWeb}
-                aria-label="前往"
-              >
-                <ArrowRight size={14} strokeWidth={1.5} />
-              </Button>
-            )}
           </div>
-        )}
-        {onFetchSingle && (
-          <Button
-            className="titlebar-fetch-btn"
-            variant="primary"
-            size="sm"
-            onClick={onFetchSingle}
-            disabled={isSingleLoading}
-          >
-            {isSingleLoading ? fetchBusyLabel : fetchLabel}
-          </Button>
         )}
       </div>
 

@@ -475,77 +475,7 @@ export default function App() {
       ) : null}
 
       <div className={`app-shell ${activePage === 'settings' ? 'app-shell-settings' : ''}`.trim()}>
-        {activePage === 'reader' ? (
-          <header className="toolbar">
-            <div className="menu-bar">
-
-              <div className="menu-fetch-strip">
-                <span className="menu-fetch-config">
-                  {homepageUrl} · {ui.batchCount} {batchLimit} ·{' '}
-                  {sameDomainOnly ? ui.sameDomainOnly : ui.crossDomainAllowed}
-                </span>
-                <label className="inline-field" htmlFor="batch-start-date">
-                  {ui.startDate}
-                  <input
-                    id="batch-start-date"
-                    className="date-input"
-                    type="date"
-                    value={batchStartDate}
-                    onChange={(event) => setBatchStartDate(event.target.value)}
-                  />
-                </label>
-                <label className="inline-field" htmlFor="batch-end-date">
-                  {ui.endDate}
-                  <input
-                    id="batch-end-date"
-                    className="date-input"
-                    type="date"
-                    value={batchEndDate}
-                    onChange={(event) => setBatchEndDate(event.target.value)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={handleFetchLatestBatch}
-                  disabled={isSingleLoading || isBatchLoading}
-                >
-                  {isBatchLoading ? ui.fetchLatestBusy : ui.fetchLatest}
-                </button>
-              </div>
-            </div>
-
-
-            <div className="toolbar-row">
-              <input
-                className="filter-input"
-                type="text"
-                value={filterKeyword}
-                onChange={(event) => setFilterKeyword(event.target.value)}
-                placeholder={ui.keywordFilterPlaceholder}
-              />
-              <input
-                className="filter-input"
-                type="text"
-                value={filterJournal}
-                onChange={(event) => setFilterJournal(event.target.value)}
-                placeholder={ui.journalFilterPlaceholder}
-              />
-              <button
-                className="icon-btn"
-                type="button"
-                onClick={handleResetFilters}
-                disabled={!filterKeyword && !filterJournal}
-                title={ui.resetFilter}
-                aria-label={ui.resetFilter}
-              >
-                <RotateCcw size={16} />
-              </button>
-              <span className="count">
-                {ui.showing} {filteredArticles.length} / {ui.total} {articles.length}
-              </span>
-            </div>
-          </header>
-        ) : null}
+        {activePage === 'reader' ? null : null}
 
       {activePage === 'reader' ? (
         <main className={`content-grid ${isSidebarOpen ? '' : 'is-sidebar-collapsed'}`.trim()}>
@@ -565,10 +495,69 @@ export default function App() {
                 emptyFiltered: ui.emptyFiltered,
                 emptyAll: ui.emptyAll,
               }}
+              homepageUrl={homepageUrl}
+              onHomepageUrlChange={setHomepageUrl}
+              filterKeyword={filterKeyword}
+              onFilterKeywordChange={setFilterKeyword}
+              homepageUrlPlaceholder={ui.homepageUrlPlaceholder}
+              keywordFilterPlaceholder={ui.keywordFilterPlaceholder}
             />
           ) : null}
 
           <section className="panel web-panel">
+            <header className="content-header">
+              <div className="date-filters">
+                <label className="inline-field">
+                  {ui.startDate}
+                  <input
+                    type="date"
+                    className="date-input"
+                    value={batchStartDate}
+                    onChange={(e) => setBatchStartDate(e.target.value)}
+                  />
+                </label>
+                <label className="inline-field">
+                  {ui.endDate}
+                  <input
+                    type="date"
+                    className="date-input"
+                    value={batchEndDate}
+                    onChange={(e) => setBatchEndDate(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <input
+                className="filter-input pill-input source-filter"
+                type="text"
+                value={filterJournal}
+                onChange={(e) => setFilterJournal(e.target.value)}
+                placeholder={ui.journalFilterPlaceholder}
+              />
+
+              <div className="content-actions">
+                <button
+                  type="button"
+                  className="primary-btn fetch-btn"
+                  onClick={handleFetchLatestBatch}
+                  disabled={isBatchLoading}
+                >
+                  {isBatchLoading ? ui.fetchLatestBusy : ui.fetchLatest}
+                </button>
+                <button
+                  className="icon-btn"
+                  type="button"
+                  onClick={handleResetFilters}
+                  disabled={!filterKeyword && !filterJournal}
+                  title={ui.resetFilter}
+                >
+                  <RotateCcw size={16} />
+                </button>
+                <span className="count-display">
+                  {ui.showing} {filteredArticles.length} / {ui.total} {articles.length}
+                </span>
+              </div>
+            </header>
             <div className="web-frame-container">
               <div className="native-webview-host">
                 {browserUrl ? (

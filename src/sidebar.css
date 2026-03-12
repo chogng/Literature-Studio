@@ -6,6 +6,19 @@
 
 .sidebar-panel > .panel-title {
   flex-shrink: 0;
+  border-top: 1px solid #e5ebf1;
+}
+
+.sidebar-header {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #f8fafc;
+}
+
+.sidebar-input {
+  width: 100%;
 }
 
 .article-list {

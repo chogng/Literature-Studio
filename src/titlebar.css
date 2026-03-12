@@ -1,7 +1,7 @@
 .titlebar {
   height: 38px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   background: linear-gradient(180deg, #f2f6fb 0%, #ebf1f8 100%);
   border-bottom: 1px solid #cfdae7;
@@ -12,10 +12,13 @@
 }
 
 .titlebar-start {
+  grid-column: 1;
+  justify-self: start;
   display: flex;
   align-items: stretch;
   height: 100%;
   padding-left: 12px;
+  min-width: 0;
 }
 
 .titlebar-brand {
@@ -26,59 +29,44 @@
 }
 
 .titlebar-center {
+  grid-column: 2;
+  justify-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: min(100%, 560px);
   height: 100%;
-  padding: 0 12px;
+  padding: 0 10px;
   gap: 8px;
   min-width: 0;
 }
 
 .titlebar-url-bar {
-  flex: 1;
-  max-width: 600px;
-  height: 28px;
-  background: #fff;
-  border: 1px solid #cfdae7;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  padding: 0 4px 0 10px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  width: min(100%, 520px);
+  max-width: 520px;
   -webkit-app-region: no-drag;
 }
 
-.titlebar-url-bar:focus-within {
-  border-color: #0078d4;
-  box-shadow: 0 0 0 1px rgba(0, 120, 212, 0.2);
+.titlebar-input-field {
+  height: 28px !important;
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(8px);
+  border-color: #cfdae7 !important;
 }
 
-.titlebar-url-input {
-  flex: 1;
-  height: 100%;
-  border: none;
-  background: transparent;
+.titlebar-input-field:hover {
+  border-color: #b8c7d9 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.titlebar-input-field.input-focused {
+  background: #ffffff !important;
+  border-color: #0a5fbf !important;
+}
+
+.titlebar-input-field .input-field {
   font-size: 12px;
-  color: #1f2d3a;
-  outline: none;
-  width: 100%;
-}
-
-.titlebar-url-nav-btn.btn-base {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-}
-
-.titlebar-fetch-btn {
-  height: 28px;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 6px;
-  white-space: nowrap;
-  -webkit-app-region: no-drag;
+  padding: 0 10px;
 }
 
 .titlebar-app-name {
@@ -92,6 +80,8 @@
 }
 
 .titlebar-controls {
+  grid-column: 3;
+  justify-self: end;
   -webkit-app-region: no-drag;
   display: inline-flex;
   align-items: center;
