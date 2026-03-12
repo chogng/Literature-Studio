@@ -5,12 +5,6 @@ import {
   useMemo,
   useState,
 } from 'react';
-import * as Checkbox from '@radix-ui/react-checkbox';
-import {
-  Check,
-  FolderOpen,
-  RotateCcw,
-} from 'lucide-react';
 import {
   detectInitialLocale,
   getLocaleMessages,
@@ -18,9 +12,10 @@ import {
   toDocumentLang,
   type Locale,
 } from './language/i18n';
-import Sidebar from './sidebar';
 import * as TitlebarModule from './titlebar';
 import { ToastContainer, toast } from './components/Toast';
+import ReaderView from './views/ReaderView';
+import SettingsView from './views/SettingsView';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -475,231 +470,95 @@ export default function App() {
       ) : null}
 
       <div className={`app-shell ${activePage === 'settings' ? 'app-shell-settings' : ''}`.trim()}>
-        {activePage === 'reader' ? null : null}
-
-      {activePage === 'reader' ? (
-        <main className={`content-grid ${isSidebarOpen ? '' : 'is-sidebar-collapsed'}`.trim()}>
-          {isSidebarOpen ? (
-            <Sidebar
-              articles={filteredArticles}
-              hasData={hasData}
-              labels={{
-                resultPanelTitle: ui.resultPanelTitle,
-                untitled: ui.untitled,
-                unknown: ui.unknown,
-                authors: ui.authors,
-                abstract: ui.abstract,
-                publishedAt: ui.publishedAt,
-                source: ui.source,
-                fetchedAt: ui.fetchedAt,
-                emptyFiltered: ui.emptyFiltered,
-                emptyAll: ui.emptyAll,
-              }}
-              homepageUrl={homepageUrl}
-              onHomepageUrlChange={setHomepageUrl}
-              filterKeyword={filterKeyword}
-              onFilterKeywordChange={setFilterKeyword}
-              homepageUrlPlaceholder={ui.homepageUrlPlaceholder}
-              keywordFilterPlaceholder={ui.keywordFilterPlaceholder}
-            />
-          ) : null}
-
-          <section className="panel web-panel">
-            <header className="content-header">
-              <div className="date-filters">
-                <label className="inline-field">
-                  {ui.startDate}
-                  <input
-                    type="date"
-                    className="date-input"
-                    value={batchStartDate}
-                    onChange={(e) => setBatchStartDate(e.target.value)}
-                  />
-                </label>
-                <label className="inline-field">
-                  {ui.endDate}
-                  <input
-                    type="date"
-                    className="date-input"
-                    value={batchEndDate}
-                    onChange={(e) => setBatchEndDate(e.target.value)}
-                  />
-                </label>
-              </div>
-
-              <input
-                className="filter-input pill-input source-filter"
-                type="text"
-                value={filterJournal}
-                onChange={(e) => setFilterJournal(e.target.value)}
-                placeholder={ui.journalFilterPlaceholder}
-              />
-
-              <div className="content-actions">
-                <button
-                  type="button"
-                  className="primary-btn fetch-btn"
-                  onClick={handleFetchLatestBatch}
-                  disabled={isBatchLoading}
-                >
-                  {isBatchLoading ? ui.fetchLatestBusy : ui.fetchLatest}
-                </button>
-                <button
-                  className="icon-btn"
-                  type="button"
-                  onClick={handleResetFilters}
-                  disabled={!filterKeyword && !filterJournal}
-                  title={ui.resetFilter}
-                >
-                  <RotateCcw size={16} />
-                </button>
-                <span className="count-display">
-                  {ui.showing} {filteredArticles.length} / {ui.total} {articles.length}
-                </span>
-              </div>
-            </header>
-            <div className="web-frame-container">
-              <div className="native-webview-host">
-                {browserUrl ? (
-                  <iframe
-                    key={`${browserUrl}-${iframeReloadKey}`}
-                    className="web-frame"
-                    src={browserUrl}
-                    title="Web Preview"
-                    sandbox="allow-forms allow-scripts allow-same-origin"
-                    scrolling="yes"
-                  />
-                ) : (
-                  <div className="empty-state">请输入链接后查看网页。</div>
-                )}
-              </div>
-            </div>
-          </section>
-        </main>
-      ) : (
-        <main className="settings-page">
-          <section className="panel settings-card">
-            <div className="panel-title">{ui.settingsTitle}</div>
-            <div className="settings-content">
-              {isSettingsLoading ? <p className="settings-hint">{ui.settingsLoading}</p> : null}
-
-              <div className="settings-field">
-                <span>{ui.settingsLanguage}</span>
-                <div className="settings-language-toggle" role="group" aria-label={ui.settingsLanguage}>
-                  <button
-                    type="button"
-                    className={locale === 'zh' ? 'settings-language-btn is-active' : 'settings-language-btn'}
-                    onClick={() => setLocale('zh')}
-                    aria-pressed={locale === 'zh'}
-                  >
-                    {ui.languageChinese}
-                  </button>
-                  <button
-                    type="button"
-                    className={locale === 'en' ? 'settings-language-btn is-active' : 'settings-language-btn'}
-                    onClick={() => setLocale('en')}
-                    aria-pressed={locale === 'en'}
-                  >
-                    {ui.languageEnglish}
-                  </button>
-                </div>
-                <p className="settings-hint">{ui.settingsLanguageHint}</p>
-              </div>
-
-              <label className="settings-field">
-                {ui.settingsHomepageUrl}
-                <input
-                  className="settings-input"
-                  type="text"
-                  value={homepageUrl}
-                  onChange={(event) => setHomepageUrl(event.target.value)}
-                  placeholder={ui.homepageUrlPlaceholder}
-                />
-              </label>
-
-              <div className="settings-field">
-                <span>{ui.settingsBatchOptions}</span>
-                <div className="settings-batch-options">
-                  <label className="inline-field" htmlFor="settings-batch-limit">
-                    {ui.batchCount}
-                    <input
-                      id="settings-batch-limit"
-                      className="number-input"
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={batchLimit}
-                      onChange={(event) => setBatchLimit(normalizeBatchLimit(event.target.value, 1))}
-                    />
-                  </label>
-                  <label className="inline-field checkbox-field" htmlFor="settings-same-domain-only">
-                    <Checkbox.Root
-                      id="settings-same-domain-only"
-                      className="radix-checkbox"
-                      checked={sameDomainOnly}
-                      onCheckedChange={(checked: boolean | 'indeterminate') =>
-                        setSameDomainOnly(checked === true)
-                      }
-                    >
-                      <Checkbox.Indicator className="radix-checkbox-indicator">
-                        <Check size={12} />
-                      </Checkbox.Indicator>
-                    </Checkbox.Root>
-                    {ui.sameDomainOnly}
-                  </label>
-                </div>
-                <p className="settings-hint">{ui.settingsBatchHint}</p>
-              </div>
-
-              <label className="settings-field">
-                {ui.defaultPdfDir}
-                <div className="settings-input-row">
-                  <input
-                    className="settings-input"
-                    type="text"
-                    value={pdfDownloadDir}
-                    onChange={(event) => setPdfDownloadDir(event.target.value)}
-                    placeholder={ui.downloadDirPlaceholder}
-                  />
-                  <button
-                    className="icon-btn"
-                    type="button"
-                    onClick={() => void handleChoosePdfDownloadDir()}
-                    disabled={!desktopRuntime || isSettingsSaving}
-                    title={ui.chooseDirectory}
-                    aria-label={ui.chooseDirectory}
-                  >
-                    <FolderOpen size={16} />
-                  </button>
-                </div>
-              </label>
-
-              <div className="settings-actions">
-                <button
-                  type="button"
-                  onClick={handleResetDownloadDir}
-                  disabled={!pdfDownloadDir.trim() || isSettingsSaving}
-                >
-                  {ui.resetDefault}
-                </button>
-                <button
-                  className="primary-btn"
-                  type="button"
-                  onClick={() => void handleSaveSettings()}
-                  disabled={isSettingsLoading || isSettingsSaving}
-                >
-                  {isSettingsSaving ? ui.saving : ui.saveSettings}
-                </button>
-              </div>
-
-              <p className="settings-hint">{ui.settingsHintPath}</p>
-              <p className="settings-hint">
-                {ui.currentDir}{pdfDownloadDir.trim() ? pdfDownloadDir.trim() : ui.systemDownloads}
-              </p>
-            </div>
-          </section>
-        </main>
-      )}
+        {activePage === 'reader' ? (
+          <ReaderView
+            isSidebarOpen={isSidebarOpen}
+            filteredArticles={filteredArticles}
+            hasData={hasData}
+            homepageUrl={homepageUrl}
+            onHomepageUrlChange={setHomepageUrl}
+            filterKeyword={filterKeyword}
+            onFilterKeywordChange={setFilterKeyword}
+            batchStartDate={batchStartDate}
+            onBatchStartDateChange={setBatchStartDate}
+            batchEndDate={batchEndDate}
+            onBatchEndDateChange={setBatchEndDate}
+            filterJournal={filterJournal}
+            onFilterJournalChange={setFilterJournal}
+            onFetchLatestBatch={() => void handleFetchLatestBatch()}
+            isBatchLoading={isBatchLoading}
+            onResetFilters={handleResetFilters}
+            filteredCount={filteredArticles.length}
+            totalCount={articles.length}
+            browserUrl={browserUrl}
+            iframeReloadKey={iframeReloadKey}
+            labels={{
+              resultPanelTitle: ui.resultPanelTitle,
+              untitled: ui.untitled,
+              unknown: ui.unknown,
+              authors: ui.authors,
+              abstract: ui.abstract,
+              publishedAt: ui.publishedAt,
+              source: ui.source,
+              fetchedAt: ui.fetchedAt,
+              emptyFiltered: ui.emptyFiltered,
+              emptyAll: ui.emptyAll,
+              homepageUrlPlaceholder: ui.homepageUrlPlaceholder,
+              keywordFilterPlaceholder: ui.keywordFilterPlaceholder,
+              startDate: ui.startDate,
+              endDate: ui.endDate,
+              journalFilterPlaceholder: ui.journalFilterPlaceholder,
+              fetchLatestBusy: ui.fetchLatestBusy,
+              fetchLatest: ui.fetchLatest,
+              resetFilter: ui.resetFilter,
+              showing: ui.showing,
+              total: ui.total,
+              emptyState: '请输入链接后查看网页。',
+            }}
+          />
+        ) : (
+          <SettingsView
+            labels={{
+              settingsTitle: ui.settingsTitle,
+              settingsLoading: ui.settingsLoading,
+              settingsLanguage: ui.settingsLanguage,
+              languageChinese: ui.languageChinese,
+              languageEnglish: ui.languageEnglish,
+              settingsLanguageHint: ui.settingsLanguageHint,
+              settingsHomepageUrl: ui.settingsHomepageUrl,
+              homepageUrlPlaceholder: ui.homepageUrlPlaceholder,
+              settingsBatchOptions: ui.settingsBatchOptions,
+              batchCount: ui.batchCount,
+              sameDomainOnly: ui.sameDomainOnly,
+              settingsBatchHint: ui.settingsBatchHint,
+              defaultPdfDir: ui.defaultPdfDir,
+              downloadDirPlaceholder: ui.downloadDirPlaceholder,
+              chooseDirectory: ui.chooseDirectory,
+              resetDefault: ui.resetDefault,
+              saving: ui.saving,
+              saveSettings: ui.saveSettings,
+              settingsHintPath: ui.settingsHintPath,
+              currentDir: ui.currentDir,
+              systemDownloads: ui.systemDownloads,
+            }}
+            isSettingsLoading={isSettingsLoading}
+            locale={locale}
+            onLocaleChange={setLocale}
+            homepageUrl={homepageUrl}
+            onHomepageUrlChange={setHomepageUrl}
+            batchLimit={batchLimit}
+            onBatchLimitChange={(value) => setBatchLimit(normalizeBatchLimit(value, 1))}
+            sameDomainOnly={sameDomainOnly}
+            onSameDomainOnlyChange={setSameDomainOnly}
+            pdfDownloadDir={pdfDownloadDir}
+            onPdfDownloadDirChange={setPdfDownloadDir}
+            onChoosePdfDownloadDir={() => void handleChoosePdfDownloadDir()}
+            desktopRuntime={desktopRuntime}
+            isSettingsSaving={isSettingsSaving}
+            onResetDownloadDir={handleResetDownloadDir}
+            onSaveSettings={() => void handleSaveSettings()}
+          />
+        )}
         <ToastContainer />
       </div>
     </div>

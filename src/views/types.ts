@@ -1,0 +1,94 @@
+﻿import type { Locale } from '../language/i18n';
+import type { SidebarArticle } from '../sidebar';
+
+export type ReaderViewLabels = {
+  resultPanelTitle: string;
+  untitled: string;
+  unknown: string;
+  authors: string;
+  abstract: string;
+  publishedAt: string;
+  source: string;
+  fetchedAt: string;
+  emptyFiltered: string;
+  emptyAll: string;
+  homepageUrlPlaceholder: string;
+  keywordFilterPlaceholder: string;
+  startDate: string;
+  endDate: string;
+  journalFilterPlaceholder: string;
+  fetchLatestBusy: string;
+  fetchLatest: string;
+  resetFilter: string;
+  showing: string;
+  total: string;
+  emptyState: string;
+};
+
+export type ReaderViewProps = {
+  isSidebarOpen: boolean;
+  filteredArticles: SidebarArticle[];
+  hasData: boolean;
+  homepageUrl: string;
+  onHomepageUrlChange: (url: string) => void;
+  filterKeyword: string;
+  onFilterKeywordChange: (keyword: string) => void;
+  batchStartDate: string;
+  onBatchStartDateChange: (value: string) => void;
+  batchEndDate: string;
+  onBatchEndDateChange: (value: string) => void;
+  filterJournal: string;
+  onFilterJournalChange: (value: string) => void;
+  onFetchLatestBatch: () => void;
+  isBatchLoading: boolean;
+  onResetFilters: () => void;
+  filteredCount: number;
+  totalCount: number;
+  browserUrl: string;
+  iframeReloadKey: number;
+  labels: ReaderViewLabels;
+};
+
+export type SettingsViewLabels = {
+  settingsTitle: string;
+  settingsLoading: string;
+  settingsLanguage: string;
+  languageChinese: string;
+  languageEnglish: string;
+  settingsLanguageHint: string;
+  settingsHomepageUrl: string;
+  homepageUrlPlaceholder: string;
+  settingsBatchOptions: string;
+  batchCount: string;
+  sameDomainOnly: string;
+  settingsBatchHint: string;
+  defaultPdfDir: string;
+  downloadDirPlaceholder: string;
+  chooseDirectory: string;
+  resetDefault: string;
+  saving: string;
+  saveSettings: string;
+  settingsHintPath: string;
+  currentDir: string;
+  systemDownloads: string;
+};
+
+export type SettingsViewProps = {
+  labels: SettingsViewLabels;
+  isSettingsLoading: boolean;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
+  homepageUrl: string;
+  onHomepageUrlChange: (url: string) => void;
+  batchLimit: number;
+  onBatchLimitChange: (value: string) => void;
+  sameDomainOnly: boolean;
+  onSameDomainOnlyChange: (checked: boolean) => void;
+  pdfDownloadDir: string;
+  onPdfDownloadDirChange: (value: string) => void;
+  onChoosePdfDownloadDir: () => void;
+  desktopRuntime: boolean;
+  isSettingsSaving: boolean;
+  onResetDownloadDir: () => void;
+  onSaveSettings: () => void;
+};
