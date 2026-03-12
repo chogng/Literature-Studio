@@ -235,7 +235,6 @@ button:disabled {
   background: #ffffff;
   border: 1px solid #d2dce8;
   border-radius: 10px;
-  display: grid;
 }
 
 .web-panel {
@@ -330,6 +329,7 @@ button:disabled {
 }
 
 .settings-card {
+  display: grid;
   grid-template-rows: auto 1fr;
 }
 
