@@ -23,6 +23,7 @@ export type ReaderViewLabels = {
   showing: string;
   total: string;
   emptyState: string;
+  previewUnavailable: string;
 };
 
 export type ReaderViewProps = {
@@ -45,8 +46,10 @@ export type ReaderViewProps = {
   filteredCount: number;
   totalCount: number;
   browserUrl: string;
+  previewCurrentUrl?: string;
   iframeReloadKey: number;
   electronRuntime: boolean;
+  previewRuntime: boolean;
   labels: ReaderViewLabels;
 };
 

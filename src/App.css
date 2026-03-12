@@ -300,6 +300,8 @@ button:disabled {
   overflow: hidden;
   background: #fff;
   border-top: 1px solid #e3ebf4;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-title {
@@ -309,12 +311,17 @@ button:disabled {
 }
 
 .web-frame {
+  flex: 1;
   display: block;
   width: 100%;
   height: 100%;
   overflow: auto;
   border: none;
   background: #fff;
+}
+
+.web-frame-placeholder {
+  pointer-events: none;
 }
 
 .settings-page {
@@ -393,6 +400,15 @@ button:disabled {
   flex: 1;
   padding: 16px;
   color: #667788;
+}
+
+.preview-runtime-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-line;
+  padding: 24px;
 }
 
 @media (max-width: 980px) {

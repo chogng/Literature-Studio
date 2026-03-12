@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow } from 'electron';
+import { disposePreviewView, ensurePreviewView } from './preview-view.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,6 +42,7 @@ export function createMainWindow() {
   });
 
   const window = mainWindow;
+  ensurePreviewView(window);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
@@ -50,6 +52,7 @@ export function createMainWindow() {
   }
 
   window.on('closed', () => {
+    disposePreviewView(window);
     mainWindow = null;
   });
 

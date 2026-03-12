@@ -7,11 +7,22 @@ import type {
   FetchArticlePayload,
   FetchLatestArticlesPayload,
   PreviewDownloadPdfPayload,
+  PreviewBounds,
+  PreviewState,
   SaveSettingsPayload,
   StorageService,
   WindowControlAction,
   WindowState,
 } from './types.js';
+import {
+  getPreviewState,
+  goBackPreview,
+  goForwardPreview,
+  navigatePreview,
+  reloadPreview,
+  setPreviewBounds,
+  setPreviewVisible,
+} from './preview-view.js';
 import { fetchArticle, fetchLatestArticles } from './services/article-fetcher.js';
 import { previewDownloadPdf } from './services/pdf.js';
 import { getMainWindow } from './window.js';
@@ -99,5 +110,35 @@ export function registerAppIpc(storage: StorageService) {
       isMaximized: Boolean(target && !target.isDestroyed() && target.isMaximized()),
     };
     return state;
+  });
+
+  ipcMain.handle('app:preview-get-state', () => {
+    const state: PreviewState = getPreviewState();
+    return state;
+  });
+
+  ipcMain.handle('app:preview-navigate', async (_event, url: string) => {
+    await navigatePreview(url);
+    return getPreviewState();
+  });
+
+  ipcMain.on('app:preview-set-bounds', (_event, bounds: PreviewBounds | null) => {
+    setPreviewBounds(bounds);
+  });
+
+  ipcMain.on('app:preview-set-visible', (_event, visible: boolean) => {
+    setPreviewVisible(Boolean(visible));
+  });
+
+  ipcMain.on('app:preview-reload', () => {
+    reloadPreview();
+  });
+
+  ipcMain.on('app:preview-go-back', () => {
+    goBackPreview();
+  });
+
+  ipcMain.on('app:preview-go-forward', () => {
+    goForwardPreview();
   });
 }

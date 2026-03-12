@@ -64,21 +64,19 @@ type WindowState = {
 
 type WindowStateListener = (state: WindowState) => void;
 
-type DesktopWebviewTag = HTMLElement & {
-  reload: () => void;
-  canGoBack: () => boolean;
-  goBack: () => void;
-  canGoForward: () => boolean;
-  goForward: () => void;
-  setZoomFactor: (factor: number) => void;
-  addEventListener: (
-    type: 'did-navigate' | 'did-navigate-in-page',
-    listener: (event: Event & { url?: string }) => void,
-  ) => void;
-  removeEventListener: (
-    type: 'did-navigate' | 'did-navigate-in-page',
-    listener: (event: Event & { url?: string }) => void,
-  ) => void;
+type DesktopPreviewBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type DesktopPreviewState = {
+  url: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  isLoading: boolean;
+  visible: boolean;
 };
 
 type ElectronInvoke = {
@@ -97,28 +95,15 @@ interface Window {
       getState: () => Promise<WindowState>;
       onStateChange: (listener: WindowStateListener) => () => void;
     };
+    preview?: {
+      navigate: (url: string) => Promise<DesktopPreviewState>;
+      getState: () => Promise<DesktopPreviewState>;
+      setBounds: (bounds: DesktopPreviewBounds | null) => void;
+      setVisible: (visible: boolean) => void;
+      reload: () => void;
+      goBack: () => void;
+      goForward: () => void;
+      onStateChange: (listener: (state: DesktopPreviewState) => void) => () => void;
+    };
   };
-}
-
-// Allow <webview> JSX element in Electron renderer
-declare namespace React {
-  namespace JSX {
-    interface IntrinsicElements {
-      webview: React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          src?: string;
-          httpreferrer?: string;
-          useragent?: string;
-          disablewebsecurity?: string;
-          partition?: string;
-          allowpopups?: string;
-          webpreferences?: string;
-          style?: React.CSSProperties;
-          className?: string;
-          ref?: React.Ref<DesktopWebviewTag>;
-        },
-        HTMLElement
-      >;
-    }
-  }
 }

@@ -25,6 +25,8 @@ type TitlebarProps = {
   onToggleSettings?: () => void;
   // Browser navigation
   browserUrl?: string;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
   canDownload?: boolean;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
@@ -34,7 +36,6 @@ type TitlebarProps = {
   webUrl?: string;
   onWebUrlChange?: (url: string) => void;
   onNavigateWeb?: () => void;
-  onFetchSingle?: () => void;
   articleUrlPlaceholder?: string;
 };
 
@@ -48,6 +49,8 @@ export function Titlebar({
   onToggleSidebar,
   onToggleSettings,
   browserUrl,
+  canGoBack = false,
+  canGoForward = false,
   canDownload,
   onNavigateBack,
   onNavigateForward,
@@ -56,7 +59,6 @@ export function Titlebar({
   webUrl,
   onWebUrlChange,
   onNavigateWeb,
-  onFetchSingle,
   articleUrlPlaceholder,
 }: TitlebarProps) {
   const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onDownloadPdf;
@@ -87,7 +89,7 @@ export function Titlebar({
                 variant="ghost"
                 size="sm"
                 onClick={onNavigateBack}
-                disabled={!browserUrl}
+                disabled={!browserUrl || !canGoBack}
                 aria-label="后退"
                 title="后退"
               >
@@ -100,7 +102,7 @@ export function Titlebar({
                 variant="ghost"
                 size="sm"
                 onClick={onNavigateForward}
-                disabled={!browserUrl}
+                disabled={!browserUrl || !canGoForward}
                 aria-label="前进"
                 title="前进"
               >

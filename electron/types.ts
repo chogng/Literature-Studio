@@ -31,6 +31,21 @@ export interface WindowState {
   isMaximized: boolean;
 }
 
+export interface PreviewBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PreviewState {
+  url: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  isLoading: boolean;
+  visible: boolean;
+}
+
 export interface FetchLatestArticlesPayload {
   homepageUrl?: string;
   limit?: number | string;

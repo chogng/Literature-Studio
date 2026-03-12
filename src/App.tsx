@@ -110,18 +110,24 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [pdfDownloadDir, setPdfDownloadDir] = useState('');
 
-  const [isSingleLoading, setIsSingleLoading] = useState(false);
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
 
   const [articles, setArticles] = useState<Article[]>([]);
+  const [previewState, setPreviewState] = useState<DesktopPreviewState>({
+    url: '',
+    canGoBack: false,
+    canGoForward: false,
+    isLoading: false,
+    visible: false,
+  });
 
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
-  const electronRuntime = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return typeof window.electronAPI?.invoke === 'function';
-  }, []);
+  const electronRuntime =
+    typeof window !== 'undefined' && typeof window.electronAPI?.invoke === 'function';
+  const previewRuntime =
+    typeof window !== 'undefined' && typeof window.electronAPI?.preview?.navigate === 'function';
   const desktopRuntime = electronRuntime;
   const ui = useMemo(() => getLocaleMessages(locale), [locale]);
   const invokeDesktop = useCallback(
@@ -194,6 +200,47 @@ export default function App() {
   }, [electronRuntime]);
 
   useEffect(() => {
+    if (!previewRuntime || !window.electronAPI?.preview) {
+      setPreviewState({
+        url: '',
+        canGoBack: false,
+        canGoForward: false,
+        isLoading: false,
+        visible: false,
+      });
+      return;
+    }
+
+    let mounted = true;
+    const preview = window.electronAPI.preview;
+
+    void preview
+      .getState()
+      .then((state) => {
+        if (!mounted) return;
+        setPreviewState(state);
+        if (state.url) {
+          setBrowserUrl(state.url);
+          setWebUrl(state.url);
+        }
+      })
+      .catch(() => {});
+
+    const unsubscribe = preview.onStateChange((state) => {
+      setPreviewState(state);
+      if (state.url) {
+        setBrowserUrl(state.url);
+        setWebUrl(state.url);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [previewRuntime]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(localeStorageKey, locale);
     document.documentElement.lang = toDocumentLang(locale);
@@ -250,11 +297,43 @@ export default function App() {
     }
 
     setBrowserUrl(normalized);
+    if (electronRuntime && !previewRuntime) {
+      toast.error(ui.toastPreviewRuntimeUnavailable);
+      return;
+    }
     toast.success(formatLocalized(ui.toastNavigatingTo, { url: normalized }));
   };
 
   const handleBrowserRefresh = () => {
+    if (electronRuntime && !previewRuntime) {
+      toast.error(ui.toastPreviewRuntimeUnavailable);
+      return;
+    }
+
+    if (previewRuntime && window.electronAPI?.preview) {
+      window.electronAPI.preview.reload();
+      return;
+    }
+
     setIframeReloadKey((prev) => prev + 1);
+  };
+
+  const handlePreviewBack = () => {
+    if (!previewRuntime || !window.electronAPI?.preview) {
+      toast.info(ui.toastPreviewBackUnsupported);
+      return;
+    }
+
+    window.electronAPI.preview.goBack();
+  };
+
+  const handlePreviewForward = () => {
+    if (!previewRuntime || !window.electronAPI?.preview) {
+      toast.info(ui.toastPreviewForwardUnsupported);
+      return;
+    }
+
+    window.electronAPI.preview.goForward();
   };
 
   const handleChoosePdfDownloadDir = async () => {
@@ -346,33 +425,6 @@ export default function App() {
     }
   };
 
-  const handleFetchSingle = async () => {
-    if (!desktopRuntime) {
-      toast.info(ui.toastDesktopFetchOnly);
-      return;
-    }
-
-    const normalized = normalizeUrl(webUrl);
-    if (!normalized) {
-      toast.error(ui.toastEnterArticleUrl);
-      return;
-    }
-
-    setIsSingleLoading(true);
-    setBrowserUrl(normalized);
-
-    try {
-      const fetched = await invokeDesktop<Article>('fetch_article', { url: normalized });
-      setArticles((prev) => mergeArticles([fetched], prev));
-      toast.success(ui.toastFetchSingleSucceeded);
-    } catch (fetchError) {
-      const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      toast.error(formatLocalized(ui.toastFetchSingleFailed, { error: message }));
-    } finally {
-      setIsSingleLoading(false);
-    }
-  };
-
   const handleFetchLatestBatch = async () => {
     if (!desktopRuntime) {
       toast.info(ui.toastDesktopBatchFetchOnly);
@@ -453,19 +505,17 @@ export default function App() {
           onToggleSidebar={activePage === 'reader' ? () => setIsSidebarOpen((prev) => !prev) : undefined}
           onToggleSettings={() => setActivePage((prev) => (prev === 'settings' ? 'reader' : 'settings'))}
           browserUrl={browserUrl}
+          canGoBack={previewState.canGoBack}
+          canGoForward={previewState.canGoForward}
           canDownload={!!desktopRuntime}
-          onNavigateBack={() => toast.info(ui.toastPreviewBackUnsupported)}
-          onNavigateForward={() => toast.info(ui.toastPreviewForwardUnsupported)}
+          onNavigateBack={handlePreviewBack}
+          onNavigateForward={handlePreviewForward}
           onRefresh={handleBrowserRefresh}
           onDownloadPdf={() => void handlePreviewDownloadPdf()}
           webUrl={webUrl}
           onWebUrlChange={setWebUrl}
           onNavigateWeb={handleNavigateWeb}
-          onFetchSingle={handleFetchSingle}
-          isSingleLoading={isSingleLoading}
           articleUrlPlaceholder={ui.articleUrlPlaceholder}
-          fetchLabel={ui.fetchCurrent}
-          fetchBusyLabel={ui.fetchCurrentBusy}
         />
       ) : null}
 
@@ -491,8 +541,10 @@ export default function App() {
             filteredCount={filteredArticles.length}
             totalCount={articles.length}
             browserUrl={browserUrl}
+            previewCurrentUrl={previewState.url}
             iframeReloadKey={iframeReloadKey}
             electronRuntime={electronRuntime}
+            previewRuntime={previewRuntime}
             labels={{
               resultPanelTitle: ui.resultPanelTitle,
               untitled: ui.untitled,
@@ -514,6 +566,7 @@ export default function App() {
               resetFilter: ui.resetFilter,
               showing: ui.showing,
               total: ui.total,
+              previewUnavailable: ui.previewUnavailable,
               emptyState: '请输入链接后查看网页。',
             }}
           />

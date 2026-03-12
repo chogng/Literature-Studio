@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 import Sidebar from '../sidebar';
 import type { ReaderViewProps } from './types';
@@ -23,20 +23,88 @@ export default function ReaderView({
   filteredCount,
   totalCount,
   browserUrl,
+  previewCurrentUrl,
   iframeReloadKey,
   electronRuntime,
+  previewRuntime,
   labels,
 }: ReaderViewProps) {
-  const webviewRef = useRef<DesktopWebviewTag | null>(null);
+  const previewHostRef = useRef<HTMLDivElement | null>(null);
+  const hasPreviewSurface = Boolean(browserUrl);
 
-  // 把 browserUrl 变化同步给已挂载的 webview（src 变了 React 不一定重建元素）
   useEffect(() => {
-    const wv = webviewRef.current;
-    if (!wv || !browserUrl) return;
-    if ((wv as HTMLElement & { src?: string }).src !== browserUrl) {
-      (wv as HTMLElement & { src?: string }).src = browserUrl;
+    if (!previewRuntime || !window.electronAPI?.preview) return;
+
+    const preview = window.electronAPI.preview;
+    const syncBounds = () => {
+      const host = previewHostRef.current;
+      if (!host) {
+        preview.setBounds(null);
+        return;
+      }
+
+      const rect = host.getBoundingClientRect();
+      const width = Math.round(rect.width);
+      const height = Math.round(rect.height);
+
+      if (width <= 0 || height <= 0) {
+        preview.setBounds(null);
+        return;
+      }
+
+      preview.setBounds({
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+        width,
+        height,
+      });
+    };
+
+    const host = previewHostRef.current;
+    if (!host) return;
+
+    const observer = new ResizeObserver(syncBounds);
+    observer.observe(host);
+
+    const frameId = window.requestAnimationFrame(syncBounds);
+    window.addEventListener('resize', syncBounds);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', syncBounds);
+      window.cancelAnimationFrame(frameId);
+      preview.setBounds(null);
+    };
+  }, [hasPreviewSurface, previewRuntime]);
+
+  useEffect(() => {
+    if (!previewRuntime || !window.electronAPI?.preview) return;
+
+    const preview = window.electronAPI.preview;
+    if (!browserUrl) {
+      preview.setVisible(false);
+      preview.setBounds(null);
+      return;
     }
-  }, [browserUrl]);
+
+    preview.setVisible(true);
+    if (browserUrl !== previewCurrentUrl) {
+      void preview.navigate(browserUrl).catch(() => {
+        preview.setVisible(false);
+      });
+    }
+  }, [browserUrl, previewCurrentUrl, previewRuntime]);
+
+  useEffect(() => {
+    if (!previewRuntime || !window.electronAPI?.preview) return;
+
+    const preview = window.electronAPI.preview;
+    return () => {
+      preview.setVisible(false);
+      preview.setBounds(null);
+    };
+  }, [previewRuntime]);
+
   return (
     <main className={`content-grid ${isSidebarOpen ? '' : 'is-sidebar-collapsed'}`.trim()}>
       {isSidebarOpen ? (
@@ -122,16 +190,12 @@ export default function ReaderView({
           <div className="native-webview-host">
             {browserUrl ? (
               electronRuntime ? (
-                // Electron 环境：用 <webview> 绕过 X-Frame-Options / CSP 限制
-                <webview
-                  ref={(el) => { webviewRef.current = el as DesktopWebviewTag | null; }}
-                  key={`wv-${browserUrl}`}
-                  src={browserUrl}
-                  className="web-frame"
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                />
+                previewRuntime ? (
+                  <div ref={previewHostRef} className="web-frame web-frame-placeholder" aria-hidden="true" />
+                ) : (
+                  <div className="empty-state preview-runtime-warning">{labels.previewUnavailable}</div>
+                )
               ) : (
-                // 浏览器环境：回退 iframe
                 <iframe
                   key={`${browserUrl}-${iframeReloadKey}`}
                   className="web-frame"
