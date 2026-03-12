@@ -16,7 +16,8 @@ import * as TitlebarModule from './titlebar';
 import { ToastContainer, toast } from './components/Toast';
 import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
-import { buildDefaultBatchDateRange, isDateRangeValid } from './utils/dateRange';
+import { buildDefaultBatchDateRange } from './utils/dateRange';
+import { fetchLatestArticlesBatch, type Article } from './services/articleFetch';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -24,16 +25,6 @@ const TitlebarView =
   ((TitlebarModule as { Titlebar?: ComponentType<any>; default?: ComponentType<any> }).Titlebar ??
     (TitlebarModule as { default?: ComponentType<any> }).default ??
     (() => null)) as ComponentType<any>;
-
-type Article = {
-  title: string;
-  doi: string | null;
-  authors: string[];
-  abstractText: string | null;
-  publishedAt: string | null;
-  sourceUrl: string;
-  fetchedAt: string;
-};
 
 type PdfDownloadResult = {
   filePath: string;
@@ -407,43 +398,43 @@ export default function App() {
   };
 
   const handleFetchLatestBatch = async () => {
-    if (!desktopRuntime) {
-      toast.info(ui.toastDesktopBatchFetchOnly);
-      return;
-    }
-
-    const normalized = normalizeUrl(homepageUrl);
-    if (!normalized) {
-      toast.error(ui.toastEnterHomepageUrl);
-      return;
-    }
-
-    if (!isDateRangeValid(batchStartDate, batchEndDate)) {
-      toast.error(ui.toastDateRangeInvalid);
-      return;
-    }
-
     setIsBatchLoading(true);
 
     try {
-      const fetched = await invokeDesktop<Article[]>('fetch_latest_articles', {
-        homepageUrl: normalized,
+      const result = await fetchLatestArticlesBatch({
+        desktopRuntime,
+        homepageUrl,
         limit: batchLimit,
         sameDomainOnly,
         startDate: batchStartDate || null,
         endDate: batchEndDate || null,
+        normalizeUrl,
+        invokeDesktop,
       });
 
-      setArticles((prev) => mergeArticles(fetched, prev));
-      toast.success(formatLocalized(ui.toastBatchFetchSucceeded, { count: fetched.length }));
-
-      if (fetched[0]) {
-        setWebUrl(fetched[0].sourceUrl);
-        setBrowserUrl(fetched[0].sourceUrl);
+      if (!result.ok) {
+        if (result.reason === 'desktop_unsupported') {
+          toast.info(ui.toastDesktopBatchFetchOnly);
+          return;
+        }
+        if (result.reason === 'empty_homepage_url') {
+          toast.error(ui.toastEnterHomepageUrl);
+          return;
+        }
+        if (result.reason === 'invalid_date_range') {
+          toast.error(ui.toastDateRangeInvalid);
+          return;
+        }
+        toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: result.error ?? ui.unknown }));
+        return;
       }
-    } catch (fetchError) {
-      const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-      toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: message }));
+
+      setArticles((prev) => mergeArticles(result.articles, prev));
+      toast.success(formatLocalized(ui.toastBatchFetchSucceeded, { count: result.articles.length }));
+      if (result.articles[0]) {
+        setWebUrl(result.articles[0].sourceUrl);
+        setBrowserUrl(result.articles[0].sourceUrl);
+      }
     } finally {
       setIsBatchLoading(false);
     }
