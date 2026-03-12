@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import Sidebar from '../sidebar';
 import type { ReaderViewProps } from './types';
 
@@ -21,15 +21,6 @@ export default function ReaderView({
 }: ReaderViewProps) {
   const previewHostRef = useRef<HTMLDivElement | null>(null);
   const hasPreviewSurface = Boolean(browserUrl);
-
-  const handleDatePickerOpenChange = useCallback(
-    (isOpen: boolean) => {
-      if (!previewRuntime || !window.electronAPI?.preview) return;
-      if (!browserUrl) return;
-      window.electronAPI.preview.setVisible(!isOpen);
-    },
-    [browserUrl, previewRuntime],
-  );
 
   useEffect(() => {
     if (!previewRuntime || !window.electronAPI?.preview) return;
@@ -130,7 +121,6 @@ export default function ReaderView({
           onBatchStartDateChange={onBatchStartDateChange}
           batchEndDate={batchEndDate}
           onBatchEndDateChange={onBatchEndDateChange}
-          onDatePickerOpenChange={handleDatePickerOpenChange}
           onFetchLatestBatch={onFetchLatestBatch}
           isBatchLoading={isBatchLoading}
         />

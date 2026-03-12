@@ -54,11 +54,6 @@
   gap: 8px;
 }
 
-.date-range-popup.is-end {
-  left: auto;
-  right: 0;
-}
-
 .date-range-popup-header {
   display: grid;
   grid-template-columns: 28px 1fr 28px;
@@ -152,4 +147,16 @@
 
 .date-range-day.is-today {
   font-weight: 700;
+}
+
+.date-range-day.is-disabled,
+.date-range-day:disabled {
+  color: #94a3b8;
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.date-range-day.is-disabled:hover,
+.date-range-day:disabled:hover {
+  background: transparent;
 }

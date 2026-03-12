@@ -16,7 +16,7 @@ import * as TitlebarModule from './titlebar';
 import { ToastContainer, toast } from './components/Toast';
 import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
-import { buildDefaultBatchDateRange, shiftDateInputValue } from './utils/dateRange';
+import { buildDefaultBatchDateRange } from './utils/dateRange';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -453,25 +453,6 @@ export default function App() {
     setFilterJournal('');
   };
 
-  const handleBatchEndDateChange = useCallback(
-    (nextEndDate: string) => {
-      setBatchEndDate(nextEndDate);
-      if (!nextEndDate) return;
-
-      const previousDefaultStartDate = batchEndDate ? shiftDateInputValue(batchEndDate, -7) : '';
-      const shouldSyncStartDate =
-        !batchStartDate || (previousDefaultStartDate && batchStartDate === previousDefaultStartDate);
-
-      if (!shouldSyncStartDate) return;
-
-      const syncedStartDate = shiftDateInputValue(nextEndDate, -7);
-      if (!syncedStartDate) return;
-
-      setBatchStartDate(syncedStartDate);
-    },
-    [batchEndDate, batchStartDate],
-  );
-
   const handleWindowControl = (action: TitlebarAction) => {
     window.electronAPI?.windowControls?.perform(action);
   };
@@ -529,7 +510,7 @@ export default function App() {
             batchStartDate={batchStartDate}
             onBatchStartDateChange={setBatchStartDate}
             batchEndDate={batchEndDate}
-            onBatchEndDateChange={handleBatchEndDateChange}
+            onBatchEndDateChange={setBatchEndDate}
             onFetchLatestBatch={() => void handleFetchLatestBatch()}
             isBatchLoading={isBatchLoading}
             onResetFilters={handleResetFilters}

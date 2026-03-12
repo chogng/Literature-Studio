@@ -37,7 +37,6 @@ type SidebarProps = {
   onBatchStartDateChange: (value: string) => void;
   batchEndDate: string;
   onBatchEndDateChange: (value: string) => void;
-  onDatePickerOpenChange?: (isOpen: boolean) => void;
   onFetchLatestBatch: () => void;
   isBatchLoading: boolean;
 };
@@ -56,7 +55,6 @@ export default function Sidebar({
   onBatchStartDateChange,
   batchEndDate,
   onBatchEndDateChange,
-  onDatePickerOpenChange,
   onFetchLatestBatch,
   isBatchLoading,
 }: SidebarProps) {
@@ -75,7 +73,6 @@ export default function Sidebar({
           }}
           onStartDateChange={onBatchStartDateChange}
           onEndDateChange={onBatchEndDateChange}
-          onOpenChange={onDatePickerOpenChange}
         />
         <Button
           type="button"
