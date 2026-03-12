@@ -16,6 +16,7 @@ import * as TitlebarModule from './titlebar';
 import { ToastContainer, toast } from './components/Toast';
 import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
+import { buildDefaultBatchDateRange, shiftDateInputValue } from './utils/dateRange';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -97,13 +98,14 @@ function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
 export default function App() {
   const [activePage, setActivePage] = useState<'reader' | 'settings'>('reader');
   const [locale, setLocale] = useState<Locale>(() => detectInitialLocale());
+  const initialBatchDateRange = useMemo(() => buildDefaultBatchDateRange(), []);
   const [webUrl, setWebUrl] = useState(defaultArticleUrl);
   const [browserUrl, setBrowserUrl] = useState(normalizeUrl(defaultArticleUrl));
   const [homepageUrl, setHomepageUrl] = useState(defaultHomepageUrl);
   const [batchLimit, setBatchLimit] = useState(defaultBatchLimit);
   const [sameDomainOnly, setSameDomainOnly] = useState(defaultSameDomainOnly);
-  const [batchStartDate, setBatchStartDate] = useState('');
-  const [batchEndDate, setBatchEndDate] = useState('');
+  const [batchStartDate, setBatchStartDate] = useState(initialBatchDateRange.startDate);
+  const [batchEndDate, setBatchEndDate] = useState(initialBatchDateRange.endDate);
   const [filterKeyword, setFilterKeyword] = useState('');
   const [filterJournal, setFilterJournal] = useState('');
   const [iframeReloadKey, setIframeReloadKey] = useState(0);
@@ -473,6 +475,25 @@ export default function App() {
     setFilterJournal('');
   };
 
+  const handleBatchEndDateChange = useCallback(
+    (nextEndDate: string) => {
+      setBatchEndDate(nextEndDate);
+      if (!nextEndDate) return;
+
+      const previousDefaultStartDate = batchEndDate ? shiftDateInputValue(batchEndDate, -7) : '';
+      const shouldSyncStartDate =
+        !batchStartDate || (previousDefaultStartDate && batchStartDate === previousDefaultStartDate);
+
+      if (!shouldSyncStartDate) return;
+
+      const syncedStartDate = shiftDateInputValue(nextEndDate, -7);
+      if (!syncedStartDate) return;
+
+      setBatchStartDate(syncedStartDate);
+    },
+    [batchEndDate, batchStartDate],
+  );
+
   const handleWindowControl = (action: TitlebarAction) => {
     window.electronAPI?.windowControls?.perform(action);
   };
@@ -532,7 +553,7 @@ export default function App() {
             batchStartDate={batchStartDate}
             onBatchStartDateChange={setBatchStartDate}
             batchEndDate={batchEndDate}
-            onBatchEndDateChange={setBatchEndDate}
+            onBatchEndDateChange={handleBatchEndDateChange}
             filterJournal={filterJournal}
             onFilterJournalChange={setFilterJournal}
             onFetchLatestBatch={() => void handleFetchLatestBatch()}
