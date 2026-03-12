@@ -3,6 +3,7 @@ import { BrowserWindow, WebContentsView } from 'electron';
 import type { PreviewBounds, PreviewState } from './types.js';
 
 const previewPartition = 'reader-preview';
+const previewCornerRadius = 10;
 
 let previewWindow: BrowserWindow | null = null;
 let previewView: WebContentsView | null = null;
@@ -98,6 +99,7 @@ export function ensurePreviewView(window: BrowserWindow) {
       nodeIntegration: false,
     },
   });
+  previewView.setBorderRadius(previewCornerRadius);
 
   window.contentView.addChildView(previewView);
   bindPreviewEvents(previewView);

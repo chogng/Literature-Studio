@@ -258,6 +258,7 @@ button:disabled {
   background: #fff;
   display: flex;
   flex-direction: column;
+  border-radius: inherit;
 }
 
 .native-webview-host {
@@ -268,6 +269,7 @@ button:disabled {
   background: #fff;
   display: flex;
   flex-direction: column;
+  border-radius: inherit;
 }
 
 .panel-title {
@@ -284,6 +286,7 @@ button:disabled {
   overflow: auto;
   border: none;
   background: #fff;
+  border-radius: inherit;
 }
 
 .web-frame-placeholder {
