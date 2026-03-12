@@ -1,6 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 import Sidebar from '../sidebar';
+import { Button } from '../components/Button';
+import DateRangePicker from '../components/DateRangePicker';
 import type { ReaderViewProps } from './types';
 
 export default function ReaderView({
@@ -31,6 +33,15 @@ export default function ReaderView({
 }: ReaderViewProps) {
   const previewHostRef = useRef<HTMLDivElement | null>(null);
   const hasPreviewSurface = Boolean(browserUrl);
+
+  const handleDatePickerOpenChange = useCallback(
+    (isOpen: boolean) => {
+      if (!previewRuntime || !window.electronAPI?.preview) return;
+      if (!browserUrl) return;
+      window.electronAPI.preview.setVisible(!isOpen);
+    },
+    [browserUrl, previewRuntime],
+  );
 
   useEffect(() => {
     if (!previewRuntime || !window.electronAPI?.preview) return;
@@ -134,26 +145,17 @@ export default function ReaderView({
 
       <section className="panel web-panel">
         <header className="content-header">
-          <div className="date-filters">
-            <label className="inline-field">
-              {labels.startDate}
-              <input
-                type="date"
-                className="date-input"
-                value={batchStartDate}
-                onChange={(event) => onBatchStartDateChange(event.target.value)}
-              />
-            </label>
-            <label className="inline-field">
-              {labels.endDate}
-              <input
-                type="date"
-                className="date-input"
-                value={batchEndDate}
-                onChange={(event) => onBatchEndDateChange(event.target.value)}
-              />
-            </label>
-          </div>
+          <DateRangePicker
+            startDate={batchStartDate}
+            endDate={batchEndDate}
+            labels={{
+              startDate: labels.startDate,
+              endDate: labels.endDate,
+            }}
+            onStartDateChange={onBatchStartDateChange}
+            onEndDateChange={onBatchEndDateChange}
+            onOpenChange={handleDatePickerOpenChange}
+          />
 
           <input
             className="filter-input pill-input source-filter"
@@ -164,23 +166,32 @@ export default function ReaderView({
           />
 
           <div className="content-actions">
-            <button
+            <Button
               type="button"
-              className="primary-btn fetch-btn"
+              className="fetch-btn"
+              variant="primary"
+              mode="text"
+              textMode="with"
+              iconMode="without"
               onClick={onFetchLatestBatch}
               disabled={isBatchLoading}
             >
               {isBatchLoading ? labels.fetchLatestBusy : labels.fetchLatest}
-            </button>
-            <button
-              className="icon-btn"
+            </Button>
+            <Button
               type="button"
+              mode="icon"
+              variant="secondary"
+              size="sm"
+              iconMode="with"
+              textMode="without"
               onClick={onResetFilters}
               disabled={!filterKeyword && !filterJournal}
               title={labels.resetFilter}
+              aria-label={labels.resetFilter}
             >
               <RotateCcw size={16} />
-            </button>
+            </Button>
             <span className="count-display">
               {labels.showing} {filteredCount} / {labels.total} {totalCount}
             </span>

@@ -1,5 +1,6 @@
-﻿import * as Checkbox from '@radix-ui/react-checkbox';
+import * as Checkbox from '@radix-ui/react-checkbox';
 import { Check, FolderOpen } from 'lucide-react';
+import { Button } from '../components/Button';
 import type { SettingsViewProps } from './types';
 
 export default function SettingsView({
@@ -104,43 +105,56 @@ export default function SettingsView({
                 onChange={(event) => onPdfDownloadDirChange(event.target.value)}
                 placeholder={labels.downloadDirPlaceholder}
               />
-              <button
-                className="icon-btn"
+              <Button
                 type="button"
+                mode="icon"
+                variant="secondary"
+                size="sm"
+                iconMode="with"
+                textMode="without"
                 onClick={onChoosePdfDownloadDir}
                 disabled={!desktopRuntime || isSettingsSaving}
                 title={labels.chooseDirectory}
                 aria-label={labels.chooseDirectory}
               >
                 <FolderOpen size={16} />
-              </button>
+              </Button>
             </div>
           </label>
 
           <div className="settings-actions">
-            <button
+            <Button
               type="button"
+              mode="text"
+              variant="secondary"
+              textMode="with"
+              iconMode="without"
               onClick={onResetDownloadDir}
               disabled={!pdfDownloadDir.trim() || isSettingsSaving}
             >
               {labels.resetDefault}
-            </button>
-            <button
-              className="primary-btn"
+            </Button>
+            <Button
               type="button"
+              mode="text"
+              variant="primary"
+              textMode="with"
+              iconMode="without"
               onClick={onSaveSettings}
               disabled={isSettingsLoading || isSettingsSaving}
             >
               {isSettingsSaving ? labels.saving : labels.saveSettings}
-            </button>
+            </Button>
           </div>
 
           <p className="settings-hint">{labels.settingsHintPath}</p>
           <p className="settings-hint">
-            {labels.currentDir}{pdfDownloadDir.trim() ? pdfDownloadDir.trim() : labels.systemDownloads}
+            {labels.currentDir}
+            {pdfDownloadDir.trim() ? pdfDownloadDir.trim() : labels.systemDownloads}
           </p>
         </div>
       </section>
     </main>
   );
 }
+

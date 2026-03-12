@@ -181,7 +181,7 @@ input {
 
 button {
   border: 1px solid #c4cfda;
-  border-radius: 999px;
+  border-radius: 2px;
   background: #f6f9fc;
   color: #1f2d3a;
   padding: 8px 12px;
@@ -244,6 +244,9 @@ button:disabled {
 }
 
 .content-header {
+  position: relative;
+  z-index: 20;
+  overflow: visible;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -283,6 +286,8 @@ button:disabled {
 }
 
 .web-frame-container {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   overflow: hidden;

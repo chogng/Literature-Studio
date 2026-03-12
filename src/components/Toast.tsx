@@ -79,6 +79,9 @@ export const ToastContainer: React.FC = () => {
             className="toast-close"
             variant="ghost"
             size="sm"
+            mode="icon"
+            iconMode="with"
+            textMode="without"
             onClick={() => toast.dismiss(t.id)}
             aria-label="关闭"
           >
@@ -104,3 +107,4 @@ const ToastIcon: React.FC<{ type: ToastType }> = ({ type }) => {
       return <Info size={size} strokeWidth={strokeWidth} color="#0a5fbf" />;
   }
 };
+

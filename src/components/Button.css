@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: 8px;
+  border-radius: 2px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -39,7 +39,7 @@
   width: 32px;
   height: 32px;
   padding: 0;
-  border-radius: 6px;
+  border-radius: 2px;
 }
 
 .btn-icon.btn-md {
@@ -50,6 +50,38 @@
 .btn-icon.btn-lg {
   width: 48px;
   height: 48px;
+}
+
+.btn-mode-icon {
+  --btn-icon-size: 32px;
+  width: var(--btn-icon-size);
+  min-width: var(--btn-icon-size);
+  max-width: var(--btn-icon-size);
+  height: var(--btn-icon-size);
+  padding: 0;
+  gap: 0;
+  border-radius: 2px;
+  aspect-ratio: 1 / 1;
+}
+
+.btn-mode-icon:hover:not(:disabled) {
+  border-radius: 4px;
+}
+
+.btn-mode-icon.btn-sm {
+  --btn-icon-size: 32px;
+}
+
+.btn-mode-icon.btn-md {
+  --btn-icon-size: 40px;
+}
+
+.btn-mode-icon.btn-lg {
+  --btn-icon-size: 48px;
+}
+
+.btn-mode-icon.btn-icon {
+  --btn-icon-size: 32px;
 }
 
 /* Variants */
@@ -144,7 +176,9 @@
 }
 
 /* Special icons handling */
-.btn-icon-left, .btn-icon-right {
+.btn-icon-left,
+.btn-icon-right,
+.btn-icon-only {
   display: inline-flex;
   align-items: center;
   justify-content: center;

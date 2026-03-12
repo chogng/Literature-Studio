@@ -1,0 +1,155 @@
+.date-range-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-range-trigger {
+  min-height: 34px;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #304050;
+  font-size: 13px;
+  line-height: 1;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.date-range-trigger:hover {
+  background: #eef3f8;
+}
+
+.date-range-trigger:focus-visible {
+  outline: none;
+  background: #eef3f8;
+  box-shadow: 0 0 0 2px rgba(10, 95, 191, 0.25);
+}
+
+.date-range-trigger.is-active {
+  background: #e9f3ff;
+  color: #0a5fbf;
+}
+
+.date-range-trigger-text {
+  white-space: nowrap;
+}
+
+.date-range-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1200;
+  width: 280px;
+  border: 1px solid #d1dce8;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.date-range-popup.is-end {
+  left: auto;
+  right: 0;
+}
+
+.date-range-popup-header {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-range-month-title {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a2530;
+}
+
+.date-range-month-nav {
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #425468;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-range-month-nav:hover {
+  background: #eef3f8;
+}
+
+.date-range-month-nav:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(10, 95, 191, 0.25);
+}
+
+.date-range-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.date-range-weekday {
+  text-align: center;
+  font-size: 11px;
+  color: #64748b;
+  padding: 2px 0;
+}
+
+.date-range-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.date-range-day {
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #1a2530;
+  padding: 0;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-range-day:hover {
+  background: #eef3f8;
+}
+
+.date-range-day:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(10, 95, 191, 0.25);
+}
+
+.date-range-day.is-outside {
+  color: #94a3b8;
+}
+
+.date-range-day.is-in-range {
+  background: #eef6ff;
+  color: #0a5fbf;
+}
+
+.date-range-day.is-start,
+.date-range-day.is-end {
+  background: #0a5fbf;
+  color: #ffffff;
+}
+
+.date-range-day.is-today {
+  font-weight: 700;
+}

@@ -91,9 +91,6 @@
 }
 
 .titlebar-btn.btn-base {
-  width: 46px;
-  height: 100%;
-  border-radius: 0;
   border: none;
   background: transparent;
   color: #1f2d3a;
@@ -106,6 +103,21 @@
   gap: 0;
 }
 
+.titlebar-btn.btn-base.btn-mode-icon {
+  --btn-icon-size: 26px;
+  align-self: center;
+}
+
+.titlebar-btn-window.btn-base.btn-mode-icon {
+  width: 46px;
+  min-width: 46px;
+  max-width: 46px;
+  height: 100%;
+  align-self: stretch;
+  border-radius: 0;
+  aspect-ratio: auto;
+}
+
 .titlebar-btn.btn-base:hover {
   background: rgba(0, 0, 0, 0.05);
 }
@@ -116,25 +128,12 @@
 }
 
 .titlebar-btn-settings.btn-base {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
   margin-right: 4px;
 }
 
 .titlebar-btn-sidebar.btn-base {
   -webkit-app-region: no-drag;
-  width: 26px;
-  height: 26px;
-  align-self: center;
   margin-right: 4px;
-  border-radius: 6px;
-}
-
-.titlebar-btn-nav.btn-base {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
 }
 
 .titlebar-btn-nav.btn-base:disabled {

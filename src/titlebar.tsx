@@ -74,6 +74,9 @@ export function Titlebar({
             className="titlebar-btn titlebar-btn-sidebar"
             variant="ghost"
             size="sm"
+            mode="icon"
+            iconMode="with"
+            textMode="without"
             onClick={onToggleSidebar}
             aria-label={sidebarToggleLabel}
             title={sidebarToggleLabel}
@@ -88,6 +91,9 @@ export function Titlebar({
                 className="titlebar-btn titlebar-btn-nav"
                 variant="ghost"
                 size="sm"
+                mode="icon"
+                iconMode="with"
+                textMode="without"
                 onClick={onNavigateBack}
                 disabled={!browserUrl || !canGoBack}
                 aria-label="后退"
@@ -101,6 +107,9 @@ export function Titlebar({
                 className="titlebar-btn titlebar-btn-nav"
                 variant="ghost"
                 size="sm"
+                mode="icon"
+                iconMode="with"
+                textMode="without"
                 onClick={onNavigateForward}
                 disabled={!browserUrl || !canGoForward}
                 aria-label="前进"
@@ -114,6 +123,9 @@ export function Titlebar({
                 className="titlebar-btn titlebar-btn-nav"
                 variant="ghost"
                 size="sm"
+                mode="icon"
+                iconMode="with"
+                textMode="without"
                 onClick={onRefresh}
                 disabled={!browserUrl}
                 aria-label="刷新"
@@ -127,6 +139,9 @@ export function Titlebar({
                 className="titlebar-btn titlebar-btn-nav"
                 variant="ghost"
                 size="sm"
+                mode="icon"
+                iconMode="with"
+                textMode="without"
                 onClick={onDownloadPdf}
                 disabled={!browserUrl || !canDownload}
                 aria-label="下载 PDF"
@@ -164,6 +179,9 @@ export function Titlebar({
             className="titlebar-btn titlebar-btn-settings"
             variant="ghost"
             size="sm"
+            mode="icon"
+            iconMode="with"
+            textMode="without"
             onClick={onToggleSettings}
             aria-label={labels.settingsLabel}
             title={labels.settingsLabel}
@@ -175,6 +193,9 @@ export function Titlebar({
           className="titlebar-btn titlebar-btn-window"
           variant="ghost"
           size="sm"
+          mode="icon"
+          iconMode="with"
+          textMode="without"
           onClick={() => onWindowControl('minimize')}
           aria-label={labels.minimizeLabel}
           title={labels.minimizeLabel}
@@ -185,6 +206,9 @@ export function Titlebar({
           className="titlebar-btn titlebar-btn-window"
           variant="ghost"
           size="sm"
+          mode="icon"
+          iconMode="with"
+          textMode="without"
           onClick={() => onWindowControl('toggle-maximize')}
           aria-label={isWindowMaximized ? labels.restoreLabel : labels.maximizeLabel}
           title={isWindowMaximized ? labels.restoreLabel : labels.maximizeLabel}
@@ -195,6 +219,9 @@ export function Titlebar({
           className="titlebar-btn titlebar-btn-window titlebar-btn-close"
           variant="ghost"
           size="sm"
+          mode="icon"
+          iconMode="with"
+          textMode="without"
           onClick={() => onWindowControl('close')}
           aria-label={labels.closeLabel}
           title={labels.closeLabel}
