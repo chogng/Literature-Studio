@@ -1,4 +1,5 @@
-﻿import { RotateCcw } from 'lucide-react';
+﻿import { useEffect, useRef } from 'react';
+import { RotateCcw } from 'lucide-react';
 import Sidebar from '../sidebar';
 import type { ReaderViewProps } from './types';
 
@@ -23,8 +24,19 @@ export default function ReaderView({
   totalCount,
   browserUrl,
   iframeReloadKey,
+  electronRuntime,
   labels,
 }: ReaderViewProps) {
+  const webviewRef = useRef<DesktopWebviewTag | null>(null);
+
+  // 把 browserUrl 变化同步给已挂载的 webview（src 变了 React 不一定重建元素）
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv || !browserUrl) return;
+    if ((wv as HTMLElement & { src?: string }).src !== browserUrl) {
+      (wv as HTMLElement & { src?: string }).src = browserUrl;
+    }
+  }, [browserUrl]);
   return (
     <main className={`content-grid ${isSidebarOpen ? '' : 'is-sidebar-collapsed'}`.trim()}>
       {isSidebarOpen ? (
@@ -109,14 +121,26 @@ export default function ReaderView({
         <div className="web-frame-container">
           <div className="native-webview-host">
             {browserUrl ? (
-              <iframe
-                key={`${browserUrl}-${iframeReloadKey}`}
-                className="web-frame"
-                src={browserUrl}
-                title="Web Preview"
-                sandbox="allow-forms allow-scripts allow-same-origin"
-                scrolling="yes"
-              />
+              electronRuntime ? (
+                // Electron 环境：用 <webview> 绕过 X-Frame-Options / CSP 限制
+                <webview
+                  ref={(el) => { webviewRef.current = el as DesktopWebviewTag | null; }}
+                  key={`wv-${browserUrl}`}
+                  src={browserUrl}
+                  className="web-frame"
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                />
+              ) : (
+                // 浏览器环境：回退 iframe
+                <iframe
+                  key={`${browserUrl}-${iframeReloadKey}`}
+                  className="web-frame"
+                  src={browserUrl}
+                  title="Web Preview"
+                  sandbox="allow-forms allow-scripts allow-same-origin"
+                  scrolling="yes"
+                />
+              )
             ) : (
               <div className="empty-state">{labels.emptyState}</div>
             )}

@@ -46,6 +46,7 @@ export type ReaderViewProps = {
   totalCount: number;
   browserUrl: string;
   iframeReloadKey: number;
+  electronRuntime: boolean;
   labels: ReaderViewLabels;
 };
 

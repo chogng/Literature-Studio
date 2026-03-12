@@ -492,6 +492,7 @@ export default function App() {
             totalCount={articles.length}
             browserUrl={browserUrl}
             iframeReloadKey={iframeReloadKey}
+            electronRuntime={electronRuntime}
             labels={{
               resultPanelTitle: ui.resultPanelTitle,
               untitled: ui.untitled,
