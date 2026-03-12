@@ -147,15 +147,10 @@ export function Titlebar({
               onChange={(e) => onWebUrlChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  if (onFetchSingle) {
-                    onFetchSingle();
-                  } else if (onNavigateWeb) {
-                    onNavigateWeb();
-                  }
+                  onNavigateWeb?.();
                 }
               }}
               placeholder={articleUrlPlaceholder}
-              clearable
             />
           </div>
         )}
