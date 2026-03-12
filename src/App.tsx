@@ -16,7 +16,7 @@ import * as TitlebarModule from './titlebar';
 import { ToastContainer, toast } from './components/Toast';
 import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
-import { buildDefaultBatchDateRange } from './utils/dateRange';
+import { buildDefaultBatchDateRange, isDateRangeValid } from './utils/dateRange';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -418,7 +418,7 @@ export default function App() {
       return;
     }
 
-    if (batchStartDate && batchEndDate && batchStartDate > batchEndDate) {
+    if (!isDateRangeValid(batchStartDate, batchEndDate)) {
       toast.error(ui.toastDateRangeInvalid);
       return;
     }

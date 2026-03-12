@@ -3,6 +3,11 @@ export type BatchDateRange = {
   endDate: string;
 };
 
+export function isDateRangeValid(startDate: string, endDate: string): boolean {
+  if (!startDate || !endDate) return true;
+  return startDate <= endDate;
+}
+
 export function formatDateInputValue(date: Date): string {
   const year = String(date.getFullYear());
   const month = String(date.getMonth() + 1).padStart(2, '0');

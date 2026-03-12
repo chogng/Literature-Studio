@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { formatDateInputValue } from '../utils/dateRange';
+import { formatDateInputValue, isDateRangeValid } from '../utils/dateRange';
 import './DateRangePicker.css';
 
 type DateRangePickerLabels = {
@@ -218,7 +218,7 @@ export default function DateRangePicker({
     setEndVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + offset, 1));
   };
 
-  const showRange = Boolean(startDate && endDate && startDate <= endDate);
+  const showRange = Boolean(startDate && endDate && isDateRangeValid(startDate, endDate));
   const startDateLimit = parseDateValue(startDate) ? startDate : '';
   const endDateLimit = parseDateValue(endDate) ? endDate : '';
 
