@@ -1,3 +1,5 @@
+import { Button } from './components/Button';
+import DateRangePicker from './components/DateRangePicker';
 import './sidebar.css';
 
 export type SidebarArticle = {
@@ -21,18 +23,23 @@ type SidebarLabels = {
   fetchedAt: string;
   emptyFiltered: string;
   emptyAll: string;
+  startDate: string;
+  endDate: string;
+  fetchLatestBusy: string;
+  fetchLatest: string;
 };
 
 type SidebarProps = {
   articles: SidebarArticle[];
   hasData: boolean;
   labels: SidebarLabels;
-  homepageUrl: string;
-  onHomepageUrlChange: (url: string) => void;
-  filterKeyword: string;
-  onFilterKeywordChange: (keyword: string) => void;
-  homepageUrlPlaceholder?: string;
-  keywordFilterPlaceholder?: string;
+  batchStartDate: string;
+  onBatchStartDateChange: (value: string) => void;
+  batchEndDate: string;
+  onBatchEndDateChange: (value: string) => void;
+  onDatePickerOpenChange?: (isOpen: boolean) => void;
+  onFetchLatestBatch: () => void;
+  isBatchLoading: boolean;
 };
 
 function formatTime(value: string): string {
@@ -45,32 +52,43 @@ export default function Sidebar({
   articles,
   hasData,
   labels,
-  homepageUrl,
-  onHomepageUrlChange,
-  filterKeyword,
-  onFilterKeywordChange,
-  homepageUrlPlaceholder,
-  keywordFilterPlaceholder,
+  batchStartDate,
+  onBatchStartDateChange,
+  batchEndDate,
+  onBatchEndDateChange,
+  onDatePickerOpenChange,
+  onFetchLatestBatch,
+  isBatchLoading,
 }: SidebarProps) {
   const hasVisibleData = articles.length > 0;
 
   return (
     <section className="panel sidebar-panel">
-      <div className="sidebar-header">
-        <input
-          className="sidebar-input pill-input"
-          type="text"
-          value={homepageUrl}
-          onChange={(e) => onHomepageUrlChange(e.target.value)}
-          placeholder={homepageUrlPlaceholder}
+      <div className="sidebar-action-bar">
+        <DateRangePicker
+          className="sidebar-date-picker"
+          startDate={batchStartDate}
+          endDate={batchEndDate}
+          labels={{
+            startDate: labels.startDate,
+            endDate: labels.endDate,
+          }}
+          onStartDateChange={onBatchStartDateChange}
+          onEndDateChange={onBatchEndDateChange}
+          onOpenChange={onDatePickerOpenChange}
         />
-        <input
-          className="sidebar-input pill-input"
-          type="text"
-          value={filterKeyword}
-          onChange={(e) => onFilterKeywordChange(e.target.value)}
-          placeholder={keywordFilterPlaceholder}
-        />
+        <Button
+          type="button"
+          className="fetch-btn sidebar-fetch-btn"
+          variant="primary"
+          mode="text"
+          textMode="with"
+          iconMode="without"
+          onClick={onFetchLatestBatch}
+          disabled={isBatchLoading}
+        >
+          {isBatchLoading ? labels.fetchLatestBusy : labels.fetchLatest}
+        </Button>
       </div>
       <div className="panel-title">{labels.resultPanelTitle}</div>
       {hasVisibleData ? (

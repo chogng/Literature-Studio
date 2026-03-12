@@ -106,7 +106,6 @@ export default function App() {
   const [sameDomainOnly, setSameDomainOnly] = useState(defaultSameDomainOnly);
   const [batchStartDate, setBatchStartDate] = useState(initialBatchDateRange.startDate);
   const [batchEndDate, setBatchEndDate] = useState(initialBatchDateRange.endDate);
-  const [filterKeyword, setFilterKeyword] = useState('');
   const [filterJournal, setFilterJournal] = useState('');
   const [iframeReloadKey, setIframeReloadKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -143,29 +142,9 @@ export default function App() {
   );
 
   const filteredArticles = useMemo(() => {
-    const keyword = filterKeyword.trim().toLowerCase();
     const journal = filterJournal.trim().toLowerCase();
-
-    return articles.filter((article) => {
-      const matchesJournal = !journal || article.sourceUrl.toLowerCase().includes(journal);
-      if (!matchesJournal) return false;
-
-      if (!keyword) return true;
-
-      const searchable = [
-        article.title,
-        article.doi ?? '',
-        article.authors.join(' '),
-        article.abstractText ?? '',
-        article.publishedAt ?? '',
-        article.sourceUrl,
-      ]
-        .join(' ')
-        .toLowerCase();
-
-      return searchable.includes(keyword);
-    });
-  }, [articles, filterKeyword, filterJournal]);
+    return articles.filter((article) => !journal || article.sourceUrl.toLowerCase().includes(journal));
+  }, [articles, filterJournal]);
 
   const hasData = articles.length > 0;
 
@@ -471,7 +450,6 @@ export default function App() {
   };
 
   const handleResetFilters = () => {
-    setFilterKeyword('');
     setFilterJournal('');
   };
 
@@ -546,16 +524,12 @@ export default function App() {
             isSidebarOpen={isSidebarOpen}
             filteredArticles={filteredArticles}
             hasData={hasData}
-            homepageUrl={homepageUrl}
-            onHomepageUrlChange={setHomepageUrl}
-            filterKeyword={filterKeyword}
-            onFilterKeywordChange={setFilterKeyword}
+            filterJournal={filterJournal}
+            onFilterJournalChange={setFilterJournal}
             batchStartDate={batchStartDate}
             onBatchStartDateChange={setBatchStartDate}
             batchEndDate={batchEndDate}
             onBatchEndDateChange={handleBatchEndDateChange}
-            filterJournal={filterJournal}
-            onFilterJournalChange={setFilterJournal}
             onFetchLatestBatch={() => void handleFetchLatestBatch()}
             isBatchLoading={isBatchLoading}
             onResetFilters={handleResetFilters}
@@ -577,8 +551,6 @@ export default function App() {
               fetchedAt: ui.fetchedAt,
               emptyFiltered: ui.emptyFiltered,
               emptyAll: ui.emptyAll,
-              homepageUrlPlaceholder: ui.homepageUrlPlaceholder,
-              keywordFilterPlaceholder: ui.keywordFilterPlaceholder,
               startDate: ui.startDate,
               endDate: ui.endDate,
               journalFilterPlaceholder: ui.journalFilterPlaceholder,

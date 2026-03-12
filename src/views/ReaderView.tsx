@@ -1,29 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { RotateCcw } from 'lucide-react';
 import Sidebar from '../sidebar';
-import { Button } from '../components/Button';
-import DateRangePicker from '../components/DateRangePicker';
 import type { ReaderViewProps } from './types';
 
 export default function ReaderView({
   isSidebarOpen,
   filteredArticles,
   hasData,
-  homepageUrl,
-  onHomepageUrlChange,
-  filterKeyword,
-  onFilterKeywordChange,
   batchStartDate,
   onBatchStartDateChange,
   batchEndDate,
   onBatchEndDateChange,
-  filterJournal,
-  onFilterJournalChange,
   onFetchLatestBatch,
   isBatchLoading,
-  onResetFilters,
-  filteredCount,
-  totalCount,
   browserUrl,
   previewCurrentUrl,
   iframeReloadKey,
@@ -133,70 +121,22 @@ export default function ReaderView({
             fetchedAt: labels.fetchedAt,
             emptyFiltered: labels.emptyFiltered,
             emptyAll: labels.emptyAll,
+            startDate: labels.startDate,
+            endDate: labels.endDate,
+            fetchLatestBusy: labels.fetchLatestBusy,
+            fetchLatest: labels.fetchLatest,
           }}
-          homepageUrl={homepageUrl}
-          onHomepageUrlChange={onHomepageUrlChange}
-          filterKeyword={filterKeyword}
-          onFilterKeywordChange={onFilterKeywordChange}
-          homepageUrlPlaceholder={labels.homepageUrlPlaceholder}
-          keywordFilterPlaceholder={labels.keywordFilterPlaceholder}
+          batchStartDate={batchStartDate}
+          onBatchStartDateChange={onBatchStartDateChange}
+          batchEndDate={batchEndDate}
+          onBatchEndDateChange={onBatchEndDateChange}
+          onDatePickerOpenChange={handleDatePickerOpenChange}
+          onFetchLatestBatch={onFetchLatestBatch}
+          isBatchLoading={isBatchLoading}
         />
       ) : null}
 
       <section className="panel web-panel">
-        <header className="content-header">
-          <DateRangePicker
-            startDate={batchStartDate}
-            endDate={batchEndDate}
-            labels={{
-              startDate: labels.startDate,
-              endDate: labels.endDate,
-            }}
-            onStartDateChange={onBatchStartDateChange}
-            onEndDateChange={onBatchEndDateChange}
-            onOpenChange={handleDatePickerOpenChange}
-          />
-
-          <input
-            className="filter-input pill-input source-filter"
-            type="text"
-            value={filterJournal}
-            onChange={(event) => onFilterJournalChange(event.target.value)}
-            placeholder={labels.journalFilterPlaceholder}
-          />
-
-          <div className="content-actions">
-            <Button
-              type="button"
-              className="fetch-btn"
-              variant="primary"
-              mode="text"
-              textMode="with"
-              iconMode="without"
-              onClick={onFetchLatestBatch}
-              disabled={isBatchLoading}
-            >
-              {isBatchLoading ? labels.fetchLatestBusy : labels.fetchLatest}
-            </Button>
-            <Button
-              type="button"
-              mode="icon"
-              variant="secondary"
-              size="sm"
-              iconMode="with"
-              textMode="without"
-              onClick={onResetFilters}
-              disabled={!filterKeyword && !filterJournal}
-              title={labels.resetFilter}
-              aria-label={labels.resetFilter}
-            >
-              <RotateCcw size={16} />
-            </Button>
-            <span className="count-display">
-              {labels.showing} {filteredCount} / {labels.total} {totalCount}
-            </span>
-          </div>
-        </header>
         <div className="web-frame-container">
           <div className="native-webview-host">
             {browserUrl ? (

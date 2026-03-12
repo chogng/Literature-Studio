@@ -12,7 +12,6 @@ const zh = {
   endDate: '结束日期',
   fetchLatestBusy: '批量抓取中...',
   fetchLatest: '抓取',
-  keywordFilterPlaceholder: '关键词过滤（标题/DOI/作者/摘要）',
   journalFilterPlaceholder: '期刊/来源过滤（URL片段）',
   resetFilter: '重置过滤',
   showing: '显示',
@@ -84,3 +83,4 @@ const zh = {
 } as const;
 
 export default zh;
+

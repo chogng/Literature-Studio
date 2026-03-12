@@ -12,8 +12,6 @@ export type ReaderViewLabels = {
   fetchedAt: string;
   emptyFiltered: string;
   emptyAll: string;
-  homepageUrlPlaceholder: string;
-  keywordFilterPlaceholder: string;
   startDate: string;
   endDate: string;
   journalFilterPlaceholder: string;
@@ -30,16 +28,12 @@ export type ReaderViewProps = {
   isSidebarOpen: boolean;
   filteredArticles: SidebarArticle[];
   hasData: boolean;
-  homepageUrl: string;
-  onHomepageUrlChange: (url: string) => void;
-  filterKeyword: string;
-  onFilterKeywordChange: (keyword: string) => void;
+  filterJournal: string;
+  onFilterJournalChange: (value: string) => void;
   batchStartDate: string;
   onBatchStartDateChange: (value: string) => void;
   batchEndDate: string;
   onBatchEndDateChange: (value: string) => void;
-  filterJournal: string;
-  onFilterJournalChange: (value: string) => void;
   onFetchLatestBatch: () => void;
   isBatchLoading: boolean;
   onResetFilters: () => void;

@@ -12,7 +12,6 @@ const en = {
   endDate: 'End date',
   fetchLatestBusy: 'Batch fetching...',
   fetchLatest: 'Fetch',
-  keywordFilterPlaceholder: 'Keyword filter (title/DOI/authors/abstract)',
   journalFilterPlaceholder: 'Journal/source filter (URL fragment)',
   resetFilter: 'Reset filters',
   showing: 'Showing',
