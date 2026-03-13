@@ -3,7 +3,7 @@ import { BrowserWindow, WebContentsView } from 'electron';
 import type { PreviewBounds, PreviewState } from './types.js';
 import { appError } from './utils/app-error.js';
 
-const previewPartition = 'reader-preview';
+const previewPartition = 'persist:reader-preview';
 const previewCornerRadius = 10;
 
 let previewWindow: BrowserWindow | null = null;
