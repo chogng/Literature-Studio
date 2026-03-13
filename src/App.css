@@ -304,6 +304,13 @@ button:disabled {
   grid-template-rows: auto 1fr;
 }
 
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .settings-content {
   padding: 16px;
   display: grid;
@@ -419,6 +426,10 @@ button:disabled {
 
   .settings-url-row {
     grid-template-columns: 1fr;
+  }
+
+  .settings-header {
+    flex-wrap: wrap;
   }
 
   .settings-actions {

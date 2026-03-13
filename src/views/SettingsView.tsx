@@ -28,7 +28,20 @@ export default function SettingsView({
   return (
     <main className="settings-page">
       <section className="panel settings-card">
-        <div className="panel-title">{labels.settingsTitle}</div>
+        <div className="panel-title settings-header">
+          <span>{labels.settingsTitle}</span>
+          <Button
+            type="button"
+            mode="text"
+            variant="primary"
+            textMode="with"
+            iconMode="without"
+            onClick={onSaveSettings}
+            disabled={isSettingsLoading || isSettingsSaving}
+          >
+            {isSettingsSaving ? labels.saving : labels.saveSettings}
+          </Button>
+        </div>
         <div className="settings-content">
           {isSettingsLoading ? <p className="settings-hint">{labels.settingsLoading}</p> : null}
 
@@ -170,17 +183,6 @@ export default function SettingsView({
               disabled={!pdfDownloadDir.trim() || isSettingsSaving}
             >
               {labels.resetDefault}
-            </Button>
-            <Button
-              type="button"
-              mode="text"
-              variant="primary"
-              textMode="with"
-              iconMode="without"
-              onClick={onSaveSettings}
-              disabled={isSettingsLoading || isSettingsSaving}
-            >
-              {isSettingsSaving ? labels.saving : labels.saveSettings}
             </Button>
           </div>
 
