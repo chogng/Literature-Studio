@@ -60,6 +60,8 @@
   display: grid;
   gap: 12px;
   align-content: start;
+  min-height: 0;
+  overflow: auto;
 }
 
 .settings-field {

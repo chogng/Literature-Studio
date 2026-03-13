@@ -204,12 +204,17 @@ export default function SettingsView({
           </div>
 
           <p className="settings-hint">{labels.settingsHintPath}</p>
-          {configPath ? (
-            <p className="settings-hint">
-              {labels.settingsConfigPath}
-              {configPath}
-            </p>
-          ) : null}
+          <label className="settings-field">
+            {labels.settingsConfigPath}
+            <Input
+              className="settings-input-control"
+              size="sm"
+              type="text"
+              value={configPath}
+              readOnly
+              placeholder="-"
+            />
+          </label>
           <p className="settings-hint">
             {labels.currentDir}
             {pdfDownloadDir.trim() ? pdfDownloadDir.trim() : labels.systemDownloads}
