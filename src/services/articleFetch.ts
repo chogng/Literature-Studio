@@ -24,7 +24,7 @@ export type FetchLatestArticlesBatchResult =
 
 type FetchLatestArticlesBatchParams = {
   desktopRuntime: boolean;
-  homepageUrl: string;
+  homepageUrls: string[];
   limit: number;
   sameDomainOnly: boolean;
   startDate?: string | null;
@@ -35,7 +35,7 @@ type FetchLatestArticlesBatchParams = {
 
 export async function fetchLatestArticlesBatch({
   desktopRuntime,
-  homepageUrl,
+  homepageUrls,
   limit,
   sameDomainOnly,
   startDate,
@@ -47,8 +47,8 @@ export async function fetchLatestArticlesBatch({
     return { ok: false, reason: 'desktop_unsupported' };
   }
 
-  const normalized = normalizeUrl(homepageUrl);
-  if (!normalized) {
+  const normalizedHomepageUrls = [...new Set(homepageUrls.map((url) => normalizeUrl(url)).filter(Boolean))];
+  if (normalizedHomepageUrls.length === 0) {
     return { ok: false, reason: 'empty_homepage_url' };
   }
 
@@ -60,7 +60,7 @@ export async function fetchLatestArticlesBatch({
 
   try {
     const articles = await invokeDesktop<Article[]>('fetch_latest_articles', {
-      homepageUrl: normalized,
+      homepageUrls: normalizedHomepageUrls,
       limit,
       sameDomainOnly,
       startDate: startDate || null,

@@ -323,6 +323,18 @@ button:disabled {
   gap: 8px;
 }
 
+.settings-url-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .settings-input {
   flex: 1;
   min-width: 280px;
@@ -403,6 +415,10 @@ button:disabled {
 
   .settings-input {
     min-width: 0;
+  }
+
+  .settings-url-row {
+    grid-template-columns: 1fr;
   }
 
   .settings-actions {

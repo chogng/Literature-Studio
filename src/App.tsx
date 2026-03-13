@@ -8,7 +8,6 @@ import {
 import {
   detectInitialLocale,
   getLocaleMessages,
-  localeStorageKey,
   toDocumentLang,
   type Locale,
 } from './language/i18n';
@@ -31,17 +30,23 @@ type PdfDownloadResult = {
   sourceUrl: string;
 };
 
-type AppSettingsPayload = {
+type StoredAppSettingsPayload = {
   defaultDownloadDir: string | null;
-  defaultHomepageUrl: string;
+  defaultBatchHomepageUrls: string[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
+  locale: Locale;
+};
+
+type AppSettingsPayload = StoredAppSettingsPayload & {
+  configPath?: string;
 };
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
-const defaultHomepageUrl = 'https://arxiv.org/list/cs/new';
+const defaultBatchHomepageUrl = 'https://arxiv.org/list/cs/new';
+const defaultBatchHomepageUrls = [defaultBatchHomepageUrl];
 const defaultBatchLimit = 5;
 const defaultSameDomainOnly = true;
 
@@ -51,6 +56,18 @@ function normalizeBatchLimit(input: unknown, fallback: number = defaultBatchLimi
   return Math.min(20, Math.max(1, parsed));
 }
 
+function sanitizeBatchHomepageUrls(input: unknown): string[] {
+  const values = Array.isArray(input) ? input : typeof input === 'string' ? [input] : [];
+  return [...new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean))];
+}
+
+function normalizeBatchHomepageUrls(
+  input: unknown,
+  fallback: string[] = defaultBatchHomepageUrls,
+): string[] {
+  const normalized = sanitizeBatchHomepageUrls(input);
+  return normalized.length > 0 ? normalized : [...fallback];
+}
 
 function normalizeUrl(input: string): string {
   const trimmed = input.trim();
@@ -92,7 +109,7 @@ export default function App() {
   const initialBatchDateRange = useMemo(() => buildDefaultBatchDateRange(), []);
   const [webUrl, setWebUrl] = useState(defaultArticleUrl);
   const [browserUrl, setBrowserUrl] = useState(normalizeUrl(defaultArticleUrl));
-  const [homepageUrl, setHomepageUrl] = useState(defaultHomepageUrl);
+  const [batchHomepageUrls, setBatchHomepageUrls] = useState<string[]>(defaultBatchHomepageUrls);
   const [batchLimit, setBatchLimit] = useState(defaultBatchLimit);
   const [sameDomainOnly, setSameDomainOnly] = useState(defaultSameDomainOnly);
   const [batchStartDate, setBatchStartDate] = useState(initialBatchDateRange.startDate);
@@ -101,6 +118,7 @@ export default function App() {
   const [iframeReloadKey, setIframeReloadKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [pdfDownloadDir, setPdfDownloadDir] = useState('');
+  const [configPath, setConfigPath] = useState('');
 
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
@@ -127,9 +145,9 @@ export default function App() {
       if (window.electronAPI?.invoke) {
         return window.electronAPI.invoke<T>(command, args);
       }
-      throw new Error(ui.desktopInvokeUnsupported);
+      throw new Error('Desktop invoke bridge is unavailable.');
     },
-    [ui],
+    [],
   );
 
   const filteredArticles = useMemo(() => {
@@ -214,7 +232,6 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(localeStorageKey, locale);
     document.documentElement.lang = toDocumentLang(locale);
   }, [locale]);
 
@@ -224,17 +241,21 @@ export default function App() {
 
       try {
         const applyLoadedSettings = (loaded: Partial<AppSettingsPayload>) => {
-          const configuredHomepage =
-            typeof loaded.defaultHomepageUrl === 'string' ? loaded.defaultHomepageUrl.trim() : '';
+          const loadedLocale = loaded.locale === 'zh' || loaded.locale === 'en' ? loaded.locale : null;
+          const loadedConfigPath = typeof loaded.configPath === 'string' ? loaded.configPath : '';
 
           setPdfDownloadDir(typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '');
-          setHomepageUrl(configuredHomepage || defaultHomepageUrl);
+          setBatchHomepageUrls(normalizeBatchHomepageUrls(loaded.defaultBatchHomepageUrls));
           setBatchLimit(normalizeBatchLimit(loaded.defaultBatchLimit, defaultBatchLimit));
           setSameDomainOnly(
             typeof loaded.defaultSameDomainOnly === 'boolean'
               ? loaded.defaultSameDomainOnly
               : defaultSameDomainOnly,
           );
+          setConfigPath(loadedConfigPath);
+          if (loadedLocale) {
+            setLocale(loadedLocale);
+          }
         };
 
         if (desktopRuntime) {
@@ -243,14 +264,7 @@ export default function App() {
           return;
         }
 
-        const raw = window.localStorage.getItem('journal-reader-settings');
-        if (!raw) {
-          applyLoadedSettings({});
-          return;
-        }
-
-        const parsed = JSON.parse(raw) as Partial<AppSettingsPayload>;
-        applyLoadedSettings(parsed);
+        applyLoadedSettings({});
       } catch (loadError) {
         toast.error(formatLocalized(ui.toastLoadSettingsFailed, { error: errorMessage(loadError) }));
       } finally {
@@ -259,7 +273,7 @@ export default function App() {
     };
 
     void loadSettings();
-  }, [desktopRuntime, invokeDesktop, ui]);
+  }, [desktopRuntime, invokeDesktop]);
 
   const handleNavigateWeb = () => {
     const normalized = normalizeUrl(webUrl);
@@ -328,30 +342,67 @@ export default function App() {
     }
   };
 
+  const handleBatchHomepageUrlChange = useCallback((index: number, nextUrl: string) => {
+    setBatchHomepageUrls((current) =>
+      current.map((url, urlIndex) => (urlIndex === index ? nextUrl : url)),
+    );
+  }, []);
+
+  const handleAddBatchHomepageUrl = useCallback(() => {
+    setBatchHomepageUrls((current) => [...current, '']);
+  }, []);
+
+  const handleRemoveBatchHomepageUrl = useCallback((index: number) => {
+    setBatchHomepageUrls((current) => {
+      if (current.length <= 1) {
+        return [''];
+      }
+
+      return current.filter((_, urlIndex) => urlIndex !== index);
+    });
+  }, []);
+
+  const handleLocaleChange = useCallback(
+    (nextLocale: Locale) => {
+      setLocale(nextLocale);
+
+      if (!desktopRuntime) return;
+
+      void invokeDesktop<AppSettingsPayload>('save_settings', {
+        settings: { locale: nextLocale },
+      }).catch((saveError) => {
+        toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: errorMessage(saveError) }));
+      });
+    },
+    [desktopRuntime, invokeDesktop, ui],
+  );
+
   const handleSaveSettings = async () => {
     setIsSettingsSaving(true);
 
     const nextDir = pdfDownloadDir.trim();
-    const nextHomepage = homepageUrl.trim() || defaultHomepageUrl;
+    const nextHomepageUrls = normalizeBatchHomepageUrls(batchHomepageUrls);
     const nextBatchLimit = normalizeBatchLimit(batchLimit, defaultBatchLimit);
-    const payload: AppSettingsPayload = {
+    const payload: StoredAppSettingsPayload = {
       defaultDownloadDir: nextDir || null,
-      defaultHomepageUrl: nextHomepage,
+      defaultBatchHomepageUrls: nextHomepageUrls,
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: sameDomainOnly,
+      locale,
     };
 
     try {
       if (desktopRuntime) {
         const saved = await invokeDesktop<AppSettingsPayload>('save_settings', { settings: payload });
         setPdfDownloadDir(saved.defaultDownloadDir ?? '');
-        setHomepageUrl(saved.defaultHomepageUrl);
+        setBatchHomepageUrls(normalizeBatchHomepageUrls(saved.defaultBatchHomepageUrls));
         setBatchLimit(normalizeBatchLimit(saved.defaultBatchLimit, defaultBatchLimit));
         setSameDomainOnly(saved.defaultSameDomainOnly);
+        setConfigPath(typeof saved.configPath === 'string' ? saved.configPath : configPath);
+        setLocale(saved.locale);
       } else {
-        window.localStorage.setItem('journal-reader-settings', JSON.stringify(payload));
         setPdfDownloadDir(nextDir);
-        setHomepageUrl(nextHomepage);
+        setBatchHomepageUrls(nextHomepageUrls);
         setBatchLimit(nextBatchLimit);
         setSameDomainOnly(sameDomainOnly);
       }
@@ -401,9 +452,11 @@ export default function App() {
     setIsBatchLoading(true);
 
     try {
+      const fetchHomepageUrls = sanitizeBatchHomepageUrls(batchHomepageUrls);
+
       const result = await fetchLatestArticlesBatch({
         desktopRuntime,
-        homepageUrl,
+        homepageUrls: fetchHomepageUrls,
         limit: batchLimit,
         sameDomainOnly,
         startDate: batchStartDate || null,
@@ -460,19 +513,16 @@ export default function App() {
             maximizeLabel: ui.titlebarMaximize,
             restoreLabel: ui.titlebarRestore,
             closeLabel: ui.titlebarClose,
+            backLabel: ui.titlebarBack,
+            forwardLabel: ui.titlebarForward,
+            refreshLabel: ui.titlebarRefresh,
+            downloadPdfLabel: ui.titlebarDownloadPdf,
+            desktopOnlyLabel: ui.titlebarDesktopOnly,
           }}
           isWindowMaximized={isWindowMaximized}
           onWindowControl={handleWindowControl}
           isSidebarOpen={isSidebarOpen}
-          sidebarToggleLabel={
-            locale === 'zh'
-              ? isSidebarOpen
-                ? '收起侧边栏'
-                : '展开侧边栏'
-              : isSidebarOpen
-                ? 'Collapse sidebar'
-                : 'Expand sidebar'
-          }
+          sidebarToggleLabel={isSidebarOpen ? ui.sidebarCollapse : ui.sidebarExpand}
           onToggleSidebar={activePage === 'reader' ? () => setIsSidebarOpen((prev) => !prev) : undefined}
           onToggleSettings={() => setActivePage((prev) => (prev === 'settings' ? 'reader' : 'settings'))}
           browserUrl={browserUrl}
@@ -531,7 +581,8 @@ export default function App() {
               showing: ui.showing,
               total: ui.total,
               previewUnavailable: ui.previewUnavailable,
-              emptyState: '请输入链接后查看网页。',
+              emptyState: ui.emptyState,
+              webPreviewTitle: ui.webPreviewTitle,
             }}
           />
         ) : (
@@ -544,7 +595,10 @@ export default function App() {
               languageEnglish: ui.languageEnglish,
               settingsLanguageHint: ui.settingsLanguageHint,
               settingsHomepageUrl: ui.settingsHomepageUrl,
+              settingsHomepageUrlHint: ui.settingsHomepageUrlHint,
               homepageUrlPlaceholder: ui.homepageUrlPlaceholder,
+              addBatchUrl: ui.addBatchUrl,
+              removeBatchUrl: ui.removeBatchUrl,
               settingsBatchOptions: ui.settingsBatchOptions,
               batchCount: ui.batchCount,
               sameDomainOnly: ui.sameDomainOnly,
@@ -556,14 +610,17 @@ export default function App() {
               saving: ui.saving,
               saveSettings: ui.saveSettings,
               settingsHintPath: ui.settingsHintPath,
+              settingsConfigPath: ui.settingsConfigPath,
               currentDir: ui.currentDir,
               systemDownloads: ui.systemDownloads,
             }}
             isSettingsLoading={isSettingsLoading}
             locale={locale}
-            onLocaleChange={setLocale}
-            homepageUrl={homepageUrl}
-            onHomepageUrlChange={setHomepageUrl}
+            onLocaleChange={handleLocaleChange}
+            batchHomepageUrls={batchHomepageUrls}
+            onBatchHomepageUrlChange={handleBatchHomepageUrlChange}
+            onAddBatchHomepageUrl={handleAddBatchHomepageUrl}
+            onRemoveBatchHomepageUrl={handleRemoveBatchHomepageUrl}
             batchLimit={batchLimit}
             onBatchLimitChange={(value) => setBatchLimit(normalizeBatchLimit(value, 1))}
             sameDomainOnly={sameDomainOnly}
@@ -572,12 +629,13 @@ export default function App() {
             onPdfDownloadDirChange={setPdfDownloadDir}
             onChoosePdfDownloadDir={() => void handleChoosePdfDownloadDir()}
             desktopRuntime={desktopRuntime}
+            configPath={configPath}
             isSettingsSaving={isSettingsSaving}
             onResetDownloadDir={handleResetDownloadDir}
             onSaveSettings={() => void handleSaveSettings()}
           />
         )}
-        <ToastContainer />
+        <ToastContainer closeLabel={ui.toastClose} />
       </div>
     </div>
   );

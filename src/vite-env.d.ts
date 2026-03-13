@@ -15,24 +15,29 @@ type DesktopPdfDownloadResult = {
   sourceUrl: string;
 };
 
-type DesktopAppSettings = {
+type DesktopStoredAppSettings = {
   defaultDownloadDir: string | null;
-  defaultHomepageUrl: string;
+  defaultBatchHomepageUrls: string[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
+  locale: 'zh' | 'en';
+};
+
+type DesktopAppSettings = DesktopStoredAppSettings & {
+  configPath: string;
 };
 
 type AppCommandPayloadMap = {
   fetch_article: { url?: string };
   fetch_latest_articles: {
-    homepageUrl?: string;
+    homepageUrls?: string[];
     limit?: number | string;
     sameDomainOnly?: boolean;
     startDate?: string | null;
     endDate?: string | null;
   };
   load_settings: undefined;
-  save_settings: { settings?: Partial<DesktopAppSettings> };
+  save_settings: { settings?: Partial<DesktopStoredAppSettings> };
   pick_download_directory: undefined;
   preview_download_pdf: {
     pageUrl?: string;

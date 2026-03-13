@@ -140,7 +140,7 @@ export default function ReaderView({
                   key={`${browserUrl}-${iframeReloadKey}`}
                   className="web-frame"
                   src={browserUrl}
-                  title="Web Preview"
+                  title={labels.webPreviewTitle}
                   sandbox="allow-forms allow-scripts allow-same-origin"
                   scrolling="yes"
                 />

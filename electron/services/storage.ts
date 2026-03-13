@@ -1,17 +1,23 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
-import type { AppSettings, Article, StorageService } from '../types.js';
+import type { AppSettings, Article, StorageService, StoredAppSettings } from '../types.js';
 import { cleanText } from '../utils/text.js';
 
 interface StoragePaths {
   historyFile: string;
-  settingsFile: string;
+  configFile: string;
 }
 
-const defaultHomepageUrl = 'https://arxiv.org/list/cs/new';
+interface StorageOptions {
+  defaultLocale?: 'zh' | 'en';
+}
+
+const defaultBatchHomepageUrl = 'https://arxiv.org/list/cs/new';
+const defaultBatchHomepageUrls = [defaultBatchHomepageUrl];
 const defaultBatchLimit = 5;
 const defaultSameDomainOnly = true;
+const fallbackLocale: 'zh' | 'en' = 'zh';
 
 async function readJson<T>(filePath: string, fallbackValue: T) {
   try {
@@ -27,27 +33,53 @@ async function writeJson(filePath: string, value: unknown) {
   await fs.writeFile(filePath, JSON.stringify(value, null, 2), 'utf8');
 }
 
-function normalizeSettings(payload: Partial<AppSettings> = {}): AppSettings {
+function normalizeLocale(value: unknown, defaultLocale: 'zh' | 'en'): 'zh' | 'en' {
+  if (value === 'zh' || value === 'en') {
+    return value;
+  }
+
+  return defaultLocale;
+}
+
+function normalizeSettings(
+  payload: Partial<StoredAppSettings> = {},
+  defaultLocale: 'zh' | 'en',
+): StoredAppSettings {
   const downloadDir = typeof payload.defaultDownloadDir === 'string' ? cleanText(payload.defaultDownloadDir) : '';
-  const homepageValue =
-    typeof payload.defaultHomepageUrl === 'string' ? cleanText(payload.defaultHomepageUrl) : '';
+  const normalizedHomepageUrls = Array.isArray(payload.defaultBatchHomepageUrls)
+    ? payload.defaultBatchHomepageUrls
+        .map((value) => cleanText(value))
+        .filter(Boolean)
+    : [];
   const parsedLimit = Number.parseInt(String(payload.defaultBatchLimit), 10);
   const normalizedLimit = Number.isNaN(parsedLimit)
     ? defaultBatchLimit
     : Math.min(20, Math.max(1, parsedLimit));
+  const batchHomepageUrls = [...new Set(normalizedHomepageUrls)];
 
   return {
     defaultDownloadDir: downloadDir || null,
-    defaultHomepageUrl: homepageValue || defaultHomepageUrl,
+    defaultBatchHomepageUrls:
+      batchHomepageUrls.length > 0 ? batchHomepageUrls : [...defaultBatchHomepageUrls],
     defaultBatchLimit: normalizedLimit,
     defaultSameDomainOnly:
       typeof payload.defaultSameDomainOnly === 'boolean'
         ? payload.defaultSameDomainOnly
         : defaultSameDomainOnly,
+    locale: normalizeLocale(payload.locale, defaultLocale),
   };
 }
 
-export function createStorageService(paths: StoragePaths): StorageService {
+function attachConfigPath(settings: StoredAppSettings, configPath: string): AppSettings {
+  return {
+    ...settings,
+    configPath,
+  };
+}
+
+export function createStorageService(paths: StoragePaths, options: StorageOptions = {}): StorageService {
+  const defaultLocale = options.defaultLocale === 'en' ? 'en' : fallbackLocale;
+
   async function readHistory() {
     const payload = await readJson<Article[]>(paths.historyFile, []);
     return Array.isArray(payload) ? payload : [];
@@ -58,8 +90,9 @@ export function createStorageService(paths: StoragePaths): StorageService {
   }
 
   async function readSettings() {
-    const payload = await readJson<Partial<AppSettings>>(paths.settingsFile, {});
-    return normalizeSettings(payload);
+    const payload = await readJson<Partial<StoredAppSettings>>(paths.configFile, {});
+    const normalized = normalizeSettings(payload, defaultLocale);
+    return attachConfigPath(normalized, paths.configFile);
   }
 
   return {
@@ -85,9 +118,10 @@ export function createStorageService(paths: StoragePaths): StorageService {
 
     async saveSettings(settings = {}) {
       const current = await readSettings();
-      const saved = normalizeSettings({ ...current, ...settings });
-      await writeJson(paths.settingsFile, saved);
-      return saved;
+      const { configPath: _configPath, ...currentStored } = current;
+      const saved = normalizeSettings({ ...currentStored, ...settings }, defaultLocale);
+      await writeJson(paths.configFile, saved);
+      return attachConfigPath(saved, paths.configFile);
     },
   };
 }

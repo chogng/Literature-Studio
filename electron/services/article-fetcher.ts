@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 
-import type { FetchLatestArticlesPayload, StorageService } from '../types.js';
+import type { Article, DateRange, FetchLatestArticlesPayload, StorageService } from '../types.js';
 import { buildArticleFromHtml, isProbablyArticle, scoreCandidate } from './article-parser.js';
 import { isWithinDateRange, normalizeUrl, parseDateRange, cleanText } from '../utils/text.js';
 
@@ -32,14 +32,21 @@ export async function fetchArticle(urlValue: unknown, storage: StorageService) {
   return article;
 }
 
-export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = {}, storage: StorageService) {
-  const homepageUrl = normalizeUrl(payload.homepageUrl ?? '');
-  const limit = Math.min(
-    ARTICLE_LIMIT_MAX,
-    Math.max(1, Number.parseInt(String(payload.limit ?? DEFAULT_BATCH_LIMIT), 10) || DEFAULT_BATCH_LIMIT),
-  );
-  const sameDomainOnly = payload.sameDomainOnly !== false;
-  const dateRange = parseDateRange(payload.startDate ?? null, payload.endDate ?? null);
+function normalizeHomepageUrls(payload: FetchLatestArticlesPayload) {
+  const cleanedHomepageUrls = (Array.isArray(payload.homepageUrls) ? payload.homepageUrls : [])
+    .map((value) => cleanText(value))
+    .filter(Boolean)
+    .map((value) => normalizeUrl(value));
+
+  return [...new Set(cleanedHomepageUrls)];
+}
+
+async function fetchLatestArticlesFromHomepage(
+  homepageUrl: string,
+  limit: number,
+  sameDomainOnly: boolean,
+  dateRange: DateRange,
+): Promise<Article[]> {
   const homepage = new URL(homepageUrl);
   const html = await fetchHtml(homepageUrl);
   const $ = load(html);
@@ -73,7 +80,8 @@ export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = 
 
   candidates.sort((a, b) => b.score - a.score);
 
-  const fetched = [];
+  const fetched: Article[] = [];
+  const fetchedSourceUrls = new Set<string>();
   const maxAttempts = Math.min(candidates.length, limit * PREVIEW_CANDIDATE_MULTIPLIER);
 
   for (let index = 0; index < maxAttempts; index += 1) {
@@ -87,13 +95,59 @@ export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = 
       const article = buildArticleFromHtml(candidate.url, articleHtml);
       if (!isProbablyArticle(candidate.url, article)) continue;
       if (!isWithinDateRange(article.publishedAt, dateRange)) continue;
+      if (fetchedSourceUrls.has(article.sourceUrl)) continue;
+
+      fetchedSourceUrls.add(article.sourceUrl);
       fetched.push(article);
     } catch {
       continue;
     }
   }
 
+  return fetched;
+}
+
+export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = {}, storage: StorageService) {
+  const homepageUrls = normalizeHomepageUrls(payload);
+  if (homepageUrls.length === 0) {
+    throw new Error('请至少提供一个批量抓取 URL');
+  }
+
+  const limit = Math.min(
+    ARTICLE_LIMIT_MAX,
+    Math.max(1, Number.parseInt(String(payload.limit ?? DEFAULT_BATCH_LIMIT), 10) || DEFAULT_BATCH_LIMIT),
+  );
+  const sameDomainOnly = payload.sameDomainOnly !== false;
+  const dateRange = parseDateRange(payload.startDate ?? null, payload.endDate ?? null);
+  const fetched: Article[] = [];
+  const seenSourceUrls = new Set<string>();
+  const failedSources: string[] = [];
+
+  for (const homepageUrl of homepageUrls) {
+    try {
+      const homepageArticles = await fetchLatestArticlesFromHomepage(
+        homepageUrl,
+        limit,
+        sameDomainOnly,
+        dateRange,
+      );
+
+      for (const article of homepageArticles) {
+        if (seenSourceUrls.has(article.sourceUrl)) continue;
+        seenSourceUrls.add(article.sourceUrl);
+        fetched.push(article);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      failedSources.push(`${homepageUrl}: ${message}`);
+    }
+  }
+
   if (fetched.length === 0) {
+    if (failedSources.length > 0) {
+      throw new Error(failedSources.join(' | '));
+    }
+
     if (dateRange.start || dateRange.end) {
       throw new Error('已抓取候选链接，但没有命中你设置的时间区间。');
     }

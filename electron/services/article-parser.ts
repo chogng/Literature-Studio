@@ -142,7 +142,7 @@ export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
   const publishedAt = extractPublishedDate($);
 
   return {
-    title: title || '无标题',
+    title,
     doi: cleanNullable(doi),
     authors,
     abstractText: cleanNullable(abstractText),
@@ -153,7 +153,7 @@ export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
 }
 
 export function isProbablyArticle(candidateUrl: string, article: Article) {
-  if (!article.title || article.title === '无标题') return false;
+  if (!article.title) return false;
 
   const pathname = new URL(candidateUrl).pathname.toLowerCase();
   const articlePath = /(?:\/article|\/articles|\/paper|\/papers|\/doi|\/abs|\/content)/.test(pathname);

@@ -21,6 +21,7 @@ export type ReaderViewLabels = {
   total: string;
   emptyState: string;
   previewUnavailable: string;
+  webPreviewTitle: string;
 };
 
 export type ReaderViewProps = {
@@ -54,7 +55,10 @@ export type SettingsViewLabels = {
   languageEnglish: string;
   settingsLanguageHint: string;
   settingsHomepageUrl: string;
+  settingsHomepageUrlHint: string;
   homepageUrlPlaceholder: string;
+  addBatchUrl: string;
+  removeBatchUrl: string;
   settingsBatchOptions: string;
   batchCount: string;
   sameDomainOnly: string;
@@ -66,6 +70,7 @@ export type SettingsViewLabels = {
   saving: string;
   saveSettings: string;
   settingsHintPath: string;
+  settingsConfigPath: string;
   currentDir: string;
   systemDownloads: string;
 };
@@ -75,8 +80,10 @@ export type SettingsViewProps = {
   isSettingsLoading: boolean;
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
-  homepageUrl: string;
-  onHomepageUrlChange: (url: string) => void;
+  batchHomepageUrls: string[];
+  onBatchHomepageUrlChange: (index: number, url: string) => void;
+  onAddBatchHomepageUrl: () => void;
+  onRemoveBatchHomepageUrl: (index: number) => void;
   batchLimit: number;
   onBatchLimitChange: (value: string) => void;
   sameDomainOnly: boolean;
@@ -85,6 +92,7 @@ export type SettingsViewProps = {
   onPdfDownloadDirChange: (value: string) => void;
   onChoosePdfDownloadDir: () => void;
   desktopRuntime: boolean;
+  configPath: string;
   isSettingsSaving: boolean;
   onResetDownloadDir: () => void;
   onSaveSettings: () => void;

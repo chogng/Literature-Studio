@@ -54,7 +54,11 @@ export const toast = {
   warning: (message: string, duration?: number) => toast.show({ message, type: 'warning', duration }),
 };
 
-export const ToastContainer: React.FC = () => {
+type ToastContainerProps = {
+  closeLabel?: string;
+};
+
+export const ToastContainer: React.FC<ToastContainerProps> = ({ closeLabel = 'Close' }) => {
   const [currentToasts, setCurrentToasts] = useState<ToastItem[]>([]);
 
   useEffect(() => {
@@ -83,7 +87,7 @@ export const ToastContainer: React.FC = () => {
             iconMode="with"
             textMode="without"
             onClick={() => toast.dismiss(t.id)}
-            aria-label="关闭"
+            aria-label={closeLabel}
           >
             <X size={14} />
           </Button>

@@ -1,5 +1,6 @@
 import { Button } from './components/Button';
 import DateRangePicker from './components/DateRangePicker';
+import ArticleCard from './articleCard';
 import './sidebar.css';
 
 export type SidebarArticle = {
@@ -40,12 +41,6 @@ type SidebarProps = {
   isBatchLoading: boolean;
 };
 
-function formatTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
-
 export default function Sidebar({
   articles,
   hasData,
@@ -58,6 +53,15 @@ export default function Sidebar({
   isBatchLoading,
 }: SidebarProps) {
   const hasVisibleData = articles.length > 0;
+  const articleCardLabels = {
+    untitled: labels.untitled,
+    unknown: labels.unknown,
+    authors: labels.authors,
+    abstract: labels.abstract,
+    publishedAt: labels.publishedAt,
+    source: labels.source,
+    fetchedAt: labels.fetchedAt,
+  };
 
   return (
     <section className="panel sidebar-panel">
@@ -89,33 +93,11 @@ export default function Sidebar({
       {hasVisibleData ? (
         <ul className="article-list">
           {articles.map((article, index) => (
-            <li key={`${article.sourceUrl}-${article.fetchedAt}-${index}`} className="article-card">
-              <h3>{article.title || labels.untitled}</h3>
-              <p>
-                <strong>DOI：</strong>
-                {article.doi ?? labels.unknown}
-              </p>
-              <p>
-                <strong>{labels.authors}</strong>
-                {article.authors.length > 0 ? article.authors.join(', ') : labels.unknown}
-              </p>
-              <p>
-                <strong>{labels.abstract}</strong>
-                {article.abstractText ?? labels.unknown}
-              </p>
-              <p>
-                <strong>{labels.publishedAt}</strong>
-                {article.publishedAt ?? labels.unknown}
-              </p>
-              <p>
-                <strong>{labels.source}</strong>
-                {article.sourceUrl}
-              </p>
-              <p>
-                <strong>{labels.fetchedAt}</strong>
-                {formatTime(article.fetchedAt)}
-              </p>
-            </li>
+            <ArticleCard
+              key={`${article.sourceUrl}-${article.fetchedAt}-${index}`}
+              article={article}
+              labels={articleCardLabels}
+            />
           ))}
         </ul>
       ) : hasData ? (

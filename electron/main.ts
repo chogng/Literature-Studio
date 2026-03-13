@@ -35,15 +35,6 @@ function configureAppPaths() {
   app.setAppLogsPath(readerLogsDir);
 }
 
-async function fileExists(filePath: string) {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function removeFileIfExists(filePath: string) {
   try {
     await fs.rm(filePath, { force: true });
@@ -53,20 +44,12 @@ async function removeFileIfExists(filePath: string) {
 }
 
 async function cleanupLegacyStorageFiles() {
-  const hasConfig = await fileExists(readerConfigFile);
-  const hasHistory = await fileExists(readerHistoryFile);
-  const staleFiles: string[] = [];
-
-  if (hasConfig) {
-    staleFiles.push(path.join(previousUserDataDir, 'settings.json'));
-    staleFiles.push(path.join(readerRootDir, 'settings.json'));
-  }
-  if (hasHistory) {
-    staleFiles.push(path.join(previousUserDataDir, 'history.json'));
-    staleFiles.push(path.join(readerRootDir, 'history.json'));
-  }
-
-  const uniqueStaleFiles = [...new Set(staleFiles)];
+  const uniqueStaleFiles = [
+    path.join(previousUserDataDir, 'settings.json'),
+    path.join(readerRootDir, 'settings.json'),
+    path.join(previousUserDataDir, 'history.json'),
+    path.join(readerRootDir, 'history.json'),
+  ];
   if (uniqueStaleFiles.length === 0) return;
 
   await Promise.all(uniqueStaleFiles.map((filePath) => removeFileIfExists(filePath)));

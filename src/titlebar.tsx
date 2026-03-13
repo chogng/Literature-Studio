@@ -12,6 +12,11 @@ type TitlebarLabels = {
   maximizeLabel: string;
   restoreLabel: string;
   closeLabel: string;
+  backLabel: string;
+  forwardLabel: string;
+  refreshLabel: string;
+  downloadPdfLabel: string;
+  desktopOnlyLabel: string;
 };
 
 type TitlebarProps = {
@@ -96,8 +101,8 @@ export function Titlebar({
                 textMode="without"
                 onClick={onNavigateBack}
                 disabled={!browserUrl || !canGoBack}
-                aria-label="后退"
-                title="后退"
+                aria-label={labels.backLabel}
+                title={labels.backLabel}
               >
                 <ArrowLeft size={14} strokeWidth={1.5} />
               </Button>
@@ -112,8 +117,8 @@ export function Titlebar({
                 textMode="without"
                 onClick={onNavigateForward}
                 disabled={!browserUrl || !canGoForward}
-                aria-label="前进"
-                title="前进"
+                aria-label={labels.forwardLabel}
+                title={labels.forwardLabel}
               >
                 <ArrowRight size={14} strokeWidth={1.5} />
               </Button>
@@ -128,8 +133,8 @@ export function Titlebar({
                 textMode="without"
                 onClick={onRefresh}
                 disabled={!browserUrl}
-                aria-label="刷新"
-                title="刷新"
+                aria-label={labels.refreshLabel}
+                title={labels.refreshLabel}
               >
                 <RefreshCcw size={14} strokeWidth={1.5} />
               </Button>
@@ -144,8 +149,8 @@ export function Titlebar({
                 textMode="without"
                 onClick={onDownloadPdf}
                 disabled={!browserUrl || !canDownload}
-                aria-label="下载 PDF"
-                title={canDownload ? '下载 PDF' : '仅桌面端可用'}
+                aria-label={labels.downloadPdfLabel}
+                title={canDownload ? labels.downloadPdfLabel : labels.desktopOnlyLabel}
               >
                 <Download size={14} strokeWidth={1.5} />
               </Button>

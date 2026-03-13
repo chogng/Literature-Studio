@@ -13,11 +13,16 @@ export interface DateRange {
   end: string | null;
 }
 
-export interface AppSettings {
+export interface StoredAppSettings {
   defaultDownloadDir: string | null;
-  defaultHomepageUrl: string;
+  defaultBatchHomepageUrls: string[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
+  locale: 'zh' | 'en';
+}
+
+export interface AppSettings extends StoredAppSettings {
+  configPath: string;
 }
 
 export type WindowControlAction =
@@ -47,7 +52,7 @@ export interface PreviewState {
 }
 
 export interface FetchLatestArticlesPayload {
-  homepageUrl?: string;
+  homepageUrls?: string[];
   limit?: number | string;
   sameDomainOnly?: boolean;
   startDate?: string | null;
@@ -64,7 +69,7 @@ export interface FetchArticlePayload {
 }
 
 export interface SaveSettingsPayload {
-  settings?: Partial<AppSettings>;
+  settings?: Partial<StoredAppSettings>;
 }
 
 export interface PdfDownloadResult {
@@ -95,5 +100,5 @@ export type AppCommand = keyof AppCommandPayloadMap;
 export interface StorageService {
   saveFetchedArticles(items: Article[]): Promise<void>;
   loadSettings(): Promise<AppSettings>;
-  saveSettings(settings?: Partial<AppSettings>): Promise<AppSettings>;
+  saveSettings(settings?: Partial<StoredAppSettings>): Promise<AppSettings>;
 }

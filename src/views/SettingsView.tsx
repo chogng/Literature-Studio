@@ -1,5 +1,5 @@
 import * as Checkbox from '@radix-ui/react-checkbox';
-import { Check, FolderOpen } from 'lucide-react';
+import { Check, FolderOpen, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import type { SettingsViewProps } from './types';
 
@@ -8,8 +8,10 @@ export default function SettingsView({
   isSettingsLoading,
   locale,
   onLocaleChange,
-  homepageUrl,
-  onHomepageUrlChange,
+  batchHomepageUrls,
+  onBatchHomepageUrlChange,
+  onAddBatchHomepageUrl,
+  onRemoveBatchHomepageUrl,
   batchLimit,
   onBatchLimitChange,
   sameDomainOnly,
@@ -18,6 +20,7 @@ export default function SettingsView({
   onPdfDownloadDirChange,
   onChoosePdfDownloadDir,
   desktopRuntime,
+  configPath,
   isSettingsSaving,
   onResetDownloadDir,
   onSaveSettings,
@@ -52,16 +55,50 @@ export default function SettingsView({
             <p className="settings-hint">{labels.settingsLanguageHint}</p>
           </div>
 
-          <label className="settings-field">
-            {labels.settingsHomepageUrl}
-            <input
-              className="settings-input"
-              type="text"
-              value={homepageUrl}
-              onChange={(event) => onHomepageUrlChange(event.target.value)}
-              placeholder={labels.homepageUrlPlaceholder}
-            />
-          </label>
+          <div className="settings-field">
+            <span>{labels.settingsHomepageUrl}</span>
+            <div className="settings-url-list">
+              {batchHomepageUrls.map((url, index) => (
+                <div key={`settings-batch-url-${index}`} className="settings-url-row">
+                  <input
+                    className="settings-input"
+                    type="text"
+                    inputMode="url"
+                    value={url}
+                    onChange={(event) => onBatchHomepageUrlChange(index, event.target.value)}
+                    placeholder={labels.homepageUrlPlaceholder}
+                    aria-label={`${labels.settingsHomepageUrl} ${index + 1}`}
+                  />
+                  <Button
+                    type="button"
+                    mode="icon"
+                    variant="danger"
+                    size="sm"
+                    iconMode="with"
+                    textMode="without"
+                    onClick={() => onRemoveBatchHomepageUrl(index)}
+                    disabled={batchHomepageUrls.length === 1 || isSettingsSaving}
+                    title={labels.removeBatchUrl}
+                    aria-label={labels.removeBatchUrl}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                mode="text"
+                variant="outline"
+                size="sm"
+                leftIcon={<Plus size={16} />}
+                onClick={onAddBatchHomepageUrl}
+                disabled={isSettingsSaving}
+              >
+                {labels.addBatchUrl}
+              </Button>
+            </div>
+            <p className="settings-hint">{labels.settingsHomepageUrlHint}</p>
+          </div>
 
           <div className="settings-field">
             <span>{labels.settingsBatchOptions}</span>
@@ -148,6 +185,12 @@ export default function SettingsView({
           </div>
 
           <p className="settings-hint">{labels.settingsHintPath}</p>
+          {configPath ? (
+            <p className="settings-hint">
+              {labels.settingsConfigPath}
+              {configPath}
+            </p>
+          ) : null}
           <p className="settings-hint">
             {labels.currentDir}
             {pdfDownloadDir.trim() ? pdfDownloadDir.trim() : labels.systemDownloads}
