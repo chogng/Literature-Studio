@@ -1,9 +1,13 @@
 import type { Locale } from '../language/i18n';
 import {
+  type BatchSource,
   defaultBatchLimit,
+  defaultBatchSources,
   defaultSameDomainOnly,
   normalizeBatchHomepageUrls,
+  normalizeBatchSources,
   normalizeBatchLimit,
+  toBatchHomepageUrls,
 } from './batchSettings';
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
@@ -12,6 +16,7 @@ type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<
 export type StoredAppSettingsPayload = {
   defaultDownloadDir: string | null;
   defaultBatchHomepageUrls: string[];
+  defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
   locale: Locale;
@@ -23,7 +28,7 @@ export type AppSettingsPayload = StoredAppSettingsPayload & {
 
 export type ResolvedSettingsState = {
   pdfDownloadDir: string;
-  batchHomepageUrls: string[];
+  batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
   locale: Locale | null;
@@ -32,7 +37,7 @@ export type ResolvedSettingsState = {
 
 export type SaveSettingsDraft = {
   pdfDownloadDir: string;
-  batchHomepageUrls: string[];
+  batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
   locale: Locale;
@@ -40,6 +45,7 @@ export type SaveSettingsDraft = {
 
 export type SaveSettingsPayloadBuild = {
   nextDir: string;
+  nextBatchSources: BatchSource[];
   nextHomepageUrls: string[];
   nextBatchLimit: number;
   payload: StoredAppSettingsPayload;
@@ -55,9 +61,14 @@ export function resolveSettingsState(
   const loadedConfigPath =
     typeof loaded.configPath === 'string' ? loaded.configPath : (options.fallbackConfigPath ?? '');
 
+  const loadedBatchSources = [
+    ...(Array.isArray(loaded.defaultBatchSources) ? loaded.defaultBatchSources : []),
+    ...(Array.isArray(loaded.defaultBatchHomepageUrls) ? loaded.defaultBatchHomepageUrls : []),
+  ];
+
   return {
     pdfDownloadDir: typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '',
-    batchHomepageUrls: normalizeBatchHomepageUrls(loaded.defaultBatchHomepageUrls),
+    batchSources: normalizeBatchSources(loadedBatchSources, defaultBatchSources),
     batchLimit: normalizeBatchLimit(loaded.defaultBatchLimit, defaultBatchLimit),
     sameDomainOnly:
       typeof loaded.defaultSameDomainOnly === 'boolean'
@@ -70,16 +81,19 @@ export function resolveSettingsState(
 
 export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettingsPayloadBuild {
   const nextDir = draft.pdfDownloadDir.trim();
-  const nextHomepageUrls = normalizeBatchHomepageUrls(draft.batchHomepageUrls);
+  const nextBatchSources = normalizeBatchSources(draft.batchSources, defaultBatchSources);
+  const nextHomepageUrls = normalizeBatchHomepageUrls(toBatchHomepageUrls(nextBatchSources));
   const nextBatchLimit = normalizeBatchLimit(draft.batchLimit, defaultBatchLimit);
 
   return {
     nextDir,
+    nextBatchSources,
     nextHomepageUrls,
     nextBatchLimit,
     payload: {
       defaultDownloadDir: nextDir || null,
       defaultBatchHomepageUrls: nextHomepageUrls,
+      defaultBatchSources: nextBatchSources,
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: draft.sameDomainOnly,
       locale: draft.locale,

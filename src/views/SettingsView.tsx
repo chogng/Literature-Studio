@@ -10,10 +10,11 @@ export default function SettingsView({
   isSettingsLoading,
   locale,
   onLocaleChange,
-  batchHomepageUrls,
-  onBatchHomepageUrlChange,
-  onAddBatchHomepageUrl,
-  onRemoveBatchHomepageUrl,
+  batchSources,
+  onBatchSourceUrlChange,
+  onBatchSourceJournalTitleChange,
+  onAddBatchSource,
+  onRemoveBatchSource,
   batchLimit,
   onBatchLimitChange,
   sameDomainOnly,
@@ -73,17 +74,26 @@ export default function SettingsView({
           <div className="settings-field">
             <span>{labels.settingsHomepageUrl}</span>
             <div className="settings-url-list">
-              {batchHomepageUrls.map((url, index) => (
-                <div key={`settings-batch-url-${index}`} className="settings-url-row">
+              {batchSources.map((source, index) => (
+                <div key={source.id || `settings-batch-url-${index}`} className="settings-url-row">
                   <Input
                     className="settings-input-control"
                     size="sm"
                     type="text"
                     inputMode="url"
-                    value={url}
-                    onChange={(event) => onBatchHomepageUrlChange(index, event.target.value)}
+                    value={source.url}
+                    onChange={(event) => onBatchSourceUrlChange(index, event.target.value)}
                     placeholder={labels.homepageUrlPlaceholder}
                     aria-label={`${labels.settingsHomepageUrl} ${index + 1}`}
+                  />
+                  <Input
+                    className="settings-journal-control"
+                    size="sm"
+                    type="text"
+                    value={source.journalTitle}
+                    onChange={(event) => onBatchSourceJournalTitleChange(index, event.target.value)}
+                    placeholder={labels.batchJournalTitlePlaceholder}
+                    aria-label={`${labels.settingsBatchJournalTitle} ${index + 1}`}
                   />
                   <Button
                     type="button"
@@ -92,8 +102,8 @@ export default function SettingsView({
                     size="sm"
                     iconMode="with"
                     textMode="without"
-                    onClick={() => onRemoveBatchHomepageUrl(index)}
-                    disabled={batchHomepageUrls.length === 1 || isSettingsSaving}
+                    onClick={() => onRemoveBatchSource(index)}
+                    disabled={batchSources.length === 1 || isSettingsSaving}
                     title={labels.removeBatchUrl}
                     aria-label={labels.removeBatchUrl}
                   >
@@ -107,7 +117,7 @@ export default function SettingsView({
                 variant="outline"
                 size="sm"
                 leftIcon={<Plus size={16} />}
-                onClick={onAddBatchHomepageUrl}
+                onClick={onAddBatchSource}
                 disabled={isSettingsSaving}
               >
                 {labels.addBatchUrl}

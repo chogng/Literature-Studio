@@ -20,9 +20,11 @@ import { normalizeUrl } from './utils/url';
 import { fetchLatestArticlesBatch, type Article } from './services/articleFetch';
 import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './services/desktopError';
 import {
-  defaultBatchHomepageUrls,
+  createEmptyBatchSource,
+  defaultBatchSources,
   defaultBatchLimit,
   defaultSameDomainOnly,
+  type BatchSource,
   normalizeBatchLimit,
 } from './services/batchSettings';
 import {
@@ -130,7 +132,7 @@ function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
   const merged: Article[] = [];
 
   for (const item of [...incoming, ...existing]) {
-    const key = `${item.sourceUrl}::${item.fetchedAt}`;
+    const key = `${item.sourceId ?? ''}::${item.sourceUrl}::${item.fetchedAt}`;
     if (seen.has(key)) continue;
     seen.add(key);
     merged.push(item);
@@ -145,7 +147,7 @@ export default function App() {
   const initialBatchDateRange = useMemo(() => buildDefaultBatchDateRange(), []);
   const [webUrl, setWebUrl] = useState(defaultArticleUrl);
   const [browserUrl, setBrowserUrl] = useState(normalizeUrl(defaultArticleUrl));
-  const [batchHomepageUrls, setBatchHomepageUrls] = useState<string[]>(defaultBatchHomepageUrls);
+  const [batchSources, setBatchSources] = useState<BatchSource[]>(defaultBatchSources);
   const [batchLimit, setBatchLimit] = useState(defaultBatchLimit);
   const [sameDomainOnly, setSameDomainOnly] = useState(defaultSameDomainOnly);
   const [batchStartDate, setBatchStartDate] = useState(initialBatchDateRange.startDate);
@@ -188,7 +190,14 @@ export default function App() {
 
   const filteredArticles = useMemo(() => {
     const journal = filterJournal.trim().toLowerCase();
-    return articles.filter((article) => !journal || article.sourceUrl.toLowerCase().includes(journal));
+    return articles.filter(
+      (article) =>
+        !journal ||
+        article.sourceUrl.toLowerCase().includes(journal) ||
+        String(article.journalTitle ?? '')
+          .toLowerCase()
+          .includes(journal),
+    );
   }, [articles, filterJournal]);
 
   const hasData = articles.length > 0;
@@ -280,7 +289,7 @@ export default function App() {
         const resolved = resolveSettingsState(loaded);
 
         setPdfDownloadDir(resolved.pdfDownloadDir);
-        setBatchHomepageUrls(resolved.batchHomepageUrls);
+        setBatchSources(resolved.batchSources);
         setBatchLimit(resolved.batchLimit);
         setSameDomainOnly(resolved.sameDomainOnly);
         setConfigPath(resolved.configPath);
@@ -366,23 +375,43 @@ export default function App() {
     }
   };
 
-  const handleBatchHomepageUrlChange = useCallback((index: number, nextUrl: string) => {
-    setBatchHomepageUrls((current) =>
-      current.map((url, urlIndex) => (urlIndex === index ? nextUrl : url)),
+  const handleBatchSourceUrlChange = useCallback((index: number, nextUrl: string) => {
+    setBatchSources((current) =>
+      current.map((source, sourceIndex) =>
+        sourceIndex === index
+          ? {
+              ...source,
+              url: nextUrl,
+            }
+          : source,
+      ),
     );
   }, []);
 
-  const handleAddBatchHomepageUrl = useCallback(() => {
-    setBatchHomepageUrls((current) => [...current, '']);
+  const handleBatchSourceJournalTitleChange = useCallback((index: number, nextJournalTitle: string) => {
+    setBatchSources((current) =>
+      current.map((source, sourceIndex) =>
+        sourceIndex === index
+          ? {
+              ...source,
+              journalTitle: nextJournalTitle,
+            }
+          : source,
+      ),
+    );
   }, []);
 
-  const handleRemoveBatchHomepageUrl = useCallback((index: number) => {
-    setBatchHomepageUrls((current) => {
+  const handleAddBatchSource = useCallback(() => {
+    setBatchSources((current) => [...current, createEmptyBatchSource()]);
+  }, []);
+
+  const handleRemoveBatchSource = useCallback((index: number) => {
+    setBatchSources((current) => {
       if (current.length <= 1) {
-        return [''];
+        return [createEmptyBatchSource()];
       }
 
-      return current.filter((_, urlIndex) => urlIndex !== index);
+      return current.filter((_, sourceIndex) => sourceIndex !== index);
     });
   }, []);
 
@@ -405,7 +434,7 @@ export default function App() {
 
     const { nextDir, payload } = buildSaveSettingsPayload({
       pdfDownloadDir,
-      batchHomepageUrls,
+      batchSources,
       batchLimit,
       sameDomainOnly,
       locale,
@@ -416,7 +445,7 @@ export default function App() {
       const resolved = resolveSettingsState(saved, { fallbackConfigPath: configPath });
 
       setPdfDownloadDir(resolved.pdfDownloadDir);
-      setBatchHomepageUrls(resolved.batchHomepageUrls);
+      setBatchSources(resolved.batchSources);
       setBatchLimit(resolved.batchLimit);
       setSameDomainOnly(resolved.sameDomainOnly);
       setConfigPath(resolved.configPath);
@@ -504,7 +533,7 @@ export default function App() {
     try {
       const result = await fetchLatestArticlesBatch({
         desktopRuntime,
-        homepageUrls: batchHomepageUrls,
+        batchSources,
         limit: batchLimit,
         sameDomainOnly,
         startDate: batchStartDate || null,
@@ -649,6 +678,8 @@ export default function App() {
               settingsHomepageUrl: ui.settingsHomepageUrl,
               settingsHomepageUrlHint: ui.settingsHomepageUrlHint,
               homepageUrlPlaceholder: ui.homepageUrlPlaceholder,
+              settingsBatchJournalTitle: ui.settingsBatchJournalTitle,
+              batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
               addBatchUrl: ui.addBatchUrl,
               removeBatchUrl: ui.removeBatchUrl,
               settingsBatchOptions: ui.settingsBatchOptions,
@@ -669,10 +700,11 @@ export default function App() {
             isSettingsLoading={isSettingsLoading}
             locale={locale}
             onLocaleChange={handleLocaleChange}
-            batchHomepageUrls={batchHomepageUrls}
-            onBatchHomepageUrlChange={handleBatchHomepageUrlChange}
-            onAddBatchHomepageUrl={handleAddBatchHomepageUrl}
-            onRemoveBatchHomepageUrl={handleRemoveBatchHomepageUrl}
+            batchSources={batchSources}
+            onBatchSourceUrlChange={handleBatchSourceUrlChange}
+            onBatchSourceJournalTitleChange={handleBatchSourceJournalTitleChange}
+            onAddBatchSource={handleAddBatchSource}
+            onRemoveBatchSource={handleRemoveBatchSource}
             batchLimit={batchLimit}
             onBatchLimitChange={(value) => setBatchLimit(normalizeBatchLimit(value, 1))}
             sameDomainOnly={sameDomainOnly}

@@ -9,6 +9,38 @@ const ARTICLE_LIMIT_MAX = 20;
 const DEFAULT_BATCH_LIMIT = 5;
 const PREVIEW_CANDIDATE_MULTIPLIER = 12;
 
+type HomepageSource = {
+  sourceId: string;
+  homepageUrl: string;
+  journalTitle: string;
+};
+
+function normalizeSourceId(input: unknown, homepageUrl: string, index: number) {
+  const cleaned = cleanText(input);
+  if (cleaned) return cleaned;
+
+  const hostnameSeed = cleanText(homepageUrl)
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 36);
+
+  if (hostnameSeed) {
+    return `source-${hostnameSeed}-${index + 1}`;
+  }
+
+  return `source-${index + 1}`;
+}
+
+function safeNormalizeUrl(value: string) {
+  try {
+    return normalizeUrl(value);
+  } catch {
+    return '';
+  }
+}
+
 export async function fetchHtml(url: string) {
   const response = await fetch(url, {
     headers: {
@@ -37,17 +69,64 @@ export async function fetchArticle(urlValue: unknown, storage: StorageService) {
   return article;
 }
 
-function normalizeHomepageUrls(payload: FetchLatestArticlesPayload) {
+function normalizeHomepageSources(payload: FetchLatestArticlesPayload): HomepageSource[] {
+  const payloadSources = Array.isArray(payload.sources) ? payload.sources : [];
+  if (payloadSources.length > 0) {
+    const mapped = payloadSources
+      .map((item, index) => {
+        const homepageUrl = safeNormalizeUrl(cleanText(item?.homepageUrl ?? item?.url));
+        if (!homepageUrl) return null;
+
+        return {
+          sourceId: normalizeSourceId(item?.sourceId, homepageUrl, index),
+          homepageUrl,
+          journalTitle: cleanText(item?.journalTitle),
+        } satisfies HomepageSource;
+      })
+      .filter((source): source is HomepageSource => Boolean(source));
+    const deduped = new Map<string, HomepageSource>();
+
+    for (const source of mapped) {
+      const existing = deduped.get(source.homepageUrl);
+      if (!existing) {
+        deduped.set(source.homepageUrl, source);
+        continue;
+      }
+
+      if (!existing.journalTitle && source.journalTitle) {
+        deduped.set(source.homepageUrl, source);
+      }
+    }
+
+    return [...deduped.values()];
+  }
+
   const cleanedHomepageUrls = (Array.isArray(payload.homepageUrls) ? payload.homepageUrls : [])
     .map((value) => cleanText(value))
     .filter(Boolean)
     .map((value) => normalizeUrl(value));
+  const journalTitleLookup = payload.journalTitlesByHomepageUrl;
+  const titleByUrl =
+    journalTitleLookup && typeof journalTitleLookup === 'object'
+      ? Object.fromEntries(
+          Object.entries(journalTitleLookup)
+            .map(([key, value]) => [safeNormalizeUrl(cleanText(key)), cleanText(value)] as const)
+            .filter(([key]) => Boolean(key)),
+        )
+      : {};
 
-  return [...new Set(cleanedHomepageUrls)];
+  const dedupedUrls = [...new Set(cleanedHomepageUrls)];
+  return dedupedUrls.map((homepageUrl, index) => ({
+    sourceId: normalizeSourceId('', homepageUrl, index),
+    homepageUrl,
+    journalTitle: cleanText(titleByUrl[homepageUrl]),
+  }));
 }
 
 async function fetchLatestArticlesFromHomepage(
+  sourceId: string,
   homepageUrl: string,
+  journalTitle: string,
   limit: number,
   sameDomainOnly: boolean,
   dateRange: DateRange,
@@ -101,6 +180,10 @@ async function fetchLatestArticlesFromHomepage(
       if (!isProbablyArticle(candidate.url, article)) continue;
       if (!isWithinDateRange(article.publishedAt, dateRange)) continue;
       if (fetchedSourceUrls.has(article.sourceUrl)) continue;
+      article.sourceId = sourceId;
+      if (journalTitle) {
+        article.journalTitle = journalTitle;
+      }
 
       fetchedSourceUrls.add(article.sourceUrl);
       fetched.push(article);
@@ -113,8 +196,8 @@ async function fetchLatestArticlesFromHomepage(
 }
 
 export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = {}, storage: StorageService) {
-  const homepageUrls = normalizeHomepageUrls(payload);
-  if (homepageUrls.length === 0) {
+  const homepageSources = normalizeHomepageSources(payload);
+  if (homepageSources.length === 0) {
     throw appError('BATCH_HOMEPAGE_URLS_EMPTY');
   }
 
@@ -128,29 +211,35 @@ export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = 
   const seenSourceUrls = new Set<string>();
   const failedSources: Array<Record<string, unknown>> = [];
 
-  for (const homepageUrl of homepageUrls) {
+  for (const source of homepageSources) {
+    const { sourceId, homepageUrl, journalTitle } = source;
     try {
       const homepageArticles = await fetchLatestArticlesFromHomepage(
+        sourceId,
         homepageUrl,
+        journalTitle,
         limit,
         sameDomainOnly,
         dateRange,
       );
 
       for (const article of homepageArticles) {
-        if (seenSourceUrls.has(article.sourceUrl)) continue;
-        seenSourceUrls.add(article.sourceUrl);
+        const dedupeKey = `${article.sourceId ?? ''}::${article.sourceUrl}`;
+        if (seenSourceUrls.has(dedupeKey)) continue;
+        seenSourceUrls.add(dedupeKey);
         fetched.push(article);
       }
     } catch (error) {
       if (isAppError(error)) {
         failedSources.push({
+          sourceId,
           homepageUrl,
           code: error.code,
           details: error.details,
         });
       } else {
         failedSources.push({
+          sourceId,
           homepageUrl,
           code: 'UNKNOWN_ERROR',
           details: { message: error instanceof Error ? error.message : String(error) },

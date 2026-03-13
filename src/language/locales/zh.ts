@@ -31,6 +31,8 @@ const zh = {
   settingsHomepageUrlHint: '可在这里维护多个抓取来源。批量抓取时会依次访问这些 URL。',
   addBatchUrl: '添加 URL',
   removeBatchUrl: '删除 URL',
+  settingsBatchJournalTitle: '期刊名',
+  batchJournalTitlePlaceholder: '该 URL 对应的期刊名（例如：Nature News）',
   settingsBatchOptions: '默认批量抓取选项',
   settingsBatchHint: '在 Reader 页点击“抓取”时会使用这些默认值。数量会对每个 URL 分别生效。',
   defaultPdfDir: '默认 PDF 下载目录',

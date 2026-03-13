@@ -15,6 +15,11 @@ export type DocxExportConfig = {
     abstractLabelSpacingAfter: number;
     abstractLineSpacingAfter: number;
   };
+  journal: {
+    titleFontSize: number;
+    titleSpacingBefore: number;
+    titleSpacingAfter: number;
+  };
   page: {
     width: number;
     height: number;
@@ -45,6 +50,11 @@ export const defaultDocxExportConfig: Readonly<DocxExportConfig> = {
     fetchedAtSpacingAfter: 120,
     abstractLabelSpacingAfter: 60,
     abstractLineSpacingAfter: 60,
+  },
+  journal: {
+    titleFontSize: 34,
+    titleSpacingBefore: 200,
+    titleSpacingAfter: 120,
   },
   page: {
     width: 11906,

@@ -1,5 +1,6 @@
 ﻿import type { Locale } from '../language/i18n';
 import type { SidebarArticle } from '../sidebar';
+import type { BatchSource } from '../services/batchSettings';
 
 export type ReaderViewLabels = {
   untitled: string;
@@ -57,6 +58,8 @@ export type SettingsViewLabels = {
   settingsHomepageUrl: string;
   settingsHomepageUrlHint: string;
   homepageUrlPlaceholder: string;
+  settingsBatchJournalTitle: string;
+  batchJournalTitlePlaceholder: string;
   addBatchUrl: string;
   removeBatchUrl: string;
   settingsBatchOptions: string;
@@ -80,10 +83,11 @@ export type SettingsViewProps = {
   isSettingsLoading: boolean;
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
-  batchHomepageUrls: string[];
-  onBatchHomepageUrlChange: (index: number, url: string) => void;
-  onAddBatchHomepageUrl: () => void;
-  onRemoveBatchHomepageUrl: (index: number) => void;
+  batchSources: BatchSource[];
+  onBatchSourceUrlChange: (index: number, url: string) => void;
+  onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void;
+  onAddBatchSource: () => void;
+  onRemoveBatchSource: (index: number) => void;
   batchLimit: number;
   onBatchLimitChange: (value: string) => void;
   sameDomainOnly: boolean;

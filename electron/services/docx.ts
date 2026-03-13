@@ -35,6 +35,7 @@ const localeCopy = {
     fetchedAt: '抓取时间',
     untitled: '无标题',
     unknown: '未识别',
+    uncategorizedJournal: '未分类期刊',
   },
   en: {
     documentTitle: 'Batch Exported Article Cards',
@@ -48,6 +49,7 @@ const localeCopy = {
     fetchedAt: 'Fetched At',
     untitled: 'Untitled',
     unknown: 'Unknown',
+    uncategorizedJournal: 'Uncategorized Journal',
   },
 } as const;
 
@@ -134,7 +136,50 @@ function pageBreakXml() {
   return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
 }
 
-function articleParagraphsXml(article: Article, index: number, locale: SupportedLocale) {
+type JournalArticleGroup = {
+  journalTitle: string;
+  articles: Article[];
+};
+
+function resolveJournalTitle(article: Article, locale: SupportedLocale) {
+  const explicitTitle = cleanText(article.journalTitle);
+  if (explicitTitle) return explicitTitle;
+
+  const sourceUrl = cleanText(article.sourceUrl);
+  if (sourceUrl) {
+    try {
+      const hostname = cleanText(new URL(sourceUrl).hostname.replace(/^www\./i, ''));
+      if (hostname) return hostname;
+    } catch {
+      // Ignore malformed URL and fall back to uncategorized label.
+    }
+  }
+
+  return localeCopy[locale].uncategorizedJournal;
+}
+
+function groupArticlesByJournal(articles: Article[], locale: SupportedLocale): JournalArticleGroup[] {
+  const groups: JournalArticleGroup[] = [];
+  const groupIndexByTitle = new Map<string, number>();
+
+  for (const article of articles) {
+    const journalTitle = resolveJournalTitle(article, locale);
+    const normalizedKey = journalTitle.toLowerCase();
+    const existingIndex = groupIndexByTitle.get(normalizedKey);
+
+    if (existingIndex === undefined) {
+      groups.push({ journalTitle, articles: [article] });
+      groupIndexByTitle.set(normalizedKey, groups.length - 1);
+      continue;
+    }
+
+    groups[existingIndex].articles.push(article);
+  }
+
+  return groups;
+}
+
+function articleParagraphsXml(article: Article, indexInJournal: number, locale: SupportedLocale) {
   const copy = localeCopy[locale];
   const title = cleanText(article.title) || copy.untitled;
   const authors = article.authors.map((author) => cleanText(author)).filter(Boolean).join(', ') || copy.unknown;
@@ -142,10 +187,10 @@ function articleParagraphsXml(article: Article, index: number, locale: Supported
   const abstractValue = abstractLines.length > 0 ? abstractLines : [copy.unknown];
 
   const paragraphs = [
-    paragraphXml(`${index + 1}. ${title}`, {
+    paragraphXml(`${indexInJournal + 1}. ${title}`, {
       bold: true,
       fontSize: docxConfig.article.titleFontSize,
-      spacingBefore: index === 0 ? 0 : docxConfig.article.titleSpacingBefore,
+      spacingBefore: indexInJournal === 0 ? 0 : docxConfig.article.titleSpacingBefore,
       spacingAfter: docxConfig.article.titleSpacingAfter,
     }),
     paragraphXml(`${copy.authors}: ${authors}`, {
@@ -181,6 +226,7 @@ function articleParagraphsXml(article: Article, index: number, locale: Supported
 function buildDocumentXml(articles: Article[], locale: SupportedLocale, exportedAt: Date) {
   const copy = localeCopy[locale];
   const page = docxConfig.page;
+  const journalGroups = groupArticlesByJournal(articles, locale);
   const bodyParts: string[] = [
     paragraphXml(copy.documentTitle, {
       bold: true,
@@ -196,9 +242,24 @@ function buildDocumentXml(articles: Article[], locale: SupportedLocale, exported
     emptyParagraphXml(),
   ];
 
-  articles.forEach((article, index) => {
-    bodyParts.push(articleParagraphsXml(article, index, locale));
-    if (index < articles.length - 1) {
+  journalGroups.forEach((group, groupIndex) => {
+    bodyParts.push(
+      paragraphXml(group.journalTitle, {
+        bold: true,
+        fontSize: docxConfig.journal.titleFontSize,
+        spacingBefore: groupIndex === 0 ? 0 : docxConfig.journal.titleSpacingBefore,
+        spacingAfter: docxConfig.journal.titleSpacingAfter,
+      }),
+    );
+
+    group.articles.forEach((article, articleIndex) => {
+      bodyParts.push(articleParagraphsXml(article, articleIndex, locale));
+      if (articleIndex < group.articles.length - 1) {
+        bodyParts.push(emptyParagraphXml());
+      }
+    });
+
+    if (groupIndex < journalGroups.length - 1) {
       bodyParts.push(pageBreakXml());
     }
   });

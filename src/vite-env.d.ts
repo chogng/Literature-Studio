@@ -8,6 +8,20 @@ type DesktopArticle = {
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
+  sourceId?: string | null;
+  journalTitle?: string | null;
+};
+
+type DesktopBatchSource = {
+  id: string;
+  url: string;
+  journalTitle: string;
+};
+
+type DesktopFetchBatchSource = {
+  sourceId: string;
+  homepageUrl: string;
+  journalTitle: string;
 };
 
 type DesktopPdfDownloadResult = {
@@ -23,6 +37,7 @@ type DesktopDocxExportResult = {
 type DesktopStoredAppSettings = {
   defaultDownloadDir: string | null;
   defaultBatchHomepageUrls: string[];
+  defaultBatchSources: DesktopBatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
   locale: 'zh' | 'en';
@@ -35,7 +50,9 @@ type DesktopAppSettings = DesktopStoredAppSettings & {
 type AppCommandPayloadMap = {
   fetch_article: { url?: string };
   fetch_latest_articles: {
+    sources?: DesktopFetchBatchSource[];
     homepageUrls?: string[];
+    journalTitlesByHomepageUrl?: Record<string, string>;
     limit?: number | string;
     sameDomainOnly?: boolean;
     startDate?: string | null;

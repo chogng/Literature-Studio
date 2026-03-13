@@ -1,5 +1,5 @@
 import { isDateRangeValid } from '../utils/dateRange';
-import { prepareBatchHomepageUrls } from './batchSettings';
+import { prepareBatchSourcesForFetch, type BatchSource } from './batchSettings';
 import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './desktopError';
 
 export type Article = {
@@ -10,6 +10,8 @@ export type Article = {
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
+  sourceId?: string | null;
+  journalTitle?: string | null;
 };
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
@@ -26,7 +28,7 @@ export type FetchLatestArticlesBatchResult =
 
 type FetchLatestArticlesBatchParams = {
   desktopRuntime: boolean;
-  homepageUrls: string[];
+  batchSources: BatchSource[];
   limit: number;
   sameDomainOnly: boolean;
   startDate?: string | null;
@@ -36,7 +38,7 @@ type FetchLatestArticlesBatchParams = {
 
 export async function fetchLatestArticlesBatch({
   desktopRuntime,
-  homepageUrls,
+  batchSources,
   limit,
   sameDomainOnly,
   startDate,
@@ -47,8 +49,8 @@ export async function fetchLatestArticlesBatch({
     return { ok: false, reason: 'desktop_unsupported' };
   }
 
-  const normalizedHomepageUrls = prepareBatchHomepageUrls(homepageUrls);
-  if (normalizedHomepageUrls.length === 0) {
+  const { sources } = prepareBatchSourcesForFetch(batchSources);
+  if (sources.length === 0) {
     return { ok: false, reason: 'empty_homepage_url' };
   }
 
@@ -60,7 +62,7 @@ export async function fetchLatestArticlesBatch({
 
   try {
     const articles = await invokeDesktop<Article[]>('fetch_latest_articles', {
-      homepageUrls: normalizedHomepageUrls,
+      sources,
       limit,
       sameDomainOnly,
       startDate: startDate || null,

@@ -81,7 +81,7 @@
 
 .settings-url-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 220px) auto;
   gap: 8px;
   align-items: center;
 }
@@ -89,6 +89,10 @@
 .settings-input-control {
   flex: 1;
   min-width: 280px;
+}
+
+.settings-journal-control {
+  min-width: 180px;
 }
 
 .settings-limit-input-wrap {

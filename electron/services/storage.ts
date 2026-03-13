@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
-import type { AppSettings, Article, StorageService, StoredAppSettings } from '../types.js';
+import type { AppSettings, Article, BatchSource, StorageService, StoredAppSettings } from '../types.js';
 import { cleanText } from '../utils/text.js';
 
 interface StoragePaths {
@@ -15,6 +15,9 @@ interface StorageOptions {
 
 const defaultBatchHomepageUrl = 'https://arxiv.org/list/cs/new';
 const defaultBatchHomepageUrls = [defaultBatchHomepageUrl];
+const defaultBatchSources: BatchSource[] = [
+  { id: 'source-arxiv-cs-new', url: defaultBatchHomepageUrl, journalTitle: '' },
+];
 const defaultBatchLimit = 5;
 const defaultSameDomainOnly = true;
 const fallbackLocale: 'zh' | 'en' = 'zh';
@@ -41,16 +44,73 @@ function normalizeLocale(value: unknown, defaultLocale: 'zh' | 'en'): 'zh' | 'en
   return defaultLocale;
 }
 
+function buildSourceId(seed: unknown, fallbackSeed: string, index: number) {
+  const cleaned = cleanText(seed);
+  if (cleaned) return cleaned;
+
+  const normalizedFallback = cleanText(fallbackSeed)
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 36);
+
+  if (normalizedFallback) {
+    return `source-${normalizedFallback}-${index + 1}`;
+  }
+
+  return `source-${index + 1}`;
+}
+
+function normalizeBatchSources(payload: Partial<StoredAppSettings>): BatchSource[] {
+  const fromStructured = Array.isArray(payload.defaultBatchSources)
+    ? payload.defaultBatchSources.map((item, index) => {
+        const url = cleanText(item?.url);
+        return {
+          id: buildSourceId(item?.id, url, index),
+          url,
+          journalTitle: cleanText(item?.journalTitle),
+        };
+      })
+    : [];
+  const fromLegacy = Array.isArray(payload.defaultBatchHomepageUrls)
+    ? payload.defaultBatchHomepageUrls.map((url, index) => ({
+        id: buildSourceId('', url, fromStructured.length + index),
+        url: cleanText(url),
+        journalTitle: '',
+      }))
+    : [];
+
+  const normalized = [...fromStructured, ...fromLegacy].filter((source) => source.url);
+  const deduped = new Map<string, BatchSource>();
+
+  for (const source of normalized) {
+    const existing = deduped.get(source.url);
+    if (!existing) {
+      deduped.set(source.url, source);
+      continue;
+    }
+
+    if (!existing.journalTitle && source.journalTitle) {
+      deduped.set(source.url, source);
+      continue;
+    }
+    if (!existing.id && source.id) {
+      deduped.set(source.url, source);
+    }
+  }
+
+  const merged = [...deduped.values()];
+  return merged.length > 0 ? merged : defaultBatchSources.map((source) => ({ ...source }));
+}
+
 function normalizeSettings(
   payload: Partial<StoredAppSettings> = {},
   defaultLocale: 'zh' | 'en',
 ): StoredAppSettings {
   const downloadDir = typeof payload.defaultDownloadDir === 'string' ? cleanText(payload.defaultDownloadDir) : '';
-  const normalizedHomepageUrls = Array.isArray(payload.defaultBatchHomepageUrls)
-    ? payload.defaultBatchHomepageUrls
-        .map((value) => cleanText(value))
-        .filter(Boolean)
-    : [];
+  const normalizedBatchSources = normalizeBatchSources(payload);
+  const normalizedHomepageUrls = normalizedBatchSources.map((source) => source.url);
   const parsedLimit = Number.parseInt(String(payload.defaultBatchLimit), 10);
   const normalizedLimit = Number.isNaN(parsedLimit)
     ? defaultBatchLimit
@@ -61,6 +121,10 @@ function normalizeSettings(
     defaultDownloadDir: downloadDir || null,
     defaultBatchHomepageUrls:
       batchHomepageUrls.length > 0 ? batchHomepageUrls : [...defaultBatchHomepageUrls],
+    defaultBatchSources:
+      normalizedBatchSources.length > 0
+        ? normalizedBatchSources
+        : defaultBatchSources.map((source) => ({ ...source })),
     defaultBatchLimit: normalizedLimit,
     defaultSameDomainOnly:
       typeof payload.defaultSameDomainOnly === 'boolean'
@@ -103,7 +167,7 @@ export function createStorageService(paths: StoragePaths, options: StorageOption
       const deduped: Article[] = [];
 
       for (const item of next) {
-        const key = `${item.sourceUrl}::${item.fetchedAt}`;
+        const key = `${item.sourceId ?? ''}::${item.sourceUrl}::${item.fetchedAt}`;
         if (seen.has(key)) continue;
         seen.add(key);
         deduped.push(item);

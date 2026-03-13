@@ -6,6 +6,14 @@ export interface Article {
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
+  sourceId?: string | null;
+  journalTitle?: string | null;
+}
+
+export interface BatchSource {
+  id: string;
+  url: string;
+  journalTitle: string;
 }
 
 export interface DateRange {
@@ -16,6 +24,7 @@ export interface DateRange {
 export interface StoredAppSettings {
   defaultDownloadDir: string | null;
   defaultBatchHomepageUrls: string[];
+  defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
   locale: 'zh' | 'en';
@@ -77,7 +86,14 @@ export interface PreviewState {
 }
 
 export interface FetchLatestArticlesPayload {
+  sources?: Array<{
+    sourceId?: string;
+    homepageUrl?: string;
+    url?: string;
+    journalTitle?: string;
+  }>;
   homepageUrls?: string[];
+  journalTitlesByHomepageUrl?: Record<string, string>;
   limit?: number | string;
   sameDomainOnly?: boolean;
   startDate?: string | null;

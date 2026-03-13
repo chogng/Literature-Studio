@@ -31,6 +31,8 @@ const en = {
   settingsHomepageUrlHint: 'Add multiple source pages here. Batch fetch will visit each URL in this list.',
   addBatchUrl: 'Add URL',
   removeBatchUrl: 'Remove URL',
+  settingsBatchJournalTitle: 'Journal title',
+  batchJournalTitlePlaceholder: 'Journal title for this URL (e.g., Nature News)',
   settingsBatchOptions: 'Default batch fetch options',
   settingsBatchHint: 'Reader uses these defaults when you click "Fetch". Count is applied to each URL.',
   defaultPdfDir: 'Default PDF download directory',
