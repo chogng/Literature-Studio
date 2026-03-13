@@ -13,10 +13,9 @@ interface StorageOptions {
   defaultLocale?: 'zh' | 'en';
 }
 
-const defaultBatchHomepageUrl = 'https://arxiv.org/list/cs/new';
-const defaultBatchHomepageUrls = [defaultBatchHomepageUrl];
+const defaultBatchSourceUrl = 'https://arxiv.org/list/cs/new';
 const defaultBatchSources: BatchSource[] = [
-  { id: 'source-arxiv-cs-new', url: defaultBatchHomepageUrl, journalTitle: '' },
+  { id: 'source-arxiv-cs-new', url: defaultBatchSourceUrl, journalTitle: '' },
 ];
 const defaultBatchLimit = 5;
 const defaultSameDomainOnly = true;
@@ -73,15 +72,7 @@ function normalizeBatchSources(payload: Partial<StoredAppSettings>): BatchSource
         };
       })
     : [];
-  const fromLegacy = Array.isArray(payload.defaultBatchHomepageUrls)
-    ? payload.defaultBatchHomepageUrls.map((url, index) => ({
-        id: buildSourceId('', url, fromStructured.length + index),
-        url: cleanText(url),
-        journalTitle: '',
-      }))
-    : [];
-
-  const normalized = [...fromStructured, ...fromLegacy].filter((source) => source.url);
+  const normalized = fromStructured.filter((source) => source.url);
   const deduped = new Map<string, BatchSource>();
 
   for (const source of normalized) {
@@ -110,17 +101,13 @@ function normalizeSettings(
 ): StoredAppSettings {
   const downloadDir = typeof payload.defaultDownloadDir === 'string' ? cleanText(payload.defaultDownloadDir) : '';
   const normalizedBatchSources = normalizeBatchSources(payload);
-  const normalizedHomepageUrls = normalizedBatchSources.map((source) => source.url);
   const parsedLimit = Number.parseInt(String(payload.defaultBatchLimit), 10);
   const normalizedLimit = Number.isNaN(parsedLimit)
     ? defaultBatchLimit
     : Math.min(20, Math.max(1, parsedLimit));
-  const batchHomepageUrls = [...new Set(normalizedHomepageUrls)];
 
   return {
     defaultDownloadDir: downloadDir || null,
-    defaultBatchHomepageUrls:
-      batchHomepageUrls.length > 0 ? batchHomepageUrls : [...defaultBatchHomepageUrls],
     defaultBatchSources:
       normalizedBatchSources.length > 0
         ? normalizedBatchSources

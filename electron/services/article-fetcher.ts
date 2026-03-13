@@ -71,56 +71,33 @@ export async function fetchArticle(urlValue: unknown, storage: StorageService) {
 
 function normalizeHomepageSources(payload: FetchLatestArticlesPayload): HomepageSource[] {
   const payloadSources = Array.isArray(payload.sources) ? payload.sources : [];
-  if (payloadSources.length > 0) {
-    const mapped = payloadSources
-      .map((item, index) => {
-        const homepageUrl = safeNormalizeUrl(cleanText(item?.homepageUrl ?? item?.url));
-        if (!homepageUrl) return null;
+  const mapped = payloadSources
+    .map((item, index) => {
+      const homepageUrl = safeNormalizeUrl(cleanText(item?.homepageUrl));
+      if (!homepageUrl) return null;
 
-        return {
-          sourceId: normalizeSourceId(item?.sourceId, homepageUrl, index),
-          homepageUrl,
-          journalTitle: cleanText(item?.journalTitle),
-        } satisfies HomepageSource;
-      })
-      .filter((source): source is HomepageSource => Boolean(source));
-    const deduped = new Map<string, HomepageSource>();
+      return {
+        sourceId: normalizeSourceId(item?.sourceId, homepageUrl, index),
+        homepageUrl,
+        journalTitle: cleanText(item?.journalTitle),
+      } satisfies HomepageSource;
+    })
+    .filter((source): source is HomepageSource => Boolean(source));
+  const deduped = new Map<string, HomepageSource>();
 
-    for (const source of mapped) {
-      const existing = deduped.get(source.homepageUrl);
-      if (!existing) {
-        deduped.set(source.homepageUrl, source);
-        continue;
-      }
-
-      if (!existing.journalTitle && source.journalTitle) {
-        deduped.set(source.homepageUrl, source);
-      }
+  for (const source of mapped) {
+    const existing = deduped.get(source.homepageUrl);
+    if (!existing) {
+      deduped.set(source.homepageUrl, source);
+      continue;
     }
 
-    return [...deduped.values()];
+    if (!existing.journalTitle && source.journalTitle) {
+      deduped.set(source.homepageUrl, source);
+    }
   }
 
-  const cleanedHomepageUrls = (Array.isArray(payload.homepageUrls) ? payload.homepageUrls : [])
-    .map((value) => cleanText(value))
-    .filter(Boolean)
-    .map((value) => normalizeUrl(value));
-  const journalTitleLookup = payload.journalTitlesByHomepageUrl;
-  const titleByUrl =
-    journalTitleLookup && typeof journalTitleLookup === 'object'
-      ? Object.fromEntries(
-          Object.entries(journalTitleLookup)
-            .map(([key, value]) => [safeNormalizeUrl(cleanText(key)), cleanText(value)] as const)
-            .filter(([key]) => Boolean(key)),
-        )
-      : {};
-
-  const dedupedUrls = [...new Set(cleanedHomepageUrls)];
-  return dedupedUrls.map((homepageUrl, index) => ({
-    sourceId: normalizeSourceId('', homepageUrl, index),
-    homepageUrl,
-    journalTitle: cleanText(titleByUrl[homepageUrl]),
-  }));
+  return [...deduped.values()];
 }
 
 async function fetchLatestArticlesFromHomepage(

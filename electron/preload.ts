@@ -4,6 +4,7 @@ import type {
   AppErrorCode,
   AppCommandPayloadMap,
   AppCommandResultMap,
+  NativeModalState,
   PreviewBounds,
   PreviewState,
   WindowControlAction,
@@ -111,6 +112,11 @@ const electronAPI = {
       return () => {
         ipcRenderer.removeListener('app:preview-state', wrapped);
       };
+    },
+  },
+  modal: {
+    getState() {
+      return ipcRenderer.invoke('app:modal-get-state') as Promise<NativeModalState | null>;
     },
   },
 };

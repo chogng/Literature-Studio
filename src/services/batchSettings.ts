@@ -3,7 +3,7 @@ import { normalizeUrl } from '../utils/url';
 const batchLimitMin = 1;
 const batchLimitMax = 20;
 
-export const defaultBatchHomepageUrl = 'https://arxiv.org/list/cs/new';
+export const defaultBatchSourceUrl = 'https://arxiv.org/list/cs/new';
 export type BatchSource = {
   id: string;
   url: string;
@@ -58,11 +58,10 @@ export function createEmptyBatchSource(): BatchSource {
 export const defaultBatchSources: BatchSource[] = [
   {
     id: 'source-arxiv-cs-new',
-    url: defaultBatchHomepageUrl,
+    url: defaultBatchSourceUrl,
     journalTitle: '',
   },
 ];
-export const defaultBatchHomepageUrls = defaultBatchSources.map((source) => source.url);
 export const defaultBatchLimit = 5;
 export const defaultSameDomainOnly = true;
 
@@ -73,22 +72,21 @@ export function normalizeBatchLimit(input: unknown, fallback: number = defaultBa
 }
 
 function sanitizeBatchSourceEntry(value: unknown, index: number): BatchSource {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const record = value as Record<string, unknown>;
-    const url = String(record.url ?? record.homepageUrl ?? '').trim();
-    const journalTitle = String(record.journalTitle ?? '').trim();
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {
-      id: ensureBatchSourceId(record.id ?? record.sourceId, url, index),
-      url,
-      journalTitle,
+      id: '',
+      url: '',
+      journalTitle: '',
     };
   }
 
-  const legacyUrl = String(value ?? '').trim();
+  const record = value as Record<string, unknown>;
+  const url = String(record.url ?? '').trim();
+  const journalTitle = String(record.journalTitle ?? '').trim();
   return {
-    id: ensureBatchSourceId('', legacyUrl, index),
-    url: legacyUrl,
-    journalTitle: '',
+    id: ensureBatchSourceId(record.id, url, index),
+    url,
+    journalTitle,
   };
 }
 
@@ -115,7 +113,7 @@ function dedupeBatchSources(sources: BatchSource[]): BatchSource[] {
 }
 
 export function sanitizeBatchSources(input: unknown): BatchSource[] {
-  const values = Array.isArray(input) ? input : typeof input === 'string' ? [input] : [];
+  const values = Array.isArray(input) ? input : [];
   const normalized = values
     .map((value, index) => sanitizeBatchSourceEntry(value, index))
     .filter((source) => source.url);
@@ -136,11 +134,6 @@ export function normalizeBatchSources(
     url: source.url,
     journalTitle: source.journalTitle,
   }));
-}
-
-export function normalizeBatchHomepageUrls(input: unknown, fallback: string[] = defaultBatchHomepageUrls): string[] {
-  const normalized = sanitizeBatchSources(input).map((source) => source.url);
-  return normalized.length > 0 ? normalized : [...fallback];
 }
 
 export function prepareBatchSourcesForFetch(input: unknown): {
@@ -175,8 +168,4 @@ export function prepareBatchSourcesForFetch(input: unknown): {
   return {
     sources: [...deduped.values()],
   };
-}
-
-export function toBatchHomepageUrls(sources: BatchSource[]): string[] {
-  return sources.map((source) => source.url);
 }

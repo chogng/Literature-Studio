@@ -34,9 +34,28 @@ type DesktopDocxExportResult = {
   articleCount: number;
 };
 
+type DesktopArticleDetailsModalLabels = {
+  untitled: string;
+  unknown: string;
+  authors: string;
+  abstract: string;
+  publishedAt: string;
+  source: string;
+  fetchedAt: string;
+  close: string;
+};
+
+type DesktopArticleDetailsModalState = {
+  kind: 'article-details';
+  article: DesktopArticle;
+  labels: DesktopArticleDetailsModalLabels;
+  locale: 'zh' | 'en';
+};
+
+type DesktopNativeModalState = DesktopArticleDetailsModalState;
+
 type DesktopStoredAppSettings = {
   defaultDownloadDir: string | null;
-  defaultBatchHomepageUrls: string[];
   defaultBatchSources: DesktopBatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
@@ -51,8 +70,6 @@ type AppCommandPayloadMap = {
   fetch_article: { url?: string };
   fetch_latest_articles: {
     sources?: DesktopFetchBatchSource[];
-    homepageUrls?: string[];
-    journalTitlesByHomepageUrl?: Record<string, string>;
     limit?: number | string;
     sameDomainOnly?: boolean;
     startDate?: string | null;
@@ -70,6 +87,11 @@ type AppCommandPayloadMap = {
     preferredDirectory?: string | null;
     locale?: 'zh' | 'en';
   };
+  open_article_details_modal: {
+    article?: DesktopArticle;
+    labels?: DesktopArticleDetailsModalLabels;
+    locale?: 'zh' | 'en';
+  };
 };
 
 type AppCommandResultMap = {
@@ -80,6 +102,7 @@ type AppCommandResultMap = {
   pick_download_directory: string | null;
   preview_download_pdf: DesktopPdfDownloadResult;
   export_articles_docx: DesktopDocxExportResult | null;
+  open_article_details_modal: boolean;
 };
 
 type AppCommand = keyof AppCommandPayloadMap;
@@ -137,6 +160,9 @@ interface Window {
       goBack: () => void;
       goForward: () => void;
       onStateChange: (listener: (state: DesktopPreviewState) => void) => () => void;
+    };
+    modal?: {
+      getState: () => Promise<DesktopNativeModalState | null>;
     };
   };
 }

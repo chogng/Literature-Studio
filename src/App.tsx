@@ -15,6 +15,7 @@ import * as TitlebarModule from './titlebar';
 import { ToastContainer, toast } from './components/Toast';
 import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
+import ArticleDetailsModalWindow from './views/ArticleDetailsModalWindow';
 import { buildDefaultBatchDateRange } from './utils/dateRange';
 import { normalizeUrl } from './utils/url';
 import { fetchLatestArticlesBatch, type Article } from './services/articleFetch';
@@ -55,6 +56,15 @@ type DocxExportResult = {
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
+const manualAddressBarSourceId = 'source-manual-address-bar';
+
+function buildManualBatchSource(url: string): BatchSource {
+  return {
+    id: manualAddressBarSourceId,
+    url,
+    journalTitle: '',
+  };
+}
 
 function formatLocalized(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => {
@@ -141,7 +151,12 @@ function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
   return merged;
 }
 
-export default function App() {
+function detectNativeModalKind() {
+  if (typeof window === 'undefined') return null;
+  return new URLSearchParams(window.location.search).get('nativeModal');
+}
+
+function MainApp() {
   const [activePage, setActivePage] = useState<'reader' | 'settings'>('reader');
   const [locale, setLocale] = useState<Locale>(() => detectInitialLocale());
   const initialBatchDateRange = useMemo(() => buildDefaultBatchDateRange(), []);
@@ -531,9 +546,26 @@ export default function App() {
     setIsBatchLoading(true);
 
     try {
+      const rawAddressBarUrl = webUrl.trim();
+      let normalizedAddressBarUrl = '';
+
+      if (rawAddressBarUrl) {
+        try {
+          normalizedAddressBarUrl = normalizeUrl(rawAddressBarUrl);
+        } catch (fetchSourceError) {
+          const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(fetchSourceError));
+          toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: localizedError }));
+          return;
+        }
+      }
+
+      const fetchSources = normalizedAddressBarUrl
+        ? [buildManualBatchSource(normalizedAddressBarUrl)]
+        : batchSources;
+
       const result = await fetchLatestArticlesBatch({
         desktopRuntime,
-        batchSources,
+        batchSources: fetchSources,
         limit: batchLimit,
         sameDomainOnly,
         startDate: batchStartDate || null,
@@ -627,6 +659,7 @@ export default function App() {
             isSidebarOpen={isSidebarOpen}
             filteredArticles={filteredArticles}
             hasData={hasData}
+            locale={locale}
             filterJournal={filterJournal}
             onFilterJournalChange={setFilterJournal}
             batchStartDate={batchStartDate}
@@ -651,6 +684,7 @@ export default function App() {
               publishedAt: ui.publishedAt,
               source: ui.source,
               fetchedAt: ui.fetchedAt,
+              close: ui.titlebarClose,
               emptyFiltered: ui.emptyFiltered,
               emptyAll: ui.emptyAll,
               startDate: ui.startDate,
@@ -723,5 +757,15 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+export default function App() {
+  const nativeModalKind = detectNativeModalKind();
+
+  if (nativeModalKind === 'article-details') {
+    return <ArticleDetailsModalWindow />;
+  }
+
+  return <MainApp />;
 }
 

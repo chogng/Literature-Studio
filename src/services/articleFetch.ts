@@ -1,4 +1,5 @@
 import { isDateRangeValid } from '../utils/dateRange';
+import { normalizeUrl } from '../utils/url';
 import { prepareBatchSourcesForFetch, type BatchSource } from './batchSettings';
 import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './desktopError';
 
@@ -18,6 +19,8 @@ type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<T>;
 
+const manualAddressBarSourceId = 'source-manual-address-bar';
+
 export type FetchLatestArticlesBatchResult =
   | { ok: true; articles: Article[] }
   | {
@@ -28,6 +31,7 @@ export type FetchLatestArticlesBatchResult =
 
 type FetchLatestArticlesBatchParams = {
   desktopRuntime: boolean;
+  addressBarUrl?: string | null;
   batchSources: BatchSource[];
   limit: number;
   sameDomainOnly: boolean;
@@ -36,8 +40,22 @@ type FetchLatestArticlesBatchParams = {
   invokeDesktop: InvokeDesktop;
 };
 
+function buildManualBatchSource(url: string): BatchSource {
+  return {
+    id: manualAddressBarSourceId,
+    url,
+    journalTitle: '',
+  };
+}
+
+export function resolveBatchFetchSources(addressBarUrl: string | null | undefined, batchSources: BatchSource[]): BatchSource[] {
+  const normalizedAddressBarUrl = normalizeUrl(addressBarUrl ?? '');
+  return normalizedAddressBarUrl ? [buildManualBatchSource(normalizedAddressBarUrl)] : batchSources;
+}
+
 export async function fetchLatestArticlesBatch({
   desktopRuntime,
+  addressBarUrl,
   batchSources,
   limit,
   sameDomainOnly,
@@ -49,7 +67,8 @@ export async function fetchLatestArticlesBatch({
     return { ok: false, reason: 'desktop_unsupported' };
   }
 
-  const { sources } = prepareBatchSourcesForFetch(batchSources);
+  const selectedSources = resolveBatchFetchSources(addressBarUrl, batchSources);
+  const { sources } = prepareBatchSourcesForFetch(selectedSources);
   if (sources.length === 0) {
     return { ok: false, reason: 'empty_homepage_url' };
   }

@@ -7,6 +7,7 @@ export default function ReaderView({
   isSidebarOpen,
   filteredArticles,
   hasData,
+  locale,
   batchStartDate,
   onBatchStartDateChange,
   batchEndDate,
@@ -102,6 +103,7 @@ export default function ReaderView({
         <Sidebar
           articles={filteredArticles}
           hasData={hasData}
+          locale={locale}
           labels={{
             untitled: labels.untitled,
             unknown: labels.unknown,
@@ -110,6 +112,7 @@ export default function ReaderView({
             publishedAt: labels.publishedAt,
             source: labels.source,
             fetchedAt: labels.fetchedAt,
+            close: labels.close,
             emptyFiltered: labels.emptyFiltered,
             emptyAll: labels.emptyAll,
             startDate: labels.startDate,

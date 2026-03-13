@@ -34,7 +34,8 @@ const en = {
   settingsBatchJournalTitle: 'Journal title',
   batchJournalTitlePlaceholder: 'Journal title for this URL (e.g., Nature News)',
   settingsBatchOptions: 'Default batch fetch options',
-  settingsBatchHint: 'Reader uses these defaults when you click "Fetch". Count is applied to each URL.',
+  settingsBatchHint:
+    'When you click "Fetch" in Reader, a non-empty address bar takes priority and is used as the only source. The URLs here are used only when the address bar is empty. Count is applied to each URL.',
   defaultPdfDir: 'Default PDF download directory',
   downloadDirPlaceholder: 'Leave empty to use the system Downloads folder',
   chooseDirectory: 'Choose directory',

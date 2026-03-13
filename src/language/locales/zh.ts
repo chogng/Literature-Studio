@@ -34,7 +34,8 @@ const zh = {
   settingsBatchJournalTitle: '期刊名',
   batchJournalTitlePlaceholder: '该 URL 对应的期刊名（例如：Nature News）',
   settingsBatchOptions: '默认批量抓取选项',
-  settingsBatchHint: '在 Reader 页点击“抓取”时会使用这些默认值。数量会对每个 URL 分别生效。',
+  settingsBatchHint:
+    '在 Reader 页点击“抓取”时，如果地址栏不为空，会优先只抓地址栏中的 URL；只有地址栏为空时，才会使用这里配置的 URL。数量会对每个 URL 分别生效。',
   defaultPdfDir: '默认 PDF 下载目录',
   downloadDirPlaceholder: '留空则使用系统 Downloads 目录',
   chooseDirectory: '选择目录',

@@ -4,10 +4,8 @@ import {
   defaultBatchLimit,
   defaultBatchSources,
   defaultSameDomainOnly,
-  normalizeBatchHomepageUrls,
   normalizeBatchSources,
   normalizeBatchLimit,
-  toBatchHomepageUrls,
 } from './batchSettings';
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
@@ -15,7 +13,6 @@ type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<
 
 export type StoredAppSettingsPayload = {
   defaultDownloadDir: string | null;
-  defaultBatchHomepageUrls: string[];
   defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
@@ -46,7 +43,6 @@ export type SaveSettingsDraft = {
 export type SaveSettingsPayloadBuild = {
   nextDir: string;
   nextBatchSources: BatchSource[];
-  nextHomepageUrls: string[];
   nextBatchLimit: number;
   payload: StoredAppSettingsPayload;
 };
@@ -61,14 +57,9 @@ export function resolveSettingsState(
   const loadedConfigPath =
     typeof loaded.configPath === 'string' ? loaded.configPath : (options.fallbackConfigPath ?? '');
 
-  const loadedBatchSources = [
-    ...(Array.isArray(loaded.defaultBatchSources) ? loaded.defaultBatchSources : []),
-    ...(Array.isArray(loaded.defaultBatchHomepageUrls) ? loaded.defaultBatchHomepageUrls : []),
-  ];
-
   return {
     pdfDownloadDir: typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '',
-    batchSources: normalizeBatchSources(loadedBatchSources, defaultBatchSources),
+    batchSources: normalizeBatchSources(loaded.defaultBatchSources, defaultBatchSources),
     batchLimit: normalizeBatchLimit(loaded.defaultBatchLimit, defaultBatchLimit),
     sameDomainOnly:
       typeof loaded.defaultSameDomainOnly === 'boolean'
@@ -82,17 +73,14 @@ export function resolveSettingsState(
 export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettingsPayloadBuild {
   const nextDir = draft.pdfDownloadDir.trim();
   const nextBatchSources = normalizeBatchSources(draft.batchSources, defaultBatchSources);
-  const nextHomepageUrls = normalizeBatchHomepageUrls(toBatchHomepageUrls(nextBatchSources));
   const nextBatchLimit = normalizeBatchLimit(draft.batchLimit, defaultBatchLimit);
 
   return {
     nextDir,
     nextBatchSources,
-    nextHomepageUrls,
     nextBatchLimit,
     payload: {
       defaultDownloadDir: nextDir || null,
-      defaultBatchHomepageUrls: nextHomepageUrls,
       defaultBatchSources: nextBatchSources,
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: draft.sameDomainOnly,

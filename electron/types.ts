@@ -23,7 +23,6 @@ export interface DateRange {
 
 export interface StoredAppSettings {
   defaultDownloadDir: string | null;
-  defaultBatchHomepageUrls: string[];
   defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
@@ -89,11 +88,8 @@ export interface FetchLatestArticlesPayload {
   sources?: Array<{
     sourceId?: string;
     homepageUrl?: string;
-    url?: string;
     journalTitle?: string;
   }>;
-  homepageUrls?: string[];
-  journalTitlesByHomepageUrl?: Record<string, string>;
   limit?: number | string;
   sameDomainOnly?: boolean;
   startDate?: string | null;
@@ -108,6 +104,23 @@ export interface PreviewDownloadPdfPayload {
 export interface ExportArticlesDocxPayload {
   articles?: Article[];
   preferredDirectory?: string | null;
+  locale?: 'zh' | 'en';
+}
+
+export interface ArticleDetailsModalLabels {
+  untitled: string;
+  unknown: string;
+  authors: string;
+  abstract: string;
+  publishedAt: string;
+  source: string;
+  fetchedAt: string;
+  close: string;
+}
+
+export interface OpenArticleDetailsModalPayload {
+  article?: Article;
+  labels?: ArticleDetailsModalLabels;
   locale?: 'zh' | 'en';
 }
 
@@ -129,6 +142,15 @@ export interface DocxExportResult {
   articleCount: number;
 }
 
+export interface ArticleDetailsModalState {
+  kind: 'article-details';
+  article: Article;
+  labels: ArticleDetailsModalLabels;
+  locale: 'zh' | 'en';
+}
+
+export type NativeModalState = ArticleDetailsModalState;
+
 export interface AppCommandPayloadMap {
   fetch_article: FetchArticlePayload;
   fetch_latest_articles: FetchLatestArticlesPayload;
@@ -137,6 +159,7 @@ export interface AppCommandPayloadMap {
   pick_download_directory: undefined;
   preview_download_pdf: PreviewDownloadPdfPayload;
   export_articles_docx: ExportArticlesDocxPayload;
+  open_article_details_modal: OpenArticleDetailsModalPayload;
 }
 
 export interface AppCommandResultMap {
@@ -147,6 +170,7 @@ export interface AppCommandResultMap {
   pick_download_directory: string | null;
   preview_download_pdf: PdfDownloadResult;
   export_articles_docx: DocxExportResult | null;
+  open_article_details_modal: boolean;
 }
 
 export type AppCommand = keyof AppCommandPayloadMap;

@@ -1,6 +1,7 @@
 import { Button } from './components/Button';
 import DateRangePicker from './components/DateRangePicker';
 import ArticleCard from './articleCard';
+import type { Locale } from './language/i18n';
 import './sidebar.css';
 
 export type SidebarArticle = {
@@ -21,6 +22,7 @@ type SidebarLabels = {
   publishedAt: string;
   source: string;
   fetchedAt: string;
+  close: string;
   emptyFiltered: string;
   emptyAll: string;
   startDate: string;
@@ -32,6 +34,7 @@ type SidebarLabels = {
 type SidebarProps = {
   articles: SidebarArticle[];
   hasData: boolean;
+  locale: Locale;
   labels: SidebarLabels;
   batchStartDate: string;
   onBatchStartDateChange: (value: string) => void;
@@ -44,6 +47,7 @@ type SidebarProps = {
 export default function Sidebar({
   articles,
   hasData,
+  locale,
   labels,
   batchStartDate,
   onBatchStartDateChange,
@@ -61,6 +65,7 @@ export default function Sidebar({
     publishedAt: labels.publishedAt,
     source: labels.source,
     fetchedAt: labels.fetchedAt,
+    close: labels.close,
   };
 
   return (
@@ -96,6 +101,7 @@ export default function Sidebar({
             <ArticleCard
               key={`${article.sourceUrl}-${article.fetchedAt}-${index}`}
               article={article}
+              locale={locale}
               labels={articleCardLabels}
             />
           ))}

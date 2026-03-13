@@ -10,6 +10,7 @@ export type ReaderViewLabels = {
   publishedAt: string;
   source: string;
   fetchedAt: string;
+  close: string;
   emptyFiltered: string;
   emptyAll: string;
   startDate: string;
@@ -29,6 +30,7 @@ export type ReaderViewProps = {
   isSidebarOpen: boolean;
   filteredArticles: SidebarArticle[];
   hasData: boolean;
+  locale: Locale;
   filterJournal: string;
   onFilterJournalChange: (value: string) => void;
   batchStartDate: string;

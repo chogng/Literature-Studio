@@ -8,8 +8,10 @@ import type {
   ExportArticlesDocxPayload,
   FetchArticlePayload,
   FetchLatestArticlesPayload,
+  OpenArticleDetailsModalPayload,
   PreviewDownloadPdfPayload,
   PreviewBounds,
+  NativeModalState,
   PreviewState,
   SaveSettingsPayload,
   StorageService,
@@ -25,6 +27,7 @@ import {
   setPreviewBounds,
   setPreviewVisible,
 } from './preview-view.js';
+import { getNativeModalState, openArticleDetailsModal } from './native-modal.js';
 import { fetchArticle, fetchLatestArticles } from './services/article-fetcher.js';
 import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
 import { previewDownloadPdf } from './services/pdf.js';
@@ -89,6 +92,18 @@ async function exportArticlesDocx(
   });
 }
 
+async function showArticleDetailsModal(
+  parentWindow: BrowserWindow | null,
+  payload: OpenArticleDetailsModalPayload = {},
+) {
+  const targetWindow = parentWindow ?? getMainWindow();
+  if (!targetWindow || targetWindow.isDestroyed()) {
+    throw appError('MAIN_WINDOW_UNAVAILABLE');
+  }
+
+  return openArticleDetailsModal(targetWindow, payload);
+}
+
 async function invokeCommand<TCommand extends AppCommand>(
   command: TCommand,
   payload: AppCommandPayloadMap[TCommand],
@@ -112,6 +127,11 @@ async function invokeCommand<TCommand extends AppCommand>(
         payload as ExportArticlesDocxPayload,
         app.getPath('downloads'),
       ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'open_article_details_modal':
+      return showArticleDetailsModal(
+        getMainWindow(),
+        payload as OpenArticleDetailsModalPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
     default:
       throw appError('UNKNOWN_COMMAND', { command });
   }
@@ -120,6 +140,11 @@ async function invokeCommand<TCommand extends AppCommand>(
 export function registerAppIpc(storage: StorageService) {
   ipcMain.handle('app:invoke', async (_event, command: AppCommand, payload: AppCommandPayloadMap[AppCommand]) => {
     try {
+      if (command === 'open_article_details_modal') {
+        const target = BrowserWindow.fromWebContents(_event.sender) ?? getMainWindow();
+        return await showArticleDetailsModal(target, payload as OpenArticleDetailsModalPayload);
+      }
+
       return await invokeCommand(command, payload, storage);
     } catch (error) {
       throw new Error(serializeAppError(error));
@@ -165,6 +190,11 @@ export function registerAppIpc(storage: StorageService) {
 
   ipcMain.handle('app:preview-get-state', () => {
     const state: PreviewState = getPreviewState();
+    return state;
+  });
+
+  ipcMain.handle('app:modal-get-state', (event) => {
+    const state: NativeModalState | null = getNativeModalState(event.sender.id);
     return state;
   });
 

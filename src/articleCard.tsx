@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, Download } from 'lucide-react';
 import { Button } from './components/Button';
 import Modal from './components/Modal';
+import type { Locale } from './language/i18n';
 
 type ArticleCardData = {
   title: string;
@@ -21,10 +22,12 @@ type ArticleCardLabels = {
   publishedAt: string;
   source: string;
   fetchedAt: string;
+  close: string;
 };
 
 type ArticleCardProps = {
   article: ArticleCardData;
+  locale: Locale;
   labels: ArticleCardLabels;
 };
 
@@ -34,7 +37,7 @@ function formatTime(value: string): string {
   return date.toLocaleString();
 }
 
-export default function ArticleCard({ article, labels }: ArticleCardProps) {
+export default function ArticleCard({ article, locale, labels }: ArticleCardProps) {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -56,6 +59,23 @@ export default function ArticleCard({ article, labels }: ArticleCardProps) {
       window.open(article.sourceUrl, '_blank', 'noopener,noreferrer');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleOpenDetails = async () => {
+    if (!window.electronAPI?.invoke) {
+      setIsDetailsOpen(true);
+      return;
+    }
+
+    try {
+      await window.electronAPI.invoke('open_article_details_modal', {
+        article,
+        labels,
+        locale,
+      });
+    } catch {
+      setIsDetailsOpen(true);
     }
   };
 
@@ -87,7 +107,7 @@ export default function ArticleCard({ article, labels }: ArticleCardProps) {
             mode="icon"
             iconMode="with"
             textMode="without"
-            onClick={() => setIsDetailsOpen(true)}
+            onClick={() => void handleOpenDetails()}
             aria-haspopup="dialog"
             aria-expanded={isDetailsOpen}
             aria-label="View details"
@@ -102,7 +122,7 @@ export default function ArticleCard({ article, labels }: ArticleCardProps) {
         open={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         title={article.title || labels.untitled}
-        closeLabel="Close details"
+        closeLabel={labels.close}
         ariaLabel={article.title || labels.untitled}
         panelClassName="article-details-modal"
       >
