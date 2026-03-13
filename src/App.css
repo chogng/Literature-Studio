@@ -342,12 +342,17 @@ button:disabled {
   align-items: center;
 }
 
-.settings-input {
+.settings-input-control {
   flex: 1;
   min-width: 280px;
-  border: 1px solid #ccd7e3;
-  border-radius: 8px;
-  padding: 10px;
+}
+
+.settings-limit-input-wrap {
+  width: 76px;
+}
+
+.settings-limit-input {
+  min-width: 0;
 }
 
 .settings-language-toggle {
@@ -420,7 +425,7 @@ button:disabled {
     margin-left: 0;
   }
 
-  .settings-input {
+  .settings-input-control {
     min-width: 0;
   }
 

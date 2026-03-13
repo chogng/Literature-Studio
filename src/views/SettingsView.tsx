@@ -1,6 +1,7 @@
 import * as Checkbox from '@radix-ui/react-checkbox';
 import { Check, FolderOpen, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../components/Button';
+import { Input } from '../components/Input';
 import type { SettingsViewProps } from './types';
 
 export default function SettingsView({
@@ -73,8 +74,9 @@ export default function SettingsView({
             <div className="settings-url-list">
               {batchHomepageUrls.map((url, index) => (
                 <div key={`settings-batch-url-${index}`} className="settings-url-row">
-                  <input
-                    className="settings-input"
+                  <Input
+                    className="settings-input-control"
+                    size="sm"
                     type="text"
                     inputMode="url"
                     value={url}
@@ -118,15 +120,18 @@ export default function SettingsView({
             <div className="settings-batch-options">
               <label className="inline-field" htmlFor="settings-batch-limit">
                 {labels.batchCount}
-                <input
-                  id="settings-batch-limit"
-                  className="number-input"
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={batchLimit}
-                  onChange={(event) => onBatchLimitChange(event.target.value)}
-                />
+                <div className="settings-limit-input-wrap">
+                  <Input
+                    id="settings-batch-limit"
+                    className="settings-limit-input"
+                    size="sm"
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={batchLimit}
+                    onChange={(event) => onBatchLimitChange(event.target.value)}
+                  />
+                </div>
               </label>
               <label className="inline-field checkbox-field" htmlFor="settings-same-domain-only">
                 <Checkbox.Root
@@ -148,8 +153,9 @@ export default function SettingsView({
           <label className="settings-field">
             {labels.defaultPdfDir}
             <div className="settings-input-row">
-              <input
-                className="settings-input"
+              <Input
+                className="settings-input-control"
+                size="sm"
                 type="text"
                 value={pdfDownloadDir}
                 onChange={(event) => onPdfDownloadDirChange(event.target.value)}
