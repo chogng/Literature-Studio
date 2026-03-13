@@ -7,7 +7,17 @@ import { appError, isAppError } from '../utils/app-error.js';
 
 const ARTICLE_LIMIT_MAX = 20;
 const DEFAULT_BATCH_LIMIT = 5;
-const PREVIEW_CANDIDATE_MULTIPLIER = 12;
+const DEFAULT_FETCH_TIMEOUT_MS = 12000;
+const HOMEPAGE_FETCH_TIMEOUT_MS = 12000;
+const ARTICLE_FETCH_TIMEOUT_MS = 8000;
+const CANDIDATE_FETCH_CONCURRENCY = 4;
+const SOURCE_FETCH_CONCURRENCY = 3;
+const MIN_CANDIDATE_ATTEMPTS = 24;
+const ATTEMPTS_PER_LIMIT = 8;
+
+type FetchHtmlOptions = {
+  timeoutMs?: number;
+};
 
 type HomepageSource = {
   sourceId: string;
@@ -41,24 +51,71 @@ function safeNormalizeUrl(value: string) {
   }
 }
 
-export async function fetchHtml(url: string) {
-  const response = await fetch(url, {
-    headers: {
-      'user-agent':
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    },
-  });
+function toTimeoutMs(value: unknown, fallback: number) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
 
-  if (!response.ok) {
+function isAbortError(error: unknown) {
+  return Boolean(error && typeof error === 'object' && (error as { name?: string }).name === 'AbortError');
+}
+
+function hasStrongArticleSignals(candidateUrl: string, article: Article) {
+  const pathname = new URL(candidateUrl).pathname.toLowerCase();
+  if (/(?:\/article|\/articles|\/paper|\/papers|\/doi|\/abs|\/content)/.test(pathname)) {
+    return true;
+  }
+  if (article.doi) return true;
+  if (article.abstractText && article.abstractText.length > 60) return true;
+  return false;
+}
+
+export async function fetchHtml(url: string, options: FetchHtmlOptions = {}) {
+  const timeoutMs = toTimeoutMs(options.timeoutMs, DEFAULT_FETCH_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+
+    if (!response.ok) {
+      throw appError('HTTP_REQUEST_FAILED', {
+        status: response.status,
+        statusText: response.statusText,
+        url,
+      });
+    }
+
+    return response.text();
+  } catch (error) {
+    if (isAppError(error)) {
+      throw error;
+    }
+
+    if (isAbortError(error)) {
+      throw appError('HTTP_REQUEST_FAILED', {
+        status: 'TIMEOUT',
+        statusText: `Request timed out after ${timeoutMs}ms`,
+        url,
+      });
+    }
+
     throw appError('HTTP_REQUEST_FAILED', {
-      status: response.status,
-      statusText: response.statusText,
+      status: 'NETWORK_ERROR',
+      statusText: error instanceof Error ? error.message : String(error),
       url,
     });
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return response.text();
 }
 
 export async function fetchArticle(urlValue: unknown, storage: StorageService) {
@@ -109,8 +166,23 @@ async function fetchLatestArticlesFromHomepage(
   dateRange: DateRange,
 ): Promise<Article[]> {
   const homepage = new URL(homepageUrl);
-  const html = await fetchHtml(homepageUrl);
+  const html = await fetchHtml(homepageUrl, { timeoutMs: HOMEPAGE_FETCH_TIMEOUT_MS });
+  const homepageArticle = buildArticleFromHtml(homepageUrl, html);
   const $ = load(html);
+  const fetched: Article[] = [];
+  const fetchedSourceUrls = new Set<string>();
+
+  if (hasStrongArticleSignals(homepageUrl, homepageArticle) && isWithinDateRange(homepageArticle.publishedAt, dateRange)) {
+    homepageArticle.sourceId = sourceId;
+    if (journalTitle) {
+      homepageArticle.journalTitle = journalTitle;
+    }
+    fetchedSourceUrls.add(homepageArticle.sourceUrl);
+    fetched.push(homepageArticle);
+    if (fetched.length >= limit) {
+      return fetched;
+    }
+  }
 
   const links = $('a[href]')
     .map((_, node) => $(node).attr('href'))
@@ -118,13 +190,14 @@ async function fetchLatestArticlesFromHomepage(
     .map((href) => cleanText(href))
     .filter(Boolean);
 
-  const candidates: Array<{ url: string; score: number }> = [];
+  const candidates: Array<{ url: string; score: number; order: number }> = [];
   const seen = new Set<string>();
   for (const href of links) {
     try {
       const candidateUrl = new URL(href, homepageUrl);
       if (!/^https?:$/i.test(candidateUrl.protocol)) continue;
       if (sameDomainOnly && candidateUrl.host !== homepage.host) continue;
+      if (/\.(pdf|jpg|jpeg|png|svg|gif|zip|rar|xml|rss|css|js|woff2?)$/i.test(candidateUrl.pathname)) continue;
 
       const normalized = candidateUrl.toString();
       if (seen.has(normalized)) continue;
@@ -133,27 +206,44 @@ async function fetchLatestArticlesFromHomepage(
       candidates.push({
         url: normalized,
         score: scoreCandidate(homepage, normalized),
+        order: candidates.length,
       });
     } catch {
       continue;
     }
   }
 
-  candidates.sort((a, b) => b.score - a.score);
+  const sortedCandidates = [...candidates].sort((a, b) => {
+    const scoreDiff = b.score - a.score;
+    if (scoreDiff !== 0) return scoreDiff;
+    return a.order - b.order;
+  });
+  const prioritizedCandidates = sortedCandidates.filter((candidate) => candidate.score >= -40);
+  const candidatesForAttempt = prioritizedCandidates.length > 0 ? prioritizedCandidates : sortedCandidates;
+  const attemptBudget = Math.min(
+    candidatesForAttempt.length,
+    Math.max(MIN_CANDIDATE_ATTEMPTS, limit * ATTEMPTS_PER_LIMIT),
+  );
+  const candidatesToFetch = candidatesForAttempt.slice(0, attemptBudget);
+  const maxAttempts = candidatesToFetch.length;
 
-  const fetched: Article[] = [];
-  const fetchedSourceUrls = new Set<string>();
-  const maxAttempts = Math.min(candidates.length, limit * PREVIEW_CANDIDATE_MULTIPLIER);
-
-  for (let index = 0; index < maxAttempts; index += 1) {
+  for (let index = 0; index < maxAttempts; index += CANDIDATE_FETCH_CONCURRENCY) {
     if (fetched.length >= limit) break;
 
-    const candidate = candidates[index];
-    if (!candidate || candidate.score < -40) continue;
+    const batch = candidatesToFetch.slice(index, index + CANDIDATE_FETCH_CONCURRENCY);
+    const settled = await Promise.allSettled(
+      batch.map(async (candidate) => {
+        const articleHtml = await fetchHtml(candidate.url, { timeoutMs: ARTICLE_FETCH_TIMEOUT_MS });
+        const article = buildArticleFromHtml(candidate.url, articleHtml);
+        return { candidate, article };
+      }),
+    );
 
-    try {
-      const articleHtml = await fetchHtml(candidate.url);
-      const article = buildArticleFromHtml(candidate.url, articleHtml);
+    for (const result of settled) {
+      if (fetched.length >= limit) break;
+      if (result.status !== 'fulfilled') continue;
+
+      const { candidate, article } = result.value;
       if (!isProbablyArticle(candidate.url, article)) continue;
       if (!isWithinDateRange(article.publishedAt, dateRange)) continue;
       if (fetchedSourceUrls.has(article.sourceUrl)) continue;
@@ -164,8 +254,6 @@ async function fetchLatestArticlesFromHomepage(
 
       fetchedSourceUrls.add(article.sourceUrl);
       fetched.push(article);
-    } catch {
-      continue;
     }
   }
 
@@ -188,36 +276,59 @@ export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = 
   const seenSourceUrls = new Set<string>();
   const failedSources: Array<Record<string, unknown>> = [];
 
-  for (const source of homepageSources) {
-    const { sourceId, homepageUrl, journalTitle } = source;
-    try {
-      const homepageArticles = await fetchLatestArticlesFromHomepage(
-        sourceId,
-        homepageUrl,
-        journalTitle,
-        limit,
-        sameDomainOnly,
-        dateRange,
-      );
+  for (let index = 0; index < homepageSources.length; index += SOURCE_FETCH_CONCURRENCY) {
+    const batch = homepageSources.slice(index, index + SOURCE_FETCH_CONCURRENCY);
+    const settled = await Promise.all(
+      batch.map(async (source) => {
+        try {
+          const homepageArticles = await fetchLatestArticlesFromHomepage(
+            source.sourceId,
+            source.homepageUrl,
+            source.journalTitle,
+            limit,
+            sameDomainOnly,
+            dateRange,
+          );
 
-      for (const article of homepageArticles) {
-        const dedupeKey = `${article.sourceId ?? ''}::${article.sourceUrl}`;
-        if (seenSourceUrls.has(dedupeKey)) continue;
-        seenSourceUrls.add(dedupeKey);
-        fetched.push(article);
+          return {
+            ok: true as const,
+            source,
+            articles: homepageArticles,
+          };
+        } catch (error) {
+          return {
+            ok: false as const,
+            source,
+            error,
+          };
+        }
+      }),
+    );
+
+    for (const result of settled) {
+      if (result.ok) {
+        const { articles } = result;
+        for (const article of articles) {
+          const dedupeKey = `${article.sourceId ?? ''}::${article.sourceUrl}`;
+          if (seenSourceUrls.has(dedupeKey)) continue;
+          seenSourceUrls.add(dedupeKey);
+          fetched.push(article);
+        }
+        continue;
       }
-    } catch (error) {
+
+      const { source, error } = result;
       if (isAppError(error)) {
         failedSources.push({
-          sourceId,
-          homepageUrl,
+          sourceId: source.sourceId,
+          homepageUrl: source.homepageUrl,
           code: error.code,
           details: error.details,
         });
       } else {
         failedSources.push({
-          sourceId,
-          homepageUrl,
+          sourceId: source.sourceId,
+          homepageUrl: source.homepageUrl,
           code: 'UNKNOWN_ERROR',
           details: { message: error instanceof Error ? error.message : String(error) },
         });
