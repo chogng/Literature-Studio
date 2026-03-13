@@ -1,3 +1,5 @@
+import { normalizeUrl } from '../utils/url';
+
 const batchLimitMin = 1;
 const batchLimitMax = 20;
 
@@ -15,6 +17,11 @@ export function normalizeBatchLimit(input: unknown, fallback: number = defaultBa
 export function sanitizeBatchHomepageUrls(input: unknown): string[] {
   const values = Array.isArray(input) ? input : typeof input === 'string' ? [input] : [];
   return [...new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean))];
+}
+
+export function prepareBatchHomepageUrls(input: unknown): string[] {
+  const sanitized = sanitizeBatchHomepageUrls(input);
+  return [...new Set(sanitized.map((url) => normalizeUrl(url)).filter(Boolean))];
 }
 
 export function normalizeBatchHomepageUrls(

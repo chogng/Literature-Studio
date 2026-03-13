@@ -1,4 +1,5 @@
 import { isDateRangeValid } from '../utils/dateRange';
+import { prepareBatchHomepageUrls } from './batchSettings';
 import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './desktopError';
 
 export type Article = {
@@ -30,7 +31,6 @@ type FetchLatestArticlesBatchParams = {
   sameDomainOnly: boolean;
   startDate?: string | null;
   endDate?: string | null;
-  normalizeUrl: (input: string) => string;
   invokeDesktop: InvokeDesktop;
 };
 
@@ -41,14 +41,13 @@ export async function fetchLatestArticlesBatch({
   sameDomainOnly,
   startDate,
   endDate,
-  normalizeUrl,
   invokeDesktop,
 }: FetchLatestArticlesBatchParams): Promise<FetchLatestArticlesBatchResult> {
   if (!desktopRuntime) {
     return { ok: false, reason: 'desktop_unsupported' };
   }
 
-  const normalizedHomepageUrls = [...new Set(homepageUrls.map((url) => normalizeUrl(url)).filter(Boolean))];
+  const normalizedHomepageUrls = prepareBatchHomepageUrls(homepageUrls);
   if (normalizedHomepageUrls.length === 0) {
     return { ok: false, reason: 'empty_homepage_url' };
   }

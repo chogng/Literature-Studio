@@ -16,6 +16,7 @@ import { ToastContainer, toast } from './components/Toast';
 import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
 import { buildDefaultBatchDateRange } from './utils/dateRange';
+import { normalizeUrl } from './utils/url';
 import { fetchLatestArticlesBatch, type Article } from './services/articleFetch';
 import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './services/desktopError';
 import {
@@ -23,7 +24,6 @@ import {
   defaultBatchLimit,
   defaultSameDomainOnly,
   normalizeBatchLimit,
-  sanitizeBatchHomepageUrls,
 } from './services/batchSettings';
 import {
   buildSaveSettingsPayload,
@@ -48,15 +48,6 @@ type PdfDownloadResult = {
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
-
-function normalizeUrl(input: string): string {
-  const trimmed = input.trim();
-  if (!trimmed) return '';
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
-  }
-  return `https://${trimmed}`;
-}
 
 function formatLocalized(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => {
@@ -469,16 +460,13 @@ export default function App() {
     setIsBatchLoading(true);
 
     try {
-      const fetchHomepageUrls = sanitizeBatchHomepageUrls(batchHomepageUrls);
-
       const result = await fetchLatestArticlesBatch({
         desktopRuntime,
-        homepageUrls: fetchHomepageUrls,
+        homepageUrls: batchHomepageUrls,
         limit: batchLimit,
         sameDomainOnly,
         startDate: batchStartDate || null,
         endDate: batchEndDate || null,
-        normalizeUrl,
         invokeDesktop,
       });
 
