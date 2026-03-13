@@ -1,9 +1,11 @@
+import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 
 import type {
   AppCommand,
   AppCommandPayloadMap,
   AppCommandResultMap,
+  ExportArticlesDocxPayload,
   FetchArticlePayload,
   FetchLatestArticlesPayload,
   PreviewDownloadPdfPayload,
@@ -24,6 +26,7 @@ import {
   setPreviewVisible,
 } from './preview-view.js';
 import { fetchArticle, fetchLatestArticles } from './services/article-fetcher.js';
+import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
 import { previewDownloadPdf } from './services/pdf.js';
 import { appError, serializeAppError } from './utils/app-error.js';
 import { getMainWindow } from './window.js';
@@ -40,6 +43,50 @@ async function pickDownloadDirectory() {
   if (result.canceled || result.filePaths.length === 0) return null;
 
   return result.filePaths[0];
+}
+
+async function exportArticlesDocx(
+  payload: ExportArticlesDocxPayload = {},
+  defaultDownloadDir: string,
+) {
+  const mainWindow = getMainWindow();
+  if (!mainWindow) {
+    throw appError('MAIN_WINDOW_UNAVAILABLE');
+  }
+
+  const articles = Array.isArray(payload.articles) ? payload.articles : [];
+  if (articles.length === 0) {
+    throw appError('DOCX_EXPORT_NO_ARTICLES');
+  }
+
+  const preferredDirectory =
+    typeof payload.preferredDirectory === 'string' ? payload.preferredDirectory.trim() : '';
+  const dialogCopy =
+    payload.locale === 'en'
+      ? { title: 'Export DOCX', buttonLabel: 'Export' }
+      : { title: '导出 DOCX', buttonLabel: '导出' };
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: dialogCopy.title,
+    buttonLabel: dialogCopy.buttonLabel,
+    defaultPath: path.join(preferredDirectory || defaultDownloadDir, buildBatchDocxFileName()),
+    filters: [
+      {
+        name: 'Word Document',
+        extensions: ['docx'],
+      },
+    ],
+    properties: ['showOverwriteConfirmation'],
+  });
+
+  if (result.canceled || !result.filePath) {
+    return null;
+  }
+
+  return exportArticlesToDocxFile({
+    articles,
+    filePath: result.filePath,
+    locale: payload.locale === 'en' ? 'en' : 'zh',
+  });
 }
 
 async function invokeCommand<TCommand extends AppCommand>(
@@ -60,6 +107,11 @@ async function invokeCommand<TCommand extends AppCommand>(
       return pickDownloadDirectory() as Promise<AppCommandResultMap[TCommand]>;
     case 'preview_download_pdf':
       return previewDownloadPdf(payload as PreviewDownloadPdfPayload, app.getPath('downloads')) as Promise<AppCommandResultMap[TCommand]>;
+    case 'export_articles_docx':
+      return exportArticlesDocx(
+        payload as ExportArticlesDocxPayload,
+        app.getPath('downloads'),
+      ) as Promise<AppCommandResultMap[TCommand]>;
     default:
       throw appError('UNKNOWN_COMMAND', { command });
   }

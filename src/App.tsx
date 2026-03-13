@@ -45,6 +45,11 @@ type PdfDownloadResult = {
   sourceUrl: string;
 };
 
+type DocxExportResult = {
+  filePath: string;
+  articleCount: number;
+};
+
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
@@ -107,6 +112,12 @@ function localizeDesktopError(ui: ReturnType<typeof getLocaleMessages>, error: D
         status: detailValue(details, 'status', '?'),
         statusText: detailValue(details, 'statusText', ''),
       }).trim();
+    case 'DOCX_EXPORT_NO_ARTICLES':
+      return ui.errorDocxExportNoArticles;
+    case 'DOCX_EXPORT_FAILED':
+      return formatLocalized(ui.errorDocxExportFailed, {
+        error: detailValue(details, 'message', error.message || ui.errorUnknown),
+      });
     case 'PREVIEW_NOT_READY':
       return ui.errorPreviewNotReady;
     default:
@@ -456,6 +467,37 @@ export default function App() {
     }
   };
 
+  const handleExportArticlesDocx = async () => {
+    if (!desktopRuntime) return;
+
+    if (filteredArticles.length === 0) {
+      toast.info(ui.toastNoExportableArticles);
+      return;
+    }
+
+    try {
+      const result = await invokeDesktop<DocxExportResult | null>('export_articles_docx', {
+        articles: filteredArticles,
+        preferredDirectory: pdfDownloadDir.trim() || null,
+        locale,
+      });
+
+      if (!result) {
+        return;
+      }
+
+      toast.success(
+        formatLocalized(ui.toastDocxExported, {
+          count: result.articleCount,
+          filePath: result.filePath,
+        }),
+      );
+    } catch (exportError) {
+      const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(exportError));
+      toast.error(formatLocalized(ui.toastDocxExportFailed, { error: localizedError }));
+    }
+  };
+
   const handleFetchLatestBatch = async () => {
     setIsBatchLoading(true);
 
@@ -523,6 +565,8 @@ export default function App() {
             forwardLabel: ui.titlebarForward,
             refreshLabel: ui.titlebarRefresh,
             downloadPdfLabel: ui.titlebarDownloadPdf,
+            exportDocxLabel: ui.titlebarExportDocx,
+            noExportableArticlesLabel: ui.titlebarNoExportableArticles,
             desktopOnlyLabel: ui.titlebarDesktopOnly,
           }}
           isWindowMaximized={isWindowMaximized}
@@ -535,10 +579,12 @@ export default function App() {
           canGoBack={previewState.canGoBack}
           canGoForward={previewState.canGoForward}
           canDownload={!!desktopRuntime}
+          canExportDocx={filteredArticles.length > 0}
           onNavigateBack={handlePreviewBack}
           onNavigateForward={handlePreviewForward}
           onRefresh={handleBrowserRefresh}
           onDownloadPdf={() => void handlePreviewDownloadPdf()}
+          onExportDocx={() => void handleExportArticlesDocx()}
           webUrl={webUrl}
           onWebUrlChange={setWebUrl}
           onNavigateWeb={handleNavigateWeb}

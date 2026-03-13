@@ -15,6 +15,11 @@ type DesktopPdfDownloadResult = {
   sourceUrl: string;
 };
 
+type DesktopDocxExportResult = {
+  filePath: string;
+  articleCount: number;
+};
+
 type DesktopStoredAppSettings = {
   defaultDownloadDir: string | null;
   defaultBatchHomepageUrls: string[];
@@ -43,6 +48,11 @@ type AppCommandPayloadMap = {
     pageUrl?: string;
     customDownloadDir?: string | null;
   };
+  export_articles_docx: {
+    articles?: DesktopArticle[];
+    preferredDirectory?: string | null;
+    locale?: 'zh' | 'en';
+  };
 };
 
 type AppCommandResultMap = {
@@ -52,6 +62,7 @@ type AppCommandResultMap = {
   save_settings: DesktopAppSettings;
   pick_download_directory: string | null;
   preview_download_pdf: DesktopPdfDownloadResult;
+  export_articles_docx: DesktopDocxExportResult | null;
 };
 
 type AppCommand = keyof AppCommandPayloadMap;

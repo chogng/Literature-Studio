@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Copy, Download, Minus, PanelLeftClose, PanelLeftOpen, RefreshCcw, Settings, Square, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Copy, Download, FileText, Minus, PanelLeftClose, PanelLeftOpen, RefreshCcw, Settings, Square, X } from 'lucide-react';
 import { Button } from './components/Button';
 import { Input } from './components/Input';
 import './titlebar.css';
@@ -16,6 +16,8 @@ type TitlebarLabels = {
   forwardLabel: string;
   refreshLabel: string;
   downloadPdfLabel: string;
+  exportDocxLabel: string;
+  noExportableArticlesLabel: string;
   desktopOnlyLabel: string;
 };
 
@@ -33,10 +35,12 @@ type TitlebarProps = {
   canGoBack?: boolean;
   canGoForward?: boolean;
   canDownload?: boolean;
+  canExportDocx?: boolean;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
   onRefresh?: () => void;
   onDownloadPdf?: () => void;
+  onExportDocx?: () => void;
   // URL Bar
   webUrl?: string;
   onWebUrlChange?: (url: string) => void;
@@ -57,16 +61,18 @@ export function Titlebar({
   canGoBack = false,
   canGoForward = false,
   canDownload,
+  canExportDocx = false,
   onNavigateBack,
   onNavigateForward,
   onRefresh,
   onDownloadPdf,
+  onExportDocx,
   webUrl,
   onWebUrlChange,
   onNavigateWeb,
   articleUrlPlaceholder,
 }: TitlebarProps) {
-  const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onDownloadPdf;
+  const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onDownloadPdf || onExportDocx;
 
   return (
     <header className="titlebar">
@@ -153,6 +159,22 @@ export function Titlebar({
                 title={canDownload ? labels.downloadPdfLabel : labels.desktopOnlyLabel}
               >
                 <Download size={14} strokeWidth={1.5} />
+              </Button>
+            ) : null}
+            {onExportDocx ? (
+              <Button
+                className="titlebar-btn titlebar-btn-nav"
+                variant="ghost"
+                size="sm"
+                mode="icon"
+                iconMode="with"
+                textMode="without"
+                onClick={onExportDocx}
+                disabled={!canExportDocx}
+                aria-label={labels.exportDocxLabel}
+                title={canExportDocx ? labels.exportDocxLabel : labels.noExportableArticlesLabel}
+              >
+                <FileText size={14} strokeWidth={1.5} />
               </Button>
             ) : null}
           </div>

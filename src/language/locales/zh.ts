@@ -61,6 +61,8 @@ const zh = {
   errorBatchNoValidArticles: '未解析出有效文章内容。',
   errorPdfLinkNotFound: '未在页面中识别到 PDF 下载链接。',
   errorPdfDownloadFailed: 'PDF 下载失败：{status} {statusText}',
+  errorDocxExportNoArticles: '当前没有可导出的文献卡片。',
+  errorDocxExportFailed: 'DOCX 导出失败：{error}',
   errorPreviewNotReady: '预览视图尚未就绪。',
   desktopInvokeUnsupported: '当前运行环境不支持该命令',
   toastLoadSettingsFailed: '加载设置失败：{error}',
@@ -77,6 +79,9 @@ const zh = {
   toastDesktopPdfDownloadOnly: '浏览器 Web 模式不支持本地 PDF 下载，请在桌面端运行。',
   toastPdfDownloaded: 'PDF 已下载到：{filePath}（来源：{sourceUrl}）',
   toastPdfDownloadFailed: '下载 PDF 失败：{error}',
+  toastNoExportableArticles: '当前没有可导出的文献卡片。',
+  toastDocxExported: 'DOCX 导出完成：{count} 篇文献卡片已保存到 {filePath}',
+  toastDocxExportFailed: 'DOCX 导出失败：{error}',
   toastDesktopFetchOnly: '浏览器 Web 模式暂不支持抓取（需要桌面端后端命令）。请在桌面端运行或先只用左侧预览调试布局。',
   toastFetchSingleSucceeded: '单篇抓取完成并已写入历史。',
   toastFetchSingleFailed: '单篇抓取失败：{error}',
@@ -108,6 +113,8 @@ const zh = {
   titlebarForward: '前进',
   titlebarRefresh: '刷新',
   titlebarDownloadPdf: '下载 PDF',
+  titlebarExportDocx: '导出 DOCX',
+  titlebarNoExportableArticles: '当前没有可导出的文献卡片',
   titlebarDesktopOnly: '仅桌面端可用',
 } as const;
 

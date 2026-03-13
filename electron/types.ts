@@ -40,6 +40,8 @@ export type AppErrorCode =
   | 'BATCH_NO_VALID_ARTICLES'
   | 'PDF_LINK_NOT_FOUND'
   | 'PDF_DOWNLOAD_FAILED'
+  | 'DOCX_EXPORT_NO_ARTICLES'
+  | 'DOCX_EXPORT_FAILED'
   | 'PREVIEW_NOT_READY'
   | 'UNKNOWN_ERROR';
 
@@ -87,6 +89,12 @@ export interface PreviewDownloadPdfPayload {
   customDownloadDir?: string;
 }
 
+export interface ExportArticlesDocxPayload {
+  articles?: Article[];
+  preferredDirectory?: string | null;
+  locale?: 'zh' | 'en';
+}
+
 export interface FetchArticlePayload {
   url?: string;
 }
@@ -100,6 +108,11 @@ export interface PdfDownloadResult {
   sourceUrl: string;
 }
 
+export interface DocxExportResult {
+  filePath: string;
+  articleCount: number;
+}
+
 export interface AppCommandPayloadMap {
   fetch_article: FetchArticlePayload;
   fetch_latest_articles: FetchLatestArticlesPayload;
@@ -107,6 +120,7 @@ export interface AppCommandPayloadMap {
   save_settings: SaveSettingsPayload;
   pick_download_directory: undefined;
   preview_download_pdf: PreviewDownloadPdfPayload;
+  export_articles_docx: ExportArticlesDocxPayload;
 }
 
 export interface AppCommandResultMap {
@@ -116,6 +130,7 @@ export interface AppCommandResultMap {
   save_settings: AppSettings;
   pick_download_directory: string | null;
   preview_download_pdf: PdfDownloadResult;
+  export_articles_docx: DocxExportResult | null;
 }
 
 export type AppCommand = keyof AppCommandPayloadMap;

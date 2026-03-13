@@ -61,6 +61,8 @@ const en = {
   errorBatchNoValidArticles: 'No valid articles were found from fetched candidates.',
   errorPdfLinkNotFound: 'No PDF link was detected on the page.',
   errorPdfDownloadFailed: 'PDF download failed: {status} {statusText}',
+  errorDocxExportNoArticles: 'There are no visible article cards to export.',
+  errorDocxExportFailed: 'DOCX export failed: {error}',
   errorPreviewNotReady: 'Preview view is not ready.',
   desktopInvokeUnsupported: 'Current runtime does not support this command.',
   toastLoadSettingsFailed: 'Failed to load settings: {error}',
@@ -77,6 +79,9 @@ const en = {
   toastDesktopPdfDownloadOnly: 'Local PDF download is not available in web mode. Please run the desktop app.',
   toastPdfDownloaded: 'PDF downloaded to: {filePath} (source: {sourceUrl})',
   toastPdfDownloadFailed: 'PDF download failed: {error}',
+  toastNoExportableArticles: 'There are no visible article cards to export.',
+  toastDocxExported: 'DOCX exported: {count} article card(s) saved to {filePath}',
+  toastDocxExportFailed: 'DOCX export failed: {error}',
   toastDesktopFetchOnly: 'Fetching is not available in web mode. Please run the desktop app or use the left preview for layout checks.',
   toastFetchSingleSucceeded: 'Single article fetched and added to history.',
   toastFetchSingleFailed: 'Single article fetch failed: {error}',
@@ -108,6 +113,8 @@ const en = {
   titlebarForward: 'Forward',
   titlebarRefresh: 'Refresh',
   titlebarDownloadPdf: 'Download PDF',
+  titlebarExportDocx: 'Export DOCX',
+  titlebarNoExportableArticles: 'No visible article cards to export',
   titlebarDesktopOnly: 'Desktop only',
 } as const;
 
