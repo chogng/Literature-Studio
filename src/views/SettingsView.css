@@ -1,0 +1,154 @@
+.inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #304050;
+}
+
+.checkbox-field {
+  gap: 4px;
+}
+
+.radix-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #a7bad0;
+  border-radius: 4px;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex: 0 0 auto;
+}
+
+.radix-checkbox[data-state='checked'] {
+  border-color: #0a5fbf;
+  background: #0a5fbf;
+}
+
+.radix-checkbox[data-disabled] {
+  opacity: 0.5;
+}
+
+.radix-checkbox-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-page {
+  min-height: 0;
+  display: grid;
+}
+
+.settings-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-content {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.settings-field {
+  display: grid;
+  gap: 8px;
+  color: #2d4052;
+  font-size: 14px;
+}
+
+.settings-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-url-list {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-url-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-input-control {
+  flex: 1;
+  min-width: 280px;
+}
+
+.settings-limit-input-wrap {
+  width: 76px;
+}
+
+.settings-limit-input {
+  min-width: 0;
+}
+
+.settings-language-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-batch-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-language-btn {
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.settings-language-btn.is-active {
+  border-color: #0a5fbf;
+  background: #e9f3ff;
+  color: #0a5fbf;
+  font-weight: 600;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-hint {
+  margin: 0;
+  color: #5b6b7b;
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  .settings-input-control {
+    min-width: 0;
+  }
+
+  .settings-url-row {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-header {
+    flex-wrap: wrap;
+  }
+
+  .settings-actions {
+    flex-wrap: wrap;
+  }
+}

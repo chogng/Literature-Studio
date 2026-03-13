@@ -25,6 +25,8 @@
 
 .sidebar-fetch-btn {
   margin-left: auto;
+  padding: 6px 16px;
+  font-weight: 500;
 }
 
 .sidebar-panel > .panel-title {

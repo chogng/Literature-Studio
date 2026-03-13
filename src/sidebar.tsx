@@ -79,7 +79,7 @@ export default function Sidebar({
         />
         <Button
           type="button"
-          className="fetch-btn sidebar-fetch-btn"
+          className="sidebar-fetch-btn"
           variant="primary"
           mode="text"
           textMode="with"

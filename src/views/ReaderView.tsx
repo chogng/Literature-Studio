@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import Sidebar from '../sidebar';
+import './ReaderView.css';
 import type { ReaderViewProps } from './types';
 
 export default function ReaderView({

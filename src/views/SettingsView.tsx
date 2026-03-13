@@ -2,6 +2,7 @@ import * as Checkbox from '@radix-ui/react-checkbox';
 import { Check, FolderOpen, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import './SettingsView.css';
 import type { SettingsViewProps } from './types';
 
 export default function SettingsView({
