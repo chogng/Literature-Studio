@@ -1,6 +1,7 @@
-import { useId, useState } from 'react';
-import { ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, Download } from 'lucide-react';
 import { Button } from './components/Button';
+import Modal from './components/Modal';
 
 type ArticleCardData = {
   title: string;
@@ -34,13 +35,8 @@ function formatTime(value: string): string {
 }
 
 export default function ArticleCard({ article, labels }: ArticleCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const detailsId = useId();
-
-  const handleToggleDetails = () => {
-    setIsExpanded((prev) => !prev);
-  };
 
   const handleDownload = async () => {
     if (!article.sourceUrl || isDownloading) return;
@@ -64,43 +60,53 @@ export default function ArticleCard({ article, labels }: ArticleCardProps) {
   };
 
   return (
-    <li className="article-card">
-      <h3>{article.title || labels.untitled}</h3>
-      <div className="article-card-toolbar">
-        <Button
-          className="article-card-icon-btn"
-          type="button"
-          variant="ghost"
-          size="sm"
-          mode="icon"
-          iconMode="with"
-          textMode="without"
-          isLoading={isDownloading}
-          onClick={() => void handleDownload()}
-          aria-label="Download PDF"
-          title="Download PDF"
-        >
-          <Download size={14} strokeWidth={1.7} />
-        </Button>
-        <Button
-          className="article-card-icon-btn"
-          type="button"
-          variant="ghost"
-          size="sm"
-          mode="icon"
-          iconMode="with"
-          textMode="without"
-          onClick={handleToggleDetails}
-          aria-expanded={isExpanded}
-          aria-controls={detailsId}
-          aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
-          title={isExpanded ? 'Collapse details' : 'Expand details'}
-        >
-          {isExpanded ? <ChevronUp size={14} strokeWidth={1.7} /> : <ChevronDown size={14} strokeWidth={1.7} />}
-        </Button>
-      </div>
-      {isExpanded ? (
-        <div id={detailsId} className="article-card-details">
+    <>
+      <li className="article-card">
+        <h3>{article.title || labels.untitled}</h3>
+        <div className="article-card-toolbar">
+          <Button
+            className="article-card-icon-btn"
+            type="button"
+            variant="ghost"
+            size="sm"
+            mode="icon"
+            iconMode="with"
+            textMode="without"
+            isLoading={isDownloading}
+            onClick={() => void handleDownload()}
+            aria-label="Download PDF"
+            title="Download PDF"
+          >
+            <Download size={14} strokeWidth={1.7} />
+          </Button>
+          <Button
+            className="article-card-icon-btn"
+            type="button"
+            variant="ghost"
+            size="sm"
+            mode="icon"
+            iconMode="with"
+            textMode="without"
+            onClick={() => setIsDetailsOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={isDetailsOpen}
+            aria-label="View details"
+            title="View details"
+          >
+            <ChevronDown size={14} strokeWidth={1.7} />
+          </Button>
+        </div>
+      </li>
+
+      <Modal
+        open={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        title={article.title || labels.untitled}
+        closeLabel="Close details"
+        ariaLabel={article.title || labels.untitled}
+        panelClassName="article-details-modal"
+      >
+        <div className="article-card-details article-card-modal-details">
           <p>
             <strong>DOI:</strong>
             {article.doi ?? labels.unknown}
@@ -126,7 +132,7 @@ export default function ArticleCard({ article, labels }: ArticleCardProps) {
             {formatTime(article.fetchedAt)}
           </p>
         </div>
-      ) : null}
-    </li>
+      </Modal>
+    </>
   );
 }

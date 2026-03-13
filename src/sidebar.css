@@ -42,7 +42,8 @@
   list-style: none;
   overflow-y: auto;
   overflow-x: hidden;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
 
@@ -75,13 +76,25 @@
 
 .article-card-details {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
-.article-card p {
+.article-card p,
+.article-card-modal-details p {
   margin: 0;
   font-size: 13px;
   color: #334455;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.article-card-modal-details strong {
+  color: #1c2a38;
+  margin-right: 4px;
+}
+
+.article-details-modal.modal-panel {
+  width: min(860px, calc(100vw - 40px));
 }
 
 .sidebar-empty-state {
