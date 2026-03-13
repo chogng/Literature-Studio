@@ -2,6 +2,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
 import type { Article, DocxExportResult } from '../types.js';
+import { defaultDocxExportConfig } from './docx-config.js';
 import { appError } from '../utils/app-error.js';
 import { cleanText } from '../utils/text.js';
 
@@ -49,6 +50,8 @@ const localeCopy = {
     unknown: 'Unknown',
   },
 } as const;
+
+const docxConfig = defaultDocxExportConfig;
 
 function escapeXml(value: string) {
   return value
@@ -141,19 +144,33 @@ function articleParagraphsXml(article: Article, index: number, locale: Supported
   const paragraphs = [
     paragraphXml(`${index + 1}. ${title}`, {
       bold: true,
-      fontSize: 30,
-      spacingBefore: index === 0 ? 0 : 160,
-      spacingAfter: 180,
+      fontSize: docxConfig.article.titleFontSize,
+      spacingBefore: index === 0 ? 0 : docxConfig.article.titleSpacingBefore,
+      spacingAfter: docxConfig.article.titleSpacingAfter,
     }),
-    paragraphXml(`${copy.authors}: ${authors}`, { spacingAfter: 80 }),
-    paragraphXml(`${copy.doi}: ${cleanText(article.doi) || copy.unknown}`, { spacingAfter: 80 }),
-    paragraphXml(`${copy.publishedAt}: ${formatPublishedValue(article.publishedAt, locale)}`, { spacingAfter: 80 }),
-    paragraphXml(`${copy.source}: ${cleanText(article.sourceUrl) || copy.unknown}`, { spacingAfter: 80 }),
-    paragraphXml(`${copy.fetchedAt}: ${formatDateValue(article.fetchedAt, locale)}`, { spacingAfter: 120 }),
-    paragraphXml(copy.abstract, { bold: true, spacingAfter: 60 }),
+    paragraphXml(`${copy.authors}: ${authors}`, {
+      spacingAfter: docxConfig.article.metadataSpacingAfter,
+    }),
+    paragraphXml(`${copy.doi}: ${cleanText(article.doi) || copy.unknown}`, {
+      spacingAfter: docxConfig.article.metadataSpacingAfter,
+    }),
+    paragraphXml(`${copy.publishedAt}: ${formatPublishedValue(article.publishedAt, locale)}`, {
+      spacingAfter: docxConfig.article.metadataSpacingAfter,
+    }),
+    paragraphXml(`${copy.source}: ${cleanText(article.sourceUrl) || copy.unknown}`, {
+      spacingAfter: docxConfig.article.metadataSpacingAfter,
+    }),
+    paragraphXml(`${copy.fetchedAt}: ${formatDateValue(article.fetchedAt, locale)}`, {
+      spacingAfter: docxConfig.article.fetchedAtSpacingAfter,
+    }),
+    paragraphXml(copy.abstract, {
+      bold: true,
+      spacingAfter: docxConfig.article.abstractLabelSpacingAfter,
+    }),
     ...abstractValue.map((line, lineIndex) =>
       paragraphXml(line, {
-        spacingAfter: lineIndex === abstractValue.length - 1 ? 0 : 60,
+        spacingAfter:
+          lineIndex === abstractValue.length - 1 ? 0 : docxConfig.article.abstractLineSpacingAfter,
       }),
     ),
   ];
@@ -163,15 +180,18 @@ function articleParagraphsXml(article: Article, index: number, locale: Supported
 
 function buildDocumentXml(articles: Article[], locale: SupportedLocale, exportedAt: Date) {
   const copy = localeCopy[locale];
+  const page = docxConfig.page;
   const bodyParts: string[] = [
     paragraphXml(copy.documentTitle, {
       bold: true,
-      fontSize: 36,
-      spacingAfter: 200,
+      fontSize: docxConfig.document.titleFontSize,
+      spacingAfter: docxConfig.document.titleSpacingAfter,
     }),
-    paragraphXml(`${copy.articleCount}: ${articles.length}`, { spacingAfter: 80 }),
+    paragraphXml(`${copy.articleCount}: ${articles.length}`, {
+      spacingAfter: docxConfig.document.articleCountSpacingAfter,
+    }),
     paragraphXml(`${copy.exportedAt}: ${formatDateValue(exportedAt.toISOString(), locale)}`, {
-      spacingAfter: 160,
+      spacingAfter: docxConfig.document.exportedAtSpacingAfter,
     }),
     emptyParagraphXml(),
   ];
@@ -185,8 +205,8 @@ function buildDocumentXml(articles: Article[], locale: SupportedLocale, exported
 
   bodyParts.push(
     '<w:sectPr>' +
-      '<w:pgSz w:w="11906" w:h="16838"/>' +
-      '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/>' +
+      `<w:pgSz w:w="${page.width}" w:h="${page.height}"/>` +
+      `<w:pgMar w:top="${page.marginTop}" w:right="${page.marginRight}" w:bottom="${page.marginBottom}" w:left="${page.marginLeft}" w:header="${page.marginHeader}" w:footer="${page.marginFooter}" w:gutter="${page.marginGutter}"/>` +
       '</w:sectPr>',
   );
 
@@ -376,7 +396,7 @@ export function buildBatchDocxFileName(referenceDate = new Date()) {
   const minutes = pad(referenceDate.getMinutes());
   const seconds = pad(referenceDate.getSeconds());
 
-  return `literature-batch-${year}${month}${day}-${hours}${minutes}${seconds}.docx`;
+  return `${docxConfig.fileNamePrefix}-${year}${month}${day}-${hours}${minutes}${seconds}.docx`;
 }
 
 export async function exportArticlesToDocxFile({
