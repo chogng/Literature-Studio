@@ -1,4 +1,5 @@
 import { isDateRangeValid } from '../utils/dateRange';
+import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './desktopError';
 
 export type Article = {
   title: string;
@@ -19,7 +20,7 @@ export type FetchLatestArticlesBatchResult =
   | {
       ok: false;
       reason: 'desktop_unsupported' | 'empty_homepage_url' | 'invalid_date_range' | 'fetch_failed';
-      error?: string;
+      error?: DesktopInvokeErrorData;
     };
 
 type FetchLatestArticlesBatchParams = {
@@ -68,7 +69,6 @@ export async function fetchLatestArticlesBatch({
     });
     return { ok: true, articles };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, reason: 'fetch_failed', error: message };
+    return { ok: false, reason: 'fetch_failed', error: parseDesktopInvokeError(error) };
   }
 }

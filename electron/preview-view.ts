@@ -1,6 +1,7 @@
 import { BrowserWindow, WebContentsView } from 'electron';
 
 import type { PreviewBounds, PreviewState } from './types.js';
+import { appError } from './utils/app-error.js';
 
 const previewPartition = 'reader-preview';
 const previewCornerRadius = 10;
@@ -158,7 +159,7 @@ export function getPreviewState(): PreviewState {
 
 export async function navigatePreview(url: string) {
   if (!previewView || previewView.webContents.isDestroyed()) {
-    throw new Error('Preview view is not ready.');
+    throw appError('PREVIEW_NOT_READY');
   }
 
   previewState.visible = true;

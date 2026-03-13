@@ -4,6 +4,7 @@ import { load } from 'cheerio';
 
 import type { PreviewDownloadPdfPayload } from '../types.js';
 import { cleanText, normalizeUrl } from '../utils/text.js';
+import { appError } from '../utils/app-error.js';
 import { fetchHtml } from './article-fetcher.js';
 
 function pickMetaContent($: ReturnType<typeof load>, selectors: string[]) {
@@ -64,12 +65,16 @@ export async function previewDownloadPdf(
   const html = await fetchHtml(pageUrl);
   const pdfUrl = extractPdfUrl(pageUrl, html);
   if (!pdfUrl) {
-    throw new Error('未在页面中识别到 PDF 下载链接');
+    throw appError('PDF_LINK_NOT_FOUND', { pageUrl });
   }
 
   const response = await fetch(pdfUrl);
   if (!response.ok) {
-    throw new Error(`PDF 下载失败：${response.status} ${response.statusText}`);
+    throw appError('PDF_DOWNLOAD_FAILED', {
+      status: response.status,
+      statusText: response.statusText,
+      pdfUrl,
+    });
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());

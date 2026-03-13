@@ -59,6 +59,23 @@
   line-height: 1.4;
 }
 
+.article-card-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.article-card-icon-btn.btn-base.btn-mode-icon {
+  --btn-icon-size: 28px;
+  border-radius: 6px;
+}
+
+.article-card-details {
+  display: grid;
+  gap: 6px;
+}
+
 .article-card p {
   margin: 0;
   font-size: 13px;

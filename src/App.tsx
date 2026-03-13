@@ -17,6 +17,21 @@ import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
 import { buildDefaultBatchDateRange } from './utils/dateRange';
 import { fetchLatestArticlesBatch, type Article } from './services/articleFetch';
+import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './services/desktopError';
+import {
+  defaultBatchHomepageUrls,
+  defaultBatchLimit,
+  defaultSameDomainOnly,
+  normalizeBatchLimit,
+  sanitizeBatchHomepageUrls,
+} from './services/batchSettings';
+import {
+  buildSaveSettingsPayload,
+  loadAppSettings,
+  resolveSettingsState,
+  saveAppSettings,
+  saveAppSettingsPartial,
+} from './services/settings';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -30,44 +45,9 @@ type PdfDownloadResult = {
   sourceUrl: string;
 };
 
-type StoredAppSettingsPayload = {
-  defaultDownloadDir: string | null;
-  defaultBatchHomepageUrls: string[];
-  defaultBatchLimit: number;
-  defaultSameDomainOnly: boolean;
-  locale: Locale;
-};
-
-type AppSettingsPayload = StoredAppSettingsPayload & {
-  configPath?: string;
-};
-
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
-const defaultBatchHomepageUrl = 'https://arxiv.org/list/cs/new';
-const defaultBatchHomepageUrls = [defaultBatchHomepageUrl];
-const defaultBatchLimit = 5;
-const defaultSameDomainOnly = true;
-
-function normalizeBatchLimit(input: unknown, fallback: number = defaultBatchLimit): number {
-  const parsed = Number.parseInt(String(input), 10);
-  if (Number.isNaN(parsed)) return fallback;
-  return Math.min(20, Math.max(1, parsed));
-}
-
-function sanitizeBatchHomepageUrls(input: unknown): string[] {
-  const values = Array.isArray(input) ? input : typeof input === 'string' ? [input] : [];
-  return [...new Set(values.map((value) => String(value ?? '').trim()).filter(Boolean))];
-}
-
-function normalizeBatchHomepageUrls(
-  input: unknown,
-  fallback: string[] = defaultBatchHomepageUrls,
-): string[] {
-  const normalized = sanitizeBatchHomepageUrls(input);
-  return normalized.length > 0 ? normalized : [...fallback];
-}
 
 function normalizeUrl(input: string): string {
   const trimmed = input.trim();
@@ -78,15 +58,69 @@ function normalizeUrl(input: string): string {
   return `https://${trimmed}`;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function formatLocalized(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => {
     const value = values[key];
     return value === undefined ? '' : String(value);
   });
+}
+
+function detailValue(details: Record<string, unknown> | undefined, key: string, fallback = ''): string {
+  const value = details?.[key];
+  return value === undefined || value === null ? fallback : String(value);
+}
+
+function localizeDesktopError(ui: ReturnType<typeof getLocaleMessages>, error: DesktopInvokeErrorData): string {
+  const details = error.details;
+
+  switch (error.code) {
+    case 'MAIN_WINDOW_UNAVAILABLE':
+      return ui.errorMainWindowUnavailable;
+    case 'UNKNOWN_COMMAND':
+      return formatLocalized(ui.errorUnknownCommand, {
+        command: detailValue(details, 'command', '?'),
+      });
+    case 'URL_EMPTY':
+      return ui.errorUrlEmpty;
+    case 'URL_PROTOCOL_UNSUPPORTED':
+      return formatLocalized(ui.errorUrlProtocolUnsupported, {
+        protocol: detailValue(details, 'protocol', '?'),
+      });
+    case 'DATE_START_INVALID':
+      return formatLocalized(ui.errorDateStartInvalid, {
+        value: detailValue(details, 'value', '?'),
+      });
+    case 'DATE_END_INVALID':
+      return formatLocalized(ui.errorDateEndInvalid, {
+        value: detailValue(details, 'value', '?'),
+      });
+    case 'DATE_RANGE_INVALID':
+      return ui.errorDateRangeInvalid;
+    case 'HTTP_REQUEST_FAILED':
+      return formatLocalized(ui.errorHttpRequestFailed, {
+        status: detailValue(details, 'status', '?'),
+        statusText: detailValue(details, 'statusText', ''),
+      }).trim();
+    case 'BATCH_HOMEPAGE_URLS_EMPTY':
+      return ui.errorBatchHomepageUrlsEmpty;
+    case 'BATCH_SOURCE_FETCH_FAILED':
+      return ui.errorBatchSourceFetchFailed;
+    case 'BATCH_NO_MATCH_IN_DATE_RANGE':
+      return ui.errorBatchNoMatchInDateRange;
+    case 'BATCH_NO_VALID_ARTICLES':
+      return ui.errorBatchNoValidArticles;
+    case 'PDF_LINK_NOT_FOUND':
+      return ui.errorPdfLinkNotFound;
+    case 'PDF_DOWNLOAD_FAILED':
+      return formatLocalized(ui.errorPdfDownloadFailed, {
+        status: detailValue(details, 'status', '?'),
+        statusText: detailValue(details, 'statusText', ''),
+      }).trim();
+    case 'PREVIEW_NOT_READY':
+      return ui.errorPreviewNotReady;
+    default:
+      return error.message || ui.errorUnknown;
+  }
 }
 
 function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
@@ -240,33 +274,20 @@ export default function App() {
       setIsSettingsLoading(true);
 
       try {
-        const applyLoadedSettings = (loaded: Partial<AppSettingsPayload>) => {
-          const loadedLocale = loaded.locale === 'zh' || loaded.locale === 'en' ? loaded.locale : null;
-          const loadedConfigPath = typeof loaded.configPath === 'string' ? loaded.configPath : '';
+        const loaded = await loadAppSettings(desktopRuntime, invokeDesktop);
+        const resolved = resolveSettingsState(loaded);
 
-          setPdfDownloadDir(typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '');
-          setBatchHomepageUrls(normalizeBatchHomepageUrls(loaded.defaultBatchHomepageUrls));
-          setBatchLimit(normalizeBatchLimit(loaded.defaultBatchLimit, defaultBatchLimit));
-          setSameDomainOnly(
-            typeof loaded.defaultSameDomainOnly === 'boolean'
-              ? loaded.defaultSameDomainOnly
-              : defaultSameDomainOnly,
-          );
-          setConfigPath(loadedConfigPath);
-          if (loadedLocale) {
-            setLocale(loadedLocale);
-          }
-        };
-
-        if (desktopRuntime) {
-          const loaded = await invokeDesktop<AppSettingsPayload>('load_settings');
-          applyLoadedSettings(loaded);
-          return;
+        setPdfDownloadDir(resolved.pdfDownloadDir);
+        setBatchHomepageUrls(resolved.batchHomepageUrls);
+        setBatchLimit(resolved.batchLimit);
+        setSameDomainOnly(resolved.sameDomainOnly);
+        setConfigPath(resolved.configPath);
+        if (resolved.locale) {
+          setLocale(resolved.locale);
         }
-
-        applyLoadedSettings({});
       } catch (loadError) {
-        toast.error(formatLocalized(ui.toastLoadSettingsFailed, { error: errorMessage(loadError) }));
+        const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(loadError));
+        toast.error(formatLocalized(ui.toastLoadSettingsFailed, { error: localizedError }));
       } finally {
         setIsSettingsLoading(false);
       }
@@ -338,7 +359,8 @@ export default function App() {
       setPdfDownloadDir(selected);
       toast.success(formatLocalized(ui.toastDirSelected, { dir: selected }));
     } catch (pickError) {
-      toast.error(formatLocalized(ui.toastPickDirFailed, { error: errorMessage(pickError) }));
+      const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(pickError));
+      toast.error(formatLocalized(ui.toastPickDirFailed, { error: localizedError }));
     }
   };
 
@@ -366,12 +388,11 @@ export default function App() {
     (nextLocale: Locale) => {
       setLocale(nextLocale);
 
-      if (!desktopRuntime) return;
-
-      void invokeDesktop<AppSettingsPayload>('save_settings', {
-        settings: { locale: nextLocale },
+      void saveAppSettingsPartial(desktopRuntime, invokeDesktop, {
+        locale: nextLocale,
       }).catch((saveError) => {
-        toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: errorMessage(saveError) }));
+        const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(saveError));
+        toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
       });
     },
     [desktopRuntime, invokeDesktop, ui],
@@ -380,31 +401,25 @@ export default function App() {
   const handleSaveSettings = async () => {
     setIsSettingsSaving(true);
 
-    const nextDir = pdfDownloadDir.trim();
-    const nextHomepageUrls = normalizeBatchHomepageUrls(batchHomepageUrls);
-    const nextBatchLimit = normalizeBatchLimit(batchLimit, defaultBatchLimit);
-    const payload: StoredAppSettingsPayload = {
-      defaultDownloadDir: nextDir || null,
-      defaultBatchHomepageUrls: nextHomepageUrls,
-      defaultBatchLimit: nextBatchLimit,
-      defaultSameDomainOnly: sameDomainOnly,
+    const { nextDir, payload } = buildSaveSettingsPayload({
+      pdfDownloadDir,
+      batchHomepageUrls,
+      batchLimit,
+      sameDomainOnly,
       locale,
-    };
+    });
 
     try {
-      if (desktopRuntime) {
-        const saved = await invokeDesktop<AppSettingsPayload>('save_settings', { settings: payload });
-        setPdfDownloadDir(saved.defaultDownloadDir ?? '');
-        setBatchHomepageUrls(normalizeBatchHomepageUrls(saved.defaultBatchHomepageUrls));
-        setBatchLimit(normalizeBatchLimit(saved.defaultBatchLimit, defaultBatchLimit));
-        setSameDomainOnly(saved.defaultSameDomainOnly);
-        setConfigPath(typeof saved.configPath === 'string' ? saved.configPath : configPath);
-        setLocale(saved.locale);
-      } else {
-        setPdfDownloadDir(nextDir);
-        setBatchHomepageUrls(nextHomepageUrls);
-        setBatchLimit(nextBatchLimit);
-        setSameDomainOnly(sameDomainOnly);
+      const saved = await saveAppSettings(desktopRuntime, invokeDesktop, payload);
+      const resolved = resolveSettingsState(saved, { fallbackConfigPath: configPath });
+
+      setPdfDownloadDir(resolved.pdfDownloadDir);
+      setBatchHomepageUrls(resolved.batchHomepageUrls);
+      setBatchLimit(resolved.batchLimit);
+      setSameDomainOnly(resolved.sameDomainOnly);
+      setConfigPath(resolved.configPath);
+      if (resolved.locale) {
+        setLocale(resolved.locale);
       }
 
       toast.success(
@@ -413,7 +428,8 @@ export default function App() {
           : ui.toastSettingsSavedUseSystemDownloads,
       );
     } catch (saveError) {
-      toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: errorMessage(saveError) }));
+      const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(saveError));
+      toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
     } finally {
       setIsSettingsSaving(false);
     }
@@ -444,7 +460,8 @@ export default function App() {
         }),
       );
     } catch (downloadError) {
-      toast.error(formatLocalized(ui.toastPdfDownloadFailed, { error: errorMessage(downloadError) }));
+      const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(downloadError));
+      toast.error(formatLocalized(ui.toastPdfDownloadFailed, { error: localizedError }));
     }
   };
 
@@ -478,7 +495,8 @@ export default function App() {
           toast.error(ui.toastDateRangeInvalid);
           return;
         }
-        toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: result.error ?? ui.unknown }));
+        const localizedError = result.error ? localizeDesktopError(ui, result.error) : ui.errorUnknown;
+        toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: localizedError }));
         return;
       }
 

@@ -25,6 +25,29 @@ export interface AppSettings extends StoredAppSettings {
   configPath: string;
 }
 
+export type AppErrorCode =
+  | 'MAIN_WINDOW_UNAVAILABLE'
+  | 'UNKNOWN_COMMAND'
+  | 'URL_EMPTY'
+  | 'URL_PROTOCOL_UNSUPPORTED'
+  | 'DATE_START_INVALID'
+  | 'DATE_END_INVALID'
+  | 'DATE_RANGE_INVALID'
+  | 'HTTP_REQUEST_FAILED'
+  | 'BATCH_HOMEPAGE_URLS_EMPTY'
+  | 'BATCH_SOURCE_FETCH_FAILED'
+  | 'BATCH_NO_MATCH_IN_DATE_RANGE'
+  | 'BATCH_NO_VALID_ARTICLES'
+  | 'PDF_LINK_NOT_FOUND'
+  | 'PDF_DOWNLOAD_FAILED'
+  | 'PREVIEW_NOT_READY'
+  | 'UNKNOWN_ERROR';
+
+export interface AppErrorPayload {
+  code: AppErrorCode;
+  details?: Record<string, unknown>;
+}
+
 export type WindowControlAction =
   | 'minimize'
   | 'maximize'

@@ -3,6 +3,7 @@ import { load } from 'cheerio';
 import type { Article, DateRange, FetchLatestArticlesPayload, StorageService } from '../types.js';
 import { buildArticleFromHtml, isProbablyArticle, scoreCandidate } from './article-parser.js';
 import { isWithinDateRange, normalizeUrl, parseDateRange, cleanText } from '../utils/text.js';
+import { appError, isAppError } from '../utils/app-error.js';
 
 const ARTICLE_LIMIT_MAX = 20;
 const DEFAULT_BATCH_LIMIT = 5;
@@ -18,7 +19,11 @@ export async function fetchHtml(url: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`请求失败：${response.status} ${response.statusText}`);
+    throw appError('HTTP_REQUEST_FAILED', {
+      status: response.status,
+      statusText: response.statusText,
+      url,
+    });
   }
 
   return response.text();
@@ -110,7 +115,7 @@ async function fetchLatestArticlesFromHomepage(
 export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = {}, storage: StorageService) {
   const homepageUrls = normalizeHomepageUrls(payload);
   if (homepageUrls.length === 0) {
-    throw new Error('请至少提供一个批量抓取 URL');
+    throw appError('BATCH_HOMEPAGE_URLS_EMPTY');
   }
 
   const limit = Math.min(
@@ -121,7 +126,7 @@ export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = 
   const dateRange = parseDateRange(payload.startDate ?? null, payload.endDate ?? null);
   const fetched: Article[] = [];
   const seenSourceUrls = new Set<string>();
-  const failedSources: string[] = [];
+  const failedSources: Array<Record<string, unknown>> = [];
 
   for (const homepageUrl of homepageUrls) {
     try {
@@ -138,21 +143,35 @@ export async function fetchLatestArticles(payload: FetchLatestArticlesPayload = 
         fetched.push(article);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      failedSources.push(`${homepageUrl}: ${message}`);
+      if (isAppError(error)) {
+        failedSources.push({
+          homepageUrl,
+          code: error.code,
+          details: error.details,
+        });
+      } else {
+        failedSources.push({
+          homepageUrl,
+          code: 'UNKNOWN_ERROR',
+          details: { message: error instanceof Error ? error.message : String(error) },
+        });
+      }
     }
   }
 
   if (fetched.length === 0) {
     if (failedSources.length > 0) {
-      throw new Error(failedSources.join(' | '));
+      throw appError('BATCH_SOURCE_FETCH_FAILED', { failedSources });
     }
 
     if (dateRange.start || dateRange.end) {
-      throw new Error('已抓取候选链接，但没有命中你设置的时间区间。');
+      throw appError('BATCH_NO_MATCH_IN_DATE_RANGE', {
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+      });
     }
 
-    throw new Error('已抓取候选链接，但未解析出有效文章内容。');
+    throw appError('BATCH_NO_VALID_ARTICLES');
   }
 
   await storage.saveFetchedArticles(fetched);

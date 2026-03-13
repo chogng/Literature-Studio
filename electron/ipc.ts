@@ -25,17 +25,17 @@ import {
 } from './preview-view.js';
 import { fetchArticle, fetchLatestArticles } from './services/article-fetcher.js';
 import { previewDownloadPdf } from './services/pdf.js';
+import { appError, serializeAppError } from './utils/app-error.js';
 import { getMainWindow } from './window.js';
 
 async function pickDownloadDirectory() {
   const mainWindow = getMainWindow();
   if (!mainWindow) {
-    throw new Error('主窗口不可用');
+    throw appError('MAIN_WINDOW_UNAVAILABLE');
   }
 
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory', 'createDirectory'],
-    title: '选择默认下载目录',
   });
   if (result.canceled || result.filePaths.length === 0) return null;
 
@@ -61,7 +61,7 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'preview_download_pdf':
       return previewDownloadPdf(payload as PreviewDownloadPdfPayload, app.getPath('downloads')) as Promise<AppCommandResultMap[TCommand]>;
     default:
-      throw new Error(`未知命令：${command}`);
+      throw appError('UNKNOWN_COMMAND', { command });
   }
 }
 
@@ -70,8 +70,7 @@ export function registerAppIpc(storage: StorageService) {
     try {
       return await invokeCommand(command, payload, storage);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(message);
+      throw new Error(serializeAppError(error));
     }
   });
 
@@ -118,8 +117,12 @@ export function registerAppIpc(storage: StorageService) {
   });
 
   ipcMain.handle('app:preview-navigate', async (_event, url: string) => {
-    await navigatePreview(url);
-    return getPreviewState();
+    try {
+      await navigatePreview(url);
+      return getPreviewState();
+    } catch (error) {
+      throw new Error(serializeAppError(error));
+    }
   });
 
   ipcMain.on('app:preview-set-bounds', (_event, bounds: PreviewBounds | null) => {

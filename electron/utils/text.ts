@@ -1,4 +1,5 @@
 import type { DateRange } from '../types.js';
+import { appError } from './app-error.js';
 
 export function cleanText(value: unknown) {
   return String(value ?? '')
@@ -14,13 +15,13 @@ export function cleanNullable(value: unknown) {
 export function normalizeUrl(input: unknown) {
   const trimmed = cleanText(input);
   if (!trimmed) {
-    throw new Error('链接不能为空');
+    throw appError('URL_EMPTY');
   }
 
   const value = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   const url = new URL(value);
   if (!/^https?:$/i.test(url.protocol)) {
-    throw new Error('仅支持 http/https 链接');
+    throw appError('URL_PROTOCOL_UNSUPPORTED', { protocol: url.protocol });
   }
 
   return url.toString();
@@ -56,13 +57,13 @@ export function parseDateRange(startDate: unknown, endDate: unknown): DateRange 
   const end = normalizedEnd ? parseDateString(normalizedEnd) : null;
 
   if (normalizedStart && !start) {
-    throw new Error(`开始日期格式无效：${normalizedStart}`);
+    throw appError('DATE_START_INVALID', { value: normalizedStart });
   }
   if (normalizedEnd && !end) {
-    throw new Error(`结束日期格式无效：${normalizedEnd}`);
+    throw appError('DATE_END_INVALID', { value: normalizedEnd });
   }
   if (start && end && start > end) {
-    throw new Error('开始日期不能晚于结束日期');
+    throw appError('DATE_RANGE_INVALID', { start, end });
   }
 
   return { start, end };

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AppCommand,
+  AppErrorCode,
   AppCommandPayloadMap,
   AppCommandResultMap,
   PreviewBounds,
@@ -8,10 +9,40 @@ import type {
   WindowControlAction,
   WindowState,
 } from './types.js';
+import { parseSerializedAppError } from './utils/app-error.js';
+
+type DesktopInvokeError = Error & {
+  code?: AppErrorCode;
+  details?: Record<string, unknown>;
+};
+
+function normalizeInvokeError(error: unknown): DesktopInvokeError {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const parsed = parseSerializedAppError(rawMessage);
+
+  const invokeError: DesktopInvokeError = new Error(parsed?.code ?? rawMessage);
+  invokeError.name = 'DesktopInvokeError';
+
+  if (parsed) {
+    invokeError.code = parsed.code;
+    if (parsed.details) {
+      invokeError.details = parsed.details;
+      if (typeof parsed.details.message === 'string') {
+        invokeError.message = parsed.details.message;
+      }
+    }
+  }
+
+  return invokeError;
+}
 
 const electronAPI = {
-  invoke<TCommand extends AppCommand>(command: TCommand, args?: AppCommandPayloadMap[TCommand]) {
-    return ipcRenderer.invoke('app:invoke', command, args ?? {}) as Promise<AppCommandResultMap[TCommand]>;
+  async invoke<TCommand extends AppCommand>(command: TCommand, args?: AppCommandPayloadMap[TCommand]) {
+    try {
+      return await (ipcRenderer.invoke('app:invoke', command, args ?? {}) as Promise<AppCommandResultMap[TCommand]>);
+    } catch (error) {
+      throw normalizeInvokeError(error);
+    }
   },
   windowControls: {
     perform(action: WindowControlAction) {
@@ -35,8 +66,12 @@ const electronAPI = {
     },
   },
   preview: {
-    navigate(url: string) {
-      return ipcRenderer.invoke('app:preview-navigate', url) as Promise<PreviewState>;
+    async navigate(url: string) {
+      try {
+        return await (ipcRenderer.invoke('app:preview-navigate', url) as Promise<PreviewState>);
+      } catch (error) {
+        throw normalizeInvokeError(error);
+      }
     },
     getState() {
       return ipcRenderer.invoke('app:preview-get-state') as Promise<PreviewState>;
