@@ -13,11 +13,13 @@ export interface ToastOptions {
 
 interface ToastItem extends ToastOptions {
   id: number;
+  isExiting?: boolean;
 }
 
 let toastId = 0;
 let observers: ((toasts: ToastItem[]) => void)[] = [];
 let toasts: ToastItem[] = [];
+const TOAST_EXIT_DURATION = 200;
 
 const notify = () => {
   observers.forEach((observer) => observer([...toasts]));
@@ -32,7 +34,7 @@ export const toast = {
     };
 
     const id = ++toastId;
-    const newToast: ToastItem = { ...defaultOptions, id };
+    const newToast: ToastItem = { ...defaultOptions, id, isExiting: false };
     toasts.push(newToast);
     notify();
 
@@ -45,8 +47,16 @@ export const toast = {
     return id;
   },
   dismiss: (id: number) => {
-    toasts = toasts.filter((t) => t.id !== id);
+    const target = toasts.find((t) => t.id === id);
+    if (!target || target.isExiting) return;
+
+    toasts = toasts.map((t) => (t.id === id ? { ...t, isExiting: true } : t));
     notify();
+
+    setTimeout(() => {
+      toasts = toasts.filter((t) => t.id !== id);
+      notify();
+    }, TOAST_EXIT_DURATION);
   },
   success: (message: string, duration?: number) => toast.show({ message, type: 'success', duration }),
   error: (message: string, duration?: number) => toast.show({ message, type: 'error', duration }),
@@ -74,7 +84,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ closeLabel = 'Cl
   return (
     <div className="toast-container">
       {currentToasts.map((t) => (
-        <div key={t.id} className={`toast-item toast-${t.type}`}>
+        <div key={t.id} className={`toast-item toast-${t.type}${t.isExiting ? ' exit' : ''}`}>
           <div className="toast-icon">
             <ToastIcon type={t.type || 'info'} />
           </div>

@@ -28,6 +28,11 @@
   line-height: 1.4;
 }
 
+.toast-item.exit {
+  animation: toast-fade-out 0.2s ease-in forwards;
+  pointer-events: none;
+}
+
 .toast-icon {
   flex-shrink: 0;
   display: flex;
@@ -85,5 +90,16 @@
   to {
     transform: translateX(0);
     opacity: 1;
+  }
+}
+
+@keyframes toast-fade-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(20px);
+    opacity: 0;
   }
 }
