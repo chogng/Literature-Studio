@@ -6,7 +6,13 @@ import './ArticleDetailsModalWindow.css';
 type ArticleDetailsModalWindowState = Extract<DesktopNativeModalState, { kind: 'article-details' }>;
 
 function normalizeLabel(label: string) {
-  return label.replace(/[：:]\s*$/, '');
+  const trimmed = label.trimEnd();
+  const lastCharacter = trimmed.charAt(trimmed.length - 1);
+  if (lastCharacter === ':' || lastCharacter === String.fromCharCode(0xff1a)) {
+    return trimmed.slice(0, -1).trimEnd();
+  }
+
+  return trimmed;
 }
 
 function detailValue(value: string | null | undefined, fallback: string) {
@@ -125,7 +131,6 @@ export default function ArticleDetailsModalWindow() {
       <section className="article-details-shell" role="document" aria-labelledby="article-details-title">
         <header className="article-details-header">
           <div className="article-details-heading">
-            <p className="article-details-eyebrow">Article Details</p>
             <h1 id="article-details-title" className="article-details-title">
               {title}
             </h1>
