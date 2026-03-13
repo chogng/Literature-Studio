@@ -163,6 +163,10 @@ export default function SettingsView({
 
           <label className="settings-field">
             {labels.defaultPdfDir}
+            <p className="settings-hint">
+              {labels.currentDir}
+              {pdfDownloadDir.trim() ? pdfDownloadDir.trim() : labels.systemDownloads}
+            </p>
             <div className="settings-input-row">
               <Input
                 className="settings-input-control"
@@ -215,10 +219,6 @@ export default function SettingsView({
               placeholder="-"
             />
           </label>
-          <p className="settings-hint">
-            {labels.currentDir}
-            {pdfDownloadDir.trim() ? pdfDownloadDir.trim() : labels.systemDownloads}
-          </p>
         </div>
       </section>
     </main>
