@@ -56,15 +56,6 @@ type DocxExportResult = {
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
-const manualAddressBarSourceId = 'source-manual-address-bar';
-
-function buildManualBatchSource(url: string): BatchSource {
-  return {
-    id: manualAddressBarSourceId,
-    url,
-    journalTitle: '',
-  };
-}
 
 function formatLocalized(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => {
@@ -546,26 +537,10 @@ function MainApp() {
     setIsBatchLoading(true);
 
     try {
-      const rawAddressBarUrl = webUrl.trim();
-      let normalizedAddressBarUrl = '';
-
-      if (rawAddressBarUrl) {
-        try {
-          normalizedAddressBarUrl = normalizeUrl(rawAddressBarUrl);
-        } catch (fetchSourceError) {
-          const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(fetchSourceError));
-          toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: localizedError }));
-          return;
-        }
-      }
-
-      const fetchSources = normalizedAddressBarUrl
-        ? [buildManualBatchSource(normalizedAddressBarUrl)]
-        : batchSources;
-
       const result = await fetchLatestArticlesBatch({
         desktopRuntime,
-        batchSources: fetchSources,
+        addressBarUrl: webUrl,
+        batchSources,
         limit: batchLimit,
         sameDomainOnly,
         startDate: batchStartDate || null,
