@@ -6,6 +6,7 @@ import './sidebar.css';
 
 export type SidebarArticle = {
   title: string;
+  articleType: string | null;
   doi: string | null;
   authors: string[];
   abstractText: string | null;
@@ -101,8 +102,6 @@ export default function Sidebar({
             <ArticleCard
               key={`${article.sourceUrl}-${article.fetchedAt}-${index}`}
               article={article}
-              displayIndex={index + 1}
-              totalCount={articles.length}
               locale={locale}
               labels={articleCardLabels}
             />

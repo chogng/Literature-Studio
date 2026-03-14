@@ -18,6 +18,7 @@ const en = {
   total: 'Total',
   untitled: 'Untitled',
   unknown: 'Unknown',
+  articleType: 'Article type:',
   authors: 'Authors:',
   abstract: 'Abstract:',
   publishedAt: 'Published:',

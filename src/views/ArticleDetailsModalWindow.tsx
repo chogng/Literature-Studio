@@ -76,6 +76,10 @@ export default function ArticleDetailsModalWindow() {
     return [
       { label: 'DOI', value: detailValue(article.doi, labels.unknown) },
       {
+        label: normalizeLabel(labels.articleType || (locale === 'en' ? 'Article type' : '文章类型')),
+        value: detailValue(article.articleType, labels.unknown),
+      },
+      {
         label: normalizeLabel(labels.authors),
         value: article.authors.length > 0 ? article.authors.join(', ') : labels.unknown,
       },

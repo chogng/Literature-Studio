@@ -230,6 +230,7 @@ function extractNatureLatestNewsArticleCards(
         href,
         order,
         dateHint,
+        articleType: articleType || null,
         scoreBoost: 140,
       };
     })

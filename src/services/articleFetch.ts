@@ -5,6 +5,7 @@ import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './desktopE
 
 export type Article = {
   title: string;
+  articleType: string | null;
   doi: string | null;
   authors: string[];
   abstractText: string | null;

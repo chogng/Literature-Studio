@@ -18,6 +18,7 @@ const zh = {
   total: '总计',
   untitled: '无标题',
   unknown: '未识别',
+  articleType: '文章类型：',
   authors: '作者：',
   abstract: '摘要：',
   publishedAt: '发布日期：',

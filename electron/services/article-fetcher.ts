@@ -131,6 +131,7 @@ type CandidateDescriptor = {
   score: number;
   order: number;
   dateHint: string | null;
+  articleType: string | null;
 };
 
 type CandidateCollectionResult = {
@@ -481,6 +482,16 @@ function shouldConfirmRenderedArticle({
   return weakMetadata && genericTitle;
 }
 
+function applyCandidateArticleType(article: Article, candidateArticleType: string | null) {
+  const normalizedCandidateType = cleanText(candidateArticleType);
+  if (!normalizedCandidateType) return;
+
+  const normalizedArticleType = cleanText(article.articleType);
+  if (!normalizedArticleType || /^article$/i.test(normalizedArticleType)) {
+    article.articleType = normalizedCandidateType;
+  }
+}
+
 async function fetchRenderedHtml(url: string, options: FetchHtmlOptions = {}) {
   const traceId = cleanText(options.traceId) || 'fetch';
   const stage = cleanText(options.stage) || 'html_render';
@@ -722,6 +733,7 @@ function collectCandidateDescriptorsFromSeeds(
       if (seen.has(normalized)) continue;
 
       const dateHint = seed.dateHint ?? null;
+      const articleType = cleanText(seed.articleType ?? '') || null;
       if (dateHint) {
         datedCandidateCount += 1;
         if (lastDateHint && dateHint > lastDateHint) {
@@ -765,6 +777,7 @@ function collectCandidateDescriptorsFromSeeds(
         score,
         order: seed.order,
         dateHint,
+        articleType,
       });
     } catch {
       continue;
@@ -1158,6 +1171,7 @@ async function fetchLatestArticlesFromHomepagePage({
 
           const parseStartedAt = Date.now();
           let article = buildArticleFromHtml(candidate.url, articleHtml);
+          applyCandidateArticleType(article, candidate.articleType);
           if (
             !usedRenderedHtml &&
             shouldConfirmRenderedArticle({
@@ -1176,6 +1190,7 @@ async function fetchLatestArticlesFromHomepagePage({
                   signal: requestController.signal,
                 });
                 const renderedArticle = buildArticleFromHtml(candidate.url, renderedArticleHtml);
+                applyCandidateArticleType(renderedArticle, candidate.articleType);
                 if (isProbablyArticle(candidate.url, renderedArticle)) {
                   article = renderedArticle;
                   usedRenderedHtml = true;

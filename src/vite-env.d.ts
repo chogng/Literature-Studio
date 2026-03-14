@@ -2,6 +2,7 @@
 
 type DesktopArticle = {
   title: string;
+  articleType: string | null;
   doi: string | null;
   authors: string[];
   abstractText: string | null;
@@ -37,6 +38,7 @@ type DesktopDocxExportResult = {
 type DesktopArticleDetailsModalLabels = {
   untitled: string;
   unknown: string;
+  articleType?: string;
   authors: string;
   abstract: string;
   publishedAt: string;

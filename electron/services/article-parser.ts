@@ -169,6 +169,67 @@ function extractPublishedDate($: ReturnType<typeof load>, structuredDataItems: S
   return null;
 }
 
+function normalizeArticleTypeValue(value: unknown) {
+  const text = cleanText(value);
+  if (!text) return '';
+
+  const withoutArticleSuffix = text.replace(/article$/i, '').trim();
+  const normalized = withoutArticleSuffix || text;
+  if (!normalized || /^article$/i.test(normalized)) return '';
+  return normalized;
+}
+
+function collectStructuredTextCandidates(value: unknown, target: string[]) {
+  if (!value) return;
+
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectStructuredTextCandidates(entry, target));
+    return;
+  }
+
+  if (typeof value === 'string') {
+    const text = cleanText(value);
+    if (text) target.push(text);
+    return;
+  }
+
+  if (typeof value === 'object') {
+    const record = value as StructuredDataRecord;
+    const name = cleanText(record.name);
+    if (name) target.push(name);
+    const typeName = cleanText(record['@type']);
+    if (typeName) target.push(typeName);
+  }
+}
+
+function extractArticleType($: ReturnType<typeof load>, structuredDataItems: StructuredDataRecord[]) {
+  const byMeta = normalizeArticleTypeValue(
+    pickMetaContent($, [
+      'meta[name="citation_article_type"]',
+      'meta[name="dc.type"]',
+      'meta[name="prism.genre"]',
+      'meta[property="article:section"]',
+      'meta[property="og:type"]',
+    ]),
+  );
+  if (byMeta) return byMeta;
+
+  const structuredTypeCandidates: string[] = [];
+  for (const item of structuredDataItems) {
+    collectStructuredTextCandidates(item.articleSection, structuredTypeCandidates);
+    collectStructuredTextCandidates(item.genre, structuredTypeCandidates);
+    collectStructuredTextCandidates(item.additionalType, structuredTypeCandidates);
+    collectStructuredTextCandidates(item['@type'], structuredTypeCandidates);
+  }
+
+  for (const candidate of structuredTypeCandidates) {
+    const normalized = normalizeArticleTypeValue(candidate);
+    if (normalized) return normalized;
+  }
+
+  return null;
+}
+
 function extractAbstract($: ReturnType<typeof load>) {
   const byMeta = pickMetaContent($, [
     'meta[name="description"]',
@@ -204,6 +265,7 @@ export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
   const $ = load(html);
   const structuredDataItems = extractStructuredDataItems($);
   const title = extractTitle($);
+  const articleType = extractArticleType($, structuredDataItems);
   const doi = extractDoi($, html);
   const authors = extractAuthors($, structuredDataItems);
   const abstractText = extractAbstract($);
@@ -211,6 +273,7 @@ export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
 
   return {
     title,
+    articleType: cleanNullable(articleType),
     doi: cleanNullable(doi),
     authors,
     abstractText: cleanNullable(abstractText),

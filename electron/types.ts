@@ -1,5 +1,6 @@
 export interface Article {
   title: string;
+  articleType: string | null;
   doi: string | null;
   authors: string[];
   abstractText: string | null;
@@ -109,6 +110,7 @@ export interface ExportArticlesDocxPayload {
 export interface ArticleDetailsModalLabels {
   untitled: string;
   unknown: string;
+  articleType?: string;
   authors: string;
   abstract: string;
   publishedAt: string;

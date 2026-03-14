@@ -8,6 +8,7 @@ export type HomepageCandidateSeed = {
   href: string;
   order: number;
   dateHint?: string | null;
+  articleType?: string | null;
   scoreBoost?: number;
 };
 
