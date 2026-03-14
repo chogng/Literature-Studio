@@ -1,4 +1,4 @@
-import { cleanText, parseDateString } from '../utils/text.js';
+import { cleanText, parseDateString } from './text.js';
 
 const MONTH_NAME_RE =
   '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';

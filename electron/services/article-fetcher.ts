@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { Article, DateRange, FetchLatestArticlesPayload, StorageService } from '../types.js';
 import { buildArticleFromHtml, hasStrongArticleSignals, isProbablyArticle, scoreCandidate } from './article-parser.js';
 import { isLikelyStaticResourcePath } from './article-url-rules.js';
-import { parseDateHintFromText } from './date-hint.js';
+import { parseDateHintFromText } from '../utils/date-hint.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetch-timing.js';
 import {
   findHomepageCandidateExtractor,

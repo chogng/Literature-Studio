@@ -1,4 +1,4 @@
-import { parseDateHintFromText } from '../date-hint.js';
+import { parseDateHintFromText } from '../../utils/date-hint.js';
 import { cleanText } from '../../utils/text.js';
 
 import type {
