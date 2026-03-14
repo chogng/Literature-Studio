@@ -3,17 +3,16 @@ import { load } from 'cheerio';
 import type { Article, DateRange, FetchLatestArticlesPayload, StorageService } from '../types.js';
 import { buildArticleFromHtml, hasStrongArticleSignals, isProbablyArticle, scoreCandidate } from './article-parser.js';
 import { hasArticlePathSignal, isLikelyStaticResourcePath } from './article-url-rules.js';
-import { isWithinDateRange, parseDateRange, parseDateString } from '../utils/date.js';
+import { isWithinDateRange, parseDateRange } from '../utils/date.js';
 import { parseDateHintFromText } from '../utils/date-hint.js';
 import { cleanText } from '../utils/text.js';
 import { normalizeUrl } from '../utils/url.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetch-timing.js';
 import {
   findHomepageCandidateExtractor,
-  isNatureNewsRssHomepage,
+  type HomepageCandidateExtractor,
   type HomepageCandidateSeed,
 } from './source-extractors/index.js';
-import { findNatureLatestNewsNextPageUrl } from './source-extractors/nature-latest-news.js';
 import { appError, isAppError } from '../utils/app-error.js';
 
 const SYSTEM_BATCH_LIMIT_MAX = 100;
@@ -41,8 +40,6 @@ const CANDIDATE_DATE_HINT_TEXT_MAX_LENGTH = 320;
 const MIN_SORTED_DATE_HINTS_FOR_EARLY_STOP = 3;
 const MIN_CONSECUTIVE_OLDER_DATE_HINTS_FOR_EARLY_STOP = 4;
 const IN_RANGE_DATE_HINT_SCORE_BOOST = 40;
-const NATURE_NEWS_RSS_URL = 'https://www.nature.com/nature.rss';
-const NATURE_NEWS_RSS_HINT_TTL_MS = 5 * 60 * 1000;
 const HTML_FETCH_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 const HTML_FETCH_ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
@@ -56,7 +53,6 @@ const RENDER_FALLBACK_MAX_ORDER = 8;
 const RENDER_FALLBACK_HTTP_STATUS = new Set(['401', '403', '408', '409', '423', '425', '429', '451']);
 const MAX_PAGINATED_HOMEPAGE_PAGES = 20;
 
-const natureNewsRssHintCache = new Map<string, { expiresAt: number; hints: Map<string, string> }>();
 let browserHtmlFetchPromise: Promise<BrowserHtmlFetch | null> | null = null;
 let browserHtmlFetchUnsupported = false;
 let browserHtmlRendererPromise: Promise<BrowserHtmlRenderer | null> | null = null;
@@ -790,20 +786,37 @@ function collectCandidateDescriptorsFromSeeds(
   };
 }
 
-function collectHomepageCandidateDescriptors(
+async function collectHomepageCandidateDescriptors(
   homepage: URL,
   homepageUrl: string,
   $: ReturnType<typeof load>,
+  extractor: HomepageCandidateExtractor | null,
   sameDomainOnly: boolean,
   dateRange: DateRange,
-): CandidateCollectionResult {
-  const extractor = findHomepageCandidateExtractor(homepage);
+  traceId: string,
+  pageNumber: number,
+): Promise<CandidateCollectionResult> {
   if (extractor) {
-    const extracted = extractor.extract({
+    let extracted = extractor.extract({
       homepage,
       homepageUrl,
       $,
     });
+    if (extracted && extracted.candidates.length > 0 && extractor.refineExtraction) {
+      const refined = await extractor.refineExtraction({
+        homepage,
+        homepageUrl,
+        $,
+        pageNumber,
+        traceId,
+        dateRange,
+        extraction: extracted,
+        fetchHtml,
+      });
+      if (refined && refined.candidates.length > 0) {
+        extracted = refined;
+      }
+    }
     if (extracted && extracted.candidates.length > 0) {
       const result = collectCandidateDescriptorsFromSeeds(
         homepage,
@@ -827,74 +840,6 @@ function collectHomepageCandidateDescriptors(
     dateRange,
     buildGenericCandidateSeeds($),
   );
-}
-
-function parseNatureNewsRssDateHints(xml: string) {
-  const hints = new Map<string, string>();
-  const itemRegex = /<item\s+rdf:about="([^"]+)"[\s\S]*?<dc:date>([^<]+)<\/dc:date>/gi;
-  for (const match of xml.matchAll(itemRegex)) {
-    const urlValue = cleanText(match[1]);
-    const dateValue = parseDateString(match[2]);
-    if (!urlValue || !dateValue) continue;
-    try {
-      hints.set(new URL(urlValue).toString(), dateValue);
-    } catch {
-      continue;
-    }
-  }
-  return hints;
-}
-
-async function fetchNatureNewsRssDateHints(traceId: string) {
-  const cacheKey = NATURE_NEWS_RSS_URL;
-  const now = Date.now();
-  const cached = natureNewsRssHintCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
-    return cached.hints;
-  }
-
-  try {
-    const xml = await fetchHtml(NATURE_NEWS_RSS_URL, {
-      timeoutMs: HOMEPAGE_FETCH_TIMEOUT_MS,
-      traceId,
-      stage: 'source_nature_rss',
-    });
-    const hints = parseNatureNewsRssDateHints(xml);
-    natureNewsRssHintCache.set(cacheKey, {
-      hints,
-      expiresAt: now + NATURE_NEWS_RSS_HINT_TTL_MS,
-    });
-    return hints;
-  } catch (error) {
-    timingLog(traceId, 'source_nature_rss:failed', {
-      message: error instanceof Error ? error.message : String(error),
-    });
-    return new Map<string, string>();
-  }
-}
-
-function resolveNextHomepageUrl({
-  homepage,
-  homepageUrl,
-  $,
-  seenHomepageUrls,
-}: {
-  homepage: URL;
-  homepageUrl: string;
-  $: ReturnType<typeof load>;
-  seenHomepageUrls: ReadonlySet<string>;
-}) {
-  const latestNewsNextPageUrl = findNatureLatestNewsNextPageUrl({
-    homepage,
-    homepageUrl,
-    $,
-    seenPageUrls: seenHomepageUrls,
-  });
-  if (latestNewsNextPageUrl) {
-    return latestNewsNextPageUrl;
-  }
-
-  return null;
 }
 
 async function fetchLatestArticlesFromHomepagePage({
@@ -923,6 +868,7 @@ async function fetchLatestArticlesFromHomepagePage({
   pageNumber: number;
 }): Promise<HomepagePageFetchResult> {
   const homepage = new URL(homepageUrl);
+  const extractor = findHomepageCandidateExtractor(homepage);
   const homepageResult = await resolveHomepageHtml(homepageUrl, traceId, options);
   let html = homepageResult.html;
   const homepageParseStartedAt = Date.now();
@@ -969,12 +915,15 @@ async function fetchLatestArticlesFromHomepagePage({
     }
   }
 
-  let candidateCollection = collectHomepageCandidateDescriptors(
+  let candidateCollection = await collectHomepageCandidateDescriptors(
     homepage,
     homepageUrl,
     $,
+    extractor,
     sameDomainOnly,
     dateRange,
+    traceId,
+    pageNumber,
   );
   if (candidateCollection.candidates.length === 0 && homepageResult.source === 'network' && ENABLE_BROWSER_RENDER_FALLBACK) {
     try {
@@ -986,12 +935,15 @@ async function fetchLatestArticlesFromHomepagePage({
       html = renderedHomepageHtml;
       homepageArticle = buildArticleFromHtml(homepageUrl, html);
       $ = load(html);
-      candidateCollection = collectHomepageCandidateDescriptors(
+      candidateCollection = await collectHomepageCandidateDescriptors(
         homepage,
         homepageUrl,
         $,
+        extractor,
         sameDomainOnly,
         dateRange,
+        traceId,
+        pageNumber,
       );
       timingLog(traceId, 'source:homepage_render_applied', {
         pageNumber,
@@ -1038,58 +990,6 @@ async function fetchLatestArticlesFromHomepagePage({
       datedCandidateCount,
       consecutiveOlderDateHints,
     });
-  }
-
-  if (
-    (extractorId === 'nature-news' || extractorId === 'nature-latest-news') &&
-    isNatureNewsRssHomepage(homepage)
-  ) {
-    const rssHints = await fetchNatureNewsRssDateHints(traceId);
-    if (rssHints.size > 0) {
-      let rssHintApplied = 0;
-      let rssFilteredCount = 0;
-      let rssInRangeHintCount = 0;
-      const mergedCandidates: CandidateDescriptor[] = [];
-
-      for (const candidate of candidates) {
-        if (candidate.dateHint) {
-          mergedCandidates.push(candidate);
-          continue;
-        }
-
-        const rssDateHint = rssHints.get(candidate.url) ?? null;
-        if (!rssDateHint) {
-          mergedCandidates.push(candidate);
-          continue;
-        }
-
-        rssHintApplied += 1;
-        if (!isWithinDateRange(rssDateHint, dateRange)) {
-          rssFilteredCount += 1;
-          continue;
-        }
-
-        rssInRangeHintCount += 1;
-        mergedCandidates.push({
-          ...candidate,
-          dateHint: rssDateHint,
-          score: candidate.score + IN_RANGE_DATE_HINT_SCORE_BOOST,
-        });
-      }
-
-      candidates = mergedCandidates;
-      datedCandidateCount += rssHintApplied;
-      inRangeDateHintCount += rssInRangeHintCount;
-      dateFilteredCount += rssFilteredCount;
-      timingLog(traceId, 'source:candidate_rss_hint_applied', {
-        pageNumber,
-        rssHintCount: rssHints.size,
-        rssHintApplied,
-        rssFilteredCount,
-        rssInRangeHintCount,
-        candidateCountAfterRss: candidates.length,
-      });
-    }
   }
 
   const sortedCandidates = [...candidates].sort((a, b) => {
@@ -1351,12 +1251,12 @@ async function fetchLatestArticlesFromHomepagePage({
   }
 
   const nextPageUrl =
-    fetched.length < remainingLimit && !stoppedByDateHint
-      ? resolveNextHomepageUrl({
+    fetched.length < remainingLimit && !stoppedByDateHint && extractor?.findNextPageUrl
+      ? extractor.findNextPageUrl({
           homepage,
           homepageUrl,
           $,
-          seenHomepageUrls,
+          seenPageUrls: seenHomepageUrls,
         })
       : null;
 
