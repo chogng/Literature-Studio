@@ -101,6 +101,8 @@ export default function Sidebar({
             <ArticleCard
               key={`${article.sourceUrl}-${article.fetchedAt}-${index}`}
               article={article}
+              displayIndex={index + 1}
+              totalCount={articles.length}
               locale={locale}
               labels={articleCardLabels}
             />

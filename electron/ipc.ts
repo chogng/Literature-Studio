@@ -19,6 +19,7 @@ import type {
   WindowState,
 } from './types.js';
 import {
+  getPreviewDocumentSnapshot,
   getPreviewState,
   goBackPreview,
   goForwardPreview,
@@ -28,10 +29,15 @@ import {
   setPreviewVisible,
 } from './preview-view.js';
 import { getNativeModalState, openArticleDetailsModal } from './native-modal.js';
-import { fetchArticle, fetchLatestArticles } from './services/article-fetcher.js';
+import {
+  fetchArticle,
+  fetchLatestArticles,
+  type HomepagePreviewSnapshot,
+} from './services/article-fetcher.js';
 import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
 import { previewDownloadPdf } from './services/pdf.js';
 import { appError, serializeAppError } from './utils/app-error.js';
+import { normalizeUrl } from './utils/text.js';
 import { getMainWindow } from './window.js';
 
 async function pickDownloadDirectory() {
@@ -104,6 +110,66 @@ async function showArticleDetailsModal(
   return openArticleDetailsModal(targetWindow, payload);
 }
 
+function safeNormalizeUrl(value: unknown) {
+  try {
+    return normalizeUrl(value);
+  } catch {
+    return '';
+  }
+}
+
+async function resolvePreviewSnapshotHtml(payload: PreviewDownloadPdfPayload = {}) {
+  const requestedUrl = safeNormalizeUrl(payload.pageUrl ?? '');
+  if (!requestedUrl) return null;
+
+  const snapshot = await getPreviewDocumentSnapshot();
+  const previewUrl = safeNormalizeUrl(snapshot?.url ?? '');
+  if (!snapshot || !previewUrl || previewUrl !== requestedUrl) {
+    return null;
+  }
+
+  return snapshot.html;
+}
+
+async function resolveBatchHomepagePreviewSnapshots(payload: FetchLatestArticlesPayload = {}) {
+  const sources = Array.isArray(payload.sources) ? payload.sources : [];
+  if (sources.length === 0) {
+    return new Map<string, HomepagePreviewSnapshot>();
+  }
+
+  const snapshot = await getPreviewDocumentSnapshot();
+  const previewUrl = safeNormalizeUrl(snapshot?.url ?? '');
+  if (!snapshot || !previewUrl) {
+    return new Map<string, HomepagePreviewSnapshot>();
+  }
+
+  const matchedUrls = new Set<string>();
+  for (const source of sources) {
+    const homepageUrl = safeNormalizeUrl(source?.homepageUrl);
+    if (homepageUrl && homepageUrl === previewUrl) {
+      matchedUrls.add(homepageUrl);
+    }
+  }
+
+  if (matchedUrls.size === 0) {
+    return new Map<string, HomepagePreviewSnapshot>();
+  }
+
+  const resolvedSnapshot: HomepagePreviewSnapshot = {
+    html: snapshot.html,
+    previewUrl,
+    captureMs: snapshot.captureMs,
+    isLoading: snapshot.isLoading,
+  };
+  const snapshots = new Map<string, HomepagePreviewSnapshot>();
+
+  for (const homepageUrl of matchedUrls) {
+    snapshots.set(homepageUrl, resolvedSnapshot);
+  }
+
+  return snapshots;
+}
+
 async function invokeCommand<TCommand extends AppCommand>(
   command: TCommand,
   payload: AppCommandPayloadMap[TCommand],
@@ -113,15 +179,28 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'fetch_article':
       return fetchArticle((payload as FetchArticlePayload)?.url, storage) as Promise<AppCommandResultMap[TCommand]>;
     case 'fetch_latest_articles':
-      return fetchLatestArticles(payload as FetchLatestArticlesPayload, storage) as Promise<AppCommandResultMap[TCommand]>;
+      return fetchLatestArticles(
+        payload as FetchLatestArticlesPayload,
+        storage,
+        {
+          homepagePreviewSnapshots: await resolveBatchHomepagePreviewSnapshots(payload as FetchLatestArticlesPayload),
+          homepageSourceMode: 'prefer-preview',
+        },
+      ) as Promise<AppCommandResultMap[TCommand]>;
     case 'load_settings':
       return storage.loadSettings() as Promise<AppCommandResultMap[TCommand]>;
     case 'save_settings':
       return storage.saveSettings((payload as SaveSettingsPayload)?.settings ?? {}) as Promise<AppCommandResultMap[TCommand]>;
     case 'pick_download_directory':
       return pickDownloadDirectory() as Promise<AppCommandResultMap[TCommand]>;
-    case 'preview_download_pdf':
-      return previewDownloadPdf(payload as PreviewDownloadPdfPayload, app.getPath('downloads')) as Promise<AppCommandResultMap[TCommand]>;
+    case 'preview_download_pdf': {
+      const previewHtml = await resolvePreviewSnapshotHtml(payload as PreviewDownloadPdfPayload);
+      return previewDownloadPdf(
+        payload as PreviewDownloadPdfPayload,
+        app.getPath('downloads'),
+        previewHtml,
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    }
     case 'export_articles_docx':
       return exportArticlesDocx(
         payload as ExportArticlesDocxPayload,

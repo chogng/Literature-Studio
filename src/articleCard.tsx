@@ -26,11 +26,13 @@ type ArticleCardLabels = {
 
 type ArticleCardProps = {
   article: ArticleCardData;
+  displayIndex: number;
+  totalCount: number;
   locale: Locale;
   labels: ArticleCardLabels;
 };
 
-export default function ArticleCard({ article, locale, labels }: ArticleCardProps) {
+export default function ArticleCard({ article, displayIndex, totalCount, locale, labels }: ArticleCardProps) {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const handleDownload = async () => {
@@ -75,36 +77,41 @@ export default function ArticleCard({ article, locale, labels }: ArticleCardProp
     <li className="article-card">
       <h3>{article.title || labels.untitled}</h3>
       <div className="article-card-toolbar">
-        <Button
-          className="article-card-icon-btn"
-          type="button"
-          variant="ghost"
-          size="sm"
-          mode="icon"
-          iconMode="with"
-          textMode="without"
-          isLoading={isDownloading}
-          onClick={() => void handleDownload()}
-          aria-label="Download PDF"
-          title="Download PDF"
-        >
-          <Download size={14} strokeWidth={1.7} />
-        </Button>
-        <Button
-          className="article-card-icon-btn"
-          type="button"
-          variant="ghost"
-          size="sm"
-          mode="icon"
-          iconMode="with"
-          textMode="without"
-          onClick={() => void handleOpenDetails()}
-          aria-haspopup="dialog"
-          aria-label="View details"
-          title="View details"
-        >
-          <ChevronDown size={14} strokeWidth={1.7} />
-        </Button>
+        <span className="article-card-sequence" aria-label={`Article ${displayIndex} of ${totalCount}`}>
+          {displayIndex}/{totalCount}
+        </span>
+        <div className="article-card-toolbar-actions">
+          <Button
+            className="article-card-icon-btn"
+            type="button"
+            variant="ghost"
+            size="sm"
+            mode="icon"
+            iconMode="with"
+            textMode="without"
+            isLoading={isDownloading}
+            onClick={() => void handleDownload()}
+            aria-label="Download PDF"
+            title="Download PDF"
+          >
+            <Download size={14} strokeWidth={1.7} />
+          </Button>
+          <Button
+            className="article-card-icon-btn"
+            type="button"
+            variant="ghost"
+            size="sm"
+            mode="icon"
+            iconMode="with"
+            textMode="without"
+            onClick={() => void handleOpenDetails()}
+            aria-haspopup="dialog"
+            aria-label="View details"
+            title="View details"
+          >
+            <ChevronDown size={14} strokeWidth={1.7} />
+          </Button>
+        </div>
       </div>
     </li>
   );
