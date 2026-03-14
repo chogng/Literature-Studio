@@ -13,6 +13,7 @@ import {
   isNatureNewsRssHomepage,
   type HomepageCandidateSeed,
 } from './source-extractors/index.js';
+import { findNatureLatestNewsNextPageUrl } from './source-extractors/nature-latest-news.js';
 import { appError, isAppError } from '../utils/app-error.js';
 
 const SYSTEM_BATCH_LIMIT_MAX = 100;
@@ -53,6 +54,7 @@ const HOMEPAGE_RENDER_TIMEOUT_MS = 4500;
 const BROWSER_RENDER_DOM_SETTLE_MS = 180;
 const RENDER_FALLBACK_MAX_ORDER = 8;
 const RENDER_FALLBACK_HTTP_STATUS = new Set(['401', '403', '408', '409', '423', '425', '429', '451']);
+const MAX_PAGINATED_HOMEPAGE_PAGES = 20;
 
 const natureNewsRssHintCache = new Map<string, { expiresAt: number; hints: Map<string, string> }>();
 let browserHtmlFetchPromise: Promise<BrowserHtmlFetch | null> | null = null;
@@ -147,6 +149,17 @@ type CandidateCollectionResult = {
   stopDateHint: string | null;
   extractorId: string | null;
   extractorDiagnostics: Record<string, unknown> | null;
+};
+
+type HomepagePageFetchResult = {
+  homepageSource: HomepageHtmlResult['source'];
+  articles: Article[];
+  candidateAttempted: number;
+  candidateResolved: number;
+  candidateAccepted: number;
+  usedHomepageOnly: boolean;
+  nextPageUrl: string | null;
+  stoppedByDateHint: boolean;
 };
 
 function normalizeSourceId(input: unknown, homepageUrl: string, index: number) {
@@ -860,6 +873,505 @@ async function fetchNatureNewsRssDateHints(traceId: string) {
   }
 }
 
+function resolveNextHomepageUrl({
+  homepage,
+  homepageUrl,
+  $,
+  seenHomepageUrls,
+}: {
+  homepage: URL;
+  homepageUrl: string;
+  $: ReturnType<typeof load>;
+  seenHomepageUrls: ReadonlySet<string>;
+}) {
+  const latestNewsNextPageUrl = findNatureLatestNewsNextPageUrl({
+    homepage,
+    homepageUrl,
+    $,
+    seenPageUrls: seenHomepageUrls,
+  });
+  if (latestNewsNextPageUrl) {
+    return latestNewsNextPageUrl;
+  }
+
+  return null;
+}
+
+async function fetchLatestArticlesFromHomepagePage({
+  sourceId,
+  homepageUrl,
+  journalTitle,
+  remainingLimit,
+  sameDomainOnly,
+  dateRange,
+  traceId,
+  options,
+  fetchedSourceUrls,
+  seenHomepageUrls,
+  pageNumber,
+}: {
+  sourceId: string;
+  homepageUrl: string;
+  journalTitle: string;
+  remainingLimit: number;
+  sameDomainOnly: boolean;
+  dateRange: DateRange;
+  traceId: string;
+  options: FetchLatestArticlesOptions;
+  fetchedSourceUrls: Set<string>;
+  seenHomepageUrls: ReadonlySet<string>;
+  pageNumber: number;
+}): Promise<HomepagePageFetchResult> {
+  const homepage = new URL(homepageUrl);
+  const homepageResult = await resolveHomepageHtml(homepageUrl, traceId, options);
+  let html = homepageResult.html;
+  const homepageParseStartedAt = Date.now();
+  let homepageArticle = buildArticleFromHtml(homepageUrl, html);
+  let $ = load(html);
+  timingLog(traceId, 'source:homepage_parsed', {
+    pageNumber,
+    ms: elapsedMs(homepageParseStartedAt),
+    homepageSource: homepageResult.source,
+    hasTitle: Boolean(homepageArticle.title),
+    hasDoi: Boolean(homepageArticle.doi),
+    hasAbstract: Boolean(homepageArticle.abstractText),
+    publishedAt: homepageArticle.publishedAt,
+  });
+
+  const fetched: Article[] = [];
+  const homepagePathname = homepage.pathname.toLowerCase();
+  if (
+    hasArticlePathSignal(homepagePathname) &&
+    hasStrongArticleSignals(homepageUrl, homepageArticle) &&
+    isWithinDateRange(homepageArticle.publishedAt, dateRange)
+  ) {
+    homepageArticle.sourceId = sourceId;
+    if (journalTitle) {
+      homepageArticle.journalTitle = journalTitle;
+    }
+    fetchedSourceUrls.add(homepageArticle.sourceUrl);
+    fetched.push(homepageArticle);
+    timingLog(traceId, 'source:homepage_accepted', {
+      pageNumber,
+      sourceUrl: shortenForLog(homepageArticle.sourceUrl),
+    });
+    if (fetched.length >= remainingLimit) {
+      return {
+        homepageSource: homepageResult.source,
+        articles: fetched,
+        candidateAttempted: 0,
+        candidateResolved: 0,
+        candidateAccepted: 0,
+        usedHomepageOnly: true,
+        nextPageUrl: null,
+        stoppedByDateHint: false,
+      };
+    }
+  }
+
+  let candidateCollection = collectHomepageCandidateDescriptors(
+    homepage,
+    homepageUrl,
+    $,
+    sameDomainOnly,
+    dateRange,
+  );
+  if (candidateCollection.candidates.length === 0 && homepageResult.source === 'network' && ENABLE_BROWSER_RENDER_FALLBACK) {
+    try {
+      const renderedHomepageHtml = await fetchRenderedHtml(homepageUrl, {
+        timeoutMs: HOMEPAGE_RENDER_TIMEOUT_MS,
+        traceId,
+        stage: 'source_homepage_render',
+      });
+      html = renderedHomepageHtml;
+      homepageArticle = buildArticleFromHtml(homepageUrl, html);
+      $ = load(html);
+      candidateCollection = collectHomepageCandidateDescriptors(
+        homepage,
+        homepageUrl,
+        $,
+        sameDomainOnly,
+        dateRange,
+      );
+      timingLog(traceId, 'source:homepage_render_applied', {
+        pageNumber,
+        candidateCount: candidateCollection.candidates.length,
+        hasTitle: Boolean(homepageArticle.title),
+        hasAbstract: Boolean(homepageArticle.abstractText),
+        publishedAt: homepageArticle.publishedAt,
+      });
+    } catch (error) {
+      timingLog(traceId, 'source:homepage_render_skipped', {
+        pageNumber,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  let {
+    candidates,
+    linkCount,
+    datedCandidateCount,
+    inRangeDateHintCount,
+    dateFilteredCount,
+    stoppedByDateHint,
+    sortedDateHintsObserved,
+    consecutiveOlderDateHints,
+    stopDateHint,
+    extractorId,
+    extractorDiagnostics,
+  } = candidateCollection;
+
+  if (extractorId) {
+    timingLog(traceId, 'source:candidate_extractor_selected', {
+      pageNumber,
+      extractorId,
+      ...extractorDiagnostics,
+    });
+  }
+
+  if (stoppedByDateHint) {
+    timingLog(traceId, 'source:candidate_date_early_stop', {
+      pageNumber,
+      stopDateHint,
+      dateStart: dateRange.start,
+      datedCandidateCount,
+      consecutiveOlderDateHints,
+    });
+  }
+
+  if (
+    (extractorId === 'nature-news' || extractorId === 'nature-latest-news') &&
+    isNatureNewsRssHomepage(homepage)
+  ) {
+    const rssHints = await fetchNatureNewsRssDateHints(traceId);
+    if (rssHints.size > 0) {
+      let rssHintApplied = 0;
+      let rssFilteredCount = 0;
+      let rssInRangeHintCount = 0;
+      const mergedCandidates: CandidateDescriptor[] = [];
+
+      for (const candidate of candidates) {
+        if (candidate.dateHint) {
+          mergedCandidates.push(candidate);
+          continue;
+        }
+
+        const rssDateHint = rssHints.get(candidate.url) ?? null;
+        if (!rssDateHint) {
+          mergedCandidates.push(candidate);
+          continue;
+        }
+
+        rssHintApplied += 1;
+        if (!isWithinDateRange(rssDateHint, dateRange)) {
+          rssFilteredCount += 1;
+          continue;
+        }
+
+        rssInRangeHintCount += 1;
+        mergedCandidates.push({
+          ...candidate,
+          dateHint: rssDateHint,
+          score: candidate.score + IN_RANGE_DATE_HINT_SCORE_BOOST,
+        });
+      }
+
+      candidates = mergedCandidates;
+      datedCandidateCount += rssHintApplied;
+      inRangeDateHintCount += rssInRangeHintCount;
+      dateFilteredCount += rssFilteredCount;
+      timingLog(traceId, 'source:candidate_rss_hint_applied', {
+        pageNumber,
+        rssHintCount: rssHints.size,
+        rssHintApplied,
+        rssFilteredCount,
+        rssInRangeHintCount,
+        candidateCountAfterRss: candidates.length,
+      });
+    }
+  }
+
+  const sortedCandidates = [...candidates].sort((a, b) => {
+    if (extractorId) {
+      return a.order - b.order;
+    }
+    const scoreDiff = b.score - a.score;
+    if (scoreDiff !== 0) return scoreDiff;
+    return a.order - b.order;
+  });
+  const prioritizedCandidates = extractorId
+    ? sortedCandidates
+    : sortedCandidates.filter((candidate) => candidate.score >= -40);
+  const candidatesForAttempt = prioritizedCandidates.length > 0 ? prioritizedCandidates : sortedCandidates;
+  const defaultAttemptBudget = Math.min(
+    candidatesForAttempt.length,
+    Math.max(MIN_CANDIDATE_ATTEMPTS, remainingLimit * ATTEMPTS_PER_LIMIT),
+  );
+  const extractorAttemptBudget = Math.min(
+    candidatesForAttempt.length,
+    Math.max(
+      remainingLimit + EXTRACTOR_ATTEMPTS_MIN_BUFFER,
+      Math.ceil(remainingLimit * EXTRACTOR_ATTEMPTS_MULTIPLIER),
+    ),
+  );
+  const fastExtractorAttemptBudget = Math.min(
+    candidatesForAttempt.length,
+    Math.max(
+      remainingLimit + EXTRACTOR_FAST_ATTEMPTS_MIN_BUFFER,
+      Math.ceil(remainingLimit * EXTRACTOR_FAST_ATTEMPTS_MULTIPLIER),
+    ),
+  );
+  const hasDateRangeFilter = Boolean(dateRange.start || dateRange.end);
+  const dateHintCoverageRatio =
+    candidates.length > 0 ? Math.min(1, datedCandidateCount / candidates.length) : 0;
+  const shouldUseFastExtractorBudget = Boolean(
+    extractorId &&
+      (!hasDateRangeFilter ||
+        (dateHintCoverageRatio >= DATE_HINT_HIGH_COVERAGE_THRESHOLD && inRangeDateHintCount >= remainingLimit)),
+  );
+  const attemptBudgetMode = extractorId
+    ? shouldUseFastExtractorBudget
+      ? 'extractor_date_aware_fast'
+      : 'extractor_capped'
+    : 'default';
+  const attemptBudget = extractorId
+    ? shouldUseFastExtractorBudget
+      ? fastExtractorAttemptBudget
+      : extractorAttemptBudget
+    : defaultAttemptBudget;
+  const candidatesToFetch = candidatesForAttempt.slice(0, attemptBudget);
+  const maxAttempts = candidatesToFetch.length;
+  const retryEligibleMaxOrder = Math.max(
+    RETRY_PRIORITY_MIN_ORDER,
+    Math.ceil(remainingLimit * RETRY_PRIORITY_LIMIT_MULTIPLIER),
+  );
+  timingLog(traceId, 'source:candidates_ready', {
+    pageNumber,
+    linkCount,
+    candidateCount: candidates.length,
+    prioritizedCount: prioritizedCandidates.length,
+    attemptBudget,
+    attemptBudgetMode,
+    defaultAttemptBudget,
+    extractorAttemptBudget,
+    fastExtractorAttemptBudget,
+    datedCandidateCount,
+    inRangeDateHintCount,
+    dateHintCoverageRatio,
+    dateFilteredCount,
+    stoppedByDateHint,
+    sortedDateHintsObserved,
+    consecutiveOlderDateHints,
+    retryEligibleMaxOrder,
+  });
+
+  let candidateAttempted = 0;
+  let candidateResolved = 0;
+  let candidateAccepted = 0;
+  let candidateSettled = 0;
+  let acceptedSinceLastBatchLog = 0;
+  let nextCandidateIndex = 0;
+  let nextBatchLogAt = Math.min(CANDIDATE_FETCH_CONCURRENCY, maxAttempts);
+  const acceptedCandidates: Array<{ candidateOrder: number; article: Article }> = [];
+  const inFlightControllers = new Set<AbortController>();
+  const preserveInFlightCandidatesOnLimit = Boolean(extractorId);
+  const totalAcceptedCount = () => fetched.length + acceptedCandidates.length;
+  const abortInFlightCandidates = () => {
+    for (const controller of inFlightControllers) {
+      if (!controller.signal.aborted) {
+        controller.abort();
+      }
+    }
+  };
+
+  const maybeLogCandidateBatch = (force = false) => {
+    if (candidateSettled === 0) return;
+
+    const lastBatchUpperBound = Math.max(0, nextBatchLogAt - CANDIDATE_FETCH_CONCURRENCY);
+    const canLogRegularBatch = candidateSettled >= nextBatchLogAt;
+    const canLogPartialBatch = force && candidateSettled > lastBatchUpperBound;
+    if (!canLogRegularBatch && !canLogPartialBatch) return;
+
+    const batchStartOrder = lastBatchUpperBound + 1;
+    const batchSize = Math.min(CANDIDATE_FETCH_CONCURRENCY, candidateSettled - lastBatchUpperBound);
+    timingLog(traceId, 'source:candidate_batch_done', {
+      pageNumber,
+      batchStartOrder,
+      batchSize,
+      candidateResolved,
+      acceptedInBatch: acceptedSinceLastBatchLog,
+      totalFetched: totalAcceptedCount(),
+    });
+    acceptedSinceLastBatchLog = 0;
+
+    while (nextBatchLogAt <= candidateSettled) {
+      nextBatchLogAt += CANDIDATE_FETCH_CONCURRENCY;
+    }
+  };
+
+  const workerCount = Math.min(CANDIDATE_FETCH_CONCURRENCY, maxAttempts);
+  let stopLaunching = false;
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (true) {
+        if (stopLaunching) break;
+
+        const currentIndex = nextCandidateIndex;
+        nextCandidateIndex += 1;
+        if (currentIndex >= maxAttempts) break;
+
+        candidateAttempted += 1;
+        const candidateOrder = currentIndex + 1;
+        const candidate = candidatesToFetch[currentIndex];
+        let accepted = false;
+        const requestController = new AbortController();
+        inFlightControllers.add(requestController);
+
+        try {
+          const allowTimeoutRetry = Boolean(
+            !extractorId && candidateOrder <= retryEligibleMaxOrder && candidate.dateHint === null,
+          );
+          let articleHtml = '';
+          let usedRenderedHtml = false;
+          try {
+            articleHtml = await fetchCandidateHtmlWithRetry(
+              candidate.url,
+              traceId,
+              candidateOrder,
+              requestController.signal,
+              allowTimeoutRetry,
+            );
+          } catch (error) {
+            if (!shouldRenderCandidateAfterError({ error, candidateOrder, extractorId })) {
+              throw error;
+            }
+
+            articleHtml = await fetchRenderedHtml(candidate.url, {
+              timeoutMs: ARTICLE_RENDER_TIMEOUT_MS,
+              traceId,
+              stage: `candidate#${candidateOrder}:render`,
+              signal: requestController.signal,
+            });
+            usedRenderedHtml = true;
+          }
+
+          const parseStartedAt = Date.now();
+          let article = buildArticleFromHtml(candidate.url, articleHtml);
+          if (
+            !usedRenderedHtml &&
+            shouldConfirmRenderedArticle({
+              article,
+              candidateUrl: candidate.url,
+              candidateOrder,
+              extractorId,
+            })
+          ) {
+            if (canAttemptRenderedFallback({ candidateOrder, extractorId })) {
+              try {
+                const renderedArticleHtml = await fetchRenderedHtml(candidate.url, {
+                  timeoutMs: ARTICLE_RENDER_TIMEOUT_MS,
+                  traceId,
+                  stage: `candidate#${candidateOrder}:render_after_parse`,
+                  signal: requestController.signal,
+                });
+                const renderedArticle = buildArticleFromHtml(candidate.url, renderedArticleHtml);
+                if (isProbablyArticle(candidate.url, renderedArticle)) {
+                  article = renderedArticle;
+                  usedRenderedHtml = true;
+                  timingLog(traceId, 'candidate:render_promoted', {
+                    pageNumber,
+                    candidateOrder,
+                    url: shortenForLog(candidate.url),
+                  });
+                } else {
+                  continue;
+                }
+              } catch {
+                continue;
+              }
+            } else {
+              continue;
+            }
+          }
+          timingLog(traceId, 'candidate:parsed', {
+            pageNumber,
+            candidateOrder,
+            ms: elapsedMs(parseStartedAt),
+            score: candidate.score,
+            url: shortenForLog(candidate.url),
+            hasTitle: Boolean(article.title),
+            hasDoi: Boolean(article.doi),
+            hasAbstract: Boolean(article.abstractText),
+            publishedAt: article.publishedAt,
+            rendered: usedRenderedHtml,
+          });
+          candidateResolved += 1;
+
+          if (!isProbablyArticle(candidate.url, article)) continue;
+          if (!isWithinDateRange(article.publishedAt, dateRange)) continue;
+          if (fetchedSourceUrls.has(article.sourceUrl)) continue;
+
+          article.sourceId = sourceId;
+          if (journalTitle) {
+            article.journalTitle = journalTitle;
+          }
+
+          fetchedSourceUrls.add(article.sourceUrl);
+          acceptedCandidates.push({
+            candidateOrder,
+            article,
+          });
+          accepted = true;
+          candidateAccepted += 1;
+          if (totalAcceptedCount() >= remainingLimit) {
+            stopLaunching = true;
+            if (!preserveInFlightCandidatesOnLimit) {
+              abortInFlightCandidates();
+            }
+          }
+        } catch {
+          // Ignore individual candidate failures and continue draining the queue.
+        } finally {
+          inFlightControllers.delete(requestController);
+          candidateSettled += 1;
+          if (accepted) {
+            acceptedSinceLastBatchLog += 1;
+          }
+          maybeLogCandidateBatch();
+        }
+      }
+    }),
+  );
+  maybeLogCandidateBatch(true);
+
+  for (const item of acceptedCandidates.sort((a, b) => a.candidateOrder - b.candidateOrder)) {
+    if (fetched.length >= remainingLimit) break;
+    fetched.push(item.article);
+  }
+
+  const nextPageUrl =
+    fetched.length < remainingLimit && !stoppedByDateHint
+      ? resolveNextHomepageUrl({
+          homepage,
+          homepageUrl,
+          $,
+          seenHomepageUrls,
+        })
+      : null;
+
+  return {
+    homepageSource: homepageResult.source,
+    articles: fetched,
+    candidateAttempted,
+    candidateResolved,
+    candidateAccepted,
+    usedHomepageOnly: false,
+    nextPageUrl,
+    stoppedByDateHint,
+  };
+}
+
 async function fetchCandidateHtmlWithRetry(
   candidateUrl: string,
   traceId: string,
@@ -1315,436 +1827,89 @@ async function fetchLatestArticlesFromHomepage(
   });
 
   try {
-    const homepage = new URL(homepageUrl);
-    const homepageResult = await resolveHomepageHtml(homepageUrl, traceId, options);
-    let html = homepageResult.html;
-    const homepageParseStartedAt = Date.now();
-    let homepageArticle = buildArticleFromHtml(homepageUrl, html);
-    let $ = load(html);
-    timingLog(traceId, 'source:homepage_parsed', {
-      ms: elapsedMs(homepageParseStartedAt),
-      homepageSource: homepageResult.source,
-      hasTitle: Boolean(homepageArticle.title),
-      hasDoi: Boolean(homepageArticle.doi),
-      hasAbstract: Boolean(homepageArticle.abstractText),
-      publishedAt: homepageArticle.publishedAt,
-    });
-
     const fetched: Article[] = [];
     const fetchedSourceUrls = new Set<string>();
+    const seenHomepageUrls = new Set<string>();
+    let homepagePageCount = 0;
+    let totalCandidateAttempted = 0;
+    let totalCandidateResolved = 0;
+    let totalCandidateAccepted = 0;
+    let usedHomepageOnly = false;
+    let lastHomepageSource: HomepageHtmlResult['source'] = 'network';
+    let currentHomepageUrl: string | null = homepageUrl;
 
-    const homepagePathname = homepage.pathname.toLowerCase();
-    if (
-      hasArticlePathSignal(homepagePathname) &&
-      hasStrongArticleSignals(homepageUrl, homepageArticle) &&
-      isWithinDateRange(homepageArticle.publishedAt, dateRange)
-    ) {
-      homepageArticle.sourceId = sourceId;
-      if (journalTitle) {
-        homepageArticle.journalTitle = journalTitle;
+    while (currentHomepageUrl && fetched.length < perSourceLimit && homepagePageCount < MAX_PAGINATED_HOMEPAGE_PAGES) {
+      const normalizedHomepageUrl = new URL(currentHomepageUrl).toString();
+      if (seenHomepageUrls.has(normalizedHomepageUrl)) {
+        timingLog(traceId, 'source:pagination_loop_detected', {
+          homepagePageCount,
+          homepageUrl: shortenForLog(normalizedHomepageUrl),
+        });
+        break;
       }
-      fetchedSourceUrls.add(homepageArticle.sourceUrl);
-      fetched.push(homepageArticle);
-      timingLog(traceId, 'source:homepage_accepted', {
-        sourceUrl: shortenForLog(homepageArticle.sourceUrl),
+
+      seenHomepageUrls.add(normalizedHomepageUrl);
+      homepagePageCount += 1;
+
+      const pageResult = await fetchLatestArticlesFromHomepagePage({
+        sourceId,
+        homepageUrl: normalizedHomepageUrl,
+        journalTitle,
+        remainingLimit: perSourceLimit - fetched.length,
+        sameDomainOnly,
+        dateRange,
+        traceId,
+        options,
+        fetchedSourceUrls,
+        seenHomepageUrls,
+        pageNumber: homepagePageCount,
       });
+
+      lastHomepageSource = pageResult.homepageSource;
+      totalCandidateAttempted += pageResult.candidateAttempted;
+      totalCandidateResolved += pageResult.candidateResolved;
+      totalCandidateAccepted += pageResult.candidateAccepted;
+      usedHomepageOnly = usedHomepageOnly || pageResult.usedHomepageOnly;
+
+      for (const article of pageResult.articles) {
+        if (fetched.length >= perSourceLimit) break;
+        fetched.push(article);
+      }
+
       if (fetched.length >= perSourceLimit) {
-        timingLog(traceId, 'source:done', {
-          totalMs: elapsedMs(sourceStartedAt),
-          homepageSource: homepageResult.source,
-          fetchedCount: fetched.length,
-          candidateAttempted: 0,
-          candidateResolved: 0,
-          candidateAccepted: 0,
-          usedHomepageOnly: true,
-        });
-        return fetched;
+        break;
       }
-    }
 
-    let candidateCollection = collectHomepageCandidateDescriptors(
-      homepage,
-      homepageUrl,
-      $,
-      sameDomainOnly,
-      dateRange,
-    );
-    if (candidateCollection.candidates.length === 0 && homepageResult.source === 'network' && ENABLE_BROWSER_RENDER_FALLBACK) {
-      try {
-        const renderedHomepageHtml = await fetchRenderedHtml(homepageUrl, {
-          timeoutMs: HOMEPAGE_RENDER_TIMEOUT_MS,
-          traceId,
-          stage: 'source_homepage_render',
-        });
-        html = renderedHomepageHtml;
-        homepageArticle = buildArticleFromHtml(homepageUrl, html);
-        $ = load(html);
-        candidateCollection = collectHomepageCandidateDescriptors(
-          homepage,
-          homepageUrl,
-          $,
-          sameDomainOnly,
-          dateRange,
-        );
-        timingLog(traceId, 'source:homepage_render_applied', {
-          candidateCount: candidateCollection.candidates.length,
-          hasTitle: Boolean(homepageArticle.title),
-          hasAbstract: Boolean(homepageArticle.abstractText),
-          publishedAt: homepageArticle.publishedAt,
-        });
-      } catch (error) {
-        timingLog(traceId, 'source:homepage_render_skipped', {
-          message: error instanceof Error ? error.message : String(error),
-        });
+      if (!pageResult.nextPageUrl) {
+        break;
       }
-    }
-    let {
-      candidates,
-      linkCount,
-      datedCandidateCount,
-      inRangeDateHintCount,
-      dateFilteredCount,
-      stoppedByDateHint,
-      sortedDateHintsObserved,
-      consecutiveOlderDateHints,
-      stopDateHint,
-      extractorId,
-      extractorDiagnostics,
-    } = candidateCollection;
 
-    if (extractorId) {
-      timingLog(traceId, 'source:candidate_extractor_selected', {
-        extractorId,
-        ...extractorDiagnostics,
+      timingLog(traceId, 'source:pagination_continue', {
+        currentPageNumber: homepagePageCount,
+        nextHomepageUrl: shortenForLog(pageResult.nextPageUrl),
+        fetchedCount: fetched.length,
       });
+      currentHomepageUrl = pageResult.nextPageUrl;
     }
 
-    if (stoppedByDateHint) {
-      timingLog(traceId, 'source:candidate_date_early_stop', {
-        stopDateHint,
-        dateStart: dateRange.start,
-        datedCandidateCount,
-        consecutiveOlderDateHints,
+    if (homepagePageCount >= MAX_PAGINATED_HOMEPAGE_PAGES && currentHomepageUrl && fetched.length < perSourceLimit) {
+      timingLog(traceId, 'source:pagination_page_limit_reached', {
+        homepagePageCount,
+        maxHomepagePages: MAX_PAGINATED_HOMEPAGE_PAGES,
+        fetchedCount: fetched.length,
       });
-    }
-
-    if (
-      (extractorId === 'nature-news' || extractorId === 'nature-latest-news') &&
-      isNatureNewsRssHomepage(homepage)
-    ) {
-      const rssHints = await fetchNatureNewsRssDateHints(traceId);
-      if (rssHints.size > 0) {
-        let rssHintApplied = 0;
-        let rssFilteredCount = 0;
-        let rssInRangeHintCount = 0;
-        const mergedCandidates: CandidateDescriptor[] = [];
-
-        for (const candidate of candidates) {
-          if (candidate.dateHint) {
-            mergedCandidates.push(candidate);
-            continue;
-          }
-
-          const rssDateHint = rssHints.get(candidate.url) ?? null;
-          if (!rssDateHint) {
-            mergedCandidates.push(candidate);
-            continue;
-          }
-
-          rssHintApplied += 1;
-          if (!isWithinDateRange(rssDateHint, dateRange)) {
-            rssFilteredCount += 1;
-            continue;
-          }
-
-          rssInRangeHintCount += 1;
-          mergedCandidates.push({
-            ...candidate,
-            dateHint: rssDateHint,
-            score: candidate.score + IN_RANGE_DATE_HINT_SCORE_BOOST,
-          });
-        }
-
-        candidates = mergedCandidates;
-        datedCandidateCount += rssHintApplied;
-        inRangeDateHintCount += rssInRangeHintCount;
-        dateFilteredCount += rssFilteredCount;
-        timingLog(traceId, 'source:candidate_rss_hint_applied', {
-          rssHintCount: rssHints.size,
-          rssHintApplied,
-          rssFilteredCount,
-          rssInRangeHintCount,
-          candidateCountAfterRss: candidates.length,
-        });
-      }
-    }
-
-    const sortedCandidates = [...candidates].sort((a, b) => {
-      if (extractorId) {
-        return a.order - b.order;
-      }
-      const scoreDiff = b.score - a.score;
-      if (scoreDiff !== 0) return scoreDiff;
-      return a.order - b.order;
-    });
-    const prioritizedCandidates = extractorId
-      ? sortedCandidates
-      : sortedCandidates.filter((candidate) => candidate.score >= -40);
-    const candidatesForAttempt = prioritizedCandidates.length > 0 ? prioritizedCandidates : sortedCandidates;
-    const defaultAttemptBudget = Math.min(
-      candidatesForAttempt.length,
-      Math.max(MIN_CANDIDATE_ATTEMPTS, perSourceLimit * ATTEMPTS_PER_LIMIT),
-    );
-    const extractorAttemptBudget = Math.min(
-      candidatesForAttempt.length,
-      Math.max(
-        perSourceLimit + EXTRACTOR_ATTEMPTS_MIN_BUFFER,
-        Math.ceil(perSourceLimit * EXTRACTOR_ATTEMPTS_MULTIPLIER),
-      ),
-    );
-    const fastExtractorAttemptBudget = Math.min(
-      candidatesForAttempt.length,
-      Math.max(
-        perSourceLimit + EXTRACTOR_FAST_ATTEMPTS_MIN_BUFFER,
-        Math.ceil(perSourceLimit * EXTRACTOR_FAST_ATTEMPTS_MULTIPLIER),
-      ),
-    );
-    const hasDateRangeFilter = Boolean(dateRange.start || dateRange.end);
-    const dateHintCoverageRatio =
-      candidates.length > 0 ? Math.min(1, datedCandidateCount / candidates.length) : 0;
-    const shouldUseFastExtractorBudget = Boolean(
-      extractorId &&
-        (!hasDateRangeFilter ||
-          (dateHintCoverageRatio >= DATE_HINT_HIGH_COVERAGE_THRESHOLD &&
-            inRangeDateHintCount >= perSourceLimit)),
-    );
-    const attemptBudgetMode = extractorId
-      ? shouldUseFastExtractorBudget
-        ? 'extractor_date_aware_fast'
-        : 'extractor_capped'
-      : 'default';
-    const attemptBudget = extractorId
-      ? shouldUseFastExtractorBudget
-        ? fastExtractorAttemptBudget
-        : extractorAttemptBudget
-      : defaultAttemptBudget;
-    const candidatesToFetch = candidatesForAttempt.slice(0, attemptBudget);
-    const maxAttempts = candidatesToFetch.length;
-    const retryEligibleMaxOrder = Math.max(
-      RETRY_PRIORITY_MIN_ORDER,
-      Math.ceil(perSourceLimit * RETRY_PRIORITY_LIMIT_MULTIPLIER),
-    );
-    timingLog(traceId, 'source:candidates_ready', {
-      linkCount,
-      candidateCount: candidates.length,
-      prioritizedCount: prioritizedCandidates.length,
-      attemptBudget,
-      attemptBudgetMode,
-      defaultAttemptBudget,
-      extractorAttemptBudget,
-      fastExtractorAttemptBudget,
-      datedCandidateCount,
-      inRangeDateHintCount,
-      dateHintCoverageRatio,
-      dateFilteredCount,
-      stoppedByDateHint,
-      sortedDateHintsObserved,
-      consecutiveOlderDateHints,
-      retryEligibleMaxOrder,
-    });
-
-    let candidateAttempted = 0;
-    let candidateResolved = 0;
-    let candidateAccepted = 0;
-    let candidateSettled = 0;
-    let acceptedSinceLastBatchLog = 0;
-    let nextCandidateIndex = 0;
-    let nextBatchLogAt = Math.min(CANDIDATE_FETCH_CONCURRENCY, maxAttempts);
-    const acceptedCandidates: Array<{ candidateOrder: number; article: Article }> = [];
-    const inFlightControllers = new Set<AbortController>();
-    // Extractor-backed sources already give us a meaningful order, so let in-flight
-    // earlier candidates finish before we finalize the prefix.
-    const preserveInFlightCandidatesOnLimit = Boolean(extractorId);
-    const totalAcceptedCount = () => fetched.length + acceptedCandidates.length;
-    const abortInFlightCandidates = () => {
-      for (const controller of inFlightControllers) {
-        if (!controller.signal.aborted) {
-          controller.abort();
-        }
-      }
-    };
-
-    const maybeLogCandidateBatch = (force = false) => {
-      if (candidateSettled === 0) return;
-
-      const lastBatchUpperBound = Math.max(0, nextBatchLogAt - CANDIDATE_FETCH_CONCURRENCY);
-      const canLogRegularBatch = candidateSettled >= nextBatchLogAt;
-      const canLogPartialBatch = force && candidateSettled > lastBatchUpperBound;
-      if (!canLogRegularBatch && !canLogPartialBatch) return;
-
-      const batchStartOrder = lastBatchUpperBound + 1;
-      const batchSize = Math.min(CANDIDATE_FETCH_CONCURRENCY, candidateSettled - lastBatchUpperBound);
-      timingLog(traceId, 'source:candidate_batch_done', {
-        batchStartOrder,
-        batchSize,
-        candidateResolved,
-        acceptedInBatch: acceptedSinceLastBatchLog,
-        totalFetched: totalAcceptedCount(),
-      });
-      acceptedSinceLastBatchLog = 0;
-
-      while (nextBatchLogAt <= candidateSettled) {
-        nextBatchLogAt += CANDIDATE_FETCH_CONCURRENCY;
-      }
-    };
-
-    const workerCount = Math.min(CANDIDATE_FETCH_CONCURRENCY, maxAttempts);
-    let stopLaunching = false;
-    await Promise.all(
-      Array.from({ length: workerCount }, async () => {
-        while (true) {
-          if (stopLaunching) break;
-
-          const currentIndex = nextCandidateIndex;
-          nextCandidateIndex += 1;
-          if (currentIndex >= maxAttempts) break;
-
-          candidateAttempted += 1;
-          const candidateOrder = currentIndex + 1;
-          const candidate = candidatesToFetch[currentIndex];
-          let accepted = false;
-          const requestController = new AbortController();
-          inFlightControllers.add(requestController);
-
-          try {
-            const allowTimeoutRetry = Boolean(
-              !extractorId && candidateOrder <= retryEligibleMaxOrder && candidate.dateHint === null,
-            );
-            let articleHtml = '';
-            let usedRenderedHtml = false;
-            try {
-              articleHtml = await fetchCandidateHtmlWithRetry(
-                candidate.url,
-                traceId,
-                candidateOrder,
-                requestController.signal,
-                allowTimeoutRetry,
-              );
-            } catch (error) {
-              if (!shouldRenderCandidateAfterError({ error, candidateOrder, extractorId })) {
-                throw error;
-              }
-
-              articleHtml = await fetchRenderedHtml(candidate.url, {
-                timeoutMs: ARTICLE_RENDER_TIMEOUT_MS,
-                traceId,
-                stage: `candidate#${candidateOrder}:render`,
-                signal: requestController.signal,
-              });
-              usedRenderedHtml = true;
-            }
-
-            const parseStartedAt = Date.now();
-            let article = buildArticleFromHtml(candidate.url, articleHtml);
-            if (
-              !usedRenderedHtml &&
-              shouldConfirmRenderedArticle({
-                article,
-                candidateUrl: candidate.url,
-                candidateOrder,
-                extractorId,
-              })
-            ) {
-              if (canAttemptRenderedFallback({ candidateOrder, extractorId })) {
-                try {
-                  const renderedArticleHtml = await fetchRenderedHtml(candidate.url, {
-                    timeoutMs: ARTICLE_RENDER_TIMEOUT_MS,
-                    traceId,
-                    stage: `candidate#${candidateOrder}:render_after_parse`,
-                    signal: requestController.signal,
-                  });
-                  const renderedArticle = buildArticleFromHtml(candidate.url, renderedArticleHtml);
-                  if (isProbablyArticle(candidate.url, renderedArticle)) {
-                    article = renderedArticle;
-                    usedRenderedHtml = true;
-                    timingLog(traceId, 'candidate:render_promoted', {
-                      candidateOrder,
-                      url: shortenForLog(candidate.url),
-                    });
-                  } else {
-                    continue;
-                  }
-                } catch {
-                  continue;
-                }
-              }
-              else {
-                continue;
-              }
-            }
-            timingLog(traceId, 'candidate:parsed', {
-              candidateOrder,
-              ms: elapsedMs(parseStartedAt),
-              score: candidate.score,
-              url: shortenForLog(candidate.url),
-              hasTitle: Boolean(article.title),
-              hasDoi: Boolean(article.doi),
-              hasAbstract: Boolean(article.abstractText),
-              publishedAt: article.publishedAt,
-              rendered: usedRenderedHtml,
-            });
-            candidateResolved += 1;
-
-            if (!isProbablyArticle(candidate.url, article)) continue;
-            if (!isWithinDateRange(article.publishedAt, dateRange)) continue;
-            if (fetchedSourceUrls.has(article.sourceUrl)) continue;
-
-            article.sourceId = sourceId;
-            if (journalTitle) {
-              article.journalTitle = journalTitle;
-            }
-
-            fetchedSourceUrls.add(article.sourceUrl);
-            acceptedCandidates.push({
-              candidateOrder,
-              article,
-              });
-              accepted = true;
-              candidateAccepted += 1;
-              if (totalAcceptedCount() >= perSourceLimit) {
-                stopLaunching = true;
-                if (!preserveInFlightCandidatesOnLimit) {
-                  abortInFlightCandidates();
-                }
-              }
-            } catch {
-              // Ignore individual candidate failures and continue draining the queue.
-            } finally {
-            inFlightControllers.delete(requestController);
-            candidateSettled += 1;
-            if (accepted) {
-              acceptedSinceLastBatchLog += 1;
-            }
-            maybeLogCandidateBatch();
-          }
-        }
-      }),
-    );
-    maybeLogCandidateBatch(true);
-
-    for (const item of acceptedCandidates.sort((a, b) => a.candidateOrder - b.candidateOrder)) {
-      if (fetched.length >= perSourceLimit) break;
-      fetched.push(item.article);
     }
 
     timingLog(traceId, 'source:done', {
       totalMs: elapsedMs(sourceStartedAt),
-      homepageSource: homepageResult.source,
+      homepageSource: lastHomepageSource,
+      homepagePageCount,
       fetchedCount: fetched.length,
-      candidateAttempted,
-      candidateResolved,
-      candidateAccepted,
-      usedHomepageOnly: false,
+      candidateAttempted: totalCandidateAttempted,
+      candidateResolved: totalCandidateResolved,
+      candidateAccepted: totalCandidateAccepted,
+      usedHomepageOnly,
+      paginated: homepagePageCount > 1,
     });
     return fetched;
   } catch (error) {
@@ -1769,8 +1934,8 @@ export async function fetchLatestArticles(
   }
 
   const configuredUserLimit = await resolveConfiguredUserBatchLimit(storage);
-  // Per-source cap: each homepage/source gets its own independent limit budget.
-  const perSourceLimit = normalizeBatchLimitValue(payload.limit, configuredUserLimit);
+  // Per-source cap comes only from persisted user settings.
+  const perSourceLimit = configuredUserLimit;
   const sameDomainOnly = payload.sameDomainOnly !== false;
   const dateRange = parseDateRange(payload.startDate ?? null, payload.endDate ?? null);
   const fetched: Article[] = [];

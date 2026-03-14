@@ -33,7 +33,7 @@ type FetchLatestArticlesBatchParams = {
   desktopRuntime: boolean;
   addressBarUrl?: string | null;
   batchSources: BatchSource[];
-  limit: number;
+  limit?: number;
   sameDomainOnly: boolean;
   startDate?: string | null;
   endDate?: string | null;
@@ -57,7 +57,7 @@ export async function fetchLatestArticlesBatch({
   desktopRuntime,
   addressBarUrl,
   batchSources,
-  limit,
+  limit: _limit,
   sameDomainOnly,
   startDate,
   endDate,
@@ -82,7 +82,6 @@ export async function fetchLatestArticlesBatch({
   try {
     const articles = await invokeDesktop<Article[]>('fetch_latest_articles', {
       sources,
-      limit,
       sameDomainOnly,
       startDate: startDate || null,
       endDate: endDate || null,

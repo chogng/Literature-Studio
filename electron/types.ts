@@ -90,7 +90,6 @@ export interface FetchLatestArticlesPayload {
     homepageUrl?: string;
     journalTitle?: string;
   }>;
-  limit?: number | string;
   sameDomainOnly?: boolean;
   startDate?: string | null;
   endDate?: string | null;

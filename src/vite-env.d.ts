@@ -70,7 +70,6 @@ type AppCommandPayloadMap = {
   fetch_article: { url?: string };
   fetch_latest_articles: {
     sources?: DesktopFetchBatchSource[];
-    limit?: number | string;
     sameDomainOnly?: boolean;
     startDate?: string | null;
     endDate?: string | null;
