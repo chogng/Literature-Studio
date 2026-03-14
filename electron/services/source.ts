@@ -10,7 +10,9 @@ const defaultBatchSourceUrl = 'https://arxiv.org/list/cs/new';
 const defaultBatchSources: BatchSource[] = [
   { id: 'source-arxiv-cs-new', url: defaultBatchSourceUrl, journalTitle: '' },
 ];
-const defaultBatchLimit = 5;
+const batchLimitMin = 1;
+const batchLimitMax = 100;
+const defaultBatchLimit = 20;
 const defaultSameDomainOnly = true;
 const fallbackLocale: 'zh' | 'en' = 'zh';
 
@@ -101,7 +103,7 @@ function normalizeSettings(
   const parsedLimit = Number.parseInt(String(payload.defaultBatchLimit), 10);
   const normalizedLimit = Number.isNaN(parsedLimit)
     ? defaultBatchLimit
-    : Math.min(20, Math.max(1, parsedLimit));
+    : Math.min(batchLimitMax, Math.max(batchLimitMin, parsedLimit));
 
   return {
     defaultDownloadDir: downloadDir || null,

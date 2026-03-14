@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 
 import type { Article, DateRange, FetchLatestArticlesPayload, StorageService } from '../types.js';
 import { buildArticleFromHtml, hasStrongArticleSignals, isProbablyArticle, scoreCandidate } from './article-parser.js';
-import { isLikelyStaticResourcePath } from './article-url-rules.js';
+import { hasArticlePathSignal, isLikelyStaticResourcePath } from './article-url-rules.js';
 import { isWithinDateRange, parseDateRange, parseDateString } from '../utils/date.js';
 import { parseDateHintFromText } from '../utils/date-hint.js';
 import { cleanText } from '../utils/text.js';
@@ -10,30 +10,31 @@ import { normalizeUrl } from '../utils/url.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetch-timing.js';
 import {
   findHomepageCandidateExtractor,
-  isNatureNewsHomepage,
+  isNatureNewsRssHomepage,
   type HomepageCandidateSeed,
 } from './source-extractors/index.js';
 import { appError, isAppError } from '../utils/app-error.js';
 
-const ARTICLE_LIMIT_MAX = 20;
-const DEFAULT_BATCH_LIMIT = 5;
+const SYSTEM_BATCH_LIMIT_MAX = 100;
+const USER_BATCH_LIMIT_MIN = 1;
+const DEFAULT_USER_BATCH_LIMIT = 20;
 const DEFAULT_FETCH_TIMEOUT_MS = 12000;
 const HOMEPAGE_FETCH_TIMEOUT_MS = 12000;
-const ARTICLE_FETCH_TIMEOUT_MS = 5000;
-const ARTICLE_FETCH_RETRY_TIMEOUT_MS = 7000;
+const ARTICLE_FETCH_TIMEOUT_MS = 2200;
+const ARTICLE_FETCH_RETRY_TIMEOUT_MS = 3200;
 const ARTICLE_FETCH_RETRY_MAX_ATTEMPTS = 2;
-const ARTICLE_FETCH_RETRY_BACKOFF_MS = 80;
-const CANDIDATE_FETCH_CONCURRENCY = 8;
-const SOURCE_FETCH_CONCURRENCY = 3;
-const MIN_CANDIDATE_ATTEMPTS = 24;
-const ATTEMPTS_PER_LIMIT = 8;
-const EXTRACTOR_ATTEMPTS_MULTIPLIER = 1.6;
-const EXTRACTOR_ATTEMPTS_MIN_BUFFER = 10;
-const EXTRACTOR_FAST_ATTEMPTS_MULTIPLIER = 1.4;
-const EXTRACTOR_FAST_ATTEMPTS_MIN_BUFFER = 8;
-const DATE_HINT_HIGH_COVERAGE_THRESHOLD = 0.8;
-const RETRY_PRIORITY_MIN_ORDER = 12;
-const RETRY_PRIORITY_LIMIT_MULTIPLIER = 1.5;
+const ARTICLE_FETCH_RETRY_BACKOFF_MS = 20;
+const CANDIDATE_FETCH_CONCURRENCY = 12;
+const SOURCE_FETCH_CONCURRENCY = 4;
+const MIN_CANDIDATE_ATTEMPTS = 12;
+const ATTEMPTS_PER_LIMIT = 4;
+const EXTRACTOR_ATTEMPTS_MULTIPLIER = 1.25;
+const EXTRACTOR_ATTEMPTS_MIN_BUFFER = 6;
+const EXTRACTOR_FAST_ATTEMPTS_MULTIPLIER = 1.1;
+const EXTRACTOR_FAST_ATTEMPTS_MIN_BUFFER = 4;
+const DATE_HINT_HIGH_COVERAGE_THRESHOLD = 0.65;
+const RETRY_PRIORITY_MIN_ORDER = 6;
+const RETRY_PRIORITY_LIMIT_MULTIPLIER = 1.2;
 const CANDIDATE_DATE_HINT_PARENT_DEPTH = 4;
 const CANDIDATE_DATE_HINT_TEXT_MAX_LENGTH = 320;
 const MIN_SORTED_DATE_HINTS_FOR_EARLY_STOP = 3;
@@ -41,14 +42,53 @@ const MIN_CONSECUTIVE_OLDER_DATE_HINTS_FOR_EARLY_STOP = 4;
 const IN_RANGE_DATE_HINT_SCORE_BOOST = 40;
 const NATURE_NEWS_RSS_URL = 'https://www.nature.com/nature.rss';
 const NATURE_NEWS_RSS_HINT_TTL_MS = 5 * 60 * 1000;
+const HTML_FETCH_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+const HTML_FETCH_ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
+const BROWSER_FETCH_PARTITION = 'persist:reader-preview';
+const PREFER_BROWSER_FETCH = process.env.READER_FETCH_TRANSPORT !== 'node';
+const ENABLE_BROWSER_RENDER_FALLBACK = process.env.READER_FETCH_RENDER_FALLBACK !== '0';
+const ARTICLE_RENDER_TIMEOUT_MS = 4500;
+const HOMEPAGE_RENDER_TIMEOUT_MS = 4500;
+const BROWSER_RENDER_DOM_SETTLE_MS = 180;
+const RENDER_FALLBACK_MAX_ORDER = 8;
+const RENDER_FALLBACK_HTTP_STATUS = new Set(['401', '403', '408', '409', '423', '425', '429', '451']);
 
 const natureNewsRssHintCache = new Map<string, { expiresAt: number; hints: Map<string, string> }>();
+let browserHtmlFetchPromise: Promise<BrowserHtmlFetch | null> | null = null;
+let browserHtmlFetchUnsupported = false;
+let browserHtmlRendererPromise: Promise<BrowserHtmlRenderer | null> | null = null;
+let browserHtmlRendererUnsupported = false;
+let browserHtmlRendererQueue: Promise<void> = Promise.resolve();
 
 type FetchHtmlOptions = {
   timeoutMs?: number;
   traceId?: string;
   stage?: string;
   signal?: AbortSignal;
+};
+
+type HtmlFetchTransport = 'node' | 'browser';
+
+type BrowserHtmlFetch = {
+  fetch: (url: string, init: RequestInit) => Promise<Response>;
+  partition: string;
+};
+
+type BrowserHtmlRenderer = {
+  window: {
+    isDestroyed: () => boolean;
+    destroy: () => void;
+    webContents: {
+      isDestroyed: () => boolean;
+      loadURL: (url: string, options?: { userAgent?: string; extraHeaders?: string }) => Promise<unknown>;
+      executeJavaScript: (code: string, userGesture?: boolean) => Promise<unknown>;
+      stop: () => void;
+      setWindowOpenHandler?: (handler: () => { action: 'deny' }) => void;
+      getURL?: () => string;
+    };
+  };
+  partition: string;
 };
 
 type HomepageSource = {
@@ -141,6 +181,23 @@ function toTimeoutMs(value: unknown, fallback: number) {
   return parsed;
 }
 
+function normalizeBatchLimitValue(value: unknown, fallback: number = DEFAULT_USER_BATCH_LIMIT) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (Number.isNaN(parsed)) {
+    return Math.min(SYSTEM_BATCH_LIMIT_MAX, Math.max(USER_BATCH_LIMIT_MIN, fallback));
+  }
+  return Math.min(SYSTEM_BATCH_LIMIT_MAX, Math.max(USER_BATCH_LIMIT_MIN, parsed));
+}
+
+async function resolveConfiguredUserBatchLimit(storage: StorageService) {
+  try {
+    const settings = await storage.loadSettings();
+    return normalizeBatchLimitValue(settings?.defaultBatchLimit, DEFAULT_USER_BATCH_LIMIT);
+  } catch {
+    return DEFAULT_USER_BATCH_LIMIT;
+  }
+}
+
 function isAbortError(error: unknown) {
   return Boolean(error && typeof error === 'object' && (error as { name?: string }).name === 'AbortError');
 }
@@ -169,6 +226,394 @@ function hasUsablePreviewHomepageHtml(html: string) {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildHtmlFetchHeaders() {
+  return {
+    'user-agent': HTML_FETCH_USER_AGENT,
+    accept: HTML_FETCH_ACCEPT,
+  };
+}
+
+async function resolveBrowserHtmlFetch() {
+  if (!PREFER_BROWSER_FETCH || browserHtmlFetchUnsupported) {
+    return null;
+  }
+
+  if (!browserHtmlFetchPromise) {
+    browserHtmlFetchPromise = (async () => {
+      try {
+        const electronModule = (await import('electron')) as {
+          app?: { isReady?: () => boolean };
+          session?: {
+            fromPartition?: (
+              partition: string,
+            ) => {
+              fetch?: (url: string, init: RequestInit) => Promise<Response>;
+            };
+          };
+        };
+        const electronApp = electronModule.app;
+        const electronSession = electronModule.session;
+        if (!electronApp || typeof electronApp.isReady !== 'function') {
+          browserHtmlFetchUnsupported = true;
+          return null;
+        }
+        if (!electronApp.isReady()) {
+          return null;
+        }
+        if (!electronSession || typeof electronSession.fromPartition !== 'function') {
+          browserHtmlFetchUnsupported = true;
+          return null;
+        }
+
+        const chromiumSession = electronSession.fromPartition(BROWSER_FETCH_PARTITION);
+        if (!chromiumSession || typeof chromiumSession.fetch !== 'function') {
+          browserHtmlFetchUnsupported = true;
+          return null;
+        }
+
+        return {
+          fetch: chromiumSession.fetch.bind(chromiumSession),
+          partition: BROWSER_FETCH_PARTITION,
+        } satisfies BrowserHtmlFetch;
+      } catch {
+        browserHtmlFetchUnsupported = true;
+        return null;
+      }
+    })();
+  }
+
+  const resolved = await browserHtmlFetchPromise;
+  if (!resolved && !browserHtmlFetchUnsupported) {
+    browserHtmlFetchPromise = null;
+  }
+
+  return resolved;
+}
+
+async function requestHtmlWithPreferredTransport({
+  traceId,
+  stage,
+  url,
+  signal,
+}: {
+  traceId: string;
+  stage: string;
+  url: string;
+  signal: AbortSignal;
+}): Promise<{ response: Response; transport: HtmlFetchTransport }> {
+  const browserHtmlFetch = await resolveBrowserHtmlFetch();
+  if (browserHtmlFetch) {
+    try {
+      const response = await browserHtmlFetch.fetch(url, {
+        signal,
+        headers: buildHtmlFetchHeaders(),
+      });
+      return {
+        response,
+        transport: 'browser',
+      };
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
+      timingLog(traceId, `${stage}:browser_fallback`, {
+        url: shortenForLog(url),
+        partition: browserHtmlFetch.partition,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const response = await fetch(url, {
+    signal,
+    headers: buildHtmlFetchHeaders(),
+  });
+  return {
+    response,
+    transport: 'node',
+  };
+}
+
+async function resolveBrowserHtmlRenderer() {
+  if (!ENABLE_BROWSER_RENDER_FALLBACK || browserHtmlRendererUnsupported) {
+    return null;
+  }
+
+  if (!browserHtmlRendererPromise) {
+    browserHtmlRendererPromise = (async () => {
+      try {
+        const electronModule = (await import('electron')) as {
+          app?: { isReady?: () => boolean };
+          BrowserWindow?: new (options?: Record<string, unknown>) => BrowserHtmlRenderer['window'];
+        };
+        const electronApp = electronModule.app;
+        const ElectronBrowserWindow = electronModule.BrowserWindow;
+        if (!electronApp || typeof electronApp.isReady !== 'function') {
+          browserHtmlRendererUnsupported = true;
+          return null;
+        }
+        if (!electronApp.isReady()) {
+          return null;
+        }
+        if (!ElectronBrowserWindow) {
+          browserHtmlRendererUnsupported = true;
+          return null;
+        }
+
+        const window = new ElectronBrowserWindow({
+          show: false,
+          width: 1280,
+          height: 900,
+          autoHideMenuBar: true,
+          webPreferences: {
+            partition: BROWSER_FETCH_PARTITION,
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false,
+            backgroundThrottling: false,
+          },
+        });
+        window.webContents.setWindowOpenHandler?.(() => ({ action: 'deny' }));
+
+        return {
+          window,
+          partition: BROWSER_FETCH_PARTITION,
+        } satisfies BrowserHtmlRenderer;
+      } catch {
+        browserHtmlRendererUnsupported = true;
+        return null;
+      }
+    })();
+  }
+
+  const resolved = await browserHtmlRendererPromise;
+  if (!resolved && !browserHtmlRendererUnsupported) {
+    browserHtmlRendererPromise = null;
+    return null;
+  }
+  if (resolved?.window.isDestroyed()) {
+    browserHtmlRendererPromise = null;
+    return resolveBrowserHtmlRenderer();
+  }
+
+  return resolved;
+}
+
+async function runBrowserHtmlRenderTask<T>(task: () => Promise<T>) {
+  const previousTask = browserHtmlRendererQueue.catch(() => undefined);
+  const currentTask = previousTask.then(task);
+  browserHtmlRendererQueue = currentTask.then(
+    () => undefined,
+    () => undefined,
+  );
+  return currentTask;
+}
+
+function toErrorStatusCode(error: unknown) {
+  if (!isAppError(error)) return '';
+  return cleanText((error.details as { status?: unknown } | undefined)?.status);
+}
+
+function canAttemptRenderedFallback({
+  candidateOrder,
+  extractorId,
+}: {
+  candidateOrder: number;
+  extractorId: string | null;
+}) {
+  if (!ENABLE_BROWSER_RENDER_FALLBACK) return false;
+  if (extractorId) return true;
+  return candidateOrder <= RENDER_FALLBACK_MAX_ORDER;
+}
+
+function shouldRenderCandidateAfterError({
+  error,
+  candidateOrder,
+  extractorId,
+}: {
+  error: unknown;
+  candidateOrder: number;
+  extractorId: string | null;
+}) {
+  if (!canAttemptRenderedFallback({ candidateOrder, extractorId })) {
+    return false;
+  }
+
+  const status = toErrorStatusCode(error);
+  return status === 'TIMEOUT' || status === 'NETWORK_ERROR' || RENDER_FALLBACK_HTTP_STATUS.has(status);
+}
+
+function shouldConfirmRenderedArticle({
+  article,
+  candidateUrl,
+  candidateOrder,
+  extractorId,
+}: {
+  article: Article;
+  candidateUrl: string;
+  candidateOrder: number;
+  extractorId: string | null;
+}) {
+  if (!isProbablyArticle(candidateUrl, article)) {
+    return true;
+  }
+
+  const pathname = new URL(candidateUrl).pathname.toLowerCase();
+  if (!hasArticlePathSignal(pathname)) {
+    return false;
+  }
+
+  const title = cleanText(article.title);
+  const weakMetadata = !article.doi && !article.publishedAt && !article.abstractText;
+  const genericTitle = title.length < 12 || /^(?:shell|loading|article|home)$/i.test(title);
+  return weakMetadata && genericTitle;
+}
+
+async function fetchRenderedHtml(url: string, options: FetchHtmlOptions = {}) {
+  const traceId = cleanText(options.traceId) || 'fetch';
+  const stage = cleanText(options.stage) || 'html_render';
+  const timeoutMs = toTimeoutMs(options.timeoutMs, ARTICLE_RENDER_TIMEOUT_MS);
+  const renderer = await resolveBrowserHtmlRenderer();
+  if (!renderer) {
+    throw appError('HTTP_REQUEST_FAILED', {
+      status: 'RENDER_UNAVAILABLE',
+      statusText: 'Browser renderer unavailable',
+      url,
+    });
+  }
+
+  return runBrowserHtmlRenderTask(async () => {
+    const requestStartedAt = Date.now();
+    const { window } = renderer;
+    if (window.isDestroyed() || window.webContents.isDestroyed()) {
+      browserHtmlRendererPromise = null;
+      throw appError('HTTP_REQUEST_FAILED', {
+        status: 'RENDER_UNAVAILABLE',
+        statusText: 'Browser renderer destroyed',
+        url,
+      });
+    }
+
+    let abortedByExternalSignal = false;
+    let timedOut = false;
+    const externalSignal = options.signal;
+    const stopLoading = () => {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        try {
+          window.webContents.stop();
+        } catch {
+          // Ignore stop failures while tearing down a hidden renderer window.
+        }
+      }
+    };
+    const abortFromExternalSignal = () => {
+      abortedByExternalSignal = true;
+      stopLoading();
+    };
+
+    if (externalSignal?.aborted) {
+      abortFromExternalSignal();
+    } else if (externalSignal) {
+      externalSignal.addEventListener('abort', abortFromExternalSignal, { once: true });
+    }
+
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      stopLoading();
+    }, timeoutMs);
+
+    try {
+      await window.webContents.loadURL(url, {
+        userAgent: HTML_FETCH_USER_AGENT,
+        extraHeaders: `accept: ${HTML_FETCH_ACCEPT}\n`,
+      });
+      if (BROWSER_RENDER_DOM_SETTLE_MS > 0) {
+        await sleep(BROWSER_RENDER_DOM_SETTLE_MS);
+      }
+
+      const html = await window.webContents.executeJavaScript(
+        `(() => {
+          try {
+            return document.documentElement ? document.documentElement.outerHTML : '';
+          } catch {
+            return '';
+          }
+        })()`,
+        true,
+      );
+      const normalizedHtml = typeof html === 'string' ? html : '';
+      if (!normalizedHtml.trim()) {
+        throw appError('HTTP_REQUEST_FAILED', {
+          status: 'EMPTY_RENDERED_HTML',
+          statusText: 'Rendered page returned empty HTML',
+          url,
+        });
+      }
+
+      timingLog(traceId, `${stage}:ok`, {
+        ms: elapsedMs(requestStartedAt),
+        timeoutMs,
+        transport: 'browser-render',
+        url: shortenForLog(url),
+        finalUrl: shortenForLog(window.webContents.getURL?.() ?? url),
+        size: normalizedHtml.length,
+      });
+      return normalizedHtml;
+    } catch (error) {
+      if (isAppError(error)) {
+        throw error;
+      }
+
+      if (abortedByExternalSignal) {
+        timingLog(traceId, `${stage}:aborted`, {
+          ms: elapsedMs(requestStartedAt),
+          timeoutMs,
+          transport: 'browser-render',
+          url: shortenForLog(url),
+        });
+        throw appError('HTTP_REQUEST_FAILED', {
+          status: 'ABORTED',
+          statusText: 'Request aborted',
+          url,
+        });
+      }
+
+      if (timedOut) {
+        timingLog(traceId, `${stage}:timeout`, {
+          ms: elapsedMs(requestStartedAt),
+          timeoutMs,
+          transport: 'browser-render',
+          url: shortenForLog(url),
+        });
+        throw appError('HTTP_REQUEST_FAILED', {
+          status: 'TIMEOUT',
+          statusText: `Rendered request timed out after ${timeoutMs}ms`,
+          url,
+        });
+      }
+
+      timingLog(traceId, `${stage}:network_error`, {
+        ms: elapsedMs(requestStartedAt),
+        timeoutMs,
+        transport: 'browser-render',
+        url: shortenForLog(url),
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw appError('HTTP_REQUEST_FAILED', {
+        status: 'NETWORK_ERROR',
+        statusText: error instanceof Error ? error.message : String(error),
+        url,
+      });
+    } finally {
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', abortFromExternalSignal);
+      }
+      clearTimeout(timeoutId);
+    }
+  });
 }
 
 function extractDateHintFromElement($: ReturnType<typeof load>, node: CheerioAcceptedNode) {
@@ -651,13 +1096,11 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions = {}) {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, {
+    const { response, transport } = await requestHtmlWithPreferredTransport({
+      traceId,
+      stage,
+      url,
       signal: controller.signal,
-      headers: {
-        'user-agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
     });
 
     if (!response.ok) {
@@ -666,6 +1109,7 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions = {}) {
         status: response.status,
         statusText: response.statusText,
         timeoutMs,
+        transport,
         url: shortenForLog(url),
       });
       throw appError('HTTP_REQUEST_FAILED', {
@@ -680,6 +1124,7 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions = {}) {
       ms: elapsedMs(requestStartedAt),
       status: response.status,
       timeoutMs,
+      transport,
       url: shortenForLog(url),
       size: html.length,
     });
@@ -743,12 +1188,52 @@ export async function fetchArticle(urlValue: unknown, storage: StorageService) {
   });
 
   try {
-    const html = await fetchHtml(normalized, {
-      traceId,
-      stage: 'single_page',
-    });
+    let html = '';
+    let usedRenderedHtml = false;
+    try {
+      html = await fetchHtml(normalized, {
+        traceId,
+        stage: 'single_page',
+      });
+    } catch (error) {
+      if (!ENABLE_BROWSER_RENDER_FALLBACK) {
+        throw error;
+      }
+
+      html = await fetchRenderedHtml(normalized, {
+        timeoutMs: ARTICLE_RENDER_TIMEOUT_MS,
+        traceId,
+        stage: 'single_page_render',
+      });
+      usedRenderedHtml = true;
+    }
+
     const parseStartedAt = Date.now();
-    const article = buildArticleFromHtml(normalized, html);
+    let article = buildArticleFromHtml(normalized, html);
+    if (
+      !usedRenderedHtml &&
+      shouldConfirmRenderedArticle({
+        article,
+        candidateUrl: normalized,
+        candidateOrder: 1,
+        extractorId: 'single-article',
+      })
+    ) {
+      try {
+        const renderedHtml = await fetchRenderedHtml(normalized, {
+          timeoutMs: ARTICLE_RENDER_TIMEOUT_MS,
+          traceId,
+          stage: 'single_page_render_after_parse',
+        });
+        const renderedArticle = buildArticleFromHtml(normalized, renderedHtml);
+        if (isProbablyArticle(normalized, renderedArticle)) {
+          article = renderedArticle;
+          usedRenderedHtml = true;
+        }
+      } catch {
+        // Keep the raw article parse if render fallback cannot improve it.
+      }
+    }
     timingLog(traceId, 'fetch_article:parsed', {
       ms: elapsedMs(parseStartedAt),
       hasTitle: Boolean(article.title),
@@ -756,6 +1241,7 @@ export async function fetchArticle(urlValue: unknown, storage: StorageService) {
       hasAbstract: Boolean(article.abstractText),
       authorCount: article.authors.length,
       publishedAt: article.publishedAt,
+      rendered: usedRenderedHtml,
     });
 
     const saveStartedAt = Date.now();
@@ -812,7 +1298,7 @@ async function fetchLatestArticlesFromHomepage(
   sourceId: string,
   homepageUrl: string,
   journalTitle: string,
-  limit: number,
+  perSourceLimit: number,
   sameDomainOnly: boolean,
   dateRange: DateRange,
   traceId: string,
@@ -822,7 +1308,7 @@ async function fetchLatestArticlesFromHomepage(
   timingLog(traceId, 'source:start', {
     sourceId,
     homepageUrl: shortenForLog(homepageUrl),
-    limit,
+    perSourceLimit,
     sameDomainOnly,
     dateStart: dateRange.start,
     dateEnd: dateRange.end,
@@ -831,10 +1317,10 @@ async function fetchLatestArticlesFromHomepage(
   try {
     const homepage = new URL(homepageUrl);
     const homepageResult = await resolveHomepageHtml(homepageUrl, traceId, options);
-    const html = homepageResult.html;
+    let html = homepageResult.html;
     const homepageParseStartedAt = Date.now();
-    const homepageArticle = buildArticleFromHtml(homepageUrl, html);
-    const $ = load(html);
+    let homepageArticle = buildArticleFromHtml(homepageUrl, html);
+    let $ = load(html);
     timingLog(traceId, 'source:homepage_parsed', {
       ms: elapsedMs(homepageParseStartedAt),
       homepageSource: homepageResult.source,
@@ -847,7 +1333,9 @@ async function fetchLatestArticlesFromHomepage(
     const fetched: Article[] = [];
     const fetchedSourceUrls = new Set<string>();
 
+    const homepagePathname = homepage.pathname.toLowerCase();
     if (
+      hasArticlePathSignal(homepagePathname) &&
       hasStrongArticleSignals(homepageUrl, homepageArticle) &&
       isWithinDateRange(homepageArticle.publishedAt, dateRange)
     ) {
@@ -860,7 +1348,7 @@ async function fetchLatestArticlesFromHomepage(
       timingLog(traceId, 'source:homepage_accepted', {
         sourceUrl: shortenForLog(homepageArticle.sourceUrl),
       });
-      if (fetched.length >= limit) {
+      if (fetched.length >= perSourceLimit) {
         timingLog(traceId, 'source:done', {
           totalMs: elapsedMs(sourceStartedAt),
           homepageSource: homepageResult.source,
@@ -874,13 +1362,42 @@ async function fetchLatestArticlesFromHomepage(
       }
     }
 
-    const candidateCollection = collectHomepageCandidateDescriptors(
+    let candidateCollection = collectHomepageCandidateDescriptors(
       homepage,
       homepageUrl,
       $,
       sameDomainOnly,
       dateRange,
     );
+    if (candidateCollection.candidates.length === 0 && homepageResult.source === 'network' && ENABLE_BROWSER_RENDER_FALLBACK) {
+      try {
+        const renderedHomepageHtml = await fetchRenderedHtml(homepageUrl, {
+          timeoutMs: HOMEPAGE_RENDER_TIMEOUT_MS,
+          traceId,
+          stage: 'source_homepage_render',
+        });
+        html = renderedHomepageHtml;
+        homepageArticle = buildArticleFromHtml(homepageUrl, html);
+        $ = load(html);
+        candidateCollection = collectHomepageCandidateDescriptors(
+          homepage,
+          homepageUrl,
+          $,
+          sameDomainOnly,
+          dateRange,
+        );
+        timingLog(traceId, 'source:homepage_render_applied', {
+          candidateCount: candidateCollection.candidates.length,
+          hasTitle: Boolean(homepageArticle.title),
+          hasAbstract: Boolean(homepageArticle.abstractText),
+          publishedAt: homepageArticle.publishedAt,
+        });
+      } catch (error) {
+        timingLog(traceId, 'source:homepage_render_skipped', {
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     let {
       candidates,
       linkCount,
@@ -911,7 +1428,10 @@ async function fetchLatestArticlesFromHomepage(
       });
     }
 
-    if (extractorId === 'nature-news' && isNatureNewsHomepage(homepage)) {
+    if (
+      (extractorId === 'nature-news' || extractorId === 'nature-latest-news') &&
+      isNatureNewsRssHomepage(homepage)
+    ) {
       const rssHints = await fetchNatureNewsRssDateHints(traceId);
       if (rssHints.size > 0) {
         let rssHintApplied = 0;
@@ -973,24 +1493,30 @@ async function fetchLatestArticlesFromHomepage(
     const candidatesForAttempt = prioritizedCandidates.length > 0 ? prioritizedCandidates : sortedCandidates;
     const defaultAttemptBudget = Math.min(
       candidatesForAttempt.length,
-      Math.max(MIN_CANDIDATE_ATTEMPTS, limit * ATTEMPTS_PER_LIMIT),
+      Math.max(MIN_CANDIDATE_ATTEMPTS, perSourceLimit * ATTEMPTS_PER_LIMIT),
     );
     const extractorAttemptBudget = Math.min(
       candidatesForAttempt.length,
-      Math.max(limit + EXTRACTOR_ATTEMPTS_MIN_BUFFER, Math.ceil(limit * EXTRACTOR_ATTEMPTS_MULTIPLIER)),
+      Math.max(
+        perSourceLimit + EXTRACTOR_ATTEMPTS_MIN_BUFFER,
+        Math.ceil(perSourceLimit * EXTRACTOR_ATTEMPTS_MULTIPLIER),
+      ),
     );
     const fastExtractorAttemptBudget = Math.min(
       candidatesForAttempt.length,
-      Math.max(limit + EXTRACTOR_FAST_ATTEMPTS_MIN_BUFFER, Math.ceil(limit * EXTRACTOR_FAST_ATTEMPTS_MULTIPLIER)),
+      Math.max(
+        perSourceLimit + EXTRACTOR_FAST_ATTEMPTS_MIN_BUFFER,
+        Math.ceil(perSourceLimit * EXTRACTOR_FAST_ATTEMPTS_MULTIPLIER),
+      ),
     );
     const hasDateRangeFilter = Boolean(dateRange.start || dateRange.end);
     const dateHintCoverageRatio =
       candidates.length > 0 ? Math.min(1, datedCandidateCount / candidates.length) : 0;
     const shouldUseFastExtractorBudget = Boolean(
       extractorId &&
-        hasDateRangeFilter &&
-        dateHintCoverageRatio >= DATE_HINT_HIGH_COVERAGE_THRESHOLD &&
-        inRangeDateHintCount >= limit,
+        (!hasDateRangeFilter ||
+          (dateHintCoverageRatio >= DATE_HINT_HIGH_COVERAGE_THRESHOLD &&
+            inRangeDateHintCount >= perSourceLimit)),
     );
     const attemptBudgetMode = extractorId
       ? shouldUseFastExtractorBudget
@@ -1006,7 +1532,7 @@ async function fetchLatestArticlesFromHomepage(
     const maxAttempts = candidatesToFetch.length;
     const retryEligibleMaxOrder = Math.max(
       RETRY_PRIORITY_MIN_ORDER,
-      Math.ceil(limit * RETRY_PRIORITY_LIMIT_MULTIPLIER),
+      Math.ceil(perSourceLimit * RETRY_PRIORITY_LIMIT_MULTIPLIER),
     );
     timingLog(traceId, 'source:candidates_ready', {
       linkCount,
@@ -1036,6 +1562,9 @@ async function fetchLatestArticlesFromHomepage(
     let nextBatchLogAt = Math.min(CANDIDATE_FETCH_CONCURRENCY, maxAttempts);
     const acceptedCandidates: Array<{ candidateOrder: number; article: Article }> = [];
     const inFlightControllers = new Set<AbortController>();
+    // Extractor-backed sources already give us a meaningful order, so let in-flight
+    // earlier candidates finish before we finalize the prefix.
+    const preserveInFlightCandidatesOnLimit = Boolean(extractorId);
     const totalAcceptedCount = () => fetched.length + acceptedCandidates.length;
     const abortInFlightCandidates = () => {
       for (const controller of inFlightControllers) {
@@ -1088,16 +1617,71 @@ async function fetchLatestArticlesFromHomepage(
           inFlightControllers.add(requestController);
 
           try {
-            const allowTimeoutRetry = candidateOrder <= retryEligibleMaxOrder || candidate.dateHint === null;
-            const articleHtml = await fetchCandidateHtmlWithRetry(
-              candidate.url,
-              traceId,
-              candidateOrder,
-              requestController.signal,
-              allowTimeoutRetry,
+            const allowTimeoutRetry = Boolean(
+              !extractorId && candidateOrder <= retryEligibleMaxOrder && candidate.dateHint === null,
             );
+            let articleHtml = '';
+            let usedRenderedHtml = false;
+            try {
+              articleHtml = await fetchCandidateHtmlWithRetry(
+                candidate.url,
+                traceId,
+                candidateOrder,
+                requestController.signal,
+                allowTimeoutRetry,
+              );
+            } catch (error) {
+              if (!shouldRenderCandidateAfterError({ error, candidateOrder, extractorId })) {
+                throw error;
+              }
+
+              articleHtml = await fetchRenderedHtml(candidate.url, {
+                timeoutMs: ARTICLE_RENDER_TIMEOUT_MS,
+                traceId,
+                stage: `candidate#${candidateOrder}:render`,
+                signal: requestController.signal,
+              });
+              usedRenderedHtml = true;
+            }
+
             const parseStartedAt = Date.now();
-            const article = buildArticleFromHtml(candidate.url, articleHtml);
+            let article = buildArticleFromHtml(candidate.url, articleHtml);
+            if (
+              !usedRenderedHtml &&
+              shouldConfirmRenderedArticle({
+                article,
+                candidateUrl: candidate.url,
+                candidateOrder,
+                extractorId,
+              })
+            ) {
+              if (canAttemptRenderedFallback({ candidateOrder, extractorId })) {
+                try {
+                  const renderedArticleHtml = await fetchRenderedHtml(candidate.url, {
+                    timeoutMs: ARTICLE_RENDER_TIMEOUT_MS,
+                    traceId,
+                    stage: `candidate#${candidateOrder}:render_after_parse`,
+                    signal: requestController.signal,
+                  });
+                  const renderedArticle = buildArticleFromHtml(candidate.url, renderedArticleHtml);
+                  if (isProbablyArticle(candidate.url, renderedArticle)) {
+                    article = renderedArticle;
+                    usedRenderedHtml = true;
+                    timingLog(traceId, 'candidate:render_promoted', {
+                      candidateOrder,
+                      url: shortenForLog(candidate.url),
+                    });
+                  } else {
+                    continue;
+                  }
+                } catch {
+                  continue;
+                }
+              }
+              else {
+                continue;
+              }
+            }
             timingLog(traceId, 'candidate:parsed', {
               candidateOrder,
               ms: elapsedMs(parseStartedAt),
@@ -1107,6 +1691,7 @@ async function fetchLatestArticlesFromHomepage(
               hasDoi: Boolean(article.doi),
               hasAbstract: Boolean(article.abstractText),
               publishedAt: article.publishedAt,
+              rendered: usedRenderedHtml,
             });
             candidateResolved += 1;
 
@@ -1123,16 +1708,18 @@ async function fetchLatestArticlesFromHomepage(
             acceptedCandidates.push({
               candidateOrder,
               article,
-            });
-            accepted = true;
-            candidateAccepted += 1;
-            if (totalAcceptedCount() >= limit) {
-              stopLaunching = true;
-              abortInFlightCandidates();
-            }
-          } catch {
-            // Ignore individual candidate failures and continue draining the queue.
-          } finally {
+              });
+              accepted = true;
+              candidateAccepted += 1;
+              if (totalAcceptedCount() >= perSourceLimit) {
+                stopLaunching = true;
+                if (!preserveInFlightCandidatesOnLimit) {
+                  abortInFlightCandidates();
+                }
+              }
+            } catch {
+              // Ignore individual candidate failures and continue draining the queue.
+            } finally {
             inFlightControllers.delete(requestController);
             candidateSettled += 1;
             if (accepted) {
@@ -1146,7 +1733,7 @@ async function fetchLatestArticlesFromHomepage(
     maybeLogCandidateBatch(true);
 
     for (const item of acceptedCandidates.sort((a, b) => a.candidateOrder - b.candidateOrder)) {
-      if (fetched.length >= limit) break;
+      if (fetched.length >= perSourceLimit) break;
       fetched.push(item.article);
     }
 
@@ -1181,10 +1768,9 @@ export async function fetchLatestArticles(
     throw appError('BATCH_HOMEPAGE_URLS_EMPTY');
   }
 
-  const limit = Math.min(
-    ARTICLE_LIMIT_MAX,
-    Math.max(1, Number.parseInt(String(payload.limit ?? DEFAULT_BATCH_LIMIT), 10) || DEFAULT_BATCH_LIMIT),
-  );
+  const configuredUserLimit = await resolveConfiguredUserBatchLimit(storage);
+  // Per-source cap: each homepage/source gets its own independent limit budget.
+  const perSourceLimit = normalizeBatchLimitValue(payload.limit, configuredUserLimit);
   const sameDomainOnly = payload.sameDomainOnly !== false;
   const dateRange = parseDateRange(payload.startDate ?? null, payload.endDate ?? null);
   const fetched: Article[] = [];
@@ -1193,7 +1779,9 @@ export async function fetchLatestArticles(
   let rawFetchedCount = 0;
   timingLog(traceId, 'batch:start', {
     sourceCount: homepageSources.length,
-    limit,
+    perSourceLimit,
+    configuredUserLimit,
+    systemLimit: SYSTEM_BATCH_LIMIT_MAX,
     sameDomainOnly,
     dateStart: dateRange.start,
     dateEnd: dateRange.end,
@@ -1210,7 +1798,7 @@ export async function fetchLatestArticles(
             source.sourceId,
             source.homepageUrl,
             source.journalTitle,
-            limit,
+            perSourceLimit,
             sameDomainOnly,
             dateRange,
             `${traceId}:${source.sourceId}`,

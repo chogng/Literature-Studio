@@ -1,7 +1,7 @@
 import { normalizeUrl } from '../utils/url';
 
-const batchLimitMin = 1;
-const batchLimitMax = 20;
+export const batchLimitMin = 1;
+export const batchLimitMax = 100;
 
 export const defaultBatchSourceUrl = 'https://arxiv.org/list/cs/new';
 export type BatchSource = {
@@ -62,7 +62,7 @@ export const defaultBatchSources: BatchSource[] = [
     journalTitle: '',
   },
 ];
-export const defaultBatchLimit = 5;
+export const defaultBatchLimit = 20;
 export const defaultSameDomainOnly = true;
 
 export function normalizeBatchLimit(input: unknown, fallback: number = defaultBatchLimit): number {
