@@ -1,9 +1,15 @@
 import { load } from 'cheerio';
 
 import type { Article, DateRange, FetchLatestArticlesPayload, StorageService } from '../types.js';
-import { buildArticleFromHtml, isProbablyArticle, scoreCandidate } from './article-parser.js';
+import { buildArticleFromHtml, hasStrongArticleSignals, isProbablyArticle, scoreCandidate } from './article-parser.js';
+import { isLikelyStaticResourcePath } from './article-url-rules.js';
+import { parseDateHintFromText } from './date-hint.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetch-timing.js';
-import { findHomepageCandidateExtractor, type HomepageCandidateSeed } from './source-extractors/index.js';
+import {
+  findHomepageCandidateExtractor,
+  isNatureNewsHomepage,
+  type HomepageCandidateSeed,
+} from './source-extractors/index.js';
 import { isWithinDateRange, normalizeUrl, parseDateRange, cleanText, parseDateString } from '../utils/text.js';
 import { appError, isAppError } from '../utils/app-error.js';
 
@@ -163,31 +169,6 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function extractDateHintFromText(value: string) {
-  const normalized = cleanText(value);
-  if (!normalized) return null;
-
-  const direct = parseDateString(normalized);
-  if (direct) return direct;
-
-  const monthName =
-    '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
-  const patterns = [
-    /\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b/i,
-    new RegExp(`\\b\\d{1,2}\\s+${monthName}\\s+\\d{4}\\b`, 'i'),
-    new RegExp(`\\b${monthName}\\s+\\d{1,2},?\\s+\\d{4}\\b`, 'i'),
-  ];
-
-  for (const pattern of patterns) {
-    const matched = normalized.match(pattern);
-    if (!matched) continue;
-    const parsed = parseDateString(matched[0]);
-    if (parsed) return parsed;
-  }
-
-  return null;
-}
-
 function extractDateHintFromElement($: ReturnType<typeof load>, node: CheerioAcceptedNode) {
   const element = $(node);
   const directValues = [
@@ -197,7 +178,7 @@ function extractDateHintFromElement($: ReturnType<typeof load>, node: CheerioAcc
     element.attr('title'),
   ];
   for (const value of directValues) {
-    const parsed = extractDateHintFromText(String(value ?? ''));
+    const parsed = parseDateHintFromText(value);
     if (parsed) return parsed;
   }
 
@@ -215,14 +196,14 @@ function extractDateHintFromElement($: ReturnType<typeof load>, node: CheerioAcc
       nestedDateElement.attr('title'),
     ];
     for (const value of nestedValues) {
-      const parsed = extractDateHintFromText(String(value ?? ''));
+      const parsed = parseDateHintFromText(value);
       if (parsed) return parsed;
     }
   }
 
   const text = cleanText(element.text());
   if (text && text.length <= CANDIDATE_DATE_HINT_TEXT_MAX_LENGTH) {
-    return extractDateHintFromText(text);
+    return parseDateHintFromText(text);
   }
 
   return null;
@@ -279,7 +260,7 @@ function collectCandidateDescriptorsFromSeeds(
       const candidateUrl = new URL(href, homepageUrl);
       if (!/^https?:$/i.test(candidateUrl.protocol)) continue;
       if (sameDomainOnly && candidateUrl.host !== homepage.host) continue;
-      if (/\.(pdf|jpg|jpeg|png|svg|gif|zip|rar|xml|rss|css|js|woff2?)$/i.test(candidateUrl.pathname)) continue;
+      if (isLikelyStaticResourcePath(candidateUrl.pathname)) continue;
 
       const normalized = candidateUrl.toString();
       if (seen.has(normalized)) continue;
@@ -386,10 +367,6 @@ function collectHomepageCandidateDescriptors(
     dateRange,
     buildGenericCandidateSeeds($),
   );
-}
-
-function isNatureNewsHomepage(homepage: URL) {
-  return homepage.host === 'www.nature.com' && homepage.pathname.replace(/\/+$/, '') === '/news';
 }
 
 function parseNatureNewsRssDateHints(xml: string) {
@@ -501,16 +478,6 @@ async function fetchCandidateHtmlWithRetry(
     statusText: 'Candidate fetch retries exhausted',
     url: candidateUrl,
   });
-}
-
-function hasStrongArticleSignals(candidateUrl: string, article: Article) {
-  const pathname = new URL(candidateUrl).pathname.toLowerCase();
-  if (/(?:\/article|\/articles|\/paper|\/papers|\/doi|\/abs|\/content)/.test(pathname)) {
-    return true;
-  }
-  if (article.doi) return true;
-  if (article.abstractText && article.abstractText.length > 60) return true;
-  return false;
 }
 
 async function attemptHomepageNetworkHtml(

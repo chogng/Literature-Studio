@@ -2,8 +2,15 @@ import { load } from 'cheerio';
 
 import type { Article } from '../types.js';
 import { cleanNullable, cleanText, parseDateString, pickFirstNonEmpty, uniq } from '../utils/text.js';
+import {
+  hasArticlePathScoreSignal,
+  hasArticlePathSignal,
+  hasNewsListingPathSignal,
+  isLikelyStaticResourcePath,
+} from './article-url-rules.js';
 
 const DOI_RE = /10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i;
+type StructuredDataRecord = Record<string, unknown>;
 
 function pickMetaContent($: ReturnType<typeof load>, selectors: string[]) {
   for (const selector of selectors) {
@@ -14,7 +21,41 @@ function pickMetaContent($: ReturnType<typeof load>, selectors: string[]) {
   return '';
 }
 
-function extractAuthors($: ReturnType<typeof load>) {
+function collectStructuredDataItems(input: unknown, target: StructuredDataRecord[]) {
+  if (!input || typeof input !== 'object') return;
+
+  if (Array.isArray(input)) {
+    input.forEach((entry) => collectStructuredDataItems(entry, target));
+    return;
+  }
+
+  const record = input as StructuredDataRecord;
+  target.push(record);
+
+  const graph = record['@graph'];
+  if (Array.isArray(graph)) {
+    graph.forEach((entry) => collectStructuredDataItems(entry, target));
+  }
+}
+
+function extractStructuredDataItems($: ReturnType<typeof load>) {
+  const items: StructuredDataRecord[] = [];
+
+  $('script[type="application/ld+json"]').each((_, node) => {
+    const raw = $(node).html();
+    if (!raw) return;
+
+    try {
+      collectStructuredDataItems(JSON.parse(raw), items);
+    } catch {
+      return;
+    }
+  });
+
+  return items;
+}
+
+function extractAuthors($: ReturnType<typeof load>, structuredDataItems: StructuredDataRecord[]) {
   const byMeta = [
     ...$('meta[name="citation_author"]')
       .map((_, node) => cleanText($(node).attr('content')))
@@ -32,44 +73,37 @@ function extractAuthors($: ReturnType<typeof load>) {
   }
 
   const ldAuthors: string[] = [];
-  $('script[type="application/ld+json"]').each((_, node) => {
-    const raw = $(node).html();
-    if (!raw) return;
+  for (const item of structuredDataItems) {
+    const author = item?.author;
+    if (!author) continue;
 
-    try {
-      const payload = JSON.parse(raw);
-      const items = Array.isArray(payload) ? payload : [payload];
-      for (const item of items) {
-        const author = item?.author;
-        if (!author) continue;
-
-        if (Array.isArray(author)) {
-          author.forEach((entry) => {
-            if (typeof entry === 'string') {
-              const text = cleanText(entry);
-              if (text) ldAuthors.push(text);
-              return;
-            }
-
-            const text = cleanText(entry?.name);
-            if (text) ldAuthors.push(text);
-          });
-          continue;
-        }
-
-        if (typeof author === 'string') {
-          const text = cleanText(author);
+    if (Array.isArray(author)) {
+      author.forEach((entry) => {
+        if (typeof entry === 'string') {
+          const text = cleanText(entry);
           if (text) ldAuthors.push(text);
-          continue;
+          return;
         }
 
-        const text = cleanText(author?.name);
+        const text = cleanText(
+          entry && typeof entry === 'object' ? (entry as { name?: unknown }).name : '',
+        );
         if (text) ldAuthors.push(text);
-      }
-    } catch {
-      return;
+      });
+      continue;
     }
-  });
+
+    if (typeof author === 'string') {
+      const text = cleanText(author);
+      if (text) ldAuthors.push(text);
+      continue;
+    }
+
+    const text = cleanText(
+      author && typeof author === 'object' ? (author as { name?: unknown }).name : '',
+    );
+    if (text) ldAuthors.push(text);
+  }
 
   return uniq(ldAuthors);
 }
@@ -88,18 +122,50 @@ function extractDoi($: ReturnType<typeof load>, html: string) {
   return matched ? matched[0] : null;
 }
 
-function extractPublishedDate($: ReturnType<typeof load>) {
-  return (
-    parseDateString(
-      pickMetaContent($, [
-        'meta[name="citation_publication_date"]',
-        'meta[name="citation_online_date"]',
-        'meta[name="dc.date"]',
-        'meta[name="prism.publicationDate"]',
-        'meta[property="article:published_time"]',
-      ]),
-    ) ?? null
+function extractPublishedDate($: ReturnType<typeof load>, structuredDataItems: StructuredDataRecord[]) {
+  const metaDate = parseDateString(
+    pickMetaContent($, [
+      'meta[name="citation_publication_date"]',
+      'meta[name="citation_online_date"]',
+      'meta[name="citation_date"]',
+      'meta[name="dc.date"]',
+      'meta[name="dc.date.issued"]',
+      'meta[name="prism.publicationDate"]',
+      'meta[name="article_date_original"]',
+      'meta[property="article:published_time"]',
+      'meta[property="og:article:published_time"]',
+      'meta[itemprop="datePublished"]',
+    ]),
   );
+  if (metaDate) return metaDate;
+
+  const semanticDateCandidates = [
+    $('time[datetime]').first().attr('datetime'),
+    $('[itemprop="datePublished"]').first().attr('datetime'),
+    $('[itemprop="datePublished"]').first().attr('content'),
+    $('[itemprop="datePublished"]').first().text(),
+    $('time[pubdate]').first().attr('datetime'),
+    $('time[pubdate]').first().text(),
+  ];
+  for (const value of semanticDateCandidates) {
+    const parsed = parseDateString(value);
+    if (parsed) return parsed;
+  }
+
+  for (const item of structuredDataItems) {
+    const structuredCandidates = [
+      item.datePublished,
+      item.dateCreated,
+      item.dateIssued,
+      item.uploadDate,
+    ];
+    for (const value of structuredCandidates) {
+      const parsed = parseDateString(value);
+      if (parsed) return parsed;
+    }
+  }
+
+  return null;
 }
 
 function extractAbstract($: ReturnType<typeof load>) {
@@ -135,11 +201,12 @@ function extractTitle($: ReturnType<typeof load>) {
 
 export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
   const $ = load(html);
+  const structuredDataItems = extractStructuredDataItems($);
   const title = extractTitle($);
   const doi = extractDoi($, html);
-  const authors = extractAuthors($);
+  const authors = extractAuthors($, structuredDataItems);
   const abstractText = extractAbstract($);
-  const publishedAt = extractPublishedDate($);
+  const publishedAt = extractPublishedDate($, structuredDataItems);
 
   return {
     title,
@@ -152,14 +219,18 @@ export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
   };
 }
 
-export function isProbablyArticle(candidateUrl: string, article: Article) {
-  if (!article.title) return false;
-
+export function hasStrongArticleSignals(candidateUrl: string, article: Pick<Article, 'doi' | 'abstractText'>) {
   const pathname = new URL(candidateUrl).pathname.toLowerCase();
-  const articlePath = /(?:\/article|\/articles|\/paper|\/papers|\/doi|\/abs|\/content)/.test(pathname);
-  if (articlePath) return true;
+  if (hasArticlePathSignal(pathname)) return true;
   if (article.doi) return true;
   if (article.abstractText && article.abstractText.length > 60) return true;
+
+  return false;
+}
+
+export function isProbablyArticle(candidateUrl: string, article: Article) {
+  if (!article.title) return false;
+  if (hasStrongArticleSignals(candidateUrl, article)) return true;
 
   return article.title.length >= 20;
 }
@@ -171,9 +242,9 @@ export function scoreCandidate(homepage: URL, candidate: string) {
 
   let score = 0;
   if (url.host === baseHost) score += 15;
-  if (/\/(?:article|articles|paper|papers|doi|abs|content)\b/.test(pathname)) score += 40;
-  if (/\/(latest|current|new|news)\b/.test(pathname)) score -= 30;
-  if (/\.(pdf|jpg|jpeg|png|svg|gif|zip|rar|xml|rss|css|js|woff2?)$/i.test(pathname)) score -= 80;
+  if (hasArticlePathScoreSignal(pathname)) score += 40;
+  if (hasNewsListingPathSignal(pathname)) score -= 30;
+  if (isLikelyStaticResourcePath(pathname)) score -= 80;
   if (pathname.split('/').filter(Boolean).length >= 2) score += 8;
 
   return score;

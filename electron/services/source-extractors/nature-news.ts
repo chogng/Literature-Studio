@@ -1,4 +1,5 @@
-import { cleanText, parseDateString } from '../../utils/text.js';
+import { parseDateHintFromText } from '../date-hint.js';
+import { cleanText } from '../../utils/text.js';
 
 import type {
   HomepageCandidateExtraction,
@@ -16,19 +17,9 @@ const NATURE_NEWS_LINK_SELECTOR = 'a[href*="/articles/"]';
 const NATURE_NEWS_DATE_SELECTOR =
   'time[datetime], [datetime], [itemprop="datePublished"], span, div';
 const NATURE_NEWS_RANK_RE = /Rank:\((\d+)\)/i;
-const NATURE_NEWS_TEXT_DATE_RE =
-  /\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}|(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4})\b/i;
 
 function parseNatureNewsDateValue(value: unknown) {
-  const normalized = cleanText(value);
-  if (!normalized) return null;
-
-  const direct = parseDateString(normalized);
-  if (direct) return direct;
-
-  const matched = normalized.match(NATURE_NEWS_TEXT_DATE_RE);
-  if (!matched) return null;
-  return parseDateString(matched[0]);
+  return parseDateHintFromText(value);
 }
 
 function countArticleLinksWithin({
@@ -298,7 +289,7 @@ function buildNatureNewsDiagnostics({
 export const natureNewsCandidateExtractor: HomepageCandidateExtractor = {
   id: 'nature-news',
   matches(homepage) {
-    return homepage.host === 'www.nature.com' && homepage.pathname.replace(/\/+$/, '') === '/news';
+    return isNatureNewsHomepage(homepage);
   },
   extract(context): HomepageCandidateExtraction | null {
     const { $, homepageUrl } = context;
@@ -347,3 +338,7 @@ export const natureNewsCandidateExtractor: HomepageCandidateExtractor = {
     };
   },
 };
+
+export function isNatureNewsHomepage(homepage: URL) {
+  return homepage.host === 'www.nature.com' && homepage.pathname.replace(/\/+$/, '') === '/news';
+}
