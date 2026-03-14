@@ -37,7 +37,7 @@ import {
 import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
 import { previewDownloadPdf } from './services/pdf.js';
 import { appError, serializeAppError } from './utils/app-error.js';
-import { normalizeUrl } from './utils/text.js';
+import { normalizeUrl } from './utils/url.js';
 import { getMainWindow } from './window.js';
 
 async function pickDownloadDirectory() {

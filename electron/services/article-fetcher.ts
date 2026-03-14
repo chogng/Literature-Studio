@@ -3,14 +3,16 @@ import { load } from 'cheerio';
 import type { Article, DateRange, FetchLatestArticlesPayload, StorageService } from '../types.js';
 import { buildArticleFromHtml, hasStrongArticleSignals, isProbablyArticle, scoreCandidate } from './article-parser.js';
 import { isLikelyStaticResourcePath } from './article-url-rules.js';
+import { isWithinDateRange, parseDateRange, parseDateString } from '../utils/date.js';
 import { parseDateHintFromText } from '../utils/date-hint.js';
+import { cleanText } from '../utils/text.js';
+import { normalizeUrl } from '../utils/url.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetch-timing.js';
 import {
   findHomepageCandidateExtractor,
   isNatureNewsHomepage,
   type HomepageCandidateSeed,
 } from './source-extractors/index.js';
-import { isWithinDateRange, normalizeUrl, parseDateRange, cleanText, parseDateString } from '../utils/text.js';
 import { appError, isAppError } from '../utils/app-error.js';
 
 const ARTICLE_LIMIT_MAX = 20;

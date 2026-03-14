@@ -3,7 +3,8 @@ import { promises as fs } from 'node:fs';
 import { load } from 'cheerio';
 
 import type { PreviewDownloadPdfPayload } from '../types.js';
-import { cleanText, normalizeUrl } from '../utils/text.js';
+import { cleanText } from '../utils/text.js';
+import { normalizeUrl } from '../utils/url.js';
 import { appError } from '../utils/app-error.js';
 import { fetchHtml } from './article-fetcher.js';
 

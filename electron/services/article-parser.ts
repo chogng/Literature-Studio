@@ -1,7 +1,8 @@
 import { load } from 'cheerio';
 
 import type { Article } from '../types.js';
-import { cleanNullable, cleanText, parseDateString, pickFirstNonEmpty, uniq } from '../utils/text.js';
+import { parseDateString } from '../utils/date.js';
+import { cleanNullable, cleanText, pickFirstNonEmpty, uniq } from '../utils/text.js';
 import {
   hasArticlePathScoreSignal,
   hasArticlePathSignal,
