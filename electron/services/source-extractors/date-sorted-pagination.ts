@@ -2,6 +2,7 @@ import type {
   HomepagePaginationStopContext,
   HomepagePaginationStopEvaluation,
 } from './types.js';
+import { hasDateRangeStart } from '../../utils/date.js';
 
 const DEFAULT_TAIL_WINDOW = 3;
 const DEFAULT_MIN_DATED_COVERAGE = 0.5;
@@ -23,6 +24,12 @@ function isNonIncreasing(values: string[]) {
   return true;
 }
 
+function hasDateHint<T extends { dateHint?: string | null }>(
+  candidate: T,
+): candidate is T & { dateHint: string } {
+  return typeof candidate.dateHint === 'string' && candidate.dateHint.length > 0;
+}
+
 export function createDateSortedPaginationStopEvaluator({
   tailWindow = DEFAULT_TAIL_WINDOW,
   minTailCount = tailWindow,
@@ -34,7 +41,7 @@ export function createDateSortedPaginationStopEvaluator({
     dateRange,
     extraction,
   }: HomepagePaginationStopContext): HomepagePaginationStopEvaluation | null {
-    if (!dateRange.start) {
+    if (!hasDateRangeStart(dateRange)) {
       return null;
     }
 
@@ -44,9 +51,9 @@ export function createDateSortedPaginationStopEvaluator({
     }
 
     const orderedDateHints = candidates
-      .filter((candidate) => Boolean(candidate.dateHint))
+      .filter(hasDateHint)
       .sort((left, right) => left.order - right.order)
-      .map((candidate) => candidate.dateHint as string);
+      .map((candidate) => candidate.dateHint);
 
     if (orderedDateHints.length < minTailCount) {
       return null;

@@ -82,21 +82,34 @@ type BrowserHtmlFetch = {
   partition: string;
 };
 
+type BrowserDidFailLoadListener = (
+  event: unknown,
+  errorCode: number,
+  errorDescription: string,
+  validatedURL: string,
+  isMainFrame?: boolean,
+) => void;
+
+type BrowserRendererWebContents = {
+  isDestroyed: () => boolean;
+  loadURL: (url: string, options?: { userAgent?: string; extraHeaders?: string }) => Promise<unknown>;
+  executeJavaScript: (code: string, userGesture?: boolean) => Promise<unknown>;
+  stop: () => void;
+  setWindowOpenHandler?: (handler: () => { action: 'deny' }) => void;
+  getURL?: () => string;
+  on(event: 'did-fail-load', listener: BrowserDidFailLoadListener): void;
+  on(event: string, listener: (...args: unknown[]) => void): void;
+  off?(event: 'did-fail-load', listener: BrowserDidFailLoadListener): void;
+  off?(event: string, listener: (...args: unknown[]) => void): void;
+  removeListener?(event: 'did-fail-load', listener: BrowserDidFailLoadListener): void;
+  removeListener?(event: string, listener: (...args: unknown[]) => void): void;
+};
+
 type BrowserHtmlRenderer = {
   window: {
     isDestroyed: () => boolean;
     destroy: () => void;
-    webContents: {
-      isDestroyed: () => boolean;
-      loadURL: (url: string, options?: { userAgent?: string; extraHeaders?: string }) => Promise<unknown>;
-      executeJavaScript: (code: string, userGesture?: boolean) => Promise<unknown>;
-      stop: () => void;
-      setWindowOpenHandler?: (handler: () => { action: 'deny' }) => void;
-      getURL?: () => string;
-      on: (event: string, listener: (...args: unknown[]) => void) => void;
-      off?: (event: string, listener: (...args: unknown[]) => void) => void;
-      removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
-    };
+    webContents: BrowserRendererWebContents;
   };
   partition: string;
 };
@@ -519,13 +532,9 @@ function shouldRenderCandidateAfterError({
 function shouldConfirmRenderedArticle({
   article,
   candidateUrl,
-  candidateOrder,
-  extractorId,
 }: {
   article: Article;
   candidateUrl: string;
-  candidateOrder: number;
-  extractorId: string | null;
 }) {
   if (!isProbablyArticle(candidateUrl, article)) {
     return true;
@@ -1487,8 +1496,6 @@ async function fetchLatestArticlesFromHomepagePage({
             shouldConfirmRenderedArticle({
               article,
               candidateUrl: candidate.url,
-              candidateOrder,
-              extractorId,
             })
           ) {
             if (canAttemptRenderedFallback({ candidateOrder, extractorId })) {
@@ -1952,8 +1959,6 @@ export async function fetchArticle(urlValue: unknown, storage: StorageService) {
       shouldConfirmRenderedArticle({
         article,
         candidateUrl: normalized,
-        candidateOrder: 1,
-        extractorId: 'single-article',
       })
     ) {
       try {

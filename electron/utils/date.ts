@@ -2,6 +2,8 @@ import type { DateRange } from '../types.js';
 import { appError } from './app-error.js';
 import { cleanText } from './text.js';
 
+export type DateRangeWithStart = DateRange & { start: string };
+
 const MONTH_NAME_TO_INDEX: Record<string, number> = {
   jan: 0,
   january: 0,
@@ -104,6 +106,10 @@ export function parseDateRange(startDate: unknown, endDate: unknown): DateRange 
   }
 
   return { start, end };
+}
+
+export function hasDateRangeStart(range: DateRange): range is DateRangeWithStart {
+  return typeof range.start === 'string' && range.start.length > 0;
 }
 
 export function isWithinDateRange(value: string | null | undefined, range: DateRange) {

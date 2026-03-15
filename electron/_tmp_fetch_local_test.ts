@@ -95,7 +95,7 @@ function parseArticleId(sourceUrl: string) {
   return matched ? Number.parseInt(matched[1], 10) : Number.NaN;
 }
 
-function buildExpectedIds(label: 'A' | 'B') {
+function buildExpectedIds() {
   const prefersBrowserTransport = process.env.READER_FETCH_TRANSPORT !== 'node';
   const expectsBrowserSessionArticles =
     prefersBrowserTransport || process.env.READER_FETCH_RENDER_FALLBACK !== '0';
@@ -107,13 +107,10 @@ function buildExpectedIds(label: 'A' | 'B') {
   return Array.from({ length: articleLimit }, (_, index) => index + 13);
 }
 
-function verifyAccuracy(
-  label: 'A' | 'B',
-  articles: Array<{ title: string; publishedAt: string | null; abstractText: string | null }>,
-) {
+function verifyAccuracy(articles: Array<{ title: string; publishedAt: string | null; abstractText: string | null }>) {
   if (articles.length !== articleLimit) return false;
 
-  const expectedIds = buildExpectedIds(label);
+  const expectedIds = buildExpectedIds();
   const expectsBrowserSessionArticles = expectedIds[0] === 1;
 
   return articles.every((article, index) => {
@@ -223,9 +220,9 @@ async function main() {
     );
     const elapsedMs = Date.now() - startedAt;
     const articleIds = articles.map((article) => parseArticleId(article.sourceUrl));
-    const expectedIds = buildExpectedIds(variant);
+    const expectedIds = buildExpectedIds();
     const orderPass = articleIds.every((id, index) => id === expectedIds[index]);
-    const accuracyPass = verifyAccuracy(variant, articles);
+    const accuracyPass = verifyAccuracy(articles);
 
     console.log(
       JSON.stringify({
