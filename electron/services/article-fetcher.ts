@@ -29,11 +29,12 @@ const USER_BATCH_LIMIT_MIN = 1;
 const DEFAULT_USER_BATCH_LIMIT = 20;
 const DEFAULT_FETCH_TIMEOUT_MS = 12000;
 const HOMEPAGE_FETCH_TIMEOUT_MS = 12000;
-const ARTICLE_FETCH_TIMEOUT_MS = 2200;
-const ARTICLE_FETCH_RETRY_TIMEOUT_MS = 3200;
+const ARTICLE_FETCH_TIMEOUT_MS = 3000;
+const ARTICLE_FETCH_RETRY_TIMEOUT_MS = 4200;
 const ARTICLE_FETCH_RETRY_MAX_ATTEMPTS = 2;
 const ARTICLE_FETCH_RETRY_BACKOFF_MS = 20;
 const CANDIDATE_FETCH_CONCURRENCY = 12;
+const EXTRACTOR_CANDIDATE_FETCH_CONCURRENCY = 8;
 const SOURCE_FETCH_CONCURRENCY = 4;
 const MIN_CANDIDATE_ATTEMPTS = 12;
 const ATTEMPTS_PER_LIMIT = 4;
@@ -59,6 +60,7 @@ const ARTICLE_RENDER_TIMEOUT_MS = 4500;
 const HOMEPAGE_RENDER_TIMEOUT_MS = 4500;
 const BROWSER_RENDER_DOM_SETTLE_MS = 180;
 const RENDER_FALLBACK_MAX_ORDER = 8;
+const EXTRACTOR_RENDER_FALLBACK_MAX_ORDER = 10;
 const RENDER_FALLBACK_HTTP_STATUS = new Set(['401', '403', '408', '409', '423', '425', '429', '451']);
 const MAX_PAGINATED_HOMEPAGE_PAGES = 20;
 
@@ -534,7 +536,7 @@ function canAttemptRenderedFallback({
   extractorId: string | null;
 }) {
   if (!ENABLE_BROWSER_RENDER_FALLBACK) return false;
-  if (extractorId) return true;
+  if (extractorId) return candidateOrder <= EXTRACTOR_RENDER_FALLBACK_MAX_ORDER;
   return candidateOrder <= RENDER_FALLBACK_MAX_ORDER;
 }
 
@@ -1372,6 +1374,7 @@ async function fetchLatestArticlesFromHomepagePage({
     : defaultAttemptBudget;
   const candidatesToFetch = candidatesForAttempt.slice(0, attemptBudget);
   const maxAttempts = candidatesToFetch.length;
+  const candidateFetchConcurrency = extractorId ? EXTRACTOR_CANDIDATE_FETCH_CONCURRENCY : CANDIDATE_FETCH_CONCURRENCY;
   const candidateSlotsRemaining = Math.max(remainingLimit - fetched.length, 0);
   const retryEligibleMaxOrder = Math.max(
     RETRY_PRIORITY_MIN_ORDER,
@@ -1395,6 +1398,7 @@ async function fetchLatestArticlesFromHomepagePage({
     sortedDateHintsObserved,
     consecutiveOlderDateHints,
     retryEligibleMaxOrder,
+    candidateFetchConcurrency,
   });
 
   let candidateAttempted = 0;
@@ -1403,7 +1407,7 @@ async function fetchLatestArticlesFromHomepagePage({
   let candidateSettled = 0;
   let acceptedSinceLastBatchLog = 0;
   let nextCandidateIndex = 0;
-  let nextBatchLogAt = Math.min(CANDIDATE_FETCH_CONCURRENCY, maxAttempts);
+  let nextBatchLogAt = Math.min(candidateFetchConcurrency, maxAttempts);
   const acceptedCandidates: Array<{ candidateOrder: number; article: Article }> = [];
   const inFlightControllers = new Map<number, AbortController>();
   const settledCandidateOrders = new Set<number>();
@@ -1446,13 +1450,13 @@ async function fetchLatestArticlesFromHomepagePage({
   const maybeLogCandidateBatch = (force = false) => {
     if (candidateSettled === 0) return;
 
-    const lastBatchUpperBound = Math.max(0, nextBatchLogAt - CANDIDATE_FETCH_CONCURRENCY);
+    const lastBatchUpperBound = Math.max(0, nextBatchLogAt - candidateFetchConcurrency);
     const canLogRegularBatch = candidateSettled >= nextBatchLogAt;
     const canLogPartialBatch = force && candidateSettled > lastBatchUpperBound;
     if (!canLogRegularBatch && !canLogPartialBatch) return;
 
     const batchStartOrder = lastBatchUpperBound + 1;
-    const batchSize = Math.min(CANDIDATE_FETCH_CONCURRENCY, candidateSettled - lastBatchUpperBound);
+    const batchSize = Math.min(candidateFetchConcurrency, candidateSettled - lastBatchUpperBound);
     timingLog(traceId, 'source:candidate_batch_done', {
       pageNumber,
       batchStartOrder,
@@ -1464,11 +1468,11 @@ async function fetchLatestArticlesFromHomepagePage({
     acceptedSinceLastBatchLog = 0;
 
     while (nextBatchLogAt <= candidateSettled) {
-      nextBatchLogAt += CANDIDATE_FETCH_CONCURRENCY;
+      nextBatchLogAt += candidateFetchConcurrency;
     }
   };
 
-  const workerCount = Math.min(CANDIDATE_FETCH_CONCURRENCY, maxAttempts);
+  const workerCount = Math.min(candidateFetchConcurrency, maxAttempts);
   let stopLaunching = false;
   await Promise.all(
     Array.from({ length: workerCount }, async () => {
@@ -1488,7 +1492,7 @@ async function fetchLatestArticlesFromHomepagePage({
 
         try {
           const allowTimeoutRetry = Boolean(
-            !extractorId && candidateOrder <= retryEligibleMaxOrder && candidate.dateHint === null,
+            extractorId || (candidateOrder <= retryEligibleMaxOrder && candidate.dateHint === null),
           );
           let articleHtml = '';
           let usedRenderedHtml = false;
