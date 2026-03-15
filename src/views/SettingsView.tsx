@@ -1,5 +1,5 @@
 import * as Checkbox from '@radix-ui/react-checkbox';
-import { Check, FolderOpen, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, FolderOpen, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { batchLimitMax, batchLimitMin } from '../services/batchSettings';
@@ -16,6 +16,7 @@ export default function SettingsView({
   onBatchSourceJournalTitleChange,
   onAddBatchSource,
   onRemoveBatchSource,
+  onMoveBatchSource,
   batchLimit,
   onBatchLimitChange,
   sameDomainOnly,
@@ -77,6 +78,38 @@ export default function SettingsView({
             <div className="settings-url-list">
               {batchSources.map((source, index) => (
                 <div key={source.id || `settings-batch-url-${index}`} className="settings-url-row">
+                  <div className="settings-url-order-controls">
+                    <Button
+                      type="button"
+                      mode="icon"
+                      variant="secondary"
+                      size="sm"
+                      iconMode="with"
+                      textMode="without"
+                      className="settings-url-order-btn"
+                      onClick={() => onMoveBatchSource(index, 'up')}
+                      disabled={index === 0 || isSettingsSaving}
+                      title={labels.moveBatchUrlUp}
+                      aria-label={labels.moveBatchUrlUp}
+                    >
+                      <ArrowUp size={14} />
+                    </Button>
+                    <Button
+                      type="button"
+                      mode="icon"
+                      variant="secondary"
+                      size="sm"
+                      iconMode="with"
+                      textMode="without"
+                      className="settings-url-order-btn"
+                      onClick={() => onMoveBatchSource(index, 'down')}
+                      disabled={index === batchSources.length - 1 || isSettingsSaving}
+                      title={labels.moveBatchUrlDown}
+                      aria-label={labels.moveBatchUrlDown}
+                    >
+                      <ArrowDown size={14} />
+                    </Button>
+                  </div>
                   <Input
                     className="settings-input-control"
                     size="sm"

@@ -434,6 +434,21 @@ function MainApp() {
     });
   }, []);
 
+  const handleMoveBatchSource = useCallback((index: number, direction: 'up' | 'down') => {
+    setBatchSources((current) => {
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (index < 0 || index >= current.length || targetIndex < 0 || targetIndex >= current.length) {
+        return current;
+      }
+
+      const next = [...current];
+      const currentSource = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = currentSource;
+      return next;
+    });
+  }, []);
+
   const handleLocaleChange = useCallback(
     (nextLocale: Locale) => {
       setLocale(nextLocale);
@@ -735,6 +750,8 @@ function MainApp() {
               batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
               addBatchUrl: ui.addBatchUrl,
               removeBatchUrl: ui.removeBatchUrl,
+              moveBatchUrlUp: ui.moveBatchUrlUp,
+              moveBatchUrlDown: ui.moveBatchUrlDown,
               settingsBatchOptions: ui.settingsBatchOptions,
               batchCount: ui.batchCount,
               sameDomainOnly: ui.sameDomainOnly,
@@ -758,6 +775,7 @@ function MainApp() {
             onBatchSourceJournalTitleChange={handleBatchSourceJournalTitleChange}
             onAddBatchSource={handleAddBatchSource}
             onRemoveBatchSource={handleRemoveBatchSource}
+            onMoveBatchSource={handleMoveBatchSource}
             batchLimit={batchLimit}
             onBatchLimitChange={(value) => setBatchLimit(normalizeBatchLimit(value, 1))}
             sameDomainOnly={sameDomainOnly}

@@ -32,6 +32,8 @@ const en = {
   settingsHomepageUrlHint: 'Add multiple source pages here. Batch fetch will visit each URL in this list.',
   addBatchUrl: 'Add URL',
   removeBatchUrl: 'Remove URL',
+  moveBatchUrlUp: 'Move up',
+  moveBatchUrlDown: 'Move down',
   settingsBatchJournalTitle: 'Journal title',
   batchJournalTitlePlaceholder: 'Journal title for this URL (e.g., Nature News)',
   settingsBatchOptions: 'Default batch fetch options',

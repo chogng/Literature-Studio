@@ -32,6 +32,8 @@ const zh = {
   settingsHomepageUrlHint: '可在这里维护多个抓取来源。批量抓取时会依次访问这些 URL。',
   addBatchUrl: '添加 URL',
   removeBatchUrl: '删除 URL',
+  moveBatchUrlUp: '上移',
+  moveBatchUrlDown: '下移',
   settingsBatchJournalTitle: '期刊名',
   batchJournalTitlePlaceholder: '该 URL 对应的期刊名（例如：Nature News）',
   settingsBatchOptions: '默认批量抓取选项',

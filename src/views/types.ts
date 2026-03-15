@@ -63,6 +63,8 @@ export type SettingsViewLabels = {
   batchJournalTitlePlaceholder: string;
   addBatchUrl: string;
   removeBatchUrl: string;
+  moveBatchUrlUp: string;
+  moveBatchUrlDown: string;
   settingsBatchOptions: string;
   batchCount: string;
   sameDomainOnly: string;
@@ -89,6 +91,7 @@ export type SettingsViewProps = {
   onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void;
   onAddBatchSource: () => void;
   onRemoveBatchSource: (index: number) => void;
+  onMoveBatchSource: (index: number, direction: 'up' | 'down') => void;
   batchLimit: number;
   onBatchLimitChange: (value: string) => void;
   sameDomainOnly: boolean;

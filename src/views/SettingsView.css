@@ -83,9 +83,23 @@
 
 .settings-url-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 220px) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 220px) auto;
   gap: 8px;
   align-items: center;
+}
+
+.settings-url-order-controls {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 4px;
+  align-items: center;
+}
+
+.settings-url-order-btn.btn-mode-icon.btn-sm {
+  --btn-icon-size: 32px;
+  min-width: var(--btn-icon-size);
+  max-width: var(--btn-icon-size);
+  border-radius: 4px;
 }
 
 .settings-input-control {
@@ -149,7 +163,6 @@
   .settings-url-row {
     grid-template-columns: 1fr;
   }
-
   .settings-header {
     flex-wrap: wrap;
   }
