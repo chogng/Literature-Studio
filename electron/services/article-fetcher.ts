@@ -228,7 +228,7 @@ function isNatureListingHomepagePath(pathname: string) {
   const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
   if (normalizedPathname === '/latest-news') return true;
   if (normalizedPathname === '/opinion') return true;
-  return /^\/[^/]+\/research-articles$/i.test(normalizedPathname);
+  return /^\/[^/]+\/(?:research-articles|reviews-and-analysis)$/i.test(normalizedPathname);
 }
 
 function isLikelyArticleDetailHomepagePath(pathname: string) {
