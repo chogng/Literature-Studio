@@ -20,6 +20,7 @@ import type {
 } from './types.js';
 import {
   getPreviewDocumentSnapshot,
+  getPreviewHomepageCandidateSnapshot,
   getPreviewState,
   goBackPreview,
   goForwardPreview,
@@ -32,6 +33,7 @@ import { getNativeModalState, openArticleDetailsModal } from './native-modal.js'
 import {
   fetchArticle,
   fetchLatestArticles,
+  type HomepagePreviewExtractionSnapshot,
   type HomepagePreviewSnapshot,
 } from './services/article-fetcher.js';
 import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
@@ -39,6 +41,9 @@ import { previewDownloadPdf } from './services/pdf.js';
 import { appError, serializeAppError } from './utils/app-error.js';
 import { normalizeUrl } from './utils/url.js';
 import { getMainWindow } from './window.js';
+
+const BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS = 700;
+const BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS = 700;
 
 async function pickDownloadDirectory() {
   const mainWindow = getMainWindow();
@@ -122,9 +127,15 @@ async function resolvePreviewSnapshotHtml(payload: PreviewDownloadPdfPayload = {
   const requestedUrl = safeNormalizeUrl(payload.pageUrl ?? '');
   if (!requestedUrl) return null;
 
+  const previewState = getPreviewState();
+  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
+  if (!previewUrl || previewUrl !== requestedUrl) {
+    return null;
+  }
+
   const snapshot = await getPreviewDocumentSnapshot();
-  const previewUrl = safeNormalizeUrl(snapshot?.url ?? '');
-  if (!snapshot || !previewUrl || previewUrl !== requestedUrl) {
+  const snapshotUrl = safeNormalizeUrl(snapshot?.url ?? '');
+  if (!snapshot || !snapshotUrl || snapshotUrl !== requestedUrl) {
     return null;
   }
 
@@ -137,9 +148,9 @@ async function resolveBatchHomepagePreviewSnapshots(payload: FetchLatestArticles
     return new Map<string, HomepagePreviewSnapshot>();
   }
 
-  const snapshot = await getPreviewDocumentSnapshot();
-  const previewUrl = safeNormalizeUrl(snapshot?.url ?? '');
-  if (!snapshot || !previewUrl) {
+  const previewState = getPreviewState();
+  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
+  if (!previewUrl) {
     return new Map<string, HomepagePreviewSnapshot>();
   }
 
@@ -155,9 +166,21 @@ async function resolveBatchHomepagePreviewSnapshots(payload: FetchLatestArticles
     return new Map<string, HomepagePreviewSnapshot>();
   }
 
+  if (previewState.isLoading) {
+    return new Map<string, HomepagePreviewSnapshot>();
+  }
+
+  const snapshot = await getPreviewDocumentSnapshot({
+    timeoutMs: BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS,
+  });
+  const snapshotUrl = safeNormalizeUrl(snapshot?.url ?? '');
+  if (!snapshot || !snapshotUrl || snapshot.isLoading || !matchedUrls.has(snapshotUrl)) {
+    return new Map<string, HomepagePreviewSnapshot>();
+  }
+
   const resolvedSnapshot: HomepagePreviewSnapshot = {
     html: snapshot.html,
-    previewUrl,
+    previewUrl: snapshotUrl,
     captureMs: snapshot.captureMs,
     isLoading: snapshot.isLoading,
   };
@@ -170,6 +193,54 @@ async function resolveBatchHomepagePreviewSnapshots(payload: FetchLatestArticles
   return snapshots;
 }
 
+async function resolveBatchHomepagePreviewExtractions(payload: FetchLatestArticlesPayload = {}) {
+  const sources = Array.isArray(payload.sources) ? payload.sources : [];
+  if (sources.length === 0) {
+    return new Map<string, HomepagePreviewExtractionSnapshot>();
+  }
+
+  const previewState = getPreviewState();
+  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
+  if (!previewUrl || previewState.isLoading) {
+    return new Map<string, HomepagePreviewExtractionSnapshot>();
+  }
+
+  const matchedUrls = new Set<string>();
+  for (const source of sources) {
+    const homepageUrl = safeNormalizeUrl(source?.homepageUrl);
+    if (homepageUrl && homepageUrl === previewUrl) {
+      matchedUrls.add(homepageUrl);
+    }
+  }
+
+  if (matchedUrls.size === 0) {
+    return new Map<string, HomepagePreviewExtractionSnapshot>();
+  }
+
+  const extraction = await getPreviewHomepageCandidateSnapshot({
+    timeoutMs: BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS,
+  });
+  const extractionUrl = safeNormalizeUrl(extraction?.previewUrl ?? '');
+  if (!extraction || !extractionUrl || extraction.isLoading || !matchedUrls.has(extractionUrl)) {
+    return new Map<string, HomepagePreviewExtractionSnapshot>();
+  }
+
+  const resolvedExtraction: HomepagePreviewExtractionSnapshot = {
+    extraction: extraction.extraction,
+    extractorId: extraction.extractorId,
+    previewUrl: extractionUrl,
+    captureMs: extraction.captureMs,
+    isLoading: extraction.isLoading,
+    nextPageUrl: extraction.nextPageUrl,
+  };
+  const extractions = new Map<string, HomepagePreviewExtractionSnapshot>();
+  for (const homepageUrl of matchedUrls) {
+    extractions.set(homepageUrl, resolvedExtraction);
+  }
+
+  return extractions;
+}
+
 async function invokeCommand<TCommand extends AppCommand>(
   command: TCommand,
   payload: AppCommandPayloadMap[TCommand],
@@ -179,14 +250,24 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'fetch_article':
       return fetchArticle((payload as FetchArticlePayload)?.url, storage) as Promise<AppCommandResultMap[TCommand]>;
     case 'fetch_latest_articles':
+      {
+        const homepagePreviewExtractions = await resolveBatchHomepagePreviewExtractions(
+          payload as FetchLatestArticlesPayload,
+        );
+        const homepagePreviewSnapshots =
+          homepagePreviewExtractions.size > 0
+            ? new Map<string, HomepagePreviewSnapshot>()
+            : await resolveBatchHomepagePreviewSnapshots(payload as FetchLatestArticlesPayload);
       return fetchLatestArticles(
         payload as FetchLatestArticlesPayload,
         storage,
         {
-          homepagePreviewSnapshots: await resolveBatchHomepagePreviewSnapshots(payload as FetchLatestArticlesPayload),
+          homepagePreviewExtractions,
+          homepagePreviewSnapshots,
           homepageSourceMode: 'prefer-preview',
         },
       ) as Promise<AppCommandResultMap[TCommand]>;
+      }
     case 'load_settings':
       return storage.loadSettings() as Promise<AppCommandResultMap[TCommand]>;
     case 'save_settings':

@@ -10,6 +10,7 @@ import { normalizeUrl } from '../utils/url.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetch-timing.js';
 import {
   findHomepageCandidateExtractor,
+  type HomepageCandidateExtraction,
   type HomepageCandidateExtractor,
   type HomepageCandidateSeed,
 } from './source-extractors/index.js';
@@ -43,7 +44,7 @@ const IN_RANGE_DATE_HINT_SCORE_BOOST = 40;
 const HTML_FETCH_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 const HTML_FETCH_ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-const BROWSER_FETCH_PARTITION = 'persist:reader-preview';
+const BROWSER_FETCH_PARTITION = 'persist:reader-fetch';
 const PREFER_BROWSER_FETCH = process.env.READER_FETCH_TRANSPORT !== 'node';
 const ENABLE_BROWSER_RENDER_FALLBACK = process.env.READER_FETCH_RENDER_FALLBACK !== '0';
 const ARTICLE_RENDER_TIMEOUT_MS = 4500;
@@ -84,6 +85,9 @@ type BrowserHtmlRenderer = {
       stop: () => void;
       setWindowOpenHandler?: (handler: () => { action: 'deny' }) => void;
       getURL?: () => string;
+      on: (event: string, listener: (...args: unknown[]) => void) => void;
+      off?: (event: string, listener: (...args: unknown[]) => void) => void;
+      removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
     };
   };
   partition: string;
@@ -102,9 +106,19 @@ export type HomepagePreviewSnapshot = {
   isLoading: boolean;
 };
 
+export type HomepagePreviewExtractionSnapshot = {
+  extraction: HomepageCandidateExtraction;
+  extractorId: string;
+  previewUrl: string;
+  captureMs: number;
+  isLoading: boolean;
+  nextPageUrl: string | null;
+};
+
 export type HomepageSourceMode = 'network' | 'prefer-preview' | 'compare';
 
 export type FetchLatestArticlesOptions = {
+  homepagePreviewExtractions?: ReadonlyMap<string, HomepagePreviewExtractionSnapshot>;
   homepagePreviewSnapshots?: ReadonlyMap<string, HomepagePreviewSnapshot>;
   homepageSourceMode?: HomepageSourceMode;
 };
@@ -123,6 +137,8 @@ type HomepageHtmlResult = {
   html: string;
   source: 'network' | 'preview';
 };
+
+type HomepageFetchSource = HomepageHtmlResult['source'] | 'preview-extract';
 
 type CheerioAcceptedNode = Parameters<ReturnType<typeof load>>[0];
 
@@ -149,7 +165,7 @@ type CandidateCollectionResult = {
 };
 
 type HomepagePageFetchResult = {
-  homepageSource: HomepageHtmlResult['source'];
+  homepageSource: HomepageFetchSource;
   articles: Article[];
   candidateAttempted: number;
   candidateResolved: number;
@@ -243,6 +259,42 @@ function buildHtmlFetchHeaders() {
     'user-agent': HTML_FETCH_USER_AGENT,
     accept: HTML_FETCH_ACCEPT,
   };
+}
+
+function logBrowserLoadFailure({
+  traceId,
+  stage,
+  partition,
+  requestedUrl,
+  currentUrl,
+  failedUrl,
+  errorCode,
+  errorDescription,
+  isMainFrame,
+}: {
+  traceId: string;
+  stage: string;
+  partition: string;
+  requestedUrl: string;
+  currentUrl: string;
+  failedUrl: string;
+  errorCode: number;
+  errorDescription: string;
+  isMainFrame: boolean;
+}) {
+  if (errorCode === -3 || /^ERR_ABORTED$/i.test(errorDescription)) {
+    return;
+  }
+
+  timingLog(traceId, `${stage}:did_fail_load`, {
+    partition,
+    requestedUrl: shortenForLog(requestedUrl),
+    currentUrl: shortenForLog(currentUrl),
+    failedUrl: shortenForLog(failedUrl),
+    errorCode,
+    errorDescription,
+    isMainFrame,
+  });
 }
 
 async function resolveBrowserHtmlFetch() {
@@ -507,7 +559,7 @@ async function fetchRenderedHtml(url: string, options: FetchHtmlOptions = {}) {
 
   return runBrowserHtmlRenderTask(async () => {
     const requestStartedAt = Date.now();
-    const { window } = renderer;
+    const { window, partition } = renderer;
     if (window.isDestroyed() || window.webContents.isDestroyed()) {
       browserHtmlRendererPromise = null;
       throw appError('HTTP_REQUEST_FAILED', {
@@ -544,6 +596,35 @@ async function fetchRenderedHtml(url: string, options: FetchHtmlOptions = {}) {
       timedOut = true;
       stopLoading();
     }, timeoutMs);
+    const didFailLoad = (
+      _event: unknown,
+      errorCode: number,
+      errorDescription: string,
+      validatedURL: string,
+      isMainFrame = false,
+    ) => {
+      logBrowserLoadFailure({
+        traceId,
+        stage,
+        partition,
+        requestedUrl: url,
+        currentUrl: window.webContents.getURL?.() ?? '',
+        failedUrl: validatedURL,
+        errorCode,
+        errorDescription,
+        isMainFrame,
+      });
+    };
+    const detachDidFailLoad = () => {
+      if (typeof window.webContents.off === 'function') {
+        window.webContents.off('did-fail-load', didFailLoad);
+        return;
+      }
+      if (typeof window.webContents.removeListener === 'function') {
+        window.webContents.removeListener('did-fail-load', didFailLoad);
+      }
+    };
+    window.webContents.on('did-fail-load', didFailLoad);
 
     try {
       await window.webContents.loadURL(url, {
@@ -628,6 +709,7 @@ async function fetchRenderedHtml(url: string, options: FetchHtmlOptions = {}) {
         url,
       });
     } finally {
+      detachDidFailLoad();
       if (externalSignal) {
         externalSignal.removeEventListener('abort', abortFromExternalSignal);
       }
@@ -855,6 +937,71 @@ async function collectHomepageCandidateDescriptors(
   );
 }
 
+async function collectHomepageCandidateDescriptorsFromPreviewExtraction({
+  homepage,
+  homepageUrl,
+  extractor,
+  sameDomainOnly,
+  dateRange,
+  traceId,
+  pageNumber,
+  previewExtraction,
+}: {
+  homepage: URL;
+  homepageUrl: string;
+  extractor: HomepageCandidateExtractor;
+  sameDomainOnly: boolean;
+  dateRange: DateRange;
+  traceId: string;
+  pageNumber: number;
+  previewExtraction: HomepagePreviewExtractionSnapshot;
+}): Promise<CandidateCollectionResult | null> {
+  if (previewExtraction.extractorId !== extractor.id) {
+    return null;
+  }
+
+  let extracted = previewExtraction.extraction;
+  if (!extracted || extracted.candidates.length === 0) {
+    return null;
+  }
+
+  if (extractor.refineExtraction) {
+    const refined = await extractor.refineExtraction({
+      homepage,
+      homepageUrl,
+      $: load(''),
+      pageNumber,
+      traceId,
+      dateRange,
+      extraction: extracted,
+      fetchHtml,
+    });
+    if (refined && refined.candidates.length > 0) {
+      extracted = refined;
+    }
+  }
+
+  const result = collectCandidateDescriptorsFromSeeds(
+    homepage,
+    homepageUrl,
+    sameDomainOnly,
+    dateRange,
+    extracted.candidates,
+  );
+
+  return {
+    ...result,
+    extractorId: extractor.id,
+    extractorDiagnostics: {
+      ...(extracted.diagnostics ?? {}),
+      previewCaptureMs: previewExtraction.captureMs,
+      previewNextPageUrl: previewExtraction.nextPageUrl,
+      previewUrl: previewExtraction.previewUrl,
+      source: 'preview-extract',
+    },
+  };
+}
+
 async function fetchLatestArticlesFromHomepagePage({
   sourceId,
   homepageUrl,
@@ -882,96 +1029,138 @@ async function fetchLatestArticlesFromHomepagePage({
 }): Promise<HomepagePageFetchResult> {
   const homepage = new URL(homepageUrl);
   const extractor = findHomepageCandidateExtractor(homepage);
-  const homepageResult = await resolveHomepageHtml(homepageUrl, traceId, options);
-  let html = homepageResult.html;
-  const homepageParseStartedAt = Date.now();
-  let homepageArticle = buildArticleFromHtml(homepageUrl, html);
-  let $ = load(html);
-  timingLog(traceId, 'source:homepage_parsed', {
-    pageNumber,
-    ms: elapsedMs(homepageParseStartedAt),
-    homepageSource: homepageResult.source,
-    hasTitle: Boolean(homepageArticle.title),
-    hasDoi: Boolean(homepageArticle.doi),
-    hasAbstract: Boolean(homepageArticle.abstractText),
-    publishedAt: homepageArticle.publishedAt,
-  });
-
   const fetched: Article[] = [];
   const homepagePathname = homepage.pathname.toLowerCase();
-  if (
-    hasArticlePathSignal(homepagePathname) &&
-    hasStrongArticleSignals(homepageUrl, homepageArticle) &&
-    isWithinDateRange(homepageArticle.publishedAt, dateRange)
-  ) {
-    homepageArticle.sourceId = sourceId;
-    if (journalTitle) {
-      homepageArticle.journalTitle = journalTitle;
-    }
-    fetchedSourceUrls.add(homepageArticle.sourceUrl);
-    fetched.push(homepageArticle);
-    timingLog(traceId, 'source:homepage_accepted', {
+  let homepageSource: HomepageFetchSource = 'network';
+  let candidateCollection: CandidateCollectionResult | null = null;
+  let $: ReturnType<typeof load> | null = null;
+  let previewNextPageUrl: string | null = null;
+
+  const previewExtraction =
+    !hasArticlePathSignal(homepagePathname) && pageNumber === 1
+      ? options.homepagePreviewExtractions?.get(homepageUrl) ?? null
+      : null;
+
+  if (previewExtraction && extractor) {
+    candidateCollection = await collectHomepageCandidateDescriptorsFromPreviewExtraction({
+      homepage,
+      homepageUrl,
+      extractor,
+      sameDomainOnly,
+      dateRange,
+      traceId,
       pageNumber,
-      sourceUrl: shortenForLog(homepageArticle.sourceUrl),
+      previewExtraction,
     });
-    if (fetched.length >= remainingLimit) {
-      return {
-        homepageSource: homepageResult.source,
-        articles: fetched,
-        candidateAttempted: 0,
-        candidateResolved: 0,
-        candidateAccepted: 0,
-        usedHomepageOnly: true,
-        nextPageUrl: null,
-        stoppedByDateHint: false,
-      };
+    if (candidateCollection && candidateCollection.candidates.length > 0) {
+      homepageSource = 'preview-extract';
+      previewNextPageUrl = previewExtraction.nextPageUrl;
+      timingLog(traceId, 'source:homepage_preview_extract_applied', {
+        pageNumber,
+        extractorId: previewExtraction.extractorId,
+        candidateCount: candidateCollection.candidates.length,
+        captureMs: previewExtraction.captureMs,
+        nextPageUrl: shortenForLog(previewNextPageUrl ?? ''),
+        previewUrl: shortenForLog(previewExtraction.previewUrl),
+      });
     }
   }
 
-  let candidateCollection = await collectHomepageCandidateDescriptors(
-    homepage,
-    homepageUrl,
-    $,
-    extractor,
-    sameDomainOnly,
-    dateRange,
-    traceId,
-    pageNumber,
-  );
-  if (candidateCollection.candidates.length === 0 && homepageResult.source === 'network' && ENABLE_BROWSER_RENDER_FALLBACK) {
-    try {
-      const renderedHomepageHtml = await fetchRenderedHtml(homepageUrl, {
-        timeoutMs: HOMEPAGE_RENDER_TIMEOUT_MS,
-        traceId,
-        stage: 'source_homepage_render',
-      });
-      html = renderedHomepageHtml;
-      homepageArticle = buildArticleFromHtml(homepageUrl, html);
-      $ = load(html);
-      candidateCollection = await collectHomepageCandidateDescriptors(
-        homepage,
-        homepageUrl,
-        $,
-        extractor,
-        sameDomainOnly,
-        dateRange,
-        traceId,
+  if (!candidateCollection) {
+    const homepageResult = await resolveHomepageHtml(homepageUrl, traceId, options);
+    homepageSource = homepageResult.source;
+    let html = homepageResult.html;
+    const homepageParseStartedAt = Date.now();
+    let homepageArticle = buildArticleFromHtml(homepageUrl, html);
+    $ = load(html);
+    timingLog(traceId, 'source:homepage_parsed', {
+      pageNumber,
+      ms: elapsedMs(homepageParseStartedAt),
+      homepageSource: homepageResult.source,
+      hasTitle: Boolean(homepageArticle.title),
+      hasDoi: Boolean(homepageArticle.doi),
+      hasAbstract: Boolean(homepageArticle.abstractText),
+      publishedAt: homepageArticle.publishedAt,
+    });
+
+    if (
+      hasArticlePathSignal(homepagePathname) &&
+      hasStrongArticleSignals(homepageUrl, homepageArticle) &&
+      isWithinDateRange(homepageArticle.publishedAt, dateRange)
+    ) {
+      homepageArticle.sourceId = sourceId;
+      if (journalTitle) {
+        homepageArticle.journalTitle = journalTitle;
+      }
+      fetchedSourceUrls.add(homepageArticle.sourceUrl);
+      fetched.push(homepageArticle);
+      timingLog(traceId, 'source:homepage_accepted', {
         pageNumber,
-      );
-      timingLog(traceId, 'source:homepage_render_applied', {
-        pageNumber,
-        candidateCount: candidateCollection.candidates.length,
-        hasTitle: Boolean(homepageArticle.title),
-        hasAbstract: Boolean(homepageArticle.abstractText),
-        publishedAt: homepageArticle.publishedAt,
+        sourceUrl: shortenForLog(homepageArticle.sourceUrl),
       });
-    } catch (error) {
-      timingLog(traceId, 'source:homepage_render_skipped', {
-        pageNumber,
-        message: error instanceof Error ? error.message : String(error),
-      });
+      if (fetched.length >= remainingLimit) {
+        return {
+          homepageSource,
+          articles: fetched,
+          candidateAttempted: 0,
+          candidateResolved: 0,
+          candidateAccepted: 0,
+          usedHomepageOnly: true,
+          nextPageUrl: null,
+          stoppedByDateHint: false,
+        };
+      }
+    }
+
+    candidateCollection = await collectHomepageCandidateDescriptors(
+      homepage,
+      homepageUrl,
+      $,
+      extractor,
+      sameDomainOnly,
+      dateRange,
+      traceId,
+      pageNumber,
+    );
+    if (candidateCollection.candidates.length === 0 && homepageResult.source === 'network' && ENABLE_BROWSER_RENDER_FALLBACK) {
+      try {
+        const renderedHomepageHtml = await fetchRenderedHtml(homepageUrl, {
+          timeoutMs: HOMEPAGE_RENDER_TIMEOUT_MS,
+          traceId,
+          stage: 'source_homepage_render',
+        });
+        html = renderedHomepageHtml;
+        homepageArticle = buildArticleFromHtml(homepageUrl, html);
+        $ = load(html);
+        candidateCollection = await collectHomepageCandidateDescriptors(
+          homepage,
+          homepageUrl,
+          $,
+          extractor,
+          sameDomainOnly,
+          dateRange,
+          traceId,
+          pageNumber,
+        );
+        timingLog(traceId, 'source:homepage_render_applied', {
+          pageNumber,
+          candidateCount: candidateCollection.candidates.length,
+          hasTitle: Boolean(homepageArticle.title),
+          hasAbstract: Boolean(homepageArticle.abstractText),
+          publishedAt: homepageArticle.publishedAt,
+        });
+      } catch (error) {
+        timingLog(traceId, 'source:homepage_render_skipped', {
+          pageNumber,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
+
+  const resolvedCandidateCollection =
+    candidateCollection ??
+    collectCandidateDescriptorsFromSeeds(homepage, homepageUrl, sameDomainOnly, dateRange, []);
 
   let {
     candidates,
@@ -985,7 +1174,7 @@ async function fetchLatestArticlesFromHomepagePage({
     stopDateHint,
     extractorId,
     extractorDiagnostics,
-  } = candidateCollection;
+  } = resolvedCandidateCollection;
 
   if (extractorId) {
     timingLog(traceId, 'source:candidate_extractor_selected', {
@@ -1266,17 +1455,21 @@ async function fetchLatestArticlesFromHomepagePage({
   }
 
   const nextPageUrl =
-    fetched.length < remainingLimit && !stoppedByDateHint && extractor?.findNextPageUrl
-      ? extractor.findNextPageUrl({
-          homepage,
-          homepageUrl,
-          $,
-          seenPageUrls: seenHomepageUrls,
-        })
+    fetched.length < remainingLimit && !stoppedByDateHint
+      ? previewNextPageUrl && !seenHomepageUrls.has(previewNextPageUrl)
+        ? previewNextPageUrl
+        : extractor?.findNextPageUrl && $
+          ? extractor.findNextPageUrl({
+              homepage,
+              homepageUrl,
+              $,
+              seenPageUrls: seenHomepageUrls,
+            })
+          : null
       : null;
 
   return {
-    homepageSource: homepageResult.source,
+    homepageSource,
     articles: fetched,
     candidateAttempted,
     candidateResolved,
@@ -1750,7 +1943,7 @@ async function fetchLatestArticlesFromHomepage(
     let totalCandidateResolved = 0;
     let totalCandidateAccepted = 0;
     let usedHomepageOnly = false;
-    let lastHomepageSource: HomepageHtmlResult['source'] = 'network';
+    let lastHomepageSource: HomepageFetchSource = 'network';
     let currentHomepageUrl: string | null = homepageUrl;
 
     while (currentHomepageUrl && fetched.length < perSourceLimit && homepagePageCount < MAX_PAGINATED_HOMEPAGE_PAGES) {

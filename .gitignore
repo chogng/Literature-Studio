@@ -14,3 +14,6 @@ src-tauri/target/
 
 # macOS
 .DS_Store
+
+
+scripts/

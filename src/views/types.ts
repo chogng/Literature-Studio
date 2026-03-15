@@ -43,7 +43,6 @@ export type ReaderViewProps = {
   filteredCount: number;
   totalCount: number;
   browserUrl: string;
-  previewCurrentUrl?: string;
   iframeReloadKey: number;
   electronRuntime: boolean;
   previewRuntime: boolean;

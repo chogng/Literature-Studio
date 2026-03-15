@@ -325,6 +325,13 @@ function MainApp() {
       toast.error(ui.toastPreviewRuntimeUnavailable);
       return;
     }
+
+    if (previewRuntime && window.electronAPI?.preview) {
+      void window.electronAPI.preview.navigate(normalized).catch(() => {
+        window.electronAPI?.preview?.setVisible(false);
+      });
+    }
+
     toast.success(formatLocalized(ui.toastNavigatingTo, { url: normalized }));
   };
 
@@ -541,7 +548,6 @@ function MainApp() {
         desktopRuntime,
         addressBarUrl: webUrl,
         batchSources,
-        limit: batchLimit,
         sameDomainOnly,
         startDate: batchStartDate || null,
         endDate: batchEndDate || null,
@@ -570,7 +576,6 @@ function MainApp() {
       toast.success(formatLocalized(ui.toastBatchFetchSucceeded, { count: result.articles.length }));
       if (result.articles[0]) {
         setWebUrl(result.articles[0].sourceUrl);
-        setBrowserUrl(result.articles[0].sourceUrl);
       }
     } finally {
       setIsBatchLoading(false);
@@ -647,7 +652,6 @@ function MainApp() {
             filteredCount={filteredArticles.length}
             totalCount={articles.length}
             browserUrl={browserUrl}
-            previewCurrentUrl={previewState.url}
             iframeReloadKey={iframeReloadKey}
             electronRuntime={electronRuntime}
             previewRuntime={previewRuntime}

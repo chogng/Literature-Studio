@@ -15,7 +15,6 @@ export default function ReaderView({
   onFetchLatestBatch,
   isBatchLoading,
   browserUrl,
-  previewCurrentUrl,
   iframeReloadKey,
   electronRuntime,
   previewRuntime,
@@ -80,12 +79,7 @@ export default function ReaderView({
     }
 
     preview.setVisible(true);
-    if (browserUrl !== previewCurrentUrl) {
-      void preview.navigate(browserUrl).catch(() => {
-        preview.setVisible(false);
-      });
-    }
-  }, [browserUrl, previewCurrentUrl, previewRuntime]);
+  }, [browserUrl, previewRuntime]);
 
   useEffect(() => {
     if (!previewRuntime || !window.electronAPI?.preview) return;
