@@ -715,6 +715,9 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
   if (normalizedPathname === '/natelectron/research-articles') {
     return collectNatureResearchArticlesExtraction('nature-natelectron-research-articles');
   }
+  if (normalizedPathname === '/ncomms/research-articles') {
+    return collectNatureResearchArticlesExtraction('nature-ncomms-research-articles');
+  }
   if (normalizedPathname === '/natmachintell/research-articles') {
     return collectNatureResearchArticlesExtraction('nature-natmachintell-research-articles');
   }
@@ -735,6 +738,9 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
   }
   if (normalizedPathname === '/natrevmats/reviews-and-analysis') {
     return collectNatureResearchArticlesExtraction('nature-natrevmats-reviews-and-analysis');
+  }
+  if (normalizedPathname === '/natrevphys/reviews-and-analysis') {
+    return collectNatureResearchArticlesExtraction('nature-natrevphys-reviews-and-analysis');
   }
   if (normalizedPathname === '/natrevelectreng/reviews-and-analysis') {
     return collectNatureResearchArticlesExtraction('nature-natrevelectreng-reviews-and-analysis');
