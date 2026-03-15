@@ -124,21 +124,22 @@ function extractDoi($: ReturnType<typeof load>, html: string) {
 }
 
 function extractPublishedDate($: ReturnType<typeof load>, structuredDataItems: StructuredDataRecord[]) {
-  const metaDate = parseDateString(
-    pickMetaContent($, [
-      'meta[name="citation_publication_date"]',
-      'meta[name="citation_online_date"]',
-      'meta[name="citation_date"]',
-      'meta[name="dc.date"]',
-      'meta[name="dc.date.issued"]',
-      'meta[name="prism.publicationDate"]',
-      'meta[name="article_date_original"]',
-      'meta[property="article:published_time"]',
-      'meta[property="og:article:published_time"]',
-      'meta[itemprop="datePublished"]',
-    ]),
-  );
-  if (metaDate) return metaDate;
+  const metaDateSelectors = [
+    'meta[name="citation_publication_date"]',
+    'meta[name="citation_online_date"]',
+    'meta[name="citation_date"]',
+    'meta[name="dc.date"]',
+    'meta[name="dc.date.issued"]',
+    'meta[name="prism.publicationDate"]',
+    'meta[name="article_date_original"]',
+    'meta[property="article:published_time"]',
+    'meta[property="og:article:published_time"]',
+    'meta[itemprop="datePublished"]',
+  ];
+  for (const selector of metaDateSelectors) {
+    const parsed = parseDateString($(selector).first().attr('content'));
+    if (parsed) return parsed;
+  }
 
   const semanticDateCandidates = [
     $('time[datetime]').first().attr('datetime'),

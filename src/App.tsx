@@ -138,6 +138,7 @@ function MainApp() {
   const [locale, setLocale] = useState<Locale>(() => detectInitialLocale());
   const initialBatchDateRange = useMemo(() => buildDefaultBatchDateRange(), []);
   const [webUrl, setWebUrl] = useState(defaultArticleUrl);
+  const [fetchSeedUrl, setFetchSeedUrl] = useState(defaultArticleUrl);
   const [browserUrl, setBrowserUrl] = useState(normalizeUrl(defaultArticleUrl));
   const [batchSources, setBatchSources] = useState<BatchSource[]>(defaultBatchSources);
   const [batchLimit, setBatchLimit] = useState(defaultBatchLimit);
@@ -250,6 +251,7 @@ function MainApp() {
         if (state.url) {
           setBrowserUrl(state.url);
           setWebUrl(state.url);
+          setFetchSeedUrl((current) => current || state.url);
         }
       })
       .catch(() => {});
@@ -259,6 +261,7 @@ function MainApp() {
       if (state.url) {
         setBrowserUrl(state.url);
         setWebUrl(state.url);
+        setFetchSeedUrl((current) => current || state.url);
       }
     });
 
@@ -323,6 +326,7 @@ function MainApp() {
     }
 
     setBrowserUrl(normalized);
+    setFetchSeedUrl(normalized);
     if (electronRuntime && !previewRuntime) {
       toast.error(ui.toastPreviewRuntimeUnavailable);
       return;
@@ -550,7 +554,7 @@ function MainApp() {
     try {
       const result = await fetchLatestArticlesBatch({
         desktopRuntime,
-        addressBarUrl: webUrl,
+        addressBarUrl: fetchSeedUrl || webUrl,
         batchSources,
         sameDomainOnly,
         startDate: batchStartDate || null,
@@ -578,9 +582,6 @@ function MainApp() {
 
       setArticles(result.articles);
       toast.success(formatLocalized(ui.toastBatchFetchSucceeded, { count: result.articles.length }));
-      if (result.articles[0]) {
-        setWebUrl(result.articles[0].sourceUrl);
-      }
     } finally {
       setIsBatchLoading(false);
     }
@@ -658,7 +659,10 @@ function MainApp() {
           onDownloadPdf={() => void handlePreviewDownloadPdf()}
           onExportDocx={() => void handleExportArticlesDocx()}
           webUrl={webUrl}
-          onWebUrlChange={setWebUrl}
+          onWebUrlChange={(nextUrl: string) => {
+            setWebUrl(nextUrl);
+            setFetchSeedUrl(nextUrl);
+          }}
           onNavigateWeb={handleNavigateWeb}
           articleUrlPlaceholder={ui.articleUrlPlaceholder}
           fetchSourceMode={homepageSourceStatus?.homepageSource ?? null}

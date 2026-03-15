@@ -53,6 +53,12 @@ export function parseDateString(value: unknown) {
   const source = cleanText(value);
   if (!source) return null;
 
+  // Ignore month-level or year-level values (for example "2026/03" or "2026"),
+  // because coercing them into a specific day causes false date filtering.
+  if (/^\d{4}$/.test(source) || /^\d{4}[-/.]\d{1,2}$/.test(source)) {
+    return null;
+  }
+
   const isoDateMatch = source.match(/\b(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
   if (isoDateMatch) {
     const year = Number.parseInt(isoDateMatch[1], 10);

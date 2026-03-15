@@ -231,6 +231,11 @@ function isNatureListingHomepagePath(pathname: string) {
   return /^\/[^/]+\/research-articles$/i.test(normalizedPathname);
 }
 
+function isLikelyArticleDetailHomepagePath(pathname: string) {
+  const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
+  return /^(?:\/(?:article|articles|paper|papers|doi|abs|content)\/[^/]+)$/i.test(normalizedPathname);
+}
+
 function normalizeNatureListingHomepageUrl(homepageUrl: string) {
   try {
     const homepage = new URL(homepageUrl);
@@ -855,6 +860,7 @@ function collectCandidateDescriptorsFromSeeds(
       if (!/^https?:$/i.test(candidateUrl.protocol)) continue;
       if (sameDomainOnly && candidateUrl.host !== homepage.host) continue;
       if (isLikelyStaticResourcePath(candidateUrl.pathname)) continue;
+      candidateUrl.hash = '';
 
       const normalized = candidateUrl.toString();
       if (seen.has(normalized)) continue;
@@ -1125,6 +1131,7 @@ async function fetchLatestArticlesFromHomepagePage({
   const extractor = findHomepageCandidateExtractor(homepage);
   const fetched: Article[] = [];
   const homepagePathname = homepage.pathname.toLowerCase();
+  const isLikelyArticleDetailSource = isLikelyArticleDetailHomepagePath(homepagePathname);
   let homepageSource: HomepageFetchSource = 'network';
   let candidateCollection: CandidateCollectionResult | null = null;
   let $: ReturnType<typeof load> | null = null;
@@ -1224,6 +1231,24 @@ async function fetchLatestArticlesFromHomepagePage({
           stoppedByDateHint: false,
         };
       }
+    }
+
+    if (isLikelyArticleDetailSource) {
+      timingLog(traceId, 'source:homepage_detail_only', {
+        pageNumber,
+        sourceUrl: shortenForLog(homepageUrl),
+        homepageAccepted: fetched.length > 0,
+      });
+      return {
+        homepageSource,
+        articles: fetched,
+        candidateAttempted: 0,
+        candidateResolved: 0,
+        candidateAccepted: 0,
+        usedHomepageOnly: true,
+        nextPageUrl: null,
+        stoppedByDateHint: false,
+      };
     }
 
     candidateCollection = await collectHomepageCandidateDescriptors(
