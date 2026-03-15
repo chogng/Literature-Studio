@@ -222,6 +222,32 @@ function safeNormalizeUrl(value: string) {
   }
 }
 
+function isNatureListingHomepagePath(pathname: string) {
+  const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
+  if (normalizedPathname === '/latest-news') return true;
+  if (normalizedPathname === '/opinion') return true;
+  return /^\/[^/]+\/research-articles$/i.test(normalizedPathname);
+}
+
+function normalizeNatureListingHomepageUrl(homepageUrl: string) {
+  try {
+    const homepage = new URL(homepageUrl);
+    if (homepage.host !== 'www.nature.com') {
+      return homepageUrl;
+    }
+
+    if (!isNatureListingHomepagePath(homepage.pathname)) {
+      return homepageUrl;
+    }
+
+    homepage.searchParams.delete('page');
+    homepage.hash = '';
+    return homepage.toString();
+  } catch {
+    return homepageUrl;
+  }
+}
+
 function toTimeoutMs(value: unknown, fallback: number) {
   const parsed = Number.parseInt(String(value), 10);
   if (Number.isNaN(parsed) || parsed <= 0) return fallback;
@@ -2012,9 +2038,11 @@ function normalizeHomepageSources(payload: FetchLatestArticlesPayload): Homepage
       const homepageUrl = safeNormalizeUrl(cleanText(item?.homepageUrl));
       if (!homepageUrl) return null;
 
+      const normalizedHomepageUrl = normalizeNatureListingHomepageUrl(homepageUrl);
+
       return {
-        sourceId: normalizeSourceId(item?.sourceId, homepageUrl, index),
-        homepageUrl,
+        sourceId: normalizeSourceId(item?.sourceId, normalizedHomepageUrl, index),
+        homepageUrl: normalizedHomepageUrl,
         journalTitle: cleanText(item?.journalTitle),
       } satisfies HomepageSource;
     })

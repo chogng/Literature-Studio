@@ -128,20 +128,6 @@ function localizeDesktopError(ui: ReturnType<typeof getLocaleMessages>, error: D
   }
 }
 
-function mergeArticles(incoming: Article[], existing: Article[]): Article[] {
-  const seen = new Set<string>();
-  const merged: Article[] = [];
-
-  for (const item of [...incoming, ...existing]) {
-    const key = `${item.sourceId ?? ''}::${item.sourceUrl}::${item.fetchedAt}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(item);
-  }
-
-  return merged;
-}
-
 function detectNativeModalKind() {
   if (typeof window === 'undefined') return null;
   return new URLSearchParams(window.location.search).get('nativeModal');
@@ -559,6 +545,7 @@ function MainApp() {
   const handleFetchLatestBatch = async () => {
     setIsBatchLoading(true);
     setHomepageSourceStatus(null);
+    setArticles([]);
 
     try {
       const result = await fetchLatestArticlesBatch({
@@ -589,7 +576,7 @@ function MainApp() {
         return;
       }
 
-      setArticles((prev) => mergeArticles(result.articles, prev));
+      setArticles(result.articles);
       toast.success(formatLocalized(ui.toastBatchFetchSucceeded, { count: result.articles.length }));
       if (result.articles[0]) {
         setWebUrl(result.articles[0].sourceUrl);
