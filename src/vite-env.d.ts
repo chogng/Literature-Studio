@@ -143,6 +143,7 @@ type DesktopHomepageSourceStatus = {
   homepageUrl: string;
   pageNumber: number;
   homepageSource: DesktopHomepageFetchSource;
+  homepageSourceDetail?: string | null;
   extractorId: string | null;
   paginationStopped?: boolean;
   paginationStopReason?: string | null;

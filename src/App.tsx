@@ -612,14 +612,19 @@ function MainApp() {
 
   const titlebarFetchSourceText = useMemo(() => {
     if (!homepageSourceStatus) return '';
-    if (homepageSourceStatus.homepageSource === 'preview-extract') return 'Source: preview-extract';
+    if (homepageSourceStatus.homepageSource === 'preview-extract') {
+      return 'Source: live preview DOM';
+    }
     if (homepageSourceStatus.homepageSource === 'preview') return 'Source: preview DOM';
     return 'Source: network';
   }, [homepageSourceStatus]);
 
   const titlebarFetchSourceTitle = useMemo(() => {
     if (!homepageSourceStatus) return '';
-    return `${homepageSourceStatus.sourceId || 'source'} | page ${homepageSourceStatus.pageNumber}`;
+    const sourceDetail = homepageSourceStatus.homepageSourceDetail
+      ? ` | ${homepageSourceStatus.homepageSourceDetail}`
+      : '';
+    return `${homepageSourceStatus.sourceId || 'source'} | page ${homepageSourceStatus.pageNumber}${sourceDetail}`;
   }, [homepageSourceStatus]);
 
   const titlebarFetchStopText = useMemo(() => {

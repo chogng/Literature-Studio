@@ -4,12 +4,21 @@ import type { DateRange } from '../../types.js';
 
 export type HomepageDom = ReturnType<typeof load>;
 
+export type HomepageCandidatePrefetchedArticle = {
+  title: string;
+  doi?: string | null;
+  authors?: string[];
+  abstractText?: string | null;
+  publishedAt?: string | null;
+};
+
 export type HomepageCandidateSeed = {
   href: string;
   order: number;
   dateHint?: string | null;
   articleType?: string | null;
   scoreBoost?: number;
+  prefetchedArticle?: HomepageCandidatePrefetchedArticle | null;
 };
 
 export type HomepageCandidateExtraction = {

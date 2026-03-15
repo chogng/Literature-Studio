@@ -92,6 +92,7 @@ export interface HomepageSourceStatus {
   homepageUrl: string;
   pageNumber: number;
   homepageSource: HomepageFetchSource;
+  homepageSourceDetail?: string | null;
   extractorId: string | null;
   paginationStopped?: boolean;
   paginationStopReason?: string | null;

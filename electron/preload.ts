@@ -128,6 +128,7 @@ const electronAPI = {
             homepageUrl: '',
             pageNumber: 0,
             homepageSource: 'network',
+            homepageSourceDetail: null,
             extractorId: null,
             paginationStopped: false,
             paginationStopReason: null,

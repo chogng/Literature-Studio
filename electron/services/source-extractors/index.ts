@@ -13,10 +13,12 @@ import { natureNphysResearchArticlesCandidateExtractor } from './nature-nphys-re
 import { natureNatsynthResearchArticlesCandidateExtractor } from './nature-natsynth-research-articles.js';
 import { natureOpinionCandidateExtractor } from './nature-opinions.js';
 import { natureResearchArticlesCandidateExtractor } from './nature-research-articles.js';
+import { scienceSciadvCurrentPhysicalMaterialsCandidateExtractor } from './science-sciadv-current-physical-materials.js';
 
 import type { HomepageCandidateExtractor } from './types.js';
 
 const homepageCandidateExtractors: HomepageCandidateExtractor[] = [
+  scienceSciadvCurrentPhysicalMaterialsCandidateExtractor,
   natureNatelectronResearchArticlesCandidateExtractor,
   natureNcommsResearchArticlesCandidateExtractor,
   natureNatmachintellResearchArticlesCandidateExtractor,
@@ -42,6 +44,7 @@ export type {
   HomepageCandidateExtraction,
   HomepageCandidateExtractor,
   HomepageCandidateExtractorContext,
+  HomepageCandidatePrefetchedArticle,
   HomepageCandidateRefinementContext,
   HomepageExtractorFetchHtml,
   HomepageExtractorFetchHtmlOptions,

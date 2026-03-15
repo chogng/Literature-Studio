@@ -14,11 +14,19 @@ import { isWithinDateRange, parseDateRange } from '../utils/date.js';
 import { parseDateHintFromText } from '../utils/date-hint.js';
 import { cleanText } from '../utils/text.js';
 import { normalizeUrl } from '../utils/url.js';
+import { READER_SHARED_WEB_PARTITION } from './browser-partitions.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetch-timing.js';
+import {
+  ensureScienceValidationWindow,
+  getScienceChallengeSignal,
+  isScienceChallengeHtml,
+  shouldUseScienceValidationRenderFallback,
+} from './science-validation.js';
 import {
   findHomepageCandidateExtractor,
   type HomepageCandidateExtraction,
   type HomepageCandidateExtractor,
+  type HomepageCandidatePrefetchedArticle,
   type HomepagePaginationStopEvaluation,
   type HomepageCandidateSeed,
 } from './source-extractors/index.js';
@@ -53,7 +61,7 @@ const IN_RANGE_DATE_HINT_SCORE_BOOST = 40;
 const HTML_FETCH_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 const HTML_FETCH_ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-const BROWSER_FETCH_PARTITION = 'persist:reader-fetch';
+const BROWSER_FETCH_PARTITION = READER_SHARED_WEB_PARTITION;
 const PREFER_BROWSER_FETCH = process.env.READER_FETCH_TRANSPORT !== 'node';
 const ENABLE_BROWSER_RENDER_FALLBACK = process.env.READER_FETCH_RENDER_FALLBACK !== '0';
 const ARTICLE_RENDER_TIMEOUT_MS = 4500;
@@ -160,6 +168,7 @@ type HomepageNetworkAttemptResult =
 type HomepageHtmlResult = {
   html: string;
   source: 'network' | 'preview';
+  usedRenderFallback?: boolean;
 };
 
 type CheerioAcceptedNode = Parameters<ReturnType<typeof load>>[0];
@@ -170,6 +179,7 @@ type CandidateDescriptor = {
   order: number;
   dateHint: string | null;
   articleType: string | null;
+  prefetchedArticle: HomepageCandidatePrefetchedArticle | null;
 };
 
 type CandidateCollectionResult = {
@@ -197,6 +207,17 @@ type HomepagePageFetchResult = {
   nextPageUrl: string | null;
   stoppedByDateHint: boolean;
 };
+
+function describeHomepageSourceDetail(homepageSource: HomepageFetchSource) {
+  switch (homepageSource) {
+    case 'preview-extract':
+      return 'live-preview-dom';
+    case 'preview':
+      return 'preview-dom-snapshot';
+    default:
+      return 'network-fetch';
+  }
+}
 
 function normalizeSourceId(input: unknown, homepageUrl: string, index: number) {
   const cleaned = cleanText(input);
@@ -313,6 +334,16 @@ function buildHtmlFetchHeaders() {
     'user-agent': HTML_FETCH_USER_AGENT,
     accept: HTML_FETCH_ACCEPT,
   };
+}
+
+function collectHttpErrorResponseHeaders(response: Response) {
+  const responseHeaders = {
+    server: cleanText(response.headers.get('server')),
+    cfMitigated: cleanText(response.headers.get('cf-mitigated')),
+    cfRay: cleanText(response.headers.get('cf-ray')),
+  };
+
+  return Object.values(responseHeaders).some((value) => Boolean(value)) ? responseHeaders : null;
 }
 
 function logBrowserLoadFailure({
@@ -562,6 +593,12 @@ function shouldRenderCandidateAfterError({
   return status === 'TIMEOUT' || status === 'NETWORK_ERROR' || RENDER_FALLBACK_HTTP_STATUS.has(status);
 }
 
+function shouldRenderHomepageAfterError(error: unknown) {
+  if (!ENABLE_BROWSER_RENDER_FALLBACK) return false;
+  const status = toErrorStatusCode(error);
+  return status === 'TIMEOUT' || status === 'NETWORK_ERROR' || RENDER_FALLBACK_HTTP_STATUS.has(status);
+}
+
 function shouldConfirmRenderedArticle({
   article,
   candidateUrl,
@@ -601,6 +638,49 @@ function applyCandidateArticleType(article: Article, candidateArticleType: strin
   if (canPromoteCandidateType) {
     article.articleType = normalizedCandidateType;
   }
+}
+
+function normalizePrefetchedCandidateArticle(
+  prefetchedArticle: HomepageCandidatePrefetchedArticle | null | undefined,
+  fallbackPublishedAt: string | null,
+): HomepageCandidatePrefetchedArticle | null {
+  const title = cleanText(prefetchedArticle?.title);
+  if (!title) return null;
+
+  const doi = cleanText(prefetchedArticle?.doi);
+  const authors =
+    Array.isArray(prefetchedArticle?.authors) && prefetchedArticle.authors.length > 0
+      ? [...new Set(prefetchedArticle.authors.map((author) => cleanText(author)).filter(Boolean))]
+      : [];
+  const abstractText = cleanText(prefetchedArticle?.abstractText);
+  const publishedAt = cleanText(prefetchedArticle?.publishedAt) || cleanText(fallbackPublishedAt);
+
+  return {
+    title,
+    doi: doi || null,
+    authors,
+    abstractText: abstractText || null,
+    publishedAt: publishedAt || null,
+  };
+}
+
+function buildArticleFromPrefetchedCandidate(candidate: CandidateDescriptor): Article | null {
+  const prefetchedArticle = normalizePrefetchedCandidateArticle(
+    candidate.prefetchedArticle,
+    candidate.dateHint,
+  );
+  if (!prefetchedArticle) return null;
+
+  return {
+    title: prefetchedArticle.title,
+    articleType: cleanText(candidate.articleType) || null,
+    doi: prefetchedArticle.doi ?? null,
+    authors: prefetchedArticle.authors ?? [],
+    abstractText: prefetchedArticle.abstractText ?? null,
+    publishedAt: prefetchedArticle.publishedAt ?? null,
+    sourceUrl: candidate.url,
+    fetchedAt: new Date().toISOString(),
+  };
 }
 
 async function fetchRenderedHtml(url: string, options: FetchHtmlOptions = {}) {
@@ -920,6 +1000,7 @@ function collectCandidateDescriptorsFromSeeds(
         order: seed.order,
         dateHint,
         articleType,
+        prefetchedArticle: normalizePrefetchedCandidateArticle(seed.prefetchedArticle, dateHint),
       });
     } catch {
       continue;
@@ -1155,6 +1236,7 @@ async function fetchLatestArticlesFromHomepagePage({
       homepageUrl,
       pageNumber,
       homepageSource,
+      homepageSourceDetail: describeHomepageSourceDetail(homepageSource),
       extractorId: extractor?.id ?? null,
       ...overrides,
     });
@@ -1191,6 +1273,8 @@ async function fetchLatestArticlesFromHomepagePage({
         captureMs: previewExtraction.captureMs,
         nextPageUrl: shortenForLog(previewNextPageUrl ?? ''),
         previewUrl: shortenForLog(previewExtraction.previewUrl),
+        reuseMode: 'live-preview-dom',
+        historicalCache: false,
       });
     }
   }
@@ -1270,7 +1354,12 @@ async function fetchLatestArticlesFromHomepagePage({
       traceId,
       pageNumber,
     );
-    if (candidateCollection.candidates.length === 0 && homepageResult.source === 'network' && ENABLE_BROWSER_RENDER_FALLBACK) {
+    if (
+      candidateCollection.candidates.length === 0 &&
+      homepageResult.source === 'network' &&
+      !homepageResult.usedRenderFallback &&
+      ENABLE_BROWSER_RENDER_FALLBACK
+    ) {
       try {
         const renderedHomepageHtml = await fetchRenderedHtml(homepageUrl, {
           timeoutMs: HOMEPAGE_RENDER_TIMEOUT_MS,
@@ -1525,6 +1614,45 @@ async function fetchLatestArticlesFromHomepagePage({
         inFlightControllers.set(candidateOrder, requestController);
 
         try {
+          const prefetchedArticle = buildArticleFromPrefetchedCandidate(candidate);
+          if (prefetchedArticle && isProbablyArticle(candidate.url, prefetchedArticle)) {
+            timingLog(traceId, 'candidate:parsed', {
+              pageNumber,
+              candidateOrder,
+              ms: 0,
+              score: candidate.score,
+              url: shortenForLog(candidate.url),
+              hasTitle: Boolean(prefetchedArticle.title),
+              hasDoi: Boolean(prefetchedArticle.doi),
+              hasAbstract: Boolean(prefetchedArticle.abstractText),
+              publishedAt: prefetchedArticle.publishedAt,
+              rendered: false,
+              prefetched: true,
+            });
+            candidateResolved += 1;
+
+            if (!isWithinDateRange(prefetchedArticle.publishedAt, dateRange)) {
+              continue;
+            }
+            if (fetchedSourceUrls.has(prefetchedArticle.sourceUrl)) {
+              continue;
+            }
+
+            prefetchedArticle.sourceId = sourceId;
+            if (journalTitle) {
+              prefetchedArticle.journalTitle = journalTitle;
+            }
+
+            fetchedSourceUrls.add(prefetchedArticle.sourceUrl);
+            acceptedCandidates.push({
+              candidateOrder,
+              article: prefetchedArticle,
+            });
+            accepted = true;
+            candidateAccepted += 1;
+            continue;
+          }
+
           const allowTimeoutRetry = Boolean(
             extractorId || (candidateOrder <= retryEligibleMaxOrder && candidate.dateHint === null),
           );
@@ -1807,6 +1935,98 @@ async function resolveHomepageHtml(
   const useNetwork = async (reason: string) => {
     const result = await startNetworkAttempt();
     if ('error' in result) {
+      const scienceChallengeSignal = getScienceChallengeSignal(result.error);
+      const scienceValidationFallback = shouldUseScienceValidationRenderFallback({
+        homepageUrl,
+        error: result.error,
+      });
+      if (scienceValidationFallback) {
+        try {
+          const validatedHomepage = await ensureScienceValidationWindow(homepageUrl);
+          timingLog(traceId, 'source:science_validation_window_applied', {
+            reason,
+            url: shortenForLog(homepageUrl),
+            finalUrl: shortenForLog(validatedHomepage.finalUrl),
+            size: validatedHomepage.html.length,
+            sectionCount: validatedHomepage.sectionCount,
+            title: validatedHomepage.title,
+            readyMs: validatedHomepage.readyMs,
+            navigationMode: validatedHomepage.navigationMode,
+            validationSource: validatedHomepage.source,
+            failedStatus: toErrorStatusCode(result.error) || null,
+            scienceChallengeSignal,
+          });
+          timingLog(traceId, 'source:homepage_selected', {
+            selected: 'network',
+            reason: `${reason}_science_validation_window`,
+            size: validatedHomepage.html.length,
+            url: shortenForLog(homepageUrl),
+          });
+          return {
+            html: validatedHomepage.html,
+            source: 'network' as const,
+            usedRenderFallback: false,
+          };
+        } catch (validationError) {
+          timingLog(traceId, 'source:science_validation_window_failed', {
+            reason,
+            message: describeError(validationError),
+            url: shortenForLog(homepageUrl),
+            failedStatus: toErrorStatusCode(result.error) || null,
+            scienceValidationFallback,
+            scienceChallengeSignal,
+          });
+
+          throw validationError;
+        }
+      }
+
+      if (shouldRenderHomepageAfterError(result.error)) {
+        try {
+          const renderedHtml = await fetchRenderedHtml(homepageUrl, {
+            timeoutMs: HOMEPAGE_RENDER_TIMEOUT_MS,
+            traceId,
+            stage: 'source_homepage_render_on_error',
+          });
+          if (isScienceChallengeHtml(renderedHtml)) {
+            throw appError('HTTP_REQUEST_FAILED', {
+              status: 'SCIENCE_VALIDATION_REQUIRED',
+              statusText: 'Complete the Science verification window to continue fetching.',
+              url: homepageUrl,
+              scienceChallengeSignal: scienceChallengeSignal ?? undefined,
+            });
+          }
+          timingLog(traceId, 'source:homepage_render_fallback_applied', {
+            reason,
+            size: renderedHtml.length,
+            url: shortenForLog(homepageUrl),
+            failedStatus: toErrorStatusCode(result.error) || null,
+            scienceValidationFallback,
+            scienceChallengeSignal,
+          });
+          timingLog(traceId, 'source:homepage_selected', {
+            selected: 'network',
+            reason: `${reason}_render_fallback`,
+            size: renderedHtml.length,
+            url: shortenForLog(homepageUrl),
+          });
+          return {
+            html: renderedHtml,
+            source: 'network' as const,
+            usedRenderFallback: true,
+          };
+        } catch (renderError) {
+          timingLog(traceId, 'source:homepage_render_fallback_failed', {
+            reason,
+            message: describeError(renderError),
+            url: shortenForLog(homepageUrl),
+            failedStatus: toErrorStatusCode(result.error) || null,
+            scienceValidationFallback,
+            scienceChallengeSignal,
+          });
+        }
+      }
+
       throw result.error;
     }
 
@@ -1912,6 +2132,7 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions = {}) {
     });
 
     if (!response.ok) {
+      const responseHeaders = collectHttpErrorResponseHeaders(response);
       timingLog(traceId, `${stage}:http_error`, {
         ms: elapsedMs(requestStartedAt),
         status: response.status,
@@ -1919,11 +2140,13 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions = {}) {
         timeoutMs,
         transport,
         url: shortenForLog(url),
+        responseHeaders,
       });
       throw appError('HTTP_REQUEST_FAILED', {
         status: response.status,
         statusText: response.statusText,
         url,
+        responseHeaders: responseHeaders ?? undefined,
       });
     }
 
@@ -2248,6 +2471,7 @@ export async function fetchLatestArticles(
     dateEnd: dateRange.end,
     homepageSourceMode: options.homepageSourceMode ?? 'network',
     previewSnapshotCount: options.homepagePreviewSnapshots?.size ?? 0,
+    previewExtractionCount: options.homepagePreviewExtractions?.size ?? 0,
   });
 
   for (let index = 0; index < homepageSources.length; index += SOURCE_FETCH_CONCURRENCY) {
