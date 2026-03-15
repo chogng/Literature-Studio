@@ -33,7 +33,12 @@ import {
   fetchLatestArticles,
 } from './services/article-fetcher.js';
 import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
-import type { PreviewSnapshot } from './services/fetch-strategy.js';
+import {
+  normalizeFetchStrategy,
+  shouldPreparePreviewArtifacts,
+  type PreviewExtractionSnapshot,
+  type PreviewSnapshot,
+} from './services/fetch-strategy.js';
 import { resolveBatchPreviewExtractions, resolveBatchPreviewSnapshots, resolvePreviewSnapshotHtml } from './services/preview-channel.js';
 import { previewDownloadPdf } from './services/pdf.js';
 import { resolveDocxExportDialogCopy } from './utils/locale-copy.js';
@@ -121,22 +126,23 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'fetch_latest_articles':
       {
         const fetchLatestPayload = payload as FetchLatestArticlesPayload;
-        const previewExtractions = await resolveBatchPreviewExtractions(
-          fetchLatestPayload,
-        );
+        const fetchStrategy = normalizeFetchStrategy(fetchLatestPayload.fetchStrategy ?? 'preview-first');
+        const previewExtractions = shouldPreparePreviewArtifacts(fetchStrategy)
+          ? await resolveBatchPreviewExtractions(fetchLatestPayload)
+          : new Map<string, PreviewExtractionSnapshot>();
         const previewSnapshots =
-          previewExtractions.size > 0
-            ? new Map<string, PreviewSnapshot>()
-            : await resolveBatchPreviewSnapshots(fetchLatestPayload);
+          shouldPreparePreviewArtifacts(fetchStrategy)
+            ? (previewExtractions.size > 0
+              ? new Map<string, PreviewSnapshot>()
+              : await resolveBatchPreviewSnapshots(fetchLatestPayload))
+            : new Map<string, PreviewSnapshot>();
         return fetchLatestArticles(
           fetchLatestPayload,
           storage,
           {
             previewExtractions,
             previewSnapshots,
-            fetchStrategy:
-              fetchLatestPayload.fetchStrategy ??
-              'preview-first',
+            fetchStrategy,
             onFetchStatus: (status) => {
               emitToRenderer?.(FETCH_STATUS_CHANNEL, status);
             },

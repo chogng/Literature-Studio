@@ -18,9 +18,10 @@ import { normalizeUrl } from '../utils/url.js';
 import { READER_SHARED_WEB_PARTITION } from './browser-partitions.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetch-timing.js';
 import {
+  buildPageHtmlFetchPlan,
+  buildPreviewExtractionFetchPlan,
   normalizeFetchStrategy,
   type FetchStrategy,
-  type FetchStrategyInput,
   type PreviewExtractionSnapshot,
   type PreviewSnapshot,
 } from './fetch-strategy.js';
@@ -140,7 +141,7 @@ type PageSource = {
 export type FetchLatestArticlesOptions = {
   previewExtractions?: ReadonlyMap<string, PreviewExtractionSnapshot>;
   previewSnapshots?: ReadonlyMap<string, PreviewSnapshot>;
-  fetchStrategy?: FetchStrategyInput;
+  fetchStrategy?: FetchStrategy;
   onFetchStatus?: (status: FetchStatus) => void;
 };
 
@@ -1204,6 +1205,7 @@ async function fetchLatestArticlesFromPageOnce({
   const fetched: Article[] = [];
   const pagePathname = page.pathname.toLowerCase();
   const isLikelyArticleDetailSource = isLikelyArticleDetailPagePath(pagePathname);
+  const hasArticlePath = hasArticlePathSignal(pagePathname);
   let fetchChannel: FetchChannel = 'network';
   let previewReuseMode: PreviewReuseMode | null = null;
   let candidateCollection: CandidateCollectionResult | null = null;
@@ -1231,12 +1233,26 @@ async function fetchLatestArticlesFromPageOnce({
     fetchStatusReported = true;
   };
 
-  const previewExtraction =
-    !hasArticlePathSignal(pagePathname) && pageNumber === 1
-      ? options.previewExtractions?.get(pageUrl) ?? null
-      : null;
+  const previewExtraction = options.previewExtractions?.get(pageUrl) ?? null;
+  const previewExtractionPlan = buildPreviewExtractionFetchPlan({
+    fetchStrategy: options.fetchStrategy,
+    hasPreviewExtraction: Boolean(previewExtraction),
+    hasExtractor: Boolean(extractor),
+    pageNumber,
+    isLikelyArticleDetailPage: isLikelyArticleDetailSource || hasArticlePath,
+  });
 
-  if (previewExtraction && extractor) {
+  if (previewExtraction && !previewExtractionPlan.shouldAttempt) {
+    timingLog(traceId, 'source:page_preview_extract_skipped', {
+      pageNumber,
+      reason: previewExtractionPlan.reason,
+      requestedStrategy: previewExtractionPlan.requestedStrategy,
+      previewUrl: shortenForLog(previewExtraction.previewUrl),
+      extractorId: extractor?.id ?? null,
+    });
+  }
+
+  if (previewExtractionPlan.shouldAttempt && previewExtraction && extractor) {
     candidateCollection = await collectListingCandidateDescriptorsFromPreviewExtraction({
       page,
       pageUrl,
@@ -1249,11 +1265,12 @@ async function fetchLatestArticlesFromPageOnce({
     });
     if (candidateCollection && candidateCollection.candidates.length > 0) {
       fetchChannel = 'preview';
-      previewReuseMode = 'live-extract';
+      previewReuseMode = previewExtractionPlan.previewReuseMode;
       previewNextPageUrl = previewExtraction.nextPageUrl;
       timingLog(traceId, 'source:page_preview_extract_applied', {
         pageNumber,
         extractorId: previewExtraction.extractorId,
+        requestedStrategy: previewExtractionPlan.requestedStrategy,
         candidateCount: candidateCollection.candidates.length,
         captureMs: previewExtraction.captureMs,
         nextPageUrl: shortenForLog(previewNextPageUrl ?? ''),
@@ -1285,7 +1302,7 @@ async function fetchLatestArticlesFromPageOnce({
     });
 
     if (
-      hasArticlePathSignal(pagePathname) &&
+      hasArticlePath &&
       hasStrongArticleSignals(pageUrl, pageArticle) &&
       isWithinDateRange(pageArticle.publishedAt, dateRange)
     ) {
@@ -1858,12 +1875,11 @@ async function resolvePageHtml(
   traceId: string,
   options: FetchLatestArticlesOptions,
 ): Promise<PageHtmlResult> {
-  const requestedStrategyInput = options.fetchStrategy ?? 'network-first';
-  const requestedStrategy = normalizeFetchStrategy(requestedStrategyInput);
   const previewSnapshot = options.previewSnapshots?.get(pageUrl) ?? null;
-  const effectiveStrategy: FetchStrategy = previewSnapshot ? requestedStrategy : 'network-first';
-  const networkStage =
-    effectiveStrategy === 'compare' ? 'source_page_network' : 'source_page';
+  const pageHtmlFetchPlan = buildPageHtmlFetchPlan({
+    fetchStrategy: options.fetchStrategy,
+    hasPreviewSnapshot: Boolean(previewSnapshot),
+  });
   let networkAttemptPromise: Promise<NetworkAttemptResult> | null = null;
 
   const startNetworkAttempt = () => {
@@ -1872,8 +1888,8 @@ async function resolvePageHtml(
         {
           pageUrl,
           traceId,
-          stage: networkStage,
-          benchmarkStage: effectiveStrategy === 'compare' ? 'source:page_benchmark_done' : null,
+          stage: pageHtmlFetchPlan.networkStage,
+          benchmarkStage: pageHtmlFetchPlan.shouldStartNetworkBenchmark ? 'source:page_benchmark_done' : null,
           pageFetchTimeoutMs: PAGE_FETCH_TIMEOUT_MS,
         },
         {
@@ -1907,20 +1923,19 @@ async function resolvePageHtml(
   };
 
   timingLog(traceId, 'source:page_strategy', {
-    requestedStrategy,
-    requestedStrategyInput,
-    effectiveStrategy,
+    requestedStrategy: pageHtmlFetchPlan.requestedStrategy,
+    effectiveStrategy: pageHtmlFetchPlan.effectiveStrategy,
     hasPreviewSnapshot: Boolean(previewSnapshot),
     previewCaptureMs: previewSnapshot?.captureMs ?? null,
     previewSize: previewSnapshot?.html.length ?? null,
     previewIsLoading: previewSnapshot?.isLoading ?? null,
   });
 
-  if (!previewSnapshot || effectiveStrategy === 'network-first') {
+  if (pageHtmlFetchPlan.selectedChannel === 'network' || !previewSnapshot) {
     return useNetwork('network_only');
   }
 
-  if (effectiveStrategy === 'compare') {
+  if (pageHtmlFetchPlan.shouldStartNetworkBenchmark) {
     timingLog(traceId, 'source:page_benchmark_started', {
       against: 'network',
       url: shortenForLog(pageUrl),
@@ -1954,7 +1969,7 @@ async function resolvePageHtml(
   });
   timingLog(traceId, 'source:page_selected', {
     selected: 'preview',
-    reason: effectiveStrategy,
+    reason: pageHtmlFetchPlan.effectiveStrategy,
     size: previewSnapshot.html.length,
     captureMs: previewSnapshot.captureMs,
     url: shortenForLog(pageUrl),

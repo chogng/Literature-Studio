@@ -1,4 +1,4 @@
-import type { FetchStrategyInput } from './services/fetch-strategy.js';
+import type { FetchStrategy } from './services/fetch-strategy.js';
 
 export interface Article {
   title: string;
@@ -111,7 +111,7 @@ export interface FetchLatestArticlesPayload {
   sameDomainOnly?: boolean;
   startDate?: string | null;
   endDate?: string | null;
-  fetchStrategy?: FetchStrategyInput;
+  fetchStrategy?: FetchStrategy;
 }
 
 export interface PreviewDownloadPdfPayload {

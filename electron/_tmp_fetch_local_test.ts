@@ -215,7 +215,7 @@ async function main() {
       },
       storage,
       {
-        fetchStrategy: 'network',
+        fetchStrategy: 'network-first',
       },
     );
     const elapsedMs = Date.now() - startedAt;

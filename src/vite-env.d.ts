@@ -28,9 +28,7 @@ type DesktopFetchBatchSource = {
 type DesktopFetchStrategy =
   | 'network-first'
   | 'preview-first'
-  | 'compare'
-  | 'network'
-  | 'prefer-preview';
+  | 'compare';
 
 type DesktopPdfDownloadResult = {
   filePath: string;

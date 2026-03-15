@@ -4,7 +4,15 @@ import {
   getPreviewListingCandidateSnapshot,
   getPreviewState,
 } from '../preview-view.js';
-import { normalizeUrl } from '../utils/url.js';
+import {
+  buildPreviewAdmissionKey,
+  collectMatchedPreviewPageUrls,
+  DEFAULT_PREVIEW_ADMISSION_CONFIG,
+  evaluatePreviewAdmissionStatus,
+  matchesPreviewTargetUrl,
+  resolvePreviewSourcePageUrl,
+  safeNormalizePreviewUrl,
+} from '../utils/preview-admission.js';
 import type { PreviewExtractionSnapshot, PreviewSnapshot } from './fetch-strategy.js';
 import { shouldAllowSciencePreviewWhileLoading } from './science-validation.js';
 
@@ -12,44 +20,6 @@ const BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS = 2500;
 const BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS = 1500;
 const BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS = 5000;
 const BATCH_PREVIEW_EXTRACTION_GATE_POLL_MS = 120;
-const BATCH_PREVIEW_EXTRACTION_GATE_STABLE_POLLS = 4;
-const BATCH_PREVIEW_EXTRACTION_GATE_STABLE_MS = 450;
-const BATCH_PREVIEW_EXTRACTION_GATE_TRAILING_SECTION_STABLE_POLLS = 8;
-const BATCH_PREVIEW_EXTRACTION_GATE_TRAILING_SECTION_STABLE_MS = 900;
-
-function safeNormalizeUrl(value: unknown) {
-  try {
-    return normalizeUrl(value);
-  } catch {
-    return '';
-  }
-}
-
-function resolvePayloadSourcePageUrl(source: { pageUrl?: unknown } | null | undefined) {
-  return safeNormalizeUrl(source?.pageUrl);
-}
-
-function normalizePreviewMatchUrl(value: unknown) {
-  const normalized = safeNormalizeUrl(value);
-  if (!normalized) return '';
-
-  try {
-    const url = new URL(normalized);
-    url.hash = '';
-    if (url.pathname !== '/') {
-      url.pathname = url.pathname.replace(/\/+$/, '') || '/';
-    }
-    return url.toString();
-  } catch {
-    return '';
-  }
-}
-
-function matchesPreviewTargetUrl(left: unknown, right: unknown) {
-  const normalizedLeft = normalizePreviewMatchUrl(left);
-  const normalizedRight = normalizePreviewMatchUrl(right);
-  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
-}
 
 function logPreviewBatchDiagnostic(event: string, details: Record<string, unknown>) {
   try {
@@ -61,69 +31,6 @@ function logPreviewBatchDiagnostic(event: string, details: Record<string, unknow
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getPreviewExtractionDiagnostics(
-  extraction: PreviewExtractionSnapshot | Awaited<ReturnType<typeof getPreviewListingCandidateSnapshot>>,
-) {
-  const diagnostics = extraction?.extraction?.diagnostics;
-  if (!diagnostics || typeof diagnostics !== 'object' || Array.isArray(diagnostics)) {
-    return null;
-  }
-
-  return diagnostics as Record<string, unknown>;
-}
-
-function toFiniteNumber(value: unknown) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildPreviewExtractionGateKey(
-  extraction: Awaited<ReturnType<typeof getPreviewListingCandidateSnapshot>>,
-) {
-  const diagnostics = getPreviewExtractionDiagnostics(extraction);
-  return JSON.stringify({
-    candidateCount: extraction?.extraction?.candidates?.length ?? 0,
-    sectionCount: toFiniteNumber(diagnostics?.sectionCount),
-    cardCount: toFiniteNumber(diagnostics?.cardCount),
-    datedCandidateCount: toFiniteNumber(diagnostics?.datedCandidateCount),
-    summarizedCandidateCount: toFiniteNumber(diagnostics?.summarizedCandidateCount),
-    selectedSectionIndex: toFiniteNumber(diagnostics?.selectedSectionIndex),
-    previewUrl: safeNormalizeUrl(extraction?.previewUrl ?? ''),
-  });
-}
-
-function getPreviewExtractionStructureState(
-  extraction: Awaited<ReturnType<typeof getPreviewListingCandidateSnapshot>>,
-) {
-  if (!extraction || extraction.extraction.candidates.length === 0) {
-    return {
-      structurallyReady: false,
-      trailingSection: false,
-    };
-  }
-
-  if (!extraction.isLoading) {
-    return {
-      structurallyReady: true,
-      trailingSection: false,
-    };
-  }
-
-  const diagnostics = getPreviewExtractionDiagnostics(extraction);
-  const sectionCount = toFiniteNumber(diagnostics?.sectionCount);
-  const selectedSectionIndex = toFiniteNumber(diagnostics?.selectedSectionIndex);
-  const trailingSection = Boolean(
-    sectionCount !== null &&
-      selectedSectionIndex !== null &&
-      selectedSectionIndex >= sectionCount - 1,
-  );
-
-  return {
-    structurallyReady: true,
-    trailingSection,
-  };
 }
 
 async function waitForPreviewPageExtraction({
@@ -146,15 +53,15 @@ async function waitForPreviewPageExtraction({
     matchedPageUrls,
     gateTimeoutMs: BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS,
     pollMs: BATCH_PREVIEW_EXTRACTION_GATE_POLL_MS,
-    stablePollsRequired: BATCH_PREVIEW_EXTRACTION_GATE_STABLE_POLLS,
-    stableMsRequired: BATCH_PREVIEW_EXTRACTION_GATE_STABLE_MS,
+    stablePollsRequired: DEFAULT_PREVIEW_ADMISSION_CONFIG.stablePolls,
+    stableMsRequired: DEFAULT_PREVIEW_ADMISSION_CONFIG.stableMs,
   });
 
   while (Date.now() - startedAt < BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS) {
     attempts += 1;
 
     const currentPreviewState = getPreviewState();
-    const currentPreviewUrl = safeNormalizeUrl(currentPreviewState.url ?? '');
+    const currentPreviewUrl = safeNormalizePreviewUrl(currentPreviewState.url ?? '');
     if (
       !currentPreviewUrl ||
       !matchedPageUrls.some((pageUrl) => matchesPreviewTargetUrl(pageUrl, currentPreviewUrl))
@@ -173,7 +80,7 @@ async function waitForPreviewPageExtraction({
     const extraction = await getPreviewListingCandidateSnapshot({
       timeoutMs: BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS,
     });
-    const extractionUrl = safeNormalizeUrl(extraction?.previewUrl ?? '');
+    const extractionUrl = safeNormalizePreviewUrl(extraction?.previewUrl ?? '');
     const allowExtractionWhileLoading = extractionUrl
       ? shouldAllowSciencePreviewWhileLoading(extractionUrl)
       : false;
@@ -184,16 +91,10 @@ async function waitForPreviewPageExtraction({
       matchedPageUrls.some((pageUrl) => matchesPreviewTargetUrl(pageUrl, extractionUrl))
     ) {
       const now = Date.now();
-      const diagnostics = getPreviewExtractionDiagnostics(extraction);
-      const sectionCount = toFiniteNumber(diagnostics?.sectionCount);
-      const selectedSectionIndex = toFiniteNumber(diagnostics?.selectedSectionIndex);
       const candidateCount = extraction.extraction.candidates.length;
       bestCandidateCount = Math.max(bestCandidateCount, candidateCount);
-      if (sectionCount !== null) {
-        bestSectionCount = bestSectionCount === null ? sectionCount : Math.max(bestSectionCount, sectionCount);
-      }
 
-      const stableKey = buildPreviewExtractionGateKey(extraction);
+      const stableKey = buildPreviewAdmissionKey(extraction);
       if (stableKey === lastStableKey) {
         stablePolls += 1;
       } else {
@@ -203,32 +104,35 @@ async function waitForPreviewPageExtraction({
       }
 
       const stableMs = stableSince > 0 ? now - stableSince : 0;
-      const structureState = getPreviewExtractionStructureState(extraction);
-      const requiredStablePolls = structureState.trailingSection
-        ? BATCH_PREVIEW_EXTRACTION_GATE_TRAILING_SECTION_STABLE_POLLS
-        : BATCH_PREVIEW_EXTRACTION_GATE_STABLE_POLLS;
-      const requiredStableMs = structureState.trailingSection
-        ? BATCH_PREVIEW_EXTRACTION_GATE_TRAILING_SECTION_STABLE_MS
-        : BATCH_PREVIEW_EXTRACTION_GATE_STABLE_MS;
-      const stabilityReady =
-        !extraction.isLoading ||
-        (stablePolls >= requiredStablePolls && stableMs >= requiredStableMs);
+      const gateStatus = evaluatePreviewAdmissionStatus(
+        extraction,
+        {
+          stablePolls,
+          stableMs,
+        },
+      );
+      if (gateStatus.sectionCount !== null) {
+        bestSectionCount =
+          bestSectionCount === null
+            ? gateStatus.sectionCount
+            : Math.max(bestSectionCount, gateStatus.sectionCount);
+      }
 
-      if (structureState.structurallyReady && stabilityReady) {
+      if (gateStatus.ready) {
         logPreviewBatchDiagnostic('extraction_gate_ready', {
           previewUrl,
           extractionUrl,
-          candidateCount,
-          sectionCount,
-          selectedSectionIndex,
+          candidateCount: gateStatus.candidateCount,
+          sectionCount: gateStatus.sectionCount,
+          selectedSectionIndex: gateStatus.selectedSectionIndex,
           attempts,
           waitMs: Date.now() - startedAt,
           extractionIsLoading: extraction.isLoading,
-          trailingSection: structureState.trailingSection,
+          trailingSection: gateStatus.trailingSection,
           stablePolls,
           stableMs,
-          requiredStablePolls,
-          requiredStableMs,
+          requiredStablePolls: gateStatus.requiredStablePolls,
+          requiredStableMs: gateStatus.requiredStableMs,
         });
         return extraction;
       }
@@ -250,17 +154,17 @@ async function waitForPreviewPageExtraction({
 }
 
 export async function resolvePreviewSnapshotHtml(payload: PreviewDownloadPdfPayload = {}) {
-  const requestedUrl = safeNormalizeUrl(payload.pageUrl ?? '');
+  const requestedUrl = safeNormalizePreviewUrl(payload.pageUrl ?? '');
   if (!requestedUrl) return null;
 
   const previewState = getPreviewState();
-  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
+  const previewUrl = safeNormalizePreviewUrl(previewState.url ?? '');
   if (!previewUrl || !matchesPreviewTargetUrl(previewUrl, requestedUrl)) {
     return null;
   }
 
   const snapshot = await getPreviewDocumentSnapshot();
-  const snapshotUrl = safeNormalizeUrl(snapshot?.url ?? '');
+  const snapshotUrl = safeNormalizePreviewUrl(snapshot?.url ?? '');
   if (!snapshot || !snapshotUrl || !matchesPreviewTargetUrl(snapshotUrl, requestedUrl)) {
     return null;
   }
@@ -275,25 +179,19 @@ export async function resolveBatchPreviewSnapshots(payload: FetchLatestArticlesP
   }
 
   const previewState = getPreviewState();
-  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
+  const previewUrl = safeNormalizePreviewUrl(previewState.url ?? '');
   if (!previewUrl) {
     return new Map<string, PreviewSnapshot>();
   }
 
-  const matchedPageUrls = new Set<string>();
-  for (const source of sources) {
-    const pageUrl = resolvePayloadSourcePageUrl(source);
-    if (pageUrl && matchesPreviewTargetUrl(pageUrl, previewUrl)) {
-      matchedPageUrls.add(pageUrl);
-    }
-  }
+  const matchedPageUrls = collectMatchedPreviewPageUrls(sources, previewUrl);
 
   if (matchedPageUrls.size === 0) {
     logPreviewBatchDiagnostic('snapshot_skipped', {
       reason: 'preview_url_not_matched',
       previewUrl,
       sourceUrls: sources
-        .map((source) => resolvePayloadSourcePageUrl(source))
+        .map((source) => resolvePreviewSourcePageUrl(source))
         .filter(Boolean),
     });
     return new Map<string, PreviewSnapshot>();
@@ -307,7 +205,7 @@ export async function resolveBatchPreviewSnapshots(payload: FetchLatestArticlesP
   const snapshot = await getPreviewDocumentSnapshot({
     timeoutMs: BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS,
   });
-  const snapshotUrl = safeNormalizeUrl(snapshot?.url ?? '');
+  const snapshotUrl = safeNormalizePreviewUrl(snapshot?.url ?? '');
   const allowSnapshotWhileLoading = snapshotUrl ? shouldAllowSciencePreviewWhileLoading(snapshotUrl) : false;
   if (
     !snapshot ||
@@ -354,25 +252,19 @@ export async function resolveBatchPreviewExtractions(payload: FetchLatestArticle
   }
 
   const previewState = getPreviewState();
-  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
+  const previewUrl = safeNormalizePreviewUrl(previewState.url ?? '');
   if (!previewUrl) {
     return new Map<string, PreviewExtractionSnapshot>();
   }
 
-  const matchedPageUrls = new Set<string>();
-  for (const source of sources) {
-    const pageUrl = resolvePayloadSourcePageUrl(source);
-    if (pageUrl && matchesPreviewTargetUrl(pageUrl, previewUrl)) {
-      matchedPageUrls.add(pageUrl);
-    }
-  }
+  const matchedPageUrls = collectMatchedPreviewPageUrls(sources, previewUrl);
 
   if (matchedPageUrls.size === 0) {
     logPreviewBatchDiagnostic('extraction_skipped', {
       reason: 'preview_url_not_matched',
       previewUrl,
       sourceUrls: sources
-        .map((source) => resolvePayloadSourcePageUrl(source))
+        .map((source) => resolvePreviewSourcePageUrl(source))
         .filter(Boolean),
     });
     return new Map<string, PreviewExtractionSnapshot>();
@@ -392,7 +284,7 @@ export async function resolveBatchPreviewExtractions(payload: FetchLatestArticle
       : await getPreviewListingCandidateSnapshot({
           timeoutMs: BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS,
         });
-  const extractionUrl = safeNormalizeUrl(extraction?.previewUrl ?? '');
+  const extractionUrl = safeNormalizePreviewUrl(extraction?.previewUrl ?? '');
   const allowExtractionWhileLoading = extractionUrl ? shouldAllowSciencePreviewWhileLoading(extractionUrl) : false;
   if (
     !extraction ||
