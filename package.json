@@ -5,6 +5,7 @@
   "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {
+    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./kill-dev-ports.ps1",
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
     "dev:renderer": "vite",
     "build:electron": "tsc -p tsconfig.electron.json",
