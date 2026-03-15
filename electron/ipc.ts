@@ -38,6 +38,7 @@ import {
 } from './services/article-fetcher.js';
 import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
 import { previewDownloadPdf } from './services/pdf.js';
+import { resolveDocxExportDialogCopy } from './utils/locale-copy.js';
 import { appError, serializeAppError } from './utils/app-error.js';
 import { normalizeUrl } from './utils/url.js';
 import { getMainWindow } from './window.js';
@@ -75,10 +76,7 @@ async function exportArticlesDocx(
 
   const preferredDirectory =
     typeof payload.preferredDirectory === 'string' ? payload.preferredDirectory.trim() : '';
-  const dialogCopy =
-    payload.locale === 'en'
-      ? { title: 'Export DOCX', buttonLabel: 'Export' }
-      : { title: '导出 DOCX', buttonLabel: '导出' };
+  const dialogCopy = resolveDocxExportDialogCopy(payload.locale);
   const result = await dialog.showSaveDialog(mainWindow, {
     title: dialogCopy.title,
     buttonLabel: dialogCopy.buttonLabel,

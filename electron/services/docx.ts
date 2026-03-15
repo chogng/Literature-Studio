@@ -4,9 +4,8 @@ import { promises as fs } from 'node:fs';
 import type { Article, DocxExportResult } from '../types.js';
 import { defaultDocxExportConfig } from './docx-config.js';
 import { appError } from '../utils/app-error.js';
+import { resolveDocxExportCopy, type SupportedLocale } from '../utils/locale-copy.js';
 import { cleanText } from '../utils/text.js';
-
-type SupportedLocale = 'zh' | 'en';
 
 type ZipEntry = {
   name: string;
@@ -21,37 +20,6 @@ for (let index = 0; index < crcTable.length; index += 1) {
   }
   crcTable[index] = value >>> 0;
 }
-
-const localeCopy = {
-  zh: {
-    documentTitle: '批量导出的文献卡片',
-    articleCount: '文章数量',
-    exportedAt: '导出时间',
-    authors: '作者',
-    doi: 'DOI',
-    abstract: '摘要',
-    publishedAt: '发布时间',
-    source: '来源链接',
-    fetchedAt: '抓取时间',
-    untitled: '无标题',
-    unknown: '未识别',
-    uncategorizedJournal: '未分类期刊',
-  },
-  en: {
-    documentTitle: 'Batch Exported Article Cards',
-    articleCount: 'Article Count',
-    exportedAt: 'Exported At',
-    authors: 'Authors',
-    doi: 'DOI',
-    abstract: 'Abstract',
-    publishedAt: 'Published At',
-    source: 'Source URL',
-    fetchedAt: 'Fetched At',
-    untitled: 'Untitled',
-    unknown: 'Unknown',
-    uncategorizedJournal: 'Uncategorized Journal',
-  },
-} as const;
 
 const docxConfig = defaultDocxExportConfig;
 
@@ -78,7 +46,7 @@ function formatDocxLocale(locale: SupportedLocale) {
 
 function formatDateValue(value: string | null | undefined, locale: SupportedLocale) {
   const cleaned = cleanText(value);
-  if (!cleaned) return localeCopy[locale].unknown;
+  if (!cleaned) return resolveDocxExportCopy(locale).unknown;
 
   const parsed = new Date(cleaned);
   if (Number.isNaN(parsed.getTime())) {
@@ -90,7 +58,7 @@ function formatDateValue(value: string | null | undefined, locale: SupportedLoca
 
 function formatPublishedValue(value: string | null | undefined, locale: SupportedLocale) {
   const cleaned = cleanText(value);
-  return cleaned || localeCopy[locale].unknown;
+  return cleaned || resolveDocxExportCopy(locale).unknown;
 }
 
 function paragraphXml(
@@ -155,7 +123,7 @@ function resolveJournalTitle(article: Article, locale: SupportedLocale) {
     }
   }
 
-  return localeCopy[locale].uncategorizedJournal;
+  return resolveDocxExportCopy(locale).uncategorizedJournal;
 }
 
 function groupArticlesByJournal(articles: Article[], locale: SupportedLocale): JournalArticleGroup[] {
@@ -180,7 +148,7 @@ function groupArticlesByJournal(articles: Article[], locale: SupportedLocale): J
 }
 
 function articleParagraphsXml(article: Article, indexInJournal: number, locale: SupportedLocale) {
-  const copy = localeCopy[locale];
+  const copy = resolveDocxExportCopy(locale);
   const title = cleanText(article.title) || copy.untitled;
   const authors = article.authors.map((author) => cleanText(author)).filter(Boolean).join(', ') || copy.unknown;
   const abstractLines = normalizeLines(article.abstractText);
@@ -224,7 +192,7 @@ function articleParagraphsXml(article: Article, indexInJournal: number, locale: 
 }
 
 function buildDocumentXml(articles: Article[], locale: SupportedLocale, exportedAt: Date) {
-  const copy = localeCopy[locale];
+  const copy = resolveDocxExportCopy(locale);
   const page = docxConfig.page;
   const journalGroups = groupArticlesByJournal(articles, locale);
   const bodyParts: string[] = [

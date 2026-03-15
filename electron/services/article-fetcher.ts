@@ -1244,6 +1244,7 @@ async function fetchLatestArticlesFromHomepagePage({
     : defaultAttemptBudget;
   const candidatesToFetch = candidatesForAttempt.slice(0, attemptBudget);
   const maxAttempts = candidatesToFetch.length;
+  const candidateSlotsRemaining = Math.max(remainingLimit - fetched.length, 0);
   const retryEligibleMaxOrder = Math.max(
     RETRY_PRIORITY_MIN_ORDER,
     Math.ceil(remainingLimit * RETRY_PRIORITY_LIMIT_MULTIPLIER),
@@ -1276,15 +1277,42 @@ async function fetchLatestArticlesFromHomepagePage({
   let nextCandidateIndex = 0;
   let nextBatchLogAt = Math.min(CANDIDATE_FETCH_CONCURRENCY, maxAttempts);
   const acceptedCandidates: Array<{ candidateOrder: number; article: Article }> = [];
-  const inFlightControllers = new Set<AbortController>();
-  const preserveInFlightCandidatesOnLimit = Boolean(extractorId);
+  const inFlightControllers = new Map<number, AbortController>();
+  const settledCandidateOrders = new Set<number>();
   const totalAcceptedCount = () => fetched.length + acceptedCandidates.length;
-  const abortInFlightCandidates = () => {
-    for (const controller of inFlightControllers) {
+  const abortInFlightCandidatesAfterOrder = (maxCandidateOrderToKeep: number) => {
+    for (const [candidateOrder, controller] of inFlightControllers) {
+      if (candidateOrder <= maxCandidateOrderToKeep) continue;
       if (!controller.signal.aborted) {
         controller.abort();
       }
     }
+  };
+  const resolveAcceptedCutoffOrder = () => {
+    if (candidateSlotsRemaining <= 0 || acceptedCandidates.length < candidateSlotsRemaining) {
+      return null;
+    }
+
+    const sortedAcceptedOrders = acceptedCandidates
+      .map((item) => item.candidateOrder)
+      .sort((a, b) => a - b);
+    return sortedAcceptedOrders[candidateSlotsRemaining - 1] ?? null;
+  };
+  const hasSettledAllCandidatesThroughOrder = (maxCandidateOrder: number) => {
+    for (let order = 1; order <= maxCandidateOrder; order += 1) {
+      if (!settledCandidateOrders.has(order)) {
+        return false;
+      }
+    }
+    return true;
+  };
+  const maybeStopAfterResolvingLeadingCandidates = () => {
+    const cutoffOrder = resolveAcceptedCutoffOrder();
+    if (cutoffOrder === null) return;
+    if (!hasSettledAllCandidatesThroughOrder(cutoffOrder)) return;
+
+    stopLaunching = true;
+    abortInFlightCandidatesAfterOrder(cutoffOrder);
   };
 
   const maybeLogCandidateBatch = (force = false) => {
@@ -1328,7 +1356,7 @@ async function fetchLatestArticlesFromHomepagePage({
         const candidate = candidatesToFetch[currentIndex];
         let accepted = false;
         const requestController = new AbortController();
-        inFlightControllers.add(requestController);
+        inFlightControllers.set(candidateOrder, requestController);
 
         try {
           const allowTimeoutRetry = Boolean(
@@ -1428,20 +1456,16 @@ async function fetchLatestArticlesFromHomepagePage({
           });
           accepted = true;
           candidateAccepted += 1;
-          if (totalAcceptedCount() >= remainingLimit) {
-            stopLaunching = true;
-            if (!preserveInFlightCandidatesOnLimit) {
-              abortInFlightCandidates();
-            }
-          }
         } catch {
           // Ignore individual candidate failures and continue draining the queue.
         } finally {
-          inFlightControllers.delete(requestController);
+          inFlightControllers.delete(candidateOrder);
+          settledCandidateOrders.add(candidateOrder);
           candidateSettled += 1;
           if (accepted) {
             acceptedSinceLastBatchLog += 1;
           }
+          maybeStopAfterResolvingLeadingCandidates();
           maybeLogCandidateBatch();
         }
       }

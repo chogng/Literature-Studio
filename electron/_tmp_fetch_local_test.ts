@@ -96,7 +96,11 @@ function parseArticleId(sourceUrl: string) {
 }
 
 function buildExpectedIds(label: 'A' | 'B') {
-  if (label === 'B') {
+  const prefersBrowserTransport = process.env.READER_FETCH_TRANSPORT !== 'node';
+  const expectsBrowserSessionArticles =
+    prefersBrowserTransport || process.env.READER_FETCH_RENDER_FALLBACK !== '0';
+
+  if (expectsBrowserSessionArticles) {
     return Array.from({ length: articleLimit }, (_, index) => index + 1);
   }
 
@@ -109,11 +113,17 @@ function verifyAccuracy(
 ) {
   if (articles.length !== articleLimit) return false;
 
+  const expectedIds = buildExpectedIds(label);
+  const expectsBrowserSessionArticles = expectedIds[0] === 1;
+
   return articles.every((article, index) => {
-    const expectedId = label === 'B' ? index + 1 : index + 13;
-    const expectedTitle =
-      label === 'B' ? `Browser Session Article ${expectedId}` : `Server Article ${expectedId}`;
-    const abstractMarker = label === 'B' ? 'browser session abstract' : 'server rendered abstract';
+    const expectedId = expectedIds[index];
+    const expectedTitle = expectsBrowserSessionArticles
+      ? `Browser Session Article ${expectedId}`
+      : `Server Article ${expectedId}`;
+    const abstractMarker = expectsBrowserSessionArticles
+      ? 'browser session abstract'
+      : 'server rendered abstract';
     return (
       article.title === expectedTitle &&
       article.publishedAt === '2026-03-14' &&
@@ -175,7 +185,7 @@ async function main() {
       return {
         defaultDownloadDir: null,
         defaultBatchSources: [],
-        defaultBatchLimit: 5,
+        defaultBatchLimit: articleLimit,
         defaultSameDomainOnly: true,
         locale: 'zh' as const,
         configPath: '',
@@ -185,7 +195,7 @@ async function main() {
       return {
         defaultDownloadDir: null,
         defaultBatchSources: [],
-        defaultBatchLimit: 5,
+        defaultBatchLimit: articleLimit,
         defaultSameDomainOnly: true,
         locale: 'zh' as const,
         configPath: '',
