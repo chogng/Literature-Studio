@@ -12,7 +12,7 @@ export type BatchSource = {
 
 export type BatchFetchSource = {
   sourceId: string;
-  homepageUrl: string;
+  pageUrl: string;
   journalTitle: string;
 };
 
@@ -160,7 +160,7 @@ export function prepareBatchSourcesForFetch(input: unknown): {
 
     deduped.set(normalizedUrl, {
       sourceId: ensureBatchSourceId(source.id, normalizedUrl),
-      homepageUrl: normalizedUrl,
+      pageUrl: normalizedUrl,
       journalTitle,
     });
   }

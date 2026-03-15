@@ -4,7 +4,7 @@ import type {
   AppErrorCode,
   AppCommandPayloadMap,
   AppCommandResultMap,
-  HomepageSourceStatus,
+  FetchStatus,
   NativeModalState,
   PreviewBounds,
   PreviewState,
@@ -116,28 +116,29 @@ const electronAPI = {
     },
   },
   fetch: {
-    onHomepageSourceStatus(listener: (status: HomepageSourceStatus) => void) {
+    onFetchStatus(listener: (status: FetchStatus) => void) {
       if (typeof listener !== 'function') {
         return () => {};
       }
 
-      const wrapped = (_event: Electron.IpcRendererEvent, payload: HomepageSourceStatus | undefined) =>
+      const wrapped = (_event: Electron.IpcRendererEvent, payload: FetchStatus | undefined) =>
         listener(
           payload ?? {
             sourceId: '',
-            homepageUrl: '',
+            pageUrl: '',
             pageNumber: 0,
-            homepageSource: 'network',
-            homepageSourceDetail: null,
+            fetchChannel: 'network',
+            fetchDetail: null,
+            previewReuseMode: null,
             extractorId: null,
             paginationStopped: false,
             paginationStopReason: null,
           },
         );
 
-      ipcRenderer.on('app:fetch-homepage-source', wrapped);
+      ipcRenderer.on('app:fetch-status', wrapped);
       return () => {
-        ipcRenderer.removeListener('app:fetch-homepage-source', wrapped);
+        ipcRenderer.removeListener('app:fetch-status', wrapped);
       };
     },
   },

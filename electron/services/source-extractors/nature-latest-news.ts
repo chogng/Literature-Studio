@@ -6,20 +6,20 @@ import {
   createNatureListingCandidateExtractor,
   evaluateNatureListingPaginationStop,
   findNatureListingNextPageUrl,
-  isNatureListingHomepage,
+  isNatureListingPage,
 } from './nature-listing-shared.js';
 import { shortenForLog, timingLog } from '../fetch-timing.js';
 
 import type {
-  HomepageCandidateExtraction,
-  HomepageCandidateExtractor,
-  HomepageCandidateExtractorContext,
-  HomepageCandidateRefinementContext,
-  HomepagePaginationContext,
-  HomepageCandidateSeed,
+  ListingCandidateExtraction,
+  ListingCandidateExtractor,
+  ListingCandidateExtractorContext,
+  ListingCandidateRefinementContext,
+  ListingPaginationContext,
+  ListingCandidateSeed,
 } from './types.js';
 
-const NATURE_LATEST_NEWS_HOMEPAGE_PATH = '/latest-news';
+const NATURE_LATEST_NEWS_LISTING_PAGE_PATH = '/latest-news';
 const NATURE_LATEST_NEWS_RSS_URL = 'https://www.nature.com/nature.rss';
 const NATURE_LATEST_NEWS_RSS_HINT_TTL_MS = 5 * 60 * 1000;
 
@@ -36,7 +36,7 @@ const natureLatestNewsRssHintCache = new Map<string, { expiresAt: number; hints:
 
 const fallbackNatureLatestNewsCandidateExtractor = createNatureListingCandidateExtractor({
   id: 'nature-latest-news',
-  matches: isNatureLatestNewsHomepage,
+  matches: isNatureLatestNewsListingPage,
   findNextPageUrl: findNatureLatestNewsNextPageUrl,
   refineExtraction: refineNatureLatestNewsExtraction,
 });
@@ -59,8 +59,8 @@ function parseNatureLatestNewsTrackLabel(value: unknown) {
 function extractNatureLatestNewsLink({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return $(root).find(NATURE_LATEST_NEWS_LINK_SELECTOR).first();
 }
@@ -68,8 +68,8 @@ function extractNatureLatestNewsLink({
 function extractNatureLatestNewsHref({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText(extractNatureLatestNewsLink({ $, root }).attr('href'));
 }
@@ -77,8 +77,8 @@ function extractNatureLatestNewsHref({
 function extractNatureLatestNewsTitle({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_LATEST_NEWS_TITLE_SELECTOR).first().text());
 }
@@ -86,8 +86,8 @@ function extractNatureLatestNewsTitle({
 function extractNatureLatestNewsDescription({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_LATEST_NEWS_DESCRIPTION_SELECTOR).first().text());
 }
@@ -95,8 +95,8 @@ function extractNatureLatestNewsDescription({
 function extractNatureLatestNewsFooterText({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_LATEST_NEWS_FOOTER_SELECTOR).first().text());
 }
@@ -104,8 +104,8 @@ function extractNatureLatestNewsFooterText({
 function extractNatureLatestNewsArticleType({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_LATEST_NEWS_ARTICLE_TYPE_SELECTOR).first().text());
 }
@@ -113,8 +113,8 @@ function extractNatureLatestNewsArticleType({
 function extractNatureLatestNewsCardOrder({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const link = extractNatureLatestNewsLink({ $, root });
   const candidateValues = [
@@ -134,8 +134,8 @@ function extractNatureLatestNewsCardOrder({
 function extractNatureLatestNewsDateHint({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const scopedRoot = $(root).find(NATURE_LATEST_NEWS_FOOTER_SELECTOR).first();
   const fallbackRoot = scopedRoot.length > 0 ? scopedRoot : $(root);
@@ -172,9 +172,9 @@ function extractNatureLatestNewsDateHint({
 }
 
 function extractNatureLatestNewsArticleCards(
-  context: HomepageCandidateExtractorContext,
-): HomepageCandidateExtraction | null {
-  const { $, homepageUrl } = context;
+  context: ListingCandidateExtractorContext,
+): ListingCandidateExtraction | null {
+  const { $, pageUrl } = context;
   const roots = $(NATURE_LATEST_NEWS_CARD_SELECTOR).toArray();
   if (roots.length === 0) return null;
 
@@ -205,7 +205,7 @@ function extractNatureLatestNewsArticleCards(
 
       let normalized = '';
       try {
-        normalized = new URL(href, homepageUrl).toString();
+        normalized = new URL(href, pageUrl).toString();
       } catch {
         return null;
       }
@@ -260,13 +260,13 @@ function extractNatureLatestNewsArticleCards(
   };
 }
 
-export const natureLatestNewsCandidateExtractor: HomepageCandidateExtractor = {
+export const natureLatestNewsCandidateExtractor: ListingCandidateExtractor = {
   id: 'nature-latest-news',
-  matches: isNatureLatestNewsHomepage,
+  matches: isNatureLatestNewsListingPage,
   findNextPageUrl: findNatureLatestNewsNextPageUrl,
   refineExtraction: refineNatureLatestNewsExtraction,
   evaluatePaginationStop: evaluateNatureListingPaginationStop,
-  extract(context): HomepageCandidateExtraction | null {
+  extract(context): ListingCandidateExtraction | null {
     const targeted = extractNatureLatestNewsArticleCards(context);
     if (targeted && targeted.candidates.length > 0) {
       return targeted;
@@ -276,8 +276,8 @@ export const natureLatestNewsCandidateExtractor: HomepageCandidateExtractor = {
   },
 };
 
-export function isNatureLatestNewsHomepage(homepage: URL) {
-  return isNatureListingHomepage(homepage, NATURE_LATEST_NEWS_HOMEPAGE_PATH);
+export function isNatureLatestNewsListingPage(page: URL) {
+  return isNatureListingPage(page, NATURE_LATEST_NEWS_LISTING_PAGE_PATH);
 }
 
 function parseNatureLatestNewsRssDateHints(xml: string) {
@@ -299,7 +299,7 @@ function parseNatureLatestNewsRssDateHints(xml: string) {
 async function fetchNatureLatestNewsRssDateHints({
   traceId,
   fetchHtml,
-}: Pick<HomepageCandidateRefinementContext, 'traceId' | 'fetchHtml'>) {
+}: Pick<ListingCandidateRefinementContext, 'traceId' | 'fetchHtml'>) {
   const cacheKey = NATURE_LATEST_NEWS_RSS_URL;
   const now = Date.now();
   const cached = natureLatestNewsRssHintCache.get(cacheKey);
@@ -328,14 +328,14 @@ async function fetchNatureLatestNewsRssDateHints({
 }
 
 async function refineNatureLatestNewsExtraction({
-  homepage,
-  homepageUrl,
+  page,
+  pageUrl,
   pageNumber,
   traceId,
   extraction,
   fetchHtml,
-}: HomepageCandidateRefinementContext) {
-  if (!isNatureLatestNewsHomepage(homepage)) {
+}: ListingCandidateRefinementContext) {
+  if (!isNatureLatestNewsListingPage(page)) {
     return extraction;
   }
 
@@ -352,13 +352,13 @@ async function refineNatureLatestNewsExtraction({
   }
 
   let rssHintApplied = 0;
-  const candidates: HomepageCandidateSeed[] = extraction.candidates.map((candidate) => {
+  const candidates: ListingCandidateSeed[] = extraction.candidates.map((candidate) => {
     if (candidate.dateHint) {
       return candidate;
     }
 
     try {
-      const normalizedUrl = new URL(candidate.href, homepageUrl).toString();
+      const normalizedUrl = new URL(candidate.href, pageUrl).toString();
       const rssDateHint = rssHints.get(normalizedUrl) ?? null;
       if (!rssDateHint) {
         return candidate;
@@ -382,7 +382,7 @@ async function refineNatureLatestNewsExtraction({
     pageNumber,
     rssHintCount: rssHints.size,
     rssHintApplied,
-    homepageUrl: shortenForLog(homepageUrl),
+    pageUrl: shortenForLog(pageUrl),
   });
 
   return {
@@ -397,15 +397,15 @@ async function refineNatureLatestNewsExtraction({
 }
 
 function findNatureLatestNewsNextPageUrl({
-  homepage,
-  homepageUrl,
+  page,
+  pageUrl,
   $,
   seenPageUrls,
-}: HomepagePaginationContext) {
-  if (!isNatureLatestNewsHomepage(homepage)) return null;
+}: ListingPaginationContext) {
+  if (!isNatureLatestNewsListingPage(page)) return null;
   return findNatureListingNextPageUrl({
-    homepage,
-    homepageUrl,
+    page,
+    pageUrl,
     $,
     seenPageUrls,
   });

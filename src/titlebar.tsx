@@ -4,7 +4,8 @@ import { Input } from './components/Input';
 import './titlebar.css';
 
 export type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
-export type TitlebarFetchSourceMode = 'network' | 'preview' | 'preview-extract';
+export type TitlebarFetchChannel = 'network' | 'preview';
+export type TitlebarPreviewReuseMode = 'snapshot' | 'live-extract';
 
 type TitlebarLabels = {
   controlsAriaLabel: string;
@@ -47,7 +48,8 @@ type TitlebarProps = {
   onWebUrlChange?: (url: string) => void;
   onNavigateWeb?: () => void;
   articleUrlPlaceholder?: string;
-  fetchSourceMode?: TitlebarFetchSourceMode | null;
+  fetchChannel?: TitlebarFetchChannel | null;
+  previewReuseMode?: TitlebarPreviewReuseMode | null;
   fetchSourceText?: string;
   fetchSourceTitle?: string;
   fetchStopText?: string;
@@ -77,7 +79,8 @@ export function Titlebar({
   onWebUrlChange,
   onNavigateWeb,
   articleUrlPlaceholder,
-  fetchSourceMode = null,
+  fetchChannel = null,
+  previewReuseMode = null,
   fetchSourceText,
   fetchSourceTitle,
   fetchStopText,
@@ -90,8 +93,13 @@ export function Titlebar({
       <div className="titlebar-start">
         <div className="titlebar-brand">
           <span className="titlebar-app-name">{appName}</span>
-          {fetchSourceMode && fetchSourceText ? (
-            <span className="titlebar-fetch-source" data-mode={fetchSourceMode} title={fetchSourceTitle || fetchSourceText}>
+          {fetchChannel && fetchSourceText ? (
+            <span
+              className="titlebar-fetch-source"
+              data-mode={fetchChannel}
+              data-preview-reuse={fetchChannel === 'preview' ? previewReuseMode ?? 'snapshot' : undefined}
+              title={fetchSourceTitle || fetchSourceText}
+            >
               {fetchSourceText}
             </span>
           ) : null}

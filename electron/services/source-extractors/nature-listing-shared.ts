@@ -3,13 +3,13 @@ import { cleanText } from '../../utils/text.js';
 import { createDateSortedPaginationStopEvaluator } from './date-sorted-pagination.js';
 
 import type {
-  HomepageCandidateExtraction,
-  HomepageCandidateExtractor,
-  HomepageCandidateExtractorContext,
-  HomepagePaginationStopContext,
-  HomepagePaginationStopEvaluation,
-  HomepageCandidateRefinementContext,
-  HomepagePaginationContext,
+  ListingCandidateExtraction,
+  ListingCandidateExtractor,
+  ListingCandidateExtractorContext,
+  ListingPaginationStopContext,
+  ListingPaginationStopEvaluation,
+  ListingCandidateRefinementContext,
+  ListingPaginationContext,
 } from './types.js';
 
 const NATURE_LISTING_LAYOUT_SELECTORS = [
@@ -34,8 +34,8 @@ function parseNatureListingDateValue(value: unknown) {
 function countArticleLinksWithin({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return $(root).find(NATURE_LISTING_LINK_SELECTOR).length;
 }
@@ -43,8 +43,8 @@ function countArticleLinksWithin({
 function extractNatureListingDateHint({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const candidateNodes = $(root).find(NATURE_LISTING_DATE_SELECTOR).toArray();
   for (const node of candidateNodes) {
@@ -68,8 +68,8 @@ function extractNatureListingDateHint({
 function extractNatureListingHref({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const link = $(root).find(NATURE_LISTING_LINK_SELECTOR).first();
   return cleanText(link.attr('href'));
@@ -78,8 +78,8 @@ function extractNatureListingHref({
 function extractNatureListingTitle({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find('h3').first().text());
 }
@@ -115,9 +115,9 @@ function extractNatureListingTrackAction({
   $,
   root,
   linkNode,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
-  linkNode: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
+  linkNode: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const candidates = [
     $(linkNode).attr('data-track-action'),
@@ -138,9 +138,9 @@ function extractNatureListingTrackLabel({
   $,
   root,
   linkNode,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
-  linkNode: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
+  linkNode: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const candidates = [
     $(linkNode).attr('data-track-label'),
@@ -161,9 +161,9 @@ function extractNatureListingRank({
   $,
   root,
   linkNode,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
-  linkNode: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
+  linkNode: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const candidateNodes = [
     $(linkNode),
@@ -189,9 +189,9 @@ function extractNatureListingCardOrder({
   $,
   root,
   linkNode,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
-  linkNode: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
+  linkNode: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const candidateNodes = [
     $(linkNode),
@@ -237,15 +237,15 @@ function resolveNatureListingCandidateRoot({
   $,
   layoutRoot,
   linkNode,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  layoutRoot: Parameters<HomepageCandidateExtractorContext['$']>[0];
-  linkNode: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  layoutRoot: Parameters<ListingCandidateExtractorContext['$']>[0];
+  linkNode: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const layoutRootNode = $(layoutRoot).get(0);
   if (!layoutRootNode) return null;
 
   let current = $(linkNode).parent();
-  let bestRoot: Parameters<HomepageCandidateExtractorContext['$']>[0] | null = null;
+  let bestRoot: Parameters<ListingCandidateExtractorContext['$']>[0] | null = null;
 
   while (current.length > 0) {
     const currentNode = current.get(0);
@@ -270,8 +270,8 @@ function resolveNatureListingCandidateRoot({
 function resolveNatureListingFallbackRoot({
   $,
   linkNode,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  linkNode: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  linkNode: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const candidateRoot = $(linkNode)
     .closest('li, article, div.c-article-item__wrapper, div.c-article-item__container')
@@ -285,7 +285,7 @@ function resolveNatureListingFallbackRoot({
 
 function collectNatureListingCandidateRoots({
   $,
-}: Pick<HomepageCandidateExtractorContext, '$'>) {
+}: Pick<ListingCandidateExtractorContext, '$'>) {
   const candidatesBySelector = NATURE_LISTING_LAYOUT_SELECTORS.map((selector) => {
     const matchedRoots = $(selector).toArray();
     return {
@@ -382,13 +382,13 @@ function buildNatureListingDiagnostics({
   layoutRootNodes,
   selectorCandidates,
   roots,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
+}: Pick<ListingCandidateExtractorContext, '$'> & {
   layoutSelector: string;
-  layoutRootNodes: Array<Parameters<HomepageCandidateExtractorContext['$']>[0]>;
+  layoutRootNodes: Array<Parameters<ListingCandidateExtractorContext['$']>[0]>;
   selectorCandidates: Array<{ selector: string; matchedRootCount: number; articleLinkCount: number }>;
   roots: Array<{
-    root: Parameters<HomepageCandidateExtractorContext['$']>[0];
-    linkNode: Parameters<HomepageCandidateExtractorContext['$']>[0];
+    root: Parameters<ListingCandidateExtractorContext['$']>[0];
+    linkNode: Parameters<ListingCandidateExtractorContext['$']>[0];
     layoutSelector: string;
     sectionIndex: number;
     discoveryOrder: number;
@@ -446,14 +446,14 @@ export function createNatureListingCandidateExtractor({
   evaluatePaginationStop = evaluateNatureListingPaginationStop,
 }: {
   id: string;
-  matches: (homepage: URL) => boolean;
-  findNextPageUrl?: HomepageCandidateExtractor['findNextPageUrl'];
+  matches: (page: URL) => boolean;
+  findNextPageUrl?: ListingCandidateExtractor['findNextPageUrl'];
   refineExtraction?: (
-    context: HomepageCandidateRefinementContext,
-  ) => Promise<HomepageCandidateExtraction | null> | HomepageCandidateExtraction | null;
+    context: ListingCandidateRefinementContext,
+  ) => Promise<ListingCandidateExtraction | null> | ListingCandidateExtraction | null;
   evaluatePaginationStop?: (
-    context: HomepagePaginationStopContext,
-  ) => HomepagePaginationStopEvaluation | null;
+    context: ListingPaginationStopContext,
+  ) => ListingPaginationStopEvaluation | null;
 }) {
   return {
     id,
@@ -461,8 +461,8 @@ export function createNatureListingCandidateExtractor({
     findNextPageUrl,
     refineExtraction,
     evaluatePaginationStop,
-    extract(context): HomepageCandidateExtraction | null {
-      const { $, homepageUrl } = context;
+    extract(context): ListingCandidateExtraction | null {
+      const { $, pageUrl } = context;
       const resolvedRoots = collectNatureListingCandidateRoots({ $ });
       if (!resolvedRoots || resolvedRoots.roots.length === 0) {
         return null;
@@ -477,7 +477,7 @@ export function createNatureListingCandidateExtractor({
 
           let normalized = '';
           try {
-            normalized = new URL(href, homepageUrl).toString();
+            normalized = new URL(href, pageUrl).toString();
           } catch {
             return null;
           }
@@ -511,23 +511,23 @@ export function createNatureListingCandidateExtractor({
         }),
       };
     },
-  } satisfies HomepageCandidateExtractor;
+  } satisfies ListingCandidateExtractor;
 }
 
-export function isNatureListingHomepage(homepage: URL, pathname: string) {
-  return homepage.host === 'www.nature.com' && homepage.pathname.replace(/\/+$/, '') === pathname;
+export function isNatureListingPage(page: URL, pathname: string) {
+  return page.host === 'www.nature.com' && page.pathname.replace(/\/+$/, '') === pathname;
 }
 
 export function findNatureListingNextPageUrl({
-  homepage,
-  homepageUrl,
+  page,
+  pageUrl,
   $,
   seenPageUrls,
-}: HomepagePaginationContext) {
-  if (homepage.host !== 'www.nature.com') return null;
+}: ListingPaginationContext) {
+  if (page.host !== 'www.nature.com') return null;
 
-  const currentPathname = homepage.pathname.replace(/\/+$/, '');
-  const currentPageNumber = parseNatureListingPageNumber(homepage.searchParams.get('page'), 1);
+  const currentPathname = page.pathname.replace(/\/+$/, '');
+  const currentPageNumber = parseNatureListingPageNumber(page.searchParams.get('page'), 1);
   const nextPageNumber = currentPageNumber + 1;
   let fallbackMatch: string | null = null;
 
@@ -538,13 +538,13 @@ export function findNatureListingNextPageUrl({
 
     let resolved: URL;
     try {
-      resolved = new URL(href, homepageUrl);
+      resolved = new URL(href, pageUrl);
     } catch {
       continue;
     }
 
     const normalizedPathname = resolved.pathname.replace(/\/+$/, '');
-    if (resolved.host !== homepage.host || normalizedPathname !== currentPathname) {
+    if (resolved.host !== page.host || normalizedPathname !== currentPathname) {
       continue;
     }
 

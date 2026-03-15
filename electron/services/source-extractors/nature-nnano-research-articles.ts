@@ -1,13 +1,13 @@
-import { isNatureListingHomepage } from './nature-listing-shared.js';
+import { isNatureListingPage } from './nature-listing-shared.js';
 import { createNatureResearchArticlesCandidateExtractor } from './nature-research-articles.js';
 
 const NATURE_NNANO_RESEARCH_ARTICLES_PATH = '/nnano/research-articles';
 
 export const natureNnanoResearchArticlesCandidateExtractor = createNatureResearchArticlesCandidateExtractor({
   id: 'nature-nnano-research-articles',
-  matches: isNatureNnanoResearchArticlesHomepage,
+  matches: isNatureNnanoResearchArticlesListingPage,
 });
 
-export function isNatureNnanoResearchArticlesHomepage(homepage: URL) {
-  return isNatureListingHomepage(homepage, NATURE_NNANO_RESEARCH_ARTICLES_PATH);
+export function isNatureNnanoResearchArticlesListingPage(page: URL) {
+  return isNatureListingPage(page, NATURE_NNANO_RESEARCH_ARTICLES_PATH);
 }

@@ -1,4 +1,4 @@
-import { isNatureListingHomepage } from './nature-listing-shared.js';
+import { isNatureListingPage } from './nature-listing-shared.js';
 import { createNatureResearchArticlesCandidateExtractor } from './nature-research-articles.js';
 
 const NATURE_NPJ2DMATERIALS_RESEARCH_ARTICLES_PATH = '/npj2dmaterials/research-articles';
@@ -6,9 +6,9 @@ const NATURE_NPJ2DMATERIALS_RESEARCH_ARTICLES_PATH = '/npj2dmaterials/research-a
 export const natureNpj2dmaterialsResearchArticlesCandidateExtractor =
   createNatureResearchArticlesCandidateExtractor({
     id: 'nature-npj2dmaterials-research-articles',
-    matches: isNatureNpj2dmaterialsResearchArticlesHomepage,
+    matches: isNatureNpj2dmaterialsResearchArticlesListingPage,
   });
 
-export function isNatureNpj2dmaterialsResearchArticlesHomepage(homepage: URL) {
-  return isNatureListingHomepage(homepage, NATURE_NPJ2DMATERIALS_RESEARCH_ARTICLES_PATH);
+export function isNatureNpj2dmaterialsResearchArticlesListingPage(page: URL) {
+  return isNatureListingPage(page, NATURE_NPJ2DMATERIALS_RESEARCH_ARTICLES_PATH);
 }

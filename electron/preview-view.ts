@@ -1,9 +1,9 @@
 import { BrowserWindow, WebContentsView } from 'electron';
 
 import type {
-  HomepageCandidateExtraction,
-  HomepageCandidatePrefetchedArticle,
-  HomepageCandidateSeed,
+  ListingCandidateExtraction,
+  ListingCandidatePrefetchedArticle,
+  ListingCandidateSeed,
 } from './services/source-extractors/types.js';
 import { READER_SHARED_WEB_PARTITION } from './services/browser-partitions.js';
 import { shortenForLog } from './services/fetch-timing.js';
@@ -69,10 +69,10 @@ export type PreviewDocumentSnapshot = {
   isLoading: boolean;
 };
 
-export type PreviewHomepageCandidateSnapshot = {
+export type PreviewListingCandidateSnapshot = {
   previewUrl: string;
   extractorId: string;
-  extraction: HomepageCandidateExtraction;
+  extraction: ListingCandidateExtraction;
   nextPageUrl: string | null;
   captureMs: number;
   isLoading: boolean;
@@ -83,7 +83,7 @@ type PreviewDocumentSnapshotOptions = {
 };
 
 const previewDocumentSnapshotTimedOut = Symbol('previewDocumentSnapshotTimedOut');
-const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
+const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
   const cleanText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
   const normalizePathname = (value) => {
     const normalized = String(value ?? '').replace(/\/+$/, '');
@@ -1128,15 +1128,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function normalizePreviewHomepageCandidatePrefetchedArticle(
+function normalizePreviewListingCandidatePrefetchedArticle(
   value: unknown,
-): HomepageCandidatePrefetchedArticle | null {
+): ListingCandidatePrefetchedArticle | null {
   if (!isRecord(value)) return null;
 
   const title = String(value.title ?? '').trim();
   if (!title) return null;
 
-  const normalized: HomepageCandidatePrefetchedArticle = { title };
+  const normalized: ListingCandidatePrefetchedArticle = { title };
   const doi = String(value.doi ?? '').trim();
   if (doi) {
     normalized.doi = doi;
@@ -1164,7 +1164,7 @@ function normalizePreviewHomepageCandidatePrefetchedArticle(
   return normalized;
 }
 
-function normalizePreviewHomepageCandidateSeeds(value: unknown): HomepageCandidateSeed[] {
+function normalizePreviewListingCandidateSeeds(value: unknown): ListingCandidateSeed[] {
   if (!Array.isArray(value)) return [];
 
   return value
@@ -1175,7 +1175,7 @@ function normalizePreviewHomepageCandidateSeeds(value: unknown): HomepageCandida
       const order = Number(candidate.order);
       if (!href || !Number.isFinite(order)) return null;
 
-      const normalized: HomepageCandidateSeed = {
+      const normalized: ListingCandidateSeed = {
         href,
         order: Math.trunc(order),
       };
@@ -1195,7 +1195,7 @@ function normalizePreviewHomepageCandidateSeeds(value: unknown): HomepageCandida
         normalized.scoreBoost = scoreBoost;
       }
 
-      const prefetchedArticle = normalizePreviewHomepageCandidatePrefetchedArticle(
+      const prefetchedArticle = normalizePreviewListingCandidatePrefetchedArticle(
         candidate.prefetchedArticle,
       );
       if (prefetchedArticle) {
@@ -1204,7 +1204,7 @@ function normalizePreviewHomepageCandidateSeeds(value: unknown): HomepageCandida
 
       return normalized;
     })
-    .filter((candidate): candidate is HomepageCandidateSeed => Boolean(candidate));
+    .filter((candidate): candidate is ListingCandidateSeed => Boolean(candidate));
 }
 
 export async function getPreviewDocumentSnapshot(
@@ -1253,9 +1253,9 @@ export async function getPreviewDocumentHtml() {
   return snapshot?.html ?? null;
 }
 
-export async function getPreviewHomepageCandidateSnapshot(
+export async function getPreviewListingCandidateSnapshot(
   options: PreviewDocumentSnapshotOptions = {},
-): Promise<PreviewHomepageCandidateSnapshot | null> {
+): Promise<PreviewListingCandidateSnapshot | null> {
   if (!previewView || previewView.webContents.isDestroyed()) {
     return null;
   }
@@ -1272,7 +1272,7 @@ export async function getPreviewHomepageCandidateSnapshot(
         diagnostics?: unknown;
       };
       nextPageUrl?: unknown;
-    }>(PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT, options);
+    }>(PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT, options);
 
     if (result === previewDocumentSnapshotTimedOut || !isRecord(result)) {
       return null;
@@ -1280,7 +1280,7 @@ export async function getPreviewHomepageCandidateSnapshot(
 
     const previewUrl = String(result.previewUrl ?? '').trim();
     const extractorId = String(result.extractorId ?? '').trim();
-    const candidates = normalizePreviewHomepageCandidateSeeds(result.extraction?.candidates);
+    const candidates = normalizePreviewListingCandidateSeeds(result.extraction?.candidates);
     if (!previewUrl || !extractorId || candidates.length === 0) {
       return null;
     }

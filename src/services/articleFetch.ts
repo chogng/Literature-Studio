@@ -26,7 +26,7 @@ export type FetchLatestArticlesBatchResult =
   | { ok: true; articles: Article[] }
   | {
       ok: false;
-      reason: 'desktop_unsupported' | 'empty_homepage_url' | 'invalid_date_range' | 'fetch_failed';
+      reason: 'desktop_unsupported' | 'empty_page_url' | 'invalid_date_range' | 'fetch_failed';
       error?: DesktopInvokeErrorData;
     };
 
@@ -38,6 +38,7 @@ type FetchLatestArticlesBatchParams = {
   sameDomainOnly: boolean;
   startDate?: string | null;
   endDate?: string | null;
+  fetchStrategy?: 'network-first' | 'preview-first' | 'compare';
   invokeDesktop: InvokeDesktop;
 };
 
@@ -62,6 +63,7 @@ export async function fetchLatestArticlesBatch({
   sameDomainOnly,
   startDate,
   endDate,
+  fetchStrategy,
   invokeDesktop,
 }: FetchLatestArticlesBatchParams): Promise<FetchLatestArticlesBatchResult> {
   if (!desktopRuntime) {
@@ -71,7 +73,7 @@ export async function fetchLatestArticlesBatch({
   const selectedSources = resolveBatchFetchSources(addressBarUrl, batchSources);
   const { sources } = prepareBatchSourcesForFetch(selectedSources);
   if (sources.length === 0) {
-    return { ok: false, reason: 'empty_homepage_url' };
+    return { ok: false, reason: 'empty_page_url' };
   }
 
   const rangeStart = startDate ?? '';
@@ -86,6 +88,7 @@ export async function fetchLatestArticlesBatch({
       sameDomainOnly,
       startDate: startDate || null,
       endDate: endDate || null,
+      fetchStrategy,
     });
     return { ok: true, articles };
   } catch (error) {

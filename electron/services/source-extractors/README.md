@@ -32,7 +32,7 @@
 
 在主流程里，extractor 的职责很克制:
 
-1. `matches(homepage)` 负责判断当前 URL 是否命中某个专用实现。
+1. `matches(page)` 负责判断当前 URL 是否命中某个专用实现。
 2. `extract(context)` 负责从首页 DOM 中提取候选文章种子。
 3. `refineExtraction(context)` 可选，负责在已有候选基础上补充信息。
 4. `findNextPageUrl(context)` 可选，负责告诉主流程如何翻到下一页。
@@ -68,7 +68,7 @@
 - 在每张卡片里找文章链接、标题、摘要、footer、article type
 - 从 `data-track-label` 中提取卡片顺序
 - 从 footer 或时间相关节点里提取 `dateHint`
-- 去重并产出 `HomepageCandidateSeed[]`
+- 去重并产出 `ListingCandidateSeed[]`
 
 这里返回的候选种子长这样:
 
@@ -282,32 +282,32 @@ createNatureListingCandidateExtractor(...)
 import {
   createNatureListingCandidateExtractor,
   findNatureListingNextPageUrl,
-  isNatureListingHomepage,
+  isNatureListingPage,
 } from './nature-listing-shared.js';
 
 import type {
-  HomepageCandidateExtraction,
-  HomepageCandidateExtractor,
-  HomepageCandidateExtractorContext,
-  HomepageCandidateRefinementContext,
-  HomepagePaginationContext,
+  ListingCandidateExtraction,
+  ListingCandidateExtractor,
+  ListingCandidateExtractorContext,
+  ListingCandidateRefinementContext,
+  ListingPaginationContext,
 } from './types.js';
 
-const HOMEPAGE_PATH = '/target-path';
+const LISTING_PAGE_PATH = '/target-path';
 
 const fallbackExtractor = createNatureListingCandidateExtractor({
   id: 'target-extractor',
-  matches: isTargetHomepage,
+  matches: isTargetListingPage,
   findNextPageUrl: findTargetNextPageUrl,
   refineExtraction: refineTargetExtraction,
 });
 
-export const targetCandidateExtractor: HomepageCandidateExtractor = {
+export const targetCandidateExtractor: ListingCandidateExtractor = {
   id: 'target-extractor',
-  matches: isTargetHomepage,
+  matches: isTargetListingPage,
   findNextPageUrl: findTargetNextPageUrl,
   refineExtraction: refineTargetExtraction,
-  extract(context): HomepageCandidateExtraction | null {
+  extract(context): ListingCandidateExtraction | null {
     const targeted = extractTargetCards(context);
     if (targeted && targeted.candidates.length > 0) {
       return targeted;
@@ -317,13 +317,13 @@ export const targetCandidateExtractor: HomepageCandidateExtractor = {
   },
 };
 
-export function isTargetHomepage(homepage: URL) {
-  return isNatureListingHomepage(homepage, HOMEPAGE_PATH);
+export function isTargetListingPage(page: URL) {
+  return isNatureListingPage(page, LISTING_PAGE_PATH);
 }
 
 function extractTargetCards(
-  context: HomepageCandidateExtractorContext,
-): HomepageCandidateExtraction | null {
+  context: ListingCandidateExtractorContext,
+): ListingCandidateExtraction | null {
   // 1. 锁定卡片 root
   // 2. 提取 href/title/order/dateHint
   // 3. 去重
@@ -332,7 +332,7 @@ function extractTargetCards(
 }
 
 async function refineTargetExtraction(
-  context: HomepageCandidateRefinementContext,
+  context: ListingCandidateRefinementContext,
 ) {
   // 可选:
   // - 请求轻量外部数据
@@ -342,9 +342,9 @@ async function refineTargetExtraction(
 }
 
 function findTargetNextPageUrl(
-  context: HomepagePaginationContext,
+  context: ListingPaginationContext,
 ) {
-  if (!isTargetHomepage(context.homepage)) return null;
+  if (!isTargetListingPage(context.page)) return null;
   return findNatureListingNextPageUrl(context);
 }
 ```

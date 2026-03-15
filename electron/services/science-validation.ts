@@ -1,5 +1,5 @@
 import { BrowserWindow } from 'electron';
-import { getPreviewDocumentSnapshot, getPreviewHomepageCandidateSnapshot, getPreviewState } from '../preview-view.js';
+import { getPreviewDocumentSnapshot, getPreviewListingCandidateSnapshot, getPreviewState } from '../preview-view.js';
 
 import { getMainWindow } from '../window.js';
 import { appError, isAppError } from '../utils/app-error.js';
@@ -72,7 +72,7 @@ function safeParseUrl(value: string) {
   }
 }
 
-export function isScienceSeriesHomepageUrl(value: string) {
+export function isScienceSeriesListingPageUrl(value: string) {
   const parsed = safeParseUrl(value);
   if (!parsed) return false;
 
@@ -110,13 +110,13 @@ export function getScienceChallengeSignal(error: unknown) {
 }
 
 export function shouldUseScienceValidationRenderFallback({
-  homepageUrl,
+  pageUrl,
   error,
 }: {
-  homepageUrl: string;
+  pageUrl: string;
   error: unknown;
 }) {
-  if (!isScienceSeriesHomepageUrl(homepageUrl)) {
+  if (!isScienceSeriesListingPageUrl(pageUrl)) {
     return false;
   }
 
@@ -131,8 +131,8 @@ export function shouldUseScienceValidationRenderFallback({
   return challengeSignal.status === '403';
 }
 
-export function shouldAllowSciencePreviewWhileLoading(homepageUrl: string) {
-  return isScienceSeriesHomepageUrl(homepageUrl);
+export function shouldAllowSciencePreviewWhileLoading(pageUrl: string) {
+  return isScienceSeriesListingPageUrl(pageUrl);
 }
 
 function normalizeScienceComparableUrl(value: string) {
@@ -176,10 +176,10 @@ export function isScienceChallengeHtml(html: string) {
   return false;
 }
 
-async function tryUseExistingSciencePreview(homepageUrl: string): Promise<ScienceValidationResult | null> {
+async function tryUseExistingSciencePreview(pageUrl: string): Promise<ScienceValidationResult | null> {
   const previewState = getPreviewState();
   const previewUrl = cleanText(previewState.url);
-  if (!previewUrl || !matchesScienceComparableUrl(previewUrl, homepageUrl)) {
+  if (!previewUrl || !matchesScienceComparableUrl(previewUrl, pageUrl)) {
     return null;
   }
 
@@ -187,12 +187,12 @@ async function tryUseExistingSciencePreview(homepageUrl: string): Promise<Scienc
   while (Date.now() - startedAt < SCIENCE_VALIDATION_TIMEOUT_MS) {
     const currentState = getPreviewState();
     const currentPreviewUrl = cleanText(currentState.url);
-    if (!currentPreviewUrl || !matchesScienceComparableUrl(currentPreviewUrl, homepageUrl)) {
+    if (!currentPreviewUrl || !matchesScienceComparableUrl(currentPreviewUrl, pageUrl)) {
       return null;
     }
 
     const [extraction, snapshot] = await Promise.all([
-      getPreviewHomepageCandidateSnapshot({
+      getPreviewListingCandidateSnapshot({
         timeoutMs: Math.min(1200, SCIENCE_VALIDATION_POLL_MS * 2),
       }),
       getPreviewDocumentSnapshot({
@@ -202,8 +202,8 @@ async function tryUseExistingSciencePreview(homepageUrl: string): Promise<Scienc
 
     const extractionUrl = cleanText(extraction?.previewUrl);
     const snapshotUrl = cleanText(snapshot?.url);
-    const matchesExtraction = extractionUrl && matchesScienceComparableUrl(extractionUrl, homepageUrl);
-    const matchesSnapshot = snapshotUrl && matchesScienceComparableUrl(snapshotUrl, homepageUrl);
+    const matchesExtraction = extractionUrl && matchesScienceComparableUrl(extractionUrl, pageUrl);
+    const matchesSnapshot = snapshotUrl && matchesScienceComparableUrl(snapshotUrl, pageUrl);
     const html = matchesSnapshot ? String(snapshot?.html ?? '') : '';
     const title = matchesSnapshot ? extractTitleFromHtml(html) : '';
     const diagnostics = extraction?.extraction?.diagnostics;
@@ -220,7 +220,7 @@ async function tryUseExistingSciencePreview(homepageUrl: string): Promise<Scienc
       !isScienceChallengeHtml(html)
     ) {
       return {
-        finalUrl: snapshotUrl || extractionUrl || homepageUrl,
+        finalUrl: snapshotUrl || extractionUrl || pageUrl,
         html,
         sectionCount,
         title,
@@ -311,7 +311,7 @@ async function inspectScienceValidationWindow(window: BrowserWindow) {
   }
 }
 
-async function waitForScienceValidationBoot(window: BrowserWindow, homepageUrl: string) {
+async function waitForScienceValidationBoot(window: BrowserWindow, pageUrl: string) {
   return await new Promise<'dom-ready' | 'load-finished' | 'boot-timeout'>((resolve, reject) => {
     let settled = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -359,7 +359,7 @@ async function waitForScienceValidationBoot(window: BrowserWindow, homepageUrl: 
         appError('HTTP_REQUEST_FAILED', {
           status: 'NETWORK_ERROR',
           statusText: `Science validation page failed to load (${errorCode}: ${errorDescription})`,
-          url: validatedURL || homepageUrl,
+          url: validatedURL || pageUrl,
         }),
       );
     };
@@ -369,7 +369,7 @@ async function waitForScienceValidationBoot(window: BrowserWindow, homepageUrl: 
         appError('HTTP_REQUEST_FAILED', {
           status: 'SCIENCE_VALIDATION_REQUIRED',
           statusText: 'Science validation window was closed before verification completed.',
-          url: homepageUrl,
+          url: pageUrl,
         }),
       );
     };
@@ -382,29 +382,29 @@ async function waitForScienceValidationBoot(window: BrowserWindow, homepageUrl: 
     webContents.on('did-fail-load', handleDidFailLoad);
     window.on('closed', handleClosed);
 
-    void window.loadURL(homepageUrl).then(
+    void window.loadURL(pageUrl).then(
       () => resolveOnce('load-finished'),
       (error) => rejectOnce(error),
     );
   });
 }
 
-export async function ensureScienceValidationWindow(homepageUrl: string): Promise<ScienceValidationResult> {
-  if (!isScienceSeriesHomepageUrl(homepageUrl)) {
+export async function ensureScienceValidationWindow(pageUrl: string): Promise<ScienceValidationResult> {
+  if (!isScienceSeriesListingPageUrl(pageUrl)) {
     throw appError('HTTP_REQUEST_FAILED', {
       status: 'SCIENCE_VALIDATION_UNSUPPORTED',
       statusText: 'Science validation window is only available for Science TOC pages.',
-      url: homepageUrl,
+      url: pageUrl,
     });
   }
 
-  const existing = scienceValidationPromiseByUrl.get(homepageUrl);
+  const existing = scienceValidationPromiseByUrl.get(pageUrl);
   if (existing) {
     return existing;
   }
 
   const task = (async () => {
-    const previewResult = await tryUseExistingSciencePreview(homepageUrl);
+    const previewResult = await tryUseExistingSciencePreview(pageUrl);
     if (previewResult) {
       return previewResult;
     }
@@ -422,14 +422,14 @@ export async function ensureScienceValidationWindow(homepageUrl: string): Promis
         window.show();
         window.focus();
       }
-      const navigationMode = await waitForScienceValidationBoot(window, homepageUrl);
+      const navigationMode = await waitForScienceValidationBoot(window, pageUrl);
 
       while (Date.now() - startedAt < SCIENCE_VALIDATION_TIMEOUT_MS) {
         if (windowClosed || window.isDestroyed() || window.webContents.isDestroyed()) {
           throw appError('HTTP_REQUEST_FAILED', {
             status: 'SCIENCE_VALIDATION_REQUIRED',
             statusText: 'Science validation window was closed before verification completed.',
-            url: homepageUrl,
+            url: pageUrl,
           });
         }
 
@@ -453,7 +453,7 @@ export async function ensureScienceValidationWindow(homepageUrl: string): Promis
           }
 
           const result: ScienceValidationResult = {
-            finalUrl: state.currentUrl || homepageUrl,
+            finalUrl: state.currentUrl || pageUrl,
             html: normalizedHtml,
             sectionCount: state.sectionCount,
             title: state.title,
@@ -474,7 +474,7 @@ export async function ensureScienceValidationWindow(homepageUrl: string): Promis
       throw appError('HTTP_REQUEST_FAILED', {
         status: 'SCIENCE_VALIDATION_REQUIRED',
         statusText: 'Complete the Science verification window to continue fetching.',
-        url: homepageUrl,
+        url: pageUrl,
       });
     } finally {
       if (!window.isDestroyed()) {
@@ -483,10 +483,11 @@ export async function ensureScienceValidationWindow(homepageUrl: string): Promis
     }
   })();
 
-  scienceValidationPromiseByUrl.set(homepageUrl, task);
+  scienceValidationPromiseByUrl.set(pageUrl, task);
   try {
     return await task;
   } finally {
-    scienceValidationPromiseByUrl.delete(homepageUrl);
+    scienceValidationPromiseByUrl.delete(pageUrl);
   }
 }
+

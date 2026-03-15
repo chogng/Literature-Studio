@@ -100,8 +100,8 @@ function localizeDesktopError(ui: ReturnType<typeof getLocaleMessages>, error: D
         status: detailValue(details, 'status', '?'),
         statusText: detailValue(details, 'statusText', ''),
       }).trim();
-    case 'BATCH_HOMEPAGE_URLS_EMPTY':
-      return ui.errorBatchHomepageUrlsEmpty;
+    case 'BATCH_PAGE_URLS_EMPTY':
+      return ui.errorBatchPageUrlsEmpty;
     case 'BATCH_SOURCE_FETCH_FAILED':
       return ui.errorBatchSourceFetchFailed;
     case 'BATCH_NO_MATCH_IN_DATE_RANGE':
@@ -163,7 +163,7 @@ function MainApp() {
     isLoading: false,
     visible: false,
   });
-  const [homepageSourceStatus, setHomepageSourceStatus] = useState<DesktopHomepageSourceStatus | null>(null);
+  const [fetchStatus, setFetchStatus] = useState<DesktopFetchStatus | null>(null);
 
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
   const electronRuntime =
@@ -273,12 +273,12 @@ function MainApp() {
 
   useEffect(() => {
     if (!electronRuntime || !window.electronAPI?.fetch) {
-      setHomepageSourceStatus(null);
+      setFetchStatus(null);
       return;
     }
 
-    const unsubscribe = window.electronAPI.fetch.onHomepageSourceStatus((status) => {
-      setHomepageSourceStatus(status);
+    const unsubscribe = window.electronAPI.fetch.onFetchStatus((status) => {
+      setFetchStatus(status);
     });
 
     return () => {
@@ -563,7 +563,7 @@ function MainApp() {
 
   const handleFetchLatestBatch = async () => {
     setIsBatchLoading(true);
-    setHomepageSourceStatus(null);
+    setFetchStatus(null);
     setArticles([]);
 
     try {
@@ -582,8 +582,8 @@ function MainApp() {
           toast.info(ui.toastDesktopBatchFetchOnly);
           return;
         }
-        if (result.reason === 'empty_homepage_url') {
-          toast.error(ui.toastEnterHomepageUrl);
+        if (result.reason === 'empty_page_url') {
+          toast.error(ui.toastEnterPageUrl);
           return;
         }
         if (result.reason === 'invalid_date_range') {
@@ -611,36 +611,36 @@ function MainApp() {
   };
 
   const titlebarFetchSourceText = useMemo(() => {
-    if (!homepageSourceStatus) return '';
-    if (homepageSourceStatus.homepageSource === 'preview-extract') {
+    if (!fetchStatus) return '';
+    if (fetchStatus.fetchChannel === 'preview' && fetchStatus.previewReuseMode === 'live-extract') {
       return 'Source: live preview DOM';
     }
-    if (homepageSourceStatus.homepageSource === 'preview') return 'Source: preview DOM';
+    if (fetchStatus.fetchChannel === 'preview') return 'Source: preview DOM';
     return 'Source: network';
-  }, [homepageSourceStatus]);
+  }, [fetchStatus]);
 
   const titlebarFetchSourceTitle = useMemo(() => {
-    if (!homepageSourceStatus) return '';
-    const sourceDetail = homepageSourceStatus.homepageSourceDetail
-      ? ` | ${homepageSourceStatus.homepageSourceDetail}`
+    if (!fetchStatus) return '';
+    const sourceDetail = fetchStatus.fetchDetail
+      ? ` | ${fetchStatus.fetchDetail}`
       : '';
-    return `${homepageSourceStatus.sourceId || 'source'} | page ${homepageSourceStatus.pageNumber}${sourceDetail}`;
-  }, [homepageSourceStatus]);
+    return `${fetchStatus.sourceId || 'source'} | page ${fetchStatus.pageNumber}${sourceDetail}`;
+  }, [fetchStatus]);
 
   const titlebarFetchStopText = useMemo(() => {
-    if (!homepageSourceStatus?.paginationStopped) return '';
-    if (homepageSourceStatus.paginationStopReason === 'tail_dates_before_start_date') {
+    if (!fetchStatus?.paginationStopped) return '';
+    if (fetchStatus.paginationStopReason === 'tail_dates_before_start_date') {
       return 'Stop: tail-date policy';
     }
     return 'Stop: extractor policy';
-  }, [homepageSourceStatus]);
+  }, [fetchStatus]);
 
   const titlebarFetchStopTitle = useMemo(() => {
-    if (!homepageSourceStatus?.paginationStopped) return '';
-    const sourceLabel = homepageSourceStatus.sourceId || 'source';
-    const reasonLabel = homepageSourceStatus.paginationStopReason || 'extractor_policy';
-    return `${sourceLabel} | page ${homepageSourceStatus.pageNumber} | ${reasonLabel}`;
-  }, [homepageSourceStatus]);
+    if (!fetchStatus?.paginationStopped) return '';
+    const sourceLabel = fetchStatus.sourceId || 'source';
+    const reasonLabel = fetchStatus.paginationStopReason || 'extractor_policy';
+    return `${sourceLabel} | page ${fetchStatus.pageNumber} | ${reasonLabel}`;
+  }, [fetchStatus]);
 
   return (
     <div className="app-window">
@@ -685,7 +685,8 @@ function MainApp() {
           }}
           onNavigateWeb={handleNavigateWeb}
           articleUrlPlaceholder={ui.articleUrlPlaceholder}
-          fetchSourceMode={homepageSourceStatus?.homepageSource ?? null}
+          fetchChannel={fetchStatus?.fetchChannel ?? null}
+          previewReuseMode={fetchStatus?.previewReuseMode ?? null}
           fetchSourceText={titlebarFetchSourceText}
           fetchSourceTitle={titlebarFetchSourceTitle}
           fetchStopText={titlebarFetchStopText}
@@ -748,9 +749,9 @@ function MainApp() {
               languageChinese: ui.languageChinese,
               languageEnglish: ui.languageEnglish,
               settingsLanguageHint: ui.settingsLanguageHint,
-              settingsHomepageUrl: ui.settingsHomepageUrl,
-              settingsHomepageUrlHint: ui.settingsHomepageUrlHint,
-              homepageUrlPlaceholder: ui.homepageUrlPlaceholder,
+              settingsPageUrl: ui.settingsPageUrl,
+              settingsPageUrlHint: ui.settingsPageUrlHint,
+              pageUrlPlaceholder: ui.pageUrlPlaceholder,
               settingsBatchJournalTitle: ui.settingsBatchJournalTitle,
               batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
               addBatchUrl: ui.addBatchUrl,

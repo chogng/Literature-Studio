@@ -1,3 +1,5 @@
+import type { FetchStrategyInput } from './services/fetch-strategy.js';
+
 export interface Article {
   title: string;
   articleType: string | null;
@@ -43,7 +45,7 @@ export type AppErrorCode =
   | 'DATE_END_INVALID'
   | 'DATE_RANGE_INVALID'
   | 'HTTP_REQUEST_FAILED'
-  | 'BATCH_HOMEPAGE_URLS_EMPTY'
+  | 'BATCH_PAGE_URLS_EMPTY'
   | 'BATCH_SOURCE_FETCH_FAILED'
   | 'BATCH_NO_MATCH_IN_DATE_RANGE'
   | 'BATCH_NO_VALID_ARTICLES'
@@ -85,14 +87,16 @@ export interface PreviewState {
   visible: boolean;
 }
 
-export type HomepageFetchSource = 'network' | 'preview' | 'preview-extract';
+export type FetchChannel = 'network' | 'preview';
+export type PreviewReuseMode = 'snapshot' | 'live-extract';
 
-export interface HomepageSourceStatus {
+export interface FetchStatus {
   sourceId: string;
-  homepageUrl: string;
+  pageUrl: string;
   pageNumber: number;
-  homepageSource: HomepageFetchSource;
-  homepageSourceDetail?: string | null;
+  fetchChannel: FetchChannel;
+  fetchDetail?: string | null;
+  previewReuseMode?: PreviewReuseMode | null;
   extractorId: string | null;
   paginationStopped?: boolean;
   paginationStopReason?: string | null;
@@ -101,12 +105,13 @@ export interface HomepageSourceStatus {
 export interface FetchLatestArticlesPayload {
   sources?: Array<{
     sourceId?: string;
-    homepageUrl?: string;
+    pageUrl?: string;
     journalTitle?: string;
   }>;
   sameDomainOnly?: boolean;
   startDate?: string | null;
   endDate?: string | null;
+  fetchStrategy?: FetchStrategyInput;
 }
 
 export interface PreviewDownloadPdfPayload {

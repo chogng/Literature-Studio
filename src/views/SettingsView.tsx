@@ -74,7 +74,7 @@ export default function SettingsView({
           </div>
 
           <div className="settings-field">
-            <span>{labels.settingsHomepageUrl}</span>
+            <span>{labels.settingsPageUrl}</span>
             <div className="settings-url-list">
               {batchSources.map((source, index) => (
                 <div key={source.id || `settings-batch-url-${index}`} className="settings-url-row">
@@ -117,8 +117,8 @@ export default function SettingsView({
                     inputMode="url"
                     value={source.url}
                     onChange={(event) => onBatchSourceUrlChange(index, event.target.value)}
-                    placeholder={labels.homepageUrlPlaceholder}
-                    aria-label={`${labels.settingsHomepageUrl} ${index + 1}`}
+                    placeholder={labels.pageUrlPlaceholder}
+                    aria-label={`${labels.settingsPageUrl} ${index + 1}`}
                   />
                   <Input
                     className="settings-journal-control"
@@ -157,7 +157,7 @@ export default function SettingsView({
                 {labels.addBatchUrl}
               </Button>
             </div>
-            <p className="settings-hint">{labels.settingsHomepageUrlHint}</p>
+            <p className="settings-hint">{labels.settingsPageUrlHint}</p>
           </div>
 
           <div className="settings-field">

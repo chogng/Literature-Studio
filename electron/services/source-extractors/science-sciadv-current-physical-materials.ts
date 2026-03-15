@@ -2,9 +2,9 @@ import { parseDateHintFromText } from '../../utils/date-hint.js';
 import { cleanText, uniq } from '../../utils/text.js';
 
 import type {
-  HomepageCandidateExtraction,
-  HomepageCandidateExtractor,
-  HomepageCandidateExtractorContext,
+  ListingCandidateExtraction,
+  ListingCandidateExtractor,
+  ListingCandidateExtractorContext,
 } from './types.js';
 
 const SCIENCE_SCIADV_CURRENT_PATH_RE = /^\/toc\/sciadv\/current\/?$/i;
@@ -39,7 +39,7 @@ function matchesTargetHeading(value: unknown) {
 
 function resolveScienceSciadvTocBodyRoot({
   $,
-}: Pick<HomepageCandidateExtractorContext, '$'>) {
+}: Pick<ListingCandidateExtractorContext, '$'>) {
   for (const selector of SCIENCE_SCIADV_TOC_BODY_SELECTORS) {
     const roots = $(selector).toArray();
     const matchedRoot = roots.find((root) => $(root).children(SCIENCE_SCIADV_SECTION_SELECTOR).length > 0);
@@ -57,7 +57,7 @@ function resolveScienceSciadvTocBodyRoot({
 
 function resolveScienceSciadvTargetSection({
   $,
-}: Pick<HomepageCandidateExtractorContext, '$'>) {
+}: Pick<ListingCandidateExtractorContext, '$'>) {
   const tocBody = resolveScienceSciadvTocBodyRoot({ $ });
   if (!tocBody) return null;
 
@@ -99,8 +99,8 @@ function resolveScienceSciadvTargetSection({
 function extractScienceSciadvCardLink({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return $(root).find(SCIENCE_SCIADV_LINK_SELECTOR).first();
 }
@@ -108,8 +108,8 @@ function extractScienceSciadvCardLink({
 function extractScienceSciadvCardHref({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText(extractScienceSciadvCardLink({ $, root }).attr('href'));
 }
@@ -117,8 +117,8 @@ function extractScienceSciadvCardHref({
 function extractScienceSciadvCardTitle({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const title = cleanText($(root).find(SCIENCE_SCIADV_TITLE_SELECTOR).first().text());
   if (title) return title;
@@ -128,8 +128,8 @@ function extractScienceSciadvCardTitle({
 function extractScienceSciadvCardDateHint({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const dateNodes = $(root).find(SCIENCE_SCIADV_DATE_SELECTOR).toArray();
   for (const node of dateNodes) {
@@ -164,8 +164,8 @@ function extractScienceSciadvCardDoi(href: string) {
 function extractScienceSciadvCardAuthors({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const authors = $(root)
     .find(SCIENCE_SCIADV_AUTHORS_SELECTOR)
@@ -177,9 +177,9 @@ function extractScienceSciadvCardAuthors({
 }
 
 function extractScienceSciadvPhysicalMaterialsCards(
-  context: HomepageCandidateExtractorContext,
-): HomepageCandidateExtraction | null {
-  const { $, homepageUrl } = context;
+  context: ListingCandidateExtractorContext,
+): ListingCandidateExtraction | null {
+  const { $, pageUrl } = context;
   const resolvedSection = resolveScienceSciadvTargetSection({ $ });
   if (!resolvedSection) return null;
 
@@ -201,7 +201,7 @@ function extractScienceSciadvPhysicalMaterialsCards(
 
       let normalized = '';
       try {
-        normalized = new URL(href, homepageUrl).toString();
+        normalized = new URL(href, pageUrl).toString();
       } catch {
         return null;
       }
@@ -264,19 +264,19 @@ function extractScienceSciadvPhysicalMaterialsCards(
   };
 }
 
-export const scienceSciadvCurrentPhysicalMaterialsCandidateExtractor: HomepageCandidateExtractor = {
+export const scienceSciadvCurrentPhysicalMaterialsCandidateExtractor: ListingCandidateExtractor = {
   id: 'science-sciadv-current-physical-materials',
-  matches: isScienceSciadvCurrentHomepage,
-  extract(context): HomepageCandidateExtraction | null {
+  matches: isScienceSciadvCurrentListingPage,
+  extract(context): ListingCandidateExtraction | null {
     return extractScienceSciadvPhysicalMaterialsCards(context);
   },
 };
 
-export function isScienceSciadvCurrentHomepage(homepage: URL) {
-  const host = homepage.host.toLowerCase();
+export function isScienceSciadvCurrentListingPage(page: URL) {
+  const host = page.host.toLowerCase();
   if (host !== 'www.science.org' && host !== 'science.org') {
     return false;
   }
 
-  return SCIENCE_SCIADV_CURRENT_PATH_RE.test(homepage.pathname);
+  return SCIENCE_SCIADV_CURRENT_PATH_RE.test(page.pathname);
 }

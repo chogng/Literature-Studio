@@ -1,4 +1,4 @@
-import { isNatureListingHomepage } from './nature-listing-shared.js';
+import { isNatureListingPage } from './nature-listing-shared.js';
 import { createNatureResearchArticlesCandidateExtractor } from './nature-research-articles.js';
 
 const NATURE_NATREVELECTRENG_REVIEWS_AND_ANALYSIS_PATH = '/natrevelectreng/reviews-and-analysis';
@@ -6,9 +6,9 @@ const NATURE_NATREVELECTRENG_REVIEWS_AND_ANALYSIS_PATH = '/natrevelectreng/revie
 export const natureNatrevelectrengReviewsAndAnalysisCandidateExtractor =
   createNatureResearchArticlesCandidateExtractor({
     id: 'nature-natrevelectreng-reviews-and-analysis',
-    matches: isNatureNatrevelectrengReviewsAndAnalysisHomepage,
+    matches: isNatureNatrevelectrengReviewsAndAnalysisListingPage,
   });
 
-export function isNatureNatrevelectrengReviewsAndAnalysisHomepage(homepage: URL) {
-  return isNatureListingHomepage(homepage, NATURE_NATREVELECTRENG_REVIEWS_AND_ANALYSIS_PATH);
+export function isNatureNatrevelectrengReviewsAndAnalysisListingPage(page: URL) {
+  return isNatureListingPage(page, NATURE_NATREVELECTRENG_REVIEWS_AND_ANALYSIS_PATH);
 }

@@ -15,9 +15,9 @@ import { natureOpinionCandidateExtractor } from './nature-opinions.js';
 import { natureResearchArticlesCandidateExtractor } from './nature-research-articles.js';
 import { scienceSciadvCurrentPhysicalMaterialsCandidateExtractor } from './science-sciadv-current-physical-materials.js';
 
-import type { HomepageCandidateExtractor } from './types.js';
+import type { ListingCandidateExtractor } from './types.js';
 
-const homepageCandidateExtractors: HomepageCandidateExtractor[] = [
+const listingCandidateExtractors: ListingCandidateExtractor[] = [
   scienceSciadvCurrentPhysicalMaterialsCandidateExtractor,
   natureNatelectronResearchArticlesCandidateExtractor,
   natureNcommsResearchArticlesCandidateExtractor,
@@ -36,21 +36,21 @@ const homepageCandidateExtractors: HomepageCandidateExtractor[] = [
   natureOpinionCandidateExtractor,
 ];
 
-export function findHomepageCandidateExtractor(homepage: URL) {
-  return homepageCandidateExtractors.find((extractor) => extractor.matches(homepage)) ?? null;
+export function findListingCandidateExtractor(page: URL) {
+  return listingCandidateExtractors.find((extractor) => extractor.matches(page)) ?? null;
 }
 
 export type {
-  HomepageCandidateExtraction,
-  HomepageCandidateExtractor,
-  HomepageCandidateExtractorContext,
-  HomepageCandidatePrefetchedArticle,
-  HomepageCandidateRefinementContext,
-  HomepageExtractorFetchHtml,
-  HomepageExtractorFetchHtmlOptions,
-  HomepagePaginationContext,
-  HomepagePaginationStopContext,
-  HomepagePaginationStopEvaluation,
-  HomepageCandidateSeed,
-  HomepageDom,
+  ListingCandidateExtraction,
+  ListingCandidateExtractor,
+  ListingCandidateExtractorContext,
+  ListingCandidatePrefetchedArticle,
+  ListingCandidateRefinementContext,
+  ListingExtractorFetchHtml,
+  ListingExtractorFetchHtmlOptions,
+  ListingPaginationContext,
+  ListingPaginationStopContext,
+  ListingPaginationStopEvaluation,
+  ListingCandidateSeed,
+  ListingDom,
 } from './types.js';

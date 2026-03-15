@@ -300,8 +300,8 @@ export function isProbablyArticle(candidateUrl: string, article: Article) {
   return article.title.length >= 20;
 }
 
-export function scoreCandidate(homepage: URL, candidate: string) {
-  const baseHost = homepage.host;
+export function scoreCandidate(page: URL, candidate: string) {
+  const baseHost = page.host;
   const url = new URL(candidate);
   const pathname = url.pathname.toLowerCase();
 

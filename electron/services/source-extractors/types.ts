@@ -2,9 +2,9 @@ import { load } from 'cheerio';
 
 import type { DateRange } from '../../types.js';
 
-export type HomepageDom = ReturnType<typeof load>;
+export type ListingDom = ReturnType<typeof load>;
 
-export type HomepageCandidatePrefetchedArticle = {
+export type ListingCandidatePrefetchedArticle = {
   title: string;
   doi?: string | null;
   authors?: string[];
@@ -12,73 +12,73 @@ export type HomepageCandidatePrefetchedArticle = {
   publishedAt?: string | null;
 };
 
-export type HomepageCandidateSeed = {
+export type ListingCandidateSeed = {
   href: string;
   order: number;
   dateHint?: string | null;
   articleType?: string | null;
   scoreBoost?: number;
-  prefetchedArticle?: HomepageCandidatePrefetchedArticle | null;
+  prefetchedArticle?: ListingCandidatePrefetchedArticle | null;
 };
 
-export type HomepageCandidateExtraction = {
-  candidates: HomepageCandidateSeed[];
+export type ListingCandidateExtraction = {
+  candidates: ListingCandidateSeed[];
   diagnostics?: Record<string, unknown>;
 };
 
-export type HomepageCandidateExtractorContext = {
-  homepage: URL;
-  homepageUrl: string;
-  $: HomepageDom;
+export type ListingCandidateExtractorContext = {
+  page: URL;
+  pageUrl: string;
+  $: ListingDom;
 };
 
-export type HomepagePaginationContext = HomepageCandidateExtractorContext & {
+export type ListingPaginationContext = ListingCandidateExtractorContext & {
   seenPageUrls?: ReadonlySet<string>;
 };
 
-export type HomepageExtractorFetchHtmlOptions = {
+export type ListingExtractorFetchHtmlOptions = {
   timeoutMs?: number;
   traceId?: string;
   stage?: string;
   signal?: AbortSignal;
 };
 
-export type HomepageExtractorFetchHtml = (
+export type ListingExtractorFetchHtml = (
   url: string,
-  options?: HomepageExtractorFetchHtmlOptions,
+  options?: ListingExtractorFetchHtmlOptions,
 ) => Promise<string>;
 
-export type HomepageCandidateRefinementContext = HomepageCandidateExtractorContext & {
+export type ListingCandidateRefinementContext = ListingCandidateExtractorContext & {
   pageNumber: number;
   traceId: string;
   dateRange: DateRange;
-  extraction: HomepageCandidateExtraction;
-  fetchHtml: HomepageExtractorFetchHtml;
+  extraction: ListingCandidateExtraction;
+  fetchHtml: ListingExtractorFetchHtml;
 };
 
-export type HomepagePaginationStopEvaluation = {
+export type ListingPaginationStopEvaluation = {
   shouldStop: boolean;
   reason?: string;
   diagnostics?: Record<string, unknown>;
 };
 
-export type HomepagePaginationStopContext = {
-  homepage: URL;
-  homepageUrl: string;
+export type ListingPaginationStopContext = {
+  page: URL;
+  pageUrl: string;
   pageNumber: number;
   dateRange: DateRange;
-  extraction: HomepageCandidateExtraction;
+  extraction: ListingCandidateExtraction;
 };
 
-export interface HomepageCandidateExtractor {
+export interface ListingCandidateExtractor {
   id: string;
-  matches(homepage: URL): boolean;
-  extract(context: HomepageCandidateExtractorContext): HomepageCandidateExtraction | null;
-  findNextPageUrl?(context: HomepagePaginationContext): string | null;
+  matches(page: URL): boolean;
+  extract(context: ListingCandidateExtractorContext): ListingCandidateExtraction | null;
+  findNextPageUrl?(context: ListingPaginationContext): string | null;
   refineExtraction?(
-    context: HomepageCandidateRefinementContext,
-  ): Promise<HomepageCandidateExtraction | null> | HomepageCandidateExtraction | null;
+    context: ListingCandidateRefinementContext,
+  ): Promise<ListingCandidateExtraction | null> | ListingCandidateExtraction | null;
   evaluatePaginationStop?(
-    context: HomepagePaginationStopContext,
-  ): HomepagePaginationStopEvaluation | null;
+    context: ListingPaginationStopContext,
+  ): ListingPaginationStopEvaluation | null;
 }

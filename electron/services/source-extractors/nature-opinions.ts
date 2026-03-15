@@ -4,17 +4,17 @@ import {
   createNatureListingCandidateExtractor,
   evaluateNatureListingPaginationStop,
   findNatureListingNextPageUrl,
-  isNatureListingHomepage,
+  isNatureListingPage,
 } from './nature-listing-shared.js';
 
 import type {
-  HomepageCandidateExtraction,
-  HomepageCandidateExtractor,
-  HomepageCandidateExtractorContext,
-  HomepagePaginationContext,
+  ListingCandidateExtraction,
+  ListingCandidateExtractor,
+  ListingCandidateExtractorContext,
+  ListingPaginationContext,
 } from './types.js';
 
-const NATURE_OPINION_HOMEPAGE_PATH = '/opinion';
+const NATURE_OPINION_LISTING_PAGE_PATH = '/opinion';
 const NATURE_OPINION_CARD_SELECTOR = 'div.c-article-item__wrapper';
 const NATURE_OPINION_LINK_SELECTOR = 'a[href*="/articles/"][data-track-label^="article card "]';
 const NATURE_OPINION_TITLE_SELECTOR = 'h3.c-article-item__title';
@@ -27,7 +27,7 @@ const NATURE_OPINION_SAMPLE_CARD_LIMIT = 5;
 
 const fallbackNatureOpinionCandidateExtractor = createNatureListingCandidateExtractor({
   id: 'nature-opinion',
-  matches: isNatureOpinionHomepage,
+  matches: isNatureOpinionListingPage,
   findNextPageUrl: findNatureOpinionNextPageUrl,
 });
 
@@ -49,8 +49,8 @@ function parseNatureOpinionTrackLabel(value: unknown) {
 function extractNatureOpinionLink({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return $(root).find(NATURE_OPINION_LINK_SELECTOR).first();
 }
@@ -58,8 +58,8 @@ function extractNatureOpinionLink({
 function extractNatureOpinionHref({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText(extractNatureOpinionLink({ $, root }).attr('href'));
 }
@@ -67,8 +67,8 @@ function extractNatureOpinionHref({
 function extractNatureOpinionTitle({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_OPINION_TITLE_SELECTOR).first().text());
 }
@@ -76,8 +76,8 @@ function extractNatureOpinionTitle({
 function extractNatureOpinionDescription({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_OPINION_DESCRIPTION_SELECTOR).first().text());
 }
@@ -85,8 +85,8 @@ function extractNatureOpinionDescription({
 function extractNatureOpinionFooterText({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_OPINION_FOOTER_SELECTOR).first().text());
 }
@@ -94,8 +94,8 @@ function extractNatureOpinionFooterText({
 function extractNatureOpinionArticleType({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_OPINION_ARTICLE_TYPE_SELECTOR).first().text());
 }
@@ -103,8 +103,8 @@ function extractNatureOpinionArticleType({
 function extractNatureOpinionCardOrder({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const link = extractNatureOpinionLink({ $, root });
   const candidateValues = [
@@ -124,8 +124,8 @@ function extractNatureOpinionCardOrder({
 function extractNatureOpinionDateHint({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const scopedRoot = $(root).find(NATURE_OPINION_FOOTER_SELECTOR).first();
   const fallbackRoot = scopedRoot.length > 0 ? scopedRoot : $(root);
@@ -162,9 +162,9 @@ function extractNatureOpinionDateHint({
 }
 
 function extractNatureOpinionArticleCards(
-  context: HomepageCandidateExtractorContext,
-): HomepageCandidateExtraction | null {
-  const { $, homepageUrl } = context;
+  context: ListingCandidateExtractorContext,
+): ListingCandidateExtraction | null {
+  const { $, pageUrl } = context;
   const roots = $(NATURE_OPINION_CARD_SELECTOR).toArray();
   if (roots.length === 0) return null;
 
@@ -195,7 +195,7 @@ function extractNatureOpinionArticleCards(
 
       let normalized = '';
       try {
-        normalized = new URL(href, homepageUrl).toString();
+        normalized = new URL(href, pageUrl).toString();
       } catch {
         return null;
       }
@@ -250,17 +250,17 @@ function extractNatureOpinionArticleCards(
   };
 }
 
-function findNatureOpinionNextPageUrl(context: HomepagePaginationContext) {
-  if (!isNatureOpinionHomepage(context.homepage)) return null;
+function findNatureOpinionNextPageUrl(context: ListingPaginationContext) {
+  if (!isNatureOpinionListingPage(context.page)) return null;
   return findNatureListingNextPageUrl(context);
 }
 
-export const natureOpinionCandidateExtractor: HomepageCandidateExtractor = {
+export const natureOpinionCandidateExtractor: ListingCandidateExtractor = {
   id: 'nature-opinion',
-  matches: isNatureOpinionHomepage,
+  matches: isNatureOpinionListingPage,
   findNextPageUrl: findNatureOpinionNextPageUrl,
   evaluatePaginationStop: evaluateNatureListingPaginationStop,
-  extract(context): HomepageCandidateExtraction | null {
+  extract(context): ListingCandidateExtraction | null {
     const targeted = extractNatureOpinionArticleCards(context);
     if (targeted && targeted.candidates.length > 0) {
       return targeted;
@@ -270,6 +270,6 @@ export const natureOpinionCandidateExtractor: HomepageCandidateExtractor = {
   },
 };
 
-export function isNatureOpinionHomepage(homepage: URL) {
-  return isNatureListingHomepage(homepage, NATURE_OPINION_HOMEPAGE_PATH);
+export function isNatureOpinionListingPage(page: URL) {
+  return isNatureListingPage(page, NATURE_OPINION_LISTING_PAGE_PATH);
 }

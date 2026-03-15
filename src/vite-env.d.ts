@@ -21,9 +21,16 @@ type DesktopBatchSource = {
 
 type DesktopFetchBatchSource = {
   sourceId: string;
-  homepageUrl: string;
+  pageUrl: string;
   journalTitle: string;
 };
+
+type DesktopFetchStrategy =
+  | 'network-first'
+  | 'preview-first'
+  | 'compare'
+  | 'network'
+  | 'prefer-preview';
 
 type DesktopPdfDownloadResult = {
   filePath: string;
@@ -75,6 +82,7 @@ type AppCommandPayloadMap = {
     sameDomainOnly?: boolean;
     startDate?: string | null;
     endDate?: string | null;
+    fetchStrategy?: DesktopFetchStrategy;
   };
   load_settings: undefined;
   save_settings: { settings?: Partial<DesktopStoredAppSettings> };
@@ -136,14 +144,16 @@ type DesktopPreviewState = {
   visible: boolean;
 };
 
-type DesktopHomepageFetchSource = 'network' | 'preview' | 'preview-extract';
+type DesktopFetchChannel = 'network' | 'preview';
+type DesktopPreviewReuseMode = 'snapshot' | 'live-extract';
 
-type DesktopHomepageSourceStatus = {
+type DesktopFetchStatus = {
   sourceId: string;
-  homepageUrl: string;
+  pageUrl: string;
   pageNumber: number;
-  homepageSource: DesktopHomepageFetchSource;
-  homepageSourceDetail?: string | null;
+  fetchChannel: DesktopFetchChannel;
+  fetchDetail?: string | null;
+  previewReuseMode?: DesktopPreviewReuseMode | null;
   extractorId: string | null;
   paginationStopped?: boolean;
   paginationStopReason?: string | null;
@@ -176,7 +186,7 @@ interface Window {
       onStateChange: (listener: (state: DesktopPreviewState) => void) => () => void;
     };
     fetch?: {
-      onHomepageSourceStatus: (listener: (status: DesktopHomepageSourceStatus) => void) => () => void;
+      onFetchStatus: (listener: (status: DesktopFetchStatus) => void) => () => void;
     };
     modal?: {
       getState: () => Promise<DesktopNativeModalState | null>;

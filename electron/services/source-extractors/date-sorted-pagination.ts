@@ -1,6 +1,6 @@
 import type {
-  HomepagePaginationStopContext,
-  HomepagePaginationStopEvaluation,
+  ListingPaginationStopContext,
+  ListingPaginationStopEvaluation,
 } from './types.js';
 import { hasDateRangeStart } from '../../utils/date.js';
 
@@ -40,7 +40,7 @@ export function createDateSortedPaginationStopEvaluator({
     pageNumber,
     dateRange,
     extraction,
-  }: HomepagePaginationStopContext): HomepagePaginationStopEvaluation | null {
+  }: ListingPaginationStopContext): ListingPaginationStopEvaluation | null {
     if (!hasDateRangeStart(dateRange)) {
       return null;
     }

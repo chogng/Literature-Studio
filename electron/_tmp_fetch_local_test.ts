@@ -11,7 +11,7 @@ const articleLimit = 8;
 const BROWSER_COOKIE_NAME = 'reader_browser_session';
 const BROWSER_COOKIE_VALUE = '1';
 
-function buildHomepageHtml(count: number) {
+function buildListingPageHtml(count: number) {
   const links = Array.from({ length: count }, (_, index) => {
     const id = index + 1;
     return `<li><a href="/articles/${id}">Candidate ${id}</a></li>`;
@@ -133,7 +133,7 @@ function verifyAccuracy(articles: Array<{ title: string; publishedAt: string | n
 async function main() {
   await app.whenReady();
 
-  const homepageHtml = buildHomepageHtml(20);
+  const listingPageHtml = buildListingPageHtml(20);
   const server = http.createServer((request, response) => {
     const requestUrl = new URL(request.url || '/', 'http://127.0.0.1');
     if (requestUrl.pathname === '/home') {
@@ -141,7 +141,7 @@ async function main() {
         'Content-Type': 'text/html; charset=utf-8',
         'Set-Cookie': `${BROWSER_COOKIE_NAME}=${BROWSER_COOKIE_VALUE}; Path=/; SameSite=Lax`,
       });
-      response.end(homepageHtml);
+      response.end(listingPageHtml);
       return;
     }
 
@@ -175,7 +175,7 @@ async function main() {
     throw new Error('LOCAL_SERVER_ADDRESS_INVALID');
   }
 
-  const homepageUrl = `http://127.0.0.1:${address.port}/home`;
+  const pageUrl = `http://127.0.0.1:${address.port}/home`;
   const storage = {
     async saveFetchedArticles() {},
     async loadSettings() {
@@ -207,7 +207,7 @@ async function main() {
         sources: [
           {
             sourceId: `mock-${variant.toLowerCase()}`,
-            homepageUrl,
+            pageUrl,
             journalTitle: 'Mock Journal',
           },
         ],
@@ -215,7 +215,7 @@ async function main() {
       },
       storage,
       {
-        homepageSourceMode: 'network',
+        fetchStrategy: 'network',
       },
     );
     const elapsedMs = Date.now() - startedAt;

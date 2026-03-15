@@ -19,8 +19,6 @@ import type {
   WindowState,
 } from './types.js';
 import {
-  getPreviewDocumentSnapshot,
-  getPreviewHomepageCandidateSnapshot,
   getPreviewState,
   goBackPreview,
   goForwardPreview,
@@ -33,26 +31,15 @@ import { getNativeModalState, openArticleDetailsModal } from './native-modal.js'
 import {
   fetchArticle,
   fetchLatestArticles,
-  type HomepagePreviewExtractionSnapshot,
-  type HomepagePreviewSnapshot,
 } from './services/article-fetcher.js';
-import { shouldAllowSciencePreviewWhileLoading } from './services/science-validation.js';
 import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
+import type { PreviewSnapshot } from './services/fetch-strategy.js';
+import { resolveBatchPreviewExtractions, resolveBatchPreviewSnapshots, resolvePreviewSnapshotHtml } from './services/preview-channel.js';
 import { previewDownloadPdf } from './services/pdf.js';
 import { resolveDocxExportDialogCopy } from './utils/locale-copy.js';
 import { appError, serializeAppError } from './utils/app-error.js';
-import { normalizeUrl } from './utils/url.js';
 import { getMainWindow } from './window.js';
-
-const BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS = 2500;
-const BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS = 1500;
-const BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS = 5000;
-const BATCH_PREVIEW_EXTRACTION_GATE_POLL_MS = 120;
-const BATCH_PREVIEW_EXTRACTION_GATE_STABLE_POLLS = 4;
-const BATCH_PREVIEW_EXTRACTION_GATE_STABLE_MS = 450;
-const BATCH_PREVIEW_EXTRACTION_GATE_TRAILING_SECTION_STABLE_POLLS = 8;
-const BATCH_PREVIEW_EXTRACTION_GATE_TRAILING_SECTION_STABLE_MS = 900;
-const FETCH_HOMEPAGE_SOURCE_CHANNEL = 'app:fetch-homepage-source';
+const FETCH_STATUS_CHANNEL = 'app:fetch-status';
 
 async function pickDownloadDirectory() {
   const mainWindow = getMainWindow();
@@ -121,417 +108,6 @@ async function showArticleDetailsModal(
   return openArticleDetailsModal(targetWindow, payload);
 }
 
-function safeNormalizeUrl(value: unknown) {
-  try {
-    return normalizeUrl(value);
-  } catch {
-    return '';
-  }
-}
-
-function normalizePreviewMatchUrl(value: unknown) {
-  const normalized = safeNormalizeUrl(value);
-  if (!normalized) return '';
-
-  try {
-    const url = new URL(normalized);
-    url.hash = '';
-    if (url.pathname !== '/') {
-      url.pathname = url.pathname.replace(/\/+$/, '') || '/';
-    }
-    return url.toString();
-  } catch {
-    return '';
-  }
-}
-
-function matchesPreviewTargetUrl(left: unknown, right: unknown) {
-  const normalizedLeft = normalizePreviewMatchUrl(left);
-  const normalizedRight = normalizePreviewMatchUrl(right);
-  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
-}
-
-function logPreviewBatchDiagnostic(event: string, details: Record<string, unknown>) {
-  try {
-    console.info(`[preview-batch] ${event} ${JSON.stringify(details)}`);
-  } catch {
-    console.info(`[preview-batch] ${event}`);
-  }
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getPreviewExtractionDiagnostics(
-  extraction: HomepagePreviewExtractionSnapshot | Awaited<ReturnType<typeof getPreviewHomepageCandidateSnapshot>>,
-) {
-  const diagnostics = extraction?.extraction?.diagnostics;
-  if (!diagnostics || typeof diagnostics !== 'object' || Array.isArray(diagnostics)) {
-    return null;
-  }
-
-  return diagnostics as Record<string, unknown>;
-}
-
-function toFiniteNumber(value: unknown) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildPreviewExtractionGateKey(
-  extraction: Awaited<ReturnType<typeof getPreviewHomepageCandidateSnapshot>>,
-) {
-  const diagnostics = getPreviewExtractionDiagnostics(extraction);
-  return JSON.stringify({
-    candidateCount: extraction?.extraction?.candidates?.length ?? 0,
-    sectionCount: toFiniteNumber(diagnostics?.sectionCount),
-    cardCount: toFiniteNumber(diagnostics?.cardCount),
-    datedCandidateCount: toFiniteNumber(diagnostics?.datedCandidateCount),
-    summarizedCandidateCount: toFiniteNumber(diagnostics?.summarizedCandidateCount),
-    selectedSectionIndex: toFiniteNumber(diagnostics?.selectedSectionIndex),
-    previewUrl: safeNormalizeUrl(extraction?.previewUrl ?? ''),
-  });
-}
-
-function getPreviewExtractionStructureState(
-  extraction: Awaited<ReturnType<typeof getPreviewHomepageCandidateSnapshot>>,
-) {
-  if (!extraction || extraction.extraction.candidates.length === 0) {
-    return {
-      structurallyReady: false,
-      trailingSection: false,
-    };
-  }
-
-  if (!extraction.isLoading) {
-    return {
-      structurallyReady: true,
-      trailingSection: false,
-    };
-  }
-
-  const diagnostics = getPreviewExtractionDiagnostics(extraction);
-  const sectionCount = toFiniteNumber(diagnostics?.sectionCount);
-  const selectedSectionIndex = toFiniteNumber(diagnostics?.selectedSectionIndex);
-  const trailingSection = Boolean(
-    sectionCount !== null &&
-      selectedSectionIndex !== null &&
-      selectedSectionIndex >= sectionCount - 1,
-  );
-
-  return {
-    structurallyReady: true,
-    trailingSection,
-  };
-}
-
-async function waitForPreviewHomepageExtraction({
-  previewUrl,
-  matchedUrls,
-}: {
-  previewUrl: string;
-  matchedUrls: string[];
-}) {
-  const startedAt = Date.now();
-  let attempts = 0;
-  let lastStableKey = '';
-  let stableSince = 0;
-  let stablePolls = 0;
-  let bestCandidateCount = 0;
-  let bestSectionCount: number | null = null;
-
-  logPreviewBatchDiagnostic('extraction_gate_started', {
-    previewUrl,
-    matchedUrls,
-    gateTimeoutMs: BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS,
-    pollMs: BATCH_PREVIEW_EXTRACTION_GATE_POLL_MS,
-    stablePollsRequired: BATCH_PREVIEW_EXTRACTION_GATE_STABLE_POLLS,
-    stableMsRequired: BATCH_PREVIEW_EXTRACTION_GATE_STABLE_MS,
-  });
-
-  while (Date.now() - startedAt < BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS) {
-    attempts += 1;
-
-    const currentPreviewState = getPreviewState();
-    const currentPreviewUrl = safeNormalizeUrl(currentPreviewState.url ?? '');
-    if (
-      !currentPreviewUrl ||
-      !matchedUrls.some((homepageUrl) => matchesPreviewTargetUrl(homepageUrl, currentPreviewUrl))
-    ) {
-      logPreviewBatchDiagnostic('extraction_gate_aborted', {
-        reason: 'preview_url_changed',
-        previewUrl,
-        currentPreviewUrl,
-        matchedUrls,
-        attempts,
-        waitMs: Date.now() - startedAt,
-      });
-      return null;
-    }
-
-    const extraction = await getPreviewHomepageCandidateSnapshot({
-      timeoutMs: BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS,
-    });
-    const extractionUrl = safeNormalizeUrl(extraction?.previewUrl ?? '');
-    const allowExtractionWhileLoading = extractionUrl
-      ? shouldAllowSciencePreviewWhileLoading(extractionUrl)
-      : false;
-    if (
-      extraction &&
-      extractionUrl &&
-      (!extraction.isLoading || allowExtractionWhileLoading) &&
-      matchedUrls.some((homepageUrl) => matchesPreviewTargetUrl(homepageUrl, extractionUrl))
-    ) {
-      const now = Date.now();
-      const diagnostics = getPreviewExtractionDiagnostics(extraction);
-      const sectionCount = toFiniteNumber(diagnostics?.sectionCount);
-      const selectedSectionIndex = toFiniteNumber(diagnostics?.selectedSectionIndex);
-      const candidateCount = extraction.extraction.candidates.length;
-      bestCandidateCount = Math.max(bestCandidateCount, candidateCount);
-      if (sectionCount !== null) {
-        bestSectionCount = bestSectionCount === null ? sectionCount : Math.max(bestSectionCount, sectionCount);
-      }
-
-      const stableKey = buildPreviewExtractionGateKey(extraction);
-      if (stableKey === lastStableKey) {
-        stablePolls += 1;
-      } else {
-        lastStableKey = stableKey;
-        stableSince = now;
-        stablePolls = 1;
-      }
-
-      const stableMs = stableSince > 0 ? now - stableSince : 0;
-      const structureState = getPreviewExtractionStructureState(extraction);
-      const requiredStablePolls = structureState.trailingSection
-        ? BATCH_PREVIEW_EXTRACTION_GATE_TRAILING_SECTION_STABLE_POLLS
-        : BATCH_PREVIEW_EXTRACTION_GATE_STABLE_POLLS;
-      const requiredStableMs = structureState.trailingSection
-        ? BATCH_PREVIEW_EXTRACTION_GATE_TRAILING_SECTION_STABLE_MS
-        : BATCH_PREVIEW_EXTRACTION_GATE_STABLE_MS;
-      const stabilityReady =
-        !extraction.isLoading ||
-        (stablePolls >= requiredStablePolls && stableMs >= requiredStableMs);
-
-      if (structureState.structurallyReady && stabilityReady) {
-        logPreviewBatchDiagnostic('extraction_gate_ready', {
-          previewUrl,
-          extractionUrl,
-          candidateCount,
-          sectionCount,
-          selectedSectionIndex,
-          attempts,
-          waitMs: Date.now() - startedAt,
-          extractionIsLoading: extraction.isLoading,
-          trailingSection: structureState.trailingSection,
-          stablePolls,
-          stableMs,
-          requiredStablePolls,
-          requiredStableMs,
-        });
-        return extraction;
-      }
-    }
-
-    await sleep(BATCH_PREVIEW_EXTRACTION_GATE_POLL_MS);
-  }
-
-  logPreviewBatchDiagnostic('extraction_gate_timeout', {
-    previewUrl,
-    matchedUrls,
-    attempts,
-    waitMs: Date.now() - startedAt,
-    bestCandidateCount,
-    bestSectionCount,
-  });
-
-  return null;
-}
-
-async function resolvePreviewSnapshotHtml(payload: PreviewDownloadPdfPayload = {}) {
-  const requestedUrl = safeNormalizeUrl(payload.pageUrl ?? '');
-  if (!requestedUrl) return null;
-
-  const previewState = getPreviewState();
-  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
-  if (!previewUrl || !matchesPreviewTargetUrl(previewUrl, requestedUrl)) {
-    return null;
-  }
-
-  const snapshot = await getPreviewDocumentSnapshot();
-  const snapshotUrl = safeNormalizeUrl(snapshot?.url ?? '');
-  if (!snapshot || !snapshotUrl || !matchesPreviewTargetUrl(snapshotUrl, requestedUrl)) {
-    return null;
-  }
-
-  return snapshot.html;
-}
-
-async function resolveBatchHomepagePreviewSnapshots(payload: FetchLatestArticlesPayload = {}) {
-  const sources = Array.isArray(payload.sources) ? payload.sources : [];
-  if (sources.length === 0) {
-    return new Map<string, HomepagePreviewSnapshot>();
-  }
-
-  const previewState = getPreviewState();
-  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
-  if (!previewUrl) {
-    return new Map<string, HomepagePreviewSnapshot>();
-  }
-
-  const matchedUrls = new Set<string>();
-  for (const source of sources) {
-    const homepageUrl = safeNormalizeUrl(source?.homepageUrl);
-    if (homepageUrl && matchesPreviewTargetUrl(homepageUrl, previewUrl)) {
-      matchedUrls.add(homepageUrl);
-    }
-  }
-
-  if (matchedUrls.size === 0) {
-    logPreviewBatchDiagnostic('snapshot_skipped', {
-      reason: 'preview_url_not_matched',
-      previewUrl,
-      sourceUrls: sources
-        .map((source) => safeNormalizeUrl(source?.homepageUrl))
-        .filter(Boolean),
-    });
-    return new Map<string, HomepagePreviewSnapshot>();
-  }
-
-  const allowWhileLoading = shouldAllowSciencePreviewWhileLoading(previewUrl);
-  if (previewState.isLoading && !allowWhileLoading) {
-    return new Map<string, HomepagePreviewSnapshot>();
-  }
-
-  const snapshot = await getPreviewDocumentSnapshot({
-    timeoutMs: BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS,
-  });
-  const snapshotUrl = safeNormalizeUrl(snapshot?.url ?? '');
-  const allowSnapshotWhileLoading = snapshotUrl ? shouldAllowSciencePreviewWhileLoading(snapshotUrl) : false;
-  if (
-    !snapshot ||
-    !snapshotUrl ||
-    (snapshot.isLoading && !allowSnapshotWhileLoading) ||
-    ![...matchedUrls].some((homepageUrl) => matchesPreviewTargetUrl(homepageUrl, snapshotUrl))
-  ) {
-    logPreviewBatchDiagnostic('snapshot_skipped', {
-      reason: !snapshot
-        ? 'snapshot_unavailable'
-        : !snapshotUrl
-          ? 'snapshot_url_empty'
-          : snapshot.isLoading && !allowSnapshotWhileLoading
-            ? 'snapshot_loading_blocked'
-            : 'snapshot_url_not_matched',
-      previewUrl,
-      snapshotUrl,
-      previewIsLoading: previewState.isLoading,
-      snapshotIsLoading: snapshot?.isLoading ?? null,
-      matchedUrls: [...matchedUrls],
-    });
-    return new Map<string, HomepagePreviewSnapshot>();
-  }
-
-  const resolvedSnapshot: HomepagePreviewSnapshot = {
-    html: snapshot.html,
-    previewUrl: snapshotUrl,
-    captureMs: snapshot.captureMs,
-    isLoading: snapshot.isLoading,
-  };
-  const snapshots = new Map<string, HomepagePreviewSnapshot>();
-
-  for (const homepageUrl of matchedUrls) {
-    snapshots.set(homepageUrl, resolvedSnapshot);
-  }
-
-  return snapshots;
-}
-
-async function resolveBatchHomepagePreviewExtractions(payload: FetchLatestArticlesPayload = {}) {
-  const sources = Array.isArray(payload.sources) ? payload.sources : [];
-  if (sources.length === 0) {
-    return new Map<string, HomepagePreviewExtractionSnapshot>();
-  }
-
-  const previewState = getPreviewState();
-  const previewUrl = safeNormalizeUrl(previewState.url ?? '');
-  if (!previewUrl) {
-    return new Map<string, HomepagePreviewExtractionSnapshot>();
-  }
-
-  const matchedUrls = new Set<string>();
-  for (const source of sources) {
-    const homepageUrl = safeNormalizeUrl(source?.homepageUrl);
-    if (homepageUrl && matchesPreviewTargetUrl(homepageUrl, previewUrl)) {
-      matchedUrls.add(homepageUrl);
-    }
-  }
-
-  if (matchedUrls.size === 0) {
-    logPreviewBatchDiagnostic('extraction_skipped', {
-      reason: 'preview_url_not_matched',
-      previewUrl,
-      sourceUrls: sources
-        .map((source) => safeNormalizeUrl(source?.homepageUrl))
-        .filter(Boolean),
-    });
-    return new Map<string, HomepagePreviewExtractionSnapshot>();
-  }
-
-  const allowWhileLoading = shouldAllowSciencePreviewWhileLoading(previewUrl);
-  if (previewState.isLoading && !allowWhileLoading) {
-    return new Map<string, HomepagePreviewExtractionSnapshot>();
-  }
-
-  const extraction =
-    previewState.isLoading && allowWhileLoading
-      ? await waitForPreviewHomepageExtraction({
-          previewUrl,
-          matchedUrls: [...matchedUrls],
-        })
-      : await getPreviewHomepageCandidateSnapshot({
-          timeoutMs: BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS,
-        });
-  const extractionUrl = safeNormalizeUrl(extraction?.previewUrl ?? '');
-  const allowExtractionWhileLoading = extractionUrl ? shouldAllowSciencePreviewWhileLoading(extractionUrl) : false;
-  if (
-    !extraction ||
-    !extractionUrl ||
-    (extraction.isLoading && !allowExtractionWhileLoading) ||
-    ![...matchedUrls].some((homepageUrl) => matchesPreviewTargetUrl(homepageUrl, extractionUrl))
-  ) {
-    logPreviewBatchDiagnostic('extraction_skipped', {
-      reason: !extraction
-        ? 'extraction_unavailable'
-        : !extractionUrl
-          ? 'extraction_url_empty'
-          : extraction.isLoading && !allowExtractionWhileLoading
-            ? 'extraction_loading_blocked'
-            : 'extraction_url_not_matched',
-      previewUrl,
-      extractionUrl,
-      previewIsLoading: previewState.isLoading,
-      extractionIsLoading: extraction?.isLoading ?? null,
-      matchedUrls: [...matchedUrls],
-    });
-    return new Map<string, HomepagePreviewExtractionSnapshot>();
-  }
-
-  const resolvedExtraction: HomepagePreviewExtractionSnapshot = {
-    extraction: extraction.extraction,
-    extractorId: extraction.extractorId,
-    previewUrl: extractionUrl,
-    captureMs: extraction.captureMs,
-    isLoading: extraction.isLoading,
-    nextPageUrl: extraction.nextPageUrl,
-  };
-  const extractions = new Map<string, HomepagePreviewExtractionSnapshot>();
-  for (const homepageUrl of matchedUrls) {
-    extractions.set(homepageUrl, resolvedExtraction);
-  }
-
-  return extractions;
-}
 
 async function invokeCommand<TCommand extends AppCommand>(
   command: TCommand,
@@ -544,25 +120,28 @@ async function invokeCommand<TCommand extends AppCommand>(
       return fetchArticle((payload as FetchArticlePayload)?.url, storage) as Promise<AppCommandResultMap[TCommand]>;
     case 'fetch_latest_articles':
       {
-        const homepagePreviewExtractions = await resolveBatchHomepagePreviewExtractions(
-          payload as FetchLatestArticlesPayload,
+        const fetchLatestPayload = payload as FetchLatestArticlesPayload;
+        const previewExtractions = await resolveBatchPreviewExtractions(
+          fetchLatestPayload,
         );
-        const homepagePreviewSnapshots =
-          homepagePreviewExtractions.size > 0
-            ? new Map<string, HomepagePreviewSnapshot>()
-            : await resolveBatchHomepagePreviewSnapshots(payload as FetchLatestArticlesPayload);
-      return fetchLatestArticles(
-        payload as FetchLatestArticlesPayload,
-        storage,
-        {
-          homepagePreviewExtractions,
-          homepagePreviewSnapshots,
-          homepageSourceMode: 'prefer-preview',
-          onHomepageSourceStatus: (status) => {
-            emitToRenderer?.(FETCH_HOMEPAGE_SOURCE_CHANNEL, status);
+        const previewSnapshots =
+          previewExtractions.size > 0
+            ? new Map<string, PreviewSnapshot>()
+            : await resolveBatchPreviewSnapshots(fetchLatestPayload);
+        return fetchLatestArticles(
+          fetchLatestPayload,
+          storage,
+          {
+            previewExtractions,
+            previewSnapshots,
+            fetchStrategy:
+              fetchLatestPayload.fetchStrategy ??
+              'preview-first',
+            onFetchStatus: (status) => {
+              emitToRenderer?.(FETCH_STATUS_CHANNEL, status);
+            },
           },
-        },
-      ) as Promise<AppCommandResultMap[TCommand]>;
+        ) as Promise<AppCommandResultMap[TCommand]>;
       }
     case 'load_settings':
       return storage.loadSettings() as Promise<AppCommandResultMap[TCommand]>;

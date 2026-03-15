@@ -105,7 +105,7 @@
   color: #1e6b3d;
 }
 
-.titlebar-fetch-source[data-mode='preview-extract'] {
+.titlebar-fetch-source[data-mode='preview'][data-preview-reuse='live-extract'] {
   background: #eaf2ff;
   border-color: #a9c2ef;
   color: #244f93;

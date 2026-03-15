@@ -56,9 +56,9 @@ export type SettingsViewLabels = {
   languageChinese: string;
   languageEnglish: string;
   settingsLanguageHint: string;
-  settingsHomepageUrl: string;
-  settingsHomepageUrlHint: string;
-  homepageUrlPlaceholder: string;
+  settingsPageUrl: string;
+  settingsPageUrlHint: string;
+  pageUrlPlaceholder: string;
   settingsBatchJournalTitle: string;
   batchJournalTitlePlaceholder: string;
   addBatchUrl: string;

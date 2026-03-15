@@ -8,10 +8,10 @@ import {
 } from './nature-listing-shared.js';
 
 import type {
-  HomepageCandidateExtraction,
-  HomepageCandidateExtractor,
-  HomepageCandidateExtractorContext,
-  HomepagePaginationContext,
+  ListingCandidateExtraction,
+  ListingCandidateExtractor,
+  ListingCandidateExtractorContext,
+  ListingPaginationContext,
 } from './types.js';
 
 const NATURE_RESEARCH_ARTICLES_PATH_RE = /^\/[^/]+\/research-articles\/?$/i;
@@ -29,9 +29,9 @@ const NATURE_RESEARCH_ARTICLE_TYPE_SELECTOR =
 const NATURE_RESEARCH_DATE_SELECTOR =
   'time[datetime], .c-meta time[datetime], [itemprop="datePublished"], [datetime], span, div';
 const evaluateNatureResearchPaginationStop = createDateSortedPaginationStopEvaluator();
-type NatureResearchArticlesHomepageMatcher = (homepage: URL) => boolean;
+type NatureResearchArticlesListingPageMatcher = (page: URL) => boolean;
 
-function resolveNatureResearchCardRoots({ $ }: Pick<HomepageCandidateExtractorContext, '$'>) {
+function resolveNatureResearchCardRoots({ $ }: Pick<ListingCandidateExtractorContext, '$'>) {
   for (const selector of NATURE_RESEARCH_CARD_SELECTORS) {
     const roots = $(selector).toArray();
     if (roots.length === 0) continue;
@@ -56,8 +56,8 @@ function resolveNatureResearchCardRoots({ $ }: Pick<HomepageCandidateExtractorCo
 function extractNatureResearchDateHint({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const candidateNodes = $(root).find(NATURE_RESEARCH_DATE_SELECTOR).toArray();
   for (const node of candidateNodes) {
@@ -87,8 +87,8 @@ function extractNatureResearchDateHint({
 function extractNatureResearchLink({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return $(root).find(NATURE_RESEARCH_LINK_SELECTOR).first();
 }
@@ -96,8 +96,8 @@ function extractNatureResearchLink({
 function extractNatureResearchHref({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText(extractNatureResearchLink({ $, root }).attr('href'));
 }
@@ -105,8 +105,8 @@ function extractNatureResearchHref({
 function extractNatureResearchTitle({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   const titleFromHeading = cleanText($(root).find(NATURE_RESEARCH_TITLE_SELECTOR).first().text());
   if (titleFromHeading) return titleFromHeading;
@@ -116,16 +116,16 @@ function extractNatureResearchTitle({
 function extractNatureResearchArticleType({
   $,
   root,
-}: Pick<HomepageCandidateExtractorContext, '$'> & {
-  root: Parameters<HomepageCandidateExtractorContext['$']>[0];
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
 }) {
   return cleanText($(root).find(NATURE_RESEARCH_ARTICLE_TYPE_SELECTOR).first().text());
 }
 
 function extractNatureResearchArticleCards(
-  context: HomepageCandidateExtractorContext,
-): HomepageCandidateExtraction | null {
-  const { $, homepageUrl } = context;
+  context: ListingCandidateExtractorContext,
+): ListingCandidateExtraction | null {
+  const { $, pageUrl } = context;
   const selected = resolveNatureResearchCardRoots({ $ });
   if (!selected || selected.roots.length === 0) return null;
 
@@ -141,7 +141,7 @@ function extractNatureResearchArticleCards(
 
       let normalized = '';
       try {
-        normalized = new URL(href, homepageUrl).toString();
+        normalized = new URL(href, pageUrl).toString();
       } catch {
         return null;
       }
@@ -183,18 +183,18 @@ function extractNatureResearchArticleCards(
 }
 
 function createNatureResearchArticlesNextPageUrlResolver(
-  matches: NatureResearchArticlesHomepageMatcher,
+  matches: NatureResearchArticlesListingPageMatcher,
 ) {
   return function findNatureResearchArticlesNextPageUrl({
-    homepage,
-    homepageUrl,
+    page,
+    pageUrl,
     $,
     seenPageUrls,
-  }: HomepagePaginationContext) {
-    if (!matches(homepage)) return null;
+  }: ListingPaginationContext) {
+    if (!matches(page)) return null;
     return findNatureListingNextPageUrl({
-      homepage,
-      homepageUrl,
+      page,
+      pageUrl,
       $,
       seenPageUrls,
     });
@@ -206,8 +206,8 @@ export function createNatureResearchArticlesCandidateExtractor({
   matches,
 }: {
   id: string;
-  matches: NatureResearchArticlesHomepageMatcher;
-}): HomepageCandidateExtractor {
+  matches: NatureResearchArticlesListingPageMatcher;
+}): ListingCandidateExtractor {
   const findNextPageUrl = createNatureResearchArticlesNextPageUrlResolver(matches);
   const fallbackNatureResearchCandidateExtractor = createNatureListingCandidateExtractor({
     id,
@@ -221,7 +221,7 @@ export function createNatureResearchArticlesCandidateExtractor({
     matches,
     findNextPageUrl,
     evaluatePaginationStop: evaluateNatureResearchPaginationStop,
-    extract(context): HomepageCandidateExtraction | null {
+    extract(context): ListingCandidateExtraction | null {
       const targeted = extractNatureResearchArticleCards(context);
       if (targeted && targeted.candidates.length > 0) {
         return targeted;
@@ -234,9 +234,9 @@ export function createNatureResearchArticlesCandidateExtractor({
 
 export const natureResearchArticlesCandidateExtractor = createNatureResearchArticlesCandidateExtractor({
   id: 'nature-research-articles',
-  matches: isNatureResearchArticlesHomepage,
+  matches: isNatureResearchArticlesListingPage,
 });
 
-export function isNatureResearchArticlesHomepage(homepage: URL) {
-  return homepage.host === 'www.nature.com' && NATURE_RESEARCH_ARTICLES_PATH_RE.test(homepage.pathname);
+export function isNatureResearchArticlesListingPage(page: URL) {
+  return page.host === 'www.nature.com' && NATURE_RESEARCH_ARTICLES_PATH_RE.test(page.pathname);
 }
