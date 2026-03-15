@@ -29,12 +29,7 @@ const NATURE_RESEARCH_ARTICLE_TYPE_SELECTOR =
 const NATURE_RESEARCH_DATE_SELECTOR =
   'time[datetime], .c-meta time[datetime], [itemprop="datePublished"], [datetime], span, div';
 const evaluateNatureResearchPaginationStop = createDateSortedPaginationStopEvaluator();
-const fallbackNatureResearchCandidateExtractor = createNatureListingCandidateExtractor({
-  id: 'nature-research-articles',
-  matches: isNatureResearchArticlesHomepage,
-  findNextPageUrl: findNatureResearchArticlesNextPageUrl,
-  evaluatePaginationStop: evaluateNatureResearchPaginationStop,
-});
+type NatureResearchArticlesHomepageMatcher = (homepage: URL) => boolean;
 
 function resolveNatureResearchCardRoots({ $ }: Pick<HomepageCandidateExtractorContext, '$'>) {
   for (const selector of NATURE_RESEARCH_CARD_SELECTORS) {
@@ -187,36 +182,61 @@ function extractNatureResearchArticleCards(
   };
 }
 
-export const natureResearchArticlesCandidateExtractor: HomepageCandidateExtractor = {
-  id: 'nature-research-articles',
-  matches: isNatureResearchArticlesHomepage,
-  findNextPageUrl: findNatureResearchArticlesNextPageUrl,
-  evaluatePaginationStop: evaluateNatureResearchPaginationStop,
-  extract(context): HomepageCandidateExtraction | null {
-    const targeted = extractNatureResearchArticleCards(context);
-    if (targeted && targeted.candidates.length > 0) {
-      return targeted;
-    }
-
-    return fallbackNatureResearchCandidateExtractor.extract(context);
-  },
-};
-
-export function isNatureResearchArticlesHomepage(homepage: URL) {
-  return homepage.host === 'www.nature.com' && NATURE_RESEARCH_ARTICLES_PATH_RE.test(homepage.pathname);
-}
-
-function findNatureResearchArticlesNextPageUrl({
-  homepage,
-  homepageUrl,
-  $,
-  seenPageUrls,
-}: HomepagePaginationContext) {
-  if (!isNatureResearchArticlesHomepage(homepage)) return null;
-  return findNatureListingNextPageUrl({
+function createNatureResearchArticlesNextPageUrlResolver(
+  matches: NatureResearchArticlesHomepageMatcher,
+) {
+  return function findNatureResearchArticlesNextPageUrl({
     homepage,
     homepageUrl,
     $,
     seenPageUrls,
+  }: HomepagePaginationContext) {
+    if (!matches(homepage)) return null;
+    return findNatureListingNextPageUrl({
+      homepage,
+      homepageUrl,
+      $,
+      seenPageUrls,
+    });
+  };
+}
+
+export function createNatureResearchArticlesCandidateExtractor({
+  id,
+  matches,
+}: {
+  id: string;
+  matches: NatureResearchArticlesHomepageMatcher;
+}): HomepageCandidateExtractor {
+  const findNextPageUrl = createNatureResearchArticlesNextPageUrlResolver(matches);
+  const fallbackNatureResearchCandidateExtractor = createNatureListingCandidateExtractor({
+    id,
+    matches,
+    findNextPageUrl,
+    evaluatePaginationStop: evaluateNatureResearchPaginationStop,
   });
+
+  return {
+    id,
+    matches,
+    findNextPageUrl,
+    evaluatePaginationStop: evaluateNatureResearchPaginationStop,
+    extract(context): HomepageCandidateExtraction | null {
+      const targeted = extractNatureResearchArticleCards(context);
+      if (targeted && targeted.candidates.length > 0) {
+        return targeted;
+      }
+
+      return fallbackNatureResearchCandidateExtractor.extract(context);
+    },
+  };
+}
+
+export const natureResearchArticlesCandidateExtractor = createNatureResearchArticlesCandidateExtractor({
+  id: 'nature-research-articles',
+  matches: isNatureResearchArticlesHomepage,
+});
+
+export function isNatureResearchArticlesHomepage(homepage: URL) {
+  return homepage.host === 'www.nature.com' && NATURE_RESEARCH_ARTICLES_PATH_RE.test(homepage.pathname);
 }

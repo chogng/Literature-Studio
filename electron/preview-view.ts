@@ -587,7 +587,7 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
       nextPageUrl: buildNatureListingNextPageUrl(),
     };
   };
-  const collectNatureResearchArticlesExtraction = () => {
+  const collectNatureResearchArticlesExtraction = (extractorId = 'nature-research-articles') => {
     const cardSelectors = [
       'section#new-article-list li.app-article-list-row__item article.c-card',
       'section#new-article-list article.c-card',
@@ -687,7 +687,7 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
     if (candidates.length === 0) return null;
     return {
       previewUrl: location.href,
-      extractorId: 'nature-research-articles',
+      extractorId,
       extraction: {
         candidates,
         diagnostics: {
@@ -711,6 +711,9 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
   }
   if (normalizedPathname === '/opinion') {
     return collectOpinionExtraction();
+  }
+  if (normalizedPathname === '/natelectron/research-articles') {
+    return collectNatureResearchArticlesExtraction('nature-natelectron-research-articles');
   }
   if (/^\/[^/]+\/research-articles\/?$/i.test(location.pathname)) {
     return collectNatureResearchArticlesExtraction();

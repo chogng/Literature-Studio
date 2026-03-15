@@ -1,10 +1,12 @@
 import { natureLatestNewsCandidateExtractor } from './nature-latest-news.js';
+import { natureNatelectronResearchArticlesCandidateExtractor } from './nature-natelectron-research-articles.js';
 import { natureOpinionCandidateExtractor } from './nature-opinions.js';
 import { natureResearchArticlesCandidateExtractor } from './nature-research-articles.js';
 
 import type { HomepageCandidateExtractor } from './types.js';
 
 const homepageCandidateExtractors: HomepageCandidateExtractor[] = [
+  natureNatelectronResearchArticlesCandidateExtractor,
   natureResearchArticlesCandidateExtractor,
   natureLatestNewsCandidateExtractor,
   natureOpinionCandidateExtractor,
