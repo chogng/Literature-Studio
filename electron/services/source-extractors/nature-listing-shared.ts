@@ -1,10 +1,13 @@
 import { parseDateHintFromText } from '../../utils/date-hint.js';
 import { cleanText } from '../../utils/text.js';
+import { createDateSortedPaginationStopEvaluator } from './date-sorted-pagination.js';
 
 import type {
   HomepageCandidateExtraction,
   HomepageCandidateExtractor,
   HomepageCandidateExtractorContext,
+  HomepagePaginationStopContext,
+  HomepagePaginationStopEvaluation,
   HomepageCandidateRefinementContext,
   HomepagePaginationContext,
 } from './types.js';
@@ -22,6 +25,7 @@ const NATURE_LISTING_DATE_SELECTOR =
   'time[datetime], [datetime], [itemprop="datePublished"], span, div';
 const NATURE_LISTING_RANK_RE = /Rank:\((\d+)\)/i;
 const NATURE_LISTING_TRACK_LABEL_RE = /^article card\s+(\d+)$/i;
+export const evaluateNatureListingPaginationStop = createDateSortedPaginationStopEvaluator();
 
 function parseNatureListingDateValue(value: unknown) {
   return parseDateHintFromText(value);
@@ -439,6 +443,7 @@ export function createNatureListingCandidateExtractor({
   matches,
   findNextPageUrl,
   refineExtraction,
+  evaluatePaginationStop = evaluateNatureListingPaginationStop,
 }: {
   id: string;
   matches: (homepage: URL) => boolean;
@@ -446,12 +451,16 @@ export function createNatureListingCandidateExtractor({
   refineExtraction?: (
     context: HomepageCandidateRefinementContext,
   ) => Promise<HomepageCandidateExtraction | null> | HomepageCandidateExtraction | null;
+  evaluatePaginationStop?: (
+    context: HomepagePaginationStopContext,
+  ) => HomepagePaginationStopEvaluation | null;
 }) {
   return {
     id,
     matches,
     findNextPageUrl,
     refineExtraction,
+    evaluatePaginationStop,
     extract(context): HomepageCandidateExtraction | null {
       const { $, homepageUrl } = context;
       const resolvedRoots = collectNatureListingCandidateRoots({ $ });

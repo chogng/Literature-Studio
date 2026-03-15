@@ -81,6 +81,50 @@
   text-overflow: ellipsis;
 }
 
+.titlebar-fetch-source {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.titlebar-fetch-source[data-mode='network'] {
+  background: #fff7ec;
+  border-color: #f5cf99;
+  color: #8b5a14;
+}
+
+.titlebar-fetch-source[data-mode='preview'] {
+  background: #e9f8ef;
+  border-color: #93d2aa;
+  color: #1e6b3d;
+}
+
+.titlebar-fetch-source[data-mode='preview-extract'] {
+  background: #eaf2ff;
+  border-color: #a9c2ef;
+  color: #244f93;
+}
+
+.titlebar-fetch-stop {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  white-space: nowrap;
+  border: 1px solid #f1c07b;
+  background: #fff3dd;
+  color: #8a4d12;
+}
+
 .titlebar-controls {
   grid-column: 3;
   justify-self: end;

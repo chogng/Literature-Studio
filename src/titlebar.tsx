@@ -4,6 +4,7 @@ import { Input } from './components/Input';
 import './titlebar.css';
 
 export type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
+export type TitlebarFetchSourceMode = 'network' | 'preview' | 'preview-extract';
 
 type TitlebarLabels = {
   controlsAriaLabel: string;
@@ -46,6 +47,11 @@ type TitlebarProps = {
   onWebUrlChange?: (url: string) => void;
   onNavigateWeb?: () => void;
   articleUrlPlaceholder?: string;
+  fetchSourceMode?: TitlebarFetchSourceMode | null;
+  fetchSourceText?: string;
+  fetchSourceTitle?: string;
+  fetchStopText?: string;
+  fetchStopTitle?: string;
 };
 
 export function Titlebar({
@@ -71,6 +77,11 @@ export function Titlebar({
   onWebUrlChange,
   onNavigateWeb,
   articleUrlPlaceholder,
+  fetchSourceMode = null,
+  fetchSourceText,
+  fetchSourceTitle,
+  fetchStopText,
+  fetchStopTitle,
 }: TitlebarProps) {
   const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onDownloadPdf || onExportDocx;
 
@@ -79,6 +90,16 @@ export function Titlebar({
       <div className="titlebar-start">
         <div className="titlebar-brand">
           <span className="titlebar-app-name">{appName}</span>
+          {fetchSourceMode && fetchSourceText ? (
+            <span className="titlebar-fetch-source" data-mode={fetchSourceMode} title={fetchSourceTitle || fetchSourceText}>
+              {fetchSourceText}
+            </span>
+          ) : null}
+          {fetchStopText ? (
+            <span className="titlebar-fetch-stop" title={fetchStopTitle || fetchStopText}>
+              {fetchStopText}
+            </span>
+          ) : null}
         </div>
         {onToggleSidebar && sidebarToggleLabel ? (
           <Button

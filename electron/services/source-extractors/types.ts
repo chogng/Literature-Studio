@@ -47,6 +47,20 @@ export type HomepageCandidateRefinementContext = HomepageCandidateExtractorConte
   fetchHtml: HomepageExtractorFetchHtml;
 };
 
+export type HomepagePaginationStopEvaluation = {
+  shouldStop: boolean;
+  reason?: string;
+  diagnostics?: Record<string, unknown>;
+};
+
+export type HomepagePaginationStopContext = {
+  homepage: URL;
+  homepageUrl: string;
+  pageNumber: number;
+  dateRange: DateRange;
+  extraction: HomepageCandidateExtraction;
+};
+
 export interface HomepageCandidateExtractor {
   id: string;
   matches(homepage: URL): boolean;
@@ -55,4 +69,7 @@ export interface HomepageCandidateExtractor {
   refineExtraction?(
     context: HomepageCandidateRefinementContext,
   ): Promise<HomepageCandidateExtraction | null> | HomepageCandidateExtraction | null;
+  evaluatePaginationStop?(
+    context: HomepagePaginationStopContext,
+  ): HomepagePaginationStopEvaluation | null;
 }

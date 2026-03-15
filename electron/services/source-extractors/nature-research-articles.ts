@@ -1,5 +1,6 @@
 import { parseDateString } from '../../utils/date.js';
 import { cleanText } from '../../utils/text.js';
+import { createDateSortedPaginationStopEvaluator } from './date-sorted-pagination.js';
 import { findNatureListingNextPageUrl } from './nature-listing-shared.js';
 
 import type {
@@ -12,6 +13,7 @@ import type {
 const NATURE_RESEARCH_ARTICLES_PATH_RE = /^\/[^/]+\/research-articles\/?$/i;
 const NATURE_RESEARCH_CARD_SELECTOR = 'main li article';
 const NATURE_RESEARCH_LINK_SELECTOR = 'h3 a[href*="/articles/"], a[href*="/articles/"]';
+const evaluateNatureResearchPaginationStop = createDateSortedPaginationStopEvaluator();
 
 function extractNatureResearchDateHint({
   $,
@@ -48,6 +50,7 @@ export const natureResearchArticlesCandidateExtractor: HomepageCandidateExtracto
   id: 'nature-research-articles',
   matches: isNatureResearchArticlesHomepage,
   findNextPageUrl: findNatureResearchArticlesNextPageUrl,
+  evaluatePaginationStop: evaluateNatureResearchPaginationStop,
   extract(context): HomepageCandidateExtraction | null {
     const { $, homepageUrl } = context;
     const roots = $(NATURE_RESEARCH_CARD_SELECTOR).toArray();

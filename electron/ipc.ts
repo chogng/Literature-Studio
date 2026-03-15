@@ -45,6 +45,7 @@ import { getMainWindow } from './window.js';
 
 const BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS = 700;
 const BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS = 700;
+const FETCH_HOMEPAGE_SOURCE_CHANNEL = 'app:fetch-homepage-source';
 
 async function pickDownloadDirectory() {
   const mainWindow = getMainWindow();
@@ -243,6 +244,7 @@ async function invokeCommand<TCommand extends AppCommand>(
   command: TCommand,
   payload: AppCommandPayloadMap[TCommand],
   storage: StorageService,
+  emitToRenderer?: (channel: string, payload: unknown) => void,
 ): Promise<AppCommandResultMap[TCommand]> {
   switch (command) {
     case 'fetch_article':
@@ -263,6 +265,9 @@ async function invokeCommand<TCommand extends AppCommand>(
           homepagePreviewExtractions,
           homepagePreviewSnapshots,
           homepageSourceMode: 'prefer-preview',
+          onHomepageSourceStatus: (status) => {
+            emitToRenderer?.(FETCH_HOMEPAGE_SOURCE_CHANNEL, status);
+          },
         },
       ) as Promise<AppCommandResultMap[TCommand]>;
       }
@@ -303,7 +308,11 @@ export function registerAppIpc(storage: StorageService) {
         return await showArticleDetailsModal(target, payload as OpenArticleDetailsModalPayload);
       }
 
-      return await invokeCommand(command, payload, storage);
+      return await invokeCommand(command, payload, storage, (channel, eventPayload) => {
+        if (!_event.sender.isDestroyed()) {
+          _event.sender.send(channel, eventPayload);
+        }
+      });
     } catch (error) {
       throw new Error(serializeAppError(error));
     }

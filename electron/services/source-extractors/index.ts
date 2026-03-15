@@ -22,6 +22,8 @@ export type {
   HomepageExtractorFetchHtml,
   HomepageExtractorFetchHtmlOptions,
   HomepagePaginationContext,
+  HomepagePaginationStopContext,
+  HomepagePaginationStopEvaluation,
   HomepageCandidateSeed,
   HomepageDom,
 } from './types.js';

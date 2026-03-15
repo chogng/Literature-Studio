@@ -176,6 +176,7 @@ function MainApp() {
     isLoading: false,
     visible: false,
   });
+  const [homepageSourceStatus, setHomepageSourceStatus] = useState<DesktopHomepageSourceStatus | null>(null);
 
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
   const electronRuntime =
@@ -280,6 +281,21 @@ function MainApp() {
       unsubscribe();
     };
   }, [previewRuntime]);
+
+  useEffect(() => {
+    if (!electronRuntime || !window.electronAPI?.fetch) {
+      setHomepageSourceStatus(null);
+      return;
+    }
+
+    const unsubscribe = window.electronAPI.fetch.onHomepageSourceStatus((status) => {
+      setHomepageSourceStatus(status);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [electronRuntime]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -542,6 +558,7 @@ function MainApp() {
 
   const handleFetchLatestBatch = async () => {
     setIsBatchLoading(true);
+    setHomepageSourceStatus(null);
 
     try {
       const result = await fetchLatestArticlesBatch({
@@ -590,6 +607,33 @@ function MainApp() {
     window.electronAPI?.windowControls?.perform(action);
   };
 
+  const titlebarFetchSourceText = useMemo(() => {
+    if (!homepageSourceStatus) return '';
+    if (homepageSourceStatus.homepageSource === 'preview-extract') return 'Source: preview-extract';
+    if (homepageSourceStatus.homepageSource === 'preview') return 'Source: preview DOM';
+    return 'Source: network';
+  }, [homepageSourceStatus]);
+
+  const titlebarFetchSourceTitle = useMemo(() => {
+    if (!homepageSourceStatus) return '';
+    return `${homepageSourceStatus.sourceId || 'source'} | page ${homepageSourceStatus.pageNumber}`;
+  }, [homepageSourceStatus]);
+
+  const titlebarFetchStopText = useMemo(() => {
+    if (!homepageSourceStatus?.paginationStopped) return '';
+    if (homepageSourceStatus.paginationStopReason === 'tail_dates_before_start_date') {
+      return 'Stop: tail-date policy';
+    }
+    return 'Stop: extractor policy';
+  }, [homepageSourceStatus]);
+
+  const titlebarFetchStopTitle = useMemo(() => {
+    if (!homepageSourceStatus?.paginationStopped) return '';
+    const sourceLabel = homepageSourceStatus.sourceId || 'source';
+    const reasonLabel = homepageSourceStatus.paginationStopReason || 'extractor_policy';
+    return `${sourceLabel} | page ${homepageSourceStatus.pageNumber} | ${reasonLabel}`;
+  }, [homepageSourceStatus]);
+
   return (
     <div className="app-window">
       {electronRuntime ? (
@@ -630,6 +674,11 @@ function MainApp() {
           onWebUrlChange={setWebUrl}
           onNavigateWeb={handleNavigateWeb}
           articleUrlPlaceholder={ui.articleUrlPlaceholder}
+          fetchSourceMode={homepageSourceStatus?.homepageSource ?? null}
+          fetchSourceText={titlebarFetchSourceText}
+          fetchSourceTitle={titlebarFetchSourceTitle}
+          fetchStopText={titlebarFetchStopText}
+          fetchStopTitle={titlebarFetchStopTitle}
         />
       ) : null}
 

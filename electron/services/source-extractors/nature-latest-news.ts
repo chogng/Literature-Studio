@@ -4,6 +4,7 @@ import { cleanText } from '../../utils/text.js';
 
 import {
   createNatureListingCandidateExtractor,
+  evaluateNatureListingPaginationStop,
   findNatureListingNextPageUrl,
   isNatureListingHomepage,
 } from './nature-listing-shared.js';
@@ -264,6 +265,7 @@ export const natureLatestNewsCandidateExtractor: HomepageCandidateExtractor = {
   matches: isNatureLatestNewsHomepage,
   findNextPageUrl: findNatureLatestNewsNextPageUrl,
   refineExtraction: refineNatureLatestNewsExtraction,
+  evaluatePaginationStop: evaluateNatureListingPaginationStop,
   extract(context): HomepageCandidateExtraction | null {
     const targeted = extractNatureLatestNewsArticleCards(context);
     if (targeted && targeted.candidates.length > 0) {

@@ -85,6 +85,18 @@ export interface PreviewState {
   visible: boolean;
 }
 
+export type HomepageFetchSource = 'network' | 'preview' | 'preview-extract';
+
+export interface HomepageSourceStatus {
+  sourceId: string;
+  homepageUrl: string;
+  pageNumber: number;
+  homepageSource: HomepageFetchSource;
+  extractorId: string | null;
+  paginationStopped?: boolean;
+  paginationStopReason?: string | null;
+}
+
 export interface FetchLatestArticlesPayload {
   sources?: Array<{
     sourceId?: string;

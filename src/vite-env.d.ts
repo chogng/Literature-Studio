@@ -136,6 +136,18 @@ type DesktopPreviewState = {
   visible: boolean;
 };
 
+type DesktopHomepageFetchSource = 'network' | 'preview' | 'preview-extract';
+
+type DesktopHomepageSourceStatus = {
+  sourceId: string;
+  homepageUrl: string;
+  pageNumber: number;
+  homepageSource: DesktopHomepageFetchSource;
+  extractorId: string | null;
+  paginationStopped?: boolean;
+  paginationStopReason?: string | null;
+};
+
 type ElectronInvoke = {
   <TCommand extends AppCommand>(
     command: TCommand,
@@ -161,6 +173,9 @@ interface Window {
       goBack: () => void;
       goForward: () => void;
       onStateChange: (listener: (state: DesktopPreviewState) => void) => () => void;
+    };
+    fetch?: {
+      onHomepageSourceStatus: (listener: (status: DesktopHomepageSourceStatus) => void) => () => void;
     };
     modal?: {
       getState: () => Promise<DesktopNativeModalState | null>;

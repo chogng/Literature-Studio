@@ -1,6 +1,13 @@
 import { load } from 'cheerio';
 
-import type { Article, DateRange, FetchLatestArticlesPayload, StorageService } from '../types.js';
+import type {
+  Article,
+  DateRange,
+  FetchLatestArticlesPayload,
+  HomepageFetchSource,
+  HomepageSourceStatus,
+  StorageService,
+} from '../types.js';
 import { buildArticleFromHtml, hasStrongArticleSignals, isProbablyArticle, scoreCandidate } from './article-parser.js';
 import { hasArticlePathSignal, isLikelyStaticResourcePath } from './article-url-rules.js';
 import { isWithinDateRange, parseDateRange } from '../utils/date.js';
@@ -12,6 +19,7 @@ import {
   findHomepageCandidateExtractor,
   type HomepageCandidateExtraction,
   type HomepageCandidateExtractor,
+  type HomepagePaginationStopEvaluation,
   type HomepageCandidateSeed,
 } from './source-extractors/index.js';
 import { appError, isAppError } from '../utils/app-error.js';
@@ -121,6 +129,7 @@ export type FetchLatestArticlesOptions = {
   homepagePreviewExtractions?: ReadonlyMap<string, HomepagePreviewExtractionSnapshot>;
   homepagePreviewSnapshots?: ReadonlyMap<string, HomepagePreviewSnapshot>;
   homepageSourceMode?: HomepageSourceMode;
+  onHomepageSourceStatus?: (status: HomepageSourceStatus) => void;
 };
 
 type HomepageNetworkAttemptResult =
@@ -137,8 +146,6 @@ type HomepageHtmlResult = {
   html: string;
   source: 'network' | 'preview';
 };
-
-type HomepageFetchSource = HomepageHtmlResult['source'] | 'preview-extract';
 
 type CheerioAcceptedNode = Parameters<ReturnType<typeof load>>[0];
 
@@ -162,6 +169,7 @@ type CandidateCollectionResult = {
   stopDateHint: string | null;
   extractorId: string | null;
   extractorDiagnostics: Record<string, unknown> | null;
+  paginationStopEvaluation: HomepagePaginationStopEvaluation | null;
 };
 
 type HomepagePageFetchResult = {
@@ -878,7 +886,38 @@ function collectCandidateDescriptorsFromSeeds(
     stopDateHint,
     extractorId: null,
     extractorDiagnostics: null,
+    paginationStopEvaluation: null,
   };
+}
+
+function evaluateExtractorPaginationStop({
+  extractor,
+  homepage,
+  homepageUrl,
+  pageNumber,
+  dateRange,
+  extraction,
+}: {
+  extractor: HomepageCandidateExtractor;
+  homepage: URL;
+  homepageUrl: string;
+  pageNumber: number;
+  dateRange: DateRange;
+  extraction: HomepageCandidateExtraction;
+}) {
+  if (!extractor.evaluatePaginationStop) {
+    return null;
+  }
+
+  return (
+    extractor.evaluatePaginationStop({
+      homepage,
+      homepageUrl,
+      pageNumber,
+      dateRange,
+      extraction,
+    }) ?? null
+  );
 }
 
 async function collectHomepageCandidateDescriptors(
@@ -913,6 +952,14 @@ async function collectHomepageCandidateDescriptors(
       }
     }
     if (extracted && extracted.candidates.length > 0) {
+      const paginationStopEvaluation = evaluateExtractorPaginationStop({
+        extractor,
+        homepage,
+        homepageUrl,
+        pageNumber,
+        dateRange,
+        extraction: extracted,
+      });
       const result = collectCandidateDescriptorsFromSeeds(
         homepage,
         homepageUrl,
@@ -924,6 +971,7 @@ async function collectHomepageCandidateDescriptors(
         ...result,
         extractorId: extractor.id,
         extractorDiagnostics: extracted.diagnostics ?? null,
+        paginationStopEvaluation,
       };
     }
   }
@@ -988,6 +1036,14 @@ async function collectHomepageCandidateDescriptorsFromPreviewExtraction({
     dateRange,
     extracted.candidates,
   );
+  const paginationStopEvaluation = evaluateExtractorPaginationStop({
+    extractor,
+    homepage,
+    homepageUrl,
+    pageNumber,
+    dateRange,
+    extraction: extracted,
+  });
 
   return {
     ...result,
@@ -999,6 +1055,7 @@ async function collectHomepageCandidateDescriptorsFromPreviewExtraction({
       previewUrl: previewExtraction.previewUrl,
       source: 'preview-extract',
     },
+    paginationStopEvaluation,
   };
 }
 
@@ -1035,6 +1092,25 @@ async function fetchLatestArticlesFromHomepagePage({
   let candidateCollection: CandidateCollectionResult | null = null;
   let $: ReturnType<typeof load> | null = null;
   let previewNextPageUrl: string | null = null;
+  let homepageSourceReported = false;
+  const emitHomepageSourceStatus = (overrides: Partial<HomepageSourceStatus> = {}) => {
+    const reporter = options.onHomepageSourceStatus;
+    if (typeof reporter !== 'function') return;
+
+    reporter({
+      sourceId,
+      homepageUrl,
+      pageNumber,
+      homepageSource,
+      extractorId: extractor?.id ?? null,
+      ...overrides,
+    });
+  };
+  const reportHomepageSource = () => {
+    if (homepageSourceReported) return;
+    emitHomepageSourceStatus();
+    homepageSourceReported = true;
+  };
 
   const previewExtraction =
     !hasArticlePathSignal(homepagePathname) && pageNumber === 1
@@ -1069,6 +1145,7 @@ async function fetchLatestArticlesFromHomepagePage({
   if (!candidateCollection) {
     const homepageResult = await resolveHomepageHtml(homepageUrl, traceId, options);
     homepageSource = homepageResult.source;
+    reportHomepageSource();
     let html = homepageResult.html;
     const homepageParseStartedAt = Date.now();
     let homepageArticle = buildArticleFromHtml(homepageUrl, html);
@@ -1158,6 +1235,8 @@ async function fetchLatestArticlesFromHomepagePage({
     }
   }
 
+  reportHomepageSource();
+
   const resolvedCandidateCollection =
     candidateCollection ??
     collectCandidateDescriptorsFromSeeds(homepage, homepageUrl, sameDomainOnly, dateRange, []);
@@ -1174,6 +1253,7 @@ async function fetchLatestArticlesFromHomepagePage({
     stopDateHint,
     extractorId,
     extractorDiagnostics,
+    paginationStopEvaluation,
   } = resolvedCandidateCollection;
 
   if (extractorId) {
@@ -1191,6 +1271,19 @@ async function fetchLatestArticlesFromHomepagePage({
       dateStart: dateRange.start,
       datedCandidateCount,
       consecutiveOlderDateHints,
+    });
+  }
+
+  const stoppedByPaginationPolicy = Boolean(paginationStopEvaluation?.shouldStop);
+  if (stoppedByPaginationPolicy) {
+    emitHomepageSourceStatus({
+      paginationStopped: true,
+      paginationStopReason: paginationStopEvaluation?.reason ?? 'extractor_policy',
+    });
+    timingLog(traceId, 'source:pagination_policy_stop', {
+      pageNumber,
+      reason: paginationStopEvaluation?.reason ?? 'extractor_policy',
+      ...(paginationStopEvaluation?.diagnostics ?? {}),
     });
   }
 
@@ -1479,7 +1572,7 @@ async function fetchLatestArticlesFromHomepagePage({
   }
 
   const nextPageUrl =
-    fetched.length < remainingLimit && !stoppedByDateHint
+    fetched.length < remainingLimit && !stoppedByDateHint && !stoppedByPaginationPolicy
       ? previewNextPageUrl && !seenHomepageUrls.has(previewNextPageUrl)
         ? previewNextPageUrl
         : extractor?.findNextPageUrl && $
@@ -1500,7 +1593,7 @@ async function fetchLatestArticlesFromHomepagePage({
     candidateAccepted,
     usedHomepageOnly: false,
     nextPageUrl,
-    stoppedByDateHint,
+    stoppedByDateHint: stoppedByDateHint || stoppedByPaginationPolicy,
   };
 }
 
