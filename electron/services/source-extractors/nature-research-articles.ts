@@ -25,7 +25,7 @@ const NATURE_RESEARCH_LINK_SELECTOR =
   'h3.c-card__title a[href*="/articles/"], h3 a[href*="/articles/"], a.c-card__link[href*="/articles/"], a[href*="/articles/"]';
 const NATURE_RESEARCH_TITLE_SELECTOR = 'h3.c-card__title, h3';
 const NATURE_RESEARCH_ARTICLE_TYPE_SELECTOR =
-  '[data-test="article.type"] .c-meta__type, [data-test="article.type"], .c-meta__type';
+  'div.c-card__section.c-meta [data-test="article.type"] .c-meta__type, div.c-card__section.c-meta [data-test="article.type"], [data-test="article.type"] .c-meta__type';
 const NATURE_RESEARCH_DATE_SELECTOR =
   'time[datetime], .c-meta time[datetime], [itemprop="datePublished"], [datetime], span, div';
 const evaluateNatureResearchPaginationStop = createDateSortedPaginationStopEvaluator();

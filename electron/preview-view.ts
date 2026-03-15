@@ -597,7 +597,8 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
     const linkSelector =
       'h3.c-card__title a[href*="/articles/"], h3 a[href*="/articles/"], a.c-card__link[href*="/articles/"], a[href*="/articles/"]';
     const titleSelector = 'h3.c-card__title, h3';
-    const articleTypeSelector = '[data-test="article.type"] .c-meta__type, [data-test="article.type"], .c-meta__type';
+    const articleTypeSelector =
+      'div.c-card__section.c-meta [data-test="article.type"] .c-meta__type, div.c-card__section.c-meta [data-test="article.type"], [data-test="article.type"] .c-meta__type';
     const dateSelector =
       'time[datetime], .c-meta time[datetime], [itemprop="datePublished"], [datetime], span, div';
     const selected = (() => {

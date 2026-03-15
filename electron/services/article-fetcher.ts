@@ -589,7 +589,16 @@ function applyCandidateArticleType(article: Article, candidateArticleType: strin
   if (!normalizedCandidateType) return;
 
   const normalizedArticleType = cleanText(article.articleType);
-  if (!normalizedArticleType || /^article$/i.test(normalizedArticleType)) {
+  const genericArticleType = normalizedArticleType
+    .toLowerCase()
+    .replace(/[-_]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const canPromoteCandidateType =
+    !normalizedArticleType ||
+    /^(?:article|web ?page|web ?site|site|page|thing|creative ?work|work)$/i.test(genericArticleType);
+
+  if (canPromoteCandidateType) {
     article.articleType = normalizedCandidateType;
   }
 }
