@@ -9,7 +9,7 @@
     "dev:renderer": "vite",
     "build:electron": "tsc -p tsconfig.electron.json",
     "dev:electron:build": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
-    "dev:electron:run": "wait-on tcp:1420 file:dist-electron/main.js && cross-env ELECTRON_RENDERER_URL=http://localhost:1420 nodemon --watch dist-electron --ext js dist-electron/launch.js dist-electron/main.js",
+    "dev:electron:run": "wait-on tcp:1420 file:dist-electron/main.js && cross-env ELECTRON_RENDERER_URL=http://localhost:1420 nodemon --watch dist-electron --ext js --signal SIGTERM dist-electron/launch.js dist-electron/main.js",
     "dev:electron": "concurrently -k \"npm:dev:electron:build\" \"npm:dev:electron:run\"",
     "dev:web": "vite --config vite.web.config.ts",
     "check:i18n": "node scripts/check-i18n-keys.mjs",

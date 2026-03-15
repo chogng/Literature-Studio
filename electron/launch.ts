@@ -15,7 +15,47 @@ const child = spawn(electronBinary, args, {
   env,
 });
 
+let shuttingDown = false;
+
+function terminateChild(signal: NodeJS.Signals = 'SIGTERM') {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+  try {
+    child.kill(signal);
+  } catch {
+    child.kill();
+  }
+}
+
+function requestShutdown(signal: NodeJS.Signals) {
+  if (shuttingDown) {
+    return;
+  }
+  shuttingDown = true;
+  const childSignal = signal === 'SIGBREAK' ? 'SIGTERM' : signal;
+  terminateChild(childSignal);
+
+  const forceExitTimer = setTimeout(() => {
+    process.exit(0);
+  }, 5000);
+  forceExitTimer.unref();
+
+  child.once('close', () => {
+    clearTimeout(forceExitTimer);
+    process.exit(0);
+  });
+}
+
+const shutdownSignals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'];
+for (const signal of shutdownSignals) {
+  process.once(signal, () => requestShutdown(signal));
+}
+
 child.on('close', (code, signal) => {
+  if (shuttingDown) {
+    return;
+  }
   if (code === null) {
     console.error(`Electron exited with signal ${signal}`);
     process.exit(1);
