@@ -724,6 +724,9 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
   if (normalizedPathname === '/nmat/research-articles') {
     return collectNatureResearchArticlesExtraction('nature-nmat-research-articles');
   }
+  if (normalizedPathname === '/nnano/research-articles') {
+    return collectNatureResearchArticlesExtraction('nature-nnano-research-articles');
+  }
   if (normalizedPathname === '/npj2dmaterials/research-articles') {
     return collectNatureResearchArticlesExtraction('nature-npj2dmaterials-research-articles');
   }

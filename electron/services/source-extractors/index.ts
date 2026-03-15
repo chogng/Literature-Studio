@@ -6,6 +6,7 @@ import { natureNatrevelectrengReviewsAndAnalysisCandidateExtractor } from './nat
 import { natureNatrevmatsReviewsAndAnalysisCandidateExtractor } from './nature-natrevmats-reviews-and-analysis.js';
 import { natureNatrevphysReviewsAndAnalysisCandidateExtractor } from './nature-natrevphys-reviews-and-analysis.js';
 import { natureNmatResearchArticlesCandidateExtractor } from './nature-nmat-research-articles.js';
+import { natureNnanoResearchArticlesCandidateExtractor } from './nature-nnano-research-articles.js';
 import { natureNpj2dmaterialsResearchArticlesCandidateExtractor } from './nature-npj2dmaterials-research-articles.js';
 import { natureNphotonResearchArticlesCandidateExtractor } from './nature-nphoton-research-articles.js';
 import { natureNphysResearchArticlesCandidateExtractor } from './nature-nphys-research-articles.js';
@@ -23,6 +24,7 @@ const homepageCandidateExtractors: HomepageCandidateExtractor[] = [
   natureNatrevmatsReviewsAndAnalysisCandidateExtractor,
   natureNatrevphysReviewsAndAnalysisCandidateExtractor,
   natureNmatResearchArticlesCandidateExtractor,
+  natureNnanoResearchArticlesCandidateExtractor,
   natureNpj2dmaterialsResearchArticlesCandidateExtractor,
   natureNphotonResearchArticlesCandidateExtractor,
   natureNphysResearchArticlesCandidateExtractor,
