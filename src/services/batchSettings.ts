@@ -1,4 +1,4 @@
-import { normalizeUrl } from '../utils/url';
+import { normalizeUrl, sanitizeUrlInput } from '../utils/url';
 
 export const batchLimitMin = 1;
 export const batchLimitMax = 100;
@@ -81,7 +81,7 @@ function sanitizeBatchSourceEntry(value: unknown, index: number): BatchSource {
   }
 
   const record = value as Record<string, unknown>;
-  const url = String(record.url ?? '').trim();
+  const url = sanitizeUrlInput(String(record.url ?? ''));
   const journalTitle = String(record.journalTitle ?? '').trim();
   return {
     id: ensureBatchSourceId(record.id, url, index),

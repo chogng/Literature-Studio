@@ -17,7 +17,7 @@ import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
 import ArticleDetailsModalWindow from './views/ArticleDetailsModalWindow';
 import { buildDefaultBatchDateRange } from './utils/dateRange';
-import { normalizeUrl } from './utils/url';
+import { normalizeUrl, sanitizeUrlInput } from './utils/url';
 import { fetchLatestArticlesBatch, type Article } from './services/articleFetch';
 import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './services/desktopError';
 import {
@@ -325,6 +325,7 @@ function MainApp() {
       return;
     }
 
+    setWebUrl(normalized);
     setBrowserUrl(normalized);
     setFetchSeedUrl(normalized);
     if (electronRuntime && !previewRuntime) {
@@ -395,16 +396,23 @@ function MainApp() {
   };
 
   const handleBatchSourceUrlChange = useCallback((index: number, nextUrl: string) => {
+    const sanitizedUrl = sanitizeUrlInput(nextUrl);
     setBatchSources((current) =>
       current.map((source, sourceIndex) =>
         sourceIndex === index
           ? {
               ...source,
-              url: nextUrl,
+              url: sanitizedUrl,
             }
           : source,
       ),
     );
+  }, []);
+
+  const handleWebUrlChange = useCallback((nextUrl: string) => {
+    const sanitizedUrl = sanitizeUrlInput(nextUrl);
+    setWebUrl(sanitizedUrl);
+    setFetchSeedUrl(sanitizedUrl);
   }, []);
 
   const handleBatchSourceJournalTitleChange = useCallback((index: number, nextJournalTitle: string) => {
@@ -679,10 +687,7 @@ function MainApp() {
           onDownloadPdf={() => void handlePreviewDownloadPdf()}
           onExportDocx={() => void handleExportArticlesDocx()}
           webUrl={webUrl}
-          onWebUrlChange={(nextUrl: string) => {
-            setWebUrl(nextUrl);
-            setFetchSeedUrl(nextUrl);
-          }}
+          onWebUrlChange={handleWebUrlChange}
           onNavigateWeb={handleNavigateWeb}
           articleUrlPlaceholder={ui.articleUrlPlaceholder}
           fetchChannel={fetchStatus?.fetchChannel ?? null}

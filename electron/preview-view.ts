@@ -709,51 +709,89 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
       nextPageUrl: buildNatureListingNextPageUrl(),
     };
   };
-  const collectScienceAdvPhysicalMaterialsExtraction = () => {
-    const tocBodySelectors = [
-      'div.toc > div.toc__body > div.toc__body',
-      'div.toc__body > div.toc__body',
-      'div.toc__body',
-    ];
-    const sectionSelector = 'section.toc__section';
-    const headingSelector = 'h4';
-    const targetHeading = 'physical and materials sciences';
-    const fixedSectionIndex = 3;
-    const cardSelector = 'div.card';
-    const linkSelector = 'h3.article-title a[href*="/doi/"], h3.article-title a[href], a[href*="/doi/"]';
-    const titleSelector = 'h3.article-title';
-    const dateSelector = '.card-meta time, time[datetime], [datetime]';
-    const abstractSelector = '.accordion__content, div.card-body';
-    const authorsSelector = 'ul[title="list of authors"] li span';
-    const doiPathRe = /\/doi\/(?:abs\/|epdf\/|pdf\/)?(10\.\d{4,9}\/[^?#]+)/i;
-    const normalizeHeading = (value) => cleanText(value).toLowerCase();
-    let tocBodySelector = '';
-    let tocBodyMatchedRootCount = 0;
-    let selectedTocBody = null;
-    for (const selector of tocBodySelectors) {
+  const scienceTocBodySelectors = [
+    'div.toc > div.toc__body > div.toc__body',
+    'div.toc__body > div.toc__body',
+    'div.toc__body',
+  ];
+  const scienceSectionSelector = 'section.toc__section';
+  const scienceHeadingSelector = 'h4';
+  const scienceSubheadingSelector = 'h5';
+  const scienceCardSelector = 'div.card';
+  const scienceLinkSelector = 'h3.article-title a[href*="/doi/"], h3.article-title a[href], a[href*="/doi/"]';
+  const scienceTitleSelector = 'h3.article-title';
+  const scienceDateSelector = '.card-meta time, time[datetime], [datetime]';
+  const scienceAbstractSelector = '.accordion__content, div.card-body';
+  const scienceAuthorsSelector = 'ul[title="list of authors"] li span';
+  const scienceDoiPathRe = /\/doi\/(?:abs\/|epdf\/|pdf\/)?(10\.\d{4,9}\/[^?#]+)/i;
+  const normalizeScienceHeading = (value) => cleanText(value).toLowerCase();
+  const resolveScienceTocBody = () => {
+    for (const selector of scienceTocBodySelectors) {
       const roots = Array.from(document.querySelectorAll(selector));
       const matchedRoot = roots.find((root) => root.querySelector(':scope > section.toc__section'));
       if (!matchedRoot) continue;
-      selectedTocBody = matchedRoot;
-      tocBodySelector = selector;
-      tocBodyMatchedRootCount = roots.length;
-      break;
+      return {
+        root: matchedRoot,
+        selector,
+        matchedRootCount: roots.length,
+      };
     }
-    if (!selectedTocBody) return null;
+    return null;
+  };
+  const extractScienceCardDateHint = (card) => {
+    for (const node of Array.from(card.querySelectorAll(scienceDateSelector))) {
+      const values = [
+        node.getAttribute('datetime'),
+        node.getAttribute('content'),
+        node.getAttribute('aria-label'),
+        node.getAttribute('title'),
+        node.textContent,
+      ];
+      for (const value of values) {
+        const parsed = parseDateHintFromText(value);
+        if (parsed) return parsed;
+      }
+    }
+    return parseDateHintFromText(card.textContent);
+  };
+  const extractScienceCardAuthors = (card) =>
+    Array.from(
+      new Set(
+        Array.from(card.querySelectorAll(scienceAuthorsSelector))
+          .map((node) => cleanText(node.textContent))
+          .filter(Boolean),
+      ),
+    );
+  const extractScienceCardDoi = (href) => {
+    const matched = cleanText(href).match(scienceDoiPathRe);
+    if (!matched?.[1]) return null;
+    try {
+      return decodeURIComponent(matched[1]);
+    } catch {
+      return matched[1];
+    }
+  };
+  const collectScienceAdvPhysicalMaterialsExtraction = () => {
+    const targetHeading = 'physical and materials sciences';
+    const fixedSectionIndex = 3;
+    const tocBody = resolveScienceTocBody();
+    if (!tocBody) return null;
 
-    const sections = Array.from(selectedTocBody.querySelectorAll(':scope > section.toc__section'));
+    const sections = Array.from(tocBody.root.querySelectorAll(':scope > section.toc__section'));
     if (sections.length === 0) return null;
 
     let sectionIndex = -1;
     let selectedBy = '';
     const fixedSection = sections[fixedSectionIndex];
-    const fixedHeading = normalizeHeading(fixedSection?.querySelector(headingSelector)?.textContent);
+    const fixedHeading = normalizeScienceHeading(
+      fixedSection?.querySelector(scienceHeadingSelector)?.textContent,
+    );
     if (fixedSection && (fixedHeading === targetHeading || fixedHeading.includes(targetHeading))) {
       sectionIndex = fixedSectionIndex;
       selectedBy = 'toc-body-fixed-index';
     } else {
       sectionIndex = sections.findIndex((section) => {
-        const heading = normalizeHeading(section.querySelector(headingSelector)?.textContent);
+        const heading = normalizeScienceHeading(section.querySelector(scienceHeadingSelector)?.textContent);
         return heading === targetHeading || heading.includes(targetHeading);
       });
       selectedBy = 'toc-body-heading-fallback';
@@ -763,8 +801,8 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
     const selectedSection = sections[sectionIndex];
     if (!selectedSection) return null;
 
-    const sectionHeading = cleanText(selectedSection.querySelector(headingSelector)?.textContent);
-    const cards = Array.from(selectedSection.querySelectorAll(cardSelector));
+    const sectionHeading = cleanText(selectedSection.querySelector(scienceHeadingSelector)?.textContent);
+    const cards = Array.from(selectedSection.querySelectorAll(scienceCardSelector));
     if (cards.length === 0) return null;
 
     const seen = new Set();
@@ -772,54 +810,19 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
     let summarizedCandidateCount = 0;
     const candidates = cards
       .map((card, index) => {
-        const link = card.querySelector(linkSelector);
+        const link = card.querySelector(scienceLinkSelector);
         const href = cleanText(link?.getAttribute('href'));
-        const title = cleanText(card.querySelector(titleSelector)?.textContent) || cleanText(link?.textContent);
+        const title = cleanText(card.querySelector(scienceTitleSelector)?.textContent) || cleanText(link?.textContent);
         if (!href || !title) return null;
 
         const normalized = resolveUrl(href);
         if (!normalized || seen.has(normalized)) return null;
         seen.add(normalized);
 
-        let dateHint = null;
-        for (const node of Array.from(card.querySelectorAll(dateSelector))) {
-          const values = [
-            node.getAttribute('datetime'),
-            node.getAttribute('content'),
-            node.getAttribute('aria-label'),
-            node.getAttribute('title'),
-            node.textContent,
-          ];
-          for (const value of values) {
-            const parsed = parseDateHintFromText(value);
-            if (parsed) {
-              dateHint = parsed;
-              break;
-            }
-          }
-          if (dateHint) break;
-        }
-        if (!dateHint) {
-          dateHint = parseDateHintFromText(card.textContent);
-        }
-
-        const abstractText = cleanText(card.querySelector(abstractSelector)?.textContent) || null;
-        const authors = Array.from(
-          new Set(
-            Array.from(card.querySelectorAll(authorsSelector))
-              .map((node) => cleanText(node.textContent))
-              .filter(Boolean),
-          ),
-        );
-        const doiMatch = href.match(doiPathRe);
-        let doi = null;
-        if (doiMatch?.[1]) {
-          try {
-            doi = decodeURIComponent(doiMatch[1]);
-          } catch {
-            doi = doiMatch[1];
-          }
-        }
+        const dateHint = extractScienceCardDateHint(card);
+        const abstractText = cleanText(card.querySelector(scienceAbstractSelector)?.textContent) || null;
+        const authors = extractScienceCardAuthors(card);
+        const doi = extractScienceCardDoi(href);
         if (dateHint) datedCandidateCount += 1;
         if (abstractText) summarizedCandidateCount += 1;
 
@@ -847,24 +850,183 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
       extraction: {
         candidates,
         diagnostics: {
-          tocBodySelectors,
-          tocBodySelector,
-          tocBodyMatchedRootCount,
-          sectionSelector,
-          headingSelector,
+          tocBodySelectors: scienceTocBodySelectors,
+          tocBodySelector: tocBody.selector,
+          tocBodyMatchedRootCount: tocBody.matchedRootCount,
+          sectionSelector: scienceSectionSelector,
+          headingSelector: scienceHeadingSelector,
           targetHeading,
           fixedSectionIndex,
           selectedSectionIndex: sectionIndex,
           selectedBy,
           sectionCount: sections.length,
           selectedSectionHeading: sectionHeading || null,
-          cardSelector,
-          linkSelector,
-          titleSelector,
-          dateSelector,
-          abstractSelector,
-          authorsSelector,
+          cardSelector: scienceCardSelector,
+          linkSelector: scienceLinkSelector,
+          titleSelector: scienceTitleSelector,
+          dateSelector: scienceDateSelector,
+          abstractSelector: scienceAbstractSelector,
+          authorsSelector: scienceAuthorsSelector,
           cardCount: cards.length,
+          candidateCount: candidates.length,
+          datedCandidateCount,
+          summarizedCandidateCount,
+        },
+      },
+      nextPageUrl: null,
+    };
+  };
+  const collectScienceCurrentNewsInDepthResearchArticlesExtraction = () => {
+    const tocBody = resolveScienceTocBody();
+    if (!tocBody) return null;
+
+    const sections = Array.from(tocBody.root.querySelectorAll(':scope > section.toc__section'));
+    if (sections.length === 0) return null;
+
+    const targetSubsections = [
+      {
+        sectionHeading: 'news',
+        subsectionHeading: 'in depth',
+        articleType: 'In Depth',
+      },
+      {
+        sectionHeading: 'research',
+        subsectionHeading: 'research articles',
+        articleType: 'Research Articles',
+      },
+    ];
+    const buildTargetKey = (sectionHeading, subsectionHeading) =>
+      cleanText(sectionHeading).toLowerCase() + '::' + cleanText(subsectionHeading).toLowerCase();
+    const targetState = new Map(
+      targetSubsections.map((target) => [
+        buildTargetKey(target.sectionHeading, target.subsectionHeading),
+        {
+          ...target,
+          matched: false,
+          sectionIndex: null,
+          sectionHeadingText: '',
+          subsectionHeadingText: '',
+          cardCount: 0,
+          candidateCount: 0,
+        },
+      ]),
+    );
+    const seen = new Set();
+    const candidates = [];
+    let datedCandidateCount = 0;
+    let summarizedCandidateCount = 0;
+    let totalCardCount = 0;
+    let order = 0;
+
+    for (const [sectionIndex, section] of sections.entries()) {
+      const sectionHeading = cleanText(section.querySelector(':scope > h4')?.textContent);
+      let currentSubheading = '';
+
+      for (const child of Array.from(section.children)) {
+        if (child.matches(scienceSubheadingSelector)) {
+          currentSubheading = cleanText(child.textContent);
+          const targetKey = buildTargetKey(sectionHeading, currentSubheading);
+          const target = targetState.get(targetKey);
+          if (target) {
+            target.matched = true;
+            target.sectionIndex = sectionIndex;
+            target.sectionHeadingText = sectionHeading;
+            target.subsectionHeadingText = currentSubheading;
+          }
+          continue;
+        }
+
+        if (!child.matches(scienceCardSelector)) {
+          continue;
+        }
+
+        const target = targetState.get(buildTargetKey(sectionHeading, currentSubheading));
+        if (!target) {
+          continue;
+        }
+
+        target.cardCount += 1;
+        totalCardCount += 1;
+
+        const link = child.querySelector(scienceLinkSelector);
+        const href = cleanText(link?.getAttribute('href'));
+        const title = cleanText(child.querySelector(scienceTitleSelector)?.textContent) || cleanText(link?.textContent);
+        if (!href || !title) continue;
+
+        const normalized = resolveUrl(href);
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+
+        const dateHint = extractScienceCardDateHint(child);
+        const abstractText = cleanText(child.querySelector(scienceAbstractSelector)?.textContent) || null;
+        const authors = extractScienceCardAuthors(child);
+        const doi = extractScienceCardDoi(href);
+
+        if (dateHint) datedCandidateCount += 1;
+        if (abstractText) summarizedCandidateCount += 1;
+
+        candidates.push({
+          href,
+          order,
+          dateHint,
+          articleType: target.articleType,
+          scoreBoost: 180,
+          prefetchedArticle: {
+            title,
+            doi,
+            authors,
+            abstractText,
+            publishedAt: dateHint,
+          },
+        });
+        order += 1;
+        target.candidateCount += 1;
+      }
+    }
+
+    const targetSummaries = [...targetState.values()].map((target) => ({
+      sectionHeading: target.sectionHeadingText || target.sectionHeading,
+      subsectionHeading: target.subsectionHeadingText || target.subsectionHeading,
+      matched: target.matched,
+      sectionIndex: target.sectionIndex,
+      cardCount: target.cardCount,
+      candidateCount: target.candidateCount,
+      articleType: target.articleType,
+    }));
+    const allTargetsReady = targetSummaries.every((target) => target.matched && target.candidateCount > 0);
+    if (!allTargetsReady || candidates.length === 0) return null;
+
+    const selectedSectionIndices = targetSummaries
+      .map((target) => target.sectionIndex)
+      .filter((value) => Number.isInteger(value));
+
+    return {
+      previewUrl: location.href,
+      extractorId: 'science-current-news-in-depth-research-articles',
+      extraction: {
+        candidates,
+        diagnostics: {
+          tocBodySelectors: scienceTocBodySelectors,
+          tocBodySelector: tocBody.selector,
+          tocBodyMatchedRootCount: tocBody.matchedRootCount,
+          sectionSelector: scienceSectionSelector,
+          headingSelector: scienceHeadingSelector,
+          subsectionHeadingSelector: scienceSubheadingSelector,
+          selectedSectionIndex:
+            selectedSectionIndices.length > 0 ? Math.max(...selectedSectionIndices) : null,
+          selectedSectionIndices,
+          selectedBy: 'toc-body-target-section-subsection-pairs',
+          sectionCount: sections.length,
+          targetSubsections: targetSummaries,
+          targetSubsectionCount: targetSummaries.length,
+          matchedTargetSubsectionCount: targetSummaries.filter((target) => target.matched).length,
+          cardSelector: scienceCardSelector,
+          linkSelector: scienceLinkSelector,
+          titleSelector: scienceTitleSelector,
+          dateSelector: scienceDateSelector,
+          abstractSelector: scienceAbstractSelector,
+          authorsSelector: scienceAuthorsSelector,
+          cardCount: totalCardCount,
           candidateCount: candidates.length,
           datedCandidateCount,
           summarizedCandidateCount,
@@ -880,6 +1042,12 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
     normalizedPathname === '/toc/sciadv/current'
   ) {
     return collectScienceAdvPhysicalMaterialsExtraction();
+  }
+  if (
+    (normalizedHost === 'www.science.org' || normalizedHost === 'science.org') &&
+    normalizedPathname === '/toc/science/current'
+  ) {
+    return collectScienceCurrentNewsInDepthResearchArticlesExtraction();
   }
   if (normalizedHost !== 'www.nature.com') return null;
   if (normalizedPathname === '/latest-news') {
