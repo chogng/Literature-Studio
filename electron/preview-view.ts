@@ -343,6 +343,17 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
       nextPageUrl: buildNatureListingNextPageUrl(),
     };
   };
+  const collectOpinionExtraction = () => {
+    const targeted = collectLatestNewsExtraction();
+    if (targeted) {
+      return {
+        ...targeted,
+        extractorId: 'nature-opinion',
+      };
+    }
+
+    return collectNatureListingExtraction('nature-opinion');
+  };
   const natureListingLayoutSelectors = [
     'section.section__top-new > div.u-container',
     'div.u-container.c-component',
@@ -623,7 +634,7 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
     return collectLatestNewsExtraction();
   }
   if (normalizedPathname === '/opinion') {
-    return collectNatureListingExtraction('nature-opinion');
+    return collectOpinionExtraction();
   }
   if (/^\/[^/]+\/research-articles\/?$/i.test(location.pathname)) {
     return collectNatureResearchArticlesExtraction();
