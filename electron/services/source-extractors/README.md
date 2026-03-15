@@ -13,6 +13,21 @@
 
 `nature-latest-news.ts` 是当前最完整的例子，也很适合作为后续新增专用 extractor 的模板。
 
+## Nature 固定入口策略（当前结论）
+
+对 `www.nature.com` 这三个固定入口，建议默认都保留专用 extractor，而不是仅依赖通用抓取：
+
+- `/latest-news`
+- `/opinion`
+- `/{journal}/research-articles`（例如 `/nature/research-articles`）
+
+原因很直接：
+
+- 都是高频入口，用户常从这些列表页抓“最新”文章
+- 页面里有稳定结构化信号（卡片、顺序、类型、日期、分页）
+- 专用 extractor 可以稳定输出 `order` / `dateHint` / `articleType`
+- 当页面局部改版时，可以“定制提取 + shared fallback”减少回归风险
+
 ## 设计定位
 
 在主流程里，extractor 的职责很克制:
@@ -147,36 +162,33 @@ createNatureListingCandidateExtractor(...)
 
 因为它基本覆盖了后续我们会遇到的三种 extractor 形态。
 
-### 形态 A: 只做路径差异，逻辑完全复用
+### 形态 A: 只用 shared extractor（极简）
 
-参考 `nature-opinions.ts`:
+适用于结构不稳定、价值一般，或暂时还不值得维护定制 selector 的页面：
 
-- 只定义 `matches`
+- 仅实现 `matches`
 - 直接复用 `createNatureListingCandidateExtractor`
 - 直接复用共享分页
 
-这适合结构和 `latest-news` 类似、但并不需要额外字段提取的列表页。
+### 形态 B: 定制提取 + shared fallback（推荐默认）
 
-### 形态 B: 自定义提取，但不需要 refine
+参考 `nature-opinions.ts` 与 `nature-research-articles.ts`:
 
-参考 `nature-research-articles.ts`:
+- 先做定制 DOM 提取（卡片、顺序、日期、类型）
+- 定制提取失败时回退到 shared extractor
+- 分页逻辑复用共享实现
 
-- 自己决定卡片 selector 和 link selector
-- 自己提取 `dateHint`
-- 自己返回 candidates 和基础 diagnostics
-- 分页仍然复用共享逻辑
+这是现在 `Nature` 固定入口最常见也最稳的形态。
 
-这适合结构很清楚、而且 DOM 里已经有稳定日期的页面。
-
-### 形态 C: 自定义提取 + fallback + refine
+### 形态 C: 定制提取 + shared fallback + refine（增强版）
 
 参考 `nature-latest-news.ts`:
 
-- 先做定制 DOM 提取
-- 再接共享 extractor 兜底
-- 最后用外部轻量信号做补全
+- 定制 DOM 提取
+- shared extractor 兜底
+- `refineExtraction()` 引入外部轻量信号（如 RSS）补齐缺失字段
 
-这就是目前最完整、也最适合当模板的版本。
+适用于“列表 DOM 不总是给全信息，但有可用外部补充源”的页面。
 
 ## 新增 extractor 的推荐步骤
 
@@ -337,7 +349,7 @@ function findTargetNextPageUrl(
 }
 ```
 
-如果新页面根本不需要定制 `extract()`，那就直接退化成 `nature-opinions.ts` 那种极简版本即可。
+如果新页面根本不需要定制 `extract()`，那就直接退化成“只用 shared extractor”的极简版本即可。
 
 ## 代码层面的约束和经验
 
@@ -398,18 +410,18 @@ function findTargetNextPageUrl(
 - `types.ts`: extractor 接口与上下文类型
 - `index.ts`: extractor 注册入口
 - `nature-listing-shared.ts`: Nature 列表页的共享能力
-- `nature-opinions.ts`: 最轻量的 shared-only 实现
-- `nature-research-articles.ts`: 自定义提取但不做 refine 的实现
-- `nature-latest-news.ts`: 当前最完整的模板实现
+- `nature-opinions.ts`: 定制提取 + shared fallback（无 refine）
+- `nature-research-articles.ts`: 定制提取 + shared fallback（无 refine）
+- `nature-latest-news.ts`: 定制提取 + shared fallback + refine（完整模板）
 
 ## 一句话结论
 
-如果我们后面要持续增加“某个固定链接/列表页的专用提取器”，那就应该优先沿用 `nature-latest-news` 这套模式:
+对 Nature 当前这三类固定入口（`latest-news`、`opinion`、`research-articles`），都应优先使用专用 extractor，并沿用 `nature-latest-news` 这套模式:
 
 - 用精确 `matches()` 限定页面
 - 用定制 DOM 提取拿到高质量 candidates
 - 用 shared extractor 做兜底
-- 用 `refineExtraction()` 补齐轻量外部信号
+- 按需用 `refineExtraction()` 补齐轻量外部信号
 - 用 diagnostics 保证后续可维护性
 
 这比每次从零写一个临时脚本式 extractor，更容易扩展，也更容易排查问题。
