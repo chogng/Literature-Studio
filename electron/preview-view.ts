@@ -588,29 +588,99 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
     };
   };
   const collectNatureResearchArticlesExtraction = () => {
-    const roots = Array.from(document.querySelectorAll('main li article'));
-    if (roots.length === 0) return null;
+    const cardSelectors = [
+      'section#new-article-list li.app-article-list-row__item article.c-card',
+      'section#new-article-list article.c-card',
+      'main li.app-article-list-row__item article',
+      'main li article',
+    ];
+    const linkSelector =
+      'h3.c-card__title a[href*="/articles/"], h3 a[href*="/articles/"], a.c-card__link[href*="/articles/"], a[href*="/articles/"]';
+    const titleSelector = 'h3.c-card__title, h3';
+    const articleTypeSelector = '[data-test="article.type"] .c-meta__type, [data-test="article.type"], .c-meta__type';
+    const dateSelector =
+      'time[datetime], .c-meta time[datetime], [itemprop="datePublished"], [datetime], span, div';
+    const selected = (() => {
+      for (const selector of cardSelectors) {
+        const roots = Array.from(document.querySelectorAll(selector));
+        if (roots.length === 0) continue;
+        let matchedCount = 0;
+        for (const root of roots) {
+          const link = root.querySelector(linkSelector);
+          const href = cleanText(link?.getAttribute('href'));
+          const title = cleanText(root.querySelector(titleSelector)?.textContent) || cleanText(link?.textContent);
+          if (href && title) {
+            matchedCount += 1;
+          }
+        }
+        if (matchedCount > 0) {
+          return {
+            selector,
+            roots,
+            matchedCount,
+          };
+        }
+      }
+      return null;
+    })();
+    if (!selected || selected.roots.length === 0) return null;
+
+    let typedCandidateCount = 0;
+    const articleTypeCounts = {};
     const seen = new Set();
-    const candidates = roots.map((root, index) => {
-      const link = root.querySelector('h3 a[href*="/articles/"], a[href*="/articles/"]');
+    const candidates = selected.roots.map((root, index) => {
+      const link = root.querySelector(linkSelector);
       const href = cleanText(link?.getAttribute('href'));
-      const title = cleanText(link?.textContent);
+      const title = cleanText(root.querySelector(titleSelector)?.textContent) || cleanText(link?.textContent);
       if (!href || !title) return null;
       const normalized = resolveUrl(href);
       if (!normalized || seen.has(normalized)) return null;
       seen.add(normalized);
-      const timeElement = root.querySelector('time');
-      const dateHint = [
-        timeElement?.getAttribute('datetime'),
-        timeElement?.getAttribute('content'),
-        timeElement?.getAttribute('title'),
-        timeElement?.textContent,
-      ].map((value) => parseDateString(value)).find(Boolean) || null;
+      const articleType = cleanText(root.querySelector(articleTypeSelector)?.textContent) || null;
+      if (articleType) {
+        typedCandidateCount += 1;
+        articleTypeCounts[articleType] = (articleTypeCounts[articleType] || 0) + 1;
+      }
+
+      let dateHint = null;
+      for (const node of Array.from(root.querySelectorAll(dateSelector))) {
+        const values = [
+          node.getAttribute('datetime'),
+          node.getAttribute('content'),
+          node.getAttribute('aria-label'),
+          node.getAttribute('title'),
+          node.textContent,
+        ];
+        for (const value of values) {
+          const parsed = parseDateString(value) || parseDateHintFromText(value);
+          if (parsed) {
+            dateHint = parsed;
+            break;
+          }
+        }
+        if (dateHint) break;
+      }
+      if (!dateHint) {
+        const fallbackValues = [
+          root.getAttribute('datetime'),
+          root.getAttribute('content'),
+          root.textContent,
+        ];
+        for (const value of fallbackValues) {
+          const parsed = parseDateString(value) || parseDateHintFromText(value);
+          if (parsed) {
+            dateHint = parsed;
+            break;
+          }
+        }
+      }
+
       return {
         href,
         order: index,
         dateHint,
-        scoreBoost: 120,
+        articleType,
+        scoreBoost: 140,
       };
     }).filter(Boolean);
     if (candidates.length === 0) return null;
@@ -620,9 +690,14 @@ const PREVIEW_HOMEPAGE_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
       extraction: {
         candidates,
         diagnostics: {
-          cardCount: roots.length,
+          cardSelector: selected.selector,
+          cardSelectorCandidates: cardSelectors,
+          cardCount: selected.roots.length,
+          cardMatchedCount: selected.matchedCount,
           candidateCount: candidates.length,
           datedCandidateCount: candidates.filter((candidate) => Boolean(candidate.dateHint)).length,
+          typedCandidateCount,
+          articleTypeCounts,
         },
       },
       nextPageUrl: buildNatureListingNextPageUrl(),
