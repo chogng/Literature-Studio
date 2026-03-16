@@ -1,4 +1,4 @@
-import type { StorageService } from '../types.js';
+import type { BatchSource, StorageService } from '../types.js';
 import { createConfigStore } from './config.js';
 import { createHistoryStore } from './history.js';
 
@@ -9,12 +9,14 @@ interface StoragePaths {
 
 interface StorageOptions {
   defaultLocale?: 'zh' | 'en';
+  defaultBatchSources?: ReadonlyArray<BatchSource>;
 }
 
 export function createStorageService(paths: StoragePaths, options: StorageOptions = {}): StorageService {
   const historyStore = createHistoryStore(paths.historyFile);
   const configStore = createConfigStore(paths.configFile, {
     defaultLocale: options.defaultLocale,
+    defaultBatchSources: options.defaultBatchSources,
   });
 
   return {

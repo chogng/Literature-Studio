@@ -4,6 +4,7 @@ import { app, BrowserWindow } from 'electron';
 
 import { registerDevShortcuts } from './dev-shortcuts.js';
 import { registerAppIpc } from './ipc.js';
+import { defaultBatchSources } from './services/default-batch-sources.js';
 import { createStorageService } from './services/storage.js';
 import { createMainWindow, getMainWindow } from './window.js';
 
@@ -74,7 +75,10 @@ app.whenReady().then(async () => {
       historyFile: readerHistoryFile,
       configFile: readerConfigFile,
     },
-    { defaultLocale: resolveDefaultLocale() },
+    {
+      defaultLocale: resolveDefaultLocale(),
+      defaultBatchSources,
+    },
   );
 
   if (isDevMode()) {

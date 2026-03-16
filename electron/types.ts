@@ -17,6 +17,7 @@ export interface BatchSource {
   id: string;
   url: string;
   journalTitle: string;
+  preferredExtractorId?: string | null;
 }
 
 export interface DateRange {

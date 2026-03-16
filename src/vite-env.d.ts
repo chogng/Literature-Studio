@@ -17,6 +17,7 @@ type DesktopBatchSource = {
   id: string;
   url: string;
   journalTitle: string;
+  preferredExtractorId?: string | null;
 };
 
 type DesktopFetchBatchSource = {

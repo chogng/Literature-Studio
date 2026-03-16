@@ -32,6 +32,7 @@ export function resolveAddressBarUrlChange(
   nextUrlInput: string,
   previousUrl: string,
   currentJournalTitle: string,
+  sourceTable?: ReadonlyArray<BatchSource>,
 ): ResolveAddressBarUrlChangeResult {
   const sanitizedUrl = sanitizeUrlInput(nextUrlInput);
 
@@ -41,6 +42,7 @@ export function resolveAddressBarUrlChange(
       currentJournalTitle,
       previousUrl,
       nextUrl: sanitizedUrl,
+      sourceTable,
     }),
   };
 }

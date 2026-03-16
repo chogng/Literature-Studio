@@ -1,6 +1,5 @@
-import articleList from '../data/article-list';
 import { createSourceLookupKey } from '../utils/source-lookup-key';
-import { normalizeUrl, sanitizeUrlInput } from '../utils/url';
+import { sanitizeUrlInput } from '../utils/url';
 
 export const batchLimitMin = 1;
 export const batchLimitMax = 100;
@@ -9,18 +8,7 @@ export type BatchSource = {
   id: string;
   url: string;
   journalTitle: string;
-};
-
-type SourceTableEntry = {
-  id: string;
-  url: string;
-  journalTitle: string;
-  extractorId?: string | null;
-};
-
-type BuiltInSourceMetadata = {
-  articleListId: string;
-  defaultJournalTitle: string;
+  preferredExtractorId?: string | null;
 };
 
 export type ResolvedSourceTableMetadata = {
@@ -29,6 +17,12 @@ export type ResolvedSourceTableMetadata = {
   journalTitle: string;
   preferredExtractorId: string;
   defaultJournalTitle: string;
+};
+
+type SourceLookupMaps = {
+  journalTitleByLookupKey: Map<string, string>;
+  articleListIdByLookupKey: Map<string, string>;
+  preferredExtractorIdByLookupKey: Map<string, string>;
 };
 
 function randomIdSegment() {
@@ -59,10 +53,11 @@ export function createEmptyBatchSource(): BatchSource {
     id: createRandomBatchSourceId(),
     url: '',
     journalTitle: '',
+    preferredExtractorId: null,
   };
 }
 
-export const defaultBatchLimit = 20;
+export const defaultBatchLimit = 50;
 export const defaultSameDomainOnly = true;
 
 export function normalizeBatchLimit(input: unknown, fallback: number = defaultBatchLimit): number {
@@ -86,52 +81,12 @@ function createLookupMap<T extends string>(table: ReadonlyArray<{ url: string; v
   return map;
 }
 
-const builtInSourceEntries: SourceTableEntry[] = articleList.map((item) => ({
-  id: String(item.id).trim(),
-  url: item.url,
-  journalTitle: item.journalTitle.trim(),
-  extractorId: 'extractorId' in item ? String(item.extractorId ?? '').trim() || null : null,
-}));
+function normalizePreferredExtractorId(value: unknown): string | null {
+  const cleaned = String(value ?? '').trim();
+  return cleaned || null;
+}
 
-const builtInArticleListMaxId = builtInSourceEntries.reduce((maxId, item) => {
-  const parsed = Number.parseInt(item.id, 10);
-  return Number.isFinite(parsed) ? Math.max(maxId, parsed) : maxId;
-}, 0);
-
-const builtInArticleListIdByLookupKey = createLookupMap(
-  builtInSourceEntries.map((item) => ({
-    url: item.url,
-    value: item.id.trim(),
-  })),
-);
-
-const builtInJournalTitleByLookupKey = createLookupMap(
-  builtInSourceEntries.map((item) => ({
-    url: item.url,
-    value: item.journalTitle.trim(),
-  })),
-);
-
-const builtInPreferredExtractorIdByLookupKey = createLookupMap(
-  builtInSourceEntries.map((item) => ({
-    url: item.url,
-    value: String(item.extractorId ?? '').trim(),
-  })),
-);
-
-type SourceLookupMaps = {
-  journalTitleByLookupKey: Map<string, string>;
-  articleListIdByLookupKey: Map<string, string>;
-  preferredExtractorIdByLookupKey: Map<string, string>;
-};
-
-const builtInSourceLookupMaps: SourceLookupMaps = {
-  journalTitleByLookupKey: builtInJournalTitleByLookupKey,
-  articleListIdByLookupKey: builtInArticleListIdByLookupKey,
-  preferredExtractorIdByLookupKey: builtInPreferredExtractorIdByLookupKey,
-};
-
-function createSourceLookupMaps(entries: ReadonlyArray<SourceTableEntry>): SourceLookupMaps {
+function createSourceLookupMaps(entries: ReadonlyArray<BatchSource>): SourceLookupMaps {
   return {
     journalTitleByLookupKey: createLookupMap(
       entries.map((item) => ({
@@ -148,38 +103,25 @@ function createSourceLookupMaps(entries: ReadonlyArray<SourceTableEntry>): Sourc
     preferredExtractorIdByLookupKey: createLookupMap(
       entries.map((item) => ({
         url: item.url,
-        value: String(item.extractorId ?? '').trim(),
+        value: String(item.preferredExtractorId ?? '').trim(),
       })),
     ),
   };
 }
 
-function resolveSourceLookupMaps(batchSources?: ReadonlyArray<BatchSource>): SourceLookupMaps {
-  if (!batchSources || batchSources.length === 0) {
-    return builtInSourceLookupMaps;
-  }
+const emptySourceLookupMaps: SourceLookupMaps = {
+  journalTitleByLookupKey: new Map<string, string>(),
+  articleListIdByLookupKey: new Map<string, string>(),
+  preferredExtractorIdByLookupKey: new Map<string, string>(),
+};
 
+function resolveSourceLookupMaps(batchSources?: ReadonlyArray<BatchSource>): SourceLookupMaps {
   const sanitized = sanitizeBatchSources(batchSources);
   if (sanitized.length === 0) {
-    return builtInSourceLookupMaps;
+    return emptySourceLookupMaps;
   }
 
-  return createSourceLookupMaps(buildMergedSourceEntries(sanitized));
-}
-
-function resolveBuiltInSourceMetadata(input: unknown): BuiltInSourceMetadata {
-  const lookupKey = createSourceLookupKey(input);
-  if (!lookupKey) {
-    return {
-      articleListId: '',
-      defaultJournalTitle: '',
-    };
-  }
-
-  return {
-    articleListId: builtInArticleListIdByLookupKey.get(lookupKey) ?? '',
-    defaultJournalTitle: builtInJournalTitleByLookupKey.get(lookupKey) ?? '',
-  };
+  return createSourceLookupMaps(sanitized);
 }
 
 function sanitizeBatchSourceEntry(value: unknown, index: number): BatchSource {
@@ -188,19 +130,18 @@ function sanitizeBatchSourceEntry(value: unknown, index: number): BatchSource {
       id: '',
       url: '',
       journalTitle: '',
+      preferredExtractorId: null,
     };
   }
 
   const record = value as Record<string, unknown>;
   const url = sanitizeUrlInput(String(record.url ?? ''));
-  const explicitJournalTitle = String(record.journalTitle ?? '').trim();
-  const { articleListId, defaultJournalTitle } = resolveBuiltInSourceMetadata(url);
-  const normalizedId = String(record.id ?? '').trim() || articleListId;
 
   return {
-    id: ensureBatchSourceId(normalizedId, index),
+    id: ensureBatchSourceId(record.id, index),
     url,
-    journalTitle: explicitJournalTitle || defaultJournalTitle,
+    journalTitle: String(record.journalTitle ?? '').trim(),
+    preferredExtractorId: normalizePreferredExtractorId(record.preferredExtractorId),
   };
 }
 
@@ -220,6 +161,10 @@ function dedupeBatchSources(sources: BatchSource[]): BatchSource[] {
     }
     if (!previous.journalTitle && source.journalTitle) {
       deduped.set(key, source);
+      continue;
+    }
+    if (!previous.preferredExtractorId && source.preferredExtractorId) {
+      deduped.set(key, source);
     }
   }
 
@@ -238,57 +183,11 @@ export function normalizeBatchSources(
   input: unknown,
   fallback: ReadonlyArray<BatchSource>,
 ): BatchSource[] {
-  const normalized = sanitizeBatchSources(input);
-  if (normalized.length > 0) {
-    return normalized;
+  if (Array.isArray(input)) {
+    return sanitizeBatchSources(input);
   }
 
-  return fallback.map((source) => ({
-    id: ensureBatchSourceId(source.id),
-    url: source.url,
-    journalTitle: source.journalTitle || resolveBuiltInSourceMetadata(source.url).defaultJournalTitle,
-  }));
-}
-
-function buildMergedSourceEntries(batchSources: ReadonlyArray<BatchSource>): SourceTableEntry[] {
-  const merged = new Map<string, SourceTableEntry>();
-
-  for (const item of builtInSourceEntries) {
-    const lookupKey = createSourceLookupKey(item.url);
-    if (!lookupKey) continue;
-    merged.set(lookupKey, { ...item });
-  }
-
-  let nextCustomId = builtInArticleListMaxId + 1;
-
-  for (const source of batchSources) {
-    const normalizedUrl = normalizeUrl(source.url);
-    const journalTitle = source.journalTitle.trim();
-    if (!normalizedUrl || !journalTitle) continue;
-
-    const lookupKey = createSourceLookupKey(normalizedUrl);
-    if (!lookupKey) continue;
-
-    const existing = merged.get(lookupKey);
-    if (existing) {
-      merged.set(lookupKey, {
-        ...existing,
-        url: normalizedUrl,
-        journalTitle,
-      });
-      continue;
-    }
-
-    merged.set(lookupKey, {
-      id: String(nextCustomId),
-      url: normalizedUrl,
-      journalTitle,
-      extractorId: null,
-    });
-    nextCustomId += 1;
-  }
-
-  return [...merged.values()];
+  return sanitizeBatchSources(fallback);
 }
 
 export function resolveSourceTableMetadata(
@@ -335,17 +234,14 @@ export type ConfigBatchSourceResolution = {
   batchSources: ConfigBatchSourceList;
 };
 
-const configBatchSourceSeed: ReadonlyArray<BatchSource> = builtInSourceEntries.map((source) => ({
-  id: source.id,
-  url: source.url,
-  journalTitle: source.journalTitle,
-}));
+const configBatchSourceSeed: ReadonlyArray<BatchSource> = [];
 
 export function getConfigBatchSourceSeed(): ConfigBatchSourceList {
   return configBatchSourceSeed.map((source) => ({
     id: source.id,
     url: source.url,
     journalTitle: source.journalTitle,
+    preferredExtractorId: normalizePreferredExtractorId(source.preferredExtractorId),
   }));
 }
 

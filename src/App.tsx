@@ -371,11 +371,12 @@ function MainApp() {
       nextUrl,
       webUrl,
       addressBarJournalTitle,
+      batchSources,
     );
     setAddressBarJournalTitle(nextJournalTitle);
     setWebUrl(sanitizedUrl);
     setFetchSeedUrl(sanitizedUrl);
-  }, [addressBarJournalTitle, webUrl]);
+  }, [addressBarJournalTitle, batchSources, webUrl]);
 
   const handleAddressBarJournalTitleChange = useCallback((nextJournalTitle: string) => {
     setAddressBarJournalTitle(nextJournalTitle);
