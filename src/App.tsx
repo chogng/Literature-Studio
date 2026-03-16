@@ -1,4 +1,4 @@
-import {
+﻿import {
   type ComponentType,
   useCallback,
   useEffect,
@@ -25,7 +25,7 @@ import {
   normalizeUrl,
   sanitizeUrlInput,
 } from './utils/url';
-import { fetchLatestArticlesBatch, type Article } from './services/articleFetch';
+import { fetchLatestArticlesBatch, type Article } from './services/article-fetch';
 import {
   formatLocalized,
   localizeDesktopInvokeError,
@@ -35,13 +35,11 @@ import {
   createEmptyBatchSource,
   defaultBatchLimit,
   defaultSameDomainOnly,
+  getConfigBatchSourceSeed,
+  resolveDefaultJournalTitleFromSourceUrl,
   type BatchSource,
   normalizeBatchLimit,
-} from './services/batchSettings';
-import { getConfigBatchSourceSeed } from './services/config_schema';
-import {
-  resolveDefaultJournalTitleFromSourceUrl,
-} from './services/sourceTable';
+} from './services/config-schema';
 import {
   buildSaveSettingsPayload,
   loadAppSettings,

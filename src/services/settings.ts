@@ -1,15 +1,13 @@
 import type { Locale } from '../language/i18n';
 import {
-  getConfigBatchSourceSeed,
-  resolveConfigBatchSources,
-  syncConfiguredArticleListFromConfig,
-} from './config_schema';
-import {
   type BatchSource,
   defaultBatchLimit,
   defaultSameDomainOnly,
+  getConfigBatchSourceSeed,
   normalizeBatchLimit,
-} from './batchSettings';
+  resolveConfigBatchSources,
+  syncConfiguredArticleListFromConfig,
+} from './config-schema';
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<T>;

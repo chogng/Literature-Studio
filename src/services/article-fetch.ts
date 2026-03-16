@@ -1,6 +1,11 @@
 import { isDateRangeValid } from '../utils/dateRange';
 import { normalizeUrl } from '../utils/url';
-import { prepareBatchSourcesForFetch, type BatchSource } from './batchSettings';
+import {
+  ensureBatchSourceId,
+  type BatchSource,
+  resolveSourceTableMetadata,
+  sanitizeBatchSources,
+} from './config-schema';
 import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './desktopError';
 
 export type Article = {
@@ -21,6 +26,13 @@ type DesktopInvokeArgs = Record<string, unknown> | undefined;
 type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<T>;
 
 const manualAddressBarSourceId = 'source-manual-address-bar';
+
+type BatchFetchSource = {
+  sourceId: string;
+  pageUrl: string;
+  journalTitle: string;
+  preferredExtractorId: string | null;
+};
 
 export type FetchLatestArticlesBatchResult =
   | { ok: true; articles: Article[] }
@@ -47,6 +59,69 @@ function buildManualBatchSource(url: string): BatchSource {
     id: manualAddressBarSourceId,
     url,
     journalTitle: '',
+  };
+}
+
+function toBatchFetchSourceCandidate(
+  source: BatchSource,
+  index: number,
+): { dedupeKey: string; candidate: BatchFetchSource } | null {
+  const normalizedUrl = normalizeUrl(source.url);
+  if (!normalizedUrl) return null;
+
+  const {
+    articleListId,
+    defaultJournalTitle,
+    preferredExtractorId: matchedPreferredExtractorId,
+  } = resolveSourceTableMetadata(normalizedUrl);
+
+  const sourceId = ensureBatchSourceId(source.id || articleListId, index);
+  const journalTitle = source.journalTitle.trim() || defaultJournalTitle || sourceId;
+  const preferredExtractorId = matchedPreferredExtractorId || null;
+
+  return {
+    dedupeKey: normalizedUrl,
+    candidate: {
+      sourceId,
+      pageUrl: normalizedUrl,
+      journalTitle,
+      preferredExtractorId,
+    },
+  };
+}
+
+function canImproveBatchFetchSource(existing: BatchFetchSource, candidate: BatchFetchSource) {
+  return (!existing.journalTitle && candidate.journalTitle) || (!existing.preferredExtractorId && candidate.preferredExtractorId);
+}
+
+function prepareBatchSourcesForFetch(input: unknown): {
+  sources: BatchFetchSource[];
+} {
+  const sanitized = sanitizeBatchSources(input);
+  const deduped = new Map<string, BatchFetchSource>();
+
+  for (const [index, source] of sanitized.entries()) {
+    const resolved = toBatchFetchSourceCandidate(source, index);
+    if (!resolved) continue;
+
+    const { dedupeKey, candidate } = resolved;
+    const existing = deduped.get(dedupeKey);
+    if (existing) {
+      if (canImproveBatchFetchSource(existing, candidate)) {
+        deduped.set(dedupeKey, {
+          ...existing,
+          journalTitle: candidate.journalTitle,
+          preferredExtractorId: candidate.preferredExtractorId,
+        });
+      }
+      continue;
+    }
+
+    deduped.set(dedupeKey, candidate);
+  }
+
+  return {
+    sources: [...deduped.values()],
   };
 }
 

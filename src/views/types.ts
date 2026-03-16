@@ -1,6 +1,6 @@
 ﻿import type { Locale } from '../language/i18n';
 import type { SidebarArticle } from '../sidebar';
-import type { BatchSource } from '../services/batchSettings';
+import type { BatchSource } from '../services/config-schema';
 
 export type ReaderViewLabels = {
   untitled: string;

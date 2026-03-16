@@ -2,7 +2,7 @@ import * as Checkbox from '@radix-ui/react-checkbox';
 import { ArrowDown, ArrowUp, Check, FolderOpen, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { batchLimitMax, batchLimitMin } from '../services/batchSettings';
+import { batchLimitMax, batchLimitMin } from '../services/config-schema';
 import './SettingsView.css';
 import type { SettingsViewProps } from './types';
 
