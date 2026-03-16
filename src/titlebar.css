@@ -194,16 +194,6 @@
   opacity: 0.38;
 }
 
-.titlebar-btn-nav.is-downloaded.btn-base:not(:disabled) {
-  color: #177245;
-  background: rgba(23, 114, 69, 0.1);
-}
-
-.titlebar-btn-nav.is-downloaded.btn-base:hover:not(:disabled) {
-  color: #115636;
-  background: rgba(23, 114, 69, 0.16);
-}
-
 .titlebar-nav-group {
   -webkit-app-region: no-drag;
   display: inline-flex;

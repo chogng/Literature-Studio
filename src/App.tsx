@@ -21,7 +21,6 @@ import { buildDefaultBatchDateRange } from './utils/dateRange';
 import {
   buildNatureResearchPdfDownloadUrl,
   buildSciencePdfDownloadUrl,
-  isScienceCurrentTocUrl,
   normalizeUrl,
   sanitizeUrlInput,
 } from './utils/url';
@@ -54,7 +53,6 @@ import {
   markPdfDownloadFailed,
   markPdfDownloadStarted,
   markPdfDownloadSucceeded,
-  usePdfDownloadStatus,
 } from './services/pdf-download-status';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
@@ -106,8 +104,6 @@ function MainApp() {
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
-  const [isPreviewPdfDownloading, setIsPreviewPdfDownloading] = useState(false);
-  const [sciencePdfDownloadCount, setSciencePdfDownloadCount] = useState(0);
   const sciencePdfDownloadCountRef = useRef(0);
 
   const [articles, setArticles] = useState<Article[]>([]);
@@ -127,7 +123,6 @@ function MainApp() {
     typeof window !== 'undefined' && typeof window.electronAPI?.preview?.navigate === 'function';
   const desktopRuntime = electronRuntime;
   const ui = useMemo(() => getLocaleMessages(locale), [locale]);
-  const currentPagePdfDownloadStatus = usePdfDownloadStatus(browserUrl);
   const invokeDesktop = useCallback(
     async <T,>(command: string, args?: DesktopInvokeArgs): Promise<T> => {
       if (window.electronAPI?.invoke) {
@@ -513,7 +508,6 @@ function MainApp() {
 
       if (isSciencePdfDownload) {
         sciencePdfDownloadCountRef.current += 1;
-        setSciencePdfDownloadCount(sciencePdfDownloadCountRef.current);
       }
 
       try {
@@ -538,32 +532,11 @@ function MainApp() {
       } finally {
         if (isSciencePdfDownload) {
           sciencePdfDownloadCountRef.current = Math.max(0, sciencePdfDownloadCountRef.current - 1);
-          setSciencePdfDownloadCount(sciencePdfDownloadCountRef.current);
         }
       }
     },
     [desktopRuntime, invokeDesktop, locale, pdfDownloadDir, ui],
   );
-
-  const handlePreviewDownloadPdf = async () => {
-    if (!browserUrl) return;
-
-    if (isScienceCurrentTocUrl(browserUrl)) {
-      toast.info(
-        locale === 'zh'
-          ? 'Science 当期目录页请使用左侧文章卡片上的 PDF 按钮下载。'
-          : 'For Science current TOC pages, use the article card PDF button.',
-      );
-      return;
-    }
-
-    try {
-      setIsPreviewPdfDownloading(true);
-      await handleSharedPdfDownload(browserUrl);
-    } finally {
-      setIsPreviewPdfDownloading(false);
-    }
-  };
 
   const handleExportArticlesDocx = async () => {
     if (!desktopRuntime) return;
@@ -648,15 +621,6 @@ function MainApp() {
     window.electronAPI?.windowControls?.perform(action);
   };
 
-  const isScienceCurrentTocPage = isScienceCurrentTocUrl(browserUrl);
-  const isCurrentPageSciencePdf = Boolean(buildSciencePdfDownloadUrl(browserUrl));
-  const canDownloadCurrentPage = Boolean(desktopRuntime) && !isScienceCurrentTocPage;
-  const currentPageDownloadUnavailableLabel = isScienceCurrentTocPage
-    ? locale === 'zh'
-      ? 'Science 当期目录页请使用左侧文章卡片上的 PDF 按钮下载。'
-      : 'For Science current TOC pages, use the article card PDF button.'
-    : ui.titlebarDesktopOnly;
-
   const titlebarFetchSourceText = useMemo(() => {
     if (!fetchStatus) return '';
     if (fetchStatus.fetchChannel === 'preview' && fetchStatus.previewReuseMode === 'live-extract') {
@@ -704,11 +668,8 @@ function MainApp() {
             backLabel: ui.titlebarBack,
             forwardLabel: ui.titlebarForward,
             refreshLabel: ui.titlebarRefresh,
-            downloadPdfLabel: ui.titlebarDownloadPdf,
             exportDocxLabel: ui.titlebarExportDocx,
             noExportableArticlesLabel: ui.titlebarNoExportableArticles,
-            desktopOnlyLabel: ui.titlebarDesktopOnly,
-            downloadPdfUnavailableLabel: currentPageDownloadUnavailableLabel,
           }}
           isWindowMaximized={isWindowMaximized}
           onWindowControl={handleWindowControl}
@@ -719,14 +680,10 @@ function MainApp() {
           browserUrl={browserUrl}
           canGoBack={previewState.canGoBack}
           canGoForward={previewState.canGoForward}
-          canDownload={canDownloadCurrentPage}
-          isDownloadingPdf={isPreviewPdfDownloading || (isCurrentPageSciencePdf && sciencePdfDownloadCount > 0)}
-          isDownloadedPdf={currentPagePdfDownloadStatus.hasSucceeded}
           canExportDocx={filteredArticles.length > 0}
           onNavigateBack={handlePreviewBack}
           onNavigateForward={handlePreviewForward}
           onRefresh={handleBrowserRefresh}
-          onDownloadPdf={() => void handlePreviewDownloadPdf()}
           onExportDocx={() => void handleExportArticlesDocx()}
           webUrl={webUrl}
           onWebUrlChange={handleWebUrlChange}

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Copy, Download, FileText, Minus, PanelLeftClose, PanelLeftOpen, RefreshCcw, Settings, Square, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Copy, FileText, Minus, PanelLeftClose, PanelLeftOpen, RefreshCcw, Settings, Square, X } from 'lucide-react';
 import { Button } from './components/Button';
 import { Input } from './components/Input';
 import './titlebar.css';
@@ -17,11 +17,8 @@ type TitlebarLabels = {
   backLabel: string;
   forwardLabel: string;
   refreshLabel: string;
-  downloadPdfLabel: string;
   exportDocxLabel: string;
   noExportableArticlesLabel: string;
-  desktopOnlyLabel: string;
-  downloadPdfUnavailableLabel?: string;
 };
 
 type TitlebarProps = {
@@ -37,14 +34,10 @@ type TitlebarProps = {
   browserUrl?: string;
   canGoBack?: boolean;
   canGoForward?: boolean;
-  canDownload?: boolean;
-  isDownloadingPdf?: boolean;
-  isDownloadedPdf?: boolean;
   canExportDocx?: boolean;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
   onRefresh?: () => void;
-  onDownloadPdf?: () => void;
   onExportDocx?: () => void;
   // URL Bar
   webUrl?: string;
@@ -75,14 +68,10 @@ export function Titlebar({
   browserUrl,
   canGoBack = false,
   canGoForward = false,
-  canDownload,
-  isDownloadingPdf = false,
-  isDownloadedPdf = false,
   canExportDocx = false,
   onNavigateBack,
   onNavigateForward,
   onRefresh,
-  onDownloadPdf,
   onExportDocx,
   webUrl,
   onWebUrlChange,
@@ -99,7 +88,7 @@ export function Titlebar({
   fetchStopText,
   fetchStopTitle,
 }: TitlebarProps) {
-  const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onDownloadPdf || onExportDocx;
+  const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onExportDocx;
 
   return (
     <header className="titlebar">
@@ -141,7 +130,7 @@ export function Titlebar({
           <div className="titlebar-nav-group">
             {onNavigateBack ? (
               <Button
-                className={`titlebar-btn titlebar-btn-nav ${isDownloadedPdf ? 'is-downloaded' : ''}`.trim()}
+                className="titlebar-btn titlebar-btn-nav"
                 variant="ghost"
                 size="sm"
                 mode="icon"
@@ -185,27 +174,6 @@ export function Titlebar({
                 title={labels.refreshLabel}
               >
                 <RefreshCcw size={14} strokeWidth={1.5} />
-              </Button>
-            ) : null}
-            {onDownloadPdf ? (
-              <Button
-                className="titlebar-btn titlebar-btn-nav"
-                variant="ghost"
-                size="sm"
-                mode="icon"
-                iconMode="with"
-                textMode="without"
-                isLoading={isDownloadingPdf}
-                onClick={onDownloadPdf}
-                disabled={!browserUrl || !canDownload}
-                aria-label={labels.downloadPdfLabel}
-                title={
-                  canDownload
-                    ? labels.downloadPdfLabel
-                    : labels.downloadPdfUnavailableLabel || labels.desktopOnlyLabel
-                }
-              >
-                <Download size={14} strokeWidth={1.5} />
               </Button>
             ) : null}
             {onExportDocx ? (
