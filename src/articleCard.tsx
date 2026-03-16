@@ -1,7 +1,7 @@
 import { ChevronDown, Download } from 'lucide-react';
 import { Button } from './components/Button';
 import { type Locale } from './language/i18n';
-import { usePdfDownloadStatus } from './services/pdfDownloadStatus';
+import { usePdfDownloadStatus } from './services/pdf-download-status';
 
 type ArticleCardData = {
   title: string;

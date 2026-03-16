@@ -55,7 +55,7 @@ import {
   markPdfDownloadStarted,
   markPdfDownloadSucceeded,
   usePdfDownloadStatus,
-} from './services/pdfDownloadStatus';
+} from './services/pdf-download-status';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 

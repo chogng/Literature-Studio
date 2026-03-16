@@ -67,6 +67,7 @@ export function markPdfDownloadStarted(pageUrl: string) {
     ...previous,
     pageUrl: key,
     isDownloading: true,
+    hasSucceeded: false,
     lastError: '',
   });
 }
@@ -100,6 +101,7 @@ export function markPdfDownloadFailed(pageUrl: string, errorMessage: string) {
     ...previous,
     pageUrl: key,
     isDownloading: false,
+    hasSucceeded: false,
     lastError: errorMessage.trim(),
   });
 }
