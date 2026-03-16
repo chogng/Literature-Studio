@@ -89,6 +89,7 @@ type AppCommandPayloadMap = {
     pageUrl?: string;
     downloadUrl?: string;
     articleTitle?: string;
+    journalTitle?: string;
     customDownloadDir?: string | null;
   };
   export_articles_docx: {

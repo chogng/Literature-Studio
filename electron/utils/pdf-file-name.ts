@@ -3,6 +3,7 @@ import { cleanText } from './text.js';
 const INVALID_FILE_NAME_RE = /[<>:"/\\|?*\u0000-\u001F]/g;
 const TRAILING_FILE_NAME_RE = /[. ]+$/g;
 const PDF_EXTENSION_RE = /\.pdf$/i;
+const DEFAULT_MAX_NAME_LENGTH = 180;
 const WINDOWS_RESERVED_NAMES = new Set([
   'CON',
   'PRN',
@@ -28,11 +29,25 @@ const WINDOWS_RESERVED_NAMES = new Set([
   'LPT9',
 ]);
 
-function normalizePdfFileStem(value: unknown) {
-  const cleaned = cleanText(value).replace(PDF_EXTENSION_RE, '');
-  if (!cleaned) return '';
+function normalizeFileSystemName(
+  value: unknown,
+  {
+    stripPdfExtension = false,
+    maxLength = DEFAULT_MAX_NAME_LENGTH,
+  }: {
+    stripPdfExtension?: boolean;
+    maxLength?: number;
+  } = {},
+) {
+  const cleaned = cleanText(value);
+  const source = stripPdfExtension ? cleaned.replace(PDF_EXTENSION_RE, '') : cleaned;
+  if (!source) return '';
 
-  const normalized = cleaned
+  const safeMaxLength = Number.isFinite(maxLength)
+    ? Math.max(1, Math.trunc(maxLength))
+    : DEFAULT_MAX_NAME_LENGTH;
+
+  const normalized = source
     .replace(INVALID_FILE_NAME_RE, '_')
     .replace(/\s+/g, ' ')
     .trim()
@@ -41,10 +56,18 @@ function normalizePdfFileStem(value: unknown) {
 
   if (!normalized) return '';
 
-  const trimmed = normalized.slice(0, 180).replace(TRAILING_FILE_NAME_RE, '').trim();
+  const trimmed = normalized.slice(0, safeMaxLength).replace(TRAILING_FILE_NAME_RE, '').trim();
   if (!trimmed) return '';
 
   return WINDOWS_RESERVED_NAMES.has(trimmed.toUpperCase()) ? `${trimmed}_` : trimmed;
+}
+
+function normalizePdfFileStem(value: unknown) {
+  return normalizeFileSystemName(value, { stripPdfExtension: true });
+}
+
+export function buildPdfDirectoryName(preferredName: unknown) {
+  return normalizeFileSystemName(preferredName, { maxLength: 120 });
 }
 
 export function buildPdfFileName(preferredTitle: unknown, fallbackName?: unknown) {

@@ -4,7 +4,7 @@ import { load } from 'cheerio';
 import type { BrowserWindow, DownloadItem, Session, WebContents } from 'electron';
 
 import type { PreviewDownloadPdfPayload } from '../types.js';
-import { buildPdfFileName } from '../utils/pdf-file-name.js';
+import { buildPdfDirectoryName, buildPdfFileName } from '../utils/pdf-file-name.js';
 import { cleanText } from '../utils/text.js';
 import { normalizeUrl } from '../utils/url.js';
 import { appError, isAppError } from '../utils/app-error.js';
@@ -1581,9 +1581,15 @@ export async function previewDownloadPdf(
       : null;
   const articleTitle =
     typeof payload.articleTitle === 'string' ? cleanText(payload.articleTitle) : '';
+  const journalTitle =
+    typeof payload.journalTitle === 'string' ? cleanText(payload.journalTitle) : '';
   const customDownloadDir =
     typeof payload.customDownloadDir === 'string' ? cleanText(payload.customDownloadDir) : '';
-  const downloadDir = customDownloadDir || defaultDownloadDir;
+  const baseDownloadDir = customDownloadDir || defaultDownloadDir;
+  const journalDirName = buildPdfDirectoryName(journalTitle);
+  const downloadDir = journalDirName
+    ? path.join(baseDownloadDir, journalDirName)
+    : baseDownloadDir;
   await fs.mkdir(downloadDir, { recursive: true });
 
   const strictScienceCandidateUrls = [

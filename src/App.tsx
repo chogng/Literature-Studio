@@ -464,7 +464,7 @@ function MainApp() {
   };
 
   const handleSharedPdfDownload = useCallback(
-    async (sourceUrl: string, articleTitle?: string) => {
+    async (sourceUrl: string, articleTitle?: string, journalTitle?: string | null) => {
       const normalizedSourceUrl = normalizeUrl(sourceUrl);
       if (!normalizedSourceUrl) {
         toast.error(ui.toastEnterArticleUrl);
@@ -500,6 +500,7 @@ function MainApp() {
           pageUrl: normalizedSourceUrl,
           downloadUrl: preferredPdfUrl,
           articleTitle,
+          journalTitle: typeof journalTitle === 'string' ? journalTitle : undefined,
           customDownloadDir: pdfDownloadDir.trim() || null,
         });
         markPdfDownloadSucceeded(normalizedSourceUrl, result);

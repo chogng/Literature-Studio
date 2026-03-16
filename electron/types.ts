@@ -118,7 +118,8 @@ export interface PreviewDownloadPdfPayload {
   pageUrl?: string;
   downloadUrl?: string;
   articleTitle?: string;
-  customDownloadDir?: string;
+  journalTitle?: string;
+  customDownloadDir?: string | null;
 }
 
 export interface ExportArticlesDocxPayload {

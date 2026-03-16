@@ -12,6 +12,7 @@ type ArticleCardData = {
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
+  journalTitle?: string | null;
 };
 
 type ArticleCardLabels = {
@@ -29,7 +30,11 @@ type ArticleCardProps = {
   article: ArticleCardData;
   locale: Locale;
   labels: ArticleCardLabels;
-  onDownloadPdf: (sourceUrl: string, articleTitle?: string) => Promise<void>;
+  onDownloadPdf: (
+    sourceUrl: string,
+    articleTitle?: string,
+    journalTitle?: string | null,
+  ) => Promise<void>;
 };
 
 function formatPublishedDate(value: string | null, locale: Locale, fallback: string) {
@@ -64,7 +69,7 @@ export default function ArticleCard({ article, locale, labels, onDownloadPdf }: 
     if (!article.sourceUrl || isDownloading) return;
 
     try {
-      await onDownloadPdf(article.sourceUrl, article.title);
+      await onDownloadPdf(article.sourceUrl, article.title, article.journalTitle);
     } catch {
       // The shared download handler is responsible for user-facing error messages.
     }
