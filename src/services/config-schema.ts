@@ -112,29 +112,59 @@ const builtInJournalTitleByLookupKey = createLookupMap(
   })),
 );
 
-let journalTitleByLookupKey = new Map<string, string>();
-let articleListIdByLookupKey = new Map<string, string>();
-let preferredExtractorIdByLookupKey = new Map<string, string>();
+const builtInPreferredExtractorIdByLookupKey = createLookupMap(
+  builtInSourceEntries.map((item) => ({
+    url: item.url,
+    value: String(item.extractorId ?? '').trim(),
+  })),
+);
 
-function rebuildLookupMaps(entries: ReadonlyArray<SourceTableEntry>) {
-  journalTitleByLookupKey = createLookupMap(
-    entries.map((item) => ({
-      url: item.url,
-      value: item.journalTitle.trim(),
-    })),
-  );
-  articleListIdByLookupKey = createLookupMap(
-    entries.map((item) => ({
-      url: item.url,
-      value: item.id.trim(),
-    })),
-  );
-  preferredExtractorIdByLookupKey = createLookupMap(
-    entries.map((item) => ({
-      url: item.url,
-      value: String(item.extractorId ?? '').trim(),
-    })),
-  );
+type SourceLookupMaps = {
+  journalTitleByLookupKey: Map<string, string>;
+  articleListIdByLookupKey: Map<string, string>;
+  preferredExtractorIdByLookupKey: Map<string, string>;
+};
+
+const builtInSourceLookupMaps: SourceLookupMaps = {
+  journalTitleByLookupKey: builtInJournalTitleByLookupKey,
+  articleListIdByLookupKey: builtInArticleListIdByLookupKey,
+  preferredExtractorIdByLookupKey: builtInPreferredExtractorIdByLookupKey,
+};
+
+function createSourceLookupMaps(entries: ReadonlyArray<SourceTableEntry>): SourceLookupMaps {
+  return {
+    journalTitleByLookupKey: createLookupMap(
+      entries.map((item) => ({
+        url: item.url,
+        value: item.journalTitle.trim(),
+      })),
+    ),
+    articleListIdByLookupKey: createLookupMap(
+      entries.map((item) => ({
+        url: item.url,
+        value: item.id.trim(),
+      })),
+    ),
+    preferredExtractorIdByLookupKey: createLookupMap(
+      entries.map((item) => ({
+        url: item.url,
+        value: String(item.extractorId ?? '').trim(),
+      })),
+    ),
+  };
+}
+
+function resolveSourceLookupMaps(batchSources?: ReadonlyArray<BatchSource>): SourceLookupMaps {
+  if (!batchSources || batchSources.length === 0) {
+    return builtInSourceLookupMaps;
+  }
+
+  const sanitized = sanitizeBatchSources(batchSources);
+  if (sanitized.length === 0) {
+    return builtInSourceLookupMaps;
+  }
+
+  return createSourceLookupMaps(buildMergedSourceEntries(sanitized));
 }
 
 function resolveBuiltInSourceMetadata(input: unknown): BuiltInSourceMetadata {
@@ -261,11 +291,10 @@ function buildMergedSourceEntries(batchSources: ReadonlyArray<BatchSource>): Sou
   return [...merged.values()];
 }
 
-export function resolveSourceLookupKey(input: unknown) {
-  return createSourceLookupKey(input);
-}
-
-export function resolveSourceTableMetadata(input: unknown): ResolvedSourceTableMetadata {
+export function resolveSourceTableMetadata(
+  input: unknown,
+  batchSources?: ReadonlyArray<BatchSource>,
+): ResolvedSourceTableMetadata {
   const lookupKey = createSourceLookupKey(input);
   if (!lookupKey) {
     return {
@@ -277,9 +306,10 @@ export function resolveSourceTableMetadata(input: unknown): ResolvedSourceTableM
     };
   }
 
-  const articleListId = articleListIdByLookupKey.get(lookupKey) ?? '';
-  const journalTitle = journalTitleByLookupKey.get(lookupKey) ?? '';
-  const preferredExtractorId = preferredExtractorIdByLookupKey.get(lookupKey) ?? '';
+  const lookupMaps = resolveSourceLookupMaps(batchSources);
+  const articleListId = lookupMaps.articleListIdByLookupKey.get(lookupKey) ?? '';
+  const journalTitle = lookupMaps.journalTitleByLookupKey.get(lookupKey) ?? '';
+  const preferredExtractorId = lookupMaps.preferredExtractorIdByLookupKey.get(lookupKey) ?? '';
 
   return {
     lookupKey,
@@ -290,20 +320,11 @@ export function resolveSourceTableMetadata(input: unknown): ResolvedSourceTableM
   };
 }
 
-export function resolveJournalTitleFromSourceUrl(input: unknown) {
-  return resolveSourceTableMetadata(input).journalTitle;
-}
-
-export function resolveArticleListIdFromSourceUrl(input: unknown) {
-  return resolveSourceTableMetadata(input).articleListId;
-}
-
-export function resolveDefaultJournalTitleFromSourceUrl(input: unknown) {
-  return resolveSourceTableMetadata(input).defaultJournalTitle;
-}
-
-export function resolvePreferredExtractorIdFromSourceUrl(input: unknown) {
-  return resolveSourceTableMetadata(input).preferredExtractorId;
+export function resolveDefaultJournalTitleFromSourceUrl(
+  input: unknown,
+  batchSources?: ReadonlyArray<BatchSource>,
+) {
+  return resolveSourceTableMetadata(input, batchSources).defaultJournalTitle;
 }
 
 export type ConfigBatchSourceEntry = BatchSource;
@@ -337,24 +358,9 @@ function createConfigBatchSourceResolution(
   };
 }
 
-function syncResolvedSourceTable(batchSources: ReadonlyArray<BatchSource>) {
-  rebuildLookupMaps(buildMergedSourceEntries(batchSources));
-}
-
 export function resolveConfigBatchSources(
   input: unknown,
   fallback: ConfigBatchSourceFallback = configBatchSourceSeed,
 ): ConfigBatchSourceList {
   return createConfigBatchSourceResolution(input, fallback).batchSources;
 }
-
-export function syncConfiguredArticleListFromConfig(
-  input: unknown,
-  fallback: ConfigBatchSourceFallback = configBatchSourceSeed,
-): ConfigBatchSourceResolution {
-  const resolution = createConfigBatchSourceResolution(input, fallback);
-  syncResolvedSourceTable(resolution.batchSources);
-  return resolution;
-}
-
-rebuildLookupMaps(builtInSourceEntries);

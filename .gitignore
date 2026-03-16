@@ -17,6 +17,6 @@ src-tauri/target/
 .DS_Store
 
 
-scripts/
+
 tests/
 tests/.tmp*

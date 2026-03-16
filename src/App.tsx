@@ -353,8 +353,14 @@ function MainApp() {
       current.map((source, sourceIndex) =>
         sourceIndex === index
           ? (() => {
-              const previousDefaultJournalTitle = resolveDefaultJournalTitleFromSourceUrl(source.url);
-              const nextDefaultJournalTitle = resolveDefaultJournalTitleFromSourceUrl(sanitizedUrl);
+              const previousDefaultJournalTitle = resolveDefaultJournalTitleFromSourceUrl(
+                source.url,
+                current,
+              );
+              const nextDefaultJournalTitle = resolveDefaultJournalTitleFromSourceUrl(
+                sanitizedUrl,
+                current,
+              );
               const shouldReplaceJournalTitle =
                 !source.journalTitle.trim() || source.journalTitle.trim() === previousDefaultJournalTitle;
 

@@ -65,6 +65,7 @@ function buildManualBatchSource(url: string): BatchSource {
 function toBatchFetchSourceCandidate(
   source: BatchSource,
   index: number,
+  sourceTable: ReadonlyArray<BatchSource>,
 ): { dedupeKey: string; candidate: BatchFetchSource } | null {
   const normalizedUrl = normalizeUrl(source.url);
   if (!normalizedUrl) return null;
@@ -73,7 +74,7 @@ function toBatchFetchSourceCandidate(
     articleListId,
     defaultJournalTitle,
     preferredExtractorId: matchedPreferredExtractorId,
-  } = resolveSourceTableMetadata(normalizedUrl);
+  } = resolveSourceTableMetadata(normalizedUrl, sourceTable);
 
   const sourceId = ensureBatchSourceId(source.id || articleListId, index);
   const journalTitle = source.journalTitle.trim() || defaultJournalTitle || sourceId;
@@ -101,7 +102,7 @@ function prepareBatchSourcesForFetch(input: unknown): {
   const deduped = new Map<string, BatchFetchSource>();
 
   for (const [index, source] of sanitized.entries()) {
-    const resolved = toBatchFetchSourceCandidate(source, index);
+    const resolved = toBatchFetchSourceCandidate(source, index, sanitized);
     if (!resolved) continue;
 
     const { dedupeKey, candidate } = resolved;

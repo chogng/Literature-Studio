@@ -6,7 +6,6 @@ import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
   resolveConfigBatchSources,
-  syncConfiguredArticleListFromConfig,
 } from './config-schema';
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
@@ -59,10 +58,7 @@ export function resolveSettingsState(
   const loadedConfigPath =
     typeof loaded.configPath === 'string' ? loaded.configPath : (options.fallbackConfigPath ?? '');
 
-  const { batchSources: resolvedBatchSources } = syncConfiguredArticleListFromConfig(
-    loaded.defaultBatchSources,
-    configBatchSourceSeed,
-  );
+  const resolvedBatchSources = resolveConfigBatchSources(loaded.defaultBatchSources, configBatchSourceSeed);
 
   return {
     pdfDownloadDir: typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '',
