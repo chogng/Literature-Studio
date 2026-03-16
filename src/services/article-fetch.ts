@@ -45,6 +45,7 @@ export type FetchLatestArticlesBatchResult =
 type FetchLatestArticlesBatchParams = {
   desktopRuntime: boolean;
   addressBarUrl?: string | null;
+  addressBarJournalTitle?: string | null;
   batchSources: BatchSource[];
   limit?: number;
   sameDomainOnly: boolean;
@@ -54,11 +55,11 @@ type FetchLatestArticlesBatchParams = {
   invokeDesktop: InvokeDesktop;
 };
 
-function buildManualBatchSource(url: string): BatchSource {
+function buildManualBatchSource(url: string, journalTitle?: string | null): BatchSource {
   return {
     id: manualAddressBarSourceId,
     url,
-    journalTitle: '',
+    journalTitle: String(journalTitle ?? '').trim(),
   };
 }
 
@@ -95,14 +96,18 @@ function canImproveBatchFetchSource(existing: BatchFetchSource, candidate: Batch
   return (!existing.journalTitle && candidate.journalTitle) || (!existing.preferredExtractorId && candidate.preferredExtractorId);
 }
 
-function prepareBatchSourcesForFetch(input: unknown): {
+function prepareBatchSourcesForFetch(
+  input: unknown,
+  sourceTableInput: unknown = input,
+): {
   sources: BatchFetchSource[];
 } {
   const sanitized = sanitizeBatchSources(input);
+  const sourceTable = sanitizeBatchSources(sourceTableInput);
   const deduped = new Map<string, BatchFetchSource>();
 
   for (const [index, source] of sanitized.entries()) {
-    const resolved = toBatchFetchSourceCandidate(source, index, sanitized);
+    const resolved = toBatchFetchSourceCandidate(source, index, sourceTable);
     if (!resolved) continue;
 
     const { dedupeKey, candidate } = resolved;
@@ -126,14 +131,21 @@ function prepareBatchSourcesForFetch(input: unknown): {
   };
 }
 
-export function resolveBatchFetchSources(addressBarUrl: string | null | undefined, batchSources: BatchSource[]): BatchSource[] {
+export function resolveBatchFetchSources(
+  addressBarUrl: string | null | undefined,
+  batchSources: BatchSource[],
+  addressBarJournalTitle?: string | null,
+): BatchSource[] {
   const normalizedAddressBarUrl = normalizeUrl(addressBarUrl ?? '');
-  return normalizedAddressBarUrl ? [buildManualBatchSource(normalizedAddressBarUrl)] : batchSources;
+  return normalizedAddressBarUrl
+    ? [buildManualBatchSource(normalizedAddressBarUrl, addressBarJournalTitle)]
+    : batchSources;
 }
 
 export async function fetchLatestArticlesBatch({
   desktopRuntime,
   addressBarUrl,
+  addressBarJournalTitle,
   batchSources,
   limit: _limit,
   sameDomainOnly,
@@ -146,8 +158,8 @@ export async function fetchLatestArticlesBatch({
     return { ok: false, reason: 'desktop_unsupported' };
   }
 
-  const selectedSources = resolveBatchFetchSources(addressBarUrl, batchSources);
-  const { sources } = prepareBatchSourcesForFetch(selectedSources);
+  const selectedSources = resolveBatchFetchSources(addressBarUrl, batchSources, addressBarJournalTitle);
+  const { sources } = prepareBatchSourcesForFetch(selectedSources, batchSources);
   if (sources.length === 0) {
     return { ok: false, reason: 'empty_page_url' };
   }

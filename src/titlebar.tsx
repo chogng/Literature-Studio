@@ -51,6 +51,10 @@ type TitlebarProps = {
   onWebUrlChange?: (url: string) => void;
   onNavigateWeb?: () => void;
   articleUrlPlaceholder?: string;
+  addressBarJournalTitle?: string;
+  onAddressBarJournalTitleChange?: (journalTitle: string) => void;
+  addressBarJournalTitlePlaceholder?: string;
+  addressBarJournalTitleAriaLabel?: string;
   fetchChannel?: TitlebarFetchChannel | null;
   previewReuseMode?: TitlebarPreviewReuseMode | null;
   fetchSourceText?: string;
@@ -84,6 +88,10 @@ export function Titlebar({
   onWebUrlChange,
   onNavigateWeb,
   articleUrlPlaceholder,
+  addressBarJournalTitle,
+  onAddressBarJournalTitleChange,
+  addressBarJournalTitlePlaceholder,
+  addressBarJournalTitleAriaLabel,
   fetchChannel = null,
   previewReuseMode = null,
   fetchSourceText,
@@ -234,6 +242,18 @@ export function Titlebar({
                 }
               }}
               placeholder={articleUrlPlaceholder}
+            />
+          </div>
+        )}
+        {onAddressBarJournalTitleChange && (
+          <div className="titlebar-journal-bar">
+            <Input
+              className="titlebar-input-field titlebar-journal-input-field"
+              size="sm"
+              value={addressBarJournalTitle}
+              onChange={(e) => onAddressBarJournalTitleChange(e.target.value)}
+              placeholder={addressBarJournalTitlePlaceholder}
+              aria-label={addressBarJournalTitleAriaLabel}
             />
           </div>
         )}

@@ -34,7 +34,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: min(100%, 760px);
+  width: min(100%, 860px);
   height: 100%;
   padding: 0 10px;
   gap: 8px;
@@ -42,8 +42,14 @@
 }
 
 .titlebar-url-bar {
-  width: 500px;
-  max-width: 500px;
+  width: min(100%, 560px);
+  min-width: 280px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-journal-bar {
+  width: min(240px, 32vw);
+  min-width: 160px;
   -webkit-app-region: no-drag;
 }
 
@@ -69,6 +75,10 @@
   font-size: 12px;
   padding: 0 10px;
   text-align: center;
+}
+
+.titlebar-journal-input-field .input-field {
+  text-align: left;
 }
 
 .titlebar-app-name {

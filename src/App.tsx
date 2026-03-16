@@ -36,10 +36,13 @@ import {
   defaultBatchLimit,
   defaultSameDomainOnly,
   getConfigBatchSourceSeed,
-  resolveDefaultJournalTitleFromSourceUrl,
   type BatchSource,
   normalizeBatchLimit,
 } from './services/config-schema';
+import {
+  resolveAddressBarUrlChange,
+  resolveNextJournalTitleOnUrlChange,
+} from './services/source-journal-title';
 import {
   buildSaveSettingsPayload,
   loadAppSettings,
@@ -87,6 +90,7 @@ function MainApp() {
   const initialBatchDateRange = useMemo(() => buildDefaultBatchDateRange(), []);
   const [webUrl, setWebUrl] = useState(defaultArticleUrl);
   const [fetchSeedUrl, setFetchSeedUrl] = useState(defaultArticleUrl);
+  const [addressBarJournalTitle, setAddressBarJournalTitle] = useState('');
   const [browserUrl, setBrowserUrl] = useState(normalizeUrl(defaultArticleUrl));
   const [batchSources, setBatchSources] = useState<BatchSource[]>(initialBatchSources);
   const [batchLimit, setBatchLimit] = useState(defaultBatchLimit);
@@ -352,33 +356,34 @@ function MainApp() {
     setBatchSources((current) =>
       current.map((source, sourceIndex) =>
         sourceIndex === index
-          ? (() => {
-              const previousDefaultJournalTitle = resolveDefaultJournalTitleFromSourceUrl(
-                source.url,
-                current,
-              );
-              const nextDefaultJournalTitle = resolveDefaultJournalTitleFromSourceUrl(
-                sanitizedUrl,
-                current,
-              );
-              const shouldReplaceJournalTitle =
-                !source.journalTitle.trim() || source.journalTitle.trim() === previousDefaultJournalTitle;
-
-              return {
-                ...source,
-                url: sanitizedUrl,
-                journalTitle: shouldReplaceJournalTitle ? nextDefaultJournalTitle : source.journalTitle,
-              };
-            })()
+          ? {
+              ...source,
+              url: sanitizedUrl,
+              journalTitle: resolveNextJournalTitleOnUrlChange({
+                currentJournalTitle: source.journalTitle,
+                previousUrl: source.url,
+                nextUrl: sanitizedUrl,
+                sourceTable: current,
+              }),
+            }
           : source,
       ),
     );
   }, []);
 
   const handleWebUrlChange = useCallback((nextUrl: string) => {
-    const sanitizedUrl = sanitizeUrlInput(nextUrl);
+    const { sanitizedUrl, nextJournalTitle } = resolveAddressBarUrlChange(
+      nextUrl,
+      webUrl,
+      addressBarJournalTitle,
+    );
+    setAddressBarJournalTitle(nextJournalTitle);
     setWebUrl(sanitizedUrl);
     setFetchSeedUrl(sanitizedUrl);
+  }, [addressBarJournalTitle, webUrl]);
+
+  const handleAddressBarJournalTitleChange = useCallback((nextJournalTitle: string) => {
+    setAddressBarJournalTitle(nextJournalTitle);
   }, []);
 
   const handleBatchSourceJournalTitleChange = useCallback((index: number, nextJournalTitle: string) => {
@@ -600,6 +605,7 @@ function MainApp() {
       const result = await fetchLatestArticlesBatch({
         desktopRuntime,
         addressBarUrl: fetchSeedUrl || webUrl,
+        addressBarJournalTitle,
         batchSources,
         sameDomainOnly,
         startDate: batchStartDate || null,
@@ -726,6 +732,12 @@ function MainApp() {
           onWebUrlChange={handleWebUrlChange}
           onNavigateWeb={handleNavigateWeb}
           articleUrlPlaceholder={ui.articleUrlPlaceholder}
+          addressBarJournalTitle={addressBarJournalTitle}
+          onAddressBarJournalTitleChange={handleAddressBarJournalTitleChange}
+          addressBarJournalTitlePlaceholder={
+            locale === 'zh' ? '期刊名（可选）' : 'Journal title (optional)'
+          }
+          addressBarJournalTitleAriaLabel={ui.settingsBatchJournalTitle}
           fetchChannel={fetchStatus?.fetchChannel ?? null}
           previewReuseMode={fetchStatus?.previewReuseMode ?? null}
           fetchSourceText={titlebarFetchSourceText}
