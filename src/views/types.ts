@@ -38,6 +38,7 @@ export type ReaderViewProps = {
   batchEndDate: string;
   onBatchEndDateChange: (value: string) => void;
   onFetchLatestBatch: () => void;
+  onDownloadPdf: (sourceUrl: string, articleTitle?: string) => Promise<void>;
   isBatchLoading: boolean;
   onResetFilters: () => void;
   filteredCount: number;

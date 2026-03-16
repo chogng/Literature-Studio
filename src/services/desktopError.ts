@@ -1,3 +1,5 @@
+import type { LocaleMessages } from '../language/locales';
+
 export type DesktopErrorCode =
   | 'MAIN_WINDOW_UNAVAILABLE'
   | 'UNKNOWN_COMMAND'
@@ -40,4 +42,78 @@ export function parseDesktopInvokeError(error: unknown): DesktopInvokeErrorData 
   return {
     message: error instanceof Error ? error.message : String(error),
   };
+}
+
+export function formatLocalized(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => {
+    const value = values[key];
+    return value === undefined ? '' : String(value);
+  });
+}
+
+function detailValue(details: Record<string, unknown> | undefined, key: string, fallback = ''): string {
+  const value = details?.[key];
+  return value === undefined || value === null ? fallback : String(value);
+}
+
+export function localizeDesktopInvokeError(
+  ui: LocaleMessages,
+  error: DesktopInvokeErrorData,
+): string {
+  const details = error.details;
+
+  switch (error.code) {
+    case 'MAIN_WINDOW_UNAVAILABLE':
+      return ui.errorMainWindowUnavailable;
+    case 'UNKNOWN_COMMAND':
+      return formatLocalized(ui.errorUnknownCommand, {
+        command: detailValue(details, 'command', '?'),
+      });
+    case 'URL_EMPTY':
+      return ui.errorUrlEmpty;
+    case 'URL_PROTOCOL_UNSUPPORTED':
+      return formatLocalized(ui.errorUrlProtocolUnsupported, {
+        protocol: detailValue(details, 'protocol', '?'),
+      });
+    case 'DATE_START_INVALID':
+      return formatLocalized(ui.errorDateStartInvalid, {
+        value: detailValue(details, 'value', '?'),
+      });
+    case 'DATE_END_INVALID':
+      return formatLocalized(ui.errorDateEndInvalid, {
+        value: detailValue(details, 'value', '?'),
+      });
+    case 'DATE_RANGE_INVALID':
+      return ui.errorDateRangeInvalid;
+    case 'HTTP_REQUEST_FAILED':
+      return formatLocalized(ui.errorHttpRequestFailed, {
+        status: detailValue(details, 'status', '?'),
+        statusText: detailValue(details, 'statusText', ''),
+      }).trim();
+    case 'BATCH_PAGE_URLS_EMPTY':
+      return ui.errorBatchPageUrlsEmpty;
+    case 'BATCH_SOURCE_FETCH_FAILED':
+      return ui.errorBatchSourceFetchFailed;
+    case 'BATCH_NO_MATCH_IN_DATE_RANGE':
+      return ui.errorBatchNoMatchInDateRange;
+    case 'BATCH_NO_VALID_ARTICLES':
+      return ui.errorBatchNoValidArticles;
+    case 'PDF_LINK_NOT_FOUND':
+      return ui.errorPdfLinkNotFound;
+    case 'PDF_DOWNLOAD_FAILED':
+      return formatLocalized(ui.errorPdfDownloadFailed, {
+        status: detailValue(details, 'status', '?'),
+        statusText: detailValue(details, 'statusText', ''),
+      }).trim();
+    case 'DOCX_EXPORT_NO_ARTICLES':
+      return ui.errorDocxExportNoArticles;
+    case 'DOCX_EXPORT_FAILED':
+      return formatLocalized(ui.errorDocxExportFailed, {
+        error: detailValue(details, 'message', error.message || ui.errorUnknown),
+      });
+    case 'PREVIEW_NOT_READY':
+      return ui.errorPreviewNotReady;
+    default:
+      return error.message || ui.errorUnknown;
+  }
 }

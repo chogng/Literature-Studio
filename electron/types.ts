@@ -116,6 +116,8 @@ export interface FetchLatestArticlesPayload {
 
 export interface PreviewDownloadPdfPayload {
   pageUrl?: string;
+  downloadUrl?: string;
+  articleTitle?: string;
   customDownloadDir?: string;
 }
 

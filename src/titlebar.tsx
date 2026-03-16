@@ -21,6 +21,7 @@ type TitlebarLabels = {
   exportDocxLabel: string;
   noExportableArticlesLabel: string;
   desktopOnlyLabel: string;
+  downloadPdfUnavailableLabel?: string;
 };
 
 type TitlebarProps = {
@@ -37,6 +38,8 @@ type TitlebarProps = {
   canGoBack?: boolean;
   canGoForward?: boolean;
   canDownload?: boolean;
+  isDownloadingPdf?: boolean;
+  isDownloadedPdf?: boolean;
   canExportDocx?: boolean;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
@@ -69,6 +72,8 @@ export function Titlebar({
   canGoBack = false,
   canGoForward = false,
   canDownload,
+  isDownloadingPdf = false,
+  isDownloadedPdf = false,
   canExportDocx = false,
   onNavigateBack,
   onNavigateForward,
@@ -128,7 +133,7 @@ export function Titlebar({
           <div className="titlebar-nav-group">
             {onNavigateBack ? (
               <Button
-                className="titlebar-btn titlebar-btn-nav"
+                className={`titlebar-btn titlebar-btn-nav ${isDownloadedPdf ? 'is-downloaded' : ''}`.trim()}
                 variant="ghost"
                 size="sm"
                 mode="icon"
@@ -182,10 +187,15 @@ export function Titlebar({
                 mode="icon"
                 iconMode="with"
                 textMode="without"
+                isLoading={isDownloadingPdf}
                 onClick={onDownloadPdf}
                 disabled={!browserUrl || !canDownload}
                 aria-label={labels.downloadPdfLabel}
-                title={canDownload ? labels.downloadPdfLabel : labels.desktopOnlyLabel}
+                title={
+                  canDownload
+                    ? labels.downloadPdfLabel
+                    : labels.downloadPdfUnavailableLabel || labels.desktopOnlyLabel
+                }
               >
                 <Download size={14} strokeWidth={1.5} />
               </Button>

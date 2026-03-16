@@ -42,6 +42,7 @@ type SidebarProps = {
   batchEndDate: string;
   onBatchEndDateChange: (value: string) => void;
   onFetchLatestBatch: () => void;
+  onDownloadPdf: (sourceUrl: string, articleTitle?: string) => Promise<void>;
   isBatchLoading: boolean;
 };
 
@@ -55,6 +56,7 @@ export default function Sidebar({
   batchEndDate,
   onBatchEndDateChange,
   onFetchLatestBatch,
+  onDownloadPdf,
   isBatchLoading,
 }: SidebarProps) {
   const hasVisibleData = articles.length > 0;
@@ -104,6 +106,7 @@ export default function Sidebar({
               article={article}
               locale={locale}
               labels={articleCardLabels}
+              onDownloadPdf={onDownloadPdf}
             />
           ))}
         </ul>

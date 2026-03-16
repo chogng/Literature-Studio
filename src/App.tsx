@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -17,9 +18,19 @@ import ReaderView from './views/ReaderView';
 import SettingsView from './views/SettingsView';
 import ArticleDetailsModalWindow from './views/ArticleDetailsModalWindow';
 import { buildDefaultBatchDateRange } from './utils/dateRange';
-import { normalizeUrl, sanitizeUrlInput } from './utils/url';
+import {
+  buildNatureResearchPdfDownloadUrl,
+  buildSciencePdfDownloadUrl,
+  isScienceCurrentTocUrl,
+  normalizeUrl,
+  sanitizeUrlInput,
+} from './utils/url';
 import { fetchLatestArticlesBatch, type Article } from './services/articleFetch';
-import { parseDesktopInvokeError, type DesktopInvokeErrorData } from './services/desktopError';
+import {
+  formatLocalized,
+  localizeDesktopInvokeError,
+  parseDesktopInvokeError,
+} from './services/desktopError';
 import {
   createEmptyBatchSource,
   defaultBatchSources,
@@ -35,6 +46,12 @@ import {
   saveAppSettings,
   saveAppSettingsPartial,
 } from './services/settings';
+import {
+  markPdfDownloadFailed,
+  markPdfDownloadStarted,
+  markPdfDownloadSucceeded,
+  usePdfDownloadStatus,
+} from './services/pdfDownloadStatus';
 
 type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -56,77 +73,6 @@ type DocxExportResult = {
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
-
-function formatLocalized(template: string, values: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (_, key: string) => {
-    const value = values[key];
-    return value === undefined ? '' : String(value);
-  });
-}
-
-function detailValue(details: Record<string, unknown> | undefined, key: string, fallback = ''): string {
-  const value = details?.[key];
-  return value === undefined || value === null ? fallback : String(value);
-}
-
-function localizeDesktopError(ui: ReturnType<typeof getLocaleMessages>, error: DesktopInvokeErrorData): string {
-  const details = error.details;
-
-  switch (error.code) {
-    case 'MAIN_WINDOW_UNAVAILABLE':
-      return ui.errorMainWindowUnavailable;
-    case 'UNKNOWN_COMMAND':
-      return formatLocalized(ui.errorUnknownCommand, {
-        command: detailValue(details, 'command', '?'),
-      });
-    case 'URL_EMPTY':
-      return ui.errorUrlEmpty;
-    case 'URL_PROTOCOL_UNSUPPORTED':
-      return formatLocalized(ui.errorUrlProtocolUnsupported, {
-        protocol: detailValue(details, 'protocol', '?'),
-      });
-    case 'DATE_START_INVALID':
-      return formatLocalized(ui.errorDateStartInvalid, {
-        value: detailValue(details, 'value', '?'),
-      });
-    case 'DATE_END_INVALID':
-      return formatLocalized(ui.errorDateEndInvalid, {
-        value: detailValue(details, 'value', '?'),
-      });
-    case 'DATE_RANGE_INVALID':
-      return ui.errorDateRangeInvalid;
-    case 'HTTP_REQUEST_FAILED':
-      return formatLocalized(ui.errorHttpRequestFailed, {
-        status: detailValue(details, 'status', '?'),
-        statusText: detailValue(details, 'statusText', ''),
-      }).trim();
-    case 'BATCH_PAGE_URLS_EMPTY':
-      return ui.errorBatchPageUrlsEmpty;
-    case 'BATCH_SOURCE_FETCH_FAILED':
-      return ui.errorBatchSourceFetchFailed;
-    case 'BATCH_NO_MATCH_IN_DATE_RANGE':
-      return ui.errorBatchNoMatchInDateRange;
-    case 'BATCH_NO_VALID_ARTICLES':
-      return ui.errorBatchNoValidArticles;
-    case 'PDF_LINK_NOT_FOUND':
-      return ui.errorPdfLinkNotFound;
-    case 'PDF_DOWNLOAD_FAILED':
-      return formatLocalized(ui.errorPdfDownloadFailed, {
-        status: detailValue(details, 'status', '?'),
-        statusText: detailValue(details, 'statusText', ''),
-      }).trim();
-    case 'DOCX_EXPORT_NO_ARTICLES':
-      return ui.errorDocxExportNoArticles;
-    case 'DOCX_EXPORT_FAILED':
-      return formatLocalized(ui.errorDocxExportFailed, {
-        error: detailValue(details, 'message', error.message || ui.errorUnknown),
-      });
-    case 'PREVIEW_NOT_READY':
-      return ui.errorPreviewNotReady;
-    default:
-      return error.message || ui.errorUnknown;
-  }
-}
 
 function detectNativeModalKind() {
   if (typeof window === 'undefined') return null;
@@ -154,6 +100,9 @@ function MainApp() {
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [isSettingsSaving, setIsSettingsSaving] = useState(false);
+  const [isPreviewPdfDownloading, setIsPreviewPdfDownloading] = useState(false);
+  const [sciencePdfDownloadCount, setSciencePdfDownloadCount] = useState(0);
+  const sciencePdfDownloadCountRef = useRef(0);
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [previewState, setPreviewState] = useState<DesktopPreviewState>({
@@ -172,6 +121,7 @@ function MainApp() {
     typeof window !== 'undefined' && typeof window.electronAPI?.preview?.navigate === 'function';
   const desktopRuntime = electronRuntime;
   const ui = useMemo(() => getLocaleMessages(locale), [locale]);
+  const currentPagePdfDownloadStatus = usePdfDownloadStatus(browserUrl);
   const invokeDesktop = useCallback(
     async <T,>(command: string, args?: DesktopInvokeArgs): Promise<T> => {
       if (window.electronAPI?.invoke) {
@@ -308,7 +258,7 @@ function MainApp() {
           setLocale(resolved.locale);
         }
       } catch (loadError) {
-        const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(loadError));
+        const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(loadError));
         toast.error(formatLocalized(ui.toastLoadSettingsFailed, { error: localizedError }));
       } finally {
         setIsSettingsLoading(false);
@@ -390,7 +340,7 @@ function MainApp() {
       setPdfDownloadDir(selected);
       toast.success(formatLocalized(ui.toastDirSelected, { dir: selected }));
     } catch (pickError) {
-      const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(pickError));
+      const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(pickError));
       toast.error(formatLocalized(ui.toastPickDirFailed, { error: localizedError }));
     }
   };
@@ -464,7 +414,7 @@ function MainApp() {
       void saveAppSettingsPartial(desktopRuntime, invokeDesktop, {
         locale: nextLocale,
       }).catch((saveError) => {
-        const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(saveError));
+        const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(saveError));
         toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
       });
     },
@@ -501,7 +451,7 @@ function MainApp() {
           : ui.toastSettingsSavedUseSystemDownloads,
       );
     } catch (saveError) {
-      const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(saveError));
+      const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(saveError));
       toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
     } finally {
       setIsSettingsSaving(false);
@@ -513,28 +463,83 @@ function MainApp() {
     toast.info(ui.toastResetDirInput);
   };
 
+  const handleSharedPdfDownload = useCallback(
+    async (sourceUrl: string, articleTitle?: string) => {
+      const normalizedSourceUrl = normalizeUrl(sourceUrl);
+      if (!normalizedSourceUrl) {
+        toast.error(ui.toastEnterArticleUrl);
+        return;
+      }
+
+      if (!desktopRuntime) {
+        toast.info(ui.toastDesktopPdfDownloadOnly);
+        return;
+      }
+
+      const sciencePdfUrl = buildSciencePdfDownloadUrl(normalizedSourceUrl);
+      const naturePdfUrl = buildNatureResearchPdfDownloadUrl(normalizedSourceUrl);
+      const preferredPdfUrl = sciencePdfUrl || naturePdfUrl || normalizedSourceUrl;
+      const isSciencePdfDownload = Boolean(sciencePdfUrl);
+      markPdfDownloadStarted(normalizedSourceUrl);
+
+      if (isSciencePdfDownload && sciencePdfDownloadCountRef.current > 0) {
+        toast.info(
+          locale === 'zh'
+            ? 'Science PDF 正在顺序下载，当前任务已加入队列。'
+            : 'Science PDF downloads run sequentially. This request has been queued.',
+        );
+      }
+
+      if (isSciencePdfDownload) {
+        sciencePdfDownloadCountRef.current += 1;
+        setSciencePdfDownloadCount(sciencePdfDownloadCountRef.current);
+      }
+
+      try {
+        const result = await invokeDesktop<PdfDownloadResult>('preview_download_pdf', {
+          pageUrl: normalizedSourceUrl,
+          downloadUrl: preferredPdfUrl,
+          articleTitle,
+          customDownloadDir: pdfDownloadDir.trim() || null,
+        });
+        markPdfDownloadSucceeded(normalizedSourceUrl, result);
+        toast.success(
+          formatLocalized(ui.toastPdfDownloaded, {
+            filePath: result.filePath,
+            sourceUrl: result.sourceUrl,
+          }),
+        );
+      } catch (downloadError) {
+        const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(downloadError));
+        markPdfDownloadFailed(normalizedSourceUrl, localizedError);
+        toast.error(formatLocalized(ui.toastPdfDownloadFailed, { error: localizedError }));
+      } finally {
+        if (isSciencePdfDownload) {
+          sciencePdfDownloadCountRef.current = Math.max(0, sciencePdfDownloadCountRef.current - 1);
+          setSciencePdfDownloadCount(sciencePdfDownloadCountRef.current);
+        }
+      }
+    },
+    [desktopRuntime, invokeDesktop, locale, pdfDownloadDir, ui],
+  );
+
   const handlePreviewDownloadPdf = async () => {
     if (!browserUrl) return;
 
-    if (!desktopRuntime) {
-      toast.info(ui.toastDesktopPdfDownloadOnly);
+    if (isScienceCurrentTocUrl(browserUrl)) {
+      toast.info(
+        locale === 'zh'
+          ? 'Science 当期目录页请使用左侧文章卡片上的 PDF 按钮下载。'
+          : 'For Science current TOC pages, use the article card PDF button.',
+      );
       return;
     }
 
     try {
-      const result = await invokeDesktop<PdfDownloadResult>('preview_download_pdf', {
-        pageUrl: browserUrl,
-        customDownloadDir: pdfDownloadDir.trim() || null,
-      });
-      toast.success(
-        formatLocalized(ui.toastPdfDownloaded, {
-          filePath: result.filePath,
-          sourceUrl: result.sourceUrl,
-        }),
-      );
-    } catch (downloadError) {
-      const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(downloadError));
-      toast.error(formatLocalized(ui.toastPdfDownloadFailed, { error: localizedError }));
+      setIsPreviewPdfDownloading(true);
+      await handleSharedPdfDownload(browserUrl);
+    } finally {
+      setIsPreviewPdfDownloading(false);
     }
   };
 
@@ -564,7 +569,7 @@ function MainApp() {
         }),
       );
     } catch (exportError) {
-      const localizedError = localizeDesktopError(ui, parseDesktopInvokeError(exportError));
+      const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(exportError));
       toast.error(formatLocalized(ui.toastDocxExportFailed, { error: localizedError }));
     }
   };
@@ -598,7 +603,9 @@ function MainApp() {
           toast.error(ui.toastDateRangeInvalid);
           return;
         }
-        const localizedError = result.error ? localizeDesktopError(ui, result.error) : ui.errorUnknown;
+        const localizedError = result.error
+          ? localizeDesktopInvokeError(ui, result.error)
+          : ui.errorUnknown;
         toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: localizedError }));
         return;
       }
@@ -617,6 +624,15 @@ function MainApp() {
   const handleWindowControl = (action: TitlebarAction) => {
     window.electronAPI?.windowControls?.perform(action);
   };
+
+  const isScienceCurrentTocPage = isScienceCurrentTocUrl(browserUrl);
+  const isCurrentPageSciencePdf = Boolean(buildSciencePdfDownloadUrl(browserUrl));
+  const canDownloadCurrentPage = Boolean(desktopRuntime) && !isScienceCurrentTocPage;
+  const currentPageDownloadUnavailableLabel = isScienceCurrentTocPage
+    ? locale === 'zh'
+      ? 'Science 当期目录页请使用左侧文章卡片上的 PDF 按钮下载。'
+      : 'For Science current TOC pages, use the article card PDF button.'
+    : ui.titlebarDesktopOnly;
 
   const titlebarFetchSourceText = useMemo(() => {
     if (!fetchStatus) return '';
@@ -669,6 +685,7 @@ function MainApp() {
             exportDocxLabel: ui.titlebarExportDocx,
             noExportableArticlesLabel: ui.titlebarNoExportableArticles,
             desktopOnlyLabel: ui.titlebarDesktopOnly,
+            downloadPdfUnavailableLabel: currentPageDownloadUnavailableLabel,
           }}
           isWindowMaximized={isWindowMaximized}
           onWindowControl={handleWindowControl}
@@ -679,7 +696,9 @@ function MainApp() {
           browserUrl={browserUrl}
           canGoBack={previewState.canGoBack}
           canGoForward={previewState.canGoForward}
-          canDownload={!!desktopRuntime}
+          canDownload={canDownloadCurrentPage}
+          isDownloadingPdf={isPreviewPdfDownloading || (isCurrentPageSciencePdf && sciencePdfDownloadCount > 0)}
+          isDownloadedPdf={currentPagePdfDownloadStatus.hasSucceeded}
           canExportDocx={filteredArticles.length > 0}
           onNavigateBack={handlePreviewBack}
           onNavigateForward={handlePreviewForward}
@@ -713,6 +732,7 @@ function MainApp() {
             batchEndDate={batchEndDate}
             onBatchEndDateChange={setBatchEndDate}
             onFetchLatestBatch={() => void handleFetchLatestBatch()}
+            onDownloadPdf={handleSharedPdfDownload}
             isBatchLoading={isBatchLoading}
             onResetFilters={handleResetFilters}
             filteredCount={filteredArticles.length}

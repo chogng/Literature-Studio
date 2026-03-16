@@ -44,6 +44,12 @@ function logPreviewLoadFailure({
 }) {
   if (!PREVIEW_NETWORK_LOG_ENABLED) return;
   if (errorCode === -3 || /^ERR_ABORTED$/i.test(errorDescription)) return;
+  if (
+    !isMainFrame &&
+    /https:\/\/www\.google\.com\/recaptcha\/api2\/aframe/i.test(failedUrl)
+  ) {
+    return;
+  }
 
   let encodedDetails = '';
   try {

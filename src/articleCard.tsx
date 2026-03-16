@@ -1,7 +1,7 @@
-import { useState } from 'react';
 import { ChevronDown, Download } from 'lucide-react';
 import { Button } from './components/Button';
-import type { Locale } from './language/i18n';
+import { type Locale } from './language/i18n';
+import { usePdfDownloadStatus } from './services/pdfDownloadStatus';
 
 type ArticleCardData = {
   title: string;
@@ -29,6 +29,7 @@ type ArticleCardProps = {
   article: ArticleCardData;
   locale: Locale;
   labels: ArticleCardLabels;
+  onDownloadPdf: (sourceUrl: string, articleTitle?: string) => Promise<void>;
 };
 
 function formatPublishedDate(value: string | null, locale: Locale, fallback: string) {
@@ -51,30 +52,21 @@ function formatPublishedDate(value: string | null, locale: Locale, fallback: str
   return parsed.toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN');
 }
 
-export default function ArticleCard({ article, locale, labels }: ArticleCardProps) {
-  const [isDownloading, setIsDownloading] = useState(false);
+export default function ArticleCard({ article, locale, labels, onDownloadPdf }: ArticleCardProps) {
   const articleType = typeof article.articleType === 'string' ? article.articleType.trim() : '';
   const publishedDate = formatPublishedDate(article.publishedAt, locale, labels.unknown);
-  const metaText = `${articleType || labels.unknown} · ${publishedDate}`;
+  const metaText = `${articleType || labels.unknown} | ${publishedDate}`;
+  const downloadStatus = usePdfDownloadStatus(article.sourceUrl);
+  const isDownloading = downloadStatus.isDownloading;
+  const hasDownloaded = downloadStatus.hasSucceeded;
 
   const handleDownload = async () => {
     if (!article.sourceUrl || isDownloading) return;
 
-    if (!window.electronAPI?.invoke) {
-      window.open(article.sourceUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
     try {
-      setIsDownloading(true);
-      await window.electronAPI.invoke('preview_download_pdf', {
-        pageUrl: article.sourceUrl,
-        customDownloadDir: null,
-      });
+      await onDownloadPdf(article.sourceUrl, article.title);
     } catch {
-      window.open(article.sourceUrl, '_blank', 'noopener,noreferrer');
-    } finally {
-      setIsDownloading(false);
+      // The shared download handler is responsible for user-facing error messages.
     }
   };
 
@@ -102,7 +94,7 @@ export default function ArticleCard({ article, locale, labels }: ArticleCardProp
         <span className="article-card-meta">{metaText}</span>
         <div className="article-card-toolbar-actions">
           <Button
-            className="article-card-icon-btn"
+            className={`article-card-icon-btn ${hasDownloaded ? 'is-downloaded' : ''}`.trim()}
             type="button"
             variant="ghost"
             size="sm"
@@ -112,7 +104,7 @@ export default function ArticleCard({ article, locale, labels }: ArticleCardProp
             isLoading={isDownloading}
             onClick={() => void handleDownload()}
             aria-label="Download PDF"
-            title="Download PDF"
+            title={hasDownloaded ? 'PDF downloaded' : 'Download PDF'}
           >
             <Download size={14} strokeWidth={1.7} />
           </Button>

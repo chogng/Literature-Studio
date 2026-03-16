@@ -99,6 +99,17 @@
   border-radius: 6px;
 }
 
+.article-card-icon-btn.is-downloaded.btn-base {
+  color: #177245;
+  background: rgba(23, 114, 69, 0.12);
+  border-color: rgba(23, 114, 69, 0.22);
+}
+
+.article-card-icon-btn.is-downloaded.btn-base:hover:not(:disabled) {
+  color: #115636;
+  background: rgba(23, 114, 69, 0.18);
+}
+
 .article-card-details {
   display: grid;
   gap: 8px;

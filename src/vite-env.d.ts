@@ -87,6 +87,8 @@ type AppCommandPayloadMap = {
   pick_download_directory: undefined;
   preview_download_pdf: {
     pageUrl?: string;
+    downloadUrl?: string;
+    articleTitle?: string;
     customDownloadDir?: string | null;
   };
   export_articles_docx: {

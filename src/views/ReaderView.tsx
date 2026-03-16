@@ -13,6 +13,7 @@ export default function ReaderView({
   batchEndDate,
   onBatchEndDateChange,
   onFetchLatestBatch,
+  onDownloadPdf,
   isBatchLoading,
   browserUrl,
   iframeReloadKey,
@@ -119,6 +120,7 @@ export default function ReaderView({
           batchEndDate={batchEndDate}
           onBatchEndDateChange={onBatchEndDateChange}
           onFetchLatestBatch={onFetchLatestBatch}
+          onDownloadPdf={onDownloadPdf}
           isBatchLoading={isBatchLoading}
         />
       ) : null}

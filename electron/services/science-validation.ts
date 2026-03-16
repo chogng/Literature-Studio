@@ -11,6 +11,8 @@ const SCIENCE_CURRENT_TOC_PATH_RE = /^\/toc\/[^/]+\/current\/?$/i;
 const SCIENCE_VALIDATION_TIMEOUT_MS = 3 * 60 * 1000;
 const SCIENCE_VALIDATION_POLL_MS = 600;
 const SCIENCE_VALIDATION_BOOT_TIMEOUT_MS = 4000;
+const SCIENCE_VALIDATION_REVEAL_DELAY_MS = 1200;
+const SCIENCE_VALIDATION_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
 
 const SCIENCE_VALIDATION_STATE_SCRIPT = String.raw`(() => {
   const cleanText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -52,8 +54,22 @@ type ScienceValidationResult = {
   source: 'preview' | 'window';
 };
 
+function logScienceValidation(stage: string, details: Record<string, unknown>) {
+  if (!SCIENCE_VALIDATION_LOG_ENABLED) return;
+
+  let encodedDetails = '';
+  try {
+    encodedDetails = JSON.stringify(details);
+  } catch {
+    encodedDetails = '{"error":"unserializable_log_details"}';
+  }
+
+  console.info(`[science-validation] ${stage} ${encodedDetails}`);
+}
+
 let scienceValidationWindow: BrowserWindow | null = null;
 const scienceValidationPromiseByUrl = new Map<string, Promise<ScienceValidationResult>>();
+const sciencePageValidationPromiseByUrl = new Map<string, Promise<ScienceValidationResult>>();
 
 type ScienceHttpErrorDetails = {
   status?: unknown;
@@ -70,6 +86,14 @@ function safeParseUrl(value: string) {
   } catch {
     return null;
   }
+}
+
+export function isScienceHostUrl(value: string) {
+  const parsed = safeParseUrl(value);
+  if (!parsed) return false;
+
+  const host = cleanText(parsed.host).toLowerCase();
+  return SCIENCE_HOSTS.has(host);
 }
 
 export function isScienceSeriesListingPageUrl(value: string) {
@@ -274,13 +298,16 @@ function createScienceValidationWindow() {
   scienceValidationWindow.on('closed', () => {
     scienceValidationWindow = null;
   });
-  scienceValidationWindow.once('ready-to-show', () => {
-    if (!scienceValidationWindow || scienceValidationWindow.isDestroyed()) return;
-    scienceValidationWindow.show();
-    scienceValidationWindow.focus();
-  });
 
   return scienceValidationWindow;
+}
+
+function revealScienceValidationWindow(window: BrowserWindow) {
+  if (window.isDestroyed()) return;
+  if (!window.isVisible()) {
+    window.show();
+  }
+  window.focus();
 }
 
 async function executeScienceValidationScript(window: BrowserWindow, script: string) {
@@ -308,6 +335,15 @@ async function inspectScienceValidationWindow(window: BrowserWindow) {
     };
   } catch {
     return null;
+  }
+}
+
+async function readScienceValidationHtml(window: BrowserWindow) {
+  try {
+    const resolvedHtml = await executeScienceValidationScript(window, SCIENCE_VALIDATION_HTML_SCRIPT);
+    return typeof resolvedHtml === 'string' ? resolvedHtml : '';
+  } catch {
+    return '';
   }
 }
 
@@ -418,10 +454,6 @@ export async function ensureScienceValidationWindow(pageUrl: string): Promise<Sc
 
     try {
       const startedAt = Date.now();
-      if (!window.isDestroyed()) {
-        window.show();
-        window.focus();
-      }
       const navigationMode = await waitForScienceValidationBoot(window, pageUrl);
 
       while (Date.now() - startedAt < SCIENCE_VALIDATION_TIMEOUT_MS) {
@@ -437,6 +469,11 @@ export async function ensureScienceValidationWindow(pageUrl: string): Promise<Sc
         const state = await inspectScienceValidationWindow(window);
         if (!state) {
           continue;
+        }
+
+        const elapsed = Date.now() - startedAt;
+        if (state.hasChallengeIndicators && elapsed >= SCIENCE_VALIDATION_REVEAL_DELAY_MS) {
+          revealScienceValidationWindow(window);
         }
 
         if (state.sectionCount > 0 && !state.hasChallengeIndicators) {
@@ -488,6 +525,212 @@ export async function ensureScienceValidationWindow(pageUrl: string): Promise<Sc
     return await task;
   } finally {
     scienceValidationPromiseByUrl.delete(pageUrl);
+  }
+}
+
+export async function ensureSciencePageValidationWindow(pageUrl: string): Promise<ScienceValidationResult> {
+  if (!isScienceHostUrl(pageUrl)) {
+    throw appError('HTTP_REQUEST_FAILED', {
+      status: 'SCIENCE_VALIDATION_UNSUPPORTED',
+      statusText: 'Science validation window is only available for Science pages.',
+      url: pageUrl,
+    });
+  }
+
+  if (isScienceSeriesListingPageUrl(pageUrl)) {
+    return ensureScienceValidationWindow(pageUrl);
+  }
+
+  const existing = sciencePageValidationPromiseByUrl.get(pageUrl);
+  if (existing) {
+    return existing;
+  }
+
+  const task = (async () => {
+    const window = createScienceValidationWindow();
+    let windowClosed = false;
+    const handleClosed = () => {
+      windowClosed = true;
+    };
+    window.once('closed', handleClosed);
+
+    try {
+      const startedAt = Date.now();
+      if (!window.isDestroyed()) {
+        window.show();
+        window.focus();
+      }
+      const navigationMode = await waitForScienceValidationBoot(window, pageUrl);
+
+      while (Date.now() - startedAt < SCIENCE_VALIDATION_TIMEOUT_MS) {
+        if (windowClosed || window.isDestroyed() || window.webContents.isDestroyed()) {
+          throw appError('HTTP_REQUEST_FAILED', {
+            status: 'SCIENCE_VALIDATION_REQUIRED',
+            statusText: 'Science validation window was closed before verification completed.',
+            url: pageUrl,
+          });
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, SCIENCE_VALIDATION_POLL_MS));
+        const state = await inspectScienceValidationWindow(window);
+        if (!state) {
+          continue;
+        }
+
+        const html = await readScienceValidationHtml(window);
+        if (!html.trim() || isScienceChallengeHtml(html) || state.hasChallengeIndicators) {
+          continue;
+        }
+
+        const result: ScienceValidationResult = {
+          finalUrl: state.currentUrl || pageUrl,
+          html,
+          sectionCount: state.sectionCount,
+          title: state.title,
+          readyMs: Date.now() - startedAt,
+          navigationMode,
+          source: 'window',
+        };
+
+        if (!window.isDestroyed()) {
+          window.webContents.stop();
+          window.close();
+        }
+
+        return result;
+      }
+
+      throw appError('HTTP_REQUEST_FAILED', {
+        status: 'SCIENCE_VALIDATION_REQUIRED',
+        statusText: 'Complete the Science verification window to continue downloading.',
+        url: pageUrl,
+      });
+    } finally {
+      if (!window.isDestroyed()) {
+        window.removeListener('closed', handleClosed);
+      }
+    }
+  })();
+
+  sciencePageValidationPromiseByUrl.set(pageUrl, task);
+  try {
+    return await task;
+  } finally {
+    sciencePageValidationPromiseByUrl.delete(pageUrl);
+  }
+}
+
+export async function withValidatedSciencePageWindow<T>(
+  pageUrl: string,
+  handler: (window: BrowserWindow, validation: ScienceValidationResult) => Promise<T>,
+): Promise<T> {
+  if (!isScienceHostUrl(pageUrl)) {
+    throw appError('HTTP_REQUEST_FAILED', {
+      status: 'SCIENCE_VALIDATION_UNSUPPORTED',
+      statusText: 'Science validation window is only available for Science pages.',
+      url: pageUrl,
+    });
+  }
+
+  const requireListingContent = isScienceSeriesListingPageUrl(pageUrl);
+  const pendingStatusText = requireListingContent
+    ? 'Complete the Science verification window to continue fetching.'
+    : 'Complete the Science verification window to continue downloading.';
+  const window = createScienceValidationWindow();
+  let windowClosed = false;
+  let challengeRevealed = false;
+  const handleClosed = () => {
+    windowClosed = true;
+  };
+  window.once('closed', handleClosed);
+
+  try {
+    const startedAt = Date.now();
+    logScienceValidation('start', {
+      pageUrl,
+      requireListingContent,
+    });
+    const navigationMode = await waitForScienceValidationBoot(window, pageUrl);
+
+    while (Date.now() - startedAt < SCIENCE_VALIDATION_TIMEOUT_MS) {
+      if (windowClosed || window.isDestroyed() || window.webContents.isDestroyed()) {
+        logScienceValidation('closed_before_ready', {
+          pageUrl,
+          elapsedMs: Date.now() - startedAt,
+        });
+        throw appError('HTTP_REQUEST_FAILED', {
+          status: 'SCIENCE_VALIDATION_REQUIRED',
+          statusText: 'Science validation window was closed before verification completed.',
+          url: pageUrl,
+        });
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, SCIENCE_VALIDATION_POLL_MS));
+      const state = await inspectScienceValidationWindow(window);
+      if (!state) {
+        continue;
+      }
+
+      const html = await readScienceValidationHtml(window);
+      const elapsed = Date.now() - startedAt;
+      const hasChallenge = !html.trim() || isScienceChallengeHtml(html) || state.hasChallengeIndicators;
+      if (hasChallenge) {
+        if (elapsed >= SCIENCE_VALIDATION_REVEAL_DELAY_MS) {
+          if (!challengeRevealed) {
+            challengeRevealed = true;
+            logScienceValidation('challenge_visible', {
+              pageUrl,
+              currentUrl: state.currentUrl || pageUrl,
+              title: state.title,
+              elapsedMs: elapsed,
+            });
+          }
+          revealScienceValidationWindow(window);
+        }
+        continue;
+      }
+
+      if (requireListingContent && state.sectionCount <= 0) {
+        continue;
+      }
+
+      const validation: ScienceValidationResult = {
+        finalUrl: state.currentUrl || pageUrl,
+        html,
+        sectionCount: state.sectionCount,
+        title: state.title,
+        readyMs: Date.now() - startedAt,
+        navigationMode,
+        source: 'window',
+      };
+
+      logScienceValidation('ready', {
+        pageUrl,
+        finalUrl: validation.finalUrl,
+        title: validation.title,
+        sectionCount: validation.sectionCount,
+        readyMs: validation.readyMs,
+        navigationMode: validation.navigationMode,
+      });
+      return await handler(window, validation);
+    }
+
+    logScienceValidation('timeout', {
+      pageUrl,
+      timeoutMs: SCIENCE_VALIDATION_TIMEOUT_MS,
+      requireListingContent,
+    });
+    throw appError('HTTP_REQUEST_FAILED', {
+      status: 'SCIENCE_VALIDATION_REQUIRED',
+      statusText: pendingStatusText,
+      url: pageUrl,
+    });
+  } finally {
+    if (!window.isDestroyed()) {
+      window.removeListener('closed', handleClosed);
+      window.webContents.stop();
+      window.close();
+    }
   }
 }
 
