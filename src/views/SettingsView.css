@@ -83,7 +83,7 @@
 
 .settings-url-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 220px) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 320px) auto;
   gap: 8px;
   align-items: center;
 }
@@ -108,7 +108,7 @@
 }
 
 .settings-journal-control {
-  min-width: 180px;
+  min-width: 240px;
 }
 
 .settings-limit-input-wrap {
