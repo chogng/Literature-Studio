@@ -1,10 +1,13 @@
 import type { Locale } from '../language/i18n';
 import {
+  getConfigBatchSourceSeed,
+  resolveConfigBatchSources,
+  syncConfiguredArticleListFromConfig,
+} from './config_schema';
+import {
   type BatchSource,
   defaultBatchLimit,
-  defaultBatchSources,
   defaultSameDomainOnly,
-  normalizeBatchSources,
   normalizeBatchLimit,
 } from './batchSettings';
 
@@ -48,6 +51,7 @@ export type SaveSettingsPayloadBuild = {
 };
 
 export type PartialSettingsPayload = Partial<StoredAppSettingsPayload>;
+const configBatchSourceSeed = getConfigBatchSourceSeed();
 
 export function resolveSettingsState(
   loaded: Partial<AppSettingsPayload>,
@@ -57,9 +61,14 @@ export function resolveSettingsState(
   const loadedConfigPath =
     typeof loaded.configPath === 'string' ? loaded.configPath : (options.fallbackConfigPath ?? '');
 
+  const { batchSources: resolvedBatchSources } = syncConfiguredArticleListFromConfig(
+    loaded.defaultBatchSources,
+    configBatchSourceSeed,
+  );
+
   return {
     pdfDownloadDir: typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '',
-    batchSources: normalizeBatchSources(loaded.defaultBatchSources, defaultBatchSources),
+    batchSources: resolvedBatchSources,
     batchLimit: normalizeBatchLimit(loaded.defaultBatchLimit, defaultBatchLimit),
     sameDomainOnly:
       typeof loaded.defaultSameDomainOnly === 'boolean'
@@ -72,7 +81,7 @@ export function resolveSettingsState(
 
 export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettingsPayloadBuild {
   const nextDir = draft.pdfDownloadDir.trim();
-  const nextBatchSources = normalizeBatchSources(draft.batchSources, defaultBatchSources);
+  const nextBatchSources = resolveConfigBatchSources(draft.batchSources, configBatchSourceSeed);
   const nextBatchLimit = normalizeBatchLimit(draft.batchLimit, defaultBatchLimit);
 
   return {

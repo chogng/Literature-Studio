@@ -1,6 +1,6 @@
 import type { StorageService } from '../types.js';
+import { createConfigStore } from './config.js';
 import { createHistoryStore } from './history.js';
-import { createSourceStore } from './source.js';
 
 interface StoragePaths {
   historyFile: string;
@@ -13,7 +13,7 @@ interface StorageOptions {
 
 export function createStorageService(paths: StoragePaths, options: StorageOptions = {}): StorageService {
   const historyStore = createHistoryStore(paths.historyFile);
-  const sourceStore = createSourceStore(paths.configFile, {
+  const configStore = createConfigStore(paths.configFile, {
     defaultLocale: options.defaultLocale,
   });
 
@@ -23,11 +23,11 @@ export function createStorageService(paths: StoragePaths, options: StorageOption
     },
 
     async loadSettings() {
-      return sourceStore.loadSettings();
+      return configStore.loadSettings();
     },
 
     async saveSettings(settings = {}) {
-      return sourceStore.saveSettings(settings);
+      return configStore.saveSettings(settings);
     },
   };
 }

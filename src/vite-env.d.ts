@@ -23,6 +23,7 @@ type DesktopFetchBatchSource = {
   sourceId: string;
   pageUrl: string;
   journalTitle: string;
+  preferredExtractorId?: string | null;
 };
 
 type DesktopFetchStrategy =

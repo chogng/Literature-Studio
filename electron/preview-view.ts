@@ -88,8 +88,12 @@ type PreviewDocumentSnapshotOptions = {
   timeoutMs?: number;
 };
 
+type PreviewListingCandidateSnapshotOptions = PreviewDocumentSnapshotOptions & {
+  preferredExtractorId?: string | null;
+};
+
 const previewDocumentSnapshotTimedOut = Symbol('previewDocumentSnapshotTimedOut');
-const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
+const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtractorId) => {
   const cleanText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
   const normalizePathname = (value) => {
     const normalized = String(value ?? '').replace(/\/+$/, '');
@@ -1041,6 +1045,50 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
       nextPageUrl: null,
     };
   };
+  const collectExtractionByPreferredExtractorId = (value) => {
+    switch (cleanText(value)) {
+      case 'science-sciadv-current-physical-materials':
+        return collectScienceAdvPhysicalMaterialsExtraction();
+      case 'science-current-news-in-depth-research-articles':
+        return collectScienceCurrentNewsInDepthResearchArticlesExtraction();
+      case 'nature-latest-news':
+        return collectLatestNewsExtraction();
+      case 'nature-opinion':
+        return collectOpinionExtraction();
+      case 'nature-natelectron-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-natelectron-research-articles');
+      case 'nature-ncomms-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-ncomms-research-articles');
+      case 'nature-natmachintell-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-natmachintell-research-articles');
+      case 'nature-nmat-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-nmat-research-articles');
+      case 'nature-nnano-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-nnano-research-articles');
+      case 'nature-npj2dmaterials-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-npj2dmaterials-research-articles');
+      case 'nature-nphoton-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-nphoton-research-articles');
+      case 'nature-nphys-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-nphys-research-articles');
+      case 'nature-natsynth-research-articles':
+        return collectNatureResearchArticlesExtraction('nature-natsynth-research-articles');
+      case 'nature-natrevmats-reviews-and-analysis':
+        return collectNatureResearchArticlesExtraction('nature-natrevmats-reviews-and-analysis');
+      case 'nature-natrevphys-reviews-and-analysis':
+        return collectNatureResearchArticlesExtraction('nature-natrevphys-reviews-and-analysis');
+      case 'nature-natrevelectreng-reviews-and-analysis':
+        return collectNatureResearchArticlesExtraction('nature-natrevelectreng-reviews-and-analysis');
+      case 'nature-research-articles':
+        return collectNatureResearchArticlesExtraction();
+      default:
+        return null;
+    }
+  };
+  const preferredExtraction = collectExtractionByPreferredExtractorId(preferredExtractorId);
+  if (preferredExtraction) {
+    return preferredExtraction;
+  }
   const normalizedPathname = normalizePathname(location.pathname);
   const normalizedHost = String(location.host || '').toLowerCase();
   if (
@@ -1105,7 +1153,12 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`(() => {
     return collectNatureResearchArticlesExtraction();
   }
   return null;
-})()`;
+})`;
+
+function createPreviewListingCandidateExtractionScript(preferredExtractorId?: string | null) {
+  const normalizedPreferredExtractorId = String(preferredExtractorId ?? '').trim();
+  return `(${PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT})(${JSON.stringify(normalizedPreferredExtractorId)})`;
+}
 
 function emitPreviewState() {
   if (!previewWindow || previewWindow.isDestroyed()) return;
@@ -1428,7 +1481,7 @@ export async function getPreviewDocumentHtml() {
 }
 
 export async function getPreviewListingCandidateSnapshot(
-  options: PreviewDocumentSnapshotOptions = {},
+  options: PreviewListingCandidateSnapshotOptions = {},
 ): Promise<PreviewListingCandidateSnapshot | null> {
   if (!previewView || previewView.webContents.isDestroyed()) {
     return null;
@@ -1446,7 +1499,7 @@ export async function getPreviewListingCandidateSnapshot(
         diagnostics?: unknown;
       };
       nextPageUrl?: unknown;
-    }>(PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT, options);
+    }>(createPreviewListingCandidateExtractionScript(options.preferredExtractorId), options);
 
     if (result === previewDocumentSnapshotTimedOut || !isRecord(result)) {
       return null;

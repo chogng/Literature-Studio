@@ -38,7 +38,22 @@ const listingCandidateExtractors: ListingCandidateExtractor[] = [
   natureOpinionCandidateExtractor,
 ];
 
-export function findListingCandidateExtractor(page: URL) {
+const listingCandidateExtractorById = new Map(
+  listingCandidateExtractors.map((extractor) => [extractor.id, extractor] as const),
+);
+
+export function getListingCandidateExtractorById(id: string | null | undefined) {
+  const normalizedId = String(id ?? '').trim();
+  if (!normalizedId) return null;
+  return listingCandidateExtractorById.get(normalizedId) ?? null;
+}
+
+export function findListingCandidateExtractor(page: URL, preferredExtractorId?: string | null) {
+  const preferredExtractor = getListingCandidateExtractorById(preferredExtractorId);
+  if (preferredExtractor?.matches(page)) {
+    return preferredExtractor;
+  }
+
   return listingCandidateExtractors.find((extractor) => extractor.matches(page)) ?? null;
 }
 

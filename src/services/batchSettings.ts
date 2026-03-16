@@ -1,9 +1,13 @@
+import {
+  resolveDefaultJournalTitleFromSourceUrl,
+  resolveSourceLookupKey,
+  resolveSourceTableMetadata,
+} from './sourceTable';
 import { normalizeUrl, sanitizeUrlInput } from '../utils/url';
 
 export const batchLimitMin = 1;
 export const batchLimitMax = 100;
 
-export const defaultBatchSourceUrl = 'https://arxiv.org/list/cs/new';
 export type BatchSource = {
   id: string;
   url: string;
@@ -14,34 +18,27 @@ export type BatchFetchSource = {
   sourceId: string;
   pageUrl: string;
   journalTitle: string;
+  preferredExtractorId: string | null;
 };
 
 function randomIdSegment() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function createBatchSourceId(seed = '') {
-  const normalizedSeed = seed
-    .toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 36);
-
-  return normalizedSeed ? `source-${normalizedSeed}` : '';
+function createIndexedBatchSourceId(index: number) {
+  return String(Math.max(0, Math.trunc(index)) + 1);
 }
 
 function createRandomBatchSourceId() {
   return `source-${Date.now().toString(36)}-${randomIdSegment()}`;
 }
 
-function ensureBatchSourceId(input: unknown, seed = '', fallbackIndex = 0) {
+function ensureBatchSourceId(input: unknown, fallbackIndex?: number) {
   const cleaned = String(input ?? '').trim();
   if (cleaned) return cleaned;
 
-  const seeded = createBatchSourceId(seed);
-  if (seeded) {
-    return `${seeded}-${fallbackIndex + 1}`;
+  if (Number.isInteger(fallbackIndex) && Number(fallbackIndex) >= 0) {
+    return createIndexedBatchSourceId(Number(fallbackIndex));
   }
 
   return createRandomBatchSourceId();
@@ -55,13 +52,6 @@ export function createEmptyBatchSource(): BatchSource {
   };
 }
 
-export const defaultBatchSources: BatchSource[] = [
-  {
-    id: 'source-arxiv-cs-new',
-    url: defaultBatchSourceUrl,
-    journalTitle: '',
-  },
-];
 export const defaultBatchLimit = 20;
 export const defaultSameDomainOnly = true;
 
@@ -82,11 +72,13 @@ function sanitizeBatchSourceEntry(value: unknown, index: number): BatchSource {
 
   const record = value as Record<string, unknown>;
   const url = sanitizeUrlInput(String(record.url ?? ''));
-  const journalTitle = String(record.journalTitle ?? '').trim();
+  const explicitJournalTitle = String(record.journalTitle ?? '').trim();
+  const { articleListId, defaultJournalTitle } = resolveSourceTableMetadata(url);
+  const normalizedId = String(record.id ?? '').trim() || articleListId;
   return {
-    id: ensureBatchSourceId(record.id, url, index),
+    id: ensureBatchSourceId(normalizedId, index),
     url,
-    journalTitle,
+    journalTitle: explicitJournalTitle || defaultJournalTitle,
   };
 }
 
@@ -94,17 +86,17 @@ function dedupeBatchSources(sources: BatchSource[]): BatchSource[] {
   const deduped = new Map<string, BatchSource>();
 
   for (const source of sources) {
-    const key = source.url;
+    const key = resolveSourceLookupKey(source.url) || source.url;
     const previous = deduped.get(key);
     if (!previous) {
       deduped.set(key, source);
       continue;
     }
-    if (!previous.journalTitle && source.journalTitle) {
+    if (!previous.id && source.id) {
       deduped.set(key, source);
       continue;
     }
-    if (!previous.id && source.id) {
+    if (!previous.journalTitle && source.journalTitle) {
       deduped.set(key, source);
     }
   }
@@ -122,7 +114,7 @@ export function sanitizeBatchSources(input: unknown): BatchSource[] {
 
 export function normalizeBatchSources(
   input: unknown,
-  fallback: BatchSource[] = defaultBatchSources,
+  fallback: ReadonlyArray<BatchSource>,
 ): BatchSource[] {
   const normalized = sanitizeBatchSources(input);
   if (normalized.length > 0) {
@@ -130,9 +122,9 @@ export function normalizeBatchSources(
   }
 
   return fallback.map((source) => ({
-    id: ensureBatchSourceId(source.id, source.url),
+    id: ensureBatchSourceId(source.id),
     url: source.url,
-    journalTitle: source.journalTitle,
+    journalTitle: source.journalTitle || resolveDefaultJournalTitleFromSourceUrl(source.url),
   }));
 }
 
@@ -142,26 +134,35 @@ export function prepareBatchSourcesForFetch(input: unknown): {
   const sanitized = sanitizeBatchSources(input);
   const deduped = new Map<string, BatchFetchSource>();
 
-  for (const source of sanitized) {
+  for (const [index, source] of sanitized.entries()) {
     const normalizedUrl = normalizeUrl(source.url);
     if (!normalizedUrl) continue;
 
-    const journalTitle = source.journalTitle.trim();
+    const {
+      articleListId,
+      defaultJournalTitle,
+      preferredExtractorId: matchedPreferredExtractorId,
+    } = resolveSourceTableMetadata(normalizedUrl);
+    const sourceId = ensureBatchSourceId(source.id || articleListId, index);
+    const journalTitle = source.journalTitle.trim() || defaultJournalTitle || sourceId;
+    const preferredExtractorId = matchedPreferredExtractorId || null;
     const existing = deduped.get(normalizedUrl);
     if (existing) {
-      if (!existing.journalTitle && journalTitle) {
+      if ((!existing.journalTitle && journalTitle) || (!existing.preferredExtractorId && preferredExtractorId)) {
         deduped.set(normalizedUrl, {
           ...existing,
           journalTitle,
+          preferredExtractorId,
         });
       }
       continue;
     }
 
     deduped.set(normalizedUrl, {
-      sourceId: ensureBatchSourceId(source.id, normalizedUrl),
+      sourceId,
       pageUrl: normalizedUrl,
       journalTitle,
+      preferredExtractorId,
     });
   }
 

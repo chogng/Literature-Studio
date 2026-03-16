@@ -107,6 +107,7 @@ export interface FetchLatestArticlesPayload {
     sourceId?: string;
     pageUrl?: string;
     journalTitle?: string;
+    preferredExtractorId?: string | null;
   }>;
   sameDomainOnly?: boolean;
   startDate?: string | null;

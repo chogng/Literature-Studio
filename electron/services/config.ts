@@ -4,19 +4,14 @@ import { promises as fs } from 'node:fs';
 import type { AppSettings, BatchSource, StorageService, StoredAppSettings } from '../types.js';
 import { cleanText } from '../utils/text.js';
 
-type SourceStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
-
-const defaultBatchSourceUrl = 'https://arxiv.org/list/cs/new';
-const defaultBatchSources: BatchSource[] = [
-  { id: 'source-arxiv-cs-new', url: defaultBatchSourceUrl, journalTitle: '' },
-];
+type ConfigStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
 const batchLimitMin = 1;
 const batchLimitMax = 100;
 const defaultBatchLimit = 20;
 const defaultSameDomainOnly = true;
 const fallbackLocale: 'zh' | 'en' = 'zh';
 
-type SourceStoreOptions = {
+type ConfigStoreOptions = {
   defaultLocale?: 'zh' | 'en';
 };
 
@@ -42,22 +37,11 @@ function normalizeLocale(value: unknown, defaultLocale: 'zh' | 'en'): 'zh' | 'en
   return defaultLocale;
 }
 
-function buildSourceId(seed: unknown, fallbackSeed: string, index: number) {
+function buildSourceId(seed: unknown, index: number) {
   const cleaned = cleanText(seed);
   if (cleaned) return cleaned;
 
-  const normalizedFallback = cleanText(fallbackSeed)
-    .toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 36);
-
-  if (normalizedFallback) {
-    return `source-${normalizedFallback}-${index + 1}`;
-  }
-
-  return `source-${index + 1}`;
+  return String(index + 1);
 }
 
 function normalizeBatchSources(payload: Partial<StoredAppSettings>): BatchSource[] {
@@ -65,7 +49,7 @@ function normalizeBatchSources(payload: Partial<StoredAppSettings>): BatchSource
     ? payload.defaultBatchSources.map((item, index) => {
         const url = cleanText(item?.url);
         return {
-          id: buildSourceId(item?.id, url, index),
+          id: buildSourceId(item?.id, index),
           url,
           journalTitle: cleanText(item?.journalTitle),
         };
@@ -80,7 +64,6 @@ function normalizeBatchSources(payload: Partial<StoredAppSettings>): BatchSource
       deduped.set(source.url, source);
       continue;
     }
-
     if (!existing.journalTitle && source.journalTitle) {
       deduped.set(source.url, source);
       continue;
@@ -90,8 +73,7 @@ function normalizeBatchSources(payload: Partial<StoredAppSettings>): BatchSource
     }
   }
 
-  const merged = [...deduped.values()];
-  return merged.length > 0 ? merged : defaultBatchSources.map((source) => ({ ...source }));
+  return [...deduped.values()];
 }
 
 function normalizeSettings(
@@ -107,10 +89,7 @@ function normalizeSettings(
 
   return {
     defaultDownloadDir: downloadDir || null,
-    defaultBatchSources:
-      normalizedBatchSources.length > 0
-        ? normalizedBatchSources
-        : defaultBatchSources.map((source) => ({ ...source })),
+    defaultBatchSources: normalizedBatchSources,
     defaultBatchLimit: normalizedLimit,
     defaultSameDomainOnly:
       typeof payload.defaultSameDomainOnly === 'boolean'
@@ -127,7 +106,7 @@ function attachConfigPath(settings: StoredAppSettings, configPath: string): AppS
   };
 }
 
-export function createSourceStore(configFile: string, options: SourceStoreOptions = {}): SourceStore {
+export function createConfigStore(configFile: string, options: ConfigStoreOptions = {}): ConfigStore {
   const defaultLocale = options.defaultLocale === 'en' ? 'en' : fallbackLocale;
 
   async function readSettings() {

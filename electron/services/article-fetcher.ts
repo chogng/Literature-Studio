@@ -136,6 +136,7 @@ type PageSource = {
   sourceId: string;
   pageUrl: string;
   journalTitle: string;
+  preferredExtractorId: string | null;
 };
 
 export type FetchLatestArticlesOptions = {
@@ -197,22 +198,11 @@ function describeFetchDetail(fetchChannel: FetchChannel, previewReuseMode: Previ
   return 'network-fetch';
 }
 
-function normalizeSourceId(input: unknown, pageUrl: string, index: number) {
+function normalizeSourceId(input: unknown, index: number) {
   const cleaned = cleanText(input);
   if (cleaned) return cleaned;
 
-  const hostnameSeed = cleanText(pageUrl)
-    .toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 36);
-
-  if (hostnameSeed) {
-    return `source-${hostnameSeed}-${index + 1}`;
-  }
-
-  return `source-${index + 1}`;
+  return String(index + 1);
 }
 
 function safeNormalizeUrl(value: string) {
@@ -1179,6 +1169,7 @@ async function fetchLatestArticlesFromPageOnce({
   sourceId,
   pageUrl,
   journalTitle,
+  preferredExtractorId,
   remainingLimit,
   sameDomainOnly,
   dateRange,
@@ -1191,6 +1182,7 @@ async function fetchLatestArticlesFromPageOnce({
   sourceId: string;
   pageUrl: string;
   journalTitle: string;
+  preferredExtractorId: string | null;
   remainingLimit: number;
   sameDomainOnly: boolean;
   dateRange: DateRange;
@@ -1201,7 +1193,7 @@ async function fetchLatestArticlesFromPageOnce({
   pageNumber: number;
 }): Promise<PageFetchResult> {
   const page = new URL(pageUrl);
-  const extractor = findListingCandidateExtractor(page);
+  const extractor = findListingCandidateExtractor(page, preferredExtractorId);
   const fetched: Article[] = [];
   const pagePathname = page.pathname.toLowerCase();
   const isLikelyArticleDetailSource = isLikelyArticleDetailPagePath(pagePathname);
@@ -2181,9 +2173,10 @@ function normalizePageSources(payload: FetchLatestArticlesPayload): PageSource[]
       const normalizedPageUrl = normalizeNatureListingPageUrl(pageUrl);
 
       return {
-        sourceId: normalizeSourceId(item?.sourceId, normalizedPageUrl, index),
+        sourceId: normalizeSourceId(item?.sourceId, index),
         pageUrl: normalizedPageUrl,
         journalTitle: cleanText(item?.journalTitle),
+        preferredExtractorId: cleanText(item?.preferredExtractorId) || null,
       } satisfies PageSource;
     })
     .filter((source): source is PageSource => Boolean(source));
@@ -2198,6 +2191,11 @@ function normalizePageSources(payload: FetchLatestArticlesPayload): PageSource[]
 
     if (!existing.journalTitle && source.journalTitle) {
       deduped.set(source.pageUrl, source);
+      continue;
+    }
+
+    if (!existing.preferredExtractorId && source.preferredExtractorId) {
+      deduped.set(source.pageUrl, source);
     }
   }
 
@@ -2208,6 +2206,7 @@ async function fetchLatestArticlesFromPage(
   sourceId: string,
   pageUrl: string,
   journalTitle: string,
+  preferredExtractorId: string | null,
   perSourceLimit: number,
   sameDomainOnly: boolean,
   dateRange: DateRange,
@@ -2218,6 +2217,7 @@ async function fetchLatestArticlesFromPage(
   timingLog(traceId, 'source:start', {
     sourceId,
     pageUrl: shortenForLog(pageUrl),
+    preferredExtractorId,
     perSourceLimit,
     sameDomainOnly,
     dateStart: dateRange.start,
@@ -2254,6 +2254,7 @@ async function fetchLatestArticlesFromPage(
         sourceId,
         pageUrl: normalizedPageUrl,
         journalTitle,
+        preferredExtractorId,
         remainingLimit: perSourceLimit - fetched.length,
         sameDomainOnly,
         dateRange,
@@ -2366,6 +2367,7 @@ export async function fetchLatestArticles(
             source.sourceId,
             source.pageUrl,
             source.journalTitle,
+            source.preferredExtractorId,
             perSourceLimit,
             sameDomainOnly,
             dateRange,

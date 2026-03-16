@@ -113,6 +113,9 @@ function resolveJournalTitle(article: Article, locale: SupportedLocale) {
   const explicitTitle = cleanText(article.journalTitle);
   if (explicitTitle) return explicitTitle;
 
+  const sourceId = cleanText(article.sourceId);
+  if (sourceId) return sourceId;
+
   const sourceUrl = cleanText(article.sourceUrl);
   if (sourceUrl) {
     try {

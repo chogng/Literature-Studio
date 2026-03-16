@@ -33,12 +33,15 @@ import {
 } from './services/desktopError';
 import {
   createEmptyBatchSource,
-  defaultBatchSources,
   defaultBatchLimit,
   defaultSameDomainOnly,
   type BatchSource,
   normalizeBatchLimit,
 } from './services/batchSettings';
+import { getConfigBatchSourceSeed } from './services/config_schema';
+import {
+  resolveDefaultJournalTitleFromSourceUrl,
+} from './services/sourceTable';
 import {
   buildSaveSettingsPayload,
   loadAppSettings,
@@ -73,6 +76,7 @@ type DocxExportResult = {
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const defaultArticleUrl = '';
+const initialBatchSources = getConfigBatchSourceSeed();
 
 function detectNativeModalKind() {
   if (typeof window === 'undefined') return null;
@@ -86,7 +90,7 @@ function MainApp() {
   const [webUrl, setWebUrl] = useState(defaultArticleUrl);
   const [fetchSeedUrl, setFetchSeedUrl] = useState(defaultArticleUrl);
   const [browserUrl, setBrowserUrl] = useState(normalizeUrl(defaultArticleUrl));
-  const [batchSources, setBatchSources] = useState<BatchSource[]>(defaultBatchSources);
+  const [batchSources, setBatchSources] = useState<BatchSource[]>(initialBatchSources);
   const [batchLimit, setBatchLimit] = useState(defaultBatchLimit);
   const [sameDomainOnly, setSameDomainOnly] = useState(defaultSameDomainOnly);
   const [batchStartDate, setBatchStartDate] = useState(initialBatchDateRange.startDate);
@@ -350,10 +354,18 @@ function MainApp() {
     setBatchSources((current) =>
       current.map((source, sourceIndex) =>
         sourceIndex === index
-          ? {
-              ...source,
-              url: sanitizedUrl,
-            }
+          ? (() => {
+              const previousDefaultJournalTitle = resolveDefaultJournalTitleFromSourceUrl(source.url);
+              const nextDefaultJournalTitle = resolveDefaultJournalTitleFromSourceUrl(sanitizedUrl);
+              const shouldReplaceJournalTitle =
+                !source.journalTitle.trim() || source.journalTitle.trim() === previousDefaultJournalTitle;
+
+              return {
+                ...source,
+                url: sanitizedUrl,
+                journalTitle: shouldReplaceJournalTitle ? nextDefaultJournalTitle : source.journalTitle,
+              };
+            })()
           : source,
       ),
     );

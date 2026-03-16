@@ -20,6 +20,7 @@ const BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS = 2500;
 const BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS = 1500;
 const BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS = 5000;
 const BATCH_PREVIEW_EXTRACTION_GATE_POLL_MS = 120;
+type PreviewBatchSource = NonNullable<FetchLatestArticlesPayload['sources']>[number];
 
 function logPreviewBatchDiagnostic(event: string, details: Record<string, unknown>) {
   try {
@@ -33,12 +34,47 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function collectMatchedPreviewSources(
+  sources: ReadonlyArray<PreviewBatchSource>,
+  previewUrl: unknown,
+) {
+  const matchedSources: PreviewBatchSource[] = [];
+  const normalizedPreviewUrl = safeNormalizePreviewUrl(previewUrl);
+  if (!normalizedPreviewUrl) {
+    return matchedSources;
+  }
+
+  for (const source of sources) {
+    const pageUrl = resolvePreviewSourcePageUrl(source);
+    if (pageUrl && matchesPreviewTargetUrl(pageUrl, normalizedPreviewUrl)) {
+      matchedSources.push(source);
+    }
+  }
+
+  return matchedSources;
+}
+
+function resolvePreferredExtractorIdForPreviewSources(
+  sources: ReadonlyArray<PreviewBatchSource>,
+) {
+  for (const source of sources) {
+    const preferredExtractorId = String(source.preferredExtractorId ?? '').trim();
+    if (preferredExtractorId) {
+      return preferredExtractorId;
+    }
+  }
+
+  return null;
+}
+
 async function waitForPreviewPageExtraction({
   previewUrl,
   matchedPageUrls,
+  preferredExtractorId,
 }: {
   previewUrl: string;
   matchedPageUrls: string[];
+  preferredExtractorId?: string | null;
 }) {
   const startedAt = Date.now();
   let attempts = 0;
@@ -51,6 +87,7 @@ async function waitForPreviewPageExtraction({
   logPreviewBatchDiagnostic('extraction_gate_started', {
     previewUrl,
     matchedPageUrls,
+    preferredExtractorId: preferredExtractorId ?? null,
     gateTimeoutMs: BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS,
     pollMs: BATCH_PREVIEW_EXTRACTION_GATE_POLL_MS,
     stablePollsRequired: DEFAULT_PREVIEW_ADMISSION_CONFIG.stablePolls,
@@ -71,6 +108,7 @@ async function waitForPreviewPageExtraction({
         previewUrl,
         currentPreviewUrl,
         matchedPageUrls,
+        preferredExtractorId: preferredExtractorId ?? null,
         attempts,
         waitMs: Date.now() - startedAt,
       });
@@ -79,6 +117,7 @@ async function waitForPreviewPageExtraction({
 
     const extraction = await getPreviewListingCandidateSnapshot({
       timeoutMs: BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS,
+      preferredExtractorId,
     });
     const extractionUrl = safeNormalizePreviewUrl(extraction?.previewUrl ?? '');
     const allowExtractionWhileLoading = extractionUrl
@@ -125,6 +164,7 @@ async function waitForPreviewPageExtraction({
           candidateCount: gateStatus.candidateCount,
           sectionCount: gateStatus.sectionCount,
           selectedSectionIndex: gateStatus.selectedSectionIndex,
+          preferredExtractorId: preferredExtractorId ?? null,
           attempts,
           waitMs: Date.now() - startedAt,
           extractionIsLoading: extraction.isLoading,
@@ -144,6 +184,7 @@ async function waitForPreviewPageExtraction({
   logPreviewBatchDiagnostic('extraction_gate_timeout', {
     previewUrl,
     matchedPageUrls,
+    preferredExtractorId: preferredExtractorId ?? null,
     attempts,
     waitMs: Date.now() - startedAt,
     bestCandidateCount,
@@ -257,7 +298,13 @@ export async function resolveBatchPreviewExtractions(payload: FetchLatestArticle
     return new Map<string, PreviewExtractionSnapshot>();
   }
 
-  const matchedPageUrls = collectMatchedPreviewPageUrls(sources, previewUrl);
+  const matchedSources = collectMatchedPreviewSources(sources, previewUrl);
+  const matchedPageUrls = new Set(
+    matchedSources
+      .map((source) => resolvePreviewSourcePageUrl(source))
+      .filter((pageUrl): pageUrl is string => Boolean(pageUrl)),
+  );
+  const preferredExtractorId = resolvePreferredExtractorIdForPreviewSources(matchedSources);
 
   if (matchedPageUrls.size === 0) {
     logPreviewBatchDiagnostic('extraction_skipped', {
@@ -280,9 +327,11 @@ export async function resolveBatchPreviewExtractions(payload: FetchLatestArticle
       ? await waitForPreviewPageExtraction({
           previewUrl,
           matchedPageUrls: [...matchedPageUrls],
+          preferredExtractorId,
         })
       : await getPreviewListingCandidateSnapshot({
           timeoutMs: BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS,
+          preferredExtractorId,
         });
   const extractionUrl = safeNormalizePreviewUrl(extraction?.previewUrl ?? '');
   const allowExtractionWhileLoading = extractionUrl ? shouldAllowSciencePreviewWhileLoading(extractionUrl) : false;
@@ -302,6 +351,7 @@ export async function resolveBatchPreviewExtractions(payload: FetchLatestArticle
             : 'extraction_url_not_matched',
       previewUrl,
       extractionUrl,
+      preferredExtractorId: preferredExtractorId ?? null,
       previewIsLoading: previewState.isLoading,
       extractionIsLoading: extraction?.isLoading ?? null,
       matchedPageUrls: [...matchedPageUrls],
