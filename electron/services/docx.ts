@@ -40,49 +40,61 @@ function normalizeLines(value: string | null | undefined) {
     .filter(Boolean);
 }
 
-function formatDocxLocale(locale: SupportedLocale) {
-  return locale === 'en' ? 'en-US' : 'zh-CN';
-}
-
-function formatDateValue(value: string | null | undefined, locale: SupportedLocale) {
-  const cleaned = cleanText(value);
-  if (!cleaned) return resolveDocxExportCopy(locale).unknown;
-
-  const parsed = new Date(cleaned);
-  if (Number.isNaN(parsed.getTime())) {
-    return cleaned;
-  }
-
-  return parsed.toLocaleString(formatDocxLocale(locale));
-}
-
-function formatPublishedValue(value: string | null | undefined, locale: SupportedLocale) {
-  const cleaned = cleanText(value);
-  return cleaned || resolveDocxExportCopy(locale).unknown;
-}
-
 function paragraphXml(
   text: string,
   options: {
     bold?: boolean;
+    italic?: boolean;
     fontSize?: number;
+    color?: string;
+    fontAscii?: string;
+    fontEastAsia?: string;
     spacingBefore?: number;
     spacingAfter?: number;
+    lineSpacing?: number;
+    lineRule?: 'auto' | 'atLeast' | 'exact';
   } = {},
 ) {
   const paragraphProperties: string[] = [];
-  if (options.spacingBefore || options.spacingAfter) {
-    const before = options.spacingBefore ?? 0;
-    const after = options.spacingAfter ?? 0;
-    paragraphProperties.push(`<w:spacing w:before="${before}" w:after="${after}"/>`);
+  const spacingAttributes: string[] = [];
+  if (options.spacingBefore !== undefined) {
+    spacingAttributes.push(`w:before="${options.spacingBefore}"`);
+  }
+  if (options.spacingAfter !== undefined) {
+    spacingAttributes.push(`w:after="${options.spacingAfter}"`);
+  }
+  if (options.lineSpacing !== undefined) {
+    spacingAttributes.push(`w:line="${options.lineSpacing}"`);
+    spacingAttributes.push(`w:lineRule="${options.lineRule ?? 'auto'}"`);
+  }
+  if (spacingAttributes.length > 0) {
+    paragraphProperties.push(`<w:spacing ${spacingAttributes.join(' ')}/>`);
   }
 
   const runProperties: string[] = [];
   if (options.bold) {
     runProperties.push('<w:b/>');
   }
+  if (options.italic) {
+    runProperties.push('<w:i/>', '<w:iCs/>');
+  }
   if (options.fontSize) {
     runProperties.push(`<w:sz w:val="${options.fontSize}"/>`);
+    runProperties.push(`<w:szCs w:val="${options.fontSize}"/>`);
+  }
+  if (options.color) {
+    runProperties.push(`<w:color w:val="${escapeXml(options.color)}"/>`);
+  }
+  if (options.fontAscii || options.fontEastAsia) {
+    const fontAttributes: string[] = [];
+    if (options.fontAscii) {
+      const fontAscii = escapeXml(options.fontAscii);
+      fontAttributes.push(`w:ascii="${fontAscii}"`, `w:hAnsi="${fontAscii}"`, `w:cs="${fontAscii}"`);
+    }
+    if (options.fontEastAsia) {
+      fontAttributes.push(`w:eastAsia="${escapeXml(options.fontEastAsia)}"`);
+    }
+    runProperties.push(`<w:rFonts ${fontAttributes.join(' ')}/>`);
   }
 
   return [
@@ -94,10 +106,6 @@ function paragraphXml(
     '</w:r>',
     '</w:p>',
   ].join('');
-}
-
-function emptyParagraphXml() {
-  return '<w:p/>';
 }
 
 function pageBreakXml() {
@@ -153,38 +161,26 @@ function groupArticlesByJournal(articles: Article[], locale: SupportedLocale): J
 function articleParagraphsXml(article: Article, indexInJournal: number, locale: SupportedLocale) {
   const copy = resolveDocxExportCopy(locale);
   const title = cleanText(article.title) || copy.untitled;
-  const authors = article.authors.map((author) => cleanText(author)).filter(Boolean).join(', ') || copy.unknown;
   const abstractLines = normalizeLines(article.abstractText);
   const abstractValue = abstractLines.length > 0 ? abstractLines : [copy.unknown];
 
   const paragraphs = [
     paragraphXml(`${indexInJournal + 1}. ${title}`, {
-      bold: true,
       fontSize: docxConfig.article.titleFontSize,
+      color: docxConfig.article.bodyColor,
+      fontAscii: docxConfig.article.fontAscii,
+      fontEastAsia: docxConfig.article.fontEastAsia,
+      lineSpacing: docxConfig.article.lineSpacing,
       spacingBefore: indexInJournal === 0 ? 0 : docxConfig.article.titleSpacingBefore,
-      spacingAfter: docxConfig.article.titleSpacingAfter,
-    }),
-    paragraphXml(`${copy.authors}: ${authors}`, {
-      spacingAfter: docxConfig.article.metadataSpacingAfter,
-    }),
-    paragraphXml(`${copy.doi}: ${cleanText(article.doi) || copy.unknown}`, {
-      spacingAfter: docxConfig.article.metadataSpacingAfter,
-    }),
-    paragraphXml(`${copy.publishedAt}: ${formatPublishedValue(article.publishedAt, locale)}`, {
-      spacingAfter: docxConfig.article.metadataSpacingAfter,
-    }),
-    paragraphXml(`${copy.source}: ${cleanText(article.sourceUrl) || copy.unknown}`, {
-      spacingAfter: docxConfig.article.metadataSpacingAfter,
-    }),
-    paragraphXml(`${copy.fetchedAt}: ${formatDateValue(article.fetchedAt, locale)}`, {
-      spacingAfter: docxConfig.article.fetchedAtSpacingAfter,
-    }),
-    paragraphXml(copy.abstract, {
-      bold: true,
-      spacingAfter: docxConfig.article.abstractLabelSpacingAfter,
+      spacingAfter: 0,
     }),
     ...abstractValue.map((line, lineIndex) =>
       paragraphXml(line, {
+        fontSize: docxConfig.article.bodyFontSize,
+        color: docxConfig.article.bodyColor,
+        fontAscii: docxConfig.article.fontAscii,
+        fontEastAsia: docxConfig.article.fontEastAsia,
+        lineSpacing: docxConfig.article.lineSpacing,
         spacingAfter:
           lineIndex === abstractValue.length - 1 ? 0 : docxConfig.article.abstractLineSpacingAfter,
       }),
@@ -194,30 +190,21 @@ function articleParagraphsXml(article: Article, indexInJournal: number, locale: 
   return paragraphs.join('');
 }
 
-function buildDocumentXml(articles: Article[], locale: SupportedLocale, exportedAt: Date) {
-  const copy = resolveDocxExportCopy(locale);
+function buildDocumentXml(articles: Article[], locale: SupportedLocale) {
   const page = docxConfig.page;
   const journalGroups = groupArticlesByJournal(articles, locale);
-  const bodyParts: string[] = [
-    paragraphXml(copy.documentTitle, {
-      bold: true,
-      fontSize: docxConfig.document.titleFontSize,
-      spacingAfter: docxConfig.document.titleSpacingAfter,
-    }),
-    paragraphXml(`${copy.articleCount}: ${articles.length}`, {
-      spacingAfter: docxConfig.document.articleCountSpacingAfter,
-    }),
-    paragraphXml(`${copy.exportedAt}: ${formatDateValue(exportedAt.toISOString(), locale)}`, {
-      spacingAfter: docxConfig.document.exportedAtSpacingAfter,
-    }),
-    emptyParagraphXml(),
-  ];
+  const bodyParts: string[] = [];
 
   journalGroups.forEach((group, groupIndex) => {
     bodyParts.push(
       paragraphXml(group.journalTitle, {
         bold: true,
         fontSize: docxConfig.journal.titleFontSize,
+        italic: docxConfig.journal.titleItalic,
+        color: docxConfig.journal.titleColor,
+        fontAscii: docxConfig.journal.fontAscii,
+        fontEastAsia: docxConfig.journal.fontEastAsia,
+        lineSpacing: docxConfig.journal.lineSpacing,
         spacingBefore: groupIndex === 0 ? 0 : docxConfig.journal.titleSpacingBefore,
         spacingAfter: docxConfig.journal.titleSpacingAfter,
       }),
@@ -225,9 +212,6 @@ function buildDocumentXml(articles: Article[], locale: SupportedLocale, exported
 
     group.articles.forEach((article, articleIndex) => {
       bodyParts.push(articleParagraphsXml(article, articleIndex, locale));
-      if (articleIndex < group.articles.length - 1) {
-        bodyParts.push(emptyParagraphXml());
-      }
     });
 
     if (groupIndex < journalGroups.length - 1) {
@@ -405,7 +389,7 @@ function buildDocxBuffer(articles: Article[], locale: SupportedLocale) {
     },
     {
       name: 'word/document.xml',
-      data: Buffer.from(buildDocumentXml(articles, locale, exportedAt), 'utf8'),
+      data: Buffer.from(buildDocumentXml(articles, locale), 'utf8'),
     },
   ];
 

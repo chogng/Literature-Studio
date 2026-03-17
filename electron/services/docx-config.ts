@@ -8,6 +8,11 @@ export type DocxExportConfig = {
   };
   article: {
     titleFontSize: number;
+    bodyFontSize: number;
+    fontAscii: string;
+    fontEastAsia: string;
+    bodyColor: string;
+    lineSpacing: number;
     titleSpacingBefore: number;
     titleSpacingAfter: number;
     metadataSpacingAfter: number;
@@ -17,6 +22,11 @@ export type DocxExportConfig = {
   };
   journal: {
     titleFontSize: number;
+    fontAscii: string;
+    fontEastAsia: string;
+    titleColor: string;
+    titleItalic: boolean;
+    lineSpacing: number;
     titleSpacingBefore: number;
     titleSpacingAfter: number;
   };
@@ -43,7 +53,12 @@ export const defaultDocxExportConfig: Readonly<DocxExportConfig> = {
     exportedAtSpacingAfter: 160,
   },
   article: {
-    titleFontSize: 30,
+    titleFontSize: 24,
+    bodyFontSize: 24,
+    fontAscii: 'Times New Roman',
+    fontEastAsia: '宋体',
+    bodyColor: '000000',
+    lineSpacing: 360,
     titleSpacingBefore: 160,
     titleSpacingAfter: 180,
     metadataSpacingAfter: 80,
@@ -52,7 +67,12 @@ export const defaultDocxExportConfig: Readonly<DocxExportConfig> = {
     abstractLineSpacingAfter: 60,
   },
   journal: {
-    titleFontSize: 34,
+    titleFontSize: 30,
+    fontAscii: 'Times New Roman',
+    fontEastAsia: '宋体',
+    titleColor: '0070C0',
+    titleItalic: true,
+    lineSpacing: 360,
     titleSpacingBefore: 200,
     titleSpacingAfter: 120,
   },
