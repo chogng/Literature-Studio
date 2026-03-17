@@ -88,7 +88,7 @@ export function Titlebar({
   fetchStopText,
   fetchStopTitle,
 }: TitlebarProps) {
-  const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh || onExportDocx;
+  const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh;
 
   return (
     <header className="titlebar">
@@ -176,22 +176,6 @@ export function Titlebar({
                 <RefreshCcw size={14} strokeWidth={1.5} />
               </Button>
             ) : null}
-            {onExportDocx ? (
-              <Button
-                className="titlebar-btn titlebar-btn-nav"
-                variant="ghost"
-                size="sm"
-                mode="icon"
-                iconMode="with"
-                textMode="without"
-                onClick={onExportDocx}
-                disabled={!canExportDocx}
-                aria-label={labels.exportDocxLabel}
-                title={canExportDocx ? labels.exportDocxLabel : labels.noExportableArticlesLabel}
-              >
-                <FileText size={14} strokeWidth={1.5} />
-              </Button>
-            ) : null}
           </div>
         ) : null}
       </div>
@@ -228,6 +212,22 @@ export function Titlebar({
       </div>
 
       <div className="titlebar-controls" role="group" aria-label={labels.controlsAriaLabel}>
+        {onExportDocx ? (
+          <Button
+            className="titlebar-btn titlebar-btn-export"
+            variant="ghost"
+            size="sm"
+            mode="icon"
+            iconMode="with"
+            textMode="without"
+            onClick={onExportDocx}
+            disabled={!canExportDocx}
+            aria-label={labels.exportDocxLabel}
+            title={canExportDocx ? labels.exportDocxLabel : labels.noExportableArticlesLabel}
+          >
+            <FileText size={14} strokeWidth={1.5} />
+          </Button>
+        ) : null}
         {onToggleSettings && (
           <Button
             className="titlebar-btn titlebar-btn-settings"

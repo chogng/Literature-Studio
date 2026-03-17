@@ -185,6 +185,10 @@
   margin-right: 4px;
 }
 
+.titlebar-btn-export.btn-base {
+  margin-right: 2px;
+}
+
 .titlebar-btn-sidebar.btn-base {
   -webkit-app-region: no-drag;
   margin-right: 4px;
