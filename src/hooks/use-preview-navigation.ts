@@ -217,14 +217,10 @@ function useAddressBarSource({
 
       const journalTitle = source.journalTitle.trim();
       const labelPrimary = journalTitle || sourceId;
-      let hostLabel = normalizedSourceUrl;
-      try {
-        hostLabel = new URL(normalizedSourceUrl).hostname.replace(/^www\./, '');
-      } catch {}
 
       options.push({
         id: sourceId,
-        label: `${labelPrimary} (${hostLabel})`,
+        label: labelPrimary,
         url: normalizedSourceUrl,
         journalTitle,
       });
