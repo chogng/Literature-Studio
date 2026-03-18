@@ -1,4 +1,12 @@
 .titlebar {
+  --titlebar-field-height: 28px;
+  --titlebar-field-radius: 999px;
+  --titlebar-field-border: #cfdae7;
+  --titlebar-field-border-hover: #b8c7d9;
+  --titlebar-field-border-focus: #0a5fbf;
+  --titlebar-field-bg: rgba(255, 255, 255, 0.72);
+  --titlebar-field-bg-hover: rgba(255, 255, 255, 0.9);
+  --titlebar-field-bg-focus: #ffffff;
   height: 38px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -8,6 +16,8 @@
   padding: 0;
   user-select: none;
   position: relative;
+  z-index: 20;
+  overflow: visible;
   -webkit-app-region: drag;
 }
 
@@ -42,26 +52,38 @@
 }
 
 .titlebar-source-select {
+  --dropdown-height: var(--titlebar-field-height);
+  --dropdown-radius: var(--titlebar-field-radius);
+  --dropdown-border: var(--titlebar-field-border);
+  --dropdown-border-hover: var(--titlebar-field-border-hover);
+  --dropdown-border-focus: var(--titlebar-field-border-focus);
+  --dropdown-bg: rgba(255, 255, 255, 0.6);
+  --dropdown-bg-hover: var(--titlebar-field-bg-hover);
+  --dropdown-bg-focus: var(--titlebar-field-bg-focus);
   width: 100%;
-  height: 28px;
-  border-radius: 999px;
-  border: 1px solid #cfdae7;
-  background: rgba(255, 255, 255, 0.72);
+  height: var(--titlebar-field-height) !important;
+  border-radius: var(--titlebar-field-radius) !important;
+  font-size: 12px;
+  color: #304357;
+  backdrop-filter: blur(8px);
+}
+
+.titlebar-source-select .dropdown-field {
+  padding: 0 24px 0 10px;
+}
+
+.titlebar-field-base {
+  height: var(--titlebar-field-height);
+  border-radius: var(--titlebar-field-radius);
+  border: 1px solid var(--titlebar-field-border);
+  background: var(--titlebar-field-bg);
   color: #304357;
   font-size: 12px;
-  padding: 0 24px 0 10px;
-  outline: none;
-  cursor: pointer;
 }
 
-.titlebar-source-select:hover {
-  border-color: #b8c7d9;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.titlebar-source-select:focus {
-  border-color: #0a5fbf;
-  background: #ffffff;
+.titlebar-field-base:hover {
+  border-color: var(--titlebar-field-border-hover);
+  background: var(--titlebar-field-bg-hover);
 }
 
 .titlebar-url-bar {
@@ -78,20 +100,20 @@
 
 .titlebar-input-field {
   width: 100%;
-  height: 28px !important;
+  height: var(--titlebar-field-height) !important;
   background: rgba(255, 255, 255, 0.6) !important;
   backdrop-filter: blur(8px);
-  border-color: #cfdae7 !important;
+  border-color: var(--titlebar-field-border) !important;
 }
 
 .titlebar-input-field:hover {
-  border-color: #b8c7d9 !important;
-  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: var(--titlebar-field-border-hover) !important;
+  background: var(--titlebar-field-bg-hover) !important;
 }
 
 .titlebar-input-field.input-focused {
-  background: #ffffff !important;
-  border-color: #0a5fbf !important;
+  background: var(--titlebar-field-bg-focus) !important;
+  border-color: var(--titlebar-field-border-focus) !important;
 }
 
 .titlebar-input-field .input-field {

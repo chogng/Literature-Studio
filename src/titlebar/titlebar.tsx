@@ -1,5 +1,7 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight, Copy, FileText, Minus, PanelLeftClose, PanelLeftOpen, RefreshCcw, Settings, Square, X } from 'lucide-react';
 import { Button } from '../components/Button';
+import { Dropdown } from '../components/dropdown';
 import { Input } from '../components/Input';
 import { useTitlebarState } from './use-titlebar-state';
 import './titlebar.css';
@@ -70,6 +72,8 @@ export type TitlebarInputProps = Partial<TitlebarProps>;
 
 export function Titlebar(inputProps: TitlebarInputProps = {}) {
   const { titlebarProps } = useTitlebarState();
+  const browserUrlRef = useRef(inputProps.browserUrl ?? titlebarProps.browserUrl ?? '');
+  const isSourceMenuOpenRef = useRef(false);
   const mergedProps: TitlebarProps = {
     ...titlebarProps,
     ...inputProps,
@@ -109,6 +113,34 @@ export function Titlebar(inputProps: TitlebarInputProps = {}) {
     fetchStopTitle,
   } = mergedProps;
   const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh;
+
+  useEffect(() => {
+    browserUrlRef.current = browserUrl ?? '';
+  }, [browserUrl]);
+
+  const handleSourceMenuOpenChange = useCallback((isOpen: boolean) => {
+    isSourceMenuOpenRef.current = isOpen;
+
+    if (typeof window === 'undefined' || !window.electronAPI?.preview) {
+      return;
+    }
+
+    window.electronAPI.preview.setVisible(isOpen ? false : Boolean(browserUrlRef.current));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (
+        !isSourceMenuOpenRef.current ||
+        typeof window === 'undefined' ||
+        !window.electronAPI?.preview
+      ) {
+        return;
+      }
+
+      window.electronAPI.preview.setVisible(Boolean(browserUrlRef.current));
+    };
+  }, []);
 
   return (
     <header className="titlebar">
@@ -204,7 +236,7 @@ export function Titlebar(inputProps: TitlebarInputProps = {}) {
         {onWebUrlChange && (
           <div className="titlebar-url-bar">
             <Input
-              className="titlebar-input-field"
+              className="titlebar-input-field titlebar-field-base"
               size="sm"
               value={webUrl}
               onChange={(e) => onWebUrlChange(e.target.value)}
@@ -231,10 +263,11 @@ export function Titlebar(inputProps: TitlebarInputProps = {}) {
         )}
         {onSelectAddressBarSource ? (
           <div className="titlebar-journal-bar">
-            <select
+            <Dropdown
               className="titlebar-source-select"
               value={selectedAddressBarSourceId}
               onChange={(event) => onSelectAddressBarSource(event.target.value)}
+              onOpenChange={handleSourceMenuOpenChange}
               aria-label={addressBarSourceAriaLabel || addressBarSourcePlaceholder}
               title={addressBarSourceAriaLabel || addressBarSourcePlaceholder}
               onKeyDown={(event) => {
@@ -251,14 +284,18 @@ export function Titlebar(inputProps: TitlebarInputProps = {}) {
                   onCycleAddressBarSource('next');
                 }
               }}
-            >
-              <option value="">{addressBarSourcePlaceholder}</option>
-              {addressBarSourceOptions.map((option) => (
-                <option key={option.id} value={option.id} title={`${option.journalTitle} | ${option.url}`}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={[
+                {
+                  value: '',
+                  label: addressBarSourcePlaceholder ?? '',
+                },
+                ...addressBarSourceOptions.map((option) => ({
+                  value: option.id,
+                  label: option.label,
+                  title: `${option.journalTitle} | ${option.url}`,
+                })),
+              ]}
+            />
           </div>
         ) : null}
       </div>
