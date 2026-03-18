@@ -129,6 +129,8 @@ export default function ArticleDetailsModalWindow() {
   const { article, labels } = modalState;
   const title = detailValue(article.title, labels.untitled);
   const abstractValue = detailValue(article.abstractText, labels.unknown);
+  const descriptionValue = detailValue(article.descriptionText, labels.unknown);
+  const descriptionLabel = labels.description || (modalState.locale === 'en' ? 'Description' : '描述');
 
   return (
     <main className="article-details-window">
@@ -170,6 +172,11 @@ export default function ArticleDetailsModalWindow() {
           <section className="article-details-section" aria-labelledby="article-details-abstract-title">
             <h2 id="article-details-abstract-title">{normalizeLabel(labels.abstract)}</h2>
             <p>{abstractValue}</p>
+          </section>
+
+          <section className="article-details-section" aria-labelledby="article-details-description-title">
+            <h2 id="article-details-description-title">{normalizeLabel(descriptionLabel)}</h2>
+            <p>{descriptionValue}</p>
           </section>
         </div>
 

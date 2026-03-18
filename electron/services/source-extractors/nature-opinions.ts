@@ -13,6 +13,7 @@ import type {
   ListingCandidateExtractorContext,
   ListingPaginationContext,
 } from './types.js';
+import { normalizeListingCandidateSeed } from './types.js';
 
 const NATURE_OPINION_LISTING_PAGE_PATH = '/opinion';
 const NATURE_OPINION_CARD_SELECTOR = 'div.c-article-item__wrapper';
@@ -217,13 +218,16 @@ function extractNatureOpinionArticleCards(
         });
       }
 
-      return {
+      return normalizeListingCandidateSeed({
         href,
         order,
         dateHint,
         articleType: articleType || null,
+        title,
+        descriptionText: description || null,
+        publishedAt: dateHint,
         scoreBoost: 140,
-      };
+      });
     })
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
 

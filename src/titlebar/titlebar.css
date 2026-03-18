@@ -41,6 +41,29 @@
   min-width: 0;
 }
 
+.titlebar-source-select {
+  width: 100%;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid #cfdae7;
+  background: rgba(255, 255, 255, 0.72);
+  color: #304357;
+  font-size: 12px;
+  padding: 0 24px 0 10px;
+  outline: none;
+  cursor: pointer;
+}
+
+.titlebar-source-select:hover {
+  border-color: #b8c7d9;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.titlebar-source-select:focus {
+  border-color: #0a5fbf;
+  background: #ffffff;
+}
+
 .titlebar-url-bar {
   width: min(100%, 560px);
   min-width: 280px;
@@ -48,8 +71,8 @@
 }
 
 .titlebar-journal-bar {
-  width: min(240px, 32vw);
-  min-width: 160px;
+  width: min(220px, 28vw);
+  min-width: 132px;
   -webkit-app-region: no-drag;
 }
 
@@ -75,10 +98,6 @@
   font-size: 12px;
   padding: 0 10px;
   text-align: center;
-}
-
-.titlebar-journal-input-field .input-field {
-  text-align: left;
 }
 
 .titlebar-app-name {

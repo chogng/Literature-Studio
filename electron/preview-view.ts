@@ -2,9 +2,9 @@ import { BrowserWindow, WebContentsView } from 'electron';
 
 import type {
   ListingCandidateExtraction,
-  ListingCandidatePrefetchedArticle,
   ListingCandidateSeed,
 } from './services/source-extractors/types.js';
+import { normalizeListingCandidateSeed } from './services/source-extractors/types.js';
 import { READER_SHARED_WEB_PARTITION } from './services/browser-partitions.js';
 import { shortenForLog } from './services/fetch-timing.js';
 import type { PreviewBounds, PreviewState } from './types.js';
@@ -329,6 +329,9 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
         order,
         dateHint,
         articleType: articleType || null,
+        title,
+        descriptionText: description || null,
+        publishedAt: dateHint,
         scoreBoost: 140,
       };
     }).filter(Boolean);
@@ -588,6 +591,8 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
           cardOrder,
         }),
         dateHint: extractNatureListingDateHint(item.root),
+        title,
+        publishedAt: extractNatureListingDateHint(item.root),
         scoreBoost: 100,
       };
     }).filter(Boolean);
@@ -691,11 +696,19 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
         }
       }
 
+      const descriptionText = cleanText(
+        root.querySelector('div[data-test="article-description"] p, div.c-card__summary p, [itemprop="description"] p')
+          ?.textContent,
+      );
+
       return {
         href,
         order: index,
         dateHint,
         articleType,
+        title,
+        descriptionText: descriptionText || null,
+        publishedAt: dateHint,
         scoreBoost: 140,
       };
     }).filter(Boolean);
@@ -841,14 +854,12 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
           order: index,
           dateHint,
           articleType: 'Physical and Materials Sciences',
+          title,
+          doi,
+          authors,
+          abstractText,
+          publishedAt: dateHint,
           scoreBoost: 180,
-          prefetchedArticle: {
-            title,
-            doi,
-            authors,
-            abstractText,
-            publishedAt: dateHint,
-          },
         };
       })
       .filter(Boolean);
@@ -980,14 +991,12 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
           order,
           dateHint,
           articleType: target.articleType,
+          title,
+          doi,
+          authors,
+          abstractText,
+          publishedAt: dateHint,
           scoreBoost: 180,
-          prefetchedArticle: {
-            title,
-            doi,
-            authors,
-            abstractText,
-            publishedAt: dateHint,
-          },
         });
         order += 1;
         target.candidateCount += 1;
@@ -1355,42 +1364,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function normalizePreviewListingCandidatePrefetchedArticle(
-  value: unknown,
-): ListingCandidatePrefetchedArticle | null {
-  if (!isRecord(value)) return null;
-
-  const title = String(value.title ?? '').trim();
-  if (!title) return null;
-
-  const normalized: ListingCandidatePrefetchedArticle = { title };
-  const doi = String(value.doi ?? '').trim();
-  if (doi) {
-    normalized.doi = doi;
-  }
-
-  if (Array.isArray(value.authors)) {
-    const authors = value.authors
-      .map((author) => String(author ?? '').trim())
-      .filter(Boolean);
-    if (authors.length > 0) {
-      normalized.authors = [...new Set(authors)];
-    }
-  }
-
-  const abstractText = String(value.abstractText ?? '').trim();
-  if (abstractText) {
-    normalized.abstractText = abstractText;
-  }
-
-  const publishedAt = String(value.publishedAt ?? '').trim();
-  if (publishedAt) {
-    normalized.publishedAt = publishedAt;
-  }
-
-  return normalized;
-}
-
 function normalizePreviewListingCandidateSeeds(value: unknown): ListingCandidateSeed[] {
   if (!Array.isArray(value)) return [];
 
@@ -1398,38 +1371,19 @@ function normalizePreviewListingCandidateSeeds(value: unknown): ListingCandidate
     .map((candidate) => {
       if (!isRecord(candidate)) return null;
 
-      const href = String(candidate.href ?? '').trim();
-      const order = Number(candidate.order);
-      if (!href || !Number.isFinite(order)) return null;
-
-      const normalized: ListingCandidateSeed = {
-        href,
-        order: Math.trunc(order),
-      };
-
-      const dateHint = String(candidate.dateHint ?? '').trim();
-      if (dateHint) {
-        normalized.dateHint = dateHint;
-      }
-
-      const articleType = String(candidate.articleType ?? '').trim();
-      if (articleType) {
-        normalized.articleType = articleType;
-      }
-
-      const scoreBoost = Number(candidate.scoreBoost);
-      if (Number.isFinite(scoreBoost)) {
-        normalized.scoreBoost = scoreBoost;
-      }
-
-      const prefetchedArticle = normalizePreviewListingCandidatePrefetchedArticle(
-        candidate.prefetchedArticle,
-      );
-      if (prefetchedArticle) {
-        normalized.prefetchedArticle = prefetchedArticle;
-      }
-
-      return normalized;
+      return normalizeListingCandidateSeed({
+        href: candidate.href,
+        order: candidate.order,
+        dateHint: candidate.dateHint,
+        articleType: candidate.articleType,
+        title: candidate.title,
+        doi: candidate.doi,
+        authors: candidate.authors,
+        abstractText: candidate.abstractText,
+        descriptionText: candidate.descriptionText,
+        publishedAt: candidate.publishedAt,
+        scoreBoost: candidate.scoreBoost,
+      });
     })
     .filter((candidate): candidate is ListingCandidateSeed => Boolean(candidate));
 }

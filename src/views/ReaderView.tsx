@@ -104,6 +104,7 @@ export default function ReaderView({
             unknown: labels.unknown,
             authors: labels.authors,
             abstract: labels.abstract,
+            description: labels.description,
             publishedAt: labels.publishedAt,
             source: labels.source,
             fetchedAt: labels.fetchedAt,

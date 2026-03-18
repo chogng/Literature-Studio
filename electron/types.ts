@@ -6,6 +6,7 @@ export interface Article {
   doi: string | null;
   authors: string[];
   abstractText: string | null;
+  descriptionText: string | null;
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
@@ -119,6 +120,7 @@ export interface FetchLatestArticlesPayload {
 export interface PreviewDownloadPdfPayload {
   pageUrl?: string;
   downloadUrl?: string;
+  doi?: string;
   articleTitle?: string;
   journalTitle?: string;
   customDownloadDir?: string | null;
@@ -136,6 +138,7 @@ export interface ArticleDetailsModalLabels {
   articleType?: string;
   authors: string;
   abstract: string;
+  description?: string;
   publishedAt: string;
   source: string;
   fetchedAt: string;

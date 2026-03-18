@@ -12,15 +12,84 @@ const SCIENCE_VALIDATION_TIMEOUT_MS = 3 * 60 * 1000;
 const SCIENCE_VALIDATION_POLL_MS = 600;
 const SCIENCE_VALIDATION_BOOT_TIMEOUT_MS = 4000;
 const SCIENCE_VALIDATION_REVEAL_DELAY_MS = 1200;
+const SCIENCE_VALIDATION_READY_SETTLE_MS = 2500;
+const SCIENCE_VALIDATION_PROGRESS_LOG_INTERVAL_MS = 10 * 1000;
 const SCIENCE_VALIDATION_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const SCIENCE_VALIDATION_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+const SCIENCE_VALIDATION_ACCEPT =
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8';
+const SCIENCE_VALIDATION_ACCEPT_LANGUAGE = 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7';
+const SCIENCE_CHALLENGE_TEXT_SNIPPETS = [
+  'security verification',
+  'verify you are human',
+  'security check',
+  'complete the security check',
+  'execute security verification',
+  '执行安全验证',
+] as const;
+const SCIENCE_CHALLENGE_HTML_SNIPPETS = [
+  'cf-mitigated',
+  'challenge-platform',
+  'google.com/recaptcha',
+  'recaptcha.net/recaptcha',
+  'recaptcha/api2/',
+  'g-recaptcha',
+  'grecaptcha',
+  'data-sitekey',
+] as const;
+const SCIENCE_DOWNLOAD_CONTROL_SELECTORS = [
+  'a.navbar-download[href]',
+  'a[data-single-download="true"][href]',
+  'a[data-download-files-key="pdf"][href]',
+  'a[aria-label*="Download PDF"][href]',
+  'a[title*="Download PDF"][href]',
+  'a[href*="/doi/pdf/"][href]',
+] as const;
+const SCIENCE_PDF_EMBED_SELECTORS = [
+  'iframe[src*="/doi/pdf/"]',
+  'embed[type="application/pdf"]',
+  'object[type="application/pdf"]',
+] as const;
 
 const SCIENCE_VALIDATION_STATE_SCRIPT = String.raw`(() => {
+  const settleMs = ${JSON.stringify(SCIENCE_VALIDATION_READY_SETTLE_MS)};
+  const monitorKey = '__scienceValidationMonitor';
   const cleanText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
   const normalizedText = cleanText(document.documentElement?.textContent ?? '').toLowerCase();
   const title = cleanText(document.title);
+  const downloadSelectors = ${JSON.stringify(SCIENCE_DOWNLOAD_CONTROL_SELECTORS)};
+  const pdfEmbedSelectors = ${JSON.stringify(SCIENCE_PDF_EMBED_SELECTORS)};
+  const challengeTextSnippets = ${JSON.stringify(SCIENCE_CHALLENGE_TEXT_SNIPPETS)};
+  const hasTextSnippet = (value, snippets) => snippets.some((snippet) => value.includes(snippet));
   const sectionCount = document.querySelectorAll(
     'div.toc > div.toc__body > div.toc__body > section.toc__section, div.toc__body > div.toc__body > section.toc__section, div.toc__body > section.toc__section'
   ).length;
+  const hasDownloadControls = downloadSelectors.some((selector) => Boolean(document.querySelector(selector)));
+  const hasPdfEmbed = pdfEmbedSelectors.some((selector) => Boolean(document.querySelector(selector)));
+  const challengeCandidates = Array.from(
+    document.querySelectorAll('iframe[src], iframe[title], script[src], [data-sitekey], .g-recaptcha, #recaptcha'),
+  );
+  const hasRecaptchaIndicators = challengeCandidates.some((element) => {
+    const fragments = [
+      element.getAttribute?.('src'),
+      element.getAttribute?.('title'),
+      element.getAttribute?.('id'),
+      element.getAttribute?.('class'),
+      element.getAttribute?.('name'),
+      element.getAttribute?.('data-sitekey'),
+    ]
+      .map((value) => String(value ?? '').toLowerCase())
+      .filter(Boolean);
+    return fragments.some(
+      (value) =>
+        value.includes('recaptcha') ||
+        value.includes('g-recaptcha') ||
+        value.includes('grecaptcha') ||
+        value.includes('google.com/recaptcha') ||
+        value.includes('recaptcha.net/recaptcha'),
+    );
+  });
   const hasChallengeIndicators =
     normalizedText.includes('cloudflare') &&
     (
@@ -28,11 +97,79 @@ const SCIENCE_VALIDATION_STATE_SCRIPT = String.raw`(() => {
       normalizedText.includes('security verification') ||
       normalizedText.includes('执行安全验证')
     );
+  const hasResolvedChallengeIndicators =
+    hasChallengeIndicators ||
+    hasRecaptchaIndicators ||
+    hasTextSnippet(normalizedText, challengeTextSnippets);
+  const ensureMonitor = () => {
+    const existingMonitor = window[monitorKey];
+    if (existingMonitor && typeof existingMonitor === 'object') {
+      return existingMonitor;
+    }
+
+    const monitor = {
+      lastMutationAtMs: Date.now(),
+      observer: null,
+    };
+    const touchMonitor = () => {
+      monitor.lastMutationAtMs = Date.now();
+    };
+
+    if (typeof MutationObserver === 'function' && document.documentElement) {
+      monitor.observer = new MutationObserver(() => {
+        touchMonitor();
+      });
+      monitor.observer.observe(document.documentElement, {
+        attributes: true,
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+    }
+
+    window.addEventListener('load', touchMonitor);
+    document.addEventListener('readystatechange', touchMonitor);
+    window.addEventListener(
+      'beforeunload',
+      () => {
+        try {
+          monitor.observer?.disconnect?.();
+        } catch {}
+        try {
+          delete window[monitorKey];
+        } catch {}
+      },
+      { once: true },
+    );
+
+    window[monitorKey] = monitor;
+    return monitor;
+  };
+  const validationMonitor = ensureMonitor();
+  const now = Date.now();
+  const bodyTextSample = normalizedText.slice(0, 220);
+  const hasStableReadyForListing =
+    sectionCount > 0 &&
+    !hasResolvedChallengeIndicators &&
+    now - Number(validationMonitor.lastMutationAtMs ?? 0) >= settleMs;
+  const hasStableReadyForPage =
+    (hasDownloadControls || hasPdfEmbed) &&
+    !hasResolvedChallengeIndicators &&
+    now - Number(validationMonitor.lastMutationAtMs ?? 0) >= settleMs;
   return {
     currentUrl: location.href,
     title,
+    documentReadyState: cleanText(document.readyState),
+    visibilityState: cleanText(document.visibilityState),
+    bodyTextSample,
     sectionCount,
-    hasChallengeIndicators,
+    hasChallengeIndicators: hasResolvedChallengeIndicators,
+    hasDownloadControls,
+    hasPdfEmbed,
+    hasRecaptchaIndicators,
+    lastMutationAtMs: Number(validationMonitor.lastMutationAtMs ?? 0),
+    hasStableReadyForListing,
+    hasStableReadyForPage,
   };
 })()`;
 
@@ -50,8 +187,24 @@ type ScienceValidationResult = {
   sectionCount: number;
   title: string;
   readyMs: number;
-  navigationMode: 'preview-existing' | 'dom-ready' | 'load-finished' | 'boot-timeout';
+  navigationMode: 'preview-existing' | 'reuse-existing' | 'dom-ready' | 'load-finished' | 'boot-timeout';
   source: 'preview' | 'window';
+};
+
+type ScienceValidationWindowState = {
+  currentUrl: string;
+  title: string;
+  documentReadyState: string;
+  visibilityState: string;
+  bodyTextSample: string;
+  sectionCount: number;
+  hasChallengeIndicators: boolean;
+  hasDownloadControls: boolean;
+  hasPdfEmbed: boolean;
+  hasRecaptchaIndicators: boolean;
+  lastMutationAtMs: number;
+  hasStableReadyForListing: boolean;
+  hasStableReadyForPage: boolean;
 };
 
 function logScienceValidation(stage: string, details: Record<string, unknown>) {
@@ -65,6 +218,39 @@ function logScienceValidation(stage: string, details: Record<string, unknown>) {
   }
 
   console.info(`[science-validation] ${stage} ${encodedDetails}`);
+}
+
+function summarizeScienceValidationHtml(html: string) {
+  const normalized = cleanText(html).toLowerCase();
+  return {
+    hasCloudflare: normalized.includes('cloudflare'),
+    hasChallengePlatform: normalized.includes('challenge-platform'),
+    hasCfMitigated: normalized.includes('cf-mitigated'),
+    hasDownloadPdfHref: normalized.includes('/doi/pdf/'),
+    hasNavbarDownload: normalized.includes('navbar-download'),
+    hasPdfEmbed:
+      normalized.includes('application/pdf') ||
+      normalized.includes('<embed') ||
+      normalized.includes('<iframe'),
+    textSample: normalized.slice(0, 220),
+  };
+}
+
+function buildScienceValidationStateSignature(state: ScienceValidationWindowState) {
+  return JSON.stringify({
+    currentUrl: state.currentUrl,
+    title: state.title,
+    documentReadyState: state.documentReadyState,
+    visibilityState: state.visibilityState,
+    bodyTextSample: state.bodyTextSample,
+    sectionCount: state.sectionCount,
+    hasChallengeIndicators: state.hasChallengeIndicators,
+    hasDownloadControls: state.hasDownloadControls,
+    hasPdfEmbed: state.hasPdfEmbed,
+    hasRecaptchaIndicators: state.hasRecaptchaIndicators,
+    hasStableReadyForListing: state.hasStableReadyForListing,
+    hasStableReadyForPage: state.hasStableReadyForPage,
+  });
 }
 
 let scienceValidationWindow: BrowserWindow | null = null;
@@ -171,15 +357,38 @@ function normalizeScienceComparableUrl(value: string) {
   return parsed.toString();
 }
 
+function normalizeScienceNavigationComparableUrl(value: string) {
+  const parsed = safeParseUrl(value);
+  if (!parsed) return '';
+
+  parsed.hash = '';
+  parsed.search = '';
+  if (parsed.pathname !== '/') {
+    parsed.pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+  }
+
+  return parsed.toString();
+}
+
 function matchesScienceComparableUrl(left: string, right: string) {
   const normalizedLeft = normalizeScienceComparableUrl(left);
   const normalizedRight = normalizeScienceComparableUrl(right);
   return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
 }
 
+function matchesScienceNavigationComparableUrl(left: string, right: string) {
+  const normalizedLeft = normalizeScienceNavigationComparableUrl(left);
+  const normalizedRight = normalizeScienceNavigationComparableUrl(right);
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
+}
+
 function extractTitleFromHtml(html: string) {
   const matched = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   return cleanText(matched?.[1] ?? '');
+}
+
+function hasScienceSnippetMatch(value: string, snippets: readonly string[]) {
+  return snippets.some((snippet) => value.includes(snippet));
 }
 
 export function isScienceChallengeHtml(html: string) {
@@ -197,7 +406,32 @@ export function isScienceChallengeHtml(html: string) {
     return true;
   }
 
-  return false;
+  return (
+    hasScienceSnippetMatch(normalized, SCIENCE_CHALLENGE_TEXT_SNIPPETS) ||
+    hasScienceSnippetMatch(normalized, SCIENCE_CHALLENGE_HTML_SNIPPETS)
+  );
+}
+
+function isScienceValidationReadyState(
+  state: ScienceValidationWindowState,
+  requireListingContent: boolean,
+) {
+  if (requireListingContent) {
+    return state.sectionCount > 0;
+  }
+
+  return state.hasDownloadControls || state.hasPdfEmbed;
+}
+
+function isScienceValidationStableReadyState(
+  state: ScienceValidationWindowState,
+  requireListingContent: boolean,
+) {
+  if (requireListingContent) {
+    return state.hasStableReadyForListing;
+  }
+
+  return state.hasStableReadyForPage;
 }
 
 async function tryUseExistingSciencePreview(pageUrl: string): Promise<ScienceValidationResult | null> {
@@ -268,6 +502,14 @@ function applyWindowChrome(window: BrowserWindow) {
   }
 }
 
+function applyScienceValidationUserAgent(window: BrowserWindow) {
+  try {
+    window.webContents.setUserAgent?.(SCIENCE_VALIDATION_USER_AGENT);
+  } catch {
+    // Ignore user-agent override failures and continue with the default agent.
+  }
+}
+
 function createScienceValidationWindow() {
   if (scienceValidationWindow && !scienceValidationWindow.isDestroyed()) {
     return scienceValidationWindow;
@@ -290,10 +532,12 @@ function createScienceValidationWindow() {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      backgroundThrottling: false,
     },
   });
 
   applyWindowChrome(scienceValidationWindow);
+  applyScienceValidationUserAgent(scienceValidationWindow);
   scienceValidationWindow.webContents.setWindowOpenHandler?.(() => ({ action: 'deny' }));
   scienceValidationWindow.on('closed', () => {
     scienceValidationWindow = null;
@@ -330,9 +574,18 @@ async function inspectScienceValidationWindow(window: BrowserWindow) {
     return {
       currentUrl: cleanText(current.currentUrl),
       title: cleanText(current.title),
+      documentReadyState: cleanText(current.documentReadyState),
+      visibilityState: cleanText(current.visibilityState),
+      bodyTextSample: cleanText(current.bodyTextSample),
       sectionCount: Number(current.sectionCount) || 0,
       hasChallengeIndicators: Boolean(current.hasChallengeIndicators),
-    };
+      hasDownloadControls: Boolean(current.hasDownloadControls),
+      hasPdfEmbed: Boolean(current.hasPdfEmbed),
+      hasRecaptchaIndicators: Boolean(current.hasRecaptchaIndicators),
+      lastMutationAtMs: Number(current.lastMutationAtMs) || 0,
+      hasStableReadyForListing: Boolean(current.hasStableReadyForListing),
+      hasStableReadyForPage: Boolean(current.hasStableReadyForPage),
+    } satisfies ScienceValidationWindowState;
   } catch {
     return null;
   }
@@ -418,7 +671,13 @@ async function waitForScienceValidationBoot(window: BrowserWindow, pageUrl: stri
     webContents.on('did-fail-load', handleDidFailLoad);
     window.on('closed', handleClosed);
 
-    void window.loadURL(pageUrl).then(
+    applyScienceValidationUserAgent(window);
+    void window.webContents.loadURL(pageUrl, {
+      userAgent: SCIENCE_VALIDATION_USER_AGENT,
+      extraHeaders:
+        `accept: ${SCIENCE_VALIDATION_ACCEPT}\n` +
+        `accept-language: ${SCIENCE_VALIDATION_ACCEPT_LANGUAGE}\n`,
+    }).then(
       () => resolveOnce('load-finished'),
       (error) => rejectOnce(error),
     );
@@ -474,6 +733,13 @@ export async function ensureScienceValidationWindow(pageUrl: string): Promise<Sc
         const elapsed = Date.now() - startedAt;
         if (state.hasChallengeIndicators && elapsed >= SCIENCE_VALIDATION_REVEAL_DELAY_MS) {
           revealScienceValidationWindow(window);
+        }
+
+        if (!isScienceValidationReadyState(state, true)) {
+          continue;
+        }
+        if (!isScienceValidationStableReadyState(state, true)) {
+          continue;
         }
 
         if (state.sectionCount > 0 && !state.hasChallengeIndicators) {
@@ -578,7 +844,15 @@ export async function ensureSciencePageValidationWindow(pageUrl: string): Promis
         }
 
         const html = await readScienceValidationHtml(window);
-        if (!html.trim() || isScienceChallengeHtml(html) || state.hasChallengeIndicators) {
+        const hasChallenge =
+          !html.trim() || isScienceChallengeHtml(html) || state.hasChallengeIndicators;
+        if (hasChallenge) {
+          continue;
+        }
+        if (!isScienceValidationReadyState(state, false)) {
+          continue;
+        }
+        if (!isScienceValidationStableReadyState(state, false)) {
           continue;
         }
 
@@ -639,6 +913,9 @@ export async function withValidatedSciencePageWindow<T>(
   const window = createScienceValidationWindow();
   let windowClosed = false;
   let challengeRevealed = false;
+  let keepWindowOpen = false;
+  let lastLoggedStateSignature = '';
+  let lastProgressLogAt = 0;
   const handleClosed = () => {
     windowClosed = true;
   };
@@ -649,8 +926,26 @@ export async function withValidatedSciencePageWindow<T>(
     logScienceValidation('start', {
       pageUrl,
       requireListingContent,
+      userAgent:
+        typeof window.webContents.getUserAgent === 'function'
+          ? cleanText(window.webContents.getUserAgent())
+          : SCIENCE_VALIDATION_USER_AGENT,
     });
-    const navigationMode = await waitForScienceValidationBoot(window, pageUrl);
+    if (!window.isDestroyed() && !requireListingContent) {
+      revealScienceValidationWindow(window);
+    }
+    const currentWindowUrl =
+      typeof window.webContents.getURL === 'function' ? cleanText(window.webContents.getURL()) : '';
+    const navigationMode =
+      currentWindowUrl && matchesScienceNavigationComparableUrl(currentWindowUrl, pageUrl)
+        ? 'reuse-existing'
+        : await waitForScienceValidationBoot(window, pageUrl);
+    if (navigationMode === 'reuse-existing') {
+      logScienceValidation('reuse_existing_window', {
+        pageUrl,
+        currentUrl: currentWindowUrl,
+      });
+    }
 
     while (Date.now() - startedAt < SCIENCE_VALIDATION_TIMEOUT_MS) {
       if (windowClosed || window.isDestroyed() || window.webContents.isDestroyed()) {
@@ -673,6 +968,34 @@ export async function withValidatedSciencePageWindow<T>(
 
       const html = await readScienceValidationHtml(window);
       const elapsed = Date.now() - startedAt;
+      const now = Date.now();
+      const stateSignature = buildScienceValidationStateSignature(state);
+      if (
+        stateSignature !== lastLoggedStateSignature ||
+        now - lastProgressLogAt >= SCIENCE_VALIDATION_PROGRESS_LOG_INTERVAL_MS
+      ) {
+        lastLoggedStateSignature = stateSignature;
+        lastProgressLogAt = now;
+        logScienceValidation('poll_state', {
+          pageUrl,
+          elapsedMs: elapsed,
+          currentUrl: state.currentUrl || pageUrl,
+          title: state.title,
+          documentReadyState: state.documentReadyState,
+          visibilityState: state.visibilityState,
+          sectionCount: state.sectionCount,
+          hasChallengeIndicators: state.hasChallengeIndicators,
+          hasDownloadControls: state.hasDownloadControls,
+          hasPdfEmbed: state.hasPdfEmbed,
+          hasRecaptchaIndicators: state.hasRecaptchaIndicators,
+          hasStableReadyForListing: state.hasStableReadyForListing,
+          hasStableReadyForPage: state.hasStableReadyForPage,
+          idleForMs: state.lastMutationAtMs > 0 ? now - state.lastMutationAtMs : null,
+          bodyTextSample: state.bodyTextSample,
+          windowVisible: window.isVisible(),
+          windowFocused: window.isFocused(),
+        });
+      }
       const hasChallenge = !html.trim() || isScienceChallengeHtml(html) || state.hasChallengeIndicators;
       if (hasChallenge) {
         if (elapsed >= SCIENCE_VALIDATION_REVEAL_DELAY_MS) {
@@ -683,6 +1006,7 @@ export async function withValidatedSciencePageWindow<T>(
               currentUrl: state.currentUrl || pageUrl,
               title: state.title,
               elapsedMs: elapsed,
+              hasRecaptchaIndicators: state.hasRecaptchaIndicators,
             });
           }
           revealScienceValidationWindow(window);
@@ -690,7 +1014,11 @@ export async function withValidatedSciencePageWindow<T>(
         continue;
       }
 
-      if (requireListingContent && state.sectionCount <= 0) {
+      if (!isScienceValidationReadyState(state, requireListingContent)) {
+        continue;
+      }
+
+      if (!isScienceValidationStableReadyState(state, requireListingContent)) {
         continue;
       }
 
@@ -709,6 +1037,8 @@ export async function withValidatedSciencePageWindow<T>(
         finalUrl: validation.finalUrl,
         title: validation.title,
         sectionCount: validation.sectionCount,
+        hasDownloadControls: state.hasDownloadControls,
+        hasPdfEmbed: state.hasPdfEmbed,
         readyMs: validation.readyMs,
         navigationMode: validation.navigationMode,
       });
@@ -719,17 +1049,26 @@ export async function withValidatedSciencePageWindow<T>(
       pageUrl,
       timeoutMs: SCIENCE_VALIDATION_TIMEOUT_MS,
       requireListingContent,
+      lastKnownState: await inspectScienceValidationWindow(window),
+      htmlSummary: summarizeScienceValidationHtml(await readScienceValidationHtml(window)),
+    });
+    keepWindowOpen = true;
+    logScienceValidation('manual_completion_pending', {
+      pageUrl,
+      currentUrl: typeof window.webContents.getURL === 'function' ? cleanText(window.webContents.getURL()) : '',
     });
     throw appError('HTTP_REQUEST_FAILED', {
       status: 'SCIENCE_VALIDATION_REQUIRED',
-      statusText: pendingStatusText,
+      statusText: `${pendingStatusText} Keep the Science window open, finish verification, then retry.`,
       url: pageUrl,
     });
   } finally {
     if (!window.isDestroyed()) {
       window.removeListener('closed', handleClosed);
-      window.webContents.stop();
-      window.close();
+      if (!keepWindowOpen) {
+        window.webContents.stop();
+        window.close();
+      }
     }
   }
 }

@@ -13,6 +13,7 @@ import type {
   ListingCandidateExtractorContext,
   ListingPaginationContext,
 } from './types.js';
+import { normalizeListingCandidateSeed } from './types.js';
 
 const NATURE_RESEARCH_ARTICLES_PATH_RE = /^\/[^/]+\/research-articles\/?$/i;
 const NATURE_RESEARCH_CARD_SELECTORS = [
@@ -24,6 +25,8 @@ const NATURE_RESEARCH_CARD_SELECTORS = [
 const NATURE_RESEARCH_LINK_SELECTOR =
   'h3.c-card__title a[href*="/articles/"], h3 a[href*="/articles/"], a.c-card__link[href*="/articles/"], a[href*="/articles/"]';
 const NATURE_RESEARCH_TITLE_SELECTOR = 'h3.c-card__title, h3';
+const NATURE_RESEARCH_DESCRIPTION_SELECTOR =
+  'div[data-test="article-description"] p, div.c-card__summary p, [itemprop="description"] p';
 const NATURE_RESEARCH_ARTICLE_TYPE_SELECTOR =
   'div.c-card__section.c-meta [data-test="article.type"] .c-meta__type, div.c-card__section.c-meta [data-test="article.type"], [data-test="article.type"] .c-meta__type';
 const NATURE_RESEARCH_DATE_SELECTOR =
@@ -113,6 +116,15 @@ function extractNatureResearchTitle({
   return cleanText(extractNatureResearchLink({ $, root }).text());
 }
 
+function extractNatureResearchDescription({
+  $,
+  root,
+}: Pick<ListingCandidateExtractorContext, '$'> & {
+  root: Parameters<ListingCandidateExtractorContext['$']>[0];
+}) {
+  return cleanText($(root).find(NATURE_RESEARCH_DESCRIPTION_SELECTOR).first().text());
+}
+
 function extractNatureResearchArticleType({
   $,
   root,
@@ -150,18 +162,23 @@ function extractNatureResearchArticleCards(
       seen.add(normalized);
 
       const articleType = extractNatureResearchArticleType({ $, root }) || null;
+      const dateHint = extractNatureResearchDateHint({ $, root });
       if (articleType) {
         typedCandidateCount += 1;
         articleTypeCounts[articleType] = (articleTypeCounts[articleType] ?? 0) + 1;
       }
+      const description = extractNatureResearchDescription({ $, root });
 
-      return {
+      return normalizeListingCandidateSeed({
         href,
         order: index,
-        dateHint: extractNatureResearchDateHint({ $, root }),
+        dateHint,
         articleType,
+        title,
+        descriptionText: description || null,
+        publishedAt: dateHint,
         scoreBoost: 140,
-      };
+      });
     })
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
 

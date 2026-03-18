@@ -34,9 +34,9 @@ import {
   findListingCandidateExtractor,
   type ListingCandidateExtraction,
   type ListingCandidateExtractor,
-  type ListingCandidatePrefetchedArticle,
   type ListingPaginationStopEvaluation,
   type ListingCandidateSeed,
+  normalizeListingCandidateSeeds,
 } from './source-extractors/index.js';
 import { appError, isAppError } from '../utils/app-error.js';
 
@@ -160,7 +160,12 @@ type CandidateDescriptor = {
   order: number;
   dateHint: string | null;
   articleType: string | null;
-  prefetchedArticle: ListingCandidatePrefetchedArticle | null;
+  title: string | null;
+  doi: string | null;
+  authors: string[];
+  abstractText: string | null;
+  descriptionText: string | null;
+  publishedAt: string | null;
 };
 
 type CandidateCollectionResult = {
@@ -588,7 +593,8 @@ function shouldConfirmRenderedArticle({
   }
 
   const title = cleanText(article.title);
-  const weakMetadata = !article.doi && !article.publishedAt && !article.abstractText;
+  const weakMetadata =
+    !article.doi && !article.publishedAt && !article.abstractText && !article.descriptionText;
   const genericTitle = title.length < 12 || /^(?:shell|loading|article|home)$/i.test(title);
   return weakMetadata && genericTitle;
 }
@@ -612,44 +618,26 @@ function applyCandidateArticleType(article: Article, candidateArticleType: strin
   }
 }
 
-function normalizePrefetchedCandidateArticle(
-  prefetchedArticle: ListingCandidatePrefetchedArticle | null | undefined,
-  fallbackPublishedAt: string | null,
-): ListingCandidatePrefetchedArticle | null {
-  const title = cleanText(prefetchedArticle?.title);
-  if (!title) return null;
+function hasCandidateArticleSnapshot(candidate: CandidateDescriptor) {
+  return Boolean(candidate.doi || candidate.abstractText || candidate.authors.length > 0);
+}
 
-  const doi = cleanText(prefetchedArticle?.doi);
-  const authors =
-    Array.isArray(prefetchedArticle?.authors) && prefetchedArticle.authors.length > 0
-      ? [...new Set(prefetchedArticle.authors.map((author) => cleanText(author)).filter(Boolean))]
-      : [];
-  const abstractText = cleanText(prefetchedArticle?.abstractText);
-  const publishedAt = cleanText(prefetchedArticle?.publishedAt) || cleanText(fallbackPublishedAt);
+function buildArticleFromCandidate(candidate: CandidateDescriptor): Article | null {
+  if (!hasCandidateArticleSnapshot(candidate)) {
+    return null;
+  }
+
+  const title = cleanText(candidate.title);
+  if (!title) return null;
 
   return {
     title,
-    doi: doi || null,
-    authors,
-    abstractText: abstractText || null,
-    publishedAt: publishedAt || null,
-  };
-}
-
-function buildArticleFromPrefetchedCandidate(candidate: CandidateDescriptor): Article | null {
-  const prefetchedArticle = normalizePrefetchedCandidateArticle(
-    candidate.prefetchedArticle,
-    candidate.dateHint,
-  );
-  if (!prefetchedArticle) return null;
-
-  return {
-    title: prefetchedArticle.title,
     articleType: cleanText(candidate.articleType) || null,
-    doi: prefetchedArticle.doi ?? null,
-    authors: prefetchedArticle.authors ?? [],
-    abstractText: prefetchedArticle.abstractText ?? null,
-    publishedAt: prefetchedArticle.publishedAt ?? null,
+    doi: cleanText(candidate.doi) || null,
+    authors: [...new Set(candidate.authors.map((author) => cleanText(author)).filter(Boolean))],
+    abstractText: cleanText(candidate.abstractText) || null,
+    descriptionText: cleanText(candidate.descriptionText) || null,
+    publishedAt: cleanText(candidate.publishedAt) || cleanText(candidate.dateHint) || null,
     sourceUrl: candidate.url,
     fetchedAt: new Date().toISOString(),
   };
@@ -884,14 +872,15 @@ function extractCandidateDateHint($: ReturnType<typeof load>, node: CheerioAccep
 }
 
 function buildGenericCandidateSeeds($: ReturnType<typeof load>) {
-  return $('a[href]')
-    .toArray()
-    .map((node, order) => ({
-      href: cleanText($(node).attr('href')),
-      order,
-      dateHint: extractCandidateDateHint($, node),
-    }))
-    .filter((candidate) => Boolean(candidate.href));
+  return normalizeListingCandidateSeeds(
+    $('a[href]')
+      .toArray()
+      .map((node, order) => ({
+        href: cleanText($(node).attr('href')),
+        order,
+        dateHint: extractCandidateDateHint($, node),
+      })),
+  );
 }
 
 function collectCandidateDescriptorsFromSeeds(
@@ -901,6 +890,7 @@ function collectCandidateDescriptorsFromSeeds(
   dateRange: DateRange,
   seeds: ListingCandidateSeed[],
 ): CandidateCollectionResult {
+  const normalizedSeeds = normalizeListingCandidateSeeds(seeds);
   const candidates: CandidateDescriptor[] = [];
   const seen = new Set<string>();
   let datedCandidateCount = 0;
@@ -912,8 +902,8 @@ function collectCandidateDescriptorsFromSeeds(
   let stoppedByDateHint = false;
   let stopDateHint: string | null = null;
 
-  for (const seed of seeds) {
-    const href = cleanText(seed.href);
+  for (const seed of normalizedSeeds) {
+    const href = seed.href;
     if (!href) continue;
 
     try {
@@ -926,8 +916,14 @@ function collectCandidateDescriptorsFromSeeds(
       const normalized = candidateUrl.toString();
       if (seen.has(normalized)) continue;
 
-      const dateHint = seed.dateHint ?? null;
-      const articleType = cleanText(seed.articleType ?? '') || null;
+      const dateHint = seed.dateHint;
+      const articleType = seed.articleType;
+      const title = seed.title;
+      const doi = seed.doi;
+      const authors = seed.authors;
+      const abstractText = seed.abstractText;
+      const descriptionText = seed.descriptionText;
+      const publishedAt = seed.publishedAt || dateHint;
       if (dateHint) {
         datedCandidateCount += 1;
         if (lastDateHint && dateHint > lastDateHint) {
@@ -972,7 +968,12 @@ function collectCandidateDescriptorsFromSeeds(
         order: seed.order,
         dateHint,
         articleType,
-        prefetchedArticle: normalizePrefetchedCandidateArticle(seed.prefetchedArticle, dateHint),
+        title,
+        doi,
+        authors,
+        abstractText,
+        descriptionText,
+        publishedAt,
       });
     } catch {
       continue;
@@ -981,7 +982,7 @@ function collectCandidateDescriptorsFromSeeds(
 
   return {
     candidates,
-    linkCount: seeds.length,
+    linkCount: normalizedSeeds.length,
     datedCandidateCount,
     inRangeDateHintCount,
     dateFilteredCount,
@@ -1290,6 +1291,7 @@ async function fetchLatestArticlesFromPageOnce({
       hasTitle: Boolean(pageArticle.title),
       hasDoi: Boolean(pageArticle.doi),
       hasAbstract: Boolean(pageArticle.abstractText),
+      hasDescription: Boolean(pageArticle.descriptionText),
       publishedAt: pageArticle.publishedAt,
     });
 
@@ -1382,6 +1384,7 @@ async function fetchLatestArticlesFromPageOnce({
           candidateCount: candidateCollection.candidates.length,
           hasTitle: Boolean(pageArticle.title),
           hasAbstract: Boolean(pageArticle.abstractText),
+          hasDescription: Boolean(pageArticle.descriptionText),
           publishedAt: pageArticle.publishedAt,
         });
       } catch (error) {
@@ -1612,39 +1615,40 @@ async function fetchLatestArticlesFromPageOnce({
         inFlightControllers.set(candidateOrder, requestController);
 
         try {
-          const prefetchedArticle = buildArticleFromPrefetchedCandidate(candidate);
-          if (prefetchedArticle && isProbablyArticle(candidate.url, prefetchedArticle)) {
+          const candidateArticle = buildArticleFromCandidate(candidate);
+          if (candidateArticle && isProbablyArticle(candidate.url, candidateArticle)) {
             timingLog(traceId, 'candidate:parsed', {
               pageNumber,
               candidateOrder,
               ms: 0,
               score: candidate.score,
               url: shortenForLog(candidate.url),
-              hasTitle: Boolean(prefetchedArticle.title),
-              hasDoi: Boolean(prefetchedArticle.doi),
-              hasAbstract: Boolean(prefetchedArticle.abstractText),
-              publishedAt: prefetchedArticle.publishedAt,
+              hasTitle: Boolean(candidateArticle.title),
+              hasDoi: Boolean(candidateArticle.doi),
+              hasAbstract: Boolean(candidateArticle.abstractText),
+              hasDescription: Boolean(candidateArticle.descriptionText),
+              publishedAt: candidateArticle.publishedAt,
               rendered: false,
               prefetched: true,
             });
             candidateResolved += 1;
 
-            if (!isWithinDateRange(prefetchedArticle.publishedAt, dateRange)) {
+            if (!isWithinDateRange(candidateArticle.publishedAt, dateRange)) {
               continue;
             }
-            if (fetchedSourceUrls.has(prefetchedArticle.sourceUrl)) {
+            if (fetchedSourceUrls.has(candidateArticle.sourceUrl)) {
               continue;
             }
 
-            prefetchedArticle.sourceId = sourceId;
+            candidateArticle.sourceId = sourceId;
             if (journalTitle) {
-              prefetchedArticle.journalTitle = journalTitle;
+              candidateArticle.journalTitle = journalTitle;
             }
 
-            fetchedSourceUrls.add(prefetchedArticle.sourceUrl);
+            fetchedSourceUrls.add(candidateArticle.sourceUrl);
             acceptedCandidates.push({
               candidateOrder,
-              article: prefetchedArticle,
+              article: candidateArticle,
             });
             accepted = true;
             candidateAccepted += 1;
@@ -1716,6 +1720,9 @@ async function fetchLatestArticlesFromPageOnce({
               continue;
             }
           }
+          if (candidate.descriptionText) {
+            article.descriptionText = candidate.descriptionText;
+          }
           timingLog(traceId, 'candidate:parsed', {
             pageNumber,
             candidateOrder,
@@ -1725,6 +1732,7 @@ async function fetchLatestArticlesFromPageOnce({
             hasTitle: Boolean(article.title),
             hasDoi: Boolean(article.doi),
             hasAbstract: Boolean(article.abstractText),
+            hasDescription: Boolean(article.descriptionText),
             publishedAt: article.publishedAt,
             rendered: usedRenderedHtml,
           });
@@ -2139,6 +2147,7 @@ export async function fetchArticle(urlValue: unknown, storage: StorageService) {
       hasTitle: Boolean(article.title),
       hasDoi: Boolean(article.doi),
       hasAbstract: Boolean(article.abstractText),
+      hasDescription: Boolean(article.descriptionText),
       authorCount: article.authors.length,
       publishedAt: article.publishedAt,
       rendered: usedRenderedHtml,

@@ -7,6 +7,7 @@ import type {
   ListingCandidateExtractorContext,
   ListingCandidateSeed,
 } from './types.js';
+import { normalizeListingCandidateSeed } from './types.js';
 
 const SCIENCE_CURRENT_PATH_RE = /^\/toc\/science\/current\/?$/i;
 const SCIENCE_CURRENT_TOC_BODY_SELECTORS = [
@@ -256,20 +257,20 @@ function extractScienceCurrentTargetedSubsections(
       if (dateHint) datedCandidateCount += 1;
       if (abstractText) summarizedCandidateCount += 1;
 
-      candidates.push({
+      const candidate = normalizeListingCandidateSeed({
         href,
         order,
         dateHint,
         articleType: state.articleType,
+        title,
+        doi,
+        authors,
+        abstractText,
+        publishedAt: dateHint ?? null,
         scoreBoost: 180,
-        prefetchedArticle: {
-          title,
-          doi,
-          authors,
-          abstractText,
-          publishedAt: dateHint ?? null,
-        },
       });
+      if (!candidate) continue;
+      candidates.push(candidate);
       order += 1;
       state.candidateCount += 1;
     }

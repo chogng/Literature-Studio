@@ -59,20 +59,33 @@ const SCIENCE_DOI_PATH_RE = /^\/doi\/(?:abs\/|epdf\/|pdf\/)?(.+)$/i;
 const SCIENCE_CURRENT_TOC_PATH_RE = /^\/toc\/[^/]+\/current\/?$/i;
 const NATURE_ARTICLE_PATH_RE = /^\/articles\/([^/]+?)(?:\.pdf|_reference\.pdf)?\/?$/i;
 const NATURE_ARTICLE_DOWNLOAD_PATH_RE = /^\/articles\/[^/]+(?:\.pdf|_reference\.pdf)$/i;
+const DOI_VALUE_RE = /10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i;
 
-export function buildSciencePdfDownloadUrl(input: string) {
+function isScienceHost(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return normalized === 'science.org' || normalized === 'www.science.org';
+}
+
+function extractDoiValue(input: string | null | undefined) {
+  const normalized = typeof input === 'string' ? input.trim() : '';
+  if (!normalized) return '';
+
+  const matched = normalized.match(DOI_VALUE_RE);
+  return matched?.[0]?.trim() ?? '';
+}
+
+export function buildSciencePdfDownloadUrl(input: string, doi?: string | null) {
   const normalized = normalizeUrl(input);
   if (!normalized) return '';
 
   try {
     const parsed = new URL(normalized);
-    const hostname = parsed.hostname.toLowerCase();
-    if (hostname !== 'science.org' && hostname !== 'www.science.org') {
+    if (!isScienceHost(parsed.hostname)) {
       return '';
     }
 
     const matched = parsed.pathname.replace(/\/+$/, '').match(SCIENCE_DOI_PATH_RE);
-    const doiPath = matched?.[1]?.trim();
+    const doiPath = extractDoiValue(doi) || matched?.[1]?.trim();
     if (!doiPath) {
       return '';
     }
@@ -91,8 +104,7 @@ export function isScienceCurrentTocUrl(input: string) {
 
   try {
     const parsed = new URL(normalized);
-    const hostname = parsed.hostname.toLowerCase();
-    if (hostname !== 'science.org' && hostname !== 'www.science.org') {
+    if (!isScienceHost(parsed.hostname)) {
       return false;
     }
 

@@ -1,13 +1,21 @@
 import { ArrowLeft, ArrowRight, Copy, FileText, Minus, PanelLeftClose, PanelLeftOpen, RefreshCcw, Settings, Square, X } from 'lucide-react';
-import { Button } from './components/Button';
-import { Input } from './components/Input';
+import { Button } from '../components/Button';
+import { Input } from '../components/Input';
+import { useTitlebarState } from './use-titlebar-state';
 import './titlebar.css';
 
 export type TitlebarAction = 'minimize' | 'toggle-maximize' | 'close';
 export type TitlebarFetchChannel = 'network' | 'preview';
 export type TitlebarPreviewReuseMode = 'snapshot' | 'live-extract';
 
-type TitlebarLabels = {
+export type TitlebarAddressBarSourceOption = {
+  id: string;
+  label: string;
+  url: string;
+  journalTitle: string;
+};
+
+export type TitlebarLabels = {
   controlsAriaLabel: string;
   settingsLabel: string;
   minimizeLabel: string;
@@ -21,7 +29,7 @@ type TitlebarLabels = {
   noExportableArticlesLabel: string;
 };
 
-type TitlebarProps = {
+export type TitlebarProps = {
   appName?: string;
   labels: TitlebarLabels;
   isWindowMaximized: boolean;
@@ -44,10 +52,12 @@ type TitlebarProps = {
   onWebUrlChange?: (url: string) => void;
   onNavigateWeb?: () => void;
   articleUrlPlaceholder?: string;
-  addressBarJournalTitle?: string;
-  onAddressBarJournalTitleChange?: (journalTitle: string) => void;
-  addressBarJournalTitlePlaceholder?: string;
-  addressBarJournalTitleAriaLabel?: string;
+  addressBarSourceOptions?: TitlebarAddressBarSourceOption[];
+  selectedAddressBarSourceId?: string;
+  onSelectAddressBarSource?: (sourceId: string) => void;
+  onCycleAddressBarSource?: (direction: 'prev' | 'next') => void;
+  addressBarSourcePlaceholder?: string;
+  addressBarSourceAriaLabel?: string;
   fetchChannel?: TitlebarFetchChannel | null;
   previewReuseMode?: TitlebarPreviewReuseMode | null;
   fetchSourceText?: string;
@@ -56,38 +66,48 @@ type TitlebarProps = {
   fetchStopTitle?: string;
 };
 
-export function Titlebar({
-  appName = 'Journal Reader',
-  labels,
-  isWindowMaximized,
-  onWindowControl,
-  isSidebarOpen = true,
-  sidebarToggleLabel,
-  onToggleSidebar,
-  onToggleSettings,
-  browserUrl,
-  canGoBack = false,
-  canGoForward = false,
-  canExportDocx = false,
-  onNavigateBack,
-  onNavigateForward,
-  onRefresh,
-  onExportDocx,
-  webUrl,
-  onWebUrlChange,
-  onNavigateWeb,
-  articleUrlPlaceholder,
-  addressBarJournalTitle,
-  onAddressBarJournalTitleChange,
-  addressBarJournalTitlePlaceholder,
-  addressBarJournalTitleAriaLabel,
-  fetchChannel = null,
-  previewReuseMode = null,
-  fetchSourceText,
-  fetchSourceTitle,
-  fetchStopText,
-  fetchStopTitle,
-}: TitlebarProps) {
+export type TitlebarInputProps = Partial<TitlebarProps>;
+
+export function Titlebar(inputProps: TitlebarInputProps = {}) {
+  const { titlebarProps } = useTitlebarState();
+  const mergedProps: TitlebarProps = {
+    ...titlebarProps,
+    ...inputProps,
+  };
+  const {
+    appName = 'Journal Reader',
+    labels = titlebarProps.labels,
+    isWindowMaximized = titlebarProps.isWindowMaximized,
+    onWindowControl = titlebarProps.onWindowControl,
+    isSidebarOpen = true,
+    sidebarToggleLabel,
+    onToggleSidebar,
+    onToggleSettings,
+    browserUrl,
+    canGoBack = false,
+    canGoForward = false,
+    canExportDocx = false,
+    onNavigateBack,
+    onNavigateForward,
+    onRefresh,
+    onExportDocx,
+    webUrl,
+    onWebUrlChange,
+    onNavigateWeb,
+    articleUrlPlaceholder,
+    addressBarSourceOptions = [],
+    selectedAddressBarSourceId = '',
+    onSelectAddressBarSource,
+    onCycleAddressBarSource,
+    addressBarSourcePlaceholder,
+    addressBarSourceAriaLabel,
+    fetchChannel = null,
+    previewReuseMode = null,
+    fetchSourceText,
+    fetchSourceTitle,
+    fetchStopText,
+    fetchStopTitle,
+  } = mergedProps;
   const hasBrowserNav = onNavigateBack || onNavigateForward || onRefresh;
 
   return (
@@ -189,6 +209,18 @@ export function Titlebar({
               value={webUrl}
               onChange={(e) => onWebUrlChange(e.target.value)}
               onKeyDown={(e) => {
+                if (e.altKey && onCycleAddressBarSource) {
+                  if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    onCycleAddressBarSource('prev');
+                    return;
+                  }
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    onCycleAddressBarSource('next');
+                    return;
+                  }
+                }
                 if (e.key === 'Enter') {
                   onNavigateWeb?.();
                 }
@@ -197,18 +229,38 @@ export function Titlebar({
             />
           </div>
         )}
-        {onAddressBarJournalTitleChange && (
+        {onSelectAddressBarSource ? (
           <div className="titlebar-journal-bar">
-            <Input
-              className="titlebar-input-field titlebar-journal-input-field"
-              size="sm"
-              value={addressBarJournalTitle}
-              onChange={(e) => onAddressBarJournalTitleChange(e.target.value)}
-              placeholder={addressBarJournalTitlePlaceholder}
-              aria-label={addressBarJournalTitleAriaLabel}
-            />
+            <select
+              className="titlebar-source-select"
+              value={selectedAddressBarSourceId}
+              onChange={(event) => onSelectAddressBarSource(event.target.value)}
+              aria-label={addressBarSourceAriaLabel || addressBarSourcePlaceholder}
+              title={addressBarSourceAriaLabel || addressBarSourcePlaceholder}
+              onKeyDown={(event) => {
+                if (!onCycleAddressBarSource || !event.altKey) {
+                  return;
+                }
+                if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  onCycleAddressBarSource('prev');
+                  return;
+                }
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  onCycleAddressBarSource('next');
+                }
+              }}
+            >
+              <option value="">{addressBarSourcePlaceholder}</option>
+              {addressBarSourceOptions.map((option) => (
+                <option key={option.id} value={option.id} title={`${option.journalTitle} | ${option.url}`}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="titlebar-controls" role="group" aria-label={labels.controlsAriaLabel}>

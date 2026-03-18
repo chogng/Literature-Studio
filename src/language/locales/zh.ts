@@ -1,6 +1,8 @@
 const zh = {
   appName: 'Journal Reader',
   articleUrlPlaceholder: '文章链接',
+  addressBarSourcePlaceholder: '\u5feb\u901f\u6765\u6e90',
+  addressBarSourceAriaLabel: '\u5730\u5740\u680f\u5feb\u901f\u6765\u6e90\u5207\u6362',
   navigateWeb: '网页跳转',
   fetchCurrentBusy: '抓取中...',
   fetchCurrent: '抓取当前文章',
@@ -21,6 +23,7 @@ const zh = {
   articleType: '文章类型：',
   authors: '作者：',
   abstract: '摘要：',
+  description: '描述：',
   publishedAt: '发布日期：',
   source: '来源：',
   fetchedAt: '抓取时间：',
@@ -125,4 +128,3 @@ const zh = {
 } as const;
 
 export default zh;
-

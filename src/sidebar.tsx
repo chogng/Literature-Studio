@@ -10,6 +10,7 @@ export type SidebarArticle = {
   doi: string | null;
   authors: string[];
   abstractText: string | null;
+  descriptionText: string | null;
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
@@ -21,6 +22,7 @@ type SidebarLabels = {
   unknown: string;
   authors: string;
   abstract: string;
+  description?: string;
   publishedAt: string;
   source: string;
   fetchedAt: string;
@@ -47,6 +49,7 @@ type SidebarProps = {
     sourceUrl: string,
     articleTitle?: string,
     journalTitle?: string | null,
+    doi?: string | null,
   ) => Promise<void>;
   isBatchLoading: boolean;
 };
@@ -70,6 +73,7 @@ export default function Sidebar({
     unknown: labels.unknown,
     authors: labels.authors,
     abstract: labels.abstract,
+    description: labels.description,
     publishedAt: labels.publishedAt,
     source: labels.source,
     fetchedAt: labels.fetchedAt,

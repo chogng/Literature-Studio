@@ -9,6 +9,7 @@ type ArticleCardData = {
   doi: string | null;
   authors: string[];
   abstractText: string | null;
+  descriptionText: string | null;
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
@@ -20,6 +21,7 @@ type ArticleCardLabels = {
   unknown: string;
   authors: string;
   abstract: string;
+  description?: string;
   publishedAt: string;
   source: string;
   fetchedAt: string;
@@ -34,6 +36,7 @@ type ArticleCardProps = {
     sourceUrl: string,
     articleTitle?: string,
     journalTitle?: string | null,
+    doi?: string | null,
   ) => Promise<void>;
 };
 
@@ -69,7 +72,7 @@ export default function ArticleCard({ article, locale, labels, onDownloadPdf }: 
     if (!article.sourceUrl || isDownloading) return;
 
     try {
-      await onDownloadPdf(article.sourceUrl, article.title, article.journalTitle);
+      await onDownloadPdf(article.sourceUrl, article.title, article.journalTitle, article.doi);
     } catch {
       // The shared download handler is responsible for user-facing error messages.
     }

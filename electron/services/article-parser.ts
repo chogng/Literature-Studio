@@ -203,6 +203,33 @@ function collectStructuredTextCandidates(value: unknown, target: string[]) {
   }
 }
 
+function collectStructuredFieldTextCandidates(value: unknown, target: string[]) {
+  if (!value) return;
+
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectStructuredFieldTextCandidates(entry, target));
+    return;
+  }
+
+  if (typeof value === 'string') {
+    const text = cleanText(value);
+    if (text) target.push(text);
+    return;
+  }
+
+  if (typeof value === 'object') {
+    const record = value as StructuredDataRecord;
+    const directCandidates = [record.text, record.name, record.value, record['@value']];
+    directCandidates.forEach((entry) => {
+      if (typeof entry !== 'string' && typeof entry !== 'number') {
+        return;
+      }
+      const text = cleanText(entry);
+      if (text) target.push(text);
+    });
+  }
+}
+
 function extractArticleType($: ReturnType<typeof load>, structuredDataItems: StructuredDataRecord[]) {
   const byMeta = normalizeArticleTypeValue(
     pickMetaContent($, [
@@ -231,22 +258,57 @@ function extractArticleType($: ReturnType<typeof load>, structuredDataItems: Str
   return null;
 }
 
-function extractAbstract($: ReturnType<typeof load>) {
+function extractAbstract($: ReturnType<typeof load>, structuredDataItems: StructuredDataRecord[]) {
   const byMeta = pickMetaContent($, [
-    'meta[name="description"]',
     'meta[name="citation_abstract"]',
-    'meta[property="og:description"]',
-    'meta[name="dc.description"]',
+    'meta[name="dc.description.abstract"]',
+    'meta[name="prism.abstract"]',
   ]);
   if (byMeta) return byMeta;
 
   const candidates = [
+    cleanText($('[itemprop="abstract"] p').first().text()),
+    cleanText($('[itemprop="abstract"]').first().text()),
     cleanText($('section[aria-labelledby*="abs"] p').first().text()),
     cleanText($('div.abstract p').first().text()),
     cleanText($('p.abstract').first().text()),
   ].filter(Boolean);
+  if (candidates.length > 0) return candidates[0];
 
-  return candidates[0] ?? null;
+  const structuredCandidates: string[] = [];
+  for (const item of structuredDataItems) {
+    collectStructuredFieldTextCandidates(item.abstract, structuredCandidates);
+  }
+  if (structuredCandidates.length > 0) return structuredCandidates[0];
+
+  return null;
+}
+
+function extractDescription($: ReturnType<typeof load>, structuredDataItems: StructuredDataRecord[]) {
+  const byMeta = pickMetaContent($, [
+    'meta[name="description"]',
+    'meta[property="og:description"]',
+    'meta[name="dc.description"]',
+    'meta[name="twitter:description"]',
+  ]);
+  if (byMeta) return byMeta;
+
+  const candidates = [
+    cleanText($('div[data-test="article-description"][itemprop="description"] p').first().text()),
+    cleanText($('div[data-test="article-description"] p').first().text()),
+    cleanText($('[itemprop="description"] p').first().text()),
+    cleanText($('[itemprop="description"]').first().text()),
+    cleanText($('div.c-card__summary[itemprop="description"] p').first().text()),
+    cleanText($('div.c-card__summary p').first().text()),
+  ].filter(Boolean);
+  if (candidates.length > 0) return candidates[0];
+
+  const structuredCandidates: string[] = [];
+  for (const item of structuredDataItems) {
+    collectStructuredFieldTextCandidates(item.description, structuredCandidates);
+  }
+
+  return structuredCandidates[0] ?? null;
 }
 
 function extractTitle($: ReturnType<typeof load>) {
@@ -269,7 +331,8 @@ export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
   const articleType = extractArticleType($, structuredDataItems);
   const doi = extractDoi($, html);
   const authors = extractAuthors($, structuredDataItems);
-  const abstractText = extractAbstract($);
+  const abstractText = extractAbstract($, structuredDataItems);
+  const descriptionText = extractDescription($, structuredDataItems);
   const publishedAt = extractPublishedDate($, structuredDataItems);
 
   return {
@@ -278,17 +341,22 @@ export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
     doi: cleanNullable(doi),
     authors,
     abstractText: cleanNullable(abstractText),
+    descriptionText: cleanNullable(descriptionText),
     publishedAt,
     sourceUrl,
     fetchedAt: new Date().toISOString(),
   };
 }
 
-export function hasStrongArticleSignals(candidateUrl: string, article: Pick<Article, 'doi' | 'abstractText'>) {
+export function hasStrongArticleSignals(
+  candidateUrl: string,
+  article: Pick<Article, 'doi' | 'abstractText' | 'descriptionText'>,
+) {
   const pathname = new URL(candidateUrl).pathname.toLowerCase();
   if (hasArticlePathSignal(pathname)) return true;
   if (article.doi) return true;
   if (article.abstractText && article.abstractText.length > 60) return true;
+  if (article.descriptionText && article.descriptionText.length > 60) return true;
 
   return false;
 }

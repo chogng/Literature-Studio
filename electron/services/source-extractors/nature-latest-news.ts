@@ -18,6 +18,7 @@ import type {
   ListingPaginationContext,
   ListingCandidateSeed,
 } from './types.js';
+import { normalizeListingCandidateSeed } from './types.js';
 
 const NATURE_LATEST_NEWS_LISTING_PAGE_PATH = '/latest-news';
 const NATURE_LATEST_NEWS_RSS_URL = 'https://www.nature.com/nature.rss';
@@ -227,13 +228,16 @@ function extractNatureLatestNewsArticleCards(
         });
       }
 
-      return {
+      return normalizeListingCandidateSeed({
         href,
         order,
         dateHint,
         articleType: articleType || null,
+        title,
+        descriptionText: description || null,
+        publishedAt: dateHint,
         scoreBoost: 140,
-      };
+      });
     })
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
 

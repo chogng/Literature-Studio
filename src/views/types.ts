@@ -7,6 +7,7 @@ export type ReaderViewLabels = {
   unknown: string;
   authors: string;
   abstract: string;
+  description?: string;
   publishedAt: string;
   source: string;
   fetchedAt: string;
@@ -42,6 +43,7 @@ export type ReaderViewProps = {
     sourceUrl: string,
     articleTitle?: string,
     journalTitle?: string | null,
+    doi?: string | null,
   ) => Promise<void>;
   isBatchLoading: boolean;
   onResetFilters: () => void;

@@ -14,6 +14,7 @@ export type Article = {
   doi: string | null;
   authors: string[];
   abstractText: string | null;
+  descriptionText: string | null;
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
@@ -45,7 +46,6 @@ export type FetchLatestArticlesBatchResult =
 type FetchLatestArticlesBatchParams = {
   desktopRuntime: boolean;
   addressBarUrl?: string | null;
-  addressBarJournalTitle?: string | null;
   batchSources: BatchSource[];
   limit?: number;
   sameDomainOnly: boolean;
@@ -55,11 +55,13 @@ type FetchLatestArticlesBatchParams = {
   invokeDesktop: InvokeDesktop;
 };
 
-function buildManualBatchSource(url: string, journalTitle?: string | null): BatchSource {
+function buildManualBatchSource(url: string, sourceTable: ReadonlyArray<BatchSource>): BatchSource {
+  const { articleListId, defaultJournalTitle } = resolveSourceTableMetadata(url, sourceTable);
+
   return {
     id: manualAddressBarSourceId,
     url,
-    journalTitle: String(journalTitle ?? '').trim(),
+    journalTitle: defaultJournalTitle || articleListId || '',
   };
 }
 
@@ -134,18 +136,16 @@ function prepareBatchSourcesForFetch(
 export function resolveBatchFetchSources(
   addressBarUrl: string | null | undefined,
   batchSources: BatchSource[],
-  addressBarJournalTitle?: string | null,
 ): BatchSource[] {
   const normalizedAddressBarUrl = normalizeUrl(addressBarUrl ?? '');
   return normalizedAddressBarUrl
-    ? [buildManualBatchSource(normalizedAddressBarUrl, addressBarJournalTitle)]
+    ? [buildManualBatchSource(normalizedAddressBarUrl, batchSources)]
     : batchSources;
 }
 
 export async function fetchLatestArticlesBatch({
   desktopRuntime,
   addressBarUrl,
-  addressBarJournalTitle,
   batchSources,
   limit: _limit,
   sameDomainOnly,
@@ -158,7 +158,7 @@ export async function fetchLatestArticlesBatch({
     return { ok: false, reason: 'desktop_unsupported' };
   }
 
-  const selectedSources = resolveBatchFetchSources(addressBarUrl, batchSources, addressBarJournalTitle);
+  const selectedSources = resolveBatchFetchSources(addressBarUrl, batchSources);
   const { sources } = prepareBatchSourcesForFetch(selectedSources, batchSources);
   if (sources.length === 0) {
     return { ok: false, reason: 'empty_page_url' };

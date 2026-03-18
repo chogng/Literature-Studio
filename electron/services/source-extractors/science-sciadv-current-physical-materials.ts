@@ -6,6 +6,7 @@ import type {
   ListingCandidateExtractor,
   ListingCandidateExtractorContext,
 } from './types.js';
+import { normalizeListingCandidateSeed } from './types.js';
 
 const SCIENCE_SCIADV_CURRENT_PATH_RE = /^\/toc\/sciadv\/current\/?$/i;
 const SCIENCE_SCIADV_TOC_BODY_SELECTORS = [
@@ -217,20 +218,18 @@ function extractScienceSciadvPhysicalMaterialsCards(
       if (dateHint) datedCandidateCount += 1;
       if (abstractText) summarizedCandidateCount += 1;
 
-      return {
+      return normalizeListingCandidateSeed({
         href,
         order: index,
         dateHint,
         articleType: SCIENCE_SCIADV_ARTICLE_TYPE,
+        title,
+        doi,
+        authors,
+        abstractText,
+        publishedAt: dateHint ?? null,
         scoreBoost: 180,
-        prefetchedArticle: {
-          title,
-          doi,
-          authors,
-          abstractText,
-          publishedAt: dateHint ?? null,
-        },
-      };
+      });
     })
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
 

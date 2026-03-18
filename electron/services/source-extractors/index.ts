@@ -61,7 +61,6 @@ export type {
   ListingCandidateExtraction,
   ListingCandidateExtractor,
   ListingCandidateExtractorContext,
-  ListingCandidatePrefetchedArticle,
   ListingCandidateRefinementContext,
   ListingExtractorFetchHtml,
   ListingExtractorFetchHtmlOptions,
@@ -70,4 +69,8 @@ export type {
   ListingPaginationStopEvaluation,
   ListingCandidateSeed,
   ListingDom,
+} from './types.js';
+export {
+  normalizeListingCandidateSeed,
+  normalizeListingCandidateSeeds,
 } from './types.js';

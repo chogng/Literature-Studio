@@ -11,6 +11,7 @@ import type {
   ListingCandidateRefinementContext,
   ListingPaginationContext,
 } from './types.js';
+import { normalizeListingCandidateSeed } from './types.js';
 
 const NATURE_LISTING_LAYOUT_SELECTORS = [
   'section.section__top-new > div.u-container',
@@ -487,16 +488,19 @@ export function createNatureListingCandidateExtractor({
 
           const rank = extractNatureListingRank({ $, root, linkNode });
           const cardOrder = extractNatureListingCardOrder({ $, root, linkNode });
-          return {
+          const dateHint = extractNatureListingDateHint({ $, root });
+          return normalizeListingCandidateSeed({
             href,
             order: computeNatureListingCandidateOrder({
               discoveryOrder,
               rank,
               cardOrder,
             }),
-            dateHint: extractNatureListingDateHint({ $, root }),
+            dateHint,
+            title,
+            publishedAt: dateHint,
             scoreBoost: 100,
-          };
+          });
         })
         .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
 

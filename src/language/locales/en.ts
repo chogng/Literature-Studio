@@ -1,6 +1,8 @@
 const en = {
   appName: 'Journal Reader',
   articleUrlPlaceholder: 'Article URL',
+  addressBarSourcePlaceholder: 'Quick source',
+  addressBarSourceAriaLabel: 'Quick source switcher',
   navigateWeb: 'Navigate',
   fetchCurrentBusy: 'Fetching...',
   fetchCurrent: 'fetch',
@@ -21,6 +23,7 @@ const en = {
   articleType: 'Article type:',
   authors: 'Authors:',
   abstract: 'Abstract:',
+  description: 'Description:',
   publishedAt: 'Published:',
   source: 'Source:',
   fetchedAt: 'Fetched at:',

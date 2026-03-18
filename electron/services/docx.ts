@@ -161,8 +161,14 @@ function groupArticlesByJournal(articles: Article[], locale: SupportedLocale): J
 function articleParagraphsXml(article: Article, indexInJournal: number, locale: SupportedLocale) {
   const copy = resolveDocxExportCopy(locale);
   const title = cleanText(article.title) || copy.untitled;
+  const descriptionLines = normalizeLines(article.descriptionText);
   const abstractLines = normalizeLines(article.abstractText);
-  const abstractValue = abstractLines.length > 0 ? abstractLines : [copy.unknown];
+  const contentLines =
+    descriptionLines.length > 0
+      ? descriptionLines
+      : abstractLines.length > 0
+        ? abstractLines
+        : [copy.unknown];
 
   const paragraphs = [
     paragraphXml(`${indexInJournal + 1}. ${title}`, {
@@ -174,7 +180,7 @@ function articleParagraphsXml(article: Article, indexInJournal: number, locale: 
       spacingBefore: indexInJournal === 0 ? 0 : docxConfig.article.titleSpacingBefore,
       spacingAfter: 0,
     }),
-    ...abstractValue.map((line, lineIndex) =>
+    ...contentLines.map((line, lineIndex) =>
       paragraphXml(line, {
         fontSize: docxConfig.article.bodyFontSize,
         color: docxConfig.article.bodyColor,
@@ -182,7 +188,7 @@ function articleParagraphsXml(article: Article, indexInJournal: number, locale: 
         fontEastAsia: docxConfig.article.fontEastAsia,
         lineSpacing: docxConfig.article.lineSpacing,
         spacingAfter:
-          lineIndex === abstractValue.length - 1 ? 0 : docxConfig.article.abstractLineSpacingAfter,
+          lineIndex === contentLines.length - 1 ? 0 : docxConfig.article.abstractLineSpacingAfter,
       }),
     ),
   ];

@@ -1,5 +1,4 @@
 import { type BatchSource, resolveDefaultJournalTitleFromSourceUrl } from './config-schema';
-import { sanitizeUrlInput } from '../utils/url';
 
 type ResolveNextJournalTitleOnUrlChangeParams = {
   currentJournalTitle: string;
@@ -21,28 +20,4 @@ export function resolveNextJournalTitleOnUrlChange({
     !currentJournalTitleTrimmed || currentJournalTitleTrimmed === previousDefaultJournalTitle;
 
   return shouldReplaceJournalTitle ? nextDefaultJournalTitle : currentJournalTitle;
-}
-
-export type ResolveAddressBarUrlChangeResult = {
-  sanitizedUrl: string;
-  nextJournalTitle: string;
-};
-
-export function resolveAddressBarUrlChange(
-  nextUrlInput: string,
-  previousUrl: string,
-  currentJournalTitle: string,
-  sourceTable?: ReadonlyArray<BatchSource>,
-): ResolveAddressBarUrlChangeResult {
-  const sanitizedUrl = sanitizeUrlInput(nextUrlInput);
-
-  return {
-    sanitizedUrl,
-    nextJournalTitle: resolveNextJournalTitleOnUrlChange({
-      currentJournalTitle,
-      previousUrl,
-      nextUrl: sanitizedUrl,
-      sourceTable,
-    }),
-  };
 }
