@@ -1,0 +1,507 @@
+import { jsx, jsxs } from 'react/jsx-runtime';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
+import {
+  detectInitialLocale,
+  getLocaleMessages,
+  toDocumentLang,
+  type Locale,
+} from '../../../language/i18n';
+import { useWindowControls } from '../../base/browser/window';
+import { ToastContainer } from '../../base/browser/ui/toast/toast';
+import type { Article } from '../services/article/articleFetch';
+import {
+  getConfigBatchSourceSeed,
+  normalizeBatchLimit,
+} from '../services/config/configSchema';
+import ArticleDetailsModalWindow from './articleDetailsModalWindow';
+import { useBatchFetchModel } from './batchFetchModel';
+import { useDocumentActionsModel } from './documentActionsModel';
+import {
+  getWorkbenchLayoutStateSnapshot,
+  getWorkbenchShellClassName,
+  subscribeWorkbenchLayoutState,
+  toggleSidebarVisibility,
+} from './layout';
+import { createEditorPartProps } from './parts/editor/editorPart';
+import { createSettingsPartProps } from './parts/settings/settingsPart';
+import SettingsView from './parts/settings/settingsView';
+import { createSidebarPartProps } from './parts/sidebar/sidebarPart';
+import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
+import { TitlebarView } from './parts/titlebar/titlebarView';
+import { usePreviewNavigationModel } from './parts/view/previewNavigationModel';
+import { createViewPartProps } from './parts/view/viewPart';
+import { useReaderState } from './readerState';
+import ReaderView from './readerView';
+import { useSettingsModel } from './settingsModel';
+import {
+  getWorkbenchStateSnapshot,
+  subscribeWorkbenchState,
+  toggleWorkbenchSettings,
+} from './workbench';
+import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from './workbenchPart';
+import './media/workbench.css';
+
+type DesktopInvokeArgs = Record<string, unknown> | undefined;
+type ActivePage = ReturnType<typeof getWorkbenchStateSnapshot>['activePage'];
+
+type ActivePageViewConfig = {
+  activePage: ActivePage;
+  isSidebarVisible: boolean;
+  sidebarProps: ReturnType<typeof createSidebarPartProps>;
+  editorPartProps: ReturnType<typeof createEditorPartProps>;
+  settingsPartRef: ReturnType<typeof useWorkbenchPartRef>;
+  settingsPartProps: ReturnType<typeof createSettingsPartProps>;
+};
+
+type WorkbenchShellConfig = {
+  workbenchContainerRef: ReturnType<typeof useWorkbenchPartRef>;
+  electronRuntime: boolean;
+  titlebarPartRef: ReturnType<typeof useWorkbenchPartRef>;
+  titlebarProps: ReturnType<typeof createTitlebarPartProps>;
+  activePage: ActivePage;
+  activePageView: ReactNode;
+  toastCloseLabel: string;
+};
+
+const DEFAULT_ARTICLE_URL = '';
+const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
+
+function detectNativeModalKind() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return new URLSearchParams(window.location.search).get('nativeModal');
+}
+
+function resolveRuntimeState() {
+  const electronRuntime =
+    typeof window !== 'undefined' && typeof window.electronAPI?.invoke === 'function';
+  const previewRuntime =
+    typeof window !== 'undefined' && typeof window.electronAPI?.preview?.navigate === 'function';
+
+  return {
+    electronRuntime,
+    previewRuntime,
+    desktopRuntime: electronRuntime,
+  };
+}
+
+function renderActivePageView({
+  activePage,
+  isSidebarVisible,
+  sidebarProps,
+  editorPartProps,
+  settingsPartRef,
+  settingsPartProps,
+}: ActivePageViewConfig) {
+  if (activePage === 'reader') {
+    return jsx(ReaderView, {
+      isSidebarVisible,
+      sidebarProps,
+      editorPartProps,
+    });
+  }
+
+  return jsx(SettingsView, {
+    partRef: settingsPartRef,
+    ...settingsPartProps,
+  });
+}
+
+function renderWorkbenchShell({
+  workbenchContainerRef,
+  electronRuntime,
+  titlebarPartRef,
+  titlebarProps,
+  activePage,
+  activePageView,
+  toastCloseLabel,
+}: WorkbenchShellConfig) {
+  return jsxs('div', {
+    ref: workbenchContainerRef,
+    className: 'app-window',
+    children: [
+      electronRuntime ? jsx(TitlebarView, { partRef: titlebarPartRef, ...titlebarProps }) : null,
+      jsxs('div', {
+        className: getWorkbenchShellClassName({ activePage }),
+        children: [activePageView, jsx(ToastContainer, { closeLabel: toastCloseLabel })],
+      }),
+    ],
+  });
+}
+
+function WorkbenchContentView() {
+  const [locale, setLocale] = useState<Locale>(() => detectInitialLocale());
+  const [webUrl, setWebUrl] = useState(DEFAULT_ARTICLE_URL);
+  const [fetchSeedUrl, setFetchSeedUrl] = useState(DEFAULT_ARTICLE_URL);
+  const [articles, setArticles] = useState<Article[]>([]);
+
+  const workbenchState = useSyncExternalStore(
+    subscribeWorkbenchState,
+    getWorkbenchStateSnapshot,
+    getWorkbenchStateSnapshot,
+  );
+  const workbenchLayoutState = useSyncExternalStore(
+    subscribeWorkbenchLayoutState,
+    getWorkbenchLayoutStateSnapshot,
+    getWorkbenchLayoutStateSnapshot,
+  );
+
+  const { activePage } = workbenchState;
+  const { isSidebarVisible } = workbenchLayoutState;
+
+  const workbenchContainerRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.container);
+  const titlebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
+  const settingsPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.settings);
+  const { electronRuntime, previewRuntime, desktopRuntime } = resolveRuntimeState();
+  const { isWindowMaximized, handleWindowControl } = useWindowControls({ electronRuntime });
+  const ui = useMemo(() => getLocaleMessages(locale), [locale]);
+
+  const invokeDesktop = useCallback(
+    async <T,>(command: string, args?: DesktopInvokeArgs): Promise<T> => {
+      if (window.electronAPI?.invoke) {
+        return window.electronAPI.invoke<T>(command, args);
+      }
+
+      throw new Error('Desktop invoke bridge is unavailable.');
+    },
+    [],
+  );
+
+  const {
+    batchSources,
+    batchLimit,
+    setBatchLimit,
+    sameDomainOnly,
+    setSameDomainOnly,
+    pdfDownloadDir,
+    setPdfDownloadDir,
+    configPath,
+    isSettingsLoading,
+    isSettingsSaving,
+    handleChoosePdfDownloadDir,
+    handleLocaleChange,
+    handleSaveSettings,
+    handleResetDownloadDir,
+    handleBatchSourceUrlChange,
+    handleBatchSourceJournalTitleChange,
+    handleAddBatchSource,
+    handleRemoveBatchSource,
+    handleMoveBatchSource,
+  } = useSettingsModel({
+    desktopRuntime,
+    invokeDesktop,
+    ui,
+    locale,
+    setLocale,
+    initialBatchSources: INITIAL_BATCH_SOURCES,
+  });
+
+  const {
+    batchStartDate,
+    setBatchStartDate,
+    batchEndDate,
+    setBatchEndDate,
+    filteredArticles,
+    hasData,
+  } = useReaderState({ articles });
+
+  const {
+    browserUrl,
+    iframeReloadKey,
+    previewState,
+    handleNavigateWeb,
+    handleBrowserRefresh,
+    handlePreviewBack,
+    handlePreviewForward,
+    addressBarSourceOptions,
+    selectedAddressBarSourceId,
+    handleWebUrlChange,
+    handleSelectAddressBarSource,
+    handleCycleAddressBarSource,
+  } = usePreviewNavigationModel({
+    electronRuntime,
+    previewRuntime,
+    ui,
+    webUrl,
+    fetchSeedUrl,
+    batchSources,
+    setWebUrl,
+    setFetchSeedUrl,
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    document.documentElement.lang = toDocumentLang(locale);
+  }, [locale]);
+
+  const handleBatchFetchStart = useCallback(() => {
+    setArticles([]);
+  }, []);
+
+  const handleBatchFetchSuccess = useCallback((nextArticles: Article[]) => {
+    setArticles(nextArticles);
+  }, []);
+
+  const {
+    isBatchLoading,
+    handleFetchLatestBatch,
+    fetchStatus,
+    titlebarFetchSourceText,
+    titlebarFetchSourceTitle,
+    titlebarFetchStopText,
+    titlebarFetchStopTitle,
+  } = useBatchFetchModel({
+    desktopRuntime,
+    addressBarUrl: fetchSeedUrl || webUrl,
+    batchSources,
+    sameDomainOnly,
+    batchStartDate,
+    batchEndDate,
+    invokeDesktop,
+    ui,
+    onBeforeFetch: handleBatchFetchStart,
+    onFetchSuccess: handleBatchFetchSuccess,
+  });
+
+  const { canExportDocx, handleSharedPdfDownload, handleExportArticlesDocx } =
+    useDocumentActionsModel({
+      desktopRuntime,
+      invokeDesktop,
+      locale,
+      ui,
+      pdfDownloadDir,
+      filteredArticles,
+    });
+
+  const handleToggleSettings = useCallback(() => {
+    toggleWorkbenchSettings();
+  }, []);
+
+  const handleToggleSidebar = useCallback(() => {
+    toggleSidebarVisibility();
+  }, []);
+
+  const handleTitlebarExportDocx = useCallback(() => {
+    void handleExportArticlesDocx();
+  }, [handleExportArticlesDocx]);
+
+  const sidebarProps = useMemo(
+    () =>
+      createSidebarPartProps({
+        state: {
+          ui,
+          locale,
+          articles: filteredArticles,
+          hasData,
+          batchStartDate,
+          batchEndDate,
+          isBatchLoading,
+        },
+        actions: {
+          onBatchStartDateChange: setBatchStartDate,
+          onBatchEndDateChange: setBatchEndDate,
+          onFetchLatestBatch: () => void handleFetchLatestBatch(),
+          onDownloadPdf: handleSharedPdfDownload,
+        },
+      }),
+    [
+      batchEndDate,
+      batchStartDate,
+      filteredArticles,
+      handleFetchLatestBatch,
+      handleSharedPdfDownload,
+      hasData,
+      isBatchLoading,
+      locale,
+      setBatchEndDate,
+      setBatchStartDate,
+      ui,
+    ],
+  );
+
+  const titlebarProps = useMemo(
+    () =>
+      createTitlebarPartProps({
+        state: {
+          activePage,
+          ui,
+          webUrl,
+          isWindowMaximized,
+          isSidebarVisible,
+          browserUrl,
+          previewState,
+          canExportDocx,
+          addressBarSourceOptions,
+          selectedAddressBarSourceId,
+          fetchStatus,
+          titlebarFetchSourceText,
+          titlebarFetchSourceTitle,
+          titlebarFetchStopText,
+          titlebarFetchStopTitle,
+        },
+        actions: {
+          handleWindowControl,
+          handleToggleSidebar,
+          handleToggleSettings,
+          handlePreviewBack,
+          handlePreviewForward,
+          handleBrowserRefresh,
+          handleExportDocx: handleTitlebarExportDocx,
+          handleWebUrlChange,
+          handleNavigateWeb,
+          handleSelectAddressBarSource,
+          handleCycleAddressBarSource,
+        },
+      }),
+    [
+      activePage,
+      addressBarSourceOptions,
+      browserUrl,
+      canExportDocx,
+      fetchStatus,
+      handleBrowserRefresh,
+      handleCycleAddressBarSource,
+      handleNavigateWeb,
+      handlePreviewBack,
+      handlePreviewForward,
+      handleSelectAddressBarSource,
+      handleTitlebarExportDocx,
+      handleToggleSettings,
+      handleToggleSidebar,
+      handleWebUrlChange,
+      handleWindowControl,
+      isSidebarVisible,
+      isWindowMaximized,
+      previewState,
+      selectedAddressBarSourceId,
+      titlebarFetchSourceText,
+      titlebarFetchSourceTitle,
+      titlebarFetchStopText,
+      titlebarFetchStopTitle,
+      ui,
+      webUrl,
+    ],
+  );
+
+  const viewPartProps = useMemo(
+    () =>
+      createViewPartProps({
+        state: {
+          ui,
+          browserUrl,
+          iframeReloadKey,
+          electronRuntime,
+          previewRuntime,
+        },
+      }),
+    [browserUrl, electronRuntime, iframeReloadKey, previewRuntime, ui],
+  );
+
+  const editorPartProps = useMemo(
+    () =>
+      createEditorPartProps({
+        state: {
+          viewPartProps,
+        },
+      }),
+    [viewPartProps],
+  );
+
+  const settingsPartProps = useMemo(
+    () =>
+      createSettingsPartProps({
+        state: {
+          ui,
+          isSettingsLoading,
+          locale,
+          batchSources,
+          batchLimit,
+          sameDomainOnly,
+          pdfDownloadDir,
+          desktopRuntime,
+          configPath,
+          isSettingsSaving,
+        },
+        actions: {
+          onLocaleChange: handleLocaleChange,
+          onBatchSourceUrlChange: handleBatchSourceUrlChange,
+          onBatchSourceJournalTitleChange: handleBatchSourceJournalTitleChange,
+          onAddBatchSource: handleAddBatchSource,
+          onRemoveBatchSource: handleRemoveBatchSource,
+          onMoveBatchSource: handleMoveBatchSource,
+          onBatchLimitChange: (value) => setBatchLimit(normalizeBatchLimit(value, 1)),
+          onSameDomainOnlyChange: setSameDomainOnly,
+          onPdfDownloadDirChange: setPdfDownloadDir,
+          onChoosePdfDownloadDir: () => void handleChoosePdfDownloadDir(),
+          onResetDownloadDir: handleResetDownloadDir,
+          onSaveSettings: () => void handleSaveSettings(),
+        },
+      }),
+    [
+      batchLimit,
+      batchSources,
+      configPath,
+      desktopRuntime,
+      handleAddBatchSource,
+      handleBatchSourceJournalTitleChange,
+      handleBatchSourceUrlChange,
+      handleChoosePdfDownloadDir,
+      handleLocaleChange,
+      handleMoveBatchSource,
+      handleRemoveBatchSource,
+      handleResetDownloadDir,
+      handleSaveSettings,
+      isSettingsLoading,
+      isSettingsSaving,
+      locale,
+      pdfDownloadDir,
+      sameDomainOnly,
+      setBatchLimit,
+      setPdfDownloadDir,
+      setSameDomainOnly,
+      ui,
+    ],
+  );
+
+  const activePageView = renderActivePageView({
+    activePage,
+    isSidebarVisible,
+    sidebarProps,
+    editorPartProps,
+    settingsPartRef,
+    settingsPartProps,
+  });
+
+  return renderWorkbenchShell({
+    workbenchContainerRef,
+    electronRuntime,
+    titlebarPartRef,
+    titlebarProps,
+    activePage,
+    activePageView,
+    toastCloseLabel: ui.toastClose,
+  });
+}
+
+export default function WorkbenchView() {
+  const nativeModalKind = detectNativeModalKind();
+
+  if (nativeModalKind === 'article-details') {
+    return jsx(ArticleDetailsModalWindow, {});
+  }
+
+  return jsx(WorkbenchContentView, {});
+}
+

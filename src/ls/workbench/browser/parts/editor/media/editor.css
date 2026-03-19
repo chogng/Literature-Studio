@@ -1,0 +1,5 @@
+.web-panel {
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}

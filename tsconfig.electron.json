@@ -5,7 +5,7 @@
     "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
     "types": ["node"],
-    "rootDir": "electron",
+    "rootDir": "src/ls",
     "outDir": "dist-electron",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -16,6 +16,9 @@
     "skipLibCheck": true,
     "sourceMap": true
   },
-  "include": ["electron/**/*.ts"],
+  "include": [
+    "src/ls/code/electron-main/**/*.ts",
+    "src/ls/base/parts/sandbox/electron-browser/preload.ts"
+  ],
   "exclude": ["dist-electron", "node_modules"]
 }

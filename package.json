@@ -2,7 +2,7 @@
   "name": "journal-reader",
   "private": true,
   "version": "0.1.0",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/code/electron-main/main.js",
   "type": "module",
   "scripts": {
     "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./kill-dev-ports.ps1",
@@ -10,12 +10,12 @@
     "dev:renderer": "vite",
     "build:electron": "tsc -p tsconfig.electron.json",
     "dev:electron:build": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
-    "dev:electron:run": "wait-on tcp:1420 file:dist-electron/main.js && cross-env ELECTRON_RENDERER_URL=http://localhost:1420 nodemon --watch dist-electron --ext js --delay 2000ms --signal SIGTERM dist-electron/launch.js dist-electron/main.js",
+    "dev:electron:run": "wait-on tcp:1420 file:dist-electron/code/electron-main/main.js && cross-env ELECTRON_RENDERER_URL=http://localhost:1420 nodemon --watch dist-electron --ext js --delay 2000ms --signal SIGTERM dist-electron/code/electron-main/launch.js dist-electron/code/electron-main/main.js",
     "dev:electron": "concurrently -k \"npm:dev:electron:build\" \"npm:dev:electron:run\"",
     "dev:web": "vite --config vite.web.config.ts",
     "check:i18n": "node scripts/check-i18n-keys.mjs",
     "build": "npm run build:electron && tsc && vite build",
-    "start": "npm run build:electron && node dist-electron/launch.js dist-electron/main.js",
+    "start": "npm run build:electron && node dist-electron/code/electron-main/launch.js dist-electron/code/electron-main/main.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -29,7 +29,6 @@
   "devDependencies": {
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.0.0",
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "electron": "^37.5.1",
