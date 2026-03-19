@@ -1,10 +1,10 @@
 ﻿import { BrowserWindow } from 'electron';
-import { getPreviewDocumentSnapshot, getPreviewListingCandidateSnapshot, getPreviewState } from '../preview-view.js';
+import { getPreviewDocumentSnapshot, getPreviewListingCandidateSnapshot, getPreviewState } from '../windowing/preview-view.js';
 
-import { getMainWindow } from '../window.js';
+import { getMainWindow } from '../windowing/window.js';
 import { appError, isAppError } from '../utils/app-error.js';
 import { cleanText } from '../utils/text.js';
-import { READER_SHARED_WEB_PARTITION } from './browserPartitions.js';
+import { READER_SHARED_WEB_PARTITION } from '../browserPartitions.js';
 
 const SCIENCE_HOSTS = new Set(['science.org', 'www.science.org']);
 const SCIENCE_CURRENT_TOC_PATH_RE = /^\/toc\/[^/]+\/current\/?$/i;

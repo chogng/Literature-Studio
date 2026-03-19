@@ -1,4 +1,4 @@
-﻿import { load } from 'cheerio';
+import { load } from 'cheerio';
 
 import type {
   Article,
@@ -15,8 +15,8 @@ import { isWithinDateRange, parseDateRange } from '../utils/date.js';
 import { parseDateHintFromText } from '../utils/date-hint.js';
 import { cleanText } from '../utils/text.js';
 import { normalizeUrl } from '../utils/url.js';
-import { READER_SHARED_WEB_PARTITION } from './browserPartitions.js';
-import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from './fetchTiming.js';
+import { READER_SHARED_WEB_PARTITION } from '../browserPartitions.js';
+import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from '../fetchTiming.js';
 import {
   buildPageHtmlFetchPlan,
   buildPreviewExtractionFetchPlan,
@@ -37,7 +37,7 @@ import {
   type ListingPaginationStopEvaluation,
   type ListingCandidateSeed,
   normalizeListingCandidateSeeds,
-} from './source-extractors/index.js';
+} from './sourceExtractors/index.js';
 import { appError, isAppError } from '../utils/app-error.js';
 
 const SYSTEM_BATCH_LIMIT_MAX = 100;

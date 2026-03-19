@@ -2,8 +2,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow } from 'electron';
 
-import type { NativeModalState, OpenArticleDetailsModalPayload } from './types.js';
-import { appError } from './utils/app-error.js';
+import type { NativeModalState, OpenArticleDetailsModalPayload } from '../types.js';
+import { appError } from '../utils/app-error.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +32,7 @@ function resolveRendererTarget(kind: NativeModalState['kind']) {
 
   return {
     type: 'file' as const,
-    target: path.join(__dirname, '..', 'dist', 'index.html'),
+    target: path.join(__dirname, '..', '..', 'dist', 'index.html'),
     query: {
       [nativeModalQueryKey]: kind,
     },
@@ -56,7 +56,7 @@ function createModalWindow(parentWindow: BrowserWindow, title: string) {
     autoHideMenuBar: true,
     backgroundColor: '#eff4fb',
     webPreferences: {
-      preload: path.join(__dirname, '../../base/parts/sandbox/electron-browser/preload.js'),
+      preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

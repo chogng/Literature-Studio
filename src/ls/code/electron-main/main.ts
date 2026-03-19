@@ -1,12 +1,12 @@
-﻿import path from 'node:path';
+import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { app, BrowserWindow } from 'electron';
 
-import { registerDevShortcuts } from './dev-shortcuts.js';
+import { registerDevShortcuts } from './windowing/dev-shortcuts.js';
 import { registerAppIpc } from './ipc.js';
-import { defaultBatchSources } from './services/defaultBatchSources.js';
-import { createStorageService } from './services/storage.js';
-import { createMainWindow, getMainWindow } from './window.js';
+import { defaultBatchSources } from './storage/defaultBatchSources.js';
+import { createStorageService } from './storage/storageService.js';
+import { createMainWindow, getMainWindow } from './windowing/window.js';
 
 const previousUserDataDir = app.getPath('userData');
 const readerRootDir = path.join(app.getPath('home'), '.reader');

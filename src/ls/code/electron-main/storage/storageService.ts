@@ -1,6 +1,6 @@
 import type { BatchSource, StorageService } from '../types.js';
-import { createConfigStore } from './config.js';
-import { createHistoryStore } from './history.js';
+import { createConfigStore } from './configStore.js';
+import { createHistoryStore } from './historyStore.js';
 
 interface StoragePaths {
   historyFile: string;

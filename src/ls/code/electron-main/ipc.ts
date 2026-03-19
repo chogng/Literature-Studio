@@ -1,4 +1,4 @@
-﻿import path from 'node:path';
+import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 
 import type {
@@ -26,24 +26,24 @@ import {
   reloadPreview,
   setPreviewBounds,
   setPreviewVisible,
-} from './preview-view.js';
-import { getNativeModalState, openArticleDetailsModal } from './native-modal.js';
+} from './windowing/preview-view.js';
+import { getNativeModalState, openArticleDetailsModal } from './windowing/native-modal.js';
 import {
   fetchArticle,
   fetchLatestArticles,
-} from './services/articleFetcher.js';
-import { buildBatchDocxFileName, exportArticlesToDocxFile } from './services/docx.js';
+} from './fetch/articleFetcher.js';
+import { buildBatchDocxFileName, exportArticlesToDocxFile } from './document/docx.js';
 import {
   normalizeFetchStrategy,
   shouldPreparePreviewArtifacts,
   type PreviewExtractionSnapshot,
   type PreviewSnapshot,
-} from './services/fetchStrategy.js';
-import { resolveBatchPreviewExtractions, resolveBatchPreviewSnapshots, resolvePreviewSnapshotHtml } from './services/previewChannel.js';
-import { previewDownloadPdf } from './services/pdf.js';
+} from './fetch/fetchStrategy.js';
+import { resolveBatchPreviewExtractions, resolveBatchPreviewSnapshots, resolvePreviewSnapshotHtml } from './fetch/previewChannel.js';
+import { previewDownloadPdf } from './pdf/pdf.js';
 import { resolveDocxExportDialogCopy } from './utils/locale-copy.js';
 import { appError, serializeAppError } from './utils/app-error.js';
-import { getMainWindow } from './window.js';
+import { getMainWindow } from './windowing/window.js';
 const FETCH_STATUS_CHANNEL = 'app:fetch-status';
 
 async function pickDownloadDirectory() {

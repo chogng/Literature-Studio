@@ -1,4 +1,4 @@
-import type { ListingCandidateExtraction } from './source-extractors/index.js';
+import type { ListingCandidateExtraction } from './sourceExtractors/index.js';
 
 export type FetchStrategy = 'network-first' | 'preview-first' | 'compare';
 

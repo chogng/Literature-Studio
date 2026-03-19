@@ -1,14 +1,14 @@
-﻿import { BrowserWindow, WebContentsView } from 'electron';
+import { BrowserWindow, WebContentsView } from 'electron';
 
 import type {
   ListingCandidateExtraction,
   ListingCandidateSeed,
-} from './services/source-extractors/types.js';
-import { normalizeListingCandidateSeed } from './services/source-extractors/types.js';
-import { READER_SHARED_WEB_PARTITION } from './services/browserPartitions.js';
-import { shortenForLog } from './services/fetchTiming.js';
-import type { PreviewBounds, PreviewState } from './types.js';
-import { appError } from './utils/app-error.js';
+} from '../fetch/sourceExtractors/types.js';
+import { normalizeListingCandidateSeed } from '../fetch/sourceExtractors/types.js';
+import { READER_SHARED_WEB_PARTITION } from '../browserPartitions.js';
+import { shortenForLog } from '../fetchTiming.js';
+import type { PreviewBounds, PreviewState } from '../types.js';
+import { appError } from '../utils/app-error.js';
 
 const previewPartition = READER_SHARED_WEB_PARTITION;
 const previewCornerRadius = 10;

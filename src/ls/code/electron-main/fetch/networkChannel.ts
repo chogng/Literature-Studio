@@ -1,5 +1,5 @@
 ﻿import { appError } from '../utils/app-error.js';
-import { elapsedMs, shortenForLog, timingLog } from './fetchTiming.js';
+import { elapsedMs, shortenForLog, timingLog } from '../fetchTiming.js';
 import {
   ensureScienceValidationWindow,
   getScienceChallengeSignal,

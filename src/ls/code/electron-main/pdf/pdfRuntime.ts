@@ -5,7 +5,7 @@ import type { DownloadItem, Session } from 'electron';
 import { buildPdfFileName } from '../utils/pdf-file-name.js';
 import { cleanText } from '../utils/text.js';
 import { appError, isAppError } from '../utils/app-error.js';
-import { READER_SHARED_WEB_PARTITION } from './browserPartitions.js';
+import { READER_SHARED_WEB_PARTITION } from '../browserPartitions.js';
 
 const PDF_FETCH_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';

@@ -2,7 +2,7 @@ import http from 'node:http';
 
 import { app } from 'electron';
 
-import { fetchLatestArticles } from '../../src/ls/code/electron-main/services/articleFetcher.js';
+import { fetchLatestArticles } from '../../src/ls/code/electron-main/fetch/articleFetcher.js';
 
 app.commandLine.appendSwitch('disable-gpu');
 
@@ -254,4 +254,3 @@ main().catch((error) => {
   );
   app.exit(1);
 });
-

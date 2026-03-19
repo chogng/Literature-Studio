@@ -8,7 +8,7 @@ import {
   findNatureListingNextPageUrl,
   isNatureListingPage,
 } from './nature-listing-shared.js';
-import { shortenForLog, timingLog } from '../fetchTiming.js';
+import { shortenForLog, timingLog } from '../../fetchTiming.js';
 
 import type {
   ListingCandidateExtraction,

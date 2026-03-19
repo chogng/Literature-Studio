@@ -33,7 +33,7 @@ export function createMainWindow() {
     backgroundColor: '#edf2f8',
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '../../base/parts/sandbox/electron-browser/preload.js'),
+      preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -48,7 +48,7 @@ export function createMainWindow() {
   if (devUrl) {
     void window.loadURL(devUrl);
   } else {
-    void window.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    void window.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'));
   }
 
   window.on('closed', () => {

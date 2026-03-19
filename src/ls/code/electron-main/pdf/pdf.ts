@@ -1,4 +1,4 @@
-﻿import path from 'node:path';
+import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { load } from 'cheerio';
 
@@ -7,7 +7,7 @@ import { buildPdfDirectoryName } from '../utils/pdf-file-name.js';
 import { cleanText } from '../utils/text.js';
 import { normalizeUrl } from '../utils/url.js';
 import { appError } from '../utils/app-error.js';
-import { fetchHtml } from './articleFetcher.js';
+import { fetchHtml } from '../fetch/articleFetcher.js';
 import {
   buildNatureResearchPdfDownloadCandidates,
   extractNatureResearchPdfDownloadCandidatesFromHtml,
@@ -19,9 +19,9 @@ import {
   tryDownloadPdfCandidates,
   type PdfDownloadAttemptFailure,
 } from './pdfRuntime.js';
-import { naturePdfStrategy } from './pdf-strategies/naturePdfStrategy.js';
-import { sciencePdfStrategy } from './pdf-strategies/sciencePdfStrategy.js';
-import type { PdfDownloadContext, PdfDownloadStrategy } from './pdf-strategies/pdfStrategyTypes.js';
+import { naturePdfStrategy } from './pdfStrategies/naturePdfStrategy.js';
+import { sciencePdfStrategy } from './pdfStrategies/sciencePdfStrategy.js';
+import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategies/pdfStrategyTypes.js';
 import { buildScienceDirectPdfDownloadCandidates } from './sciencePdf.js';
 
 const PDF_STRATEGY_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';

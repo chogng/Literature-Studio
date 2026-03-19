@@ -2,7 +2,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { app } from 'electron';
 
-import { previewDownloadPdf } from '../../src/ls/code/electron-main/services/pdf.js';
+import { previewDownloadPdf } from '../../src/ls/code/electron-main/pdf/pdf.js';
 
 const outputRoot = path.join(
   process.cwd(),
@@ -159,4 +159,3 @@ main()
     );
     app.exit(1);
   });
-

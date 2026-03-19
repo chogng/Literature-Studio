@@ -3,7 +3,7 @@ import {
   getPreviewDocumentSnapshot,
   getPreviewListingCandidateSnapshot,
   getPreviewState,
-} from '../preview-view.js';
+} from '../windowing/preview-view.js';
 import {
   buildPreviewAdmissionKey,
   collectMatchedPreviewPageUrls,

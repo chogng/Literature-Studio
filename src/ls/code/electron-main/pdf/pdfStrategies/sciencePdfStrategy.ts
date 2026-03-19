@@ -20,7 +20,7 @@ import {
   type PdfDownloadAttemptFailure,
 } from '../pdfRuntime.js';
 import { buildScienceEpdfPageUrl } from '../sciencePdf.js';
-import { withValidatedSciencePageWindow } from '../scienceValidation.js';
+import { withValidatedSciencePageWindow } from '../../fetch/scienceValidation.js';
 import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategyTypes.js';
 
 type ScienceValidatedPageDownloadOptions = {
