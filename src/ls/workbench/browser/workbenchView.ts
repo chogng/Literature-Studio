@@ -13,7 +13,7 @@ import {
   toDocumentLang,
   type Locale,
 } from '../../../language/i18n';
-import { useWindowControls } from '../../base/browser/window';
+import { useWindowControls } from './window';
 import { ToastContainer } from '../../base/browser/ui/toast/toast';
 import type { Article } from '../services/article/articleFetch';
 import {
@@ -26,8 +26,10 @@ import { useDocumentActionsModel } from './documentActionsModel';
 import {
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchShellClassName,
+  WORKBENCH_PART_IDS,
   subscribeWorkbenchLayoutState,
   toggleSidebarVisibility,
+  useWorkbenchPartRef,
 } from './layout';
 import { createEditorPartProps } from './parts/editor/editorPart';
 import { createSettingsPartProps } from './parts/settings/settingsPart';
@@ -45,7 +47,6 @@ import {
   subscribeWorkbenchState,
   toggleWorkbenchSettings,
 } from './workbench';
-import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from './workbenchPart';
 import './media/workbench.css';
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;

@@ -3,6 +3,9 @@
 ## LS Migration Rules
 - Migrate `src/ls/**` step by step in small, verifiable slices (one concern per change).
 - Align migrated structures with the upstream data model in `C:\Users\lanxi\Desktop\code` unless a deliberate divergence is documented.
+- Treat this repository as a reduced mirror of upstream for migrated `src/ls/**` areas: do not introduce project-specific module/file layers when an upstream-aligned placement exists.
+- When responsibilities are misplaced, move logic into the upstream-equivalent owning module first (responsibility realignment) instead of creating new local-only files.
+- Before adding any new file under migrated `src/ls/**`, verify the equivalent upstream location in `C:\Users\lanxi\Desktop\code`; if no upstream counterpart exists, require explicit justification or user approval.
 - Follow Code-OSS style in `src/ls/**`: prefer `.ts` modules and do not introduce `.tsx` files unless explicitly required.
 - For this migration line, treat `.tsx` in `src/ls/**` as legacy transition state: do not introduce new `.tsx` files there, and prefer retiring existing ones over adding more.
 - The current repository baseline has retired `.tsx` from `src/**`; do not introduce new `.tsx` files back into the app entry or migrated workbench layers unless there is an explicit architectural reason.

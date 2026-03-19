@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { createStore } from '../common/store';
+import { createStore } from '../../base/common/store';
 
 export type WorkbenchWindowControlAction = 'minimize' | 'toggle-maximize' | 'close';
 

@@ -1,5 +1,5 @@
 import { jsx } from 'react/jsx-runtime';
-import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../workbenchPart';
+import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../layout';
 import type { EditorPartProps } from './editorModel';
 import ViewPartView from '../view/viewPartView';
 import './media/editor.css';

@@ -2,8 +2,6 @@ import {
   getWorkbenchPartDomSnapshot,
   subscribeWorkbenchPartDom,
   WORKBENCH_PART_IDS,
-} from './workbenchPart';
-import {
   getWorkbenchLayoutStateSnapshot,
   subscribeWorkbenchLayoutState,
 } from './layout';

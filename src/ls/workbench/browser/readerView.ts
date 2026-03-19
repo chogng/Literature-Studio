@@ -1,6 +1,9 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import { getWorkbenchContentClassName } from './layout';
-import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from './workbenchPart';
+import {
+  getWorkbenchContentClassName,
+  WORKBENCH_PART_IDS,
+  useWorkbenchPartRef,
+} from './layout';
 import type { EditorPartProps } from './parts/editor/editorModel';
 import EditorPartView from './parts/editor/editorPartView';
 import type { SidebarProps } from './parts/sidebar/sidebarModel';

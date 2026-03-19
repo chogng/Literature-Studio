@@ -4,7 +4,7 @@ import {
   registerWorkbenchPartDomNode,
   subscribeWorkbenchPartDom,
   WORKBENCH_PART_IDS,
-} from '../../workbenchPart';
+} from '../../layout';
 
 type UseWorkbenchPreviewViewParams = {
   browserUrl: string;

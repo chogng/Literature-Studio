@@ -1,3 +1,4 @@
+import { useCallback, type RefCallback } from 'react';
 import { createStore } from '../../base/common/store';
 import type { WorkbenchPage } from './workbench';
 
@@ -22,11 +23,35 @@ type WorkbenchContentLayoutParams = {
   isSidebarVisible: boolean;
 };
 
+export const WORKBENCH_PART_IDS = {
+  container: 'workbench.container',
+  titlebar: 'workbench.titlebar',
+  sidebar: 'workbench.sidebar',
+  settings: 'workbench.settings',
+  editor: 'workbench.editor',
+  view: 'workbench.view',
+  previewHost: 'workbench.view.previewHost',
+} as const;
+
+export type WorkbenchPartId =
+  (typeof WORKBENCH_PART_IDS)[keyof typeof WORKBENCH_PART_IDS];
+
 const DEFAULT_WORKBENCH_LAYOUT_STATE: WorkbenchLayoutStateSnapshot = {
   isSidebarVisible: true,
 };
 
+const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement | null> = {
+  [WORKBENCH_PART_IDS.container]: null,
+  [WORKBENCH_PART_IDS.titlebar]: null,
+  [WORKBENCH_PART_IDS.sidebar]: null,
+  [WORKBENCH_PART_IDS.settings]: null,
+  [WORKBENCH_PART_IDS.editor]: null,
+  [WORKBENCH_PART_IDS.view]: null,
+  [WORKBENCH_PART_IDS.previewHost]: null,
+};
+
 const workbenchLayoutStore = createStore(DEFAULT_WORKBENCH_LAYOUT_STATE);
+const workbenchPartStore = createStore(DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT);
 
 function reduceWorkbenchLayoutState(
   state: WorkbenchLayoutStateSnapshot,
@@ -53,6 +78,8 @@ function reduceWorkbenchLayoutState(
 
 export const subscribeWorkbenchLayoutState = workbenchLayoutStore.subscribe;
 export const getWorkbenchLayoutStateSnapshot = workbenchLayoutStore.getSnapshot;
+export const subscribeWorkbenchPartDom = workbenchPartStore.subscribe;
+export const getWorkbenchPartDomSnapshot = workbenchPartStore.getSnapshot;
 
 export function dispatchWorkbenchLayoutEvent(event: WorkbenchLayoutEvent) {
   workbenchLayoutStore.updateState((currentState) =>
@@ -71,6 +98,32 @@ export function toggleSidebarVisibility() {
   dispatchWorkbenchLayoutEvent({
     type: 'TOGGLE_SIDEBAR_VISIBILITY',
   });
+}
+
+export function getWorkbenchPartDomNode(partId: WorkbenchPartId) {
+  return workbenchPartStore.getSnapshot()[partId];
+}
+
+export function registerWorkbenchPartDomNode(
+  partId: WorkbenchPartId,
+  element: HTMLElement | null,
+) {
+  workbenchPartStore.updateState((currentSnapshot) => {
+    if (currentSnapshot[partId] === element) {
+      return currentSnapshot;
+    }
+
+    return {
+      ...currentSnapshot,
+      [partId]: element,
+    };
+  });
+}
+
+export function useWorkbenchPartRef(partId: WorkbenchPartId) {
+  return useCallback<RefCallback<HTMLElement>>((element) => {
+    registerWorkbenchPartDomNode(partId, element);
+  }, [partId]);
 }
 
 export function getWorkbenchShellClassName({
