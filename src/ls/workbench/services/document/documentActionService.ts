@@ -1,5 +1,4 @@
-import type { Locale } from '../../../../language/i18n';
-import {
+锘縤mport {
   buildNatureResearchPdfDownloadUrl,
   buildSciencePdfDownloadUrl,
   normalizeUrl,
@@ -33,12 +32,6 @@ export function preparePdfDownload(
     preferredPdfUrl,
     isSciencePdfDownload: Boolean(sciencePdfUrl),
   };
-}
-
-export function resolveSciencePdfQueueMessage(locale: Locale) {
-  return locale === 'zh'
-    ? 'Science PDF 正在顺序下载，当前任务已加入队列。'
-    : 'Science PDF downloads run sequentially. This request has been queued.';
 }
 
 export function resolvePreferredDirectory(directory: string) {

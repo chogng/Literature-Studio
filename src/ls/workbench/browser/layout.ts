@@ -1,5 +1,4 @@
 import { useCallback, type RefCallback } from 'react';
-import { createStore } from '../../base/common/store';
 import type { WorkbenchPage } from './workbench';
 
 export type WorkbenchLayoutStateSnapshot = {
@@ -50,8 +49,17 @@ const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement |
   [WORKBENCH_PART_IDS.previewHost]: null,
 };
 
-const workbenchLayoutStore = createStore(DEFAULT_WORKBENCH_LAYOUT_STATE);
-const workbenchPartStore = createStore(DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT);
+let workbenchLayoutState = DEFAULT_WORKBENCH_LAYOUT_STATE;
+const workbenchLayoutListeners = new Set<() => void>();
+
+let workbenchPartDomSnapshot = DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT;
+const workbenchPartDomListeners = new Set<() => void>();
+
+function emitListeners(listeners: Set<() => void>) {
+  for (const listener of listeners) {
+    listener();
+  }
+}
 
 function reduceWorkbenchLayoutState(
   state: WorkbenchLayoutStateSnapshot,
@@ -76,15 +84,36 @@ function reduceWorkbenchLayoutState(
   }
 }
 
-export const subscribeWorkbenchLayoutState = workbenchLayoutStore.subscribe;
-export const getWorkbenchLayoutStateSnapshot = workbenchLayoutStore.getSnapshot;
-export const subscribeWorkbenchPartDom = workbenchPartStore.subscribe;
-export const getWorkbenchPartDomSnapshot = workbenchPartStore.getSnapshot;
+export function subscribeWorkbenchLayoutState(listener: () => void) {
+  workbenchLayoutListeners.add(listener);
+  return () => {
+    workbenchLayoutListeners.delete(listener);
+  };
+}
+
+export function getWorkbenchLayoutStateSnapshot() {
+  return workbenchLayoutState;
+}
+
+export function subscribeWorkbenchPartDom(listener: () => void) {
+  workbenchPartDomListeners.add(listener);
+  return () => {
+    workbenchPartDomListeners.delete(listener);
+  };
+}
+
+export function getWorkbenchPartDomSnapshot() {
+  return workbenchPartDomSnapshot;
+}
 
 export function dispatchWorkbenchLayoutEvent(event: WorkbenchLayoutEvent) {
-  workbenchLayoutStore.updateState((currentState) =>
-    reduceWorkbenchLayoutState(currentState, event),
-  );
+  const nextState = reduceWorkbenchLayoutState(workbenchLayoutState, event);
+  if (Object.is(nextState, workbenchLayoutState)) {
+    return;
+  }
+
+  workbenchLayoutState = nextState;
+  emitListeners(workbenchLayoutListeners);
 }
 
 export function setSidebarVisible(visible: boolean) {
@@ -101,23 +130,22 @@ export function toggleSidebarVisibility() {
 }
 
 export function getWorkbenchPartDomNode(partId: WorkbenchPartId) {
-  return workbenchPartStore.getSnapshot()[partId];
+  return workbenchPartDomSnapshot[partId];
 }
 
 export function registerWorkbenchPartDomNode(
   partId: WorkbenchPartId,
   element: HTMLElement | null,
 ) {
-  workbenchPartStore.updateState((currentSnapshot) => {
-    if (currentSnapshot[partId] === element) {
-      return currentSnapshot;
-    }
+  if (workbenchPartDomSnapshot[partId] === element) {
+    return;
+  }
 
-    return {
-      ...currentSnapshot,
-      [partId]: element,
-    };
-  });
+  workbenchPartDomSnapshot = {
+    ...workbenchPartDomSnapshot,
+    [partId]: element,
+  };
+  emitListeners(workbenchPartDomListeners);
 }
 
 export function useWorkbenchPartRef(partId: WorkbenchPartId) {

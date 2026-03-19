@@ -1,15 +1,21 @@
-import { createSourceLookupKey } from '../../common/sourceLookupKey';
+import type { BatchSource as DesktopBatchSource } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { sanitizeUrlInput } from '../../common/url';
+import {
+  batchLimitMax,
+  batchLimitMin,
+  defaultBatchLimit,
+  defaultSameDomainOnly,
+  getDefaultBatchSources,
+} from '../../../platform/configuration/common/defaultBatchSources.js';
 
-export const batchLimitMin = 1;
-export const batchLimitMax = 100;
-
-export type BatchSource = {
-  id: string;
-  url: string;
-  journalTitle: string;
-  preferredExtractorId?: string | null;
+export {
+  batchLimitMax,
+  batchLimitMin,
+  defaultBatchLimit,
+  defaultSameDomainOnly,
 };
+
+export type BatchSource = DesktopBatchSource;
 
 export type ResolvedSourceTableMetadata = {
   lookupKey: string;
@@ -24,6 +30,35 @@ type SourceLookupMaps = {
   articleListIdByLookupKey: Map<string, string>;
   preferredExtractorIdByLookupKey: Map<string, string>;
 };
+
+function createSourceLookupKey(input: unknown) {
+  const normalized = normalizeConfigSourceUrl(String(input ?? ''));
+  if (!normalized) {
+    return '';
+  }
+
+  try {
+    const url = new URL(normalized);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
+    const pathname = url.pathname.replace(/\/+$/, '') || '/';
+    return `${hostname}${pathname}`;
+  } catch {
+    return '';
+  }
+}
+
+function normalizeConfigSourceUrl(input: string) {
+  const trimmed = sanitizeUrlInput(input);
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
 
 function randomIdSegment() {
   return Math.random().toString(36).slice(2, 10);
@@ -56,9 +91,6 @@ export function createEmptyBatchSource(): BatchSource {
     preferredExtractorId: null,
   };
 }
-
-export const defaultBatchLimit = 50;
-export const defaultSameDomainOnly = true;
 
 export function normalizeBatchLimit(input: unknown, fallback: number = defaultBatchLimit): number {
   const parsed = Number.parseInt(String(input), 10);
@@ -226,17 +258,13 @@ export function resolveDefaultJournalTitleFromSourceUrl(
   return resolveSourceTableMetadata(input, batchSources).defaultJournalTitle;
 }
 
-export type ConfigBatchSourceEntry = BatchSource;
-export type ConfigBatchSourceList = BatchSource[];
-export type ConfigBatchSourceFallback = ReadonlyArray<BatchSource>;
-
-export type ConfigBatchSourceResolution = {
-  batchSources: ConfigBatchSourceList;
+type ConfigBatchSourceResolution = {
+  batchSources: BatchSource[];
 };
 
-const configBatchSourceSeed: ReadonlyArray<BatchSource> = [];
+const configBatchSourceSeed: ReadonlyArray<BatchSource> = getDefaultBatchSources();
 
-export function getConfigBatchSourceSeed(): ConfigBatchSourceList {
+export function getConfigBatchSourceSeed(): BatchSource[] {
   return configBatchSourceSeed.map((source) => ({
     id: source.id,
     url: source.url,
@@ -247,7 +275,7 @@ export function getConfigBatchSourceSeed(): ConfigBatchSourceList {
 
 function createConfigBatchSourceResolution(
   input: unknown,
-  fallback: ConfigBatchSourceFallback = configBatchSourceSeed,
+  fallback: ReadonlyArray<BatchSource> = configBatchSourceSeed,
 ): ConfigBatchSourceResolution {
   return {
     batchSources: normalizeBatchSources(input, fallback),
@@ -256,7 +284,7 @@ function createConfigBatchSourceResolution(
 
 export function resolveConfigBatchSources(
   input: unknown,
-  fallback: ConfigBatchSourceFallback = configBatchSourceSeed,
-): ConfigBatchSourceList {
+  fallback: ReadonlyArray<BatchSource> = configBatchSourceSeed,
+): BatchSource[] {
   return createConfigBatchSourceResolution(input, fallback).batchSources;
 }

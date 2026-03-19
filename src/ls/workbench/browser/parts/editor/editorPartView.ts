@@ -1,8 +1,12 @@
 import { jsx } from 'react/jsx-runtime';
 import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../layout';
-import type { EditorPartProps } from './editorModel';
-import ViewPartView from '../view/viewPartView';
+import ViewPartView from '../views/viewPartView';
+import type { ViewPartProps } from '../views/viewPartView';
 import './media/editor.css';
+
+export type EditorPartProps = {
+  viewPartProps: ViewPartProps;
+};
 
 function renderEditorContent(viewPartProps: EditorPartProps['viewPartProps']) {
   return jsx(ViewPartView, { ...viewPartProps });

@@ -1,9 +1,14 @@
 import type { BatchSource } from '../config/configSchema';
 import { resolveSourceTableMetadata } from '../config/configSchema';
 import { normalizeUrl, sanitizeUrlInput } from '../../common/url';
-import type { TitlebarAddressBarSourceOption } from '../../browser/parts/titlebar/titlebarModel';
 
 export type QuickAccessCycleDirection = 'prev' | 'next';
+export type QuickAccessSourceOption = {
+  id: string;
+  label: string;
+  url: string;
+  journalTitle: string;
+};
 
 export function applyQuickAccessUrlInput(
   nextUrl: string,
@@ -17,8 +22,8 @@ export function applyQuickAccessUrlInput(
 
 export function createQuickAccessSourceOptions(
   batchSources: ReadonlyArray<BatchSource>,
-): TitlebarAddressBarSourceOption[] {
-  const options: TitlebarAddressBarSourceOption[] = [];
+): QuickAccessSourceOption[] {
+  const options: QuickAccessSourceOption[] = [];
   const seenSourceIds = new Set<string>();
 
   for (const source of batchSources) {
@@ -57,14 +62,14 @@ export function resolveQuickAccessSourceId(
 }
 
 export function findQuickAccessSourceOption(
-  options: ReadonlyArray<TitlebarAddressBarSourceOption>,
+  options: ReadonlyArray<QuickAccessSourceOption>,
   sourceId: string,
 ) {
   return options.find((option) => option.id === sourceId);
 }
 
 export function resolveNextQuickAccessSourceOption(
-  options: ReadonlyArray<TitlebarAddressBarSourceOption>,
+  options: ReadonlyArray<QuickAccessSourceOption>,
   selectedSourceId: string,
   direction: QuickAccessCycleDirection,
 ) {

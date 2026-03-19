@@ -1,16 +1,18 @@
 import type { LocaleMessages } from '../../../../../language/locales';
 import type {
-  TitlebarAddressBarSourceOption,
   TitlebarProps,
-} from './titlebarModel';
-import type { QuickAccessCycleDirection } from '../../../services/quickAccess/quickAccessService';
+} from './titlebarView';
+import type {
+  QuickAccessCycleDirection,
+  QuickAccessSourceOption,
+} from '../../../services/quickAccess/quickAccessService';
 
 export type { QuickAccessCycleDirection };
 
 type TitlebarQuickAccessState = {
   ui: LocaleMessages;
   webUrl: string;
-  addressBarSourceOptions: TitlebarAddressBarSourceOption[];
+  addressBarSourceOptions: QuickAccessSourceOption[];
   selectedAddressBarSourceId: string;
 };
 

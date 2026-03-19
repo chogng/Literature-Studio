@@ -9,6 +9,12 @@ import {
   type Ref,
 } from 'react';
 import {
+  type FetchChannel,
+  type PreviewReuseMode,
+  type WindowControlAction,
+} from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
+import {
   ArrowLeft,
   ArrowRight,
   Copy,
@@ -24,13 +30,65 @@ import {
 import { Button } from '../../../../base/browser/ui/button/button';
 import { Dropdown } from '../../../../base/browser/ui/dropdown/dropdown';
 import { Input } from '../../../../base/browser/ui/input/input';
-import type {
-  TitlebarAddressBarSourceOption,
-  TitlebarInputProps,
-  TitlebarLabels,
-  TitlebarProps,
-} from './titlebarModel';
 import './media/titlebar.css';
+
+export type TitlebarAction = Extract<
+  WindowControlAction,
+  'minimize' | 'toggle-maximize' | 'close'
+>;
+
+export type TitlebarLabels = {
+  controlsAriaLabel: string;
+  settingsLabel: string;
+  minimizeLabel: string;
+  maximizeLabel: string;
+  restoreLabel: string;
+  closeLabel: string;
+  backLabel: string;
+  forwardLabel: string;
+  refreshLabel: string;
+  exportDocxLabel: string;
+  noExportableArticlesLabel: string;
+};
+
+export type TitlebarProps = {
+  appName?: string;
+  labels: TitlebarLabels;
+  isWindowMaximized: boolean;
+  onWindowControl: (action: TitlebarAction) => void;
+  isSidebarOpen?: boolean;
+  sidebarToggleLabel?: string;
+  onToggleSidebar?: () => void;
+  onToggleSettings?: () => void;
+  browserUrl?: string;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
+  canExportDocx?: boolean;
+  onNavigateBack?: () => void;
+  onNavigateForward?: () => void;
+  onRefresh?: () => void;
+  onExportDocx?: () => void;
+  onAddressBarSourceMenuOpenChange?: (isOpen: boolean) => void;
+  onAddressBarSourceMenuDispose?: () => void;
+  webUrl?: string;
+  onWebUrlChange?: (url: string) => void;
+  onNavigateWeb?: () => void;
+  articleUrlPlaceholder?: string;
+  addressBarSourceOptions?: QuickAccessSourceOption[];
+  selectedAddressBarSourceId?: string;
+  onSelectAddressBarSource?: (sourceId: string) => void;
+  onCycleAddressBarSource?: (direction: 'prev' | 'next') => void;
+  addressBarSourcePlaceholder?: string;
+  addressBarSourceAriaLabel?: string;
+  fetchChannel?: FetchChannel | null;
+  previewReuseMode?: PreviewReuseMode | null;
+  fetchSourceText?: string;
+  fetchSourceTitle?: string;
+  fetchStopText?: string;
+  fetchStopTitle?: string;
+};
+
+export type TitlebarInputProps = Partial<TitlebarProps>;
 
 const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   controlsAriaLabel: '',
@@ -86,7 +144,7 @@ type DropdownChangeEvent = {
 
 function createSourceOptions(
   addressBarSourcePlaceholder: string | undefined,
-  addressBarSourceOptions: TitlebarAddressBarSourceOption[],
+  addressBarSourceOptions: QuickAccessSourceOption[],
 ): SourceOptionView[] {
   return [
     {
@@ -345,7 +403,6 @@ function renderWindowControls({
 }
 
 export function TitlebarView(inputProps: TitlebarViewProps = {}) {
-  const browserUrlRef = useRef(inputProps.browserUrl ?? '');
   const isSourceMenuOpenRef = useRef(false);
 
   const {
@@ -366,6 +423,8 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     onNavigateForward,
     onRefresh,
     onExportDocx,
+    onAddressBarSourceMenuOpenChange,
+    onAddressBarSourceMenuDispose,
     webUrl,
     onWebUrlChange,
     onNavigateWeb,
@@ -386,33 +445,20 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
 
   const sourceOptions = createSourceOptions(addressBarSourcePlaceholder, addressBarSourceOptions);
 
-  useEffect(() => {
-    browserUrlRef.current = browserUrl ?? '';
-  }, [browserUrl]);
-
   const handleSourceMenuOpenChange = useCallback((isOpen: boolean) => {
     isSourceMenuOpenRef.current = isOpen;
-
-    if (typeof window === 'undefined' || !window.electronAPI?.preview) {
-      return;
-    }
-
-    window.electronAPI.preview.setVisible(isOpen ? false : Boolean(browserUrlRef.current));
-  }, []);
+    onAddressBarSourceMenuOpenChange?.(isOpen);
+  }, [onAddressBarSourceMenuOpenChange]);
 
   useEffect(() => {
     return () => {
-      if (
-        !isSourceMenuOpenRef.current ||
-        typeof window === 'undefined' ||
-        !window.electronAPI?.preview
-      ) {
+      if (!isSourceMenuOpenRef.current) {
         return;
       }
 
-      window.electronAPI.preview.setVisible(Boolean(browserUrlRef.current));
+      onAddressBarSourceMenuDispose?.();
     };
-  }, []);
+  }, [onAddressBarSourceMenuDispose]);
 
   const handleAddressBarKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.altKey && onCycleAddressBarSource) {

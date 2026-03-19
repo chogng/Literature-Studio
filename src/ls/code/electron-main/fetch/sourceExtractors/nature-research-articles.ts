@@ -1,6 +1,7 @@
-import { parseDateHintFromText } from '../../utils/date-hint.js';
-import { parseDateString } from '../../utils/date.js';
-import { cleanText } from '../../utils/text.js';
+import { parseDateHintFromText } from '../../../../base/common/date.js';
+import { parseDateString } from '../../../../base/common/date.js';
+import { cleanText } from '../../../../base/common/strings.js';
+import { isNatureMainSiteUrl } from '../../../../base/common/url.js';
 import { createDateSortedPaginationStopEvaluator } from './date-sorted-pagination.js';
 import {
   createNatureListingCandidateExtractor,
@@ -255,5 +256,5 @@ export const natureResearchArticlesCandidateExtractor = createNatureResearchArti
 });
 
 export function isNatureResearchArticlesListingPage(page: URL) {
-  return page.host === 'www.nature.com' && NATURE_RESEARCH_ARTICLES_PATH_RE.test(page.pathname);
+  return isNatureMainSiteUrl(page.toString()) && NATURE_RESEARCH_ARTICLES_PATH_RE.test(page.pathname);
 }

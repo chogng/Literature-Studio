@@ -1,16 +1,71 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import type { Ref } from 'react';
+import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../../../base/browser/ui/button/button';
+import type { Locale } from '../../../../../language/i18n';
 import { DateRangePicker } from '../../../../base/browser/ui/dateRangePicker/dateRangePicker';
 import ArticleCard from './articleCard';
-import type { SidebarProps } from './sidebarModel';
 import './media/sidebar.css';
+
+export type SidebarArticle = {
+  title: string;
+  articleType: string | null;
+  doi: string | null;
+  authors: string[];
+  abstractText: string | null;
+  descriptionText: string | null;
+  publishedAt: string | null;
+  sourceUrl: string;
+  fetchedAt: string;
+  journalTitle?: string | null;
+};
+
+export type SidebarLabels = {
+  untitled: string;
+  unknown: string;
+  authors: string;
+  abstract: string;
+  description?: string;
+  publishedAt: string;
+  source: string;
+  fetchedAt: string;
+  close: string;
+  emptyFiltered: string;
+  emptyAll: string;
+  startDate: string;
+  endDate: string;
+  fetchLatestBusy: string;
+  fetchLatest: string;
+};
+
+export type SidebarProps = {
+  articles: SidebarArticle[];
+  hasData: boolean;
+  locale: Locale;
+  labels: SidebarLabels;
+  batchStartDate: string;
+  onBatchStartDateChange: (value: string) => void;
+  batchEndDate: string;
+  onBatchEndDateChange: (value: string) => void;
+  onFetchLatestBatch: () => void;
+  onDownloadPdf: (
+    sourceUrl: string,
+    articleTitle?: string,
+    journalTitle?: string | null,
+    doi?: string | null,
+  ) => Promise<void>;
+  onOpenArticleDetails: (
+    article: SidebarArticle,
+    labels: ArticleDetailsModalLabels,
+  ) => void | Promise<void>;
+  isBatchLoading: boolean;
+};
 
 type SidebarViewProps = SidebarProps & {
   partRef?: Ref<HTMLElement>;
 };
 
-function createArticleCardLabels(labels: SidebarProps['labels']) {
+function createArticleCardLabels(labels: SidebarProps['labels']): ArticleDetailsModalLabels {
   return {
     untitled: labels.untitled,
     unknown: labels.unknown,
@@ -30,7 +85,11 @@ function renderSidebarContent({
   locale,
   labels,
   onDownloadPdf,
-}: Pick<SidebarViewProps, 'articles' | 'hasData' | 'locale' | 'labels' | 'onDownloadPdf'>) {
+  onOpenArticleDetails,
+}: Pick<
+  SidebarViewProps,
+  'articles' | 'hasData' | 'locale' | 'labels' | 'onDownloadPdf' | 'onOpenArticleDetails'
+>) {
   if (articles.length > 0) {
     const articleCardLabels = createArticleCardLabels(labels);
 
@@ -44,6 +103,7 @@ function renderSidebarContent({
             locale,
             labels: articleCardLabels,
             onDownloadPdf,
+            onOpenArticleDetails,
           },
           `${article.sourceUrl}-${article.fetchedAt}-${index}`,
         ),
@@ -115,6 +175,7 @@ export default function SidebarView({
   onBatchEndDateChange,
   onFetchLatestBatch,
   onDownloadPdf,
+  onOpenArticleDetails,
   isBatchLoading,
 }: SidebarViewProps) {
   const actionBarView = renderActionBar({
@@ -132,6 +193,7 @@ export default function SidebarView({
     locale,
     labels,
     onDownloadPdf,
+    onOpenArticleDetails,
   });
 
   return jsxs('section', {

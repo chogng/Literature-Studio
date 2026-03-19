@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from 'react';
 import { normalizeUrl } from '../../common/url';
 
 export type PdfDownloadMonitorStatus = {
@@ -120,12 +119,4 @@ export function subscribePdfDownloadStatus(listener: () => void) {
   return () => {
     listeners.delete(listener);
   };
-}
-
-export function usePdfDownloadStatus(pageUrl: string) {
-  return useSyncExternalStore(
-    subscribePdfDownloadStatus,
-    () => getPdfDownloadStatus(pageUrl),
-    () => EMPTY_STATUS,
-  );
 }

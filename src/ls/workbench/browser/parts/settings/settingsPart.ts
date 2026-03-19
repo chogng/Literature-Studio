@@ -1,7 +1,7 @@
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import type { BatchSource } from '../../../services/config/configSchema';
-import type { SettingsPartLabels, SettingsPartProps } from './settingsModel';
+import type { SettingsPartLabels, SettingsPartProps } from './settingsView';
 
 export type SettingsPartState = {
   ui: LocaleMessages;

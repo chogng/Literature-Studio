@@ -1,5 +1,9 @@
-import { parseDateHintFromText } from '../../utils/date-hint.js';
-import { cleanText, uniq } from '../../utils/text.js';
+import { parseDateHintFromText } from '../../../../base/common/date.js';
+import { cleanText, uniq } from '../../../../base/common/strings.js';
+import {
+  extractScienceDoiFromPathLike,
+  isScienceSciadvCurrentTocUrl,
+} from '../../../../base/common/url.js';
 
 import type {
   ListingCandidateExtraction,
@@ -8,7 +12,6 @@ import type {
 } from './types.js';
 import { normalizeListingCandidateSeed } from './types.js';
 
-const SCIENCE_SCIADV_CURRENT_PATH_RE = /^\/toc\/sciadv\/current\/?$/i;
 const SCIENCE_SCIADV_TOC_BODY_SELECTORS = [
   'div.toc > div.toc__body > div.toc__body',
   'div.toc__body > div.toc__body',
@@ -26,7 +29,6 @@ const SCIENCE_SCIADV_DATE_SELECTOR = '.card-meta time, time[datetime], [datetime
 const SCIENCE_SCIADV_ABSTRACT_SELECTOR = '.accordion__content, div.card-body';
 const SCIENCE_SCIADV_AUTHORS_SELECTOR = 'ul[title="list of authors"] li span';
 const SCIENCE_SCIADV_ARTICLE_TYPE = 'Physical and Materials Sciences';
-const DOI_PATH_RE = /\/doi\/(?:abs\/|epdf\/|pdf\/)?(10\.\d{4,9}\/[^?#]+)/i;
 
 function normalizeHeading(value: unknown) {
   return cleanText(value).toLowerCase();
@@ -152,14 +154,7 @@ function extractScienceSciadvCardDateHint({
 }
 
 function extractScienceSciadvCardDoi(href: string) {
-  const matched = cleanText(href).match(DOI_PATH_RE);
-  if (!matched?.[1]) return null;
-
-  try {
-    return decodeURIComponent(matched[1]);
-  } catch {
-    return matched[1];
-  }
+  return extractScienceDoiFromPathLike(href);
 }
 
 function extractScienceSciadvCardAuthors({
@@ -272,10 +267,5 @@ export const scienceSciadvCurrentPhysicalMaterialsCandidateExtractor: ListingCan
 };
 
 export function isScienceSciadvCurrentListingPage(page: URL) {
-  const host = page.host.toLowerCase();
-  if (host !== 'www.science.org' && host !== 'science.org') {
-    return false;
-  }
-
-  return SCIENCE_SCIADV_CURRENT_PATH_RE.test(page.pathname);
+  return isScienceSciadvCurrentTocUrl(page.toString());
 }

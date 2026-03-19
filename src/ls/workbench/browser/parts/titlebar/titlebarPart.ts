@@ -1,9 +1,10 @@
 import type { LocaleMessages } from '../../../../../language/locales';
 import type {
-  TitlebarAction,
-  TitlebarAddressBarSourceOption,
-  TitlebarProps,
-} from './titlebarModel';
+  FetchStatus,
+  PreviewState,
+} from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
+import type { TitlebarAction, TitlebarProps } from './titlebarView';
 import type { WorkbenchPage } from '../../workbench';
 import {
   createTitlebarQuickAccessProps,
@@ -17,11 +18,11 @@ export type TitlebarPartState = {
   isWindowMaximized: boolean;
   isSidebarVisible: boolean;
   browserUrl: string;
-  previewState: Pick<DesktopPreviewState, 'canGoBack' | 'canGoForward'>;
+  previewState: Pick<PreviewState, 'canGoBack' | 'canGoForward'>;
   canExportDocx: boolean;
-  addressBarSourceOptions: TitlebarAddressBarSourceOption[];
+  addressBarSourceOptions: QuickAccessSourceOption[];
   selectedAddressBarSourceId: string;
-  fetchStatus: DesktopFetchStatus | null;
+  fetchStatus: FetchStatus | null;
   titlebarFetchSourceText: string;
   titlebarFetchSourceTitle: string;
   titlebarFetchStopText: string;
@@ -35,6 +36,8 @@ export type TitlebarPartActions = {
   handlePreviewBack: () => void;
   handlePreviewForward: () => void;
   handleBrowserRefresh: () => void;
+  handleAddressBarSourceMenuOpenChange: (isOpen: boolean) => void;
+  handleAddressBarSourceMenuDispose: () => void;
   handleExportDocx: () => void;
   handleWebUrlChange: (url: string) => void;
   handleNavigateWeb: () => void;
@@ -73,6 +76,8 @@ export function createTitlebarPartProps({
     handlePreviewBack,
     handlePreviewForward,
     handleBrowserRefresh,
+    handleAddressBarSourceMenuOpenChange,
+    handleAddressBarSourceMenuDispose,
     handleExportDocx,
     handleWebUrlChange,
     handleNavigateWeb,
@@ -108,6 +113,8 @@ export function createTitlebarPartProps({
     onNavigateBack: handlePreviewBack,
     onNavigateForward: handlePreviewForward,
     onRefresh: handleBrowserRefresh,
+    onAddressBarSourceMenuOpenChange: handleAddressBarSourceMenuOpenChange,
+    onAddressBarSourceMenuDispose: handleAddressBarSourceMenuDispose,
     onExportDocx: handleExportDocx,
     ...createTitlebarQuickAccessProps({
       state: {

@@ -1,10 +1,10 @@
-﻿import { appError } from '../../utils/app-error.js';
+﻿import { appError } from '../../../../base/common/errors.js';
 import {
   persistDownloadedPdf,
   tryBrowserSessionDownloadCandidates,
   tryDownloadPdfCandidates,
   type PdfDownloadAttemptFailure,
-} from '../pdfRuntime.js';
+} from '../../../../platform/download/electron-main/pdfDownload.js';
 import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategyTypes.js';
 
 const NATURE_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';

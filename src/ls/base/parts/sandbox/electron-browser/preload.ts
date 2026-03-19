@@ -10,13 +10,54 @@ import type {
   PreviewState,
   WindowControlAction,
   WindowState,
-} from '../../../../code/electron-main/types.js';
-import { parseSerializedAppError } from '../../../../code/electron-main/utils/app-error.js';
+} from '../common/desktopTypes.js';
+import { parseSerializedAppError } from '../../../common/errors.js';
+
+const APP_IPC_CHANNEL_PREFIX = 'app:';
 
 type DesktopInvokeError = Error & {
   code?: AppErrorCode;
   details?: Record<string, unknown>;
 };
+
+type ContextAwareProcess = NodeJS.Process & {
+  contextIsolated?: boolean;
+};
+
+function validateIpcChannel(channel: string): string {
+  if (!channel || !channel.startsWith(APP_IPC_CHANNEL_PREFIX)) {
+    throw new Error(`Unsupported IPC channel '${channel}'.`);
+  }
+
+  return channel;
+}
+
+function sendIpc(channel: string, ...args: unknown[]) {
+  ipcRenderer.send(validateIpcChannel(channel), ...args);
+}
+
+function invokeIpc<TResult>(channel: string, ...args: unknown[]) {
+  return ipcRenderer.invoke(validateIpcChannel(channel), ...args) as Promise<TResult>;
+}
+
+function subscribeIpc<TPayload>(
+  channel: string,
+  listener: (payload: TPayload) => void,
+  fallbackPayload: TPayload,
+) {
+  if (typeof listener !== 'function') {
+    return () => {};
+  }
+
+  const safeChannel = validateIpcChannel(channel);
+  const wrapped = (_event: Electron.IpcRendererEvent, payload: TPayload | undefined) =>
+    listener(payload ?? fallbackPayload);
+
+  ipcRenderer.on(safeChannel, wrapped);
+  return () => {
+    ipcRenderer.removeListener(safeChannel, wrapped);
+  };
+}
 
 function normalizeInvokeError(error: unknown): DesktopInvokeError {
   const rawMessage = error instanceof Error ? error.message : String(error);
@@ -41,112 +82,98 @@ function normalizeInvokeError(error: unknown): DesktopInvokeError {
 const electronAPI = {
   async invoke<TCommand extends AppCommand>(command: TCommand, args?: AppCommandPayloadMap[TCommand]) {
     try {
-      return await (ipcRenderer.invoke('app:invoke', command, args ?? {}) as Promise<AppCommandResultMap[TCommand]>);
+      return await invokeIpc<AppCommandResultMap[TCommand]>('app:invoke', command, args ?? {});
     } catch (error) {
       throw normalizeInvokeError(error);
     }
   },
   windowControls: {
     perform(action: WindowControlAction) {
-      ipcRenderer.send('app:window-action', action);
+      sendIpc('app:window-action', action);
     },
     getState() {
-      return ipcRenderer.invoke('app:get-window-state') as Promise<WindowState>;
+      return invokeIpc<WindowState>('app:get-window-state');
     },
     onStateChange(listener: (state: WindowState) => void) {
-      if (typeof listener !== 'function') {
-        return () => {};
-      }
-
-      const wrapped = (_event: Electron.IpcRendererEvent, payload: WindowState | undefined) =>
-        listener(payload ?? { isMaximized: false });
-
-      ipcRenderer.on('app:window-state', wrapped);
-      return () => {
-        ipcRenderer.removeListener('app:window-state', wrapped);
-      };
+      return subscribeIpc<WindowState>('app:window-state', listener, {
+        isMaximized: false,
+      });
     },
   },
   preview: {
     async navigate(url: string) {
       try {
-        return await (ipcRenderer.invoke('app:preview-navigate', url) as Promise<PreviewState>);
+        return await invokeIpc<PreviewState>('app:preview-navigate', url);
       } catch (error) {
         throw normalizeInvokeError(error);
       }
     },
     getState() {
-      return ipcRenderer.invoke('app:preview-get-state') as Promise<PreviewState>;
+      return invokeIpc<PreviewState>('app:preview-get-state');
     },
     setBounds(bounds: PreviewBounds | null) {
-      ipcRenderer.send('app:preview-set-bounds', bounds);
+      sendIpc('app:preview-set-bounds', bounds);
     },
     setVisible(visible: boolean) {
-      ipcRenderer.send('app:preview-set-visible', visible);
+      sendIpc('app:preview-set-visible', visible);
     },
     reload() {
-      ipcRenderer.send('app:preview-reload');
+      sendIpc('app:preview-reload');
     },
     goBack() {
-      ipcRenderer.send('app:preview-go-back');
+      sendIpc('app:preview-go-back');
     },
     goForward() {
-      ipcRenderer.send('app:preview-go-forward');
+      sendIpc('app:preview-go-forward');
     },
     onStateChange(listener: (state: PreviewState) => void) {
-      if (typeof listener !== 'function') {
-        return () => {};
-      }
-
-      const wrapped = (_event: Electron.IpcRendererEvent, payload: PreviewState | undefined) =>
-        listener(
-          payload ?? {
-            url: '',
-            canGoBack: false,
-            canGoForward: false,
-            isLoading: false,
-            visible: false,
-          },
-        );
-
-      ipcRenderer.on('app:preview-state', wrapped);
-      return () => {
-        ipcRenderer.removeListener('app:preview-state', wrapped);
-      };
+      return subscribeIpc<PreviewState>('app:preview-state', listener, {
+        url: '',
+        canGoBack: false,
+        canGoForward: false,
+        isLoading: false,
+        visible: false,
+      });
     },
   },
   fetch: {
     onFetchStatus(listener: (status: FetchStatus) => void) {
-      if (typeof listener !== 'function') {
-        return () => {};
-      }
-
-      const wrapped = (_event: Electron.IpcRendererEvent, payload: FetchStatus | undefined) =>
-        listener(
-          payload ?? {
-            sourceId: '',
-            pageUrl: '',
-            pageNumber: 0,
-            fetchChannel: 'network',
-            fetchDetail: null,
-            previewReuseMode: null,
-            extractorId: null,
-            paginationStopped: false,
-            paginationStopReason: null,
-          },
-        );
-
-      ipcRenderer.on('app:fetch-status', wrapped);
-      return () => {
-        ipcRenderer.removeListener('app:fetch-status', wrapped);
-      };
+      return subscribeIpc<FetchStatus>('app:fetch-status', listener, {
+        sourceId: '',
+        pageUrl: '',
+        pageNumber: 0,
+        fetchChannel: 'network',
+        fetchDetail: null,
+        previewReuseMode: null,
+        extractorId: null,
+        paginationStopped: false,
+        paginationStopReason: null,
+      });
     },
   },
   modal: {
     getState() {
-      return ipcRenderer.invoke('app:modal-get-state') as Promise<NativeModalState | null>;
+      return invokeIpc<NativeModalState | null>('app:modal-get-state');
     },
   },
 };
 
-contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+function exposeElectronApi() {
+  const contextIsolationEnabled = (process as ContextAwareProcess).contextIsolated !== false;
+
+  if (contextIsolationEnabled) {
+    try {
+      contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+      return;
+    } catch (error) {
+      console.error('Failed to expose electronAPI via contextBridge.', error);
+    }
+  }
+
+  const windowGlobal = globalThis as typeof globalThis & {
+    electronAPI?: typeof electronAPI;
+  };
+  windowGlobal.electronAPI = electronAPI;
+}
+
+exposeElectronApi();

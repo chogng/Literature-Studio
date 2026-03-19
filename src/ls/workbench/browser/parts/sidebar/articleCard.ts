@@ -1,36 +1,15 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import { ChevronDown, Download } from 'lucide-react';
+import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../../../base/browser/ui/button/button';
 import type { Locale } from '../../../../../language/i18n';
-import { usePdfDownloadStatus } from '../../../services/document/pdfDownloadStatus';
+import { usePdfDownloadStatus } from '../../../browser/pdfDownloadStatus';
+import type { SidebarArticle } from './sidebarView';
 
-type ArticleCardData = {
-  title: string;
-  articleType: string | null;
-  doi: string | null;
-  authors: string[];
-  abstractText: string | null;
-  descriptionText: string | null;
-  publishedAt: string | null;
-  sourceUrl: string;
-  fetchedAt: string;
-  journalTitle?: string | null;
-};
-
-type ArticleCardLabels = {
-  untitled: string;
-  unknown: string;
-  authors: string;
-  abstract: string;
-  description?: string;
-  publishedAt: string;
-  source: string;
-  fetchedAt: string;
-  close: string;
-};
+type ArticleCardLabels = ArticleDetailsModalLabels;
 
 type ArticleCardProps = {
-  article: ArticleCardData;
+  article: SidebarArticle;
   locale: Locale;
   labels: ArticleCardLabels;
   onDownloadPdf: (
@@ -39,6 +18,10 @@ type ArticleCardProps = {
     journalTitle?: string | null,
     doi?: string | null,
   ) => Promise<void>;
+  onOpenArticleDetails: (
+    article: SidebarArticle,
+    labels: ArticleDetailsModalLabels,
+  ) => void | Promise<void>;
 };
 
 type ToolbarButtonConfig = {
@@ -81,28 +64,11 @@ function formatPublishedDate(value: string | null, locale: Locale, fallback: str
   return parsed.toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN');
 }
 
-function createMetaText(article: ArticleCardData, locale: Locale, unknownLabel: string) {
+function createMetaText(article: SidebarArticle, locale: Locale, unknownLabel: string) {
   const articleType = typeof article.articleType === 'string' ? article.articleType.trim() : '';
   const publishedDate = formatPublishedDate(article.publishedAt, locale, unknownLabel);
 
   return `${articleType || unknownLabel} | ${publishedDate}`;
-}
-
-async function openArticleDetails(article: ArticleCardData, labels: ArticleCardLabels, locale: Locale) {
-  if (!window.electronAPI?.invoke) {
-    window.open(article.sourceUrl, '_blank', 'noopener,noreferrer');
-    return;
-  }
-
-  try {
-    await window.electronAPI.invoke('open_article_details_modal', {
-      article,
-      labels,
-      locale,
-    });
-  } catch {
-    window.open(article.sourceUrl, '_blank', 'noopener,noreferrer');
-  }
 }
 
 function renderToolbarButton({
@@ -173,7 +139,13 @@ function renderToolbarActions({
   });
 }
 
-export default function ArticleCard({ article, locale, labels, onDownloadPdf }: ArticleCardProps) {
+export default function ArticleCard({
+  article,
+  locale,
+  labels,
+  onDownloadPdf,
+  onOpenArticleDetails,
+}: ArticleCardProps) {
   const metaText = createMetaText(article, locale, labels.unknown);
   const downloadStatus = usePdfDownloadStatus(article.sourceUrl);
   const isDownloading = downloadStatus.isDownloading;
@@ -193,7 +165,7 @@ export default function ArticleCard({ article, locale, labels, onDownloadPdf }: 
   };
 
   const handleOpenDetails = () => {
-    void openArticleDetails(article, labels, locale);
+    void onOpenArticleDetails(article, labels);
   };
 
   const toolbarActionsView = renderToolbarActions({

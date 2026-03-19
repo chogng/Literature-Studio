@@ -1,11 +1,12 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
+Ôªøimport { jsx, jsxs } from 'react/jsx-runtime';
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
+import type { NativeModalState } from '../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../base/browser/ui/button/button';
 import './media/articleDetailsModalWindow.css';
 
 type ArticleDetailsModalWindowState = Extract<
-  DesktopNativeModalState,
+  NativeModalState,
   { kind: 'article-details' }
 >;
 
@@ -53,7 +54,7 @@ function createDetailRows(modalState: ArticleDetailsModalWindowState): DetailRow
       value: detailValue(article.doi, labels.unknown),
     },
     {
-      label: normalizeLabel(labels.articleType || (locale === 'en' ? 'Article type' : 'Œƒ’¬¿‡–Õ')),
+      label: normalizeLabel(labels.articleType || (locale === 'en' ? 'Article type' : 'ÊñáÁ´†Á±ªÂûã')),
       value: detailValue(article.articleType, labels.unknown),
     },
     {
@@ -208,7 +209,7 @@ export default function ArticleDetailsModalWindow() {
   const title = detailValue(article.title, labels.untitled);
   const abstractValue = detailValue(article.abstractText, labels.unknown);
   const descriptionValue = detailValue(article.descriptionText, labels.unknown);
-  const descriptionLabel = labels.description || (locale === 'en' ? 'Description' : '√Ë ˆ');
+  const descriptionLabel = labels.description || (locale === 'en' ? 'Description' : 'ÊèèËø∞');
 
   return jsx('main', {
     className: 'article-details-window',
@@ -271,3 +272,4 @@ export default function ArticleDetailsModalWindow() {
     }),
   });
 }
+

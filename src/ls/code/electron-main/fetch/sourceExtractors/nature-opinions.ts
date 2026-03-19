@@ -1,5 +1,5 @@
-import { parseDateHintFromText } from '../../utils/date-hint.js';
-import { cleanText } from '../../utils/text.js';
+import { parseDateHintFromText } from '../../../../base/common/date.js';
+import { cleanText } from '../../../../base/common/strings.js';
 import {
   createNatureListingCandidateExtractor,
   evaluateNatureListingPaginationStop,

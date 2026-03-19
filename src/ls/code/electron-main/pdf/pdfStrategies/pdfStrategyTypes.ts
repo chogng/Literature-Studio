@@ -1,4 +1,4 @@
-﻿import type { PdfDownloadResult } from '../../types.js';
+﻿import type { PdfDownloadResult } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 
 export type PdfDownloadContext = {
   pageUrl: string;

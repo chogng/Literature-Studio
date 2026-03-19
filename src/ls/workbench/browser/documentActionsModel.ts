@@ -1,5 +1,9 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { toast } from '../../base/browser/ui/toast/toast';
+import type {
+  ArticleDetailsModalLabels,
+  ElectronInvoke,
+} from '../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../language/i18n';
 import type { LocaleMessages } from '../../../language/locales';
 import type { Article } from '../services/article/articleFetch';
@@ -17,30 +21,26 @@ import {
   canExportArticlesDocx,
   preparePdfDownload,
   resolvePreferredDirectory,
-  resolveSciencePdfQueueMessage,
 } from '../services/document/documentActionService';
-
-type DesktopInvokeArgs = Record<string, unknown> | undefined;
-type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<T>;
-
-type PdfDownloadResult = {
-  filePath: string;
-  sourceUrl: string;
-};
-
-type DocxExportResult = {
-  filePath: string;
-  articleCount: number;
-};
 
 type UseDocumentActionsModelParams = {
   desktopRuntime: boolean;
-  invokeDesktop: InvokeDesktop;
+  invokeDesktop: ElectronInvoke;
   locale: Locale;
   ui: LocaleMessages;
   pdfDownloadDir: string;
   filteredArticles: Article[];
 };
+
+function resolveSciencePdfQueueMessage(locale: Locale) {
+  return locale === 'zh'
+    ? 'Science PDF 正在顺序下载，当前任务已加入队列。'
+    : 'Science PDF downloads run sequentially. This request has been queued.';
+}
+
+function openArticleSourceUrl(sourceUrl: string) {
+  window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+}
 
 export function useDocumentActionsModel({
   desktopRuntime,
@@ -86,7 +86,7 @@ export function useDocumentActionsModel({
       }
 
       try {
-        const result = await invokeDesktop<PdfDownloadResult>('preview_download_pdf', {
+        const result = await invokeDesktop('preview_download_pdf', {
           pageUrl: preparedPdfDownload.normalizedSourceUrl,
           downloadUrl: preparedPdfDownload.preferredPdfUrl,
           doi: typeof doi === 'string' ? doi : undefined,
@@ -114,6 +114,30 @@ export function useDocumentActionsModel({
     [desktopRuntime, invokeDesktop, locale, pdfDownloadDir, ui],
   );
 
+  const handleOpenArticleDetails = useCallback(
+    async (article: Article, labels: ArticleDetailsModalLabels) => {
+      if (!article.sourceUrl) {
+        return;
+      }
+
+      if (!desktopRuntime) {
+        openArticleSourceUrl(article.sourceUrl);
+        return;
+      }
+
+      try {
+        await invokeDesktop('open_article_details_modal', {
+          article,
+          labels,
+          locale,
+        });
+      } catch {
+        openArticleSourceUrl(article.sourceUrl);
+      }
+    },
+    [desktopRuntime, invokeDesktop, locale],
+  );
+
   const handleExportArticlesDocx = useCallback(async () => {
     if (!desktopRuntime) {
       return;
@@ -125,7 +149,7 @@ export function useDocumentActionsModel({
     }
 
     try {
-      const result = await invokeDesktop<DocxExportResult | null>('export_articles_docx', {
+      const result = await invokeDesktop('export_articles_docx', {
         articles: filteredArticles,
         preferredDirectory: resolvePreferredDirectory(pdfDownloadDir),
         locale,
@@ -150,6 +174,7 @@ export function useDocumentActionsModel({
   return {
     canExportDocx,
     handleSharedPdfDownload,
+    handleOpenArticleDetails,
     handleExportArticlesDocx,
   };
 }

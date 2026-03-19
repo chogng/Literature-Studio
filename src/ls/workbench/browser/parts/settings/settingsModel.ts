@@ -1,59 +1,156 @@
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
+import { toast } from '../../../../base/browser/ui/toast/toast';
+import type { ElectronInvoke } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../../language/i18n';
-import type { BatchSource } from '../../../services/config/configSchema';
+import type { LocaleMessages } from '../../../../../language/locales';
+import { formatLocalized, localizeDesktopInvokeError, parseDesktopInvokeError } from '../../../services/desktop/desktopError';
+import { type BatchSource } from '../../../services/config/configSchema';
+import { SettingsModel } from '../../../services/settings/settingsModel';
 
-export type SettingsPartLabels = {
-  settingsTitle: string;
-  settingsLoading: string;
-  settingsLanguage: string;
-  languageChinese: string;
-  languageEnglish: string;
-  settingsLanguageHint: string;
-  settingsPageUrl: string;
-  settingsPageUrlHint: string;
-  pageUrlPlaceholder: string;
-  settingsBatchJournalTitle: string;
-  batchJournalTitlePlaceholder: string;
-  addBatchUrl: string;
-  removeBatchUrl: string;
-  moveBatchUrlUp: string;
-  moveBatchUrlDown: string;
-  settingsBatchOptions: string;
-  batchCount: string;
-  sameDomainOnly: string;
-  settingsBatchHint: string;
-  defaultPdfDir: string;
-  downloadDirPlaceholder: string;
-  chooseDirectory: string;
-  resetDefault: string;
-  saving: string;
-  saveSettings: string;
-  settingsHintPath: string;
-  settingsConfigPath: string;
-  currentDir: string;
-  systemDownloads: string;
-};
-
-export type SettingsPartProps = {
-  labels: SettingsPartLabels;
-  isSettingsLoading: boolean;
-  locale: Locale;
-  onLocaleChange: (locale: Locale) => void;
-  batchSources: BatchSource[];
-  onBatchSourceUrlChange: (index: number, url: string) => void;
-  onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void;
-  onAddBatchSource: () => void;
-  onRemoveBatchSource: (index: number) => void;
-  onMoveBatchSource: (index: number, direction: 'up' | 'down') => void;
-  batchLimit: number;
-  onBatchLimitChange: (value: string) => void;
-  sameDomainOnly: boolean;
-  onSameDomainOnlyChange: (checked: boolean) => void;
-  pdfDownloadDir: string;
-  onPdfDownloadDirChange: (value: string) => void;
-  onChoosePdfDownloadDir: () => void;
+type UseSettingsModelParams = {
   desktopRuntime: boolean;
-  configPath: string;
-  isSettingsSaving: boolean;
-  onResetDownloadDir: () => void;
-  onSaveSettings: () => void;
+  invokeDesktop: ElectronInvoke;
+  ui: LocaleMessages;
+  locale: Locale;
+  setLocale: Dispatch<SetStateAction<Locale>>;
+  initialBatchSources: BatchSource[];
 };
+
+type SettingsModelContext = {
+  desktopRuntime: boolean;
+  invokeDesktop: ElectronInvoke;
+};
+
+function localizeSettingsError(ui: LocaleMessages, error: unknown) {
+  return localizeDesktopInvokeError(ui, parseDesktopInvokeError(error));
+}
+
+export function useSettingsModel({
+  desktopRuntime,
+  invokeDesktop,
+  ui,
+  locale,
+  setLocale,
+  initialBatchSources,
+}: UseSettingsModelParams) {
+  const settingsModel = useMemo(
+    () => new SettingsModel(initialBatchSources),
+    [initialBatchSources],
+  );
+  const settingsSnapshot = useSyncExternalStore(
+    settingsModel.subscribe,
+    settingsModel.getSnapshot,
+    settingsModel.getSnapshot,
+  );
+
+  const settingsModelContext = useMemo<SettingsModelContext>(
+    () => ({
+      desktopRuntime,
+      invokeDesktop,
+    }),
+    [desktopRuntime, invokeDesktop],
+  );
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const { locale: loadedLocale } = await settingsModel.loadSettings(settingsModelContext);
+        if (loadedLocale) {
+          setLocale(loadedLocale);
+        }
+      } catch (loadError) {
+        const localizedError = localizeSettingsError(ui, loadError);
+        toast.error(formatLocalized(ui.toastLoadSettingsFailed, { error: localizedError }));
+      }
+    };
+
+    void loadSettings();
+  }, [setLocale, settingsModel, settingsModelContext, ui]);
+
+  const handleChoosePdfDownloadDir = useCallback(async () => {
+    try {
+      const result = await settingsModel.choosePdfDownloadDir(settingsModelContext);
+      if (result.kind === 'desktop-only') {
+        toast.info(ui.toastDesktopDirPickerOnly);
+        return;
+      }
+
+      if (result.kind === 'not-selected') {
+        toast.info(ui.toastDirNotSelected);
+        return;
+      }
+
+      toast.success(formatLocalized(ui.toastDirSelected, { dir: result.dir }));
+    } catch (pickError) {
+      const localizedError = localizeSettingsError(ui, pickError);
+      toast.error(formatLocalized(ui.toastPickDirFailed, { error: localizedError }));
+    }
+  }, [settingsModel, settingsModelContext, ui]);
+
+  const handleLocaleChange = useCallback(
+    (nextLocale: Locale) => {
+      setLocale(nextLocale);
+
+      void settingsModel.saveLocale(settingsModelContext, nextLocale).catch((saveError) => {
+        const localizedError = localizeSettingsError(ui, saveError);
+        toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
+      });
+    },
+    [setLocale, settingsModel, settingsModelContext, ui],
+  );
+
+  const handleSaveSettings = useCallback(async () => {
+    try {
+      const result = await settingsModel.saveSettings({
+        ...settingsModelContext,
+        locale,
+      });
+      if (result.locale) {
+        setLocale(result.locale);
+      }
+
+      toast.success(
+        result.nextDir
+          ? formatLocalized(ui.toastSettingsSavedWithDir, { dir: result.nextDir })
+          : ui.toastSettingsSavedUseSystemDownloads,
+      );
+    } catch (saveError) {
+      const localizedError = localizeSettingsError(ui, saveError);
+      toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
+    }
+  }, [locale, setLocale, settingsModel, settingsModelContext, ui]);
+
+  const handleResetDownloadDir = useCallback(() => {
+    settingsModel.resetDownloadDir();
+    toast.info(ui.toastResetDirInput);
+  }, [settingsModel, ui]);
+
+  return {
+    batchSources: settingsSnapshot.batchSources,
+    batchLimit: settingsSnapshot.batchLimit,
+    setBatchLimit: settingsModel.setBatchLimit,
+    sameDomainOnly: settingsSnapshot.sameDomainOnly,
+    setSameDomainOnly: settingsModel.setSameDomainOnly,
+    pdfDownloadDir: settingsSnapshot.pdfDownloadDir,
+    setPdfDownloadDir: settingsModel.setPdfDownloadDir,
+    configPath: settingsSnapshot.configPath,
+    isSettingsLoading: settingsSnapshot.isSettingsLoading,
+    isSettingsSaving: settingsSnapshot.isSettingsSaving,
+    handleChoosePdfDownloadDir,
+    handleLocaleChange,
+    handleSaveSettings,
+    handleResetDownloadDir,
+    handleBatchSourceUrlChange: settingsModel.handleBatchSourceUrlChange,
+    handleBatchSourceJournalTitleChange: settingsModel.handleBatchSourceJournalTitleChange,
+    handleAddBatchSource: settingsModel.handleAddBatchSource,
+    handleRemoveBatchSource: settingsModel.handleRemoveBatchSource,
+    handleMoveBatchSource: settingsModel.handleMoveBatchSource,
+  };
+}

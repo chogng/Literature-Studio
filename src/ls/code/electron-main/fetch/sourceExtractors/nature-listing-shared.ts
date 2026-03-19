@@ -1,5 +1,6 @@
-import { parseDateHintFromText } from '../../utils/date-hint.js';
-import { cleanText } from '../../utils/text.js';
+import { parseDateHintFromText } from '../../../../base/common/date.js';
+import { cleanText } from '../../../../base/common/strings.js';
+import { isNatureMainSiteUrl } from '../../../../base/common/url.js';
 import { createDateSortedPaginationStopEvaluator } from './date-sorted-pagination.js';
 
 import type {
@@ -519,7 +520,7 @@ export function createNatureListingCandidateExtractor({
 }
 
 export function isNatureListingPage(page: URL, pathname: string) {
-  return page.host === 'www.nature.com' && page.pathname.replace(/\/+$/, '') === pathname;
+  return isNatureMainSiteUrl(page.toString()) && page.pathname.replace(/\/+$/, '') === pathname;
 }
 
 export function findNatureListingNextPageUrl({
@@ -528,7 +529,7 @@ export function findNatureListingNextPageUrl({
   $,
   seenPageUrls,
 }: ListingPaginationContext) {
-  if (page.host !== 'www.nature.com') return null;
+  if (!isNatureMainSiteUrl(page.toString())) return null;
 
   const currentPathname = page.pathname.replace(/\/+$/, '');
   const currentPageNumber = parseNatureListingPageNumber(page.searchParams.get('page'), 1);

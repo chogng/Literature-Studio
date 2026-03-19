@@ -1,6 +1,7 @@
+import type { PreviewState } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { normalizeUrl } from '../../common/url';
 
-export const EMPTY_PREVIEW_STATE: DesktopPreviewState = {
+export const EMPTY_PREVIEW_STATE: PreviewState = {
   url: '',
   canGoBack: false,
   canGoForward: false,
@@ -64,7 +65,7 @@ export function resolvePreviewRefreshMode(
 }
 
 export function resolvePreviewStateUrlUpdate(
-  previewState: DesktopPreviewState,
+  previewState: PreviewState,
 ): PreviewStateUrlUpdate | null {
   if (!previewState.url) {
     return null;

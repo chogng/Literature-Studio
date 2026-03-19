@@ -8,7 +8,7 @@
 - 鏄惁瀛樺湪绋冲畾鐨勪笅涓€椤靛叆鍙?- 鏄惁闇€瑕佸仛涓€娆¤交閲忕殑浜屾琛ュ叏
 
 杩欏鏈哄埗鐨勭洰鏍囦笉鏄€滃彇浠ｉ€氱敤鎶撳彇鍣ㄢ€濓紝鑰屾槸鍦ㄦ垜浠凡缁忕煡閬撴煇涓〉闈㈢粨鏋勬瘮杈冪ǔ瀹氥€佽€屼笖鍊煎緱浼樺寲鏃讹紝缁欏畠涓€鏉℃洿纭畾鐨勫€欓€夋彁鍙栬矾寰勩€?
-`nature-latest-news.ts` 鏄綋鍓嶆渶瀹屾暣鐨勪緥瀛愶紝涔熷緢閫傚悎浣滀负鍚庣画鏂板涓撶敤 extractor 鐨勬ā鏉裤€?
+`latestNews.ts` 鏄綋鍓嶆渶瀹屾暣鐨勪緥瀛愶紝涔熷緢閫傚悎浣滀负鍚庣画鏂板涓撶敤 extractor 鐨勬ā鏉裤€?
 ## Nature 鍥哄畾鍏ュ彛绛栫暐锛堝綋鍓嶇粨璁猴級
 
 瀵?`www.nature.com` 杩欎笁涓浐瀹氬叆鍙ｏ紝寤鸿榛樿閮戒繚鐣欎笓鐢?extractor锛岃€屼笉鏄粎渚濊禆閫氱敤鎶撳彇锛?
@@ -34,7 +34,7 @@
 涔熷氨鏄锛宔xtractor 鍙礋璐ｂ€滄洿鍑嗙‘鍦版寚鍑哄簲璇ュ厛璇曞摢浜涢摼鎺モ€濓紝涓嶈礋璐ｉ噸鍐欐暣鏉℃姄鍙栭摼璺€?
 ## `nature-latest-news` 鏄€庝箞鍋氬嚭鏉ョ殑
 
-`nature-latest-news.ts` 閲囩敤浜嗏€滃畾鍒舵彁鍙?+ 閫氱敤鍏滃簳 + 浜屾琛ュ叏鈥濈殑涓夊眰缁撴瀯銆?
+`latestNews.ts` 閲囩敤浜嗏€滃畾鍒舵彁鍙?+ 閫氱敤鍏滃簳 + 浜屾琛ュ叏鈥濈殑涓夊眰缁撴瀯銆?
 ### 1. 鍏堢敤璺緞绮剧‘鍖归厤椤甸潰
 
 瀹冨厛鎶婇椤甸檺瀹氬湪:
@@ -82,7 +82,7 @@
 杩欓潪甯稿€煎緱淇濈暀銆傚洜涓轰笓鐢?extractor 涓嶆槸鈥滀竴娆″啓瀹屾案杩滅ǔ瀹氣€濓紝鍚庨潰椤甸潰缁撴瀯鍙樹簡锛屾垜浠€氬父鍏堢湅鐨勫氨鏄繖浜?diagnostics銆?
 ### 4. 濡傛灉瀹氬埗鎻愬彇澶辫触锛屽氨鍥為€€鍒板叡浜垪琛ㄩ〉 extractor
 
-`nature-latest-news.ts` 骞朵笉鏄绔嬪疄鐜般€傚畠鍏堝皾璇曢拡瀵?`latest-news` 鍋氱簿纭娊鍙栵紝濡傛灉缁撴灉涓虹┖锛屽啀鍥為€€鍒?
+`latestNews.ts` 骞朵笉鏄绔嬪疄鐜般€傚畠鍏堝皾璇曢拡瀵?`latest-news` 鍋氱簿纭娊鍙栵紝濡傛灉缁撴灉涓虹┖锛屽啀鍥為€€鍒?
 
 ```ts
 createNatureListingCandidateExtractor(...)
@@ -148,7 +148,7 @@ createNatureListingCandidateExtractor(...)
 
 杩欐槸鐜板湪 `Nature` 鍥哄畾鍏ュ彛鏈€甯歌涔熸渶绋崇殑褰㈡€併€?
 ### 褰㈡€?C: 瀹氬埗鎻愬彇 + shared fallback + refine锛堝寮虹増锛?
-鍙傝€?`nature-latest-news.ts`:
+鍙傝€?`latestNews.ts`:
 
 - 瀹氬埗 DOM 鎻愬彇
 - shared extractor 鍏滃簳
@@ -344,7 +344,7 @@ function findTargetNextPageUrl(
 - `types.ts`: extractor 鎺ュ彛涓庝笂涓嬫枃绫诲瀷
 - `index.ts`: extractor 娉ㄥ唽鍏ュ彛
 - `nature-listing-shared.ts`: Nature 鍒楄〃椤电殑鍏变韩鑳藉姏
-- `nature-opinions.ts`: 瀹氬埗鎻愬彇 + shared fallback锛堟棤 refine锛?- `nature-research-articles.ts`: 瀹氬埗鎻愬彇 + shared fallback锛堟棤 refine锛?- `nature-latest-news.ts`: 瀹氬埗鎻愬彇 + shared fallback + refine锛堝畬鏁存ā鏉匡級
+- `nature-opinions.ts`: 瀹氬埗鎻愬彇 + shared fallback锛堟棤 refine锛?- `nature-research-articles.ts`: 瀹氬埗鎻愬彇 + shared fallback锛堟棤 refine锛?- `latestNews.ts`: 瀹氬埗鎻愬彇 + shared fallback + refine锛堝畬鏁存ā鏉匡級
 
 ## 涓€鍙ヨ瘽缁撹
 

@@ -1,12 +1,69 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import type { ChangeEvent, Ref } from 'react';
-import * as Checkbox from '@radix-ui/react-checkbox';
-import { ArrowDown, ArrowUp, Check, FolderOpen, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, FolderOpen, Plus, Trash2 } from 'lucide-react';
+import type { Locale } from '../../../../../language/i18n';
 import { Button } from '../../../../base/browser/ui/button/button';
 import { Input } from '../../../../base/browser/ui/input/input';
 import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
-import type { SettingsPartProps } from './settingsModel';
+import type { BatchSource } from '../../../services/config/configSchema';
 import './media/settings.css';
+
+export type SettingsPartLabels = {
+  settingsTitle: string;
+  settingsLoading: string;
+  settingsLanguage: string;
+  languageChinese: string;
+  languageEnglish: string;
+  settingsLanguageHint: string;
+  settingsPageUrl: string;
+  settingsPageUrlHint: string;
+  pageUrlPlaceholder: string;
+  settingsBatchJournalTitle: string;
+  batchJournalTitlePlaceholder: string;
+  addBatchUrl: string;
+  removeBatchUrl: string;
+  moveBatchUrlUp: string;
+  moveBatchUrlDown: string;
+  settingsBatchOptions: string;
+  batchCount: string;
+  sameDomainOnly: string;
+  settingsBatchHint: string;
+  defaultPdfDir: string;
+  downloadDirPlaceholder: string;
+  chooseDirectory: string;
+  resetDefault: string;
+  saving: string;
+  saveSettings: string;
+  settingsHintPath: string;
+  settingsConfigPath: string;
+  currentDir: string;
+  systemDownloads: string;
+};
+
+export type SettingsPartProps = {
+  labels: SettingsPartLabels;
+  isSettingsLoading: boolean;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
+  batchSources: BatchSource[];
+  onBatchSourceUrlChange: (index: number, url: string) => void;
+  onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void;
+  onAddBatchSource: () => void;
+  onRemoveBatchSource: (index: number) => void;
+  onMoveBatchSource: (index: number, direction: 'up' | 'down') => void;
+  batchLimit: number;
+  onBatchLimitChange: (value: string) => void;
+  sameDomainOnly: boolean;
+  onSameDomainOnlyChange: (checked: boolean) => void;
+  pdfDownloadDir: string;
+  onPdfDownloadDirChange: (value: string) => void;
+  onChoosePdfDownloadDir: () => void;
+  desktopRuntime: boolean;
+  configPath: string;
+  isSettingsSaving: boolean;
+  onResetDownloadDir: () => void;
+  onSaveSettings: () => void;
+};
 
 type SettingsViewProps = SettingsPartProps & {
   partRef?: Ref<HTMLElement>;
@@ -270,16 +327,13 @@ function renderBatchOptionsField({
             className: 'inline-field checkbox-field',
             htmlFor: 'settings-same-domain-only',
             children: [
-              jsx(Checkbox.Root, {
+              jsx('input', {
                 id: 'settings-same-domain-only',
                 className: 'radix-checkbox',
+                type: 'checkbox',
                 checked: sameDomainOnly,
-                onCheckedChange: (checked: boolean | 'indeterminate') =>
-                  onSameDomainOnlyChange(checked === true),
-                children: jsx(Checkbox.Indicator, {
-                  className: 'radix-checkbox-indicator',
-                  children: jsx(Check, { size: 12 }),
-                }),
+                onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                  onSameDomainOnlyChange(event.target.checked),
               }),
               labels.sameDomainOnly,
             ],

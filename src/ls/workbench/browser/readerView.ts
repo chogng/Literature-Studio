@@ -4,10 +4,8 @@ import {
   WORKBENCH_PART_IDS,
   useWorkbenchPartRef,
 } from './layout';
-import type { EditorPartProps } from './parts/editor/editorModel';
-import EditorPartView from './parts/editor/editorPartView';
-import type { SidebarProps } from './parts/sidebar/sidebarModel';
-import SidebarView from './parts/sidebar/sidebarView';
+import EditorPartView, { type EditorPartProps } from './parts/editor/editorPartView';
+import SidebarView, { type SidebarProps } from './parts/sidebar/sidebarView';
 
 type ReaderViewProps = {
   isSidebarVisible: boolean;

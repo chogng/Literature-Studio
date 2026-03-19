@@ -2,11 +2,11 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { load } from 'cheerio';
 
-import type { PreviewDownloadPdfPayload } from '../types.js';
-import { buildPdfDirectoryName } from '../utils/pdf-file-name.js';
-import { cleanText } from '../utils/text.js';
-import { normalizeUrl } from '../utils/url.js';
-import { appError } from '../utils/app-error.js';
+import type { PreviewDownloadPdfPayload } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import { buildPdfDirectoryName } from '../../../platform/download/common/pdfFileName.js';
+import { cleanText } from '../../../base/common/strings.js';
+import { normalizeUrl } from '../../../base/common/url.js';
+import { appError } from '../../../base/common/errors.js';
 import { fetchHtml } from '../fetch/articleFetcher.js';
 import {
   buildNatureResearchPdfDownloadCandidates,
@@ -18,7 +18,7 @@ import {
   tryBrowserSessionDownloadCandidates,
   tryDownloadPdfCandidates,
   type PdfDownloadAttemptFailure,
-} from './pdfRuntime.js';
+} from '../../../platform/download/electron-main/pdfDownload.js';
 import { naturePdfStrategy } from './pdfStrategies/naturePdfStrategy.js';
 import { sciencePdfStrategy } from './pdfStrategies/sciencePdfStrategy.js';
 import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategies/pdfStrategyTypes.js';

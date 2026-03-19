@@ -1,5 +1,3 @@
-import { createStore } from '../../base/common/store';
-
 export type WorkbenchPage = 'reader' | 'settings';
 
 export type WorkbenchStateSnapshot = {
@@ -19,7 +17,14 @@ const DEFAULT_WORKBENCH_STATE: WorkbenchStateSnapshot = {
   activePage: 'reader',
 };
 
-const workbenchStateStore = createStore(DEFAULT_WORKBENCH_STATE);
+let workbenchState = DEFAULT_WORKBENCH_STATE;
+const workbenchStateListeners = new Set<() => void>();
+
+function emitWorkbenchStateChange() {
+  for (const listener of workbenchStateListeners) {
+    listener();
+  }
+}
 
 function reduceWorkbenchState(
   state: WorkbenchStateSnapshot,
@@ -44,13 +49,25 @@ function reduceWorkbenchState(
   }
 }
 
-export const subscribeWorkbenchState = workbenchStateStore.subscribe;
-export const getWorkbenchStateSnapshot = workbenchStateStore.getSnapshot;
+export function subscribeWorkbenchState(listener: () => void) {
+  workbenchStateListeners.add(listener);
+  return () => {
+    workbenchStateListeners.delete(listener);
+  };
+}
+
+export function getWorkbenchStateSnapshot() {
+  return workbenchState;
+}
 
 export function dispatchWorkbenchEvent(event: WorkbenchEvent) {
-  workbenchStateStore.updateState((currentState) =>
-    reduceWorkbenchState(currentState, event),
-  );
+  const nextState = reduceWorkbenchState(workbenchState, event);
+  if (Object.is(nextState, workbenchState)) {
+    return;
+  }
+
+  workbenchState = nextState;
+  emitWorkbenchStateChange();
 }
 
 export function setWorkbenchActivePage(page: WorkbenchPage) {

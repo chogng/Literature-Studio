@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { createStore } from '../../base/common/store';
 
 export type WorkbenchWindowControlAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -15,10 +14,30 @@ const DEFAULT_WINDOW_STATE: WindowStateSnapshot = {
   isMaximized: false,
 };
 
-const windowStateStore = createStore(DEFAULT_WINDOW_STATE);
+let windowStateSnapshot = DEFAULT_WINDOW_STATE;
+const windowStateListeners = new Set<() => void>();
 
-export const subscribeWindowState = windowStateStore.subscribe;
-export const getWindowStateSnapshot = windowStateStore.getSnapshot;
+function setWindowState(nextState: WindowStateSnapshot) {
+  if (Object.is(windowStateSnapshot, nextState)) {
+    return;
+  }
+
+  windowStateSnapshot = nextState;
+  for (const listener of windowStateListeners) {
+    listener();
+  }
+}
+
+export function subscribeWindowState(listener: () => void) {
+  windowStateListeners.add(listener);
+  return () => {
+    windowStateListeners.delete(listener);
+  };
+}
+
+export function getWindowStateSnapshot() {
+  return windowStateSnapshot;
+}
 
 export function useWindowControls({ electronRuntime }: UseWindowControlsParams) {
   const windowState = useSyncExternalStore(
@@ -29,7 +48,7 @@ export function useWindowControls({ electronRuntime }: UseWindowControlsParams) 
 
   useEffect(() => {
     if (!electronRuntime || !window.electronAPI?.windowControls) {
-      windowStateStore.setState(DEFAULT_WINDOW_STATE);
+      setWindowState(DEFAULT_WINDOW_STATE);
       return;
     }
 
@@ -40,19 +59,19 @@ export function useWindowControls({ electronRuntime }: UseWindowControlsParams) 
       .getState()
       .then((state) => {
         if (mounted) {
-          windowStateStore.setState({
+          setWindowState({
             isMaximized: Boolean(state.isMaximized),
           });
         }
       })
       .catch(() => {
         if (mounted) {
-          windowStateStore.setState(DEFAULT_WINDOW_STATE);
+          setWindowState(DEFAULT_WINDOW_STATE);
         }
       });
 
     const unsubscribe = controls.onStateChange((state) => {
-      windowStateStore.setState({
+      setWindowState({
         isMaximized: Boolean(state.isMaximized),
       });
     });
@@ -60,7 +79,7 @@ export function useWindowControls({ electronRuntime }: UseWindowControlsParams) 
     return () => {
       mounted = false;
       unsubscribe();
-      windowStateStore.setState(DEFAULT_WINDOW_STATE);
+      setWindowState(DEFAULT_WINDOW_STATE);
     };
   }, [electronRuntime]);
 

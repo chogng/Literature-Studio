@@ -1,26 +1,24 @@
-﻿import path from 'node:path';
-import type { BrowserWindow, DownloadItem, WebContents } from 'electron';
+import type { BrowserWindow } from 'electron';
 
-import type { PdfDownloadResult } from '../../types.js';
-import { buildPdfFileName } from '../../utils/pdf-file-name.js';
-import { cleanText } from '../../utils/text.js';
-import { appError } from '../../utils/app-error.js';
+import type { PdfDownloadResult } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import { appError } from '../../../../base/common/errors.js';
+import { clearReaderSharedSessionOrigins } from '../../../../platform/native/electron-main/sharedWebSession.js';
 import {
-  assertDownloadedFileIsPdf,
-  attemptPdfDownloadWithFetcher,
   persistDownloadedPdf,
-  resolveDownloadItemFinalUrl,
-  resolveReaderSharedSession,
   toPdfDownloadFailure,
   toPdfDownloadFailureFromError,
   tryBrowserSessionDownloadCandidates,
+  tryPdfDownloadWithFetcherPolling,
   tryDownloadPdfCandidates,
-  type BrowserSessionDownloadEvent,
   type BrowserSessionDownloadResult,
   type PdfDownloadAttemptFailure,
-} from '../pdfRuntime.js';
+  waitForPdfDownloadFromSession,
+} from '../../../../platform/download/electron-main/pdfDownload.js';
 import { buildScienceEpdfPageUrl } from '../sciencePdf.js';
-import { withValidatedSciencePageWindow } from '../../fetch/scienceValidation.js';
+import {
+  triggerSciencePdfDownloadInValidationWindow,
+  withValidatedSciencePageWindow,
+} from '../../../../platform/windows/electron-main/scienceValidationWindow.js';
 import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategyTypes.js';
 
 type ScienceValidatedPageDownloadOptions = {
@@ -114,134 +112,11 @@ async function runSerializedSciencePdfDownload<T>(
   }
 }
 
-function normalizeComparableDownloadUrl(value: string) {
-  const normalized = cleanText(value);
-  if (!normalized) return '';
-
-  try {
-    const parsed = new URL(normalized);
-    parsed.hash = '';
-    return parsed.toString();
-  } catch {
-    return '';
-  }
-}
-
-function buildScienceContextDownloadTriggerScript(downloadUrl: string) {
-  const serializedDownloadUrl = JSON.stringify(downloadUrl);
-  return `(() => {
-    const resolvedUrl = new URL(${serializedDownloadUrl}, location.href).toString();
-    const normalizeComparableUrl = (value) => {
-      try {
-        const parsed = new URL(String(value ?? ''), location.href);
-        parsed.hash = '';
-        return parsed.toString();
-      } catch {
-        return '';
-      }
-    };
-    const expectedUrl = normalizeComparableUrl(resolvedUrl);
-    const root = document.body || document.documentElement;
-    if (!root) {
-      throw new Error('Science download page is not ready.');
-    }
-
-    const preferredSelectors = [
-      'a.navbar-download[href]',
-      'a[data-single-download="true"][href]',
-      'a[data-download-files-key="pdf"][href]',
-      'a[aria-label*="Download PDF"][href]',
-      'a[title*="Download PDF"][href]',
-      'a[href*="/doi/pdf/"][href]',
-    ];
-    const preferredAnchors = preferredSelectors.flatMap((selector) =>
-      Array.from(document.querySelectorAll(selector)),
-    );
-    const matchedAnchor =
-      preferredAnchors.find((candidate) => normalizeComparableUrl(candidate.href) === expectedUrl) ||
-      preferredAnchors[0] ||
-      null;
-    if (matchedAnchor) {
-      matchedAnchor.scrollIntoView?.({ block: 'center', inline: 'center' });
-      matchedAnchor.click();
-      return matchedAnchor.href;
-    }
-
-    const anchor = document.createElement('a');
-    anchor.href = resolvedUrl;
-    anchor.target = '_self';
-    anchor.rel = 'noopener';
-    anchor.style.position = 'fixed';
-    anchor.style.left = '-9999px';
-    anchor.style.top = '-9999px';
-    anchor.style.width = '1px';
-    anchor.style.height = '1px';
-    anchor.style.opacity = '0';
-    root.appendChild(anchor);
-    anchor.click();
-    setTimeout(() => {
-      anchor.remove();
-    }, 1000);
-
-    return anchor.href;
-  })()`;
-}
-
-function matchesDownloadItemUrl(item: DownloadItem, expectedUrl: string) {
-  const normalizedExpectedUrl = normalizeComparableDownloadUrl(expectedUrl);
-  if (!normalizedExpectedUrl) {
-    return true;
-  }
-
-  if (normalizeComparableDownloadUrl(item.getURL()) === normalizedExpectedUrl) {
-    return true;
-  }
-
-  const urlChain = typeof item.getURLChain === 'function' ? item.getURLChain() : [];
-  return urlChain.some((entry) => normalizeComparableDownloadUrl(entry) === normalizedExpectedUrl);
-}
-
 async function clearScienceSessionState() {
-  const readerSession = await resolveReaderSharedSession();
-  if (!readerSession) {
-    return false;
-  }
-
-  const origins = ['https://www.science.org', 'https://science.org'];
-  const storages: Array<
-    'cookies' | 'localstorage' | 'indexdb' | 'cachestorage' | 'serviceworkers'
-  > = [
-    'cookies',
-    'localstorage',
-    'indexdb',
-    'cachestorage',
-    'serviceworkers',
-  ];
-
-  try {
-    for (const origin of origins) {
-      await readerSession.clearStorageData({
-        origin,
-        storages,
-      });
-    }
-  } catch {
-    // Ignore partial cleanup failures and continue with best-effort reset.
-  }
-
-  try {
-    await readerSession.clearAuthCache();
-  } catch {
-    // Ignore auth-cache cleanup failures.
-  }
-
-  try {
-    await readerSession.clearCache();
-  } catch {
-    // Ignore HTTP cache cleanup failures.
-  }
-
-  return true;
+  return await clearReaderSharedSessionOrigins([
+    'https://www.science.org',
+    'https://science.org',
+  ]);
 }
 
 async function triggerValidatedSciencePageDownload(
@@ -256,94 +131,15 @@ async function triggerValidatedSciencePageDownload(
     return null;
   }
 
-  const session = webContents.session;
-  return await new Promise<BrowserSessionDownloadResult | null>((resolve, reject) => {
-    let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const cleanup = () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      session.removeListener('will-download', handleWillDownload);
-    };
-
-    const resolveOnce = (value: BrowserSessionDownloadResult | null) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve(value);
-    };
-
-    const rejectOnce = (error: unknown) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(error);
-    };
-
-    const handleWillDownload = (
-      _event: BrowserSessionDownloadEvent,
-      item: DownloadItem,
-      originatingWebContents?: WebContents,
-    ) => {
-      if (originatingWebContents && originatingWebContents.id !== webContents.id) {
-        return;
-      }
-      if (!matchesDownloadItemUrl(item, downloadUrl)) {
-        return;
-      }
-
-      const fallbackName = (() => {
-        try {
-          return path.basename(new URL(downloadUrl).pathname) || '';
-        } catch {
-          return '';
-        }
-      })();
-      const fileName = buildPdfFileName(articleTitle, item.getFilename() || fallbackName);
-      const filePath = path.join(downloadDir, fileName);
-      item.setSavePath(filePath);
-
-      item.once('done', (_doneEvent, state) => {
-        void (async () => {
-          if (state !== 'completed') {
-            rejectOnce(
-              appError('PDF_DOWNLOAD_FAILED', {
-                status: `DOWNLOAD_${String(state).toUpperCase()}`,
-                statusText: `Validated page download ${state}`,
-                downloadUrl,
-                filePath,
-                sourceUrl: resolveDownloadItemFinalUrl(item, downloadUrl),
-              }),
-            );
-            return;
-          }
-
-          await assertDownloadedFileIsPdf({
-            item,
-            filePath,
-            downloadUrl,
-            origin: 'validated_page',
-          });
-
-          resolveOnce({
-            filePath,
-            sourceUrl: resolveDownloadItemFinalUrl(item, downloadUrl),
-          });
-        })().catch((error) => rejectOnce(error));
-      });
-    };
-
-    timeoutId = setTimeout(() => {
-      resolveOnce(null);
-    }, Math.max(0, timeoutMs));
-
-    session.on('will-download', handleWillDownload);
-
-    webContents
-      .executeJavaScript(buildScienceContextDownloadTriggerScript(downloadUrl), true)
-      .catch((error) => rejectOnce(error));
+  return await waitForPdfDownloadFromSession({
+    session: webContents.session,
+    downloadUrl,
+    downloadDir,
+    articleTitle,
+    timeoutMs,
+    origin: 'validated_page',
+    originatingWebContentsId: webContents.id,
+    triggerDownload: () => triggerSciencePdfDownloadInValidationWindow(window, downloadUrl),
   });
 }
 
@@ -363,47 +159,19 @@ async function tryValidatedScienceWindowFetch(
   timeoutMs = 20000,
   pollMs = 500,
 ) {
-  const failures: PdfDownloadAttemptFailure[] = [];
   const session = window.webContents.session;
-  if (!session || typeof session.fetch !== 'function') {
-    return {
-      downloaded: null,
-      failures: [
-        toPdfDownloadFailure(
-          downloadUrl,
-          'SCIENCE_VALIDATION_FETCH_UNAVAILABLE',
-          'Validation window session fetch is unavailable',
-        ),
-      ],
-    };
-  }
-
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const attempt = await attemptPdfDownloadWithFetcher(
-      session.fetch.bind(session),
-      downloadUrl,
-      refererUrl,
-    );
-    if (attempt.ok) {
-      return {
-        downloaded: await persistDownloadedPdf(attempt.value, downloadDir, articleTitle),
-        failures,
-      };
-    }
-
-    failures.push(attempt.failure);
-    if (!shouldContinueWaitingForValidatedScienceAuthorization(attempt.failure)) {
-      break;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, pollMs));
-  }
-
-  return {
-    downloaded: null,
-    failures,
-  };
+  return await tryPdfDownloadWithFetcherPolling({
+    fetcher: session && typeof session.fetch === 'function' ? session.fetch.bind(session) : null,
+    downloadUrl,
+    refererUrl,
+    downloadDir,
+    articleTitle,
+    timeoutMs,
+    pollMs,
+    unavailableStatus: 'SCIENCE_VALIDATION_FETCH_UNAVAILABLE',
+    unavailableStatusText: 'Validation window session fetch is unavailable',
+    shouldRetry: shouldContinueWaitingForValidatedScienceAuthorization,
+  });
 }
 
 async function tryValidatedSciencePageDownload(

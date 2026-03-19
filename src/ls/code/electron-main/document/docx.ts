@@ -1,11 +1,22 @@
-﻿import path from 'node:path';
+import type { BrowserWindow } from 'electron';
+import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
-import type { Article, DocxExportResult } from '../types.js';
+import type {
+  Article,
+  DocxExportResult,
+  ExportArticlesDocxPayload,
+} from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { defaultDocxExportConfig } from './docxConfig.js';
-import { appError } from '../utils/app-error.js';
-import { resolveDocxExportCopy, type SupportedLocale } from '../utils/locale-copy.js';
-import { cleanText } from '../utils/text.js';
+import { appError } from '../../../base/common/errors.js';
+import {
+  resolveDocxExportCopy,
+  resolveDocxExportDialogCopy,
+  resolveSupportedLocale,
+  type SupportedLocale,
+} from './docxCopy.js';
+import { cleanText } from '../../../base/common/strings.js';
+import { showSaveDialog } from '../../../platform/dialogs/electron-main/dialogMainService.js';
 
 type ZipEntry = {
   name: string;
@@ -419,6 +430,47 @@ export function buildBatchDocxFileName(referenceDate = new Date()) {
   const seconds = pad(referenceDate.getSeconds());
 
   return `${docxConfig.fileNamePrefix}-${year}${month}${day}-${hours}${minutes}${seconds}.docx`;
+}
+
+export async function exportArticlesDocx(
+  payload: ExportArticlesDocxPayload = {},
+  defaultDownloadDir: string,
+  window?: BrowserWindow | null,
+): Promise<DocxExportResult | null> {
+  const articles = Array.isArray(payload.articles) ? payload.articles : [];
+  if (articles.length === 0) {
+    throw appError('DOCX_EXPORT_NO_ARTICLES');
+  }
+
+  const preferredDirectory =
+    typeof payload.preferredDirectory === 'string' ? payload.preferredDirectory.trim() : '';
+  const locale = resolveSupportedLocale(payload.locale);
+  const dialogCopy = resolveDocxExportDialogCopy(locale);
+  const result = await showSaveDialog(
+    {
+      title: dialogCopy.title,
+      buttonLabel: dialogCopy.buttonLabel,
+      defaultPath: path.join(preferredDirectory || defaultDownloadDir, buildBatchDocxFileName()),
+      filters: [
+        {
+          name: 'Word Document',
+          extensions: ['docx'],
+        },
+      ],
+      properties: ['showOverwriteConfirmation'],
+    },
+    window,
+  );
+
+  if (result.canceled || !result.filePath) {
+    return null;
+  }
+
+  return exportArticlesToDocxFile({
+    articles,
+    filePath: result.filePath,
+    locale,
+  });
 }
 
 export async function exportArticlesToDocxFile({

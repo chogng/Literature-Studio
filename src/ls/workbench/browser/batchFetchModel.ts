@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { toast } from '../../base/browser/ui/toast/toast';
+import type {
+  ElectronInvoke,
+  FetchStatus,
+} from '../../base/parts/sandbox/common/desktopTypes.js';
 import type { LocaleMessages } from '../../../language/locales';
 import type { BatchSource } from '../services/config/configSchema';
 import {
@@ -9,15 +13,77 @@ import {
 import {
   INITIAL_BATCH_FETCH_MACHINE_STATE,
   reduceBatchFetchMachineState,
-  resolveBatchFetchTitlebarStatus,
 } from '../services/article/batchFetchState';
 import {
   formatLocalized,
   localizeDesktopInvokeError,
 } from '../services/desktop/desktopError';
 
-type DesktopInvokeArgs = Record<string, unknown> | undefined;
-type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<T>;
+type BatchFetchTitlebarStatus = {
+  titlebarFetchSourceText: string;
+  titlebarFetchSourceTitle: string;
+  titlebarFetchStopText: string;
+  titlebarFetchStopTitle: string;
+};
+
+const EMPTY_BATCH_FETCH_TITLEBAR_STATUS: BatchFetchTitlebarStatus = {
+  titlebarFetchSourceText: '',
+  titlebarFetchSourceTitle: '',
+  titlebarFetchStopText: '',
+  titlebarFetchStopTitle: '',
+};
+
+function resolveFetchSourceText(fetchStatus: FetchStatus) {
+  if (fetchStatus.fetchChannel === 'preview' && fetchStatus.previewReuseMode === 'live-extract') {
+    return 'Source: live preview DOM';
+  }
+
+  if (fetchStatus.fetchChannel === 'preview') {
+    return 'Source: preview DOM';
+  }
+
+  return 'Source: network';
+}
+
+function resolveFetchSourceTitle(fetchStatus: FetchStatus) {
+  const sourceDetail = fetchStatus.fetchDetail ? ` | ${fetchStatus.fetchDetail}` : '';
+  return `${fetchStatus.sourceId || 'source'} | page ${fetchStatus.pageNumber}${sourceDetail}`;
+}
+
+function resolveFetchStopText(fetchStatus: FetchStatus) {
+  if (!fetchStatus.paginationStopped) {
+    return '';
+  }
+
+  if (fetchStatus.paginationStopReason === 'tail_dates_before_start_date') {
+    return 'Stop: tail-date policy';
+  }
+
+  return 'Stop: extractor policy';
+}
+
+function resolveFetchStopTitle(fetchStatus: FetchStatus) {
+  if (!fetchStatus.paginationStopped) {
+    return '';
+  }
+
+  const sourceLabel = fetchStatus.sourceId || 'source';
+  const reasonLabel = fetchStatus.paginationStopReason || 'extractor_policy';
+  return `${sourceLabel} | page ${fetchStatus.pageNumber} | ${reasonLabel}`;
+}
+
+function resolveBatchFetchTitlebarStatus(fetchStatus: FetchStatus | null): BatchFetchTitlebarStatus {
+  if (!fetchStatus) {
+    return EMPTY_BATCH_FETCH_TITLEBAR_STATUS;
+  }
+
+  return {
+    titlebarFetchSourceText: resolveFetchSourceText(fetchStatus),
+    titlebarFetchSourceTitle: resolveFetchSourceTitle(fetchStatus),
+    titlebarFetchStopText: resolveFetchStopText(fetchStatus),
+    titlebarFetchStopTitle: resolveFetchStopTitle(fetchStatus),
+  };
+}
 
 type UseBatchFetchModelParams = {
   desktopRuntime: boolean;
@@ -26,7 +92,7 @@ type UseBatchFetchModelParams = {
   sameDomainOnly: boolean;
   batchStartDate: string;
   batchEndDate: string;
-  invokeDesktop: InvokeDesktop;
+  invokeDesktop: ElectronInvoke;
   ui: LocaleMessages;
   onBeforeFetch: () => void;
   onFetchSuccess: (articles: Article[]) => void;
@@ -40,7 +106,7 @@ type UseBatchFetchModelControllerParams = {
   sameDomainOnly?: boolean;
   batchStartDate?: string;
   batchEndDate?: string;
-  invokeDesktop?: InvokeDesktop;
+  invokeDesktop?: ElectronInvoke;
   ui?: LocaleMessages;
   onBeforeFetch?: () => void;
   onFetchSuccess?: (articles: Article[]) => void;

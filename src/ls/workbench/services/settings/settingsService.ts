@@ -1,3 +1,8 @@
+import type {
+  AppSettings as DesktopAppSettings,
+  ElectronInvoke,
+  StoredAppSettings as DesktopStoredAppSettings,
+} from '../../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../language/i18n';
 import {
   type BatchSource,
@@ -8,20 +13,8 @@ import {
   resolveConfigBatchSources,
 } from '../config/configSchema';
 
-type DesktopInvokeArgs = Record<string, unknown> | undefined;
-type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<T>;
-
-export type StoredAppSettingsPayload = {
-  defaultDownloadDir: string | null;
-  defaultBatchSources: BatchSource[];
-  defaultBatchLimit: number;
-  defaultSameDomainOnly: boolean;
-  locale: Locale;
-};
-
-export type AppSettingsPayload = StoredAppSettingsPayload & {
-  configPath?: string;
-};
+export type StoredAppSettingsPayload = DesktopStoredAppSettings;
+export type AppSettingsPayload = DesktopAppSettings;
 
 export type ResolvedSettingsState = {
   pdfDownloadDir: string;
@@ -94,26 +87,26 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
 
 export async function loadAppSettings(
   desktopRuntime: boolean,
-  invokeDesktop: InvokeDesktop,
+  invokeDesktop: ElectronInvoke,
 ): Promise<Partial<AppSettingsPayload>> {
   if (!desktopRuntime) return {};
-  return invokeDesktop<AppSettingsPayload>('load_settings');
+  return invokeDesktop('load_settings');
 }
 
 export async function saveAppSettings(
   desktopRuntime: boolean,
-  invokeDesktop: InvokeDesktop,
+  invokeDesktop: ElectronInvoke,
   payload: StoredAppSettingsPayload,
 ): Promise<Partial<AppSettingsPayload>> {
   if (!desktopRuntime) return payload;
-  return invokeDesktop<AppSettingsPayload>('save_settings', { settings: payload });
+  return invokeDesktop('save_settings', { settings: payload });
 }
 
 export async function saveAppSettingsPartial(
   desktopRuntime: boolean,
-  invokeDesktop: InvokeDesktop,
+  invokeDesktop: ElectronInvoke,
   payload: PartialSettingsPayload,
 ): Promise<Partial<AppSettingsPayload>> {
   if (!desktopRuntime) return payload;
-  return invokeDesktop<AppSettingsPayload>('save_settings', { settings: payload });
+  return invokeDesktop('save_settings', { settings: payload });
 }

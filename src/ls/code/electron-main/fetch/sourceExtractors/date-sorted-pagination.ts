@@ -2,7 +2,7 @@ import type {
   ListingPaginationStopContext,
   ListingPaginationStopEvaluation,
 } from './types.js';
-import { hasDateRangeStart } from '../../utils/date.js';
+import { hasDateRangeStart } from '../../../../base/common/date.js';
 
 const DEFAULT_TAIL_WINDOW = 3;
 const DEFAULT_MIN_DATED_COVERAGE = 0.5;

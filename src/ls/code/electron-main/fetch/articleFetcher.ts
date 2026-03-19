@@ -2,20 +2,30 @@ import { load } from 'cheerio';
 
 import type {
   Article,
-  DateRange,
   FetchChannel,
   FetchLatestArticlesPayload,
   FetchStatus,
   PreviewReuseMode,
-  StorageService,
-} from '../types.js';
+} from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { DateRange } from '../../../base/common/date.js';
+import type { StorageService } from '../../../platform/storage/common/storage.js';
+import { normalizeNatureMainSiteListingUrl } from '../../../base/common/url.js';
 import { buildArticleFromHtml, hasStrongArticleSignals, isProbablyArticle, scoreCandidate } from './articleParser.js';
 import { hasArticlePathSignal, isLikelyStaticResourcePath } from './articleUrlRules.js';
-import { isWithinDateRange, parseDateRange } from '../utils/date.js';
-import { parseDateHintFromText } from '../utils/date-hint.js';
-import { cleanText } from '../utils/text.js';
-import { normalizeUrl } from '../utils/url.js';
-import { READER_SHARED_WEB_PARTITION } from '../browserPartitions.js';
+import { isWithinDateRange, parseDateRange } from '../../../base/common/date.js';
+import { parseDateHintFromText } from '../../../base/common/date.js';
+import { cleanText } from '../../../base/common/strings.js';
+import { normalizeUrl } from '../../../base/common/url.js';
+import { READER_SHARED_WEB_PARTITION } from '../../../platform/native/electron-main/sharedWebSession.js';
+import {
+  renderHtmlWithBrowserWindow,
+  requestWithPreferredTransport,
+} from '../../../platform/request/electron-main/requestMainService.js';
+import {
+  batchLimitMax,
+  batchLimitMin,
+  defaultBatchLimit,
+} from '../../../platform/configuration/common/defaultBatchSources.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from '../fetchTiming.js';
 import {
   buildPageHtmlFetchPlan,
@@ -38,11 +48,11 @@ import {
   type ListingCandidateSeed,
   normalizeListingCandidateSeeds,
 } from './sourceExtractors/index.js';
-import { appError, isAppError } from '../utils/app-error.js';
+import { appError, isAppError } from '../../../base/common/errors.js';
 
-const SYSTEM_BATCH_LIMIT_MAX = 100;
-const USER_BATCH_LIMIT_MIN = 1;
-const DEFAULT_USER_BATCH_LIMIT = 20;
+const SYSTEM_BATCH_LIMIT_MAX = batchLimitMax;
+const USER_BATCH_LIMIT_MIN = batchLimitMin;
+const DEFAULT_USER_BATCH_LIMIT = defaultBatchLimit;
 const DEFAULT_FETCH_TIMEOUT_MS = 12000;
 const PAGE_FETCH_TIMEOUT_MS = 12000;
 const ARTICLE_FETCH_TIMEOUT_MS = 3000;
@@ -80,56 +90,11 @@ const EXTRACTOR_RENDER_FALLBACK_MAX_ORDER = 10;
 const RENDER_FALLBACK_HTTP_STATUS = new Set(['401', '403', '408', '409', '423', '425', '429', '451']);
 const MAX_PAGINATED_PAGE_COUNT = 20;
 
-let browserHtmlFetchPromise: Promise<BrowserHtmlFetch | null> | null = null;
-let browserHtmlFetchUnsupported = false;
-let browserHtmlRendererPromise: Promise<BrowserHtmlRenderer | null> | null = null;
-let browserHtmlRendererUnsupported = false;
-let browserHtmlRendererQueue: Promise<void> = Promise.resolve();
-
 type FetchHtmlOptions = {
   timeoutMs?: number;
   traceId?: string;
   stage?: string;
   signal?: AbortSignal;
-};
-
-type HtmlFetchTransport = 'node' | 'browser';
-
-type BrowserHtmlFetch = {
-  fetch: (url: string, init: RequestInit) => Promise<Response>;
-  partition: string;
-};
-
-type BrowserDidFailLoadListener = (
-  event: unknown,
-  errorCode: number,
-  errorDescription: string,
-  validatedURL: string,
-  isMainFrame?: boolean,
-) => void;
-
-type BrowserRendererWebContents = {
-  isDestroyed: () => boolean;
-  loadURL: (url: string, options?: { userAgent?: string; extraHeaders?: string }) => Promise<unknown>;
-  executeJavaScript: (code: string, userGesture?: boolean) => Promise<unknown>;
-  stop: () => void;
-  setWindowOpenHandler?: (handler: () => { action: 'deny' }) => void;
-  getURL?: () => string;
-  on(event: 'did-fail-load', listener: BrowserDidFailLoadListener): void;
-  on(event: string, listener: (...args: unknown[]) => void): void;
-  off?(event: 'did-fail-load', listener: BrowserDidFailLoadListener): void;
-  off?(event: string, listener: (...args: unknown[]) => void): void;
-  removeListener?(event: 'did-fail-load', listener: BrowserDidFailLoadListener): void;
-  removeListener?(event: string, listener: (...args: unknown[]) => void): void;
-};
-
-type BrowserHtmlRenderer = {
-  window: {
-    isDestroyed: () => boolean;
-    destroy: () => void;
-    webContents: BrowserRendererWebContents;
-  };
-  partition: string;
 };
 
 type PageSource = {
@@ -222,35 +187,9 @@ function resolvePayloadSourcePageUrl(source: { pageUrl?: unknown } | null | unde
   return safeNormalizeUrl(cleanText(source?.pageUrl ?? ''));
 }
 
-function isNatureListingPagePath(pathname: string) {
-  const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
-  if (normalizedPathname === '/latest-news') return true;
-  if (normalizedPathname === '/opinion') return true;
-  return /^\/[^/]+\/(?:research-articles|reviews-and-analysis)$/i.test(normalizedPathname);
-}
-
 function isLikelyArticleDetailPagePath(pathname: string) {
   const normalizedPathname = pathname.replace(/\/+$/, '') || '/';
   return /^(?:\/(?:article|articles|paper|papers|doi|abs|content)\/[^/]+)$/i.test(normalizedPathname);
-}
-
-function normalizeNatureListingPageUrl(pageUrl: string) {
-  try {
-    const page = new URL(pageUrl);
-    if (page.host !== 'www.nature.com') {
-      return pageUrl;
-    }
-
-    if (!isNatureListingPagePath(page.pathname)) {
-      return pageUrl;
-    }
-
-    page.searchParams.delete('page');
-    page.hash = '';
-    return page.toString();
-  } catch {
-    return pageUrl;
-  }
 }
 
 function toTimeoutMs(value: unknown, fallback: number) {
@@ -359,63 +298,6 @@ function logBrowserLoadFailure({
   });
 }
 
-async function resolveBrowserHtmlFetch() {
-  if (!PREFER_BROWSER_FETCH || browserHtmlFetchUnsupported) {
-    return null;
-  }
-
-  if (!browserHtmlFetchPromise) {
-    browserHtmlFetchPromise = (async () => {
-      try {
-        const electronModule = (await import('electron')) as {
-          app?: { isReady?: () => boolean };
-          session?: {
-            fromPartition?: (
-              partition: string,
-            ) => {
-              fetch?: (url: string, init: RequestInit) => Promise<Response>;
-            };
-          };
-        };
-        const electronApp = electronModule.app;
-        const electronSession = electronModule.session;
-        if (!electronApp || typeof electronApp.isReady !== 'function') {
-          browserHtmlFetchUnsupported = true;
-          return null;
-        }
-        if (!electronApp.isReady()) {
-          return null;
-        }
-        if (!electronSession || typeof electronSession.fromPartition !== 'function') {
-          browserHtmlFetchUnsupported = true;
-          return null;
-        }
-
-        const chromiumSession = electronSession.fromPartition(BROWSER_FETCH_PARTITION);
-        if (!chromiumSession || typeof chromiumSession.fetch !== 'function') {
-          browserHtmlFetchUnsupported = true;
-          return null;
-        }
-
-        return {
-          fetch: chromiumSession.fetch.bind(chromiumSession),
-          partition: BROWSER_FETCH_PARTITION,
-        } satisfies BrowserHtmlFetch;
-      } catch {
-        browserHtmlFetchUnsupported = true;
-        return null;
-      }
-    })();
-  }
-
-  const resolved = await browserHtmlFetchPromise;
-  if (!resolved && !browserHtmlFetchUnsupported) {
-    browserHtmlFetchPromise = null;
-  }
-
-  return resolved;
-}
-
 async function requestHtmlWithPreferredTransport({
   traceId,
   stage,
@@ -426,114 +308,23 @@ async function requestHtmlWithPreferredTransport({
   stage: string;
   url: string;
   signal: AbortSignal;
-}): Promise<{ response: Response; transport: HtmlFetchTransport }> {
-  const browserHtmlFetch = await resolveBrowserHtmlFetch();
-  if (browserHtmlFetch) {
-    try {
-      const response = await browserHtmlFetch.fetch(url, {
-        signal,
-        headers: buildHtmlFetchHeaders(),
-      });
-      return {
-        response,
-        transport: 'browser',
-      };
-    } catch (error) {
-      if (isAbortError(error)) {
-        throw error;
-      }
-
-      timingLog(traceId, `${stage}:browser_fallback`, {
-        url: shortenForLog(url),
-        partition: browserHtmlFetch.partition,
-        message: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  const response = await fetch(url, {
+}) {
+  return requestWithPreferredTransport({
+    url,
     signal,
     headers: buildHtmlFetchHeaders(),
-  });
-  return {
-    response,
-    transport: 'node',
-  };
-}
-
-async function resolveBrowserHtmlRenderer() {
-  if (!ENABLE_BROWSER_RENDER_FALLBACK || browserHtmlRendererUnsupported) {
-    return null;
-  }
-
-  if (!browserHtmlRendererPromise) {
-    browserHtmlRendererPromise = (async () => {
-      try {
-        const electronModule = (await import('electron')) as {
-          app?: { isReady?: () => boolean };
-          BrowserWindow?: new (options?: Record<string, unknown>) => BrowserHtmlRenderer['window'];
-        };
-        const electronApp = electronModule.app;
-        const ElectronBrowserWindow = electronModule.BrowserWindow;
-        if (!electronApp || typeof electronApp.isReady !== 'function') {
-          browserHtmlRendererUnsupported = true;
-          return null;
-        }
-        if (!electronApp.isReady()) {
-          return null;
-        }
-        if (!ElectronBrowserWindow) {
-          browserHtmlRendererUnsupported = true;
-          return null;
-        }
-
-        const window = new ElectronBrowserWindow({
-          show: false,
-          width: 1280,
-          height: 900,
-          autoHideMenuBar: true,
-          webPreferences: {
-            partition: BROWSER_FETCH_PARTITION,
-            sandbox: true,
-            contextIsolation: true,
-            nodeIntegration: false,
-            backgroundThrottling: false,
-          },
+    browser: {
+      enabled: PREFER_BROWSER_FETCH,
+      partition: BROWSER_FETCH_PARTITION,
+      onFallback: ({ partition, message }) => {
+        timingLog(traceId, `${stage}:browser_fallback`, {
+          url: shortenForLog(url),
+          partition,
+          message,
         });
-        window.webContents.setWindowOpenHandler?.(() => ({ action: 'deny' }));
-
-        return {
-          window,
-          partition: BROWSER_FETCH_PARTITION,
-        } satisfies BrowserHtmlRenderer;
-      } catch {
-        browserHtmlRendererUnsupported = true;
-        return null;
-      }
-    })();
-  }
-
-  const resolved = await browserHtmlRendererPromise;
-  if (!resolved && !browserHtmlRendererUnsupported) {
-    browserHtmlRendererPromise = null;
-    return null;
-  }
-  if (resolved?.window.isDestroyed()) {
-    browserHtmlRendererPromise = null;
-    return resolveBrowserHtmlRenderer();
-  }
-
-  return resolved;
-}
-
-async function runBrowserHtmlRenderTask<T>(task: () => Promise<T>) {
-  const previousTask = browserHtmlRendererQueue.catch(() => undefined);
-  const currentTask = previousTask.then(task);
-  browserHtmlRendererQueue = currentTask.then(
-    () => undefined,
-    () => undefined,
-  );
-  return currentTask;
+      },
+    },
+  });
 }
 
 function toErrorStatusCode(error: unknown) {
@@ -647,174 +438,79 @@ async function fetchRenderedHtml(url: string, options: FetchHtmlOptions = {}) {
   const traceId = cleanText(options.traceId) || 'fetch';
   const stage = cleanText(options.stage) || 'html_render';
   const timeoutMs = toTimeoutMs(options.timeoutMs, ARTICLE_RENDER_TIMEOUT_MS);
-  const renderer = await resolveBrowserHtmlRenderer();
-  if (!renderer) {
-    throw appError('HTTP_REQUEST_FAILED', {
-      status: 'RENDER_UNAVAILABLE',
-      statusText: 'Browser renderer unavailable',
+  const requestStartedAt = Date.now();
+
+  try {
+    const rendered = await renderHtmlWithBrowserWindow({
       url,
-    });
-  }
-
-  return runBrowserHtmlRenderTask(async () => {
-    const requestStartedAt = Date.now();
-    const { window, partition } = renderer;
-    if (window.isDestroyed() || window.webContents.isDestroyed()) {
-      browserHtmlRendererPromise = null;
-      throw appError('HTTP_REQUEST_FAILED', {
-        status: 'RENDER_UNAVAILABLE',
-        statusText: 'Browser renderer destroyed',
-        url,
-      });
-    }
-
-    let abortedByExternalSignal = false;
-    let timedOut = false;
-    const externalSignal = options.signal;
-    const stopLoading = () => {
-      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-        try {
-          window.webContents.stop();
-        } catch {
-          // Ignore stop failures while tearing down a hidden renderer window.
-        }
-      }
-    };
-    const abortFromExternalSignal = () => {
-      abortedByExternalSignal = true;
-      stopLoading();
-    };
-
-    if (externalSignal?.aborted) {
-      abortFromExternalSignal();
-    } else if (externalSignal) {
-      externalSignal.addEventListener('abort', abortFromExternalSignal, { once: true });
-    }
-
-    const timeoutId = setTimeout(() => {
-      timedOut = true;
-      stopLoading();
-    }, timeoutMs);
-    const didFailLoad = (
-      _event: unknown,
-      errorCode: number,
-      errorDescription: string,
-      validatedURL: string,
-      isMainFrame = false,
-    ) => {
-      logBrowserLoadFailure({
-        traceId,
-        stage,
-        partition,
-        requestedUrl: url,
-        currentUrl: window.webContents.getURL?.() ?? '',
-        failedUrl: validatedURL,
-        errorCode,
-        errorDescription,
-        isMainFrame,
-      });
-    };
-    const detachDidFailLoad = () => {
-      if (typeof window.webContents.off === 'function') {
-        window.webContents.off('did-fail-load', didFailLoad);
-        return;
-      }
-      if (typeof window.webContents.removeListener === 'function') {
-        window.webContents.removeListener('did-fail-load', didFailLoad);
-      }
-    };
-    window.webContents.on('did-fail-load', didFailLoad);
-
-    try {
-      await window.webContents.loadURL(url, {
-        userAgent: HTML_FETCH_USER_AGENT,
-        extraHeaders: `accept: ${HTML_FETCH_ACCEPT}\n`,
-      });
-      if (BROWSER_RENDER_DOM_SETTLE_MS > 0) {
-        await sleep(BROWSER_RENDER_DOM_SETTLE_MS);
-      }
-
-      const html = await window.webContents.executeJavaScript(
-        `(() => {
-          try {
-            return document.documentElement ? document.documentElement.outerHTML : '';
-          } catch {
-            return '';
-          }
-        })()`,
-        true,
-      );
-      const normalizedHtml = typeof html === 'string' ? html : '';
-      if (!normalizedHtml.trim()) {
-        throw appError('HTTP_REQUEST_FAILED', {
-          status: 'EMPTY_RENDERED_HTML',
-          statusText: 'Rendered page returned empty HTML',
-          url,
+      partition: BROWSER_FETCH_PARTITION,
+      timeoutMs,
+      settleMs: BROWSER_RENDER_DOM_SETTLE_MS,
+      signal: options.signal,
+      userAgent: HTML_FETCH_USER_AGENT,
+      acceptHeader: HTML_FETCH_ACCEPT,
+      onDidFailLoad: (details) => {
+        logBrowserLoadFailure({
+          traceId,
+          stage,
+          ...details,
         });
-      }
+      },
+    });
 
-      timingLog(traceId, `${stage}:ok`, {
-        ms: elapsedMs(requestStartedAt),
-        timeoutMs,
-        transport: 'browser-render',
-        url: shortenForLog(url),
-        finalUrl: shortenForLog(window.webContents.getURL?.() ?? url),
-        size: normalizedHtml.length,
-      });
-      return normalizedHtml;
-    } catch (error) {
-      if (isAppError(error)) {
-        throw error;
-      }
-
-      if (abortedByExternalSignal) {
+    timingLog(traceId, `${stage}:ok`, {
+      ms: elapsedMs(requestStartedAt),
+      timeoutMs,
+      transport: 'browser-render',
+      url: shortenForLog(url),
+      finalUrl: shortenForLog(rendered.finalUrl),
+      size: rendered.html.length,
+    });
+    return rendered.html;
+  } catch (error) {
+    if (isAppError(error)) {
+      const details = error.details as { status?: unknown; statusText?: unknown } | undefined;
+      const status = cleanText(details?.status);
+      if (status === 'ABORTED') {
         timingLog(traceId, `${stage}:aborted`, {
           ms: elapsedMs(requestStartedAt),
           timeoutMs,
           transport: 'browser-render',
           url: shortenForLog(url),
         });
-        throw appError('HTTP_REQUEST_FAILED', {
-          status: 'ABORTED',
-          statusText: 'Request aborted',
-          url,
-        });
-      }
-
-      if (timedOut) {
+      } else if (status === 'TIMEOUT') {
         timingLog(traceId, `${stage}:timeout`, {
           ms: elapsedMs(requestStartedAt),
           timeoutMs,
           transport: 'browser-render',
           url: shortenForLog(url),
         });
-        throw appError('HTTP_REQUEST_FAILED', {
-          status: 'TIMEOUT',
-          statusText: `Rendered request timed out after ${timeoutMs}ms`,
-          url,
+      } else if (status === 'NETWORK_ERROR') {
+        timingLog(traceId, `${stage}:network_error`, {
+          ms: elapsedMs(requestStartedAt),
+          timeoutMs,
+          transport: 'browser-render',
+          url: shortenForLog(url),
+          message: cleanText(details?.statusText) || error.message,
         });
       }
 
-      timingLog(traceId, `${stage}:network_error`, {
-        ms: elapsedMs(requestStartedAt),
-        timeoutMs,
-        transport: 'browser-render',
-        url: shortenForLog(url),
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw appError('HTTP_REQUEST_FAILED', {
-        status: 'NETWORK_ERROR',
-        statusText: error instanceof Error ? error.message : String(error),
-        url,
-      });
-    } finally {
-      detachDidFailLoad();
-      if (externalSignal) {
-        externalSignal.removeEventListener('abort', abortFromExternalSignal);
-      }
-      clearTimeout(timeoutId);
+      throw error;
     }
-  });
+
+    timingLog(traceId, `${stage}:network_error`, {
+      ms: elapsedMs(requestStartedAt),
+      timeoutMs,
+      transport: 'browser-render',
+      url: shortenForLog(url),
+      message: error instanceof Error ? error.message : String(error),
+    });
+    throw appError('HTTP_REQUEST_FAILED', {
+      status: 'NETWORK_ERROR',
+      statusText: error instanceof Error ? error.message : String(error),
+      url,
+    });
+  }
 }
 
 function extractDateHintFromElement($: ReturnType<typeof load>, node: CheerioAcceptedNode) {
@@ -2179,7 +1875,7 @@ function normalizePageSources(payload: FetchLatestArticlesPayload): PageSource[]
       const pageUrl = resolvePayloadSourcePageUrl(item);
       if (!pageUrl) return null;
 
-      const normalizedPageUrl = normalizeNatureListingPageUrl(pageUrl);
+      const normalizedPageUrl = normalizeNatureMainSiteListingUrl(pageUrl);
 
       return {
         sourceId: normalizeSourceId(item?.sourceId, index),

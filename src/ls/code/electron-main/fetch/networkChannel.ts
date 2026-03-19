@@ -1,11 +1,11 @@
-﻿import { appError } from '../utils/app-error.js';
+﻿import { appError } from '../../../base/common/errors.js';
 import { elapsedMs, shortenForLog, timingLog } from '../fetchTiming.js';
 import {
   ensureScienceValidationWindow,
   getScienceChallengeSignal,
   isScienceChallengeHtml,
   shouldUseScienceValidationRenderFallback,
-} from './scienceValidation.js';
+} from '../../../platform/windows/electron-main/scienceValidationWindow.js';
 
 export type ChannelFetchOptions = {
   timeoutMs?: number;

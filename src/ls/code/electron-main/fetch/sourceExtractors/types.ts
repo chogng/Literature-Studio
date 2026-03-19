@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 
-import type { DateRange } from '../../types.js';
-import { cleanText } from '../../utils/text.js';
+import type { DateRange } from '../../../../base/common/date.js';
+import { cleanText } from '../../../../base/common/strings.js';
 
 export type ListingDom = ReturnType<typeof load>;
 

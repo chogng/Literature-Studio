@@ -1,11 +1,9 @@
-import path from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 
 import type {
   AppCommand,
   AppCommandPayloadMap,
   AppCommandResultMap,
-  ExportArticlesDocxPayload,
   FetchArticlePayload,
   FetchLatestArticlesPayload,
   OpenArticleDetailsModalPayload,
@@ -14,10 +12,9 @@ import type {
   NativeModalState,
   PreviewState,
   SaveSettingsPayload,
-  StorageService,
   WindowControlAction,
-  WindowState,
-} from './types.js';
+} from '../../base/parts/sandbox/common/desktopTypes.js';
+import type { StorageService } from '../../platform/storage/common/storage.js';
 import {
   getPreviewState,
   goBackPreview,
@@ -26,13 +23,13 @@ import {
   reloadPreview,
   setPreviewBounds,
   setPreviewVisible,
-} from './windowing/preview-view.js';
-import { getNativeModalState, openArticleDetailsModal } from './windowing/native-modal.js';
+} from '../../platform/windows/electron-main/previewView.js';
+import { getNativeModalState, openArticleDetailsModal } from '../../platform/windows/electron-main/nativeModal.js';
 import {
   fetchArticle,
   fetchLatestArticles,
 } from './fetch/articleFetcher.js';
-import { buildBatchDocxFileName, exportArticlesToDocxFile } from './document/docx.js';
+import { exportArticlesDocx } from './document/docx.js';
 import {
   normalizeFetchStrategy,
   shouldPreparePreviewArtifacts,
@@ -41,68 +38,18 @@ import {
 } from './fetch/fetchStrategy.js';
 import { resolveBatchPreviewExtractions, resolveBatchPreviewSnapshots, resolvePreviewSnapshotHtml } from './fetch/previewChannel.js';
 import { previewDownloadPdf } from './pdf/pdf.js';
-import { resolveDocxExportDialogCopy } from './utils/locale-copy.js';
-import { appError, serializeAppError } from './utils/app-error.js';
-import { getMainWindow } from './windowing/window.js';
+import { appError, serializeAppError } from '../../base/common/errors.js';
+import { pickDirectoryDialog } from '../../platform/dialogs/electron-main/dialogMainService.js';
+import {
+  getMainWindow,
+  getWindowState,
+  performWindowControlAction,
+  resolveWindowFromWebContents,
+} from '../../platform/windows/electron-main/window.js';
 const FETCH_STATUS_CHANNEL = 'app:fetch-status';
 
-async function pickDownloadDirectory() {
-  const mainWindow = getMainWindow();
-  if (!mainWindow) {
-    throw appError('MAIN_WINDOW_UNAVAILABLE');
-  }
-
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory', 'createDirectory'],
-  });
-  if (result.canceled || result.filePaths.length === 0) return null;
-
-  return result.filePaths[0];
-}
-
-async function exportArticlesDocx(
-  payload: ExportArticlesDocxPayload = {},
-  defaultDownloadDir: string,
-) {
-  const mainWindow = getMainWindow();
-  if (!mainWindow) {
-    throw appError('MAIN_WINDOW_UNAVAILABLE');
-  }
-
-  const articles = Array.isArray(payload.articles) ? payload.articles : [];
-  if (articles.length === 0) {
-    throw appError('DOCX_EXPORT_NO_ARTICLES');
-  }
-
-  const preferredDirectory =
-    typeof payload.preferredDirectory === 'string' ? payload.preferredDirectory.trim() : '';
-  const dialogCopy = resolveDocxExportDialogCopy(payload.locale);
-  const result = await dialog.showSaveDialog(mainWindow, {
-    title: dialogCopy.title,
-    buttonLabel: dialogCopy.buttonLabel,
-    defaultPath: path.join(preferredDirectory || defaultDownloadDir, buildBatchDocxFileName()),
-    filters: [
-      {
-        name: 'Word Document',
-        extensions: ['docx'],
-      },
-    ],
-    properties: ['showOverwriteConfirmation'],
-  });
-
-  if (result.canceled || !result.filePath) {
-    return null;
-  }
-
-  return exportArticlesToDocxFile({
-    articles,
-    filePath: result.filePath,
-    locale: payload.locale === 'en' ? 'en' : 'zh',
-  });
-}
-
 async function showArticleDetailsModal(
-  parentWindow: BrowserWindow | null,
+  parentWindow: ReturnType<typeof getMainWindow>,
   payload: OpenArticleDetailsModalPayload = {},
 ) {
   const targetWindow = parentWindow ?? getMainWindow();
@@ -154,7 +101,7 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'save_settings':
       return storage.saveSettings((payload as SaveSettingsPayload)?.settings ?? {}) as Promise<AppCommandResultMap[TCommand]>;
     case 'pick_download_directory':
-      return pickDownloadDirectory() as Promise<AppCommandResultMap[TCommand]>;
+      return pickDirectoryDialog(getMainWindow()) as Promise<AppCommandResultMap[TCommand]>;
     case 'preview_download_pdf': {
       const previewHtml = await resolvePreviewSnapshotHtml(payload as PreviewDownloadPdfPayload);
       return previewDownloadPdf(
@@ -164,10 +111,17 @@ async function invokeCommand<TCommand extends AppCommand>(
       ) as Promise<AppCommandResultMap[TCommand]>;
     }
     case 'export_articles_docx':
-      return exportArticlesDocx(
-        payload as ExportArticlesDocxPayload,
-        app.getPath('downloads'),
-      ) as Promise<AppCommandResultMap[TCommand]>;
+      {
+        const mainWindow = getMainWindow();
+        if (!mainWindow) {
+          throw appError('MAIN_WINDOW_UNAVAILABLE');
+        }
+        return exportArticlesDocx(
+          payload as AppCommandPayloadMap['export_articles_docx'],
+          app.getPath('downloads'),
+          mainWindow,
+        ) as Promise<AppCommandResultMap[TCommand]>;
+      }
     case 'open_article_details_modal':
       return showArticleDetailsModal(
         getMainWindow(),
@@ -182,7 +136,7 @@ export function registerAppIpc(storage: StorageService) {
   ipcMain.handle('app:invoke', async (_event, command: AppCommand, payload: AppCommandPayloadMap[AppCommand]) => {
     try {
       if (command === 'open_article_details_modal') {
-        const target = BrowserWindow.fromWebContents(_event.sender) ?? getMainWindow();
+        const target = resolveWindowFromWebContents(_event.sender);
         return await showArticleDetailsModal(target, payload as OpenArticleDetailsModalPayload);
       }
 
@@ -197,40 +151,14 @@ export function registerAppIpc(storage: StorageService) {
   });
 
   ipcMain.on('app:window-action', (event, action: WindowControlAction) => {
-    const target = BrowserWindow.fromWebContents(event.sender) ?? getMainWindow();
+    const target = resolveWindowFromWebContents(event.sender);
     if (!target || target.isDestroyed()) return;
 
-    switch (action) {
-      case 'minimize':
-        target.minimize();
-        break;
-      case 'maximize':
-        target.maximize();
-        break;
-      case 'unmaximize':
-        target.unmaximize();
-        break;
-      case 'toggle-maximize':
-        if (target.isMaximized()) {
-          target.unmaximize();
-        } else {
-          target.maximize();
-        }
-        break;
-      case 'close':
-        target.close();
-        break;
-      default:
-        break;
-    }
+    performWindowControlAction(target, action);
   });
 
   ipcMain.handle('app:get-window-state', (event) => {
-    const target = BrowserWindow.fromWebContents(event.sender) ?? getMainWindow();
-    const state: WindowState = {
-      isMaximized: Boolean(target && !target.isDestroyed() && target.isMaximized()),
-    };
-    return state;
+    return getWindowState(resolveWindowFromWebContents(event.sender));
   });
 
   ipcMain.handle('app:preview-get-state', () => {

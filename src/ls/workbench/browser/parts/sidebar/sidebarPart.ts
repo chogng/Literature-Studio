@@ -1,6 +1,6 @@
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
-import type { SidebarArticle, SidebarLabels, SidebarProps } from './sidebarModel';
+import type { SidebarArticle, SidebarLabels, SidebarProps } from './sidebarView';
 
 export type SidebarPartState = {
   ui: LocaleMessages;
@@ -17,6 +17,7 @@ export type SidebarPartActions = {
   onBatchEndDateChange: (value: string) => void;
   onFetchLatestBatch: () => void;
   onDownloadPdf: SidebarProps['onDownloadPdf'];
+  onOpenArticleDetails: SidebarProps['onOpenArticleDetails'];
 };
 
 type CreateSidebarPartLabelsParams = {
@@ -66,6 +67,7 @@ export function createSidebarPartProps({
     onBatchEndDateChange,
     onFetchLatestBatch,
     onDownloadPdf,
+    onOpenArticleDetails,
   },
 }: CreateSidebarPartPropsParams): SidebarProps {
   return {
@@ -79,6 +81,7 @@ export function createSidebarPartProps({
     onBatchEndDateChange,
     onFetchLatestBatch,
     onDownloadPdf,
+    onOpenArticleDetails,
     isBatchLoading,
   };
 }

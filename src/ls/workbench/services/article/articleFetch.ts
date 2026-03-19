@@ -1,3 +1,7 @@
+import type {
+  Article as DesktopArticle,
+  ElectronInvoke,
+} from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { isDateRangeValid } from '../../common/dateRange';
 import { normalizeUrl } from '../../common/url';
 import {
@@ -8,23 +12,7 @@ import {
 } from '../config/configSchema';
 import { parseDesktopInvokeError, type DesktopInvokeErrorData } from '../desktop/desktopError';
 
-export type Article = {
-  title: string;
-  articleType: string | null;
-  doi: string | null;
-  authors: string[];
-  abstractText: string | null;
-  descriptionText: string | null;
-  publishedAt: string | null;
-  sourceUrl: string;
-  fetchedAt: string;
-  sourceId?: string | null;
-  journalTitle?: string | null;
-};
-
-type DesktopInvokeArgs = Record<string, unknown> | undefined;
-
-type InvokeDesktop = <T,>(command: string, args?: DesktopInvokeArgs) => Promise<T>;
+export type Article = DesktopArticle;
 
 const manualAddressBarSourceId = 'source-manual-address-bar';
 
@@ -52,7 +40,7 @@ type FetchLatestArticlesBatchParams = {
   startDate?: string | null;
   endDate?: string | null;
   fetchStrategy?: 'network-first' | 'preview-first' | 'compare';
-  invokeDesktop: InvokeDesktop;
+  invokeDesktop: ElectronInvoke;
 };
 
 function buildManualBatchSource(url: string, sourceTable: ReadonlyArray<BatchSource>): BatchSource {

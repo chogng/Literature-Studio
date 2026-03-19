@@ -1,4 +1,4 @@
-import { natureLatestNewsCandidateExtractor } from './nature-latest-news.js';
+import { natureLatestNewsCandidateExtractor } from './latestNews.js';
 import { natureNatelectronResearchArticlesCandidateExtractor } from './nature-natelectron-research-articles.js';
 import { natureNcommsResearchArticlesCandidateExtractor } from './nature-ncomms-research-articles.js';
 import { natureNatmachintellResearchArticlesCandidateExtractor } from './nature-natmachintell-research-articles.js';

@@ -1,27 +1,189 @@
-﻿import type { FetchLatestArticlesPayload, PreviewDownloadPdfPayload } from '../types.js';
+import type {
+  FetchLatestArticlesPayload,
+  PreviewDownloadPdfPayload,
+} from '../../../base/parts/sandbox/common/desktopTypes.js';
+import { normalizeUrl } from '../../../base/common/url.js';
 import {
   getPreviewDocumentSnapshot,
   getPreviewListingCandidateSnapshot,
   getPreviewState,
-} from '../windowing/preview-view.js';
-import {
-  buildPreviewAdmissionKey,
-  collectMatchedPreviewPageUrls,
-  DEFAULT_PREVIEW_ADMISSION_CONFIG,
-  evaluatePreviewAdmissionStatus,
-  matchesPreviewTargetUrl,
-  resolvePreviewSourcePageUrl,
-  safeNormalizePreviewUrl,
-} from '../utils/preview-admission.js';
+} from '../../../platform/windows/electron-main/previewView.js';
 import type { PreviewExtractionSnapshot, PreviewSnapshot } from './fetchStrategy.js';
-import { shouldAllowSciencePreviewWhileLoading } from './scienceValidation.js';
+import { shouldAllowSciencePreviewWhileLoading } from '../../../platform/windows/electron-main/scienceValidationWindow.js';
 
 const BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS = 2500;
 const BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS = 1500;
 const BATCH_PREVIEW_EXTRACTION_GATE_TIMEOUT_MS = 5000;
 const BATCH_PREVIEW_EXTRACTION_GATE_POLL_MS = 120;
 type PreviewBatchSource = NonNullable<FetchLatestArticlesPayload['sources']>[number];
+type PreviewSourceInput = { pageUrl?: unknown } | null | undefined;
+type PreviewExtractionAdmissionSnapshot = {
+  extraction?: {
+    candidates?: unknown[] | null;
+    diagnostics?: Record<string, unknown> | null;
+  } | null;
+  previewUrl?: string | null;
+  isLoading?: boolean | null;
+};
+type PreviewAdmissionConfig = {
+  stablePolls: number;
+  stableMs: number;
+  trailingSectionStablePolls: number;
+  trailingSectionStableMs: number;
+};
+type PreviewAdmissionStatus = {
+  candidateCount: number;
+  sectionCount: number | null;
+  selectedSectionIndex: number | null;
+  structurallyReady: boolean;
+  trailingSection: boolean;
+  requiredStablePolls: number;
+  requiredStableMs: number;
+  stabilityReady: boolean;
+  ready: boolean;
+};
 
+const DEFAULT_PREVIEW_ADMISSION_CONFIG: PreviewAdmissionConfig = {
+  stablePolls: 4,
+  stableMs: 450,
+  trailingSectionStablePolls: 8,
+  trailingSectionStableMs: 900,
+};
+
+function toFiniteNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getPreviewExtractionDiagnostics(snapshot: PreviewExtractionAdmissionSnapshot) {
+  const diagnostics = snapshot?.extraction?.diagnostics;
+  if (!diagnostics || typeof diagnostics !== 'object' || Array.isArray(diagnostics)) {
+    return null;
+  }
+
+  return diagnostics;
+}
+
+function safeNormalizePreviewUrl(value: unknown) {
+  try {
+    return normalizeUrl(value);
+  } catch {
+    return '';
+  }
+}
+
+function resolvePreviewSourcePageUrl(source: PreviewSourceInput) {
+  return safeNormalizePreviewUrl(source?.pageUrl);
+}
+
+function normalizePreviewTargetUrl(value: unknown) {
+  const normalized = safeNormalizePreviewUrl(value);
+  if (!normalized) return '';
+
+  try {
+    const url = new URL(normalized);
+    url.hash = '';
+    if (url.pathname !== '/') {
+      url.pathname = url.pathname.replace(/\/+$/, '') || '/';
+    }
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
+function matchesPreviewTargetUrl(left: unknown, right: unknown) {
+  const normalizedLeft = normalizePreviewTargetUrl(left);
+  const normalizedRight = normalizePreviewTargetUrl(right);
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
+}
+
+function collectMatchedPreviewPageUrls(
+  sources: ReadonlyArray<PreviewSourceInput>,
+  previewUrl: unknown,
+) {
+  const matchedPageUrls = new Set<string>();
+  const normalizedPreviewUrl = safeNormalizePreviewUrl(previewUrl);
+  if (!normalizedPreviewUrl) {
+    return matchedPageUrls;
+  }
+
+  for (const source of sources) {
+    const pageUrl = resolvePreviewSourcePageUrl(source);
+    if (pageUrl && matchesPreviewTargetUrl(pageUrl, normalizedPreviewUrl)) {
+      matchedPageUrls.add(pageUrl);
+    }
+  }
+
+  return matchedPageUrls;
+}
+
+function buildPreviewAdmissionKey(snapshot: PreviewExtractionAdmissionSnapshot) {
+  const diagnostics = getPreviewExtractionDiagnostics(snapshot);
+  return JSON.stringify({
+    candidateCount: snapshot?.extraction?.candidates?.length ?? 0,
+    sectionCount: toFiniteNumber(diagnostics?.sectionCount),
+    cardCount: toFiniteNumber(diagnostics?.cardCount),
+    datedCandidateCount: toFiniteNumber(diagnostics?.datedCandidateCount),
+    summarizedCandidateCount: toFiniteNumber(diagnostics?.summarizedCandidateCount),
+    selectedSectionIndex: toFiniteNumber(diagnostics?.selectedSectionIndex),
+    previewUrl: safeNormalizePreviewUrl(snapshot?.previewUrl ?? ''),
+  });
+}
+
+function evaluatePreviewAdmissionStatus(
+  snapshot: PreviewExtractionAdmissionSnapshot,
+  stability: { stablePolls: number; stableMs: number },
+  config: PreviewAdmissionConfig = DEFAULT_PREVIEW_ADMISSION_CONFIG,
+): PreviewAdmissionStatus {
+  const candidateCount = snapshot?.extraction?.candidates?.length ?? 0;
+  if (!snapshot || candidateCount === 0) {
+    return {
+      candidateCount,
+      sectionCount: null,
+      selectedSectionIndex: null,
+      structurallyReady: false,
+      trailingSection: false,
+      requiredStablePolls: config.stablePolls,
+      requiredStableMs: config.stableMs,
+      stabilityReady: false,
+      ready: false,
+    };
+  }
+
+  const diagnostics = getPreviewExtractionDiagnostics(snapshot);
+  const sectionCount = toFiniteNumber(diagnostics?.sectionCount);
+  const selectedSectionIndex = toFiniteNumber(diagnostics?.selectedSectionIndex);
+  const trailingSection = Boolean(
+    snapshot.isLoading &&
+      sectionCount !== null &&
+      selectedSectionIndex !== null &&
+      selectedSectionIndex >= sectionCount - 1,
+  );
+  const requiredStablePolls = trailingSection
+    ? config.trailingSectionStablePolls
+    : config.stablePolls;
+  const requiredStableMs = trailingSection
+    ? config.trailingSectionStableMs
+    : config.stableMs;
+  const structurallyReady = candidateCount > 0;
+  const stabilityReady = Boolean(
+    !snapshot.isLoading ||
+      (stability.stablePolls >= requiredStablePolls && stability.stableMs >= requiredStableMs),
+  );
+
+  return {
+    candidateCount,
+    sectionCount,
+    selectedSectionIndex,
+    structurallyReady,
+    trailingSection,
+    requiredStablePolls,
+    requiredStableMs,
+    stabilityReady,
+    ready: structurallyReady && stabilityReady,
+  };
+}
 function logPreviewBatchDiagnostic(event: string, details: Record<string, unknown>) {
   try {
     console.info(`[preview-batch] ${event} ${JSON.stringify(details)}`);
@@ -374,4 +536,5 @@ export async function resolveBatchPreviewExtractions(payload: FetchLatestArticle
 
   return extractions;
 }
+
 

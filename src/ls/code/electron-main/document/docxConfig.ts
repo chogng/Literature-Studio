@@ -1,11 +1,5 @@
 export type DocxExportConfig = {
   fileNamePrefix: string;
-  document: {
-    titleFontSize: number;
-    titleSpacingAfter: number;
-    articleCountSpacingAfter: number;
-    exportedAtSpacingAfter: number;
-  };
   article: {
     titleFontSize: number;
     bodyFontSize: number;
@@ -14,10 +8,6 @@ export type DocxExportConfig = {
     bodyColor: string;
     lineSpacing: number;
     titleSpacingBefore: number;
-    titleSpacingAfter: number;
-    metadataSpacingAfter: number;
-    fetchedAtSpacingAfter: number;
-    abstractLabelSpacingAfter: number;
     abstractLineSpacingAfter: number;
   };
   journal: {
@@ -46,12 +36,6 @@ export type DocxExportConfig = {
 // Keep a single default export style so all DOCX files are consistent.
 export const defaultDocxExportConfig: Readonly<DocxExportConfig> = {
   fileNamePrefix: 'literature-batch',
-  document: {
-    titleFontSize: 36,
-    titleSpacingAfter: 200,
-    articleCountSpacingAfter: 80,
-    exportedAtSpacingAfter: 160,
-  },
   article: {
     titleFontSize: 24,
     bodyFontSize: 24,
@@ -60,10 +44,6 @@ export const defaultDocxExportConfig: Readonly<DocxExportConfig> = {
     bodyColor: '000000',
     lineSpacing: 360,
     titleSpacingBefore: 160,
-    titleSpacingAfter: 180,
-    metadataSpacingAfter: 80,
-    fetchedAtSpacingAfter: 120,
-    abstractLabelSpacingAfter: 60,
     abstractLineSpacingAfter: 60,
   },
   journal: {
