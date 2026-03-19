@@ -1,4 +1,4 @@
-import type { ViewPartProps } from '../view/viewModel';
+import type { ViewPartProps } from '../view/viewPartView';
 
 export type EditorPartProps = {
   viewPartProps: ViewPartProps;

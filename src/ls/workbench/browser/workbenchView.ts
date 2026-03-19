@@ -5,7 +5,9 @@ import {
   useMemo,
   useState,
   useSyncExternalStore,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from 'react';
 import {
   detectInitialLocale,
@@ -13,13 +15,30 @@ import {
   toDocumentLang,
   type Locale,
 } from '../../../language/i18n';
+import type { LocaleMessages } from '../../../language/locales';
 import { useWindowControls } from './window';
-import { ToastContainer } from '../../base/browser/ui/toast/toast';
+import { toast, ToastContainer } from '../../base/browser/ui/toast/toast';
 import type { Article } from '../services/article/articleFetch';
 import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
+  type BatchSource,
 } from '../services/config/configSchema';
+import { formatLocalized } from '../services/desktop/desktopError';
+import {
+  EMPTY_PREVIEW_STATE,
+  resolvePreviewNavigation,
+  resolvePreviewRefreshMode,
+  resolvePreviewStateUrlUpdate,
+} from '../services/preview/previewNavigationService';
+import {
+  applyQuickAccessUrlInput,
+  createQuickAccessSourceOptions,
+  findQuickAccessSourceOption,
+  resolveNextQuickAccessSourceOption,
+  resolveQuickAccessSourceId,
+  type QuickAccessCycleDirection,
+} from '../services/quickAccess/quickAccessService';
 import ArticleDetailsModalWindow from './articleDetailsModalWindow';
 import { useBatchFetchModel } from './batchFetchModel';
 import { useDocumentActionsModel } from './documentActionsModel';
@@ -37,8 +56,6 @@ import SettingsView from './parts/settings/settingsView';
 import { createSidebarPartProps } from './parts/sidebar/sidebarPart';
 import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
 import { TitlebarView } from './parts/titlebar/titlebarView';
-import { usePreviewNavigationModel } from './parts/view/previewNavigationModel';
-import { createViewPartProps } from './parts/view/viewPart';
 import { useReaderState } from './readerState';
 import ReaderView from './readerView';
 import { useSettingsModel } from './settingsModel';
@@ -71,6 +88,26 @@ type WorkbenchShellConfig = {
   toastCloseLabel: string;
 };
 
+type UsePreviewNavigationModelParams = {
+  electronRuntime: boolean;
+  previewRuntime: boolean;
+  ui: LocaleMessages;
+  webUrl: string;
+  fetchSeedUrl: string;
+  batchSources: BatchSource[];
+  setWebUrl: Dispatch<SetStateAction<string>>;
+  setFetchSeedUrl: Dispatch<SetStateAction<string>>;
+};
+
+type UseAddressBarSourceParams = {
+  webUrl: string;
+  fetchSeedUrl: string;
+  batchSources: BatchSource[];
+  setWebUrl: Dispatch<SetStateAction<string>>;
+  setFetchSeedUrl: Dispatch<SetStateAction<string>>;
+  navigateToUrl: (url: string, showToast: boolean) => unknown;
+};
+
 const DEFAULT_ARTICLE_URL = '';
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
 
@@ -92,6 +129,233 @@ function resolveRuntimeState() {
     electronRuntime,
     previewRuntime,
     desktopRuntime: electronRuntime,
+  };
+}
+
+function useAddressBarSource({
+  webUrl,
+  fetchSeedUrl,
+  batchSources,
+  setWebUrl,
+  setFetchSeedUrl,
+  navigateToUrl,
+}: UseAddressBarSourceParams) {
+  const addressBarSourceOptions = useMemo(
+    () => createQuickAccessSourceOptions(batchSources),
+    [batchSources],
+  );
+
+  const selectedAddressBarSourceId = useMemo(() => {
+    return resolveQuickAccessSourceId(fetchSeedUrl, webUrl, batchSources);
+  }, [batchSources, fetchSeedUrl, webUrl]);
+
+  const handleWebUrlChange = useCallback(
+    (nextUrl: string) => {
+      applyQuickAccessUrlInput(nextUrl, setWebUrl, setFetchSeedUrl);
+    },
+    [setFetchSeedUrl, setWebUrl],
+  );
+
+  const handleSelectAddressBarSource = useCallback(
+    (sourceId: string) => {
+      const selectedSource = findQuickAccessSourceOption(addressBarSourceOptions, sourceId);
+      if (!selectedSource) {
+        return;
+      }
+
+      navigateToUrl(selectedSource.url, false);
+    },
+    [addressBarSourceOptions, navigateToUrl],
+  );
+
+  const handleCycleAddressBarSource = useCallback(
+    (direction: QuickAccessCycleDirection) => {
+      const nextSource = resolveNextQuickAccessSourceOption(
+        addressBarSourceOptions,
+        selectedAddressBarSourceId,
+        direction,
+      );
+      if (!nextSource) {
+        return;
+      }
+
+      navigateToUrl(nextSource.url, false);
+    },
+    [addressBarSourceOptions, navigateToUrl, selectedAddressBarSourceId],
+  );
+
+  return {
+    addressBarSourceOptions,
+    selectedAddressBarSourceId,
+    handleWebUrlChange,
+    handleSelectAddressBarSource,
+    handleCycleAddressBarSource,
+  };
+}
+
+function usePreviewNavigationModel({
+  electronRuntime,
+  previewRuntime,
+  ui,
+  webUrl,
+  fetchSeedUrl,
+  batchSources,
+  setWebUrl,
+  setFetchSeedUrl,
+}: UsePreviewNavigationModelParams) {
+  const [browserUrl, setBrowserUrl] = useState('');
+  const [iframeReloadKey, setIframeReloadKey] = useState(0);
+  const [previewState, setPreviewState] = useState<DesktopPreviewState>(EMPTY_PREVIEW_STATE);
+
+  const applyPreviewState = useCallback(
+    (state: DesktopPreviewState) => {
+      setPreviewState(state);
+
+      const previewStateUrlUpdate = resolvePreviewStateUrlUpdate(state);
+      if (!previewStateUrlUpdate) {
+        return;
+      }
+
+      setBrowserUrl(previewStateUrlUpdate.browserUrl);
+      setWebUrl(previewStateUrlUpdate.webUrl);
+      setFetchSeedUrl((current) => current || previewStateUrlUpdate.fetchSeedUrl);
+    },
+    [setFetchSeedUrl, setWebUrl],
+  );
+
+  useEffect(() => {
+    if (!previewRuntime || !window.electronAPI?.preview) {
+      setPreviewState(EMPTY_PREVIEW_STATE);
+      return;
+    }
+
+    let mounted = true;
+    const preview = window.electronAPI.preview;
+
+    void preview
+      .getState()
+      .then((state) => {
+        if (!mounted) {
+          return;
+        }
+
+        applyPreviewState(state);
+      })
+      .catch(() => {});
+
+    const unsubscribe = preview.onStateChange((state) => {
+      applyPreviewState(state);
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [applyPreviewState, previewRuntime]);
+
+  const navigateToAddressBarUrl = useCallback(
+    (nextUrl: string, showToast: boolean = true) => {
+      const previewNavigation = resolvePreviewNavigation(
+        nextUrl,
+        electronRuntime,
+        previewRuntime,
+      );
+
+      if (previewNavigation.kind === 'invalid-url') {
+        toast.error(ui.toastEnterArticleUrl);
+        return false;
+      }
+
+      setWebUrl(previewNavigation.normalizedUrl);
+      setBrowserUrl(previewNavigation.normalizedUrl);
+      setFetchSeedUrl(previewNavigation.normalizedUrl);
+
+      if (previewNavigation.kind === 'preview-runtime-unavailable') {
+        toast.error(ui.toastPreviewRuntimeUnavailable);
+        return false;
+      }
+
+      if (previewNavigation.kind === 'native-preview' && window.electronAPI?.preview) {
+        void window.electronAPI.preview.navigate(previewNavigation.normalizedUrl).catch(() => {
+          window.electronAPI?.preview?.setVisible(false);
+        });
+      }
+
+      if (showToast) {
+        toast.success(formatLocalized(ui.toastNavigatingTo, { url: previewNavigation.normalizedUrl }));
+      }
+
+      return true;
+    },
+    [electronRuntime, previewRuntime, setFetchSeedUrl, setWebUrl, ui],
+  );
+
+  const handleNavigateWeb = useCallback(() => {
+    navigateToAddressBarUrl(webUrl, true);
+  }, [navigateToAddressBarUrl, webUrl]);
+
+  const handleBrowserRefresh = useCallback(() => {
+    const previewRefreshMode = resolvePreviewRefreshMode(electronRuntime, previewRuntime);
+
+    if (previewRefreshMode === 'preview-runtime-unavailable') {
+      toast.error(ui.toastPreviewRuntimeUnavailable);
+      return;
+    }
+
+    if (previewRefreshMode === 'native-preview' && window.electronAPI?.preview) {
+      window.electronAPI.preview.reload();
+      return;
+    }
+
+    setIframeReloadKey((current) => current + 1);
+  }, [electronRuntime, previewRuntime, ui]);
+
+  const handlePreviewBack = useCallback(() => {
+    if (!previewRuntime || !window.electronAPI?.preview) {
+      toast.info(ui.toastPreviewBackUnsupported);
+      return;
+    }
+
+    window.electronAPI.preview.goBack();
+  }, [previewRuntime, ui]);
+
+  const handlePreviewForward = useCallback(() => {
+    if (!previewRuntime || !window.electronAPI?.preview) {
+      toast.info(ui.toastPreviewForwardUnsupported);
+      return;
+    }
+
+    window.electronAPI.preview.goForward();
+  }, [previewRuntime, ui]);
+
+  const {
+    addressBarSourceOptions,
+    selectedAddressBarSourceId,
+    handleWebUrlChange,
+    handleSelectAddressBarSource,
+    handleCycleAddressBarSource,
+  } = useAddressBarSource({
+    webUrl,
+    fetchSeedUrl,
+    batchSources,
+    setWebUrl,
+    setFetchSeedUrl,
+    navigateToUrl: navigateToAddressBarUrl,
+  });
+
+  return {
+    browserUrl,
+    iframeReloadKey,
+    previewState,
+    handleNavigateWeb,
+    handleBrowserRefresh,
+    handlePreviewBack,
+    handlePreviewForward,
+    addressBarSourceOptions,
+    selectedAddressBarSourceId,
+    handleWebUrlChange,
+    handleSelectAddressBarSource,
+    handleCycleAddressBarSource,
   };
 }
 
@@ -396,19 +660,19 @@ function WorkbenchContentView() {
     ],
   );
 
-  const viewPartProps = useMemo(
-    () =>
-      createViewPartProps({
-        state: {
-          ui,
-          browserUrl,
-          iframeReloadKey,
-          electronRuntime,
-          previewRuntime,
-        },
-      }),
-    [browserUrl, electronRuntime, iframeReloadKey, previewRuntime, ui],
-  );
+  const viewPartProps = useMemo(() => {
+    return {
+      browserUrl,
+      iframeReloadKey,
+      electronRuntime,
+      previewRuntime,
+      labels: {
+        emptyState: ui.emptyState,
+        previewUnavailable: ui.previewUnavailable,
+        webPreviewTitle: ui.webPreviewTitle,
+      },
+    };
+  }, [browserUrl, electronRuntime, iframeReloadKey, previewRuntime, ui]);
 
   const editorPartProps = useMemo(
     () =>

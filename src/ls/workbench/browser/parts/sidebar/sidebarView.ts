@@ -1,8 +1,8 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import type { Ref } from 'react';
 import { Button } from '../../../../base/browser/ui/button/button';
+import { DateRangePicker } from '../../../../base/browser/ui/dateRangePicker/dateRangePicker';
 import ArticleCard from './articleCard';
-import DateRangePicker from './dateRangePicker';
 import type { SidebarProps } from './sidebarModel';
 import './media/sidebar.css';
 

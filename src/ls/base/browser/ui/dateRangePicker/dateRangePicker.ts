@@ -7,15 +7,14 @@ import {
   useState,
   type RefObject,
 } from 'react';
-import { formatDateInputValue, isDateRangeValid } from '../../../common/dateRange';
-import './media/dateRangePicker.css';
+import './dateRangePicker.css';
 
-type DateRangePickerLabels = {
+export type DateRangePickerLabels = {
   startDate: string;
   endDate: string;
 };
 
-type DateRangePickerProps = {
+export type DateRangePickerProps = {
   startDate: string;
   endDate: string;
   labels: DateRangePickerLabels;
@@ -56,6 +55,21 @@ type TriggerButtonConfig = {
   triggerRef: RefObject<HTMLButtonElement | null>;
   onToggle: () => void;
 };
+
+function isDateRangeValid(startDate: string, endDate: string): boolean {
+  if (!startDate || !endDate) {
+    return true;
+  }
+
+  return startDate <= endDate;
+}
+
+function formatDateInputValue(date: Date): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 function findClippingAncestor(element: HTMLElement | null) {
   let current = element?.parentElement ?? null;
@@ -254,7 +268,7 @@ function renderTriggerButton(config: TriggerButtonConfig) {
   });
 }
 
-export default function DateRangePicker({
+export function DateRangePicker({
   startDate,
   endDate,
   labels,
@@ -541,3 +555,5 @@ export default function DateRangePicker({
     ],
   });
 }
+
+export default DateRangePicker;

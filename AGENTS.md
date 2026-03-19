@@ -20,8 +20,7 @@
 ## Shared UI Rules
 - Treat `src/ls/base/browser/ui/**` as the home for long-lived shared UI primitives and infrastructure.
 - Keep shared UI primitives out of outer `src/components/**`; workbench-facing shared UI should live in `src/ls/base/**`.
-- Keep shared UI filenames in `kebab-case` and keep component symbols in `PascalCase`.
-- Current shared UI primitives to preserve in `src/ls/base/browser/ui/**`: `button`, `input`, `dropdown`, `toast`, `modal`.
+- Keep shared UI filenames in `camelCase` (including `.ts` and `.css`) and keep component symbols in `PascalCase`.
 - If a component is owned by one workbench part or feature, place it beside that owner in `src/ls/**` instead of promoting it into `src/ls/base/**`.
 
 ## Build Rules

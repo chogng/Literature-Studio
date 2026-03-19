@@ -1,8 +1,21 @@
 import { jsx } from 'react/jsx-runtime';
 import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../layout';
-import type { ViewPartProps } from './viewModel';
 import { useWorkbenchPreviewView } from './viewService';
 import './media/view.css';
+
+export type ViewPartLabels = {
+  emptyState: string;
+  previewUnavailable: string;
+  webPreviewTitle: string;
+};
+
+export type ViewPartProps = {
+  browserUrl: string;
+  iframeReloadKey: number;
+  electronRuntime: boolean;
+  previewRuntime: boolean;
+  labels: ViewPartLabels;
+};
 
 function renderPreviewContent({
   browserUrl,
