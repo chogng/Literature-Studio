@@ -1,7 +1,7 @@
 import { jsx } from 'react/jsx-runtime';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import './ls/workbench/workbench.common.main';
+import './ls/workbench/workbench.desktop.main';
 import WorkbenchView from './ls/workbench/browser/workbenchView';
 
 const rootElement = document.getElementById('root');
