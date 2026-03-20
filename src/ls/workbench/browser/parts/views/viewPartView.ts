@@ -28,7 +28,7 @@ function renderPreviewContent({
   onPreviewHostRef: (node: HTMLDivElement | null) => void;
 }) {
   if (!browserUrl) {
-    return jsx('div', { className: 'empty-state', children: labels.emptyState });
+    return jsx('div', { className: 'web-frame', 'aria-hidden': 'true' });
   }
 
   if (electronRuntime) {
