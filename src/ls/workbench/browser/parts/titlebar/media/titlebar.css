@@ -59,16 +59,32 @@
   --dropdown-bg: rgba(255, 255, 255, 0.6);
   --dropdown-bg-hover: var(--titlebar-field-bg-hover);
   --dropdown-bg-focus: var(--titlebar-field-bg-focus);
-  width: 100%;
+  width: clamp(160px, var(--titlebar-source-width, 18ch), min(320px, 35vw));
+  max-width: min(320px, 35vw);
+  flex: 0 1 auto;
   height: var(--titlebar-field-height) !important;
   border-radius: var(--titlebar-field-radius) !important;
   font-size: 12px;
   color: #304357;
   backdrop-filter: blur(8px);
+  overflow: visible;
 }
 
 .titlebar-source-select .dropdown-field {
-  padding: 0 24px 0 10px;
+  padding: 0 32px 0 12px;
+  text-overflow: clip !important;
+}
+
+.titlebar-source-select .dropdown-icon-wrapper {
+  right: 8px;
+  width: 20px;
+}
+
+.titlebar-source-select .dropdown-chevron {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.8;
+  display: block;
 }
 
 .titlebar-source-select.dropdown-focused {
@@ -96,8 +112,9 @@
 }
 
 .titlebar-journal-bar {
-  width: min(220px, 28vw);
-  min-width: 132px;
+  width: auto;
+  flex: 0 0 auto;
+  min-width: auto;
   -webkit-app-region: no-drag;
 }
 

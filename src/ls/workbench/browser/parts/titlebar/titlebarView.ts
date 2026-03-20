@@ -344,10 +344,16 @@ function renderSourceSelector({
     return null;
   }
 
+  const selectedOption =
+    sourceOptions.find((option) => option.value === selectedAddressBarSourceId) || sourceOptions[0];
+  const selectedLabel = selectedOption?.label?.trim() || addressBarSourcePlaceholder || '';
+  const selectorWidthCh = Math.min(Math.max(selectedLabel.length + 4, 16), 30);
+
   return jsx('div', {
     className: 'titlebar-journal-bar',
     children: jsx(Dropdown, {
       className: 'titlebar-source-select',
+      style: { '--titlebar-source-width': `${selectorWidthCh}ch` },
       value: selectedAddressBarSourceId,
       onChange: (event: DropdownChangeEvent) => onSelectAddressBarSource(event.target.value),
       onOpenChange,
