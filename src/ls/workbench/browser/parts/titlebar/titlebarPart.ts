@@ -1,8 +1,5 @@
 import type { LocaleMessages } from '../../../../../language/locales';
-import type {
-  FetchStatus,
-  PreviewState,
-} from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { PreviewState } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
 import type { TitlebarAction, TitlebarProps } from './titlebarView';
 import type { WorkbenchPage } from '../../workbench';
@@ -22,11 +19,6 @@ export type TitlebarPartState = {
   canExportDocx: boolean;
   addressBarSourceOptions: QuickAccessSourceOption[];
   selectedAddressBarSourceId: string;
-  fetchStatus: FetchStatus | null;
-  titlebarFetchSourceText: string;
-  titlebarFetchSourceTitle: string;
-  titlebarFetchStopText: string;
-  titlebarFetchStopTitle: string;
 };
 
 export type TitlebarPartActions = {
@@ -59,11 +51,6 @@ export function createTitlebarPartProps({
     canExportDocx,
     addressBarSourceOptions,
     selectedAddressBarSourceId,
-    fetchStatus,
-    titlebarFetchSourceText,
-    titlebarFetchSourceTitle,
-    titlebarFetchStopText,
-    titlebarFetchStopTitle,
   },
   actions: {
     handleWindowControl,
@@ -117,11 +104,5 @@ export function createTitlebarPartProps({
         handleCycleAddressBarSource,
       },
     }),
-    fetchChannel: fetchStatus?.fetchChannel ?? null,
-    previewReuseMode: fetchStatus?.previewReuseMode ?? null,
-    fetchSourceText: titlebarFetchSourceText,
-    fetchSourceTitle: titlebarFetchSourceTitle,
-    fetchStopText: titlebarFetchStopText,
-    fetchStopTitle: titlebarFetchStopTitle,
   };
 }

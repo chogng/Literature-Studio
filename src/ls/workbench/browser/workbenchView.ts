@@ -94,14 +94,6 @@ function resolveRuntimeState() {
   };
 }
 
-function shouldShowDevelopmentUi(desktopRuntime: boolean) {
-  if (!desktopRuntime || typeof window === 'undefined') {
-    return false;
-  }
-
-  return /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-}
-
 function renderActivePageView({
   activePage,
   isSidebarVisible,
@@ -173,7 +165,6 @@ function WorkbenchContentView() {
   const titlebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
   const settingsPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.settings);
   const { electronRuntime, previewRuntime, desktopRuntime } = resolveRuntimeState();
-  const showDevelopmentUi = shouldShowDevelopmentUi(desktopRuntime);
   const hasWindowControlsProvider = hasWorkbenchWindowControlsProvider();
   const { isWindowMaximized, handleWindowControl } = useWindowControls({
     electronRuntime: electronRuntime && hasWindowControlsProvider,
@@ -394,11 +385,6 @@ function WorkbenchContentView() {
   const {
     isBatchLoading,
     handleFetchLatestBatch,
-    fetchStatus,
-    titlebarFetchSourceText,
-    titlebarFetchSourceTitle,
-    titlebarFetchStopText,
-    titlebarFetchStopTitle,
   } = useBatchFetchModel({
     desktopRuntime,
     addressBarUrl: fetchSeedUrl || webUrl,
@@ -549,11 +535,6 @@ function WorkbenchContentView() {
           canExportDocx,
           addressBarSourceOptions,
           selectedAddressBarSourceId,
-          fetchStatus,
-          titlebarFetchSourceText: showDevelopmentUi ? titlebarFetchSourceText : '',
-          titlebarFetchSourceTitle: showDevelopmentUi ? titlebarFetchSourceTitle : '',
-          titlebarFetchStopText: showDevelopmentUi ? titlebarFetchStopText : '',
-          titlebarFetchStopTitle: showDevelopmentUi ? titlebarFetchStopTitle : '',
         },
         actions: {
           handleWindowControl,
@@ -572,7 +553,6 @@ function WorkbenchContentView() {
       addressBarSourceOptions,
       browserUrl,
       canExportDocx,
-      fetchStatus,
       handleAddressBarSourceMenuDispose,
       handleAddressBarSourceMenuOpenChange,
       handleCycleAddressBarSource,
@@ -586,11 +566,6 @@ function WorkbenchContentView() {
       isWindowMaximized,
       previewState,
       selectedAddressBarSourceId,
-      titlebarFetchSourceText,
-      titlebarFetchSourceTitle,
-      titlebarFetchStopText,
-      titlebarFetchStopTitle,
-      showDevelopmentUi,
       ui,
       webUrl,
     ],

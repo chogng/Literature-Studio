@@ -8,10 +8,6 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
-import {
-  type FetchChannel,
-  type PreviewReuseMode,
-} from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
 import {
   ArrowLeft,
@@ -77,12 +73,6 @@ export type TitlebarProps = {
   onCycleAddressBarSource?: (direction: 'prev' | 'next') => void;
   addressBarSourcePlaceholder?: string;
   addressBarSourceAriaLabel?: string;
-  fetchChannel?: FetchChannel | null;
-  previewReuseMode?: PreviewReuseMode | null;
-  fetchSourceText?: string;
-  fetchSourceTitle?: string;
-  fetchStopText?: string;
-  fetchStopTitle?: string;
 };
 
 export type TitlebarInputProps = Partial<TitlebarProps>;
@@ -181,48 +171,14 @@ function renderIconButton({
   );
 }
 
-function renderFetchIndicator({
-  className,
-  text,
-  title,
-  dataMode,
-  dataPreviewReuse,
-}: {
-  className: string;
-  text?: string;
-  title?: string;
-  dataMode?: string;
-  dataPreviewReuse?: string;
-}) {
-  if (!text) {
-    return null;
-  }
-
-  return jsx('span', {
-    className,
-    title: title || text,
-    ...(dataMode ? { 'data-mode': dataMode } : {}),
-    ...(dataPreviewReuse ? { 'data-preview-reuse': dataPreviewReuse } : {}),
-    children: text,
-  });
-}
-
 function renderBrand({
   appName,
-  fetchSourceView,
-  fetchStopView,
 }: {
   appName: string;
-  fetchSourceView: ReactNode;
-  fetchStopView: ReactNode;
 }) {
-  return jsxs('div', {
+  return jsx('div', {
     className: 'titlebar-brand',
-    children: [
-      jsx('span', { className: 'titlebar-app-name', children: appName }),
-      fetchSourceView,
-      fetchStopView,
-    ],
+    children: jsx('span', { className: 'titlebar-app-name', children: appName }),
   });
 }
 
@@ -384,12 +340,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     onCycleAddressBarSource,
     addressBarSourcePlaceholder,
     addressBarSourceAriaLabel,
-    fetchChannel = null,
-    previewReuseMode = null,
-    fetchSourceText,
-    fetchSourceTitle,
-    fetchStopText,
-    fetchStopTitle,
   } = inputProps;
 
   const sourceOptions = createSourceOptions(addressBarSourcePlaceholder, addressBarSourceOptions);
@@ -462,19 +412,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     }
   };
 
-  const fetchSourceView = renderFetchIndicator({
-    className: 'titlebar-fetch-source',
-    text: fetchChannel ? fetchSourceText : undefined,
-    title: fetchSourceTitle,
-    dataMode: fetchChannel ?? undefined,
-    dataPreviewReuse:
-      fetchChannel === 'preview' ? (previewReuseMode ?? 'snapshot') : undefined,
-  });
-  const fetchStopView = renderFetchIndicator({
-    className: 'titlebar-fetch-stop',
-    text: fetchStopText,
-    title: fetchStopTitle,
-  });
   const sidebarToggleView = renderSidebarToggle({
     isSidebarOpen,
     sidebarToggleLabel,
@@ -538,7 +475,7 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     children: [
       jsxs('div', {
         className: 'titlebar-start',
-        children: [renderBrand({ appName, fetchSourceView, fetchStopView }), sidebarToggleView],
+        children: [renderBrand({ appName }), sidebarToggleView],
       }),
       jsxs('div', {
         className: 'titlebar-center',
