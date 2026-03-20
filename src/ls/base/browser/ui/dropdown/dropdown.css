@@ -29,7 +29,6 @@
 .dropdown-focused {
   border-color: var(--dropdown-border-focus);
   background-color: var(--dropdown-bg-focus);
-  box-shadow: 0 0 0 3px rgba(10, 95, 191, 0.1);
 }
 
 .dropdown-sm {

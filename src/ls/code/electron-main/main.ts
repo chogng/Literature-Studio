@@ -38,6 +38,7 @@ app.whenReady().then(async () => {
     registerDevShortcuts({ getMainWindow });
   }
   registerAppIpc(storage);
-  createMainWindow();
+  const settings = await storage.loadSettings();
+  createMainWindow({ useMica: settings.useMica });
 });
 
