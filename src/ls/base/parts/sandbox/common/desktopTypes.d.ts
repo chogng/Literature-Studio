@@ -235,6 +235,7 @@ export interface ElectronFetchApi {
 
 export interface ElectronModalApi {
   getState: () => Promise<NativeModalState | null>;
+  onStateChange: (listener: (state: NativeModalState | null) => void) => () => void;
 }
 
 export interface ElectronAPI {

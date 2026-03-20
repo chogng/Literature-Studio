@@ -62,6 +62,8 @@ export type SettingsPartProps = {
   desktopRuntime: boolean;
   configPath: string;
   isSettingsSaving: boolean;
+  showModalStyleTestButton: boolean;
+  onOpenModalStyleTest: () => void;
   onResetDownloadDir: () => void;
   onSaveSettings: () => void;
 };
@@ -77,6 +79,7 @@ export type SettingsPartState = {
   desktopRuntime: boolean;
   configPath: string;
   isSettingsSaving: boolean;
+  showModalStyleTestButton: boolean;
 };
 
 export type SettingsPartActions = {
@@ -90,6 +93,7 @@ export type SettingsPartActions = {
   onSameDomainOnlyChange: (checked: boolean) => void;
   onPdfDownloadDirChange: (value: string) => void;
   onChoosePdfDownloadDir: () => void;
+  onOpenModalStyleTest: () => void;
   onResetDownloadDir: () => void;
   onSaveSettings: () => void;
 };
@@ -152,6 +156,7 @@ export function createSettingsPartProps({
     desktopRuntime,
     configPath,
     isSettingsSaving,
+    showModalStyleTestButton,
   },
   actions: {
     onLocaleChange,
@@ -164,6 +169,7 @@ export function createSettingsPartProps({
     onSameDomainOnlyChange,
     onPdfDownloadDirChange,
     onChoosePdfDownloadDir,
+    onOpenModalStyleTest,
     onResetDownloadDir,
     onSaveSettings,
   },
@@ -189,6 +195,8 @@ export function createSettingsPartProps({
     desktopRuntime,
     configPath,
     isSettingsSaving,
+    showModalStyleTestButton,
+    onOpenModalStyleTest,
     onResetDownloadDir,
     onSaveSettings,
   };
@@ -573,9 +581,14 @@ export function SettingsPartView({
   desktopRuntime,
   configPath,
   isSettingsSaving,
+  showModalStyleTestButton,
+  onOpenModalStyleTest,
   onResetDownloadDir,
   onSaveSettings,
 }: SettingsPartViewProps) {
+  const modalStyleTestButtonLabel =
+    locale === 'zh' ? '弹窗样式测试' : 'Modal Style Test';
+
   return jsx('main', {
     ref: partRef,
     className: 'settings-page',
@@ -636,16 +649,30 @@ export function SettingsPartView({
             }),
             jsx('div', {
               className: 'settings-actions',
-              children: jsx(Button, {
-                type: 'button',
-                mode: 'text',
-                variant: 'secondary',
-                textMode: 'with',
-                iconMode: 'without',
-                onClick: onResetDownloadDir,
-                disabled: !pdfDownloadDir.trim() || isSettingsSaving,
-                children: labels.resetDefault,
-              }),
+              children: [
+                jsx(Button, {
+                  type: 'button',
+                  mode: 'text',
+                  variant: 'secondary',
+                  textMode: 'with',
+                  iconMode: 'without',
+                  onClick: onResetDownloadDir,
+                  disabled: !pdfDownloadDir.trim() || isSettingsSaving,
+                  children: labels.resetDefault,
+                }),
+                showModalStyleTestButton
+                  ? jsx(Button, {
+                      type: 'button',
+                      mode: 'text',
+                      variant: 'outline',
+                      textMode: 'with',
+                      iconMode: 'without',
+                      onClick: onOpenModalStyleTest,
+                      disabled: isSettingsLoading || isSettingsSaving || !desktopRuntime,
+                      children: modalStyleTestButtonLabel,
+                    })
+                  : null,
+              ],
             }),
             jsx('p', { className: 'settings-hint', children: labels.settingsHintPath }),
             renderConfigPathField({

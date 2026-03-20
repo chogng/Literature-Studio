@@ -93,6 +93,33 @@ function resolveRuntimeState() {
   };
 }
 
+function createModalStyleTestArticle(locale: Locale): Article {
+  const fetchedAt = new Date().toISOString();
+  const publishedAt = fetchedAt.slice(0, 10);
+
+  return {
+    title:
+      locale === 'zh'
+        ? '弹窗样式测试：窗口控件复用验证'
+        : 'Modal Style Test: Shared Window Controls',
+    articleType: locale === 'zh' ? '样式测试' : 'Style Test',
+    doi: '10.0000/modal-style-test',
+    authors: locale === 'zh' ? ['开发模式', 'UI 验证'] : ['Dev Mode', 'UI Validation'],
+    abstractText:
+      locale === 'zh'
+        ? '这是一个用于检查文章详情弹窗样式和窗口按钮复用情况的测试样例。'
+        : 'This sample verifies article-details modal styling and shared window controls.',
+    descriptionText:
+      locale === 'zh'
+        ? '仅在开发环境 Settings 页显示测试入口，生产环境不会渲染该按钮。'
+        : 'The test entry is shown only in Settings during development and hidden in production.',
+    publishedAt,
+    sourceUrl: 'https://example.com/modal-style-test',
+    fetchedAt,
+    journalTitle: locale === 'zh' ? '调试来源' : 'Debug Source',
+  };
+}
+
 function renderActivePageView({
   activePage,
   isSidebarVisible,
@@ -404,6 +431,22 @@ function WorkbenchContentView() {
     toggleSidebarVisibility();
   }, []);
 
+  const handleOpenModalStyleTest = useCallback(() => {
+    const sampleArticle = createModalStyleTestArticle(locale);
+    void handleOpenArticleDetails(sampleArticle, {
+      untitled: ui.untitled,
+      unknown: ui.unknown,
+      articleType: ui.articleType,
+      authors: ui.authors,
+      abstract: ui.abstract,
+      description: ui.description,
+      publishedAt: ui.publishedAt,
+      source: ui.source,
+      fetchedAt: ui.fetchedAt,
+      close: ui.titlebarClose,
+    });
+  }, [handleOpenArticleDetails, locale, ui]);
+
   const handleTitlebarExportDocx = useCallback(() => {
     void handleExportArticlesDocx();
   }, [handleExportArticlesDocx]);
@@ -550,6 +593,10 @@ function WorkbenchContentView() {
           desktopRuntime,
           configPath,
           isSettingsSaving,
+          showModalStyleTestButton:
+            desktopRuntime &&
+            typeof window !== 'undefined' &&
+            /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname),
         },
         actions: {
           onLocaleChange: handleLocaleChange,
@@ -562,6 +609,7 @@ function WorkbenchContentView() {
           onSameDomainOnlyChange: setSameDomainOnly,
           onPdfDownloadDirChange: setPdfDownloadDir,
           onChoosePdfDownloadDir: () => void handleChoosePdfDownloadDir(),
+          onOpenModalStyleTest: handleOpenModalStyleTest,
           onResetDownloadDir: handleResetDownloadDir,
           onSaveSettings: () => void handleSaveSettings(),
         },
@@ -577,6 +625,7 @@ function WorkbenchContentView() {
       handleChoosePdfDownloadDir,
       handleLocaleChange,
       handleMoveBatchSource,
+      handleOpenModalStyleTest,
       handleRemoveBatchSource,
       handleResetDownloadDir,
       handleSaveSettings,

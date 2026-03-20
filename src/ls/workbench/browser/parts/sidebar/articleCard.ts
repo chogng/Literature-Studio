@@ -181,14 +181,14 @@ export default function ArticleCard({
   return jsxs('li', {
     className: 'article-card',
     children: [
-      jsx('h3', { children: title }),
       jsxs('div', {
-        className: 'article-card-toolbar',
+        className: 'article-card-main',
         children: [
+          jsx('h3', { className: 'article-card-title', title, children: title }),
           jsx('span', { className: 'article-card-meta', children: metaText }),
-          toolbarActionsView,
         ],
       }),
+      toolbarActionsView,
     ],
   });
 }

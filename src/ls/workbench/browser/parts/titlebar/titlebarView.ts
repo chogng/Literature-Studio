@@ -11,31 +11,24 @@ import {
 import {
   type FetchChannel,
   type PreviewReuseMode,
-  type WindowControlAction,
 } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
 import {
   ArrowLeft,
   ArrowRight,
-  Copy,
   FileText,
-  Minus,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCcw,
   Settings,
-  Square,
-  X,
 } from 'lucide-react';
 import { Button } from '../../../../base/browser/ui/button/button';
 import { Dropdown } from '../../../../base/browser/ui/dropdown/dropdown';
 import { Input } from '../../../../base/browser/ui/input/input';
+import { WindowControlsGroup, type WindowControlsAction } from './windowControls';
 import './media/titlebar.css';
 
-export type TitlebarAction = Extract<
-  WindowControlAction,
-  'minimize' | 'toggle-maximize' | 'close'
->;
+export type TitlebarAction = WindowControlsAction;
 
 export type TitlebarLabels = {
   controlsAriaLabel: string;
@@ -366,42 +359,6 @@ function renderSourceSelector({
   });
 }
 
-function renderWindowControls({
-  isWindowMaximized,
-  labels,
-  onWindowControl,
-}: {
-  isWindowMaximized: boolean;
-  labels: TitlebarLabels;
-  onWindowControl: TitlebarProps['onWindowControl'];
-}) {
-  return [
-    renderIconButton({
-      key: 'minimize',
-      className: 'titlebar-btn titlebar-btn-window',
-      label: labels.minimizeLabel,
-      onClick: () => onWindowControl('minimize'),
-      icon: jsx(Minus, { size: 14, strokeWidth: 1.5 }),
-    }),
-    renderIconButton({
-      key: 'maximize',
-      className: 'titlebar-btn titlebar-btn-window',
-      label: isWindowMaximized ? labels.restoreLabel : labels.maximizeLabel,
-      onClick: () => onWindowControl('toggle-maximize'),
-      icon: isWindowMaximized
-        ? jsx(Copy, { size: 12, strokeWidth: 1.5 })
-        : jsx(Square, { size: 12, strokeWidth: 1.5 }),
-    }),
-    renderIconButton({
-      key: 'close',
-      className: 'titlebar-btn titlebar-btn-window titlebar-btn-close',
-      label: labels.closeLabel,
-      onClick: () => onWindowControl('close'),
-      icon: jsx(X, { size: 14, strokeWidth: 1.5 }),
-    }),
-  ];
-}
-
 export function TitlebarView(inputProps: TitlebarViewProps = {}) {
   const isSourceMenuOpenRef = useRef(false);
 
@@ -557,9 +514,16 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
       onClick: onToggleSettings,
       icon: jsx(Settings, { size: 14, strokeWidth: 1.5 }),
     });
-  const windowControls = renderWindowControls({
+  const windowControls = jsx(WindowControlsGroup, {
+    className: 'titlebar-window-controls',
+    labels: {
+      controlsAriaLabel: labels.controlsAriaLabel,
+      minimizeLabel: labels.minimizeLabel,
+      maximizeLabel: labels.maximizeLabel,
+      restoreLabel: labels.restoreLabel,
+      closeLabel: labels.closeLabel,
+    },
     isWindowMaximized,
-    labels,
     onWindowControl,
   });
 
@@ -583,7 +547,7 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
         className: 'titlebar-controls',
         role: 'group',
         'aria-label': labels.controlsAriaLabel,
-        children: [exportButtonView, settingsButtonView, ...windowControls],
+        children: [exportButtonView, settingsButtonView, windowControls],
       }),
     ],
   });

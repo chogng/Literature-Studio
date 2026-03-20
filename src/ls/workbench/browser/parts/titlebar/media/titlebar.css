@@ -185,6 +185,12 @@
   height: 100%;
 }
 
+.titlebar-window-controls {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+
 .titlebar-btn.btn-base {
   border: none;
   background: transparent;

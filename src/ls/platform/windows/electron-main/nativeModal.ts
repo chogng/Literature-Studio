@@ -1,4 +1,4 @@
-﻿import path from 'node:path';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow } from 'electron';
 
@@ -12,7 +12,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const nativeModalQueryKey = 'nativeModal';
+const nativeModalStateChannel = 'app:modal-state';
+const articleDetailsModalKind: NativeModalState['kind'] = 'article-details';
+
 const modalStateByWebContentsId = new Map<number, NativeModalState>();
+let articleDetailsWindow: BrowserWindow | null = null;
 
 function applyWindowChrome(window: BrowserWindow) {
   if (typeof window.removeMenu === 'function') {
@@ -42,10 +46,23 @@ function resolveRendererTarget(kind: NativeModalState['kind']) {
   };
 }
 
+function publishModalState(window: BrowserWindow, state: NativeModalState) {
+  if (window.isDestroyed() || window.webContents.isDestroyed()) {
+    return;
+  }
+
+  window.webContents.send(nativeModalStateChannel, state);
+}
+
+function setWindowModalState(window: BrowserWindow, state: NativeModalState) {
+  const webContentsId = window.webContents.id;
+  modalStateByWebContentsId.set(webContentsId, state);
+  publishModalState(window, state);
+}
+
 function createModalWindow(parentWindow: BrowserWindow, title: string) {
   const modalWindow = new BrowserWindow({
     parent: parentWindow,
-    modal: true,
     show: false,
     width: 760,
     height: 640,
@@ -53,9 +70,12 @@ function createModalWindow(parentWindow: BrowserWindow, title: string) {
     minHeight: 420,
     title,
     resizable: true,
-    minimizable: false,
-    maximizable: false,
+    minimizable: true,
+    maximizable: true,
     fullscreenable: false,
+    frame: false,
+    titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default',
+    titleBarOverlay: false,
     autoHideMenuBar: true,
     backgroundColor: '#eff4fb',
     webPreferences: {
@@ -73,7 +93,74 @@ function createModalWindow(parentWindow: BrowserWindow, title: string) {
     }
   });
 
+  const webContentsId = modalWindow.webContents.id;
+  modalWindow.webContents.on('did-finish-load', () => {
+    const state = modalStateByWebContentsId.get(webContentsId);
+    if (state) {
+      publishModalState(modalWindow, state);
+    }
+  });
+
+  modalWindow.on('closed', () => {
+    modalStateByWebContentsId.delete(webContentsId);
+    if (articleDetailsWindow === modalWindow) {
+      articleDetailsWindow = null;
+    }
+  });
+
   return modalWindow;
+}
+
+function getOrCreateArticleDetailsWindow(parentWindow: BrowserWindow, title: string) {
+  if (articleDetailsWindow && !articleDetailsWindow.isDestroyed()) {
+    articleDetailsWindow.setTitle(title);
+    return articleDetailsWindow;
+  }
+
+  articleDetailsWindow = createModalWindow(parentWindow, title);
+  return articleDetailsWindow;
+}
+
+function hasNativeModalQuery(url: string, kind: NativeModalState['kind']) {
+  if (!url) {
+    return false;
+  }
+
+  try {
+    return new URL(url).searchParams.get(nativeModalQueryKey) === kind;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureModalRendererLoaded(window: BrowserWindow, kind: NativeModalState['kind']) {
+  const currentUrl = window.webContents.getURL();
+  if (hasNativeModalQuery(currentUrl, kind)) {
+    return;
+  }
+
+  const target = resolveRendererTarget(kind);
+  if (target.type === 'url') {
+    await window.loadURL(target.target);
+    return;
+  }
+
+  await window.loadFile(target.target, { query: target.query });
+}
+
+function focusWindow(window: BrowserWindow) {
+  if (window.isDestroyed()) {
+    return;
+  }
+
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  if (!window.isVisible()) {
+    window.show();
+  }
+
+  window.focus();
 }
 
 export async function openArticleDetailsModal(
@@ -90,27 +177,17 @@ export async function openArticleDetailsModal(
 
   const locale = payload.locale === 'en' ? 'en' : 'zh';
   const title = article.title?.trim() || labels.untitled;
-  const modalWindow = createModalWindow(parentWindow, title);
-  const webContentsId = modalWindow.webContents.id;
+  const modalWindow = getOrCreateArticleDetailsWindow(parentWindow, title);
 
-  modalStateByWebContentsId.set(webContentsId, {
-    kind: 'article-details',
+  setWindowModalState(modalWindow, {
+    kind: articleDetailsModalKind,
     article,
     labels,
     locale,
   });
 
-  modalWindow.on('closed', () => {
-    modalStateByWebContentsId.delete(webContentsId);
-  });
-
-  const target = resolveRendererTarget('article-details');
-  if (target.type === 'url') {
-    await modalWindow.loadURL(target.target);
-    return true;
-  }
-
-  await modalWindow.loadFile(target.target, { query: target.query });
+  await ensureModalRendererLoaded(modalWindow, articleDetailsModalKind);
+  focusWindow(modalWindow);
   return true;
 }
 

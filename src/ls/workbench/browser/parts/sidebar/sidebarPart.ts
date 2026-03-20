@@ -239,7 +239,8 @@ function renderActionBar({
       jsx(Button, {
         type: 'button',
         className: 'sidebar-fetch-btn',
-        variant: 'primary',
+        variant: 'secondary',
+        size: 'sm',
         mode: 'text',
         textMode: 'with',
         iconMode: 'without',

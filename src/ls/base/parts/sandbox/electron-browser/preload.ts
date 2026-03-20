@@ -155,6 +155,9 @@ const electronAPI = {
     getState() {
       return invokeIpc<NativeModalState | null>('app:modal-get-state');
     },
+    onStateChange(listener: (state: NativeModalState | null) => void) {
+      return subscribeIpc<NativeModalState | null>('app:modal-state', listener, null);
+    },
   },
 };
 
