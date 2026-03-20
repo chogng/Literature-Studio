@@ -32,8 +32,7 @@ import {
   useWorkbenchPartRef,
 } from './layout';
 import { createEditorPartProps } from './parts/editor/editorPart';
-import { createSettingsPartProps } from './parts/settings/settingsPart';
-import SettingsView from './parts/settings/settingsView';
+import { createSettingsPartProps, SettingsPartView } from './parts/settings/settingsPart';
 import { createSidebarPartProps } from './parts/sidebar/sidebarPart';
 import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
 import { TitlebarView } from './parts/titlebar/titlebarView';
@@ -110,7 +109,7 @@ function renderActivePageView({
     });
   }
 
-  return jsx(SettingsView, {
+  return jsx(SettingsPartView, {
     partRef: settingsPartRef,
     ...settingsPartProps,
   });

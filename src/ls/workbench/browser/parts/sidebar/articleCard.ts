@@ -4,7 +4,7 @@ import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/c
 import { Button } from '../../../../base/browser/ui/button/button';
 import type { Locale } from '../../../../../language/i18n';
 import { usePdfDownloadStatus } from '../../../browser/pdfDownloadStatus';
-import type { SidebarArticle } from './sidebarView';
+import type { SidebarArticle } from './sidebarPart';
 
 type ArticleCardLabels = ArticleDetailsModalLabels;
 

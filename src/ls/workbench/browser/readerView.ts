@@ -5,7 +5,7 @@ import {
   useWorkbenchPartRef,
 } from './layout';
 import EditorPartView, { type EditorPartProps } from './parts/editor/editorPartView';
-import SidebarView, { type SidebarProps } from './parts/sidebar/sidebarView';
+import { SidebarPartView, type SidebarProps } from './parts/sidebar/sidebarPart';
 
 type ReaderViewProps = {
   isSidebarVisible: boolean;
@@ -26,7 +26,7 @@ function renderSidebarPart({
     return null;
   }
 
-  return jsx(SidebarView, { partRef: sidebarPartRef, ...sidebarProps });
+  return jsx(SidebarPartView, { partRef: sidebarPartRef, ...sidebarProps });
 }
 
 export default function ReaderView({
