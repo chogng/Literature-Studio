@@ -11,13 +11,17 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  background: #eef3f9;
+  background: transparent;
   padding: 0;
   user-select: none;
   position: relative;
   z-index: 20;
   overflow: visible;
   -webkit-app-region: drag;
+}
+
+.app-window.is-mica-enabled .titlebar {
+  background: transparent;
 }
 
 .titlebar-start {
@@ -67,6 +71,22 @@
   font-size: 12px;
   color: #304357;
   overflow: visible;
+}
+
+.titlebar-source-select.dropdown-wrapper {
+  background-color: rgba(255, 255, 255, 0.6);
+  box-shadow: none;
+}
+
+.titlebar-source-select.dropdown-wrapper:hover:not(.dropdown-disabled) {
+  background-color: var(--titlebar-field-bg-hover);
+  border-color: var(--titlebar-field-border-hover);
+}
+
+.titlebar-source-select.dropdown-wrapper.dropdown-focused {
+  background-color: var(--titlebar-field-bg-focus);
+  border-color: var(--titlebar-field-border-focus);
+  box-shadow: none;
 }
 
 .titlebar-source-select .dropdown-field {

@@ -3,7 +3,7 @@
   font-family: 'IBM Plex Sans', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
   line-height: 1.4;
   color: #1a2530;
-  background: var(--workbench-chrome-bg);
+  background: transparent;
 }
 
 * {
@@ -15,11 +15,13 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
+  background: transparent;
 }
 
 #root {
   height: 100%;
   overflow: hidden;
+  background: transparent;
 }
 
 button,
@@ -47,6 +49,10 @@ button:disabled {
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   background: var(--workbench-chrome-bg);
+}
+
+.app-window.is-mica-enabled {
+  background: transparent;
 }
 
 .app-shell {
