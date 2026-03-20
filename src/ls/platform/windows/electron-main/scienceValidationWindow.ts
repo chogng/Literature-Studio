@@ -1,7 +1,6 @@
 import { BrowserWindow } from 'electron';
 import { getPreviewDocumentSnapshot, getPreviewListingCandidateSnapshot, getPreviewState } from './previewView.js';
-
-import { getMainWindow } from './window.js';
+import { registerAuxiliaryWindow } from './window.js';
 import { appError, isAppError } from '../../../base/common/errors.js';
 import {
   isScienceHostUrl as isSharedScienceHostUrl,
@@ -507,11 +506,10 @@ function createScienceValidationWindow() {
     return scienceValidationWindow;
   }
 
-  const parentWindow = getMainWindow();
   scienceValidationWindow = new BrowserWindow({
-    parent: parentWindow && !parentWindow.isDestroyed() ? parentWindow : undefined,
     modal: false,
     show: false,
+    skipTaskbar: false,
     width: 1180,
     height: 880,
     minWidth: 980,
@@ -529,6 +527,7 @@ function createScienceValidationWindow() {
   });
 
   applyWindowChrome(scienceValidationWindow);
+  registerAuxiliaryWindow(scienceValidationWindow);
   applyScienceValidationUserAgent(scienceValidationWindow);
   scienceValidationWindow.webContents.setWindowOpenHandler?.(() => ({ action: 'deny' }));
   scienceValidationWindow.on('closed', () => {

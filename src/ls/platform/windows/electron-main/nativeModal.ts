@@ -7,6 +7,7 @@ import type {
   OpenArticleDetailsModalPayload,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { appError } from '../../../base/common/errors.js';
+import { registerAuxiliaryWindow } from './window.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,10 +61,10 @@ function setWindowModalState(window: BrowserWindow, state: NativeModalState) {
   publishModalState(window, state);
 }
 
-function createModalWindow(parentWindow: BrowserWindow, title: string) {
+function createModalWindow(_parentWindow: BrowserWindow, title: string) {
   const modalWindow = new BrowserWindow({
-    parent: parentWindow,
     show: false,
+    skipTaskbar: false,
     width: 760,
     height: 640,
     minWidth: 520,
@@ -87,6 +88,7 @@ function createModalWindow(parentWindow: BrowserWindow, title: string) {
   });
 
   applyWindowChrome(modalWindow);
+  registerAuxiliaryWindow(modalWindow);
   modalWindow.once('ready-to-show', () => {
     if (!modalWindow.isDestroyed()) {
       modalWindow.show();

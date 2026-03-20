@@ -8,6 +8,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
+const auxiliaryWindows = new Set<BrowserWindow>();
+const autoMinimizedAuxiliaryWindowIds = new Set<number>();
 
 function publishWindowState(window: BrowserWindow) {
   if (window.isDestroyed()) return;
@@ -19,6 +21,59 @@ function publishWindowState(window: BrowserWindow) {
 
 export function getMainWindow() {
   return mainWindow;
+}
+
+function closeAuxiliaryWindows() {
+  for (const window of auxiliaryWindows) {
+    if (window.isDestroyed()) {
+      continue;
+    }
+
+    window.close();
+  }
+}
+
+function minimizeAuxiliaryWindows() {
+  autoMinimizedAuxiliaryWindowIds.clear();
+
+  for (const window of auxiliaryWindows) {
+    if (window.isDestroyed() || !window.isVisible() || window.isMinimized()) {
+      continue;
+    }
+
+    autoMinimizedAuxiliaryWindowIds.add(window.webContents.id);
+    window.minimize();
+  }
+}
+
+function restoreAuxiliaryWindows() {
+  for (const window of auxiliaryWindows) {
+    if (window.isDestroyed()) {
+      continue;
+    }
+
+    if (!autoMinimizedAuxiliaryWindowIds.has(window.webContents.id)) {
+      continue;
+    }
+
+    if (window.isMinimized()) {
+      window.restore();
+    } else if (!window.isVisible()) {
+      window.show();
+    }
+  }
+
+  autoMinimizedAuxiliaryWindowIds.clear();
+}
+
+export function registerAuxiliaryWindow(window: BrowserWindow) {
+  auxiliaryWindows.add(window);
+  const webContentsId = window.webContents.id;
+
+  window.on('closed', () => {
+    auxiliaryWindows.delete(window);
+    autoMinimizedAuxiliaryWindowIds.delete(webContentsId);
+  });
 }
 
 export function resolveWindowFromWebContents(contents?: WebContents | null) {
@@ -89,6 +144,7 @@ export function createMainWindow() {
   }
 
   window.on('closed', () => {
+    closeAuxiliaryWindows();
     disposePreviewView(window);
     mainWindow = null;
   });
@@ -100,6 +156,9 @@ export function createMainWindow() {
   }
 
   window.on('maximize', () => publishWindowState(window));
+  window.on('minimize', () => minimizeAuxiliaryWindows());
+  window.on('restore', () => restoreAuxiliaryWindows());
+  window.on('show', () => restoreAuxiliaryWindows());
   window.on('unmaximize', () => publishWindowState(window));
   window.on('enter-full-screen', () => publishWindowState(window));
   window.on('leave-full-screen', () => publishWindowState(window));
