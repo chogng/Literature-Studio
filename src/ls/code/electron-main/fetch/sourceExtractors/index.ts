@@ -1,7 +1,7 @@
 import { natureLatestNewsCandidateExtractor } from './latestNews.js';
-import { natureNatelectronResearchArticlesCandidateExtractor } from './nature-natelectron-research-articles.js';
+import { natureNatElectronResearchArticlesCandidateExtractor } from './natElectron.js';
 import { natureNcommsResearchArticlesCandidateExtractor } from './nature-ncomms-research-articles.js';
-import { natureNatmachintellResearchArticlesCandidateExtractor } from './nature-natmachintell-research-articles.js';
+import { natMachIntellCandidateExtractor } from './natMachIntell.js';
 import { natureNatrevelectrengReviewsAndAnalysisCandidateExtractor } from './nature-natrevelectreng-reviews-and-analysis.js';
 import { natureNatrevmatsReviewsAndAnalysisCandidateExtractor } from './nature-natrevmats-reviews-and-analysis.js';
 import { natureNatrevphysReviewsAndAnalysisCandidateExtractor } from './nature-natrevphys-reviews-and-analysis.js';
@@ -21,9 +21,9 @@ import type { ListingCandidateExtractor } from './types.js';
 const listingCandidateExtractors: ListingCandidateExtractor[] = [
   scienceCurrentNewsInDepthResearchArticlesCandidateExtractor,
   scienceSciadvCurrentPhysicalMaterialsCandidateExtractor,
-  natureNatelectronResearchArticlesCandidateExtractor,
+  natureNatElectronResearchArticlesCandidateExtractor,
   natureNcommsResearchArticlesCandidateExtractor,
-  natureNatmachintellResearchArticlesCandidateExtractor,
+  natMachIntellCandidateExtractor,
   natureNatrevelectrengReviewsAndAnalysisCandidateExtractor,
   natureNatrevmatsReviewsAndAnalysisCandidateExtractor,
   natureNatrevphysReviewsAndAnalysisCandidateExtractor,
