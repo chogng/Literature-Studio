@@ -1,13 +1,19 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import type { ChangeEvent, Ref } from 'react';
-import { ArrowDown, ArrowUp, FolderOpen, Plus, Save, Trash2 } from 'lucide-react';
+import { useState, type ChangeEvent, type Ref } from 'react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, FolderOpen, Plus, PlugZap, Save, Trash2 } from 'lucide-react';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import { Button } from '../../../../base/browser/ui/button/button';
 import { Dropdown } from '../../../../base/browser/ui/dropdown/dropdown';
 import { Input } from '../../../../base/browser/ui/input/input';
+import { Switch } from '../../../../base/browser/ui/switch/switch';
+import type {
+  LlmProviderId,
+  LlmProviderSettings,
+} from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
 import type { BatchSource } from '../../../services/config/configSchema';
+import { getLlmModelsForProvider } from '../../../services/llm/registry.js';
 import './media/settings.css';
 
 export type SettingsPartLabels = {
@@ -29,6 +35,9 @@ export type SettingsPartLabels = {
   settingsBatchOptions: string;
   batchCount: string;
   sameDomainOnly: string;
+  settingsAppearanceTitle: string;
+  settingsUseMica: string;
+  settingsUseMicaHint: string;
   settingsBatchHint: string;
   defaultPdfDir: string;
   downloadDirPlaceholder: string;
@@ -41,6 +50,22 @@ export type SettingsPartLabels = {
   settingsConfigPath: string;
   currentDir: string;
   systemDownloads: string;
+  settingsLlmTitle: string;
+  settingsLlmProvider: string;
+  settingsLlmProviderHint: string;
+  settingsLlmProviderGlm: string;
+  settingsLlmProviderKimi: string;
+  settingsLlmProviderDeepSeek: string;
+  settingsLlmApiKey: string;
+  settingsLlmApiKeyPlaceholder: string;
+  settingsLlmModel: string;
+  settingsLlmModelPlaceholder: string;
+  settingsLlmBaseUrl: string;
+  settingsLlmBaseUrlPlaceholder: string;
+  settingsLlmTestConnection: string;
+  settingsLlmShowApiKey: string;
+  settingsLlmHideApiKey: string;
+  settingsLlmHint: string;
 };
 
 export type SettingsPartProps = {
@@ -58,15 +83,23 @@ export type SettingsPartProps = {
   onBatchLimitChange: (value: string) => void;
   sameDomainOnly: boolean;
   onSameDomainOnlyChange: (checked: boolean) => void;
+  useMica: boolean;
+  onUseMicaChange: (checked: boolean) => void;
   pdfDownloadDir: string;
   onPdfDownloadDirChange: (value: string) => void;
   onChoosePdfDownloadDir: () => void;
+  activeLlmProvider: LlmProviderId;
+  onActiveLlmProviderChange: (provider: LlmProviderId) => void;
+  llmProviders: Record<LlmProviderId, LlmProviderSettings>;
+  onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void;
+  onLlmProviderBaseUrlChange: (provider: LlmProviderId, baseUrl: string) => void;
+  onLlmProviderModelChange: (provider: LlmProviderId, model: string) => void;
+  onTestLlmConnection: () => void;
   onOpenConfigLocation: () => void;
   desktopRuntime: boolean;
   configPath: string;
   isSettingsSaving: boolean;
-  showModalStyleTestButton: boolean;
-  onOpenModalStyleTest: () => void;
+  isTestingLlmConnection: boolean;
   onResetDownloadDir: () => void;
   onSaveSettings: () => void;
 };
@@ -78,11 +111,14 @@ export type SettingsPartState = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  useMica: boolean;
   pdfDownloadDir: string;
+  activeLlmProvider: LlmProviderId;
+  llmProviders: Record<LlmProviderId, LlmProviderSettings>;
   desktopRuntime: boolean;
   configPath: string;
   isSettingsSaving: boolean;
-  showModalStyleTestButton: boolean;
+  isTestingLlmConnection: boolean;
 };
 
 export type SettingsPartActions = {
@@ -94,10 +130,15 @@ export type SettingsPartActions = {
   onMoveBatchSource: (index: number, direction: 'up' | 'down') => void;
   onBatchLimitChange: (value: string) => void;
   onSameDomainOnlyChange: (checked: boolean) => void;
+  onUseMicaChange: (checked: boolean) => void;
   onPdfDownloadDirChange: (value: string) => void;
   onChoosePdfDownloadDir: () => void;
+  onActiveLlmProviderChange: (provider: LlmProviderId) => void;
+  onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void;
+  onLlmProviderBaseUrlChange: (provider: LlmProviderId, baseUrl: string) => void;
+  onLlmProviderModelChange: (provider: LlmProviderId, model: string) => void;
+  onTestLlmConnection: () => void;
   onOpenConfigLocation: () => void;
-  onOpenModalStyleTest: () => void;
   onResetDownloadDir: () => void;
   onSaveSettings: () => void;
 };
@@ -133,6 +174,9 @@ export function createSettingsPartLabels({
     settingsBatchOptions: ui.settingsBatchOptions,
     batchCount: ui.batchCount,
     sameDomainOnly: ui.sameDomainOnly,
+    settingsAppearanceTitle: ui.settingsAppearanceTitle,
+    settingsUseMica: ui.settingsUseMica,
+    settingsUseMicaHint: ui.settingsUseMicaHint,
     settingsBatchHint: ui.settingsBatchHint,
     defaultPdfDir: ui.defaultPdfDir,
     downloadDirPlaceholder: ui.downloadDirPlaceholder,
@@ -145,6 +189,22 @@ export function createSettingsPartLabels({
     settingsConfigPath: ui.settingsConfigPath,
     currentDir: ui.currentDir,
     systemDownloads: ui.systemDownloads,
+    settingsLlmTitle: ui.settingsLlmTitle,
+    settingsLlmProvider: ui.settingsLlmProvider,
+    settingsLlmProviderHint: ui.settingsLlmProviderHint,
+    settingsLlmProviderGlm: ui.settingsLlmProviderGlm,
+    settingsLlmProviderKimi: ui.settingsLlmProviderKimi,
+    settingsLlmProviderDeepSeek: ui.settingsLlmProviderDeepSeek,
+    settingsLlmApiKey: ui.settingsLlmApiKey,
+    settingsLlmApiKeyPlaceholder: ui.settingsLlmApiKeyPlaceholder,
+    settingsLlmModel: ui.settingsLlmModel,
+    settingsLlmModelPlaceholder: ui.settingsLlmModelPlaceholder,
+    settingsLlmBaseUrl: ui.settingsLlmBaseUrl,
+    settingsLlmBaseUrlPlaceholder: ui.settingsLlmBaseUrlPlaceholder,
+    settingsLlmTestConnection: ui.settingsLlmTestConnection,
+    settingsLlmShowApiKey: ui.settingsLlmShowApiKey,
+    settingsLlmHideApiKey: ui.settingsLlmHideApiKey,
+    settingsLlmHint: ui.settingsLlmHint,
   };
 }
 
@@ -157,11 +217,14 @@ export function createSettingsPartProps({
     batchSources,
     batchLimit,
     sameDomainOnly,
+    useMica,
     pdfDownloadDir,
+    activeLlmProvider,
+    llmProviders,
     desktopRuntime,
     configPath,
     isSettingsSaving,
-    showModalStyleTestButton,
+    isTestingLlmConnection,
   },
   actions: {
     onLocaleChange,
@@ -172,10 +235,15 @@ export function createSettingsPartProps({
     onMoveBatchSource,
     onBatchLimitChange,
     onSameDomainOnlyChange,
+    onUseMicaChange,
     onPdfDownloadDirChange,
     onChoosePdfDownloadDir,
+    onActiveLlmProviderChange,
+    onLlmProviderApiKeyChange,
+    onLlmProviderBaseUrlChange,
+    onLlmProviderModelChange,
+    onTestLlmConnection,
     onOpenConfigLocation,
-    onOpenModalStyleTest,
     onResetDownloadDir,
     onSaveSettings,
   },
@@ -195,15 +263,23 @@ export function createSettingsPartProps({
     onBatchLimitChange,
     sameDomainOnly,
     onSameDomainOnlyChange,
+    useMica,
+    onUseMicaChange,
     pdfDownloadDir,
     onPdfDownloadDirChange,
     onChoosePdfDownloadDir,
+    activeLlmProvider,
+    onActiveLlmProviderChange,
+    llmProviders,
+    onLlmProviderApiKeyChange,
+    onLlmProviderBaseUrlChange,
+    onLlmProviderModelChange,
+    onTestLlmConnection,
     onOpenConfigLocation,
     desktopRuntime,
     configPath,
     isSettingsSaving,
-    showModalStyleTestButton,
-    onOpenModalStyleTest,
+    isTestingLlmConnection,
     onResetDownloadDir,
     onSaveSettings,
   };
@@ -516,6 +592,175 @@ function renderDownloadDirectoryField({
   });
 }
 
+function renderAppearanceField({
+  labels,
+  useMica,
+  onUseMicaChange,
+  isSettingsSaving,
+  desktopRuntime,
+}: Pick<
+  SettingsPartViewProps,
+  'labels' | 'useMica' | 'onUseMicaChange' | 'isSettingsSaving' | 'desktopRuntime'
+>) {
+  return jsxs('div', {
+    className: 'settings-field',
+    children: [
+      jsx('span', { children: labels.settingsAppearanceTitle }),
+      jsx('label', {
+        className: 'inline-field checkbox-field',
+        children: jsx(Switch, {
+          checked: useMica,
+          disabled: isSettingsSaving || !desktopRuntime,
+          onChange: (event: ChangeEvent<HTMLInputElement>) =>
+            onUseMicaChange(event.target.checked),
+          label: labels.settingsUseMica,
+        }),
+      }),
+      jsx('p', { className: 'settings-hint', children: labels.settingsUseMicaHint }),
+    ],
+  });
+}
+
+function LlmField({
+  labels,
+  activeLlmProvider,
+  llmProviders,
+  onActiveLlmProviderChange,
+  onLlmProviderApiKeyChange,
+  onLlmProviderBaseUrlChange,
+  onLlmProviderModelChange,
+  onTestLlmConnection,
+  isSettingsSaving,
+  isTestingLlmConnection,
+}: Pick<
+  SettingsPartViewProps,
+  | 'labels'
+  | 'activeLlmProvider'
+  | 'llmProviders'
+  | 'onActiveLlmProviderChange'
+  | 'onLlmProviderApiKeyChange'
+  | 'onLlmProviderBaseUrlChange'
+  | 'onLlmProviderModelChange'
+  | 'onTestLlmConnection'
+  | 'isSettingsSaving'
+  | 'isTestingLlmConnection'
+>) {
+  const [showApiKey, setShowApiKey] = useState(false);
+  const providerOptions = [
+    { value: 'glm', label: labels.settingsLlmProviderGlm },
+    { value: 'kimi', label: labels.settingsLlmProviderKimi },
+    { value: 'deepseek', label: labels.settingsLlmProviderDeepSeek },
+  ];
+  const activeProviderSettings = llmProviders[activeLlmProvider];
+  const modelHint = getLlmModelsForProvider(activeLlmProvider)
+    .map((model) => model.id)
+    .join(', ');
+
+  return jsxs('div', {
+    className: 'settings-field',
+    children: [
+      jsx('span', { children: labels.settingsLlmTitle }),
+      jsxs('div', {
+        className: 'settings-llm-grid',
+        children: [
+          jsxs('label', {
+            className: 'settings-field',
+            children: [
+              labels.settingsLlmProvider,
+              jsx(Dropdown, {
+                className: 'settings-llm-provider',
+                size: 'sm',
+                value: activeLlmProvider,
+                options: providerOptions,
+                onChange: (event: { target: { value: string } }) =>
+                  onActiveLlmProviderChange(event.target.value as LlmProviderId),
+                'aria-label': labels.settingsLlmProvider,
+                title: labels.settingsLlmProvider,
+              }),
+            ],
+          }),
+          jsxs('label', {
+            className: 'settings-field',
+            children: [
+              labels.settingsLlmModel,
+              jsx(Input, {
+                className: 'settings-input-control',
+                size: 'sm',
+                type: 'text',
+                value: activeProviderSettings.model,
+                onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                  onLlmProviderModelChange(activeLlmProvider, event.target.value),
+                placeholder: modelHint || labels.settingsLlmModelPlaceholder,
+              }),
+            ],
+          }),
+          jsxs('label', {
+            className: 'settings-field',
+            children: [
+              labels.settingsLlmBaseUrl,
+              jsx(Input, {
+                className: 'settings-input-control',
+                size: 'sm',
+                type: 'text',
+                value: activeProviderSettings.baseUrl,
+                onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                  onLlmProviderBaseUrlChange(activeLlmProvider, event.target.value),
+                placeholder: labels.settingsLlmBaseUrlPlaceholder,
+              }),
+            ],
+          }),
+          jsxs('label', {
+            className: 'settings-field',
+            children: [
+              labels.settingsLlmApiKey,
+              jsxs('div', {
+                className: 'settings-input-row',
+                children: [
+                  jsx(Input, {
+                    className: 'settings-input-control settings-api-key-input',
+                    size: 'sm',
+                    type: showApiKey ? 'text' : 'password',
+                    value: activeProviderSettings.apiKey,
+                    onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                      onLlmProviderApiKeyChange(activeLlmProvider, event.target.value),
+                    placeholder: labels.settingsLlmApiKeyPlaceholder,
+                    rightIcon: jsx('button', {
+                      type: 'button',
+                      className: 'settings-password-toggle',
+                      onClick: () => setShowApiKey((currentValue) => !currentValue),
+                      'aria-label': showApiKey
+                        ? labels.settingsLlmHideApiKey
+                        : labels.settingsLlmShowApiKey,
+                      title: showApiKey
+                        ? labels.settingsLlmHideApiKey
+                        : labels.settingsLlmShowApiKey,
+                      children: showApiKey
+                        ? jsx(EyeOff, { size: 16, strokeWidth: 1.8 })
+                        : jsx(Eye, { size: 16, strokeWidth: 1.8 }),
+                    }),
+                  }),
+                  jsx(Button, {
+                    type: 'button',
+                    mode: 'text',
+                    variant: 'primary',
+                    textMode: 'with',
+                    iconMode: 'with',
+                    leftIcon: jsx(PlugZap, { size: 14, strokeWidth: 1.8 }),
+                    isLoading: isTestingLlmConnection,
+                    onClick: onTestLlmConnection,
+                    disabled: isSettingsSaving,
+                    children: labels.settingsLlmTestConnection,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
 function renderConfigPathField({
   labels,
   configPath,
@@ -576,21 +821,25 @@ export function SettingsPartView({
   onBatchLimitChange,
   sameDomainOnly,
   onSameDomainOnlyChange,
+  useMica,
+  onUseMicaChange,
   pdfDownloadDir,
   onPdfDownloadDirChange,
   onChoosePdfDownloadDir,
+  activeLlmProvider,
+  onActiveLlmProviderChange,
+  llmProviders,
+  onLlmProviderApiKeyChange,
+  onLlmProviderBaseUrlChange,
+  onLlmProviderModelChange,
+  onTestLlmConnection,
   onOpenConfigLocation,
   desktopRuntime,
   configPath,
   isSettingsSaving,
-  showModalStyleTestButton,
-  onOpenModalStyleTest,
-  onResetDownloadDir,
+  isTestingLlmConnection,
   onSaveSettings,
 }: SettingsPartViewProps) {
-  const modalStyleTestButtonLabel =
-    locale === 'zh' ? '弹窗样式测试' : 'Modal Style Test';
-
   return jsx('main', {
     ref: partRef,
     className: 'settings-page',
@@ -642,6 +891,13 @@ export function SettingsPartView({
               sameDomainOnly,
               onSameDomainOnlyChange,
             }),
+            renderAppearanceField({
+              labels,
+              useMica,
+              onUseMicaChange,
+              isSettingsSaving,
+              desktopRuntime,
+            }),
             renderDownloadDirectoryField({
               labels,
               pdfDownloadDir,
@@ -650,21 +906,18 @@ export function SettingsPartView({
               desktopRuntime,
               isSettingsSaving,
             }),
-            showModalStyleTestButton
-              ? jsx('div', {
-                  className: 'settings-actions',
-                  children: jsx(Button, {
-                    type: 'button',
-                    mode: 'text',
-                    variant: 'outline',
-                    textMode: 'with',
-                    iconMode: 'without',
-                    onClick: onOpenModalStyleTest,
-                    disabled: isSettingsLoading || isSettingsSaving || !desktopRuntime,
-                    children: modalStyleTestButtonLabel,
-                  }),
-                })
-              : null,
+            jsx(LlmField, {
+              labels,
+              activeLlmProvider,
+              llmProviders,
+              onActiveLlmProviderChange,
+              onLlmProviderApiKeyChange,
+              onLlmProviderBaseUrlChange,
+              onLlmProviderModelChange,
+              onTestLlmConnection,
+              isSettingsSaving,
+              isTestingLlmConnection,
+            }),
             renderConfigPathField({
               labels,
               configPath,

@@ -7,12 +7,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import {
-  detectInitialLocale,
-  getLocaleMessages,
-  toDocumentLang,
-  type Locale,
-} from '../../../language/i18n';
+import { detectInitialLocale, getLocaleMessages, toDocumentLang, type Locale } from '../../../language/i18n';
 import { hasWorkbenchWindowControlsProvider, useWindowControls } from './window';
 import { ToastContainer } from '../../base/browser/ui/toast/toast';
 import type { Article } from '../services/article/articleFetch';
@@ -62,6 +57,7 @@ type ActivePageViewConfig = {
 type WorkbenchShellConfig = {
   workbenchContainerRef: ReturnType<typeof useWorkbenchPartRef>;
   electronRuntime: boolean;
+  useMica: boolean;
   titlebarPartRef: ReturnType<typeof useWorkbenchPartRef>;
   titlebarProps: ReturnType<typeof createTitlebarPartProps>;
   activePage: ActivePage;
@@ -105,33 +101,6 @@ function shouldShowDevelopmentUi(desktopRuntime: boolean) {
   return /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
 }
 
-function createModalStyleTestArticle(locale: Locale): Article {
-  const fetchedAt = new Date().toISOString();
-  const publishedAt = fetchedAt.slice(0, 10);
-
-  return {
-    title:
-      locale === 'zh'
-        ? '弹窗样式测试：窗口控件复用验证'
-        : 'Modal Style Test: Shared Window Controls',
-    articleType: locale === 'zh' ? '样式测试' : 'Style Test',
-    doi: '10.0000/modal-style-test',
-    authors: locale === 'zh' ? ['开发模式', 'UI 验证'] : ['Dev Mode', 'UI Validation'],
-    abstractText:
-      locale === 'zh'
-        ? '这是一个用于检查文章详情弹窗样式和窗口按钮复用情况的测试样例。'
-        : 'This sample verifies article-details modal styling and shared window controls.',
-    descriptionText:
-      locale === 'zh'
-        ? '仅在开发环境 Settings 页显示测试入口，生产环境不会渲染该按钮。'
-        : 'The test entry is shown only in Settings during development and hidden in production.',
-    publishedAt,
-    sourceUrl: 'https://example.com/modal-style-test',
-    fetchedAt,
-    journalTitle: locale === 'zh' ? '调试来源' : 'Debug Source',
-  };
-}
-
 function renderActivePageView({
   activePage,
   isSidebarVisible,
@@ -157,6 +126,7 @@ function renderActivePageView({
 function renderWorkbenchShell({
   workbenchContainerRef,
   electronRuntime,
+  useMica,
   titlebarPartRef,
   titlebarProps,
   activePage,
@@ -165,7 +135,7 @@ function renderWorkbenchShell({
 }: WorkbenchShellConfig) {
   return jsxs('div', {
     ref: workbenchContainerRef,
-    className: 'app-window',
+    className: `app-window ${electronRuntime && useMica ? 'is-mica-enabled' : ''}`.trim(),
     children: [
       electronRuntime ? jsx(TitlebarView, { partRef: titlebarPartRef, ...titlebarProps }) : null,
       jsxs('div', {
@@ -226,15 +196,25 @@ function WorkbenchContentView() {
     setBatchLimit,
     sameDomainOnly,
     setSameDomainOnly,
+    useMica,
+    setUseMica,
     pdfDownloadDir,
     setPdfDownloadDir,
+    activeLlmProvider,
+    setActiveLlmProvider,
+    llmProviders,
+    setLlmProviderApiKey,
+    setLlmProviderBaseUrl,
+    setLlmProviderModel,
     configPath,
     isSettingsLoading,
     isSettingsSaving,
+    isTestingLlmConnection,
     handleChoosePdfDownloadDir,
     handleOpenConfigLocation,
     handleLocaleChange,
     handleSaveSettings,
+    handleTestLlmConnection,
     handleResetDownloadDir,
     handleBatchSourceUrlChange,
     handleBatchSourceJournalTitleChange,
@@ -485,26 +465,6 @@ function WorkbenchContentView() {
     toggleSidebarVisibility();
   }, []);
 
-  const handleOpenModalStyleTest = useCallback(() => {
-    const sampleArticle = createModalStyleTestArticle(locale);
-    void handleOpenArticleDetails(sampleArticle, {
-      untitled: ui.untitled,
-      unknown: ui.unknown,
-      articleType: ui.articleType,
-      authors: ui.authors,
-      abstract: ui.abstract,
-      description: ui.description,
-      publishedAt: ui.publishedAt,
-      source: ui.source,
-      fetchedAt: ui.fetchedAt,
-      controlsAriaLabel: ui.titlebarControls,
-      minimize: ui.titlebarMinimize,
-      maximize: ui.titlebarMaximize,
-      restore: ui.titlebarRestore,
-      close: ui.titlebarClose,
-    });
-  }, [handleOpenArticleDetails, locale, ui]);
-
   const handleTitlebarExportDocx = useCallback(() => {
     void handleExportArticlesDocx();
   }, [handleExportArticlesDocx]);
@@ -656,11 +616,14 @@ function WorkbenchContentView() {
           batchSources,
           batchLimit,
           sameDomainOnly,
+          useMica,
           pdfDownloadDir,
+          activeLlmProvider,
+          llmProviders,
           desktopRuntime,
           configPath,
           isSettingsSaving,
-          showModalStyleTestButton: showDevelopmentUi,
+          isTestingLlmConnection,
         },
         actions: {
           onLocaleChange: handleLocaleChange,
@@ -671,10 +634,15 @@ function WorkbenchContentView() {
           onMoveBatchSource: handleMoveBatchSource,
           onBatchLimitChange: (value) => setBatchLimit(normalizeBatchLimit(value, 1)),
           onSameDomainOnlyChange: setSameDomainOnly,
+          onUseMicaChange: setUseMica,
           onPdfDownloadDirChange: setPdfDownloadDir,
           onChoosePdfDownloadDir: () => void handleChoosePdfDownloadDir(),
+          onActiveLlmProviderChange: setActiveLlmProvider,
+          onLlmProviderApiKeyChange: setLlmProviderApiKey,
+          onLlmProviderBaseUrlChange: setLlmProviderBaseUrl,
+          onLlmProviderModelChange: setLlmProviderModel,
+          onTestLlmConnection: () => void handleTestLlmConnection(),
           onOpenConfigLocation: () => void handleOpenConfigLocation(),
-          onOpenModalStyleTest: handleOpenModalStyleTest,
           onResetDownloadDir: handleResetDownloadDir,
           onSaveSettings: () => void handleSaveSettings(),
         },
@@ -683,6 +651,7 @@ function WorkbenchContentView() {
       batchLimit,
       batchSources,
       configPath,
+      activeLlmProvider,
       desktopRuntime,
       handleAddBatchSource,
       handleBatchSourceJournalTitleChange,
@@ -690,19 +659,25 @@ function WorkbenchContentView() {
       handleChoosePdfDownloadDir,
       handleOpenConfigLocation,
       handleLocaleChange,
+      handleTestLlmConnection,
       handleMoveBatchSource,
-      handleOpenModalStyleTest,
       handleRemoveBatchSource,
       handleResetDownloadDir,
       handleSaveSettings,
       isSettingsLoading,
       isSettingsSaving,
+      isTestingLlmConnection,
+      llmProviders,
       locale,
       pdfDownloadDir,
       sameDomainOnly,
-      showDevelopmentUi,
+      useMica,
       setBatchLimit,
+      setActiveLlmProvider,
       setPdfDownloadDir,
+      setLlmProviderApiKey,
+      setLlmProviderBaseUrl,
+      setLlmProviderModel,
       setSameDomainOnly,
       ui,
     ],
@@ -720,6 +695,7 @@ function WorkbenchContentView() {
   return renderWorkbenchShell({
     workbenchContainerRef,
     electronRuntime,
+    useMica,
     titlebarPartRef,
     titlebarProps,
     activePage,

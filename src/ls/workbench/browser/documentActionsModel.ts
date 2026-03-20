@@ -32,10 +32,8 @@ type UseDocumentActionsModelParams = {
   exportableArticles: Article[];
 };
 
-function resolveSciencePdfQueueMessage(locale: Locale) {
-  return locale === 'zh'
-    ? 'Science PDF 正在顺序下载，当前任务已加入队列。'
-    : 'Science PDF downloads run sequentially. This request has been queued.';
+function resolveSciencePdfQueueMessage(ui: LocaleMessages) {
+  return ui.toastSciencePdfQueued;
 }
 
 function openArticleSourceUrl(sourceUrl: string) {
@@ -78,7 +76,7 @@ export function useDocumentActionsModel({
       markPdfDownloadStarted(preparedPdfDownload.normalizedSourceUrl);
 
       if (preparedPdfDownload.isSciencePdfDownload && sciencePdfDownloadCountRef.current > 0) {
-        toast.info(resolveSciencePdfQueueMessage(locale));
+        toast.info(resolveSciencePdfQueueMessage(ui));
       }
 
       if (preparedPdfDownload.isSciencePdfDownload) {

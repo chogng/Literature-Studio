@@ -98,6 +98,12 @@
   gap: 8px;
 }
 
+.settings-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .settings-url-list {
   display: grid;
   gap: 8px;
@@ -157,10 +163,6 @@
   width: 140px;
 }
 
-.settings-language-toggle.dropdown-focused {
-  box-shadow: none;
-}
-
 .settings-batch-options {
   display: flex;
   flex-wrap: wrap;
@@ -168,9 +170,42 @@
   gap: 12px;
 }
 
-.settings-actions {
-  display: flex;
-  gap: 8px;
+.settings-llm-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 180px) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.6fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.settings-llm-provider {
+  width: 100%;
+}
+
+.settings-password-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.settings-password-toggle:hover {
+  color: #304357;
+  background: #f1f5f9;
+}
+
+.settings-password-toggle:focus-visible {
+  outline: none;
+}
+
+.settings-llm-span-2 {
+  grid-column: 1 / -1;
 }
 
 .settings-hint {
@@ -201,7 +236,11 @@
     flex-wrap: wrap;
   }
 
-  .settings-actions {
-    flex-wrap: wrap;
+  .settings-llm-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-llm-span-2 {
+    grid-column: auto;
   }
 }

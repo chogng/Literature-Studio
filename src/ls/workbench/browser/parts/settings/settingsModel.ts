@@ -7,7 +7,9 @@ import {
   type SetStateAction,
 } from 'react';
 import { toast } from '../../../../base/browser/ui/toast/toast';
-import type { ElectronInvoke } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type {
+  ElectronInvoke,
+} from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import { formatLocalized, localizeDesktopInvokeError, parseDesktopInvokeError } from '../../../services/desktop/desktopError';
@@ -130,11 +132,7 @@ export function useSettingsModel({
         setLocale(result.locale);
       }
 
-      toast.success(
-        result.nextDir
-          ? formatLocalized(ui.toastSettingsSavedWithDir, { dir: result.nextDir })
-          : ui.toastSettingsSavedUseSystemDownloads,
-      );
+      toast.success(ui.toastSettingsSaved);
     } catch (saveError) {
       const localizedError = localizeSettingsError(ui, saveError);
       toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
@@ -146,21 +144,51 @@ export function useSettingsModel({
     toast.info(ui.toastResetDirInput);
   }, [settingsModel, ui]);
 
+  const handleTestLlmConnection = useCallback(async () => {
+    if (!desktopRuntime) {
+      toast.info(ui.toastDesktopLlmTestOnly);
+      return;
+    }
+
+    try {
+      const result = await settingsModel.testLlmConnection(settingsModelContext);
+      toast.success(
+        formatLocalized(ui.toastLlmConnectionSucceeded, {
+          provider: result.provider,
+          model: result.model,
+        }),
+      );
+    } catch (testError) {
+      const localizedError = localizeSettingsError(ui, testError);
+      toast.error(formatLocalized(ui.toastLlmConnectionFailed, { error: localizedError }));
+    }
+  }, [desktopRuntime, settingsModel, settingsModelContext, ui]);
+
   return {
     batchSources: settingsSnapshot.batchSources,
     batchLimit: settingsSnapshot.batchLimit,
     setBatchLimit: settingsModel.setBatchLimit,
     sameDomainOnly: settingsSnapshot.sameDomainOnly,
     setSameDomainOnly: settingsModel.setSameDomainOnly,
+    useMica: settingsSnapshot.useMica,
+    setUseMica: settingsModel.setUseMica,
     pdfDownloadDir: settingsSnapshot.pdfDownloadDir,
     setPdfDownloadDir: settingsModel.setPdfDownloadDir,
+    activeLlmProvider: settingsSnapshot.activeLlmProvider,
+    setActiveLlmProvider: settingsModel.setActiveLlmProvider,
+    llmProviders: settingsSnapshot.llmProviders,
+    setLlmProviderApiKey: settingsModel.setLlmProviderApiKey,
+    setLlmProviderBaseUrl: settingsModel.setLlmProviderBaseUrl,
+    setLlmProviderModel: settingsModel.setLlmProviderModel,
     configPath: settingsSnapshot.configPath,
     isSettingsLoading: settingsSnapshot.isSettingsLoading,
     isSettingsSaving: settingsSnapshot.isSettingsSaving,
+    isTestingLlmConnection: settingsSnapshot.isTestingLlmConnection,
     handleChoosePdfDownloadDir,
     handleOpenConfigLocation,
     handleLocaleChange,
     handleSaveSettings,
+    handleTestLlmConnection,
     handleResetDownloadDir,
     handleBatchSourceUrlChange: settingsModel.handleBatchSourceUrlChange,
     handleBatchSourceJournalTitleChange: settingsModel.handleBatchSourceJournalTitleChange,

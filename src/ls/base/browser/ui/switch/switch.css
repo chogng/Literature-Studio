@@ -1,0 +1,63 @@
+.switch-root {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #304050;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.switch-root.switch-disabled {
+  cursor: not-allowed;
+}
+
+.switch-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-slider {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #c7d3e0;
+  transition: background-color 120ms ease;
+  flex: 0 0 auto;
+}
+
+.switch-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.16);
+  transition: transform 120ms ease;
+}
+
+.switch-input:checked + .switch-slider {
+  background: #0a5fbf;
+}
+
+.switch-input:checked + .switch-slider::after {
+  transform: translateX(16px);
+}
+
+.switch-input:focus-visible + .switch-slider {
+  outline: 2px solid #0a5fbf;
+  outline-offset: 2px;
+}
+
+.switch-input:disabled + .switch-slider,
+.switch-input:disabled + .switch-slider + .switch-label {
+  opacity: 0.55;
+}
+
+.switch-label {
+  white-space: nowrap;
+}

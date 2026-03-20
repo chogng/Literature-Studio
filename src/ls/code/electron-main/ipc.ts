@@ -13,6 +13,7 @@ import type {
   NativeModalState,
   PreviewState,
   SaveSettingsPayload,
+  TestLlmConnectionPayload,
   WindowControlAction,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
 import type { StorageService } from '../../platform/storage/common/storage.js';
@@ -25,7 +26,7 @@ import {
   setPreviewBounds,
   setPreviewVisible,
 } from '../../platform/windows/electron-main/previewView.js';
-import { getNativeModalState, openArticleDetailsModal } from '../../platform/windows/electron-main/nativeModal.js';
+import { getNativeModalState, openArticleDetailsModal } from '../../platform/windows/electron-main/articleDetailsWindow.js';
 import {
   fetchArticle,
   fetchLatestArticles,
@@ -41,7 +42,9 @@ import { resolveBatchPreviewExtractions, resolveBatchPreviewSnapshots, resolvePr
 import { previewDownloadPdf } from './pdf/pdf.js';
 import { appError, serializeAppError } from '../../base/common/errors.js';
 import { pickDirectoryDialog } from '../../platform/dialogs/electron-main/dialogMainService.js';
+import { testLlmConnection } from './llm/llm.js';
 import {
+  applyMainWindowBackgroundMaterial,
   getMainWindow,
   getWindowState,
   performWindowControlAction,
@@ -100,7 +103,15 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'load_settings':
       return storage.loadSettings() as Promise<AppCommandResultMap[TCommand]>;
     case 'save_settings':
-      return storage.saveSettings((payload as SaveSettingsPayload)?.settings ?? {}) as Promise<AppCommandResultMap[TCommand]>;
+      {
+        const saved = await storage.saveSettings((payload as SaveSettingsPayload)?.settings ?? {});
+        applyMainWindowBackgroundMaterial(saved.useMica);
+        return saved as AppCommandResultMap[TCommand];
+      }
+    case 'test_llm_connection':
+      return testLlmConnection(
+        payload as TestLlmConnectionPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
     case 'pick_download_directory':
       return pickDirectoryDialog(getMainWindow()) as Promise<AppCommandResultMap[TCommand]>;
     case 'open_path': {

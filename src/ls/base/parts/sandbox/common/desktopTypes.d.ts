@@ -21,6 +21,19 @@ export interface BatchSource {
   preferredExtractorId?: string | null;
 }
 
+export type LlmProviderId = 'glm' | 'kimi' | 'deepseek';
+
+export interface LlmProviderSettings {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}
+
+export interface LlmSettings {
+  activeProvider: LlmProviderId;
+  providers: Record<LlmProviderId, LlmProviderSettings>;
+}
+
 export interface FetchBatchSource {
   sourceId?: string;
   pageUrl?: string;
@@ -35,7 +48,9 @@ export interface StoredAppSettings {
   defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
+  useMica: boolean;
   locale: Locale;
+  llm: LlmSettings;
 }
 
 export interface AppSettings extends StoredAppSettings {
@@ -60,6 +75,11 @@ export type AppErrorCode =
   | 'DOCX_EXPORT_NO_ARTICLES'
   | 'DOCX_EXPORT_FAILED'
   | 'PREVIEW_NOT_READY'
+  | 'LLM_PROVIDER_UNSUPPORTED'
+  | 'LLM_API_KEY_MISSING'
+  | 'LLM_MODEL_MISSING'
+  | 'LLM_BASE_URL_INVALID'
+  | 'LLM_CONNECTION_FAILED'
   | 'UNKNOWN_ERROR';
 
 export interface AppErrorPayload {
@@ -163,6 +183,20 @@ export interface SaveSettingsPayload {
   settings?: Partial<StoredAppSettings>;
 }
 
+export interface TestLlmConnectionPayload {
+  provider?: LlmProviderId;
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
+}
+
+export interface LlmConnectionTestResult {
+  provider: LlmProviderId;
+  model: string;
+  baseUrl: string;
+  responsePreview: string;
+}
+
 export interface OpenPathPayload {
   path?: string;
 }
@@ -191,6 +225,7 @@ export interface AppCommandPayloadMap {
   fetch_latest_articles: FetchLatestArticlesPayload;
   load_settings: undefined;
   save_settings: SaveSettingsPayload;
+  test_llm_connection: TestLlmConnectionPayload;
   pick_download_directory: undefined;
   open_path: OpenPathPayload;
   preview_download_pdf: PreviewDownloadPdfPayload;
@@ -203,6 +238,7 @@ export interface AppCommandResultMap {
   fetch_latest_articles: Article[];
   load_settings: AppSettings;
   save_settings: AppSettings;
+  test_llm_connection: LlmConnectionTestResult;
   pick_download_directory: string | null;
   open_path: boolean;
   preview_download_pdf: PdfDownloadResult;
