@@ -1,9 +1,10 @@
-锘縤mport { jsx, jsxs } from 'react/jsx-runtime';
+import { jsx } from 'react/jsx-runtime';
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
 import type { NativeModalState } from '../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../base/browser/ui/button/button';
-import './media/articleDetailsModalWindow.css';
+import ChildWindowShell from './parts/window/childWindowShell';
+import { useWindowControls } from './window';
+import './media/articleDetailsModalContent.css';
 
 type ArticleDetailsModalWindowState = Extract<
   NativeModalState,
@@ -54,7 +55,7 @@ function createDetailRows(modalState: ArticleDetailsModalWindowState): DetailRow
       value: detailValue(article.doi, labels.unknown),
     },
     {
-      label: normalizeLabel(labels.articleType || (locale === 'en' ? 'Article type' : '鏂囩珷绫诲瀷')),
+      label: normalizeLabel(labels.articleType || (locale === 'en' ? 'Article type' : '文章类型')),
       value: detailValue(article.articleType, labels.unknown),
     },
     {
@@ -87,9 +88,9 @@ function renderPlaceholderShell({
   onAction?: () => void;
 }) {
   return jsx('main', {
-    className: 'article-details-window',
-    children: jsxs('section', {
-      className: 'article-details-shell article-details-shell-loading',
+    className: 'child-window-shell-page',
+    children: jsx('section', {
+      className: 'child-window-shell-surface child-window-shell-surface-loading',
       children: [
         jsx('p', {
           className: 'article-details-placeholder',
@@ -112,7 +113,7 @@ function renderDetailGrid(detailRows: DetailRow[]) {
   return jsx('dl', {
     className: 'article-details-grid',
     children: detailRows.map((row) =>
-      jsxs(
+      jsx(
         'div',
         {
           className: `article-details-row ${row.wide ? 'article-details-row-wide' : ''}`.trim(),
@@ -133,48 +134,85 @@ function renderTextSection({
   title: string;
   value: string;
 }) {
-  return jsxs('section', {
+  return jsx('section', {
     className: 'article-details-section',
     'aria-labelledby': sectionId,
     children: [jsx('h2', { id: sectionId, children: title }), jsx('p', { children: value })],
   });
 }
 
+function createModalWindowControlLabels(locale: 'zh' | 'en', closeLabel: string) {
+  if (locale === 'zh') {
+    return {
+      controlsAriaLabel: '窗口控制',
+      minimizeLabel: '最小化',
+      maximizeLabel: '最大化',
+      restoreLabel: '还原窗口',
+      closeLabel,
+    };
+  }
+
+  return {
+    controlsAriaLabel: 'Window controls',
+    minimizeLabel: 'Minimize',
+    maximizeLabel: 'Maximize',
+    restoreLabel: 'Restore window',
+    closeLabel,
+  };
+}
+
 export default function ArticleDetailsModalWindow() {
+  const electronRuntime =
+    typeof window !== 'undefined' && typeof window.electronAPI?.windowControls?.perform === 'function';
+  const { isWindowMaximized, handleWindowControl } = useWindowControls({ electronRuntime });
   const [modalState, setModalState] = useState<ArticleDetailsModalWindowState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
-
-    const loadModalState = async () => {
-      if (!window.electronAPI?.modal?.getState) {
-        if (mounted) {
-          setIsLoading(false);
-        }
+    const modalApi = window.electronAPI?.modal;
+    const applyState = (state: NativeModalState | null) => {
+      if (!mounted) {
         return;
       }
 
-      try {
-        const state = await window.electronAPI.modal.getState();
-        if (!mounted) {
-          return;
-        }
+      if (state?.kind === 'article-details') {
+        setModalState(state);
+      }
 
-        if (state?.kind === 'article-details') {
-          setModalState(state);
-        }
-      } finally {
+      setIsLoading(false);
+    };
+
+    if (!modalApi?.getState) {
+      if (mounted) {
+        setIsLoading(false);
+      }
+      return () => {
+        mounted = false;
+      };
+    }
+
+    const loadModalState = async () => {
+      try {
+        const state = await modalApi.getState();
+        applyState(state);
+      } catch {
         if (mounted) {
           setIsLoading(false);
         }
       }
     };
 
+    const disposeModalStateListener =
+      typeof modalApi.onStateChange === 'function'
+        ? modalApi.onStateChange((state) => applyState(state))
+        : () => {};
+
     void loadModalState();
 
     return () => {
       mounted = false;
+      disposeModalStateListener();
     };
   }, []);
 
@@ -189,9 +227,7 @@ export default function ArticleDetailsModalWindow() {
 
   const detailRows = useMemo(() => (modalState ? createDetailRows(modalState) : []), [modalState]);
 
-  const handleClose = () => {
-    window.electronAPI?.windowControls?.perform('close');
-  };
+  const handleClose = () => handleWindowControl('close');
 
   if (isLoading) {
     return renderPlaceholderShell({ message: LOADING_MESSAGE });
@@ -209,67 +245,45 @@ export default function ArticleDetailsModalWindow() {
   const title = detailValue(article.title, labels.untitled);
   const abstractValue = detailValue(article.abstractText, labels.unknown);
   const descriptionValue = detailValue(article.descriptionText, labels.unknown);
-  const descriptionLabel = labels.description || (locale === 'en' ? 'Description' : '鎻忚堪');
+  const descriptionLabel = labels.description || (locale === 'en' ? 'Description' : '描述');
+  const windowControlLabels = createModalWindowControlLabels(locale, labels.close);
 
   return jsx('main', {
-    className: 'article-details-window',
-    children: jsxs('section', {
-      className: 'article-details-shell',
-      role: 'document',
-      'aria-labelledby': 'article-details-title',
+    className: 'child-window-shell-page',
+    children: jsx(ChildWindowShell, {
+      title,
+      titleId: 'article-details-title',
+      classNames: {
+        root: 'child-window-shell-surface',
+        header: 'child-window-shell-titlebar',
+        heading: 'child-window-shell-titlebar-heading',
+        title: 'child-window-shell-titlebar-title',
+        controls: 'child-window-shell-titlebar-controls',
+        content: 'article-details-content',
+        footer: 'article-details-footer',
+      },
+      controlLabels: windowControlLabels,
+      isWindowMaximized,
+      onWindowControl: handleWindowControl,
+      footer: jsx(Button, {
+        type: 'button',
+        variant: 'secondary',
+        onClick: handleClose,
+        children: labels.close,
+      }),
       children: [
-        jsxs('header', {
-          className: 'article-details-header',
-          children: [
-            jsx('div', {
-              className: 'article-details-heading',
-              children: jsx('h1', {
-                id: 'article-details-title',
-                className: 'article-details-title',
-                children: title,
-              }),
-            }),
-            jsx(Button, {
-              type: 'button',
-              variant: 'ghost',
-              mode: 'icon',
-              iconMode: 'with',
-              textMode: 'without',
-              className: 'article-details-close-btn',
-              onClick: handleClose,
-              'aria-label': labels.close,
-              title: labels.close,
-              children: jsx(X, { size: 16, strokeWidth: 1.8 }),
-            }),
-          ],
+        renderDetailGrid(detailRows),
+        renderTextSection({
+          sectionId: 'article-details-abstract-title',
+          title: normalizeLabel(labels.abstract),
+          value: abstractValue,
         }),
-        jsxs('div', {
-          className: 'article-details-content',
-          children: [
-            renderDetailGrid(detailRows),
-            renderTextSection({
-              sectionId: 'article-details-abstract-title',
-              title: normalizeLabel(labels.abstract),
-              value: abstractValue,
-            }),
-            renderTextSection({
-              sectionId: 'article-details-description-title',
-              title: normalizeLabel(descriptionLabel),
-              value: descriptionValue,
-            }),
-          ],
-        }),
-        jsx('footer', {
-          className: 'article-details-footer',
-          children: jsx(Button, {
-            type: 'button',
-            variant: 'secondary',
-            onClick: handleClose,
-            children: labels.close,
-          }),
+        renderTextSection({
+          sectionId: 'article-details-description-title',
+          title: normalizeLabel(descriptionLabel),
+          value: descriptionValue,
         }),
       ],
     }),
   });
 }
-
