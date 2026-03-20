@@ -51,12 +51,17 @@
 
 .settings-page {
   min-height: 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .settings-card {
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .settings-header {
@@ -67,6 +72,7 @@
 }
 
 .settings-content {
+  flex: 1 1 auto;
   padding: 16px;
   display: grid;
   gap: 12px;

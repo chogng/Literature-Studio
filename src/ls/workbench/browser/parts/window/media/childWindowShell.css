@@ -56,6 +56,8 @@
   background: transparent;
   box-shadow: 0 24px 56px rgba(37, 58, 84, 0.16);
   overflow: hidden;
+}
+
 .child-window-shell-surface-loading {
   display: flex;
   align-items: center;
