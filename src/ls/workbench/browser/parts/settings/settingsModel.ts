@@ -178,7 +178,6 @@ export function useSettingsModel({
     setActiveLlmProvider: settingsModel.setActiveLlmProvider,
     llmProviders: settingsSnapshot.llmProviders,
     setLlmProviderApiKey: settingsModel.setLlmProviderApiKey,
-    setLlmProviderBaseUrl: settingsModel.setLlmProviderBaseUrl,
     setLlmProviderModel: settingsModel.setLlmProviderModel,
     configPath: settingsSnapshot.configPath,
     isSettingsLoading: settingsSnapshot.isSettingsLoading,

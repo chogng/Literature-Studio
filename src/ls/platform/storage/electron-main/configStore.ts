@@ -14,7 +14,11 @@ import {
   createDefaultLlmSettings,
   defaultLlmProviderSettings,
 } from '../../../workbench/services/llm/config.js';
-import { isLlmProviderId } from '../../../workbench/services/llm/registry.js';
+import {
+  getDefaultModelForProvider,
+  isLlmModelIdForProvider,
+  isLlmProviderId,
+} from '../../../workbench/services/llm/registry.js';
 
 type ConfigStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
 const fallbackLocale: 'zh' | 'en' = 'zh';
@@ -35,7 +39,40 @@ async function readJson<T>(filePath: string, fallbackValue: T) {
 
 async function writeJson(filePath: string, value: unknown) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(value, null, 2), 'utf8');
+  await fs.writeFile(filePath, JSON.stringify(serializeConfigValue(value), null, 2), 'utf8');
+}
+
+function serializeConfigValue(value: unknown) {
+  if (!value || typeof value !== 'object' || !('llm' in value)) {
+    return value;
+  }
+
+  const settings = value as StoredAppSettings;
+  const serializedBatchSources = settings.defaultBatchSources.map((source) => ({
+    id: source.id,
+    url: source.url,
+    journalTitle: source.journalTitle,
+  }));
+  const serializedProviders = Object.fromEntries(
+    Object.entries(settings.llm.providers)
+      .filter(([, provider]) => cleanText(provider.apiKey))
+      .map(([providerId, provider]) => [
+        providerId,
+        {
+          apiKey: provider.apiKey,
+          model: provider.model,
+        },
+      ]),
+  );
+
+  return {
+    ...settings,
+    defaultBatchSources: serializedBatchSources,
+    llm: {
+      ...settings.llm,
+      providers: serializedProviders,
+    },
+  };
 }
 
 function normalizeLocale(value: unknown, defaultLocale: 'zh' | 'en'): 'zh' | 'en' {
@@ -183,9 +220,21 @@ function normalizeLlmProviderSettings(
 
   return {
     apiKey: cleanText(providerPayload.apiKey),
-    baseUrl: cleanText(providerPayload.baseUrl) || defaults.baseUrl,
-    model: cleanText(providerPayload.model) || defaults.model,
+    baseUrl: defaults.baseUrl,
+    model: normalizeLlmModel(provider, providerPayload.model) || defaults.model,
   };
+}
+
+function normalizeLlmModel(
+  provider: keyof StoredAppSettings['llm']['providers'],
+  value: unknown,
+): string {
+  const model = cleanText(value);
+  if (!model) {
+    return getDefaultModelForProvider(provider);
+  }
+
+  return isLlmModelIdForProvider(provider, model) ? model : getDefaultModelForProvider(provider);
 }
 
 function attachConfigPath(settings: StoredAppSettings, configPath: string): AppSettings {

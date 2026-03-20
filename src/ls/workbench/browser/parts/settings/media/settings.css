@@ -176,15 +176,50 @@
   gap: 12px;
 }
 
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-toggle-subtitle {
+  color: #2d4052;
+  font-size: 14px;
+}
+
 .settings-llm-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 180px) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.6fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   align-items: start;
 }
 
+.settings-llm-grid > .settings-field {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
 .settings-llm-provider {
   width: 100%;
+}
+
+.settings-llm-api-field {
+  flex: 2 1 360px;
+}
+
+.settings-llm-api-row {
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.settings-api-key-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.settings-llm-test-btn {
+  flex: 0 0 auto;
 }
 
 .settings-password-toggle {
@@ -242,8 +277,17 @@
     flex-wrap: wrap;
   }
 
-  .settings-llm-grid {
-    grid-template-columns: 1fr;
+  .settings-toggle-row {
+    flex-wrap: wrap;
+  }
+
+  .settings-llm-api-row {
+    flex-direction: column;
+  }
+
+  .settings-llm-test-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .settings-llm-span-2 {

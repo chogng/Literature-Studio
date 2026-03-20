@@ -196,19 +196,6 @@ export class SettingsModel {
     }));
   };
 
-  readonly setLlmProviderBaseUrl = (provider: LlmProviderId, baseUrl: string) => {
-    this.updateSnapshot((snapshot) => ({
-      ...snapshot,
-      llmProviders: {
-        ...snapshot.llmProviders,
-        [provider]: {
-          ...snapshot.llmProviders[provider],
-          baseUrl,
-        },
-      },
-    }));
-  };
-
   readonly setLlmProviderModel = (provider: LlmProviderId, model: string) => {
     this.updateSnapshot((snapshot) => ({
       ...snapshot,

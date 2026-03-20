@@ -13,7 +13,10 @@ import type {
 } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
 import type { BatchSource } from '../../../services/config/configSchema';
-import { getLlmModelsForProvider } from '../../../services/llm/registry.js';
+import {
+  getDefaultModelForProvider,
+  getLlmModelsForProvider,
+} from '../../../services/llm/registry.js';
 import './media/settings.css';
 
 export type SettingsPartLabels = {
@@ -59,9 +62,6 @@ export type SettingsPartLabels = {
   settingsLlmApiKey: string;
   settingsLlmApiKeyPlaceholder: string;
   settingsLlmModel: string;
-  settingsLlmModelPlaceholder: string;
-  settingsLlmBaseUrl: string;
-  settingsLlmBaseUrlPlaceholder: string;
   settingsLlmTestConnection: string;
   settingsLlmShowApiKey: string;
   settingsLlmHideApiKey: string;
@@ -92,7 +92,6 @@ export type SettingsPartProps = {
   onActiveLlmProviderChange: (provider: LlmProviderId) => void;
   llmProviders: Record<LlmProviderId, LlmProviderSettings>;
   onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void;
-  onLlmProviderBaseUrlChange: (provider: LlmProviderId, baseUrl: string) => void;
   onLlmProviderModelChange: (provider: LlmProviderId, model: string) => void;
   onTestLlmConnection: () => void;
   onOpenConfigLocation: () => void;
@@ -135,7 +134,6 @@ export type SettingsPartActions = {
   onChoosePdfDownloadDir: () => void;
   onActiveLlmProviderChange: (provider: LlmProviderId) => void;
   onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void;
-  onLlmProviderBaseUrlChange: (provider: LlmProviderId, baseUrl: string) => void;
   onLlmProviderModelChange: (provider: LlmProviderId, model: string) => void;
   onTestLlmConnection: () => void;
   onOpenConfigLocation: () => void;
@@ -198,9 +196,6 @@ export function createSettingsPartLabels({
     settingsLlmApiKey: ui.settingsLlmApiKey,
     settingsLlmApiKeyPlaceholder: ui.settingsLlmApiKeyPlaceholder,
     settingsLlmModel: ui.settingsLlmModel,
-    settingsLlmModelPlaceholder: ui.settingsLlmModelPlaceholder,
-    settingsLlmBaseUrl: ui.settingsLlmBaseUrl,
-    settingsLlmBaseUrlPlaceholder: ui.settingsLlmBaseUrlPlaceholder,
     settingsLlmTestConnection: ui.settingsLlmTestConnection,
     settingsLlmShowApiKey: ui.settingsLlmShowApiKey,
     settingsLlmHideApiKey: ui.settingsLlmHideApiKey,
@@ -240,7 +235,6 @@ export function createSettingsPartProps({
     onChoosePdfDownloadDir,
     onActiveLlmProviderChange,
     onLlmProviderApiKeyChange,
-    onLlmProviderBaseUrlChange,
     onLlmProviderModelChange,
     onTestLlmConnection,
     onOpenConfigLocation,
@@ -272,7 +266,6 @@ export function createSettingsPartProps({
     onActiveLlmProviderChange,
     llmProviders,
     onLlmProviderApiKeyChange,
-    onLlmProviderBaseUrlChange,
     onLlmProviderModelChange,
     onTestLlmConnection,
     onOpenConfigLocation,
@@ -606,17 +599,23 @@ function renderAppearanceField({
     className: 'settings-field',
     children: [
       jsx('span', { children: labels.settingsAppearanceTitle }),
-      jsx('label', {
-        className: 'inline-field checkbox-field',
-        children: jsx(Switch, {
-          checked: useMica,
-          disabled: isSettingsSaving || !desktopRuntime,
-          onChange: (event: ChangeEvent<HTMLInputElement>) =>
-            onUseMicaChange(event.target.checked),
-          label: labels.settingsUseMica,
-        }),
+      jsxs('div', {
+        className: 'settings-toggle-row',
+        children: [
+          jsx('span', {
+            className: 'settings-toggle-subtitle',
+            children: labels.settingsUseMica,
+          }),
+          jsx(Switch, {
+            checked: useMica,
+            disabled: isSettingsSaving || !desktopRuntime,
+            onChange: (event: ChangeEvent<HTMLInputElement>) =>
+              onUseMicaChange(event.target.checked),
+            'aria-label': labels.settingsUseMica,
+            title: labels.settingsUseMica,
+          }),
+        ],
       }),
-      jsx('p', { className: 'settings-hint', children: labels.settingsUseMicaHint }),
     ],
   });
 }
@@ -627,7 +626,6 @@ function LlmField({
   llmProviders,
   onActiveLlmProviderChange,
   onLlmProviderApiKeyChange,
-  onLlmProviderBaseUrlChange,
   onLlmProviderModelChange,
   onTestLlmConnection,
   isSettingsSaving,
@@ -639,7 +637,6 @@ function LlmField({
   | 'llmProviders'
   | 'onActiveLlmProviderChange'
   | 'onLlmProviderApiKeyChange'
-  | 'onLlmProviderBaseUrlChange'
   | 'onLlmProviderModelChange'
   | 'onTestLlmConnection'
   | 'isSettingsSaving'
@@ -652,9 +649,13 @@ function LlmField({
     { value: 'deepseek', label: labels.settingsLlmProviderDeepSeek },
   ];
   const activeProviderSettings = llmProviders[activeLlmProvider];
-  const modelHint = getLlmModelsForProvider(activeLlmProvider)
-    .map((model) => model.id)
-    .join(', ');
+  const modelOptions = getLlmModelsForProvider(activeLlmProvider).map((model) => ({
+    value: model.id,
+    label: model.label,
+  }));
+  const selectedModelValue =
+    modelOptions.find((model) => model.value === activeProviderSettings.model)?.value ??
+    getDefaultModelForProvider(activeLlmProvider);
 
   return jsxs('div', {
     className: 'settings-field',
@@ -683,38 +684,24 @@ function LlmField({
             className: 'settings-field',
             children: [
               labels.settingsLlmModel,
-              jsx(Input, {
-                className: 'settings-input-control',
+              jsx(Dropdown, {
+                className: 'settings-llm-provider',
                 size: 'sm',
-                type: 'text',
-                value: activeProviderSettings.model,
-                onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                value: selectedModelValue,
+                options: modelOptions,
+                onChange: (event: { target: { value: string } }) =>
                   onLlmProviderModelChange(activeLlmProvider, event.target.value),
-                placeholder: modelHint || labels.settingsLlmModelPlaceholder,
+                'aria-label': labels.settingsLlmModel,
+                title: labels.settingsLlmModel,
               }),
             ],
           }),
           jsxs('label', {
-            className: 'settings-field',
-            children: [
-              labels.settingsLlmBaseUrl,
-              jsx(Input, {
-                className: 'settings-input-control',
-                size: 'sm',
-                type: 'text',
-                value: activeProviderSettings.baseUrl,
-                onChange: (event: ChangeEvent<HTMLInputElement>) =>
-                  onLlmProviderBaseUrlChange(activeLlmProvider, event.target.value),
-                placeholder: labels.settingsLlmBaseUrlPlaceholder,
-              }),
-            ],
-          }),
-          jsxs('label', {
-            className: 'settings-field',
+            className: 'settings-field settings-llm-api-field',
             children: [
               labels.settingsLlmApiKey,
               jsxs('div', {
-                className: 'settings-input-row',
+                className: 'settings-input-row settings-llm-api-row',
                 children: [
                   jsx(Input, {
                     className: 'settings-input-control settings-api-key-input',
@@ -740,6 +727,7 @@ function LlmField({
                     }),
                   }),
                   jsx(Button, {
+                    className: 'settings-llm-test-btn',
                     type: 'button',
                     mode: 'text',
                     variant: 'primary',
@@ -831,7 +819,6 @@ export function SettingsPartView({
   onActiveLlmProviderChange,
   llmProviders,
   onLlmProviderApiKeyChange,
-  onLlmProviderBaseUrlChange,
   onLlmProviderModelChange,
   onTestLlmConnection,
   onOpenConfigLocation,
@@ -913,7 +900,6 @@ export function SettingsPartView({
               llmProviders,
               onActiveLlmProviderChange,
               onLlmProviderApiKeyChange,
-              onLlmProviderBaseUrlChange,
               onLlmProviderModelChange,
               onTestLlmConnection,
               isSettingsSaving,

@@ -46,6 +46,15 @@ export const llmProviderIds: LlmProviderId[] = llmProviders.map((provider) => pr
 
 export const llmModels: ReadonlyArray<LlmModelDefinition> = [
   {
+    id: 'glm-4.7-flash',
+    label: 'GLM-4.7-Flash',
+    provider: 'glm',
+    apiStyle: 'openai-compatible',
+    capabilities: ['chat', 'fast'],
+    recommendedFor: ['chat', 'summary'],
+    enabled: true,
+  },
+  {
     id: 'glm-4.6',
     label: 'GLM-4.6',
     provider: 'glm',
@@ -116,6 +125,10 @@ export function getLlmProviderDefinition(providerId: LlmProviderId): LlmProvider
 
 export function getLlmModelsForProvider(providerId: LlmProviderId): LlmModelDefinition[] {
   return llmModels.filter((model) => model.provider === providerId && model.enabled);
+}
+
+export function isLlmModelIdForProvider(providerId: LlmProviderId, modelId: string): boolean {
+  return getLlmModelsForProvider(providerId).some((model) => model.id === modelId);
 }
 
 export function getDefaultModelForProvider(providerId: LlmProviderId): string {
