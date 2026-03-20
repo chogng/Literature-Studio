@@ -1,2 +1,1 @@
-// Desktop-specific contribution registry placeholder.
-export {};
+import 'ls/workbench/electron-sandbox/window';

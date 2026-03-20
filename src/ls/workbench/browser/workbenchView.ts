@@ -13,7 +13,7 @@ import {
   toDocumentLang,
   type Locale,
 } from '../../../language/i18n';
-import { useWindowControls } from './window';
+import { hasWorkbenchWindowControlsProvider, useWindowControls } from './window';
 import { ToastContainer } from '../../base/browser/ui/toast/toast';
 import type { Article } from '../services/article/articleFetch';
 import {
@@ -188,7 +188,10 @@ function WorkbenchContentView() {
   const titlebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
   const settingsPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.settings);
   const { electronRuntime, previewRuntime, desktopRuntime } = resolveRuntimeState();
-  const { isWindowMaximized, handleWindowControl } = useWindowControls({ electronRuntime });
+  const hasWindowControlsProvider = hasWorkbenchWindowControlsProvider();
+  const { isWindowMaximized, handleWindowControl } = useWindowControls({
+    electronRuntime: electronRuntime && hasWindowControlsProvider,
+  });
   const ui = useMemo(() => getLocaleMessages(locale), [locale]);
 
   const invokeDesktop = useCallback(

@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import type {
+  WindowControlAction,
+  WindowState,
+  WindowStateListener,
+} from '../../base/parts/sandbox/common/desktopTypes.js';
 
 export type WorkbenchWindowControlAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -10,9 +15,17 @@ type WindowStateSnapshot = {
   isMaximized: boolean;
 };
 
+type WorkbenchWindowControlsProvider = {
+  getState: () => Promise<WindowState>;
+  onStateChange: (listener: WindowStateListener) => () => void;
+  perform: (action: WindowControlAction) => void;
+};
+
 const DEFAULT_WINDOW_STATE: WindowStateSnapshot = {
   isMaximized: false,
 };
+
+let workbenchWindowControlsProvider: WorkbenchWindowControlsProvider | null = null;
 
 let windowStateSnapshot = DEFAULT_WINDOW_STATE;
 const windowStateListeners = new Set<() => void>();
@@ -26,6 +39,20 @@ function setWindowState(nextState: WindowStateSnapshot) {
   for (const listener of windowStateListeners) {
     listener();
   }
+}
+
+export function registerWorkbenchWindowControlsProvider(
+  provider: WorkbenchWindowControlsProvider,
+) {
+  workbenchWindowControlsProvider = provider;
+}
+
+export function getWorkbenchWindowControlsProvider() {
+  return workbenchWindowControlsProvider;
+}
+
+export function hasWorkbenchWindowControlsProvider() {
+  return Boolean(workbenchWindowControlsProvider);
 }
 
 export function subscribeWindowState(listener: () => void) {
@@ -47,13 +74,13 @@ export function useWindowControls({ electronRuntime }: UseWindowControlsParams) 
   );
 
   useEffect(() => {
-    if (!electronRuntime || !window.electronAPI?.windowControls) {
+    const controls = electronRuntime ? getWorkbenchWindowControlsProvider() : null;
+    if (!controls) {
       setWindowState(DEFAULT_WINDOW_STATE);
       return;
     }
 
     let mounted = true;
-    const controls = window.electronAPI.windowControls;
 
     void controls
       .getState()
@@ -84,7 +111,7 @@ export function useWindowControls({ electronRuntime }: UseWindowControlsParams) 
   }, [electronRuntime]);
 
   const handleWindowControl = useCallback((action: WorkbenchWindowControlAction) => {
-    window.electronAPI?.windowControls?.perform(action);
+    getWorkbenchWindowControlsProvider()?.perform(action);
   }, []);
 
   return {

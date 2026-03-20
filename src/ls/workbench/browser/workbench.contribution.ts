@@ -58,7 +58,7 @@ export function stopWorkbenchContributions() {
   workbenchContributionsStarted = false;
 }
 
-function createWorkbenchContainerStateContribution(): Disposable {
+export function createWorkbenchContainerStateContribution(): Disposable {
   let lastContainer: HTMLElement | null = null;
 
   const clearContainerState = (container: HTMLElement | null) => {
@@ -113,6 +113,3 @@ function createWorkbenchContainerStateContribution(): Disposable {
     },
   };
 }
-
-registerWorkbenchContribution(createWorkbenchContainerStateContribution);
-startWorkbenchContributions();

@@ -10,11 +10,6 @@ import {
   resolvePreviewStateUrlUpdate,
 } from '../services/preview/previewNavigationService';
 import {
-  applyQuickAccessUrlInput,
-  createQuickAccessSourceOptions,
-  findQuickAccessSourceOption,
-  resolveNextQuickAccessSourceOption,
-  resolveQuickAccessSourceId,
   type QuickAccessCycleDirection,
   type QuickAccessSourceOption,
 } from '../services/quickAccess/quickAccessService';
@@ -73,11 +68,52 @@ type AddressBarSourceCycleParams = {
   navigateToUrl: (url: string, showToast: boolean) => boolean;
 };
 
+type PreviewNavigationQuickAccessProvider = {
+  applyUrlInput: (
+    nextUrl: string,
+    setWebUrl: StringSetter,
+    setFetchSeedUrl: StringSetter,
+  ) => void;
+  createSourceOptions: (
+    batchSources: ReadonlyArray<BatchSource>,
+  ) => QuickAccessSourceOption[];
+  findSourceOption: (
+    options: ReadonlyArray<QuickAccessSourceOption>,
+    sourceId: string,
+  ) => QuickAccessSourceOption | undefined;
+  resolveNextSourceOption: (
+    options: ReadonlyArray<QuickAccessSourceOption>,
+    selectedSourceId: string,
+    direction: QuickAccessCycleDirection,
+  ) => QuickAccessSourceOption | null;
+  resolveSourceId: (
+    fetchSeedUrl: string,
+    webUrl: string,
+    batchSources: ReadonlyArray<BatchSource>,
+  ) => string;
+};
+
 const DEFAULT_PREVIEW_NAVIGATION_SNAPSHOT: PreviewNavigationSnapshot = {
   browserUrl: '',
   iframeReloadKey: 0,
   previewState: EMPTY_PREVIEW_STATE,
 };
+
+let previewNavigationQuickAccessProvider: PreviewNavigationQuickAccessProvider | null = null;
+
+export function registerPreviewNavigationQuickAccess(
+  provider: PreviewNavigationQuickAccessProvider,
+) {
+  previewNavigationQuickAccessProvider = provider;
+}
+
+function getPreviewNavigationQuickAccessProvider(): PreviewNavigationQuickAccessProvider {
+  if (!previewNavigationQuickAccessProvider) {
+    throw new Error('Preview navigation quick access provider is not registered.');
+  }
+
+  return previewNavigationQuickAccessProvider;
+}
 
 export class PreviewNavigationModel {
   private snapshot: PreviewNavigationSnapshot = DEFAULT_PREVIEW_NAVIGATION_SNAPSHOT;
@@ -302,7 +338,7 @@ export class PreviewNavigationModel {
   createAddressBarSourceOptions(
     batchSources: BatchSource[],
   ): QuickAccessSourceOption[] {
-    return createQuickAccessSourceOptions(batchSources);
+    return getPreviewNavigationQuickAccessProvider().createSourceOptions(batchSources);
   }
 
   resolveSelectedAddressBarSourceId(
@@ -310,7 +346,11 @@ export class PreviewNavigationModel {
     webUrl: string,
     batchSources: BatchSource[],
   ): string {
-    return resolveQuickAccessSourceId(fetchSeedUrl, webUrl, batchSources);
+    return getPreviewNavigationQuickAccessProvider().resolveSourceId(
+      fetchSeedUrl,
+      webUrl,
+      batchSources,
+    );
   }
 
   handleWebUrlChange(
@@ -318,7 +358,11 @@ export class PreviewNavigationModel {
     setWebUrl: StringSetter,
     setFetchSeedUrl: StringSetter,
   ): void {
-    applyQuickAccessUrlInput(nextUrl, setWebUrl, setFetchSeedUrl);
+    getPreviewNavigationQuickAccessProvider().applyUrlInput(
+      nextUrl,
+      setWebUrl,
+      setFetchSeedUrl,
+    );
   }
 
   handleSelectAddressBarSource({
@@ -326,7 +370,10 @@ export class PreviewNavigationModel {
     addressBarSourceOptions,
     navigateToUrl,
   }: AddressBarSourceSelectionParams): void {
-    const selectedSource = findQuickAccessSourceOption(addressBarSourceOptions, sourceId);
+    const selectedSource = getPreviewNavigationQuickAccessProvider().findSourceOption(
+      addressBarSourceOptions,
+      sourceId,
+    );
     if (!selectedSource) {
       return;
     }
@@ -340,7 +387,7 @@ export class PreviewNavigationModel {
     selectedAddressBarSourceId,
     navigateToUrl,
   }: AddressBarSourceCycleParams): void {
-    const nextSource = resolveNextQuickAccessSourceOption(
+    const nextSource = getPreviewNavigationQuickAccessProvider().resolveNextSourceOption(
       addressBarSourceOptions,
       selectedAddressBarSourceId,
       direction,
