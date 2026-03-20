@@ -1,8 +1,9 @@
 :root {
+  --workbench-chrome-bg: #eef3f9;
   font-family: 'IBM Plex Sans', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
   line-height: 1.4;
   color: #1a2530;
-  background: #e9edf3;
+  background: var(--workbench-chrome-bg);
 }
 
 * {
@@ -45,6 +46,7 @@ button:disabled {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
+  background: var(--workbench-chrome-bg);
 }
 
 .app-shell {
@@ -52,8 +54,9 @@ button:disabled {
   min-height: 0;
   display: grid;
   grid-template-rows: 1fr;
-  padding: 8px;
+  padding: 0 8px 8px;
   overflow: hidden;
+  background: var(--workbench-chrome-bg);
 }
 
 .app-shell.app-shell-settings {
@@ -79,7 +82,7 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  gap: 12px;
+  gap: 6px;
 }
 
 .content-grid.is-sidebar-collapsed {

@@ -533,15 +533,11 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     children: [
       jsxs('div', {
         className: 'titlebar-start',
-        children: [
-          renderBrand({ appName, fetchSourceView, fetchStopView }),
-          sidebarToggleView,
-          navigationView,
-        ],
+        children: [renderBrand({ appName, fetchSourceView, fetchStopView }), sidebarToggleView],
       }),
       jsxs('div', {
         className: 'titlebar-center',
-        children: [webUrlView, sourceSelectorView],
+        children: [navigationView, webUrlView, sourceSelectorView],
       }),
       jsxs('div', {
         className: 'titlebar-controls',
