@@ -32,15 +32,12 @@ export type TitlebarPartState = {
 export type TitlebarPartActions = {
   handleWindowControl: (action: TitlebarAction) => void;
   handleToggleSidebar: () => void;
-  handleToggleSettings: () => void;
   handlePreviewBack: () => void;
   handlePreviewForward: () => void;
   handleBrowserRefresh: () => void;
   handleAddressBarSourceMenuOpenChange: (isOpen: boolean) => void;
   handleAddressBarSourceMenuDispose: () => void;
-  handleExportDocx: () => void;
   handleWebUrlChange: (url: string) => void;
-  handleNavigateWeb: () => void;
   handleSelectAddressBarSource: (sourceId: string) => void;
   handleCycleAddressBarSource: (direction: QuickAccessCycleDirection) => void;
 };
@@ -72,15 +69,12 @@ export function createTitlebarPartProps({
   actions: {
     handleWindowControl,
     handleToggleSidebar,
-    handleToggleSettings,
     handlePreviewBack,
     handlePreviewForward,
     handleBrowserRefresh,
     handleAddressBarSourceMenuOpenChange,
     handleAddressBarSourceMenuDispose,
-    handleExportDocx,
     handleWebUrlChange,
-    handleNavigateWeb,
     handleSelectAddressBarSource,
     handleCycleAddressBarSource,
   },
@@ -105,7 +99,6 @@ export function createTitlebarPartProps({
     isSidebarOpen: isSidebarVisible,
     sidebarToggleLabel: isSidebarVisible ? ui.sidebarCollapse : ui.sidebarExpand,
     onToggleSidebar: activePage === 'reader' ? handleToggleSidebar : undefined,
-    onToggleSettings: handleToggleSettings,
     browserUrl,
     canGoBack: previewState.canGoBack,
     canGoForward: previewState.canGoForward,
@@ -115,7 +108,6 @@ export function createTitlebarPartProps({
     onRefresh: handleBrowserRefresh,
     onAddressBarSourceMenuOpenChange: handleAddressBarSourceMenuOpenChange,
     onAddressBarSourceMenuDispose: handleAddressBarSourceMenuDispose,
-    onExportDocx: handleExportDocx,
     ...createTitlebarQuickAccessProps({
       state: {
         ui,
@@ -125,7 +117,6 @@ export function createTitlebarPartProps({
       },
       actions: {
         handleWebUrlChange,
-        handleNavigateWeb,
         handleSelectAddressBarSource,
         handleCycleAddressBarSource,
       },

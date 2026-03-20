@@ -26,6 +26,16 @@ import { Button } from '../../../../base/browser/ui/button/button';
 import { Dropdown } from '../../../../base/browser/ui/dropdown/dropdown';
 import { Input } from '../../../../base/browser/ui/input/input';
 import { WindowControlsGroup, type WindowControlsAction } from './windowControls';
+import {
+  requestTitlebarNavigateBack,
+  requestTitlebarNavigateForward,
+  requestTitlebarNavigateWeb,
+  requestTitlebarRefresh,
+  requestToggleTitlebarSidebar,
+  requestExportTitlebarDocx,
+  requestToggleTitlebarSettings,
+  subscribeTitlebarUiActions,
+} from './titlebarActions';
 import './media/titlebar.css';
 
 export type TitlebarAction = WindowControlsAction;
@@ -60,12 +70,10 @@ export type TitlebarProps = {
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
   onRefresh?: () => void;
-  onExportDocx?: () => void;
   onAddressBarSourceMenuOpenChange?: (isOpen: boolean) => void;
   onAddressBarSourceMenuDispose?: () => void;
   webUrl?: string;
   onWebUrlChange?: (url: string) => void;
-  onNavigateWeb?: () => void;
   articleUrlPlaceholder?: string;
   addressBarSourceOptions?: QuickAccessSourceOption[];
   selectedAddressBarSourceId?: string;
@@ -124,9 +132,7 @@ type NavigationGroupConfig = {
   canGoBack: boolean;
   canGoForward: boolean;
   labels: TitlebarLabels;
-  onNavigateBack?: () => void;
-  onNavigateForward?: () => void;
-  onRefresh?: () => void;
+  isVisible: boolean;
 };
 
 type DropdownChangeEvent = {
@@ -228,20 +234,20 @@ function renderBrand({
 function renderSidebarToggle({
   isSidebarOpen,
   sidebarToggleLabel,
-  onToggleSidebar,
+  isVisible,
 }: {
   isSidebarOpen: boolean;
   sidebarToggleLabel?: string;
-  onToggleSidebar?: () => void;
+  isVisible: boolean;
 }) {
-  if (!onToggleSidebar || !sidebarToggleLabel) {
+  if (!isVisible || !sidebarToggleLabel) {
     return null;
   }
 
   return renderIconButton({
     className: 'titlebar-btn titlebar-btn-sidebar',
     label: sidebarToggleLabel,
-    onClick: onToggleSidebar,
+    onClick: requestToggleTitlebarSidebar,
     icon: isSidebarOpen
       ? jsx(PanelLeftClose, { size: 14, strokeWidth: 1.5 })
       : jsx(PanelLeftOpen, { size: 14, strokeWidth: 1.5 }),
@@ -253,44 +259,36 @@ function renderNavigationGroup({
   canGoBack,
   canGoForward,
   labels,
-  onNavigateBack,
-  onNavigateForward,
-  onRefresh,
+  isVisible,
 }: NavigationGroupConfig) {
-  if (!onNavigateBack && !onNavigateForward && !onRefresh) {
+  if (!isVisible) {
     return null;
   }
 
   return jsxs('div', {
     className: 'titlebar-nav-group',
     children: [
-      onNavigateBack
-        ? renderIconButton({
-            className: 'titlebar-btn titlebar-btn-nav',
-            label: labels.backLabel,
-            onClick: onNavigateBack,
-            disabled: !browserUrl || !canGoBack,
-            icon: jsx(ArrowLeft, { size: 14, strokeWidth: 1.5 }),
-          })
-        : null,
-      onNavigateForward
-        ? renderIconButton({
-            className: 'titlebar-btn titlebar-btn-nav',
-            label: labels.forwardLabel,
-            onClick: onNavigateForward,
-            disabled: !browserUrl || !canGoForward,
-            icon: jsx(ArrowRight, { size: 14, strokeWidth: 1.5 }),
-          })
-        : null,
-      onRefresh
-        ? renderIconButton({
-            className: 'titlebar-btn titlebar-btn-nav',
-            label: labels.refreshLabel,
-            onClick: onRefresh,
-            disabled: !browserUrl,
-            icon: jsx(RefreshCcw, { size: 14, strokeWidth: 1.5 }),
-          })
-        : null,
+      renderIconButton({
+        className: 'titlebar-btn titlebar-btn-nav',
+        label: labels.backLabel,
+        onClick: requestTitlebarNavigateBack,
+        disabled: !browserUrl || !canGoBack,
+        icon: jsx(ArrowLeft, { size: 14, strokeWidth: 1.5 }),
+      }),
+      renderIconButton({
+        className: 'titlebar-btn titlebar-btn-nav',
+        label: labels.forwardLabel,
+        onClick: requestTitlebarNavigateForward,
+        disabled: !browserUrl || !canGoForward,
+        icon: jsx(ArrowRight, { size: 14, strokeWidth: 1.5 }),
+      }),
+      renderIconButton({
+        className: 'titlebar-btn titlebar-btn-nav',
+        label: labels.refreshLabel,
+        onClick: requestTitlebarRefresh,
+        disabled: !browserUrl,
+        icon: jsx(RefreshCcw, { size: 14, strokeWidth: 1.5 }),
+      }),
     ],
   });
 }
@@ -331,6 +329,7 @@ function renderSourceSelector({
   onSelectAddressBarSource,
   onOpenChange,
   onKeyDown,
+  sourceSelectorRef,
 }: {
   sourceOptions: SourceOptionView[];
   selectedAddressBarSourceId: string;
@@ -339,6 +338,7 @@ function renderSourceSelector({
   onSelectAddressBarSource?: (sourceId: string) => void;
   onOpenChange: (isOpen: boolean) => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
+  sourceSelectorRef?: Ref<HTMLDivElement>;
 }) {
   if (!onSelectAddressBarSource) {
     return null;
@@ -352,6 +352,7 @@ function renderSourceSelector({
   return jsx('div', {
     className: 'titlebar-journal-bar',
     children: jsx(Dropdown, {
+      ref: sourceSelectorRef,
       className: `titlebar-source-select ${selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
       style: { '--titlebar-source-width': `${selectorWidthCh}ch` },
       value: selectedAddressBarSourceId,
@@ -367,6 +368,7 @@ function renderSourceSelector({
 
 export function TitlebarView(inputProps: TitlebarViewProps = {}) {
   const isSourceMenuOpenRef = useRef(false);
+  const sourceSelectorRef = useRef<HTMLDivElement | null>(null);
 
   const {
     partRef,
@@ -377,7 +379,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     isSidebarOpen = true,
     sidebarToggleLabel,
     onToggleSidebar,
-    onToggleSettings,
     browserUrl,
     canGoBack = false,
     canGoForward = false,
@@ -385,12 +386,10 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     onNavigateBack,
     onNavigateForward,
     onRefresh,
-    onExportDocx,
     onAddressBarSourceMenuOpenChange,
     onAddressBarSourceMenuDispose,
     webUrl,
     onWebUrlChange,
-    onNavigateWeb,
     articleUrlPlaceholder,
     addressBarSourceOptions = [],
     selectedAddressBarSourceId = '',
@@ -423,6 +422,22 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     };
   }, [onAddressBarSourceMenuDispose]);
 
+  useEffect(() => {
+    return subscribeTitlebarUiActions((action) => {
+      if (action.type !== 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
+        return;
+      }
+
+      const sourceSelector = sourceSelectorRef.current;
+      if (!sourceSelector) {
+        return;
+      }
+
+      sourceSelector.focus();
+      sourceSelector.click();
+    });
+  }, []);
+
   const handleAddressBarKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.altKey && onCycleAddressBarSource) {
       if (event.key === 'ArrowUp') {
@@ -439,7 +454,7 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     }
 
     if (event.key === 'Enter') {
-      onNavigateWeb?.();
+      requestTitlebarNavigateWeb();
     }
   };
 
@@ -476,16 +491,14 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
   const sidebarToggleView = renderSidebarToggle({
     isSidebarOpen,
     sidebarToggleLabel,
-    onToggleSidebar,
+    isVisible: Boolean(onToggleSidebar),
   });
   const navigationView = renderNavigationGroup({
     browserUrl,
     canGoBack,
     canGoForward,
     labels,
-    onNavigateBack,
-    onNavigateForward,
-    onRefresh,
+    isVisible: Boolean(onNavigateBack || onNavigateForward || onRefresh),
   });
   const webUrlView = renderWebUrlBar({
     webUrl,
@@ -501,23 +514,22 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     onSelectAddressBarSource,
     onOpenChange: handleSourceMenuOpenChange,
     onKeyDown: handleSourceSelectorKeyDown,
+    sourceSelectorRef,
   });
   const exportButtonView =
-    onExportDocx &&
     renderIconButton({
       className: 'titlebar-btn titlebar-btn-export',
       label: labels.exportDocxLabel,
       title: canExportDocx ? labels.exportDocxLabel : labels.noExportableArticlesLabel,
-      onClick: onExportDocx,
+      onClick: requestExportTitlebarDocx,
       disabled: !canExportDocx,
       icon: jsx(FileText, { size: 14, strokeWidth: 1.5 }),
     });
   const settingsButtonView =
-    onToggleSettings &&
     renderIconButton({
       className: 'titlebar-btn titlebar-btn-settings',
       label: labels.settingsLabel,
-      onClick: onToggleSettings,
+      onClick: requestToggleTitlebarSettings,
       icon: jsx(Settings, { size: 14, strokeWidth: 1.5 }),
     });
   const windowControls = jsx(WindowControlsGroup, {

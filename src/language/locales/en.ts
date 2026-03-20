@@ -31,6 +31,8 @@ const en = {
   articleDetailsUnavailable: 'Article details are unavailable.',
   emptyFiltered: 'Data exists, but no results match current filters.',
   emptyAll: 'No data yet. Fetch one article first, or click "Fetch".',
+  emptyAllQuickSourceAction: 'Quick source',
+  emptyAllQuickSourceSuffix: 'or enter a URL to fetch',
   settingsTitle: 'Settings',
   settingsLoading: 'Loading settings...',
   settingsPageUrl: 'Default batch fetch URLs',

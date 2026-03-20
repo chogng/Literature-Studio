@@ -18,7 +18,6 @@ type TitlebarQuickAccessState = {
 
 type TitlebarQuickAccessActions = {
   handleWebUrlChange: (url: string) => void;
-  handleNavigateWeb: () => void;
   handleSelectAddressBarSource: (sourceId: string) => void;
   handleCycleAddressBarSource: (direction: QuickAccessCycleDirection) => void;
 };
@@ -37,7 +36,6 @@ export function createTitlebarQuickAccessProps({
   },
   actions: {
     handleWebUrlChange,
-    handleNavigateWeb,
     handleSelectAddressBarSource,
     handleCycleAddressBarSource,
   },
@@ -45,7 +43,6 @@ export function createTitlebarQuickAccessProps({
   TitlebarProps,
   | 'webUrl'
   | 'onWebUrlChange'
-  | 'onNavigateWeb'
   | 'articleUrlPlaceholder'
   | 'addressBarSourceOptions'
   | 'selectedAddressBarSourceId'
@@ -57,7 +54,6 @@ export function createTitlebarQuickAccessProps({
   return {
     webUrl,
     onWebUrlChange: handleWebUrlChange,
-    onNavigateWeb: handleNavigateWeb,
     articleUrlPlaceholder: ui.pageUrlPlaceholder,
     addressBarSourceOptions,
     selectedAddressBarSourceId,

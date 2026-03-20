@@ -6,6 +6,7 @@ import { Button } from '../../../../base/browser/ui/button/button';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import { DateRangePicker } from '../../../../base/browser/ui/dateRangePicker/dateRangePicker';
+import { requestOpenAddressBarSourceMenu } from '../titlebar/titlebarActions';
 import ArticleCard from './articleCard';
 import './media/sidebar.css';
 
@@ -39,6 +40,8 @@ export type SidebarLabels = {
   close: string;
   emptyFiltered: string;
   emptyAll: string;
+  emptyAllQuickSourceAction: string;
+  emptyAllQuickSourceSuffix: string;
   startDate: string;
   endDate: string;
   fetchLatestBusy: string;
@@ -125,6 +128,8 @@ export function createSidebarPartLabels({
     close: ui.titlebarClose,
     emptyFiltered: ui.emptyFiltered,
     emptyAll: ui.emptyAll,
+    emptyAllQuickSourceAction: ui.emptyAllQuickSourceAction,
+    emptyAllQuickSourceSuffix: ui.emptyAllQuickSourceSuffix,
     startDate: ui.startDate,
     endDate: ui.endDate,
     fetchLatestBusy: ui.fetchLatestBusy,
@@ -246,9 +251,22 @@ function renderSidebarContent({
   }
 
   // Distinguish "no data fetched yet" from "fetched but filtered out".
-  return hasData
-    ? jsx('div', { className: 'sidebar-empty-state', children: labels.emptyFiltered })
-    : jsx('div', { className: 'sidebar-empty-state', children: labels.emptyAll });
+  if (hasData) {
+    return jsx('div', { className: 'sidebar-empty-state', children: labels.emptyFiltered });
+  }
+
+  return jsxs('div', {
+    className: 'sidebar-empty-state',
+    children: [
+      jsx('button', {
+        type: 'button',
+        className: 'sidebar-empty-state-action',
+        onClick: requestOpenAddressBarSourceMenu,
+        children: labels.emptyAllQuickSourceAction,
+      }),
+      labels.emptyAllQuickSourceSuffix ? ` ${labels.emptyAllQuickSourceSuffix}` : labels.emptyAll,
+    ],
+  });
 }
 
 function renderActionBar({

@@ -30,6 +30,7 @@ import { createEditorPartProps } from './parts/editor/editorPart';
 import { createSettingsPartProps, SettingsPartView } from './parts/settings/settingsPart';
 import { createSidebarPartProps } from './parts/sidebar/sidebarPart';
 import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
+import { subscribeTitlebarUiActions } from './parts/titlebar/titlebarActions';
 import { TitlebarView } from './parts/titlebar/titlebarView';
 import { PreviewNavigationModel } from './previewNavigationModel';
 import { useReaderState } from './readerState';
@@ -456,17 +457,53 @@ function WorkbenchContentView() {
     });
   }, []);
 
-  const handleToggleSettings = useCallback(() => {
-    toggleWorkbenchSettings();
-  }, []);
-
   const handleToggleSidebar = useCallback(() => {
     toggleSidebarVisibility();
   }, []);
 
-  const handleTitlebarExportDocx = useCallback(() => {
-    void handleExportArticlesDocx();
-  }, [handleExportArticlesDocx]);
+  useEffect(() => {
+    return subscribeTitlebarUiActions((action) => {
+      if (action.type === 'TOGGLE_SIDEBAR') {
+        toggleSidebarVisibility();
+        return;
+      }
+
+      if (action.type === 'NAVIGATE_BACK') {
+        handlePreviewBack();
+        return;
+      }
+
+      if (action.type === 'NAVIGATE_FORWARD') {
+        handlePreviewForward();
+        return;
+      }
+
+      if (action.type === 'REFRESH') {
+        handleBrowserRefresh();
+        return;
+      }
+
+      if (action.type === 'NAVIGATE_WEB') {
+        handleNavigateWeb();
+        return;
+      }
+
+      if (action.type === 'TOGGLE_SETTINGS') {
+        toggleWorkbenchSettings();
+        return;
+      }
+
+      if (action.type === 'EXPORT_DOCX') {
+        void handleExportArticlesDocx();
+      }
+    });
+  }, [
+    handleBrowserRefresh,
+      handleExportArticlesDocx,
+    handleNavigateWeb,
+    handlePreviewBack,
+    handlePreviewForward,
+  ]);
 
   const sidebarProps = useMemo(
     () =>
@@ -535,15 +572,12 @@ function WorkbenchContentView() {
         actions: {
           handleWindowControl,
           handleToggleSidebar,
-          handleToggleSettings,
           handlePreviewBack,
           handlePreviewForward,
           handleBrowserRefresh,
           handleAddressBarSourceMenuOpenChange,
           handleAddressBarSourceMenuDispose,
-          handleExportDocx: handleTitlebarExportDocx,
           handleWebUrlChange,
-          handleNavigateWeb,
           handleSelectAddressBarSource,
           handleCycleAddressBarSource,
         },
@@ -558,12 +592,9 @@ function WorkbenchContentView() {
       handleAddressBarSourceMenuOpenChange,
       handleBrowserRefresh,
       handleCycleAddressBarSource,
-      handleNavigateWeb,
       handlePreviewBack,
       handlePreviewForward,
       handleSelectAddressBarSource,
-      handleTitlebarExportDocx,
-      handleToggleSettings,
       handleToggleSidebar,
       handleWebUrlChange,
       handleWindowControl,

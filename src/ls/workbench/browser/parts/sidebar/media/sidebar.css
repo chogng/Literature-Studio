@@ -229,12 +229,37 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
   padding: 24px 20px;
   color: #556577;
   font-size: 16px;
   font-weight: 500;
   line-height: 1.7;
   text-align: center;
+}
+
+.sidebar-empty-state-action {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #0a5fbf;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.sidebar-empty-state-action:hover {
+  color: #0d6ed8;
+}
+
+.sidebar-empty-state-action:focus-visible {
+  outline: 2px solid #0a5fbf;
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 @media (max-width: 1100px) {
