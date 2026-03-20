@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -39,7 +39,7 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  border-radius: 2px;
+  border-radius: 6px;
 }
 
 .btn-icon.btn-md {
@@ -60,12 +60,12 @@
   height: var(--btn-icon-size);
   padding: 0;
   gap: 0;
-  border-radius: 2px;
+  border-radius: 6px;
   aspect-ratio: 1 / 1;
 }
 
 .btn-mode-icon:hover:not(:disabled) {
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .btn-mode-icon.btn-sm {

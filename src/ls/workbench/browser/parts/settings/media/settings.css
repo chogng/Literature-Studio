@@ -75,6 +75,11 @@
   overflow: auto;
 }
 
+.settings-content > * + * {
+  border-top: 1px solid #e6edf5;
+  padding-top: 12px;
+}
+
 .settings-field {
   display: grid;
   gap: 8px;
@@ -106,11 +111,11 @@
   align-items: center;
 }
 
-.settings-url-order-btn.btn-mode-icon.btn-sm {
+.settings-url-order-btn.btn-mode-icon.btn-sm,
+.settings-url-row > .btn-mode-icon.btn-sm {
   --btn-icon-size: 32px;
   min-width: var(--btn-icon-size);
   max-width: var(--btn-icon-size);
-  border-radius: 4px;
 }
 
 .settings-input-control {
@@ -128,6 +133,16 @@
 
 .settings-limit-input {
   min-width: 0;
+}
+
+.settings-limit-input .input-field {
+  -moz-appearance: textfield;
+}
+
+.settings-limit-input .input-field::-webkit-outer-spin-button,
+.settings-limit-input .input-field::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .settings-language-toggle {

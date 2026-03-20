@@ -1,6 +1,6 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import type { ChangeEvent, Ref } from 'react';
-import { ArrowDown, ArrowUp, FolderOpen, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, FolderOpen, Plus, Save, Trash2 } from 'lucide-react';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import { Button } from '../../../../base/browser/ui/button/button';
@@ -417,7 +417,6 @@ function renderBatchSourcesField({
           }),
         ],
       }),
-      jsx('p', { className: 'settings-hint', children: labels.settingsPageUrlHint }),
     ],
   });
 }
@@ -604,7 +603,8 @@ export function SettingsPartView({
               mode: 'text',
               variant: 'primary',
               textMode: 'with',
-              iconMode: 'without',
+              iconMode: 'with',
+              leftIcon: jsx(Save, { size: 14, strokeWidth: 1.8 }),
               onClick: onSaveSettings,
               disabled: isSettingsLoading || isSettingsSaving,
               children: isSettingsSaving ? labels.saving : labels.saveSettings,
