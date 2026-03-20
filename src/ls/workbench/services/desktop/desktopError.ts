@@ -96,6 +96,24 @@ export function localizeDesktopInvokeError(
       });
     case 'PREVIEW_NOT_READY':
       return ui.errorPreviewNotReady;
+    case 'LLM_PROVIDER_UNSUPPORTED':
+      return formatLocalized(ui.errorLlmProviderUnsupported, {
+        provider: detailValue(details, 'provider', '?'),
+      });
+    case 'LLM_API_KEY_MISSING':
+      return ui.errorLlmApiKeyMissing;
+    case 'LLM_MODEL_MISSING':
+      return ui.errorLlmModelMissing;
+    case 'LLM_BASE_URL_INVALID':
+      return formatLocalized(ui.errorLlmBaseUrlInvalid, {
+        value: detailValue(details, 'value', '?'),
+      });
+    case 'LLM_CONNECTION_FAILED':
+      return formatLocalized(ui.errorLlmConnectionFailed, {
+        provider: detailValue(details, 'provider', '?'),
+        status: detailValue(details, 'status', '?'),
+        statusText: detailValue(details, 'statusText', error.message || ui.errorUnknown),
+      }).trim();
     default:
       return error.message || ui.errorUnknown;
   }

@@ -1,6 +1,7 @@
 import type {
   AppSettings as DesktopAppSettings,
   ElectronInvoke,
+  LlmSettings,
   StoredAppSettings as DesktopStoredAppSettings,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../language/i18n';
@@ -12,6 +13,7 @@ import {
   normalizeBatchLimit,
   resolveConfigBatchSources,
 } from '../config/configSchema';
+import { cloneLlmSettings, createDefaultLlmSettings } from '../llm/config.js';
 
 export type StoredAppSettingsPayload = DesktopStoredAppSettings;
 export type AppSettingsPayload = DesktopAppSettings;
@@ -21,8 +23,10 @@ export type ResolvedSettingsState = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  useMica: boolean;
   locale: Locale | null;
   configPath: string;
+  llm: LlmSettings;
 };
 
 export type SaveSettingsDraft = {
@@ -30,7 +34,9 @@ export type SaveSettingsDraft = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  useMica: boolean;
   locale: Locale;
+  llm: LlmSettings;
 };
 
 export type SaveSettingsPayloadBuild = {
@@ -61,8 +67,10 @@ export function resolveSettingsState(
       typeof loaded.defaultSameDomainOnly === 'boolean'
         ? loaded.defaultSameDomainOnly
         : defaultSameDomainOnly,
+    useMica: typeof loaded.useMica === 'boolean' ? loaded.useMica : true,
     locale: loadedLocale,
     configPath: loadedConfigPath,
+    llm: cloneLlmSettings(loaded.llm ?? createDefaultLlmSettings()),
   };
 }
 
@@ -80,7 +88,9 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       defaultBatchSources: nextBatchSources,
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: draft.sameDomainOnly,
+      useMica: draft.useMica,
       locale: draft.locale,
+      llm: cloneLlmSettings(draft.llm),
     },
   };
 }

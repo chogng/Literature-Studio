@@ -743,6 +743,7 @@ function LlmField({
                     type: 'button',
                     mode: 'text',
                     variant: 'primary',
+                    size: 'md',
                     textMode: 'with',
                     iconMode: 'with',
                     leftIcon: jsx(PlugZap, { size: 14, strokeWidth: 1.8 }),

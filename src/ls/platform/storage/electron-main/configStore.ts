@@ -10,6 +10,11 @@ import {
   defaultBatchLimit,
   defaultSameDomainOnly,
 } from '../../config/common/defaultBatchSources.js';
+import {
+  createDefaultLlmSettings,
+  defaultLlmProviderSettings,
+} from '../../../workbench/services/llm/config.js';
+import { isLlmProviderId } from '../../../workbench/services/llm/registry.js';
 
 type ConfigStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
 const fallbackLocale: 'zh' | 'en' = 'zh';
@@ -140,7 +145,46 @@ function normalizeSettings(
       typeof payload.defaultSameDomainOnly === 'boolean'
         ? payload.defaultSameDomainOnly
         : defaultSameDomainOnly,
+    useMica: typeof payload.useMica === 'boolean' ? payload.useMica : true,
     locale: normalizeLocale(payload.locale, defaultLocale),
+    llm: normalizeLlmSettings(payload.llm),
+  };
+}
+
+function normalizeLlmSettings(payload: unknown): StoredAppSettings['llm'] {
+  const defaults = createDefaultLlmSettings();
+  const llmPayload =
+    payload && typeof payload === 'object' ? (payload as Partial<StoredAppSettings['llm']>) : {};
+  const activeProvider = isLlmProviderId(llmPayload.activeProvider)
+    ? llmPayload.activeProvider
+    : defaults.activeProvider;
+  const providersPayload: Partial<Record<keyof StoredAppSettings['llm']['providers'], unknown>> =
+    llmPayload.providers && typeof llmPayload.providers === 'object' ? llmPayload.providers : {};
+
+  return {
+    activeProvider,
+    providers: {
+      glm: normalizeLlmProviderSettings('glm', providersPayload.glm),
+      kimi: normalizeLlmProviderSettings('kimi', providersPayload.kimi),
+      deepseek: normalizeLlmProviderSettings('deepseek', providersPayload.deepseek),
+    },
+  };
+}
+
+function normalizeLlmProviderSettings(
+  provider: keyof StoredAppSettings['llm']['providers'],
+  payload: unknown,
+) {
+  const defaults = defaultLlmProviderSettings[provider];
+  const providerPayload =
+    payload && typeof payload === 'object'
+      ? (payload as Partial<StoredAppSettings['llm']['providers'][typeof provider]>)
+      : {};
+
+  return {
+    apiKey: cleanText(providerPayload.apiKey),
+    baseUrl: cleanText(providerPayload.baseUrl) || defaults.baseUrl,
+    model: cleanText(providerPayload.model) || defaults.model,
   };
 }
 
