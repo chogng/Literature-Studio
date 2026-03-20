@@ -8,6 +8,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -49,7 +50,10 @@ export const Dropdown = forwardRef(function Dropdown(
 ) {
   const [isOpen, setIsOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [menuPlacement, setMenuPlacement] = useState<'top' | 'bottom'>('bottom');
+  const [menuMaxHeight, setMenuMaxHeight] = useState<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const isOpenRef = useRef(false);
 
   const setRefs = useCallback(
@@ -104,6 +108,50 @@ export const Dropdown = forwardRef(function Dropdown(
     };
   }, [onOpenChange]);
 
+  const updateMenuPosition = useCallback(() => {
+    if (!isOpenRef.current || !containerRef.current || !menuRef.current) {
+      return;
+    }
+
+    const viewportPadding = 8;
+    const menuOffset = 4;
+    const triggerRect = containerRef.current.getBoundingClientRect();
+    const menuHeight = menuRef.current.offsetHeight;
+    const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
+    const spaceAbove = triggerRect.top - viewportPadding;
+    const shouldOpenUpwards = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+    const availableSpace = shouldOpenUpwards ? spaceAbove : spaceBelow;
+
+    setMenuPlacement(shouldOpenUpwards ? 'top' : 'bottom');
+    setMenuMaxHeight(Math.max(availableSpace - menuOffset, 120));
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    updateMenuPosition();
+  }, [isOpen, options.length, updateMenuPosition]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleViewportChange = () => {
+      updateMenuPosition();
+    };
+
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [isOpen, updateMenuPosition]);
+
   const handleToggle = (event: ReactMouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
 
@@ -152,7 +200,9 @@ export const Dropdown = forwardRef(function Dropdown(
   const selectedOption = options.find((option) => option.value === value) || options[0];
   const menuView = isOpen
     ? jsx('div', {
-        className: 'dropdown-menu',
+        ref: menuRef,
+        className: `dropdown-menu dropdown-menu-${menuPlacement}`,
+        style: menuMaxHeight ? { maxHeight: `${menuMaxHeight}px` } : undefined,
         children: options.map((option) =>
           jsxs(
             'div',
