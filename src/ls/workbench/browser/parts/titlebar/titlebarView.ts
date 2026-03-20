@@ -242,11 +242,13 @@ function renderWebUrlBar({
   articleUrlPlaceholder,
   onWebUrlChange,
   onKeyDown,
+  inputRef,
 }: {
   webUrl?: string;
   articleUrlPlaceholder?: string;
   onWebUrlChange?: (url: string) => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => void;
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   if (!onWebUrlChange) {
     return null;
@@ -255,6 +257,7 @@ function renderWebUrlBar({
   return jsx('div', {
     className: 'titlebar-url-bar',
     children: jsx(Input, {
+      ref: inputRef,
       className: 'titlebar-input-field titlebar-field-base',
       size: 'sm',
       value: webUrl,
@@ -313,6 +316,7 @@ function renderSourceSelector({
 export function TitlebarView(inputProps: TitlebarViewProps = {}) {
   const isSourceMenuOpenRef = useRef(false);
   const sourceSelectorRef = useRef<HTMLDivElement | null>(null);
+  const webUrlInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
     partRef,
@@ -361,17 +365,26 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
 
   useEffect(() => {
     return subscribeTitlebarUiActions((action) => {
-      if (action.type !== 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
+      if (action.type === 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
+        const sourceSelector = sourceSelectorRef.current;
+        if (!sourceSelector) {
+          return;
+        }
+
+        sourceSelector.focus();
+        sourceSelector.click();
         return;
       }
 
-      const sourceSelector = sourceSelectorRef.current;
-      if (!sourceSelector) {
-        return;
-      }
+      if (action.type === 'FOCUS_WEB_URL_INPUT') {
+        const webUrlInput = webUrlInputRef.current;
+        if (!webUrlInput) {
+          return;
+        }
 
-      sourceSelector.focus();
-      sourceSelector.click();
+        webUrlInput.focus();
+        webUrlInput.select();
+      }
     });
   }, []);
 
@@ -429,6 +442,7 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     articleUrlPlaceholder,
     onWebUrlChange,
     onKeyDown: handleAddressBarKeyDown,
+    inputRef: webUrlInputRef,
   });
   const sourceSelectorView = renderSourceSelector({
     sourceOptions,

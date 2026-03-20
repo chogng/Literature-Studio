@@ -1,5 +1,6 @@
 export type TitlebarUiAction =
   | { type: 'OPEN_ADDRESS_BAR_SOURCE_MENU' }
+  | { type: 'FOCUS_WEB_URL_INPUT' }
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'NAVIGATE_BACK' }
   | { type: 'NAVIGATE_FORWARD' }
@@ -26,6 +27,10 @@ export function subscribeTitlebarUiActions(listener: TitlebarUiActionListener) {
 
 export function requestOpenAddressBarSourceMenu() {
   emitTitlebarUiAction({ type: 'OPEN_ADDRESS_BAR_SOURCE_MENU' });
+}
+
+export function requestFocusTitlebarWebUrlInput() {
+  emitTitlebarUiAction({ type: 'FOCUS_WEB_URL_INPUT' });
 }
 
 export function requestToggleTitlebarSidebar() {

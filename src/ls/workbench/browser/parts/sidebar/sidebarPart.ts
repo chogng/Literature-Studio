@@ -6,7 +6,10 @@ import { Button } from '../../../../base/browser/ui/button/button';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import { DateRangePicker } from '../../../../base/browser/ui/dateRangePicker/dateRangePicker';
-import { requestOpenAddressBarSourceMenu } from '../titlebar/titlebarActions';
+import {
+  requestFocusTitlebarWebUrlInput,
+  requestOpenAddressBarSourceMenu,
+} from '../titlebar/titlebarActions';
 import ArticleCard from './articleCard';
 import './media/sidebar.css';
 
@@ -41,7 +44,9 @@ export type SidebarLabels = {
   emptyFiltered: string;
   emptyAll: string;
   emptyAllQuickSourceAction: string;
-  emptyAllQuickSourceSuffix: string;
+  emptyAllConnector: string;
+  emptyAllInputLinkAction: string;
+  emptyAllInputLinkSuffix: string;
   startDate: string;
   endDate: string;
   fetchLatestBusy: string;
@@ -129,7 +134,9 @@ export function createSidebarPartLabels({
     emptyFiltered: ui.emptyFiltered,
     emptyAll: ui.emptyAll,
     emptyAllQuickSourceAction: ui.emptyAllQuickSourceAction,
-    emptyAllQuickSourceSuffix: ui.emptyAllQuickSourceSuffix,
+    emptyAllConnector: ui.emptyAllConnector,
+    emptyAllInputLinkAction: ui.emptyAllInputLinkAction,
+    emptyAllInputLinkSuffix: ui.emptyAllInputLinkSuffix,
     startDate: ui.startDate,
     endDate: ui.endDate,
     fetchLatestBusy: ui.fetchLatestBusy,
@@ -264,7 +271,14 @@ function renderSidebarContent({
         onClick: requestOpenAddressBarSourceMenu,
         children: labels.emptyAllQuickSourceAction,
       }),
-      labels.emptyAllQuickSourceSuffix ? ` ${labels.emptyAllQuickSourceSuffix}` : labels.emptyAll,
+      ` ${labels.emptyAllConnector} `,
+      jsx('button', {
+        type: 'button',
+        className: 'sidebar-empty-state-action',
+        onClick: requestFocusTitlebarWebUrlInput,
+        children: labels.emptyAllInputLinkAction,
+      }),
+      labels.emptyAllInputLinkSuffix ? ` ${labels.emptyAllInputLinkSuffix}` : labels.emptyAll,
     ],
   });
 }
