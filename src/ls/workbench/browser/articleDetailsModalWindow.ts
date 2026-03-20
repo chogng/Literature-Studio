@@ -2,6 +2,7 @@ import { jsx } from 'react/jsx-runtime';
 import { useEffect, useMemo, useState } from 'react';
 import type { NativeModalState } from '../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../base/browser/ui/button/button';
+import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
 import ChildWindowShell from './parts/window/childWindowShell';
 import { useWindowControls } from './window';
 import './media/articleDetailsModalContent.css';
@@ -17,9 +18,7 @@ type DetailRow = {
   wide?: boolean;
 };
 
-const LOADING_MESSAGE = 'Loading article details...';
-const UNAVAILABLE_MESSAGE = 'Article details are unavailable.';
-const FALLBACK_CLOSE_LABEL = 'Close';
+const fallbackUi = getLocaleMessages(detectInitialLocale());
 
 function normalizeLabel(label: string) {
   const trimmed = label.trimEnd();
@@ -55,7 +54,7 @@ function createDetailRows(modalState: ArticleDetailsModalWindowState): DetailRow
       value: detailValue(article.doi, labels.unknown),
     },
     {
-      label: normalizeLabel(labels.articleType || (locale === 'en' ? 'Article type' : '文章类型')),
+      label: normalizeLabel(labels.articleType),
       value: detailValue(article.articleType, labels.unknown),
     },
     {
@@ -141,26 +140,6 @@ function renderTextSection({
   });
 }
 
-function createModalWindowControlLabels(locale: 'zh' | 'en', closeLabel: string) {
-  if (locale === 'zh') {
-    return {
-      controlsAriaLabel: '窗口控制',
-      minimizeLabel: '最小化',
-      maximizeLabel: '最大化',
-      restoreLabel: '还原窗口',
-      closeLabel,
-    };
-  }
-
-  return {
-    controlsAriaLabel: 'Window controls',
-    minimizeLabel: 'Minimize',
-    maximizeLabel: 'Maximize',
-    restoreLabel: 'Restore window',
-    closeLabel,
-  };
-}
-
 export default function ArticleDetailsModalWindow() {
   const electronRuntime =
     typeof window !== 'undefined' && typeof window.electronAPI?.windowControls?.perform === 'function';
@@ -230,23 +209,28 @@ export default function ArticleDetailsModalWindow() {
   const handleClose = () => handleWindowControl('close');
 
   if (isLoading) {
-    return renderPlaceholderShell({ message: LOADING_MESSAGE });
+    return renderPlaceholderShell({ message: fallbackUi.articleDetailsLoading });
   }
 
   if (!modalState) {
     return renderPlaceholderShell({
-      message: UNAVAILABLE_MESSAGE,
-      actionLabel: FALLBACK_CLOSE_LABEL,
+      message: fallbackUi.articleDetailsUnavailable,
+      actionLabel: fallbackUi.titlebarClose,
       onAction: handleClose,
     });
   }
 
-  const { article, labels, locale } = modalState;
+  const { article, labels } = modalState;
   const title = detailValue(article.title, labels.untitled);
   const abstractValue = detailValue(article.abstractText, labels.unknown);
   const descriptionValue = detailValue(article.descriptionText, labels.unknown);
-  const descriptionLabel = labels.description || (locale === 'en' ? 'Description' : '描述');
-  const windowControlLabels = createModalWindowControlLabels(locale, labels.close);
+  const windowControlLabels = {
+    controlsAriaLabel: labels.controlsAriaLabel,
+    minimizeLabel: labels.minimize,
+    maximizeLabel: labels.maximize,
+    restoreLabel: labels.restore,
+    closeLabel: labels.close,
+  };
 
   return jsx('main', {
     className: 'child-window-shell-page',
@@ -259,7 +243,7 @@ export default function ArticleDetailsModalWindow() {
         heading: 'child-window-shell-titlebar-heading',
         title: 'child-window-shell-titlebar-title',
         controls: 'child-window-shell-titlebar-controls',
-        content: 'article-details-content',
+        content: 'child-window-shell-content-body',
         footer: 'article-details-footer',
       },
       controlLabels: windowControlLabels,
@@ -280,7 +264,7 @@ export default function ArticleDetailsModalWindow() {
         }),
         renderTextSection({
           sectionId: 'article-details-description-title',
-          title: normalizeLabel(descriptionLabel),
+          title: normalizeLabel(labels.description),
           value: descriptionValue,
         }),
       ],

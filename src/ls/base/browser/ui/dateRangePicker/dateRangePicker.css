@@ -34,6 +34,19 @@
   transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
+.date-range-trigger-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-range-trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .date-range-trigger:hover {
   background: var(--date-range-trigger-bg-hover);
 }

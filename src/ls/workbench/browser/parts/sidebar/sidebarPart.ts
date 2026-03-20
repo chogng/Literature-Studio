@@ -1,4 +1,5 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
+import { CalendarRange, CheckSquare, Download } from 'lucide-react';
 import type { Ref } from 'react';
 import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../../../base/browser/ui/button/button';
@@ -42,6 +43,7 @@ export type SidebarLabels = {
   endDate: string;
   fetchLatestBusy: string;
   fetchLatest: string;
+  selectionMode: string;
 };
 
 export type SidebarProps = {
@@ -65,6 +67,10 @@ export type SidebarProps = {
     labels: ArticleDetailsModalLabels,
   ) => void | Promise<void>;
   isBatchLoading: boolean;
+  isSelectionModeEnabled: boolean;
+  selectedArticleKeys: ReadonlySet<string>;
+  onToggleSelectionMode: () => void;
+  onToggleArticleSelected: (article: SidebarArticle) => void;
 };
 
 export type SidebarPartState = {
@@ -75,6 +81,8 @@ export type SidebarPartState = {
   batchStartDate: string;
   batchEndDate: string;
   isBatchLoading: boolean;
+  isSelectionModeEnabled: boolean;
+  selectedArticleKeys: ReadonlySet<string>;
 };
 
 export type SidebarPartActions = {
@@ -83,6 +91,8 @@ export type SidebarPartActions = {
   onFetchLatestBatch: () => void;
   onDownloadPdf: SidebarProps['onDownloadPdf'];
   onOpenArticleDetails: SidebarProps['onOpenArticleDetails'];
+  onToggleSelectionMode: SidebarProps['onToggleSelectionMode'];
+  onToggleArticleSelected: SidebarProps['onToggleArticleSelected'];
 };
 
 type CreateSidebarPartLabelsParams = {
@@ -119,6 +129,7 @@ export function createSidebarPartLabels({
     endDate: ui.endDate,
     fetchLatestBusy: ui.fetchLatestBusy,
     fetchLatest: ui.fetchLatest,
+    selectionMode: ui.sidebarSelectionMode,
   };
 }
 
@@ -131,6 +142,8 @@ export function createSidebarPartProps({
     batchStartDate,
     batchEndDate,
     isBatchLoading,
+    isSelectionModeEnabled,
+    selectedArticleKeys,
   },
   actions: {
     onBatchStartDateChange,
@@ -138,6 +151,8 @@ export function createSidebarPartProps({
     onFetchLatestBatch,
     onDownloadPdf,
     onOpenArticleDetails,
+    onToggleSelectionMode,
+    onToggleArticleSelected,
   },
 }: CreateSidebarPartPropsParams): SidebarProps {
   return {
@@ -153,6 +168,10 @@ export function createSidebarPartProps({
     onDownloadPdf,
     onOpenArticleDetails,
     isBatchLoading,
+    isSelectionModeEnabled,
+    selectedArticleKeys,
+    onToggleSelectionMode,
+    onToggleArticleSelected,
   };
 }
 
@@ -187,9 +206,20 @@ function renderSidebarContent({
   labels,
   onDownloadPdf,
   onOpenArticleDetails,
+  isSelectionModeEnabled,
+  selectedArticleKeys,
+  onToggleArticleSelected,
 }: Pick<
   SidebarPartViewProps,
-  'articles' | 'hasData' | 'locale' | 'labels' | 'onDownloadPdf' | 'onOpenArticleDetails'
+  | 'articles'
+  | 'hasData'
+  | 'locale'
+  | 'labels'
+  | 'onDownloadPdf'
+  | 'onOpenArticleDetails'
+  | 'isSelectionModeEnabled'
+  | 'selectedArticleKeys'
+  | 'onToggleArticleSelected'
 >) {
   if (articles.length > 0) {
     const articleCardLabels = createArticleCardLabels(labels);
@@ -205,6 +235,9 @@ function renderSidebarContent({
             labels: articleCardLabels,
             onDownloadPdf,
             onOpenArticleDetails,
+            isSelectionModeEnabled,
+            isSelected: selectedArticleKeys.has(`${article.sourceUrl}::${article.fetchedAt}`),
+            onToggleSelected: onToggleArticleSelected,
           },
           `${article.sourceUrl}-${article.fetchedAt}-${index}`,
         ),
@@ -226,6 +259,9 @@ function renderActionBar({
   onBatchEndDateChange,
   onFetchLatestBatch,
   isBatchLoading,
+  isSelectionModeEnabled,
+  onToggleSelectionMode,
+  hasSelectableArticles,
 }: Pick<
   SidebarPartViewProps,
   | 'labels'
@@ -235,7 +271,11 @@ function renderActionBar({
   | 'onBatchEndDateChange'
   | 'onFetchLatestBatch'
   | 'isBatchLoading'
->) {
+  | 'isSelectionModeEnabled'
+  | 'onToggleSelectionMode'
+> & {
+  hasSelectableArticles: boolean;
+}) {
   // Date range + fetch trigger are grouped as the sticky command surface of the sidebar.
   return jsxs('div', {
     className: 'sidebar-action-bar',
@@ -244,6 +284,7 @@ function renderActionBar({
         className: 'sidebar-date-picker',
         startDate: batchStartDate,
         endDate: batchEndDate,
+        triggerIcon: jsx(CalendarRange, { size: 14, strokeWidth: 1.8 }),
         labels: {
           startDate: labels.startDate,
           endDate: labels.endDate,
@@ -253,12 +294,29 @@ function renderActionBar({
       }),
       jsx(Button, {
         type: 'button',
+        className: ['sidebar-select-btn', isSelectionModeEnabled ? 'is-active' : '']
+          .filter(Boolean)
+          .join(' '),
+        variant: 'secondary',
+        size: 'md',
+        mode: 'text',
+        textMode: 'with',
+        iconMode: 'with',
+        leftIcon: jsx(CheckSquare, { size: 14, strokeWidth: 1.8 }),
+        onClick: onToggleSelectionMode,
+        disabled: !hasSelectableArticles,
+        'aria-pressed': isSelectionModeEnabled,
+        children: labels.selectionMode,
+      }),
+      jsx(Button, {
+        type: 'button',
         className: 'sidebar-fetch-btn',
         variant: 'primary',
         size: 'md',
         mode: 'text',
         textMode: 'with',
-        iconMode: 'without',
+        iconMode: 'with',
+        leftIcon: jsx(Download, { size: 14, strokeWidth: 1.8 }),
         onClick: onFetchLatestBatch,
         disabled: isBatchLoading,
         children: isBatchLoading ? labels.fetchLatestBusy : labels.fetchLatest,
@@ -281,6 +339,10 @@ export function SidebarPartView({
   onDownloadPdf,
   onOpenArticleDetails,
   isBatchLoading,
+  isSelectionModeEnabled,
+  selectedArticleKeys,
+  onToggleSelectionMode,
+  onToggleArticleSelected,
 }: SidebarPartViewProps) {
   const actionBarView = renderActionBar({
     labels,
@@ -290,6 +352,9 @@ export function SidebarPartView({
     onBatchEndDateChange,
     onFetchLatestBatch,
     isBatchLoading,
+    isSelectionModeEnabled,
+    onToggleSelectionMode,
+    hasSelectableArticles: articles.length > 0,
   });
   const contentView = renderSidebarContent({
     articles,
@@ -298,6 +363,9 @@ export function SidebarPartView({
     labels,
     onDownloadPdf,
     onOpenArticleDetails,
+    isSelectionModeEnabled,
+    selectedArticleKeys,
+    onToggleArticleSelected,
   });
 
   return jsxs('section', {

@@ -1,4 +1,5 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
+import type { KeyboardEvent, MouseEventHandler } from 'react';
 import { ChevronDown, Download } from 'lucide-react';
 import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../../../base/browser/ui/button/button';
@@ -22,13 +23,16 @@ type ArticleCardProps = {
     article: SidebarArticle,
     labels: ArticleDetailsModalLabels,
   ) => void | Promise<void>;
+  isSelectionModeEnabled: boolean;
+  isSelected: boolean;
+  onToggleSelected: (article: SidebarArticle) => void;
 };
 
 type ToolbarButtonConfig = {
   className: string;
   ariaLabel: string;
   title: string;
-  onClick: () => void;
+  onClick: MouseEventHandler<HTMLButtonElement>;
   isLoading?: boolean;
   ariaHasPopup?: 'dialog';
   icon: ReturnType<typeof jsx>;
@@ -106,8 +110,8 @@ function renderToolbarActions({
 }: {
   hasDownloaded: boolean;
   isDownloading: boolean;
-  onDownload: () => void;
-  onOpenDetails: () => void;
+  onDownload: MouseEventHandler<HTMLButtonElement>;
+  onOpenDetails: MouseEventHandler<HTMLButtonElement>;
 }) {
   // Visual state tracks whether the PDF has already been downloaded for this source URL.
   const downloadButtonTitle = hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL;
@@ -147,6 +151,9 @@ export default function ArticleCard({
   labels,
   onDownloadPdf,
   onOpenArticleDetails,
+  isSelectionModeEnabled,
+  isSelected,
+  onToggleSelected,
 }: ArticleCardProps) {
   const metaText = createMetaText(article, locale, labels.unknown);
   const downloadStatus = usePdfDownloadStatus(article.sourceUrl);
@@ -171,15 +178,58 @@ export default function ArticleCard({
     void onOpenArticleDetails(article, labels);
   };
 
+  const handleToggleSelected = () => {
+    if (!isSelectionModeEnabled) {
+      return;
+    }
+
+    onToggleSelected(article);
+  };
+
+  const handleCardClick = () => {
+    handleToggleSelected();
+  };
+
+  const handleCardKeyDown = (event: KeyboardEvent<HTMLLIElement>) => {
+    if (!isSelectionModeEnabled) {
+      return;
+    }
+
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    handleToggleSelected();
+  };
+
+  const stopCardSelection =
+    (handler: () => void): MouseEventHandler<HTMLButtonElement> =>
+    (event) => {
+      event.stopPropagation();
+      handler();
+    };
+
   const toolbarActionsView = renderToolbarActions({
     hasDownloaded,
     isDownloading,
-    onDownload: () => void handleDownload(),
-    onOpenDetails: handleOpenDetails,
+    onDownload: stopCardSelection(() => void handleDownload()),
+    onOpenDetails: stopCardSelection(handleOpenDetails),
   });
 
   return jsxs('li', {
-    className: 'article-card',
+    className: [
+      'article-card',
+      isSelectionModeEnabled ? 'is-selection-mode' : '',
+      isSelected ? 'is-selected' : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
+    onClick: handleCardClick,
+    onKeyDown: handleCardKeyDown,
+    role: isSelectionModeEnabled ? 'button' : undefined,
+    tabIndex: isSelectionModeEnabled ? 0 : undefined,
+    'aria-pressed': isSelectionModeEnabled ? isSelected : undefined,
     children: [
       jsxs('div', {
         className: 'article-card-main',

@@ -72,6 +72,10 @@ type WorkbenchShellConfig = {
 const DEFAULT_ARTICLE_URL = '';
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
 
+function getArticleSelectionKey(article: Pick<Article, 'sourceUrl' | 'fetchedAt'>) {
+  return `${article.sourceUrl}::${article.fetchedAt}`;
+}
+
 function detectNativeModalKind() {
   if (typeof window === 'undefined') {
     return null;
@@ -91,6 +95,14 @@ function resolveRuntimeState() {
     previewRuntime,
     desktopRuntime: electronRuntime,
   };
+}
+
+function shouldShowDevelopmentUi(desktopRuntime: boolean) {
+  if (!desktopRuntime || typeof window === 'undefined') {
+    return false;
+  }
+
+  return /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
 }
 
 function createModalStyleTestArticle(locale: Locale): Article {
@@ -169,6 +181,8 @@ function WorkbenchContentView() {
   const [webUrl, setWebUrl] = useState(DEFAULT_ARTICLE_URL);
   const [fetchSeedUrl, setFetchSeedUrl] = useState(DEFAULT_ARTICLE_URL);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [isSelectionModeEnabled, setIsSelectionModeEnabled] = useState(false);
+  const [selectedArticleKeys, setSelectedArticleKeys] = useState<Set<string>>(() => new Set());
 
   const workbenchState = useSyncExternalStore(
     subscribeWorkbenchState,
@@ -188,6 +202,7 @@ function WorkbenchContentView() {
   const titlebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
   const settingsPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.settings);
   const { electronRuntime, previewRuntime, desktopRuntime } = resolveRuntimeState();
+  const showDevelopmentUi = shouldShowDevelopmentUi(desktopRuntime);
   const hasWindowControlsProvider = hasWorkbenchWindowControlsProvider();
   const { isWindowMaximized, handleWindowControl } = useWindowControls({
     electronRuntime: electronRuntime && hasWindowControlsProvider,
@@ -242,6 +257,19 @@ function WorkbenchContentView() {
     filteredArticles,
     hasData,
   } = useReaderState({ articles });
+
+  useEffect(() => {
+    setSelectedArticleKeys((previousKeys) => {
+      if (previousKeys.size === 0) {
+        return previousKeys;
+      }
+
+      const visibleKeys = new Set(filteredArticles.map((article) => getArticleSelectionKey(article)));
+      const nextKeys = new Set([...previousKeys].filter((key) => visibleKeys.has(key)));
+
+      return nextKeys.size === previousKeys.size ? previousKeys : nextKeys;
+    });
+  }, [filteredArticles]);
 
   const previewNavigationModel = useMemo(() => new PreviewNavigationModel(), []);
   const previewNavigationSnapshot = useSyncExternalStore(
@@ -423,8 +451,30 @@ function WorkbenchContentView() {
       locale,
       ui,
       pdfDownloadDir,
-      filteredArticles,
+      exportableArticles: filteredArticles.filter((article) =>
+        selectedArticleKeys.has(getArticleSelectionKey(article)),
+      ),
     });
+
+  const handleToggleSelectionMode = useCallback(() => {
+    setIsSelectionModeEnabled((previousValue) => !previousValue);
+  }, []);
+
+  const handleToggleArticleSelected = useCallback((article: Article) => {
+    const articleKey = getArticleSelectionKey(article);
+
+    setSelectedArticleKeys((previousKeys) => {
+      const nextKeys = new Set(previousKeys);
+
+      if (nextKeys.has(articleKey)) {
+        nextKeys.delete(articleKey);
+      } else {
+        nextKeys.add(articleKey);
+      }
+
+      return nextKeys;
+    });
+  }, []);
 
   const handleToggleSettings = useCallback(() => {
     toggleWorkbenchSettings();
@@ -446,6 +496,10 @@ function WorkbenchContentView() {
       publishedAt: ui.publishedAt,
       source: ui.source,
       fetchedAt: ui.fetchedAt,
+      controlsAriaLabel: ui.titlebarControls,
+      minimize: ui.titlebarMinimize,
+      maximize: ui.titlebarMaximize,
+      restore: ui.titlebarRestore,
       close: ui.titlebarClose,
     });
   }, [handleOpenArticleDetails, locale, ui]);
@@ -465,6 +519,8 @@ function WorkbenchContentView() {
           batchStartDate,
           batchEndDate,
           isBatchLoading,
+          isSelectionModeEnabled,
+          selectedArticleKeys,
         },
         actions: {
           onBatchStartDateChange: setBatchStartDate,
@@ -472,6 +528,8 @@ function WorkbenchContentView() {
           onFetchLatestBatch: () => void handleFetchLatestBatch(),
           onDownloadPdf: handleSharedPdfDownload,
           onOpenArticleDetails: handleOpenArticleDetails,
+          onToggleSelectionMode: handleToggleSelectionMode,
+          onToggleArticleSelected: handleToggleArticleSelected,
         },
       }),
     [
@@ -481,9 +539,13 @@ function WorkbenchContentView() {
       handleFetchLatestBatch,
       handleOpenArticleDetails,
       handleSharedPdfDownload,
+      handleToggleArticleSelected,
+      handleToggleSelectionMode,
       hasData,
       isBatchLoading,
+      isSelectionModeEnabled,
       locale,
+      selectedArticleKeys,
       setBatchEndDate,
       setBatchStartDate,
       ui,
@@ -505,10 +567,10 @@ function WorkbenchContentView() {
           addressBarSourceOptions,
           selectedAddressBarSourceId,
           fetchStatus,
-          titlebarFetchSourceText,
-          titlebarFetchSourceTitle,
-          titlebarFetchStopText,
-          titlebarFetchStopTitle,
+          titlebarFetchSourceText: showDevelopmentUi ? titlebarFetchSourceText : '',
+          titlebarFetchSourceTitle: showDevelopmentUi ? titlebarFetchSourceTitle : '',
+          titlebarFetchStopText: showDevelopmentUi ? titlebarFetchStopText : '',
+          titlebarFetchStopTitle: showDevelopmentUi ? titlebarFetchStopTitle : '',
         },
         actions: {
           handleWindowControl,
@@ -553,6 +615,7 @@ function WorkbenchContentView() {
       titlebarFetchSourceTitle,
       titlebarFetchStopText,
       titlebarFetchStopTitle,
+      showDevelopmentUi,
       ui,
       webUrl,
     ],
@@ -596,10 +659,7 @@ function WorkbenchContentView() {
           desktopRuntime,
           configPath,
           isSettingsSaving,
-          showModalStyleTestButton:
-            desktopRuntime &&
-            typeof window !== 'undefined' &&
-            /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname),
+          showModalStyleTestButton: showDevelopmentUi,
         },
         actions: {
           onLocaleChange: handleLocaleChange,
@@ -637,6 +697,7 @@ function WorkbenchContentView() {
       locale,
       pdfDownloadDir,
       sameDomainOnly,
+      showDevelopmentUi,
       setBatchLimit,
       setPdfDownloadDir,
       setSameDomainOnly,

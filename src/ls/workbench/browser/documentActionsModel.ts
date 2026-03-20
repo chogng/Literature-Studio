@@ -29,7 +29,7 @@ type UseDocumentActionsModelParams = {
   locale: Locale;
   ui: LocaleMessages;
   pdfDownloadDir: string;
-  filteredArticles: Article[];
+  exportableArticles: Article[];
 };
 
 function resolveSciencePdfQueueMessage(locale: Locale) {
@@ -48,13 +48,13 @@ export function useDocumentActionsModel({
   locale,
   ui,
   pdfDownloadDir,
-  filteredArticles,
+  exportableArticles,
 }: UseDocumentActionsModelParams) {
   const sciencePdfDownloadCountRef = useRef(0);
 
   const canExportDocx = useMemo(
-    () => canExportArticlesDocx(filteredArticles.length),
-    [filteredArticles.length],
+    () => canExportArticlesDocx(exportableArticles.length),
+    [exportableArticles.length],
   );
 
   const handleSharedPdfDownload = useCallback(
@@ -143,14 +143,14 @@ export function useDocumentActionsModel({
       return;
     }
 
-    if (!canExportArticlesDocx(filteredArticles.length)) {
+    if (!canExportArticlesDocx(exportableArticles.length)) {
       toast.info(ui.toastNoExportableArticles);
       return;
     }
 
     try {
       const result = await invokeDesktop('export_articles_docx', {
-        articles: filteredArticles,
+        articles: exportableArticles,
         preferredDirectory: resolvePreferredDirectory(pdfDownloadDir),
         locale,
       });
@@ -169,7 +169,7 @@ export function useDocumentActionsModel({
       const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(exportError));
       toast.error(formatLocalized(ui.toastDocxExportFailed, { error: localizedError }));
     }
-  }, [desktopRuntime, filteredArticles, invokeDesktop, locale, pdfDownloadDir, ui]);
+  }, [desktopRuntime, exportableArticles, invokeDesktop, locale, pdfDownloadDir, ui]);
 
   return {
     canExportDocx,

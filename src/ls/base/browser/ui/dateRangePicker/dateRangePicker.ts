@@ -1,5 +1,5 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDateInputValue, isDateRangeValid } from '../../../common/date';
 import './dateRangePicker.css';
@@ -16,6 +16,7 @@ export type DateRangePickerProps = {
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   className?: string;
+  triggerIcon?: ReactNode;
 };
 
 type PickerField = 'start' | 'end';
@@ -51,6 +52,7 @@ type TriggerButtonConfig = {
   isOpen: boolean;
   triggerRef: RefObject<HTMLButtonElement | null>;
   onToggle: () => void;
+  icon?: ReactNode;
 };
 
 function parseDateValue(value: string) {
@@ -287,7 +289,15 @@ function renderTriggerButton(config: TriggerButtonConfig) {
     'aria-expanded': config.isOpen,
     'aria-haspopup': 'dialog',
     onClick: config.onToggle,
-    children: jsx('span', { className: 'date-range-trigger-text', children: config.label }),
+    children: jsxs('span', {
+      className: 'date-range-trigger-content',
+      children: [
+        config.icon
+          ? jsx('span', { className: 'date-range-trigger-icon', 'aria-hidden': 'true', children: config.icon })
+          : null,
+        jsx('span', { className: 'date-range-trigger-text', children: config.label }),
+      ],
+    }),
   });
 }
 
@@ -298,6 +308,7 @@ export function DateRangePicker({
   onStartDateChange,
   onEndDateChange,
   className = '',
+  triggerIcon,
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeField, setActiveField] = useState<PickerField>('start');
@@ -430,6 +441,7 @@ export function DateRangePicker({
         isOpen,
         triggerRef,
         onToggle: handleToggle,
+        icon: triggerIcon,
       }),
       popupView,
     ],

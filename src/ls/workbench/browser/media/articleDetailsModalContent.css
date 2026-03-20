@@ -1,6 +1,6 @@
 /* Shared child-window shell styles moved to parts/window/media/childWindowShell.css. */
 
-.article-details-content {
+.child-window-shell-content-body {
   min-height: 0;
   padding: 22px;
   overflow: auto;
@@ -68,7 +68,7 @@
 }
 
 @media (max-width: 720px) {
-  .article-details-content {
+  .child-window-shell-content-body {
     padding-left: 16px;
     padding-right: 16px;
   }

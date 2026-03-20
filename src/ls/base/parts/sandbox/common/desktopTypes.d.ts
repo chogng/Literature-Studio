@@ -135,13 +135,17 @@ export interface ExportArticlesDocxPayload {
 export interface ArticleDetailsModalLabels {
   untitled: string;
   unknown: string;
-  articleType?: string;
+  articleType: string;
   authors: string;
   abstract: string;
-  description?: string;
+  description: string;
   publishedAt: string;
   source: string;
   fetchedAt: string;
+  controlsAriaLabel: string;
+  minimize: string;
+  maximize: string;
+  restore: string;
   close: string;
 }
 
