@@ -9,7 +9,7 @@ import {
   getPreviewState,
 } from '../../../platform/windows/electron-main/previewView.js';
 import type { PreviewExtractionSnapshot, PreviewSnapshot } from './fetchStrategy.js';
-import { shouldAllowSciencePreviewWhileLoading } from '../../../platform/windows/electron-main/scienceValidationWindow.js';
+import { shouldAllowSciencePreviewWhileLoading } from './scienceValidationRules.js';
 
 const BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS = 2500;
 const BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS = 1500;
