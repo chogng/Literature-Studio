@@ -9,6 +9,24 @@ import { defaultLlmProviderId } from '../../../workbench/services/llm/config.js'
 import { isLlmProviderId } from '../../../workbench/services/llm/registry.js';
 
 const llmTestTimeoutMs = 15000;
+type ChatCompletionMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+type ChatCompletionRequest = {
+  model: string;
+  messages: ChatCompletionMessage[];
+  max_tokens: number;
+  temperature: number;
+};
+
+type ResolvedLlmRequest = {
+  provider: LlmProviderId;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+};
 
 function normalizeProvider(value: unknown): LlmProviderId {
   if (!isLlmProviderId(value)) {
@@ -58,76 +76,57 @@ function normalizeModel(value: unknown): string {
   return model;
 }
 
-function extractResponsePreview(payload: unknown): string {
-  if (!payload || typeof payload !== 'object') {
-    return 'Connected';
-  }
-
-  const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
-  const content = choices?.[0]?.message?.content;
-  if (typeof content === 'string') {
-    const cleaned = cleanText(content).replace(/\s+/g, ' ');
-    return cleaned || 'Connected';
-  }
-
-  return 'Connected';
-}
-
-export async function testLlmConnection(
-  payload: TestLlmConnectionPayload = {},
-): Promise<LlmConnectionTestResult> {
+function resolveLlmRequest(payload: TestLlmConnectionPayload = {}): ResolvedLlmRequest {
   const provider = normalizeProvider(payload.provider ?? defaultLlmProviderId);
   const apiKey = normalizeApiKey(payload.apiKey);
   const baseUrl = normalizeBaseUrl(payload.baseUrl);
   const model = normalizeModel(payload.model);
+
+  return {
+    provider,
+    apiKey,
+    baseUrl,
+    model,
+  };
+}
+
+export async function requestChatCompletion(
+  request: ResolvedLlmRequest,
+  payload: ChatCompletionRequest,
+  timeoutMs: number,
+): Promise<unknown> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
-  }, llmTestTimeoutMs);
+  }, timeoutMs);
 
   try {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch(`${request.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${request.apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'user',
-            content: 'Reply with OK only.',
-          },
-        ],
-        max_tokens: 8,
-        temperature: 0,
-      }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     });
 
     if (!response.ok) {
       const errorText = cleanText(await response.text());
       throw appError('LLM_CONNECTION_FAILED', {
-        provider,
+        provider: request.provider,
         status: response.status,
         statusText: response.statusText || errorText || 'Request failed',
       });
     }
 
-    const responseJson = (await response.json()) as unknown;
-    return {
-      provider,
-      model,
-      baseUrl,
-      responsePreview: extractResponsePreview(responseJson),
-    };
+    return (await response.json()) as unknown;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw appError('LLM_CONNECTION_FAILED', {
-        provider,
+        provider: request.provider,
         status: 'TIMEOUT',
-        statusText: `Connection timed out after ${llmTestTimeoutMs}ms`,
+        statusText: `Connection timed out after ${timeoutMs}ms`,
       });
     }
 
@@ -136,11 +135,81 @@ export async function testLlmConnection(
     }
 
     throw appError('LLM_CONNECTION_FAILED', {
-      provider,
+      provider: request.provider,
       status: 'NETWORK_ERROR',
       statusText: error instanceof Error ? error.message : String(error),
     });
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function extractResponsePreview(payload: unknown): string {
+  const content = extractResponseContent(payload);
+  if (!content) {
+    return 'Connected';
+  }
+
+  const cleaned = content.replace(/\s+/g, ' ');
+  return cleaned || 'Connected';
+}
+
+export function extractResponseContent(payload: unknown): string {
+  if (!payload || typeof payload !== 'object') {
+    return '';
+  }
+
+  const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
+  const content = choices?.[0]?.message?.content;
+  if (typeof content === 'string') {
+    return cleanText(content);
+  }
+
+  if (Array.isArray(content)) {
+    return cleanText(
+      content
+        .map((item) => {
+          if (!item || typeof item !== 'object') {
+            return '';
+          }
+
+          return typeof (item as { text?: unknown }).text === 'string' ? (item as { text: string }).text : '';
+        })
+        .join('\n'),
+    );
+  }
+
+  return '';
+}
+
+export async function testLlmConnection(
+  payload: TestLlmConnectionPayload = {},
+): Promise<LlmConnectionTestResult> {
+  const request = resolveLlmRequest(payload);
+  const responseJson = await requestChatCompletion(
+    request,
+    {
+      model: request.model,
+      messages: [
+        {
+          role: 'user',
+          content: 'Reply with OK only.',
+        },
+      ],
+      max_tokens: 8,
+      temperature: 0,
+    },
+    llmTestTimeoutMs,
+  );
+
+  return {
+    provider: request.provider,
+    model: request.model,
+    baseUrl: request.baseUrl,
+    responsePreview: extractResponsePreview(responseJson),
+  };
+}
+
+export function resolveLlmRequestFromPayload(payload: TestLlmConnectionPayload = {}): ResolvedLlmRequest {
+  return resolveLlmRequest(payload);
 }

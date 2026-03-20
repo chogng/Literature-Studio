@@ -143,6 +143,7 @@ async function invokeCommand<TCommand extends AppCommand>(
         return exportArticlesDocx(
           payload as AppCommandPayloadMap['export_articles_docx'],
           app.getPath('downloads'),
+          storage,
           mainWindow,
         ) as Promise<AppCommandResultMap[TCommand]>;
       }
