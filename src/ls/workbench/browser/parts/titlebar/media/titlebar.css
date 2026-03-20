@@ -1,6 +1,6 @@
 .titlebar {
   --titlebar-field-height: 28px;
-  --titlebar-field-radius: 999px;
+  --titlebar-field-radius: 8px;
   --titlebar-field-border: #cfdae7;
   --titlebar-field-border-hover: #b8c7d9;
   --titlebar-field-border-focus: #0a5fbf;
@@ -69,6 +69,10 @@
 
 .titlebar-source-select .dropdown-field {
   padding: 0 24px 0 10px;
+}
+
+.titlebar-source-select.dropdown-focused {
+  box-shadow: none;
 }
 
 .titlebar-field-base {
