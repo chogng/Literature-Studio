@@ -1,12 +1,5 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { formatDateInputValue, isDateRangeValid } from '../../../common/date';
 import './dateRangePicker.css';
 
@@ -33,18 +26,20 @@ type CalendarCell = {
 };
 
 type CalendarPopupConfig = {
-  field: PickerField;
   isOpen: boolean;
   label: string;
   popupRef: RefObject<HTMLDivElement | null>;
-  offsetX: number | null;
   monthTitle: string;
   monthCells: CalendarCell[];
   onStepMonth: (offset: number) => void;
   onSelectDate: (value: string) => void;
   isCellDisabled: (cell: CalendarCell) => boolean;
+  activeField: PickerField;
+  onActivateField: (field: PickerField) => void;
   startDate: string;
   endDate: string;
+  startLabel: string;
+  endLabel: string;
   showRange: boolean;
   todayValue: string;
   weekdayLabels: string[];
@@ -56,21 +51,6 @@ type TriggerButtonConfig = {
   triggerRef: RefObject<HTMLButtonElement | null>;
   onToggle: () => void;
 };
-
-function findClippingAncestor(element: HTMLElement | null) {
-  let current = element?.parentElement ?? null;
-
-  while (current) {
-    const style = window.getComputedStyle(current);
-    if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
-      return current;
-    }
-
-    current = current.parentElement;
-  }
-
-  return null;
-}
 
 function parseDateValue(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -137,14 +117,32 @@ function createWeekdayLabels() {
   });
 }
 
-function toTriggerLabel(label: string, fallback: string): string {
-  const next = label
-    .replace(/\u65E5\u671F/g, '')
-    .replace(/\bdate\b/gi, '')
-    .replace(/date/gi, '')
-    .trim();
+function createTriggerLabel(labels: DateRangePickerLabels) {
+  if (
+    labels.startDate.includes('\u65e5\u671f') ||
+    labels.endDate.includes('\u65e5\u671f') ||
+    /\bdate\b/i.test(labels.startDate) ||
+    /\bdate\b/i.test(labels.endDate)
+  ) {
+    return labels.startDate.includes('\u65e5\u671f') || labels.endDate.includes('\u65e5\u671f')
+      ? '\u65e5\u671f'
+      : 'Date';
+  }
 
-  return next || fallback;
+  return labels.endDate || labels.startDate || 'Date';
+}
+
+function formatSelectedDate(value: string) {
+  const parsed = parseDateValue(value);
+  if (!parsed) {
+    return '--';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(parsed);
 }
 
 function renderWeekdayRow(weekdayLabels: string[]) {
@@ -204,6 +202,28 @@ function renderCalendarGrid({
   });
 }
 
+function renderSummaryButton({
+  label,
+  value,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return jsxs('button', {
+    type: 'button',
+    className: `date-range-summary-button ${isActive ? 'is-active' : ''}`.trim(),
+    onClick,
+    children: [
+      jsx('span', { className: 'date-range-summary-label', children: label }),
+      jsx('span', { className: 'date-range-summary-value', children: formatSelectedDate(value) }),
+    ],
+  });
+}
+
 function renderCalendarPopup(config: CalendarPopupConfig) {
   if (!config.isOpen) {
     return null;
@@ -211,12 +231,28 @@ function renderCalendarPopup(config: CalendarPopupConfig) {
 
   return jsxs('div', {
     ref: config.popupRef,
-    className: `date-range-popup is-${config.field}`,
+    className: 'date-range-popup',
     role: 'dialog',
     'aria-modal': 'false',
     'aria-label': config.label,
-    style: config.offsetX === null ? undefined : { left: `${config.offsetX}px`, right: 'auto' },
     children: [
+      jsxs('div', {
+        className: 'date-range-popup-summary',
+        children: [
+          renderSummaryButton({
+            label: config.startLabel,
+            value: config.startDate,
+            isActive: config.activeField === 'start',
+            onClick: () => config.onActivateField('start'),
+          }),
+          renderSummaryButton({
+            label: config.endLabel,
+            value: config.endDate,
+            isActive: config.activeField === 'end',
+            onClick: () => config.onActivateField('end'),
+          }),
+        ],
+      }),
       jsxs('div', {
         className: 'date-range-popup-header',
         children: [
@@ -262,31 +298,29 @@ export function DateRangePicker({
   onEndDateChange,
   className = '',
 }: DateRangePickerProps) {
-  const [isStartOpen, setIsStartOpen] = useState(false);
-  const [isEndOpen, setIsEndOpen] = useState(false);
-  const [startPopupOffsetX, setStartPopupOffsetX] = useState<number | null>(null);
-  const [endPopupOffsetX, setEndPopupOffsetX] = useState<number | null>(null);
-  const [startVisibleMonth, setStartVisibleMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
-  const [endVisibleMonth, setEndVisibleMonth] = useState(() => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeField, setActiveField] = useState<PickerField>('start');
+  const [visibleMonth, setVisibleMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
 
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const startPopupRef = useRef<HTMLDivElement | null>(null);
-  const endPopupRef = useRef<HTMLDivElement | null>(null);
-  const startTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const endTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const isAnyPopupOpen = isStartOpen || isEndOpen;
-  const startTriggerLabel = toTriggerLabel(labels.startDate, 'Start');
-  const endTriggerLabel = toTriggerLabel(labels.endDate, 'End');
+  const triggerLabel = createTriggerLabel(labels);
+  const monthCells = useMemo(() => createMonthCells(visibleMonth), [visibleMonth]);
+  const monthTitle = useMemo(() => formatMonthTitle(visibleMonth), [visibleMonth]);
+  const weekdayLabels = useMemo(() => createWeekdayLabels(), []);
+  const todayValue = useMemo(() => formatDateInputValue(new Date()), []);
+  const pickerClassName = ['date-range-picker', className].filter(Boolean).join(' ');
+  const showRange = Boolean(startDate && endDate && isDateRangeValid(startDate, endDate));
+  const startDateLimit = parseDateValue(startDate) ? startDate : '';
+  const endDateLimit = parseDateValue(endDate) ? endDate : '';
 
   useEffect(() => {
-    if (!isAnyPopupOpen) {
+    if (!isOpen) {
       return;
     }
 
@@ -297,224 +331,90 @@ export function DateRangePicker({
       }
 
       if (!rootRef.current?.contains(target)) {
-        setIsStartOpen(false);
-        setIsEndOpen(false);
+        setIsOpen(false);
       }
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsStartOpen(false);
-        setIsEndOpen(false);
+        setIsOpen(false);
       }
     };
 
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleEscape);
+
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isAnyPopupOpen]);
-
-  const startMonthCells = useMemo(() => createMonthCells(startVisibleMonth), [startVisibleMonth]);
-  const endMonthCells = useMemo(() => createMonthCells(endVisibleMonth), [endVisibleMonth]);
-  const startMonthTitle = useMemo(() => formatMonthTitle(startVisibleMonth), [startVisibleMonth]);
-  const endMonthTitle = useMemo(() => formatMonthTitle(endVisibleMonth), [endVisibleMonth]);
-  const weekdayLabels = useMemo(() => createWeekdayLabels(), []);
-  const todayValue = useMemo(() => formatDateInputValue(new Date()), []);
-  const pickerClassName = ['date-range-picker', className].filter(Boolean).join(' ');
-  const showRange = Boolean(startDate && endDate && isDateRangeValid(startDate, endDate));
-  const startDateLimit = parseDateValue(startDate) ? startDate : '';
-  const endDateLimit = parseDateValue(endDate) ? endDate : '';
+  }, [isOpen]);
 
   const resolveFieldMonth = (field: PickerField): Date => {
     const value = field === 'start' ? startDate : endDate;
     const fallback = field === 'start' ? endDate : startDate;
     const parsed = parseDateValue(value) ?? parseDateValue(fallback) ?? new Date();
-
     return new Date(parsed.getFullYear(), parsed.getMonth(), 1);
   };
 
-  const toggleStartPicker = () => {
-    setIsStartOpen((previous) => {
+  const handleToggle = () => {
+    setIsOpen((previous) => {
       const next = !previous;
       if (next) {
-        setStartVisibleMonth(resolveFieldMonth('start'));
-        setIsEndOpen(false);
+        setVisibleMonth(resolveFieldMonth(activeField));
       }
       return next;
     });
   };
 
-  const toggleEndPicker = () => {
-    setIsEndOpen((previous) => {
-      const next = !previous;
-      if (next) {
-        setEndVisibleMonth(resolveFieldMonth('end'));
-        setIsStartOpen(false);
+  const handleActivateField = (field: PickerField) => {
+    setActiveField(field);
+    setVisibleMonth(resolveFieldMonth(field));
+  };
+
+  const handleSelectDate = (value: string) => {
+    if (activeField === 'start') {
+      onStartDateChange(value);
+
+      if (endDateLimit && value > endDateLimit) {
+        onEndDateChange(value);
       }
-      return next;
-    });
-  };
 
-  const selectStartDate = (value: string) => {
-    onStartDateChange(value);
-    setIsStartOpen(false);
-  };
+      handleActivateField('end');
+      return;
+    }
 
-  const selectEndDate = (value: string) => {
     onEndDateChange(value);
-    setIsEndOpen(false);
+
+    if (startDateLimit && value < startDateLimit) {
+      onStartDateChange(value);
+    }
+
+    setIsOpen(false);
   };
 
-  const stepStartMonth = (offset: number) => {
-    setStartVisibleMonth((previous) =>
-      new Date(previous.getFullYear(), previous.getMonth() + offset, 1),
-    );
+  const stepMonth = (offset: number) => {
+    setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + offset, 1));
   };
 
-  const stepEndMonth = (offset: number) => {
-    setEndVisibleMonth((previous) =>
-      new Date(previous.getFullYear(), previous.getMonth() + offset, 1),
-    );
-  };
-
-  const updatePopupPosition = useCallback((field: PickerField) => {
-    const root = rootRef.current;
-    const popup = field === 'start' ? startPopupRef.current : endPopupRef.current;
-    const anchor = field === 'start' ? startTriggerRef.current : endTriggerRef.current;
-
-    if (!root || !popup || !anchor) {
-      return;
-    }
-
-    const rootRect = root.getBoundingClientRect();
-    const anchorRect = anchor.getBoundingClientRect();
-    const popupWidth = popup.getBoundingClientRect().width || 280;
-    const desiredLeft =
-      field === 'start'
-        ? anchorRect.left - rootRect.left
-        : anchorRect.right - rootRect.left - popupWidth;
-
-    const clippingAncestor = findClippingAncestor(root);
-    const boundaryLeft = clippingAncestor ? clippingAncestor.getBoundingClientRect().left : 0;
-    const boundaryRight = clippingAncestor
-      ? clippingAncestor.getBoundingClientRect().right
-      : window.innerWidth;
-
-    const edgePadding = 4;
-    const minLeft = boundaryLeft - rootRect.left + edgePadding;
-    const maxLeft = boundaryRight - rootRect.left - popupWidth - edgePadding;
-
-    let nextLeft = desiredLeft;
-    if (minLeft <= maxLeft) {
-      nextLeft = Math.min(Math.max(desiredLeft, minLeft), maxLeft);
-    } else {
-      nextLeft = minLeft;
-    }
-
-    const setOffset = field === 'start' ? setStartPopupOffsetX : setEndPopupOffsetX;
-    setOffset((previous) => {
-      if (previous !== null && Math.abs(previous - nextLeft) < 0.5) {
-        return previous;
-      }
-      return nextLeft;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!isStartOpen) {
-      setStartPopupOffsetX(null);
-      return;
-    }
-
-    let frameId = 0;
-    const scheduleUpdate = () => {
-      window.cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(() => updatePopupPosition('start'));
-    };
-
-    scheduleUpdate();
-    window.addEventListener('resize', scheduleUpdate);
-    window.addEventListener('scroll', scheduleUpdate, true);
-
-    const observer = new ResizeObserver(scheduleUpdate);
-    if (rootRef.current) observer.observe(rootRef.current);
-    if (startPopupRef.current) observer.observe(startPopupRef.current);
-    const clippingAncestor = findClippingAncestor(rootRef.current);
-    if (clippingAncestor) observer.observe(clippingAncestor);
-
-    return () => {
-      window.removeEventListener('resize', scheduleUpdate);
-      window.removeEventListener('scroll', scheduleUpdate, true);
-      window.cancelAnimationFrame(frameId);
-      observer.disconnect();
-    };
-  }, [isStartOpen, updatePopupPosition]);
-
-  useEffect(() => {
-    if (!isEndOpen) {
-      setEndPopupOffsetX(null);
-      return;
-    }
-
-    let frameId = 0;
-    const scheduleUpdate = () => {
-      window.cancelAnimationFrame(frameId);
-      frameId = window.requestAnimationFrame(() => updatePopupPosition('end'));
-    };
-
-    scheduleUpdate();
-    window.addEventListener('resize', scheduleUpdate);
-    window.addEventListener('scroll', scheduleUpdate, true);
-
-    const observer = new ResizeObserver(scheduleUpdate);
-    if (rootRef.current) observer.observe(rootRef.current);
-    if (endPopupRef.current) observer.observe(endPopupRef.current);
-    const clippingAncestor = findClippingAncestor(rootRef.current);
-    if (clippingAncestor) observer.observe(clippingAncestor);
-
-    return () => {
-      window.removeEventListener('resize', scheduleUpdate);
-      window.removeEventListener('scroll', scheduleUpdate, true);
-      window.cancelAnimationFrame(frameId);
-      observer.disconnect();
-    };
-  }, [isEndOpen, updatePopupPosition]);
-
-  const startPopupView = renderCalendarPopup({
-    field: 'start',
-    isOpen: isStartOpen,
-    label: startTriggerLabel,
-    popupRef: startPopupRef,
-    offsetX: startPopupOffsetX,
-    monthTitle: startMonthTitle,
-    monthCells: startMonthCells,
-    onStepMonth: stepStartMonth,
-    onSelectDate: selectStartDate,
-    isCellDisabled: (cell) => Boolean(endDateLimit && cell.value > endDateLimit),
-    startDate,
-    endDate,
-    showRange,
-    todayValue,
-    weekdayLabels,
-  });
-
-  const endPopupView = renderCalendarPopup({
-    field: 'end',
-    isOpen: isEndOpen,
-    label: endTriggerLabel,
-    popupRef: endPopupRef,
-    offsetX: endPopupOffsetX,
-    monthTitle: endMonthTitle,
-    monthCells: endMonthCells,
-    onStepMonth: stepEndMonth,
-    onSelectDate: selectEndDate,
+  const popupView = renderCalendarPopup({
+    isOpen,
+    label: triggerLabel,
+    popupRef,
+    monthTitle,
+    monthCells,
+    onStepMonth: stepMonth,
+    onSelectDate: handleSelectDate,
     isCellDisabled: (cell) =>
-      Boolean((startDateLimit && cell.value < startDateLimit) || cell.value > todayValue),
+      activeField === 'start'
+        ? Boolean((endDateLimit && cell.value > endDateLimit) || cell.value > todayValue)
+        : Boolean((startDateLimit && cell.value < startDateLimit) || cell.value > todayValue),
+    activeField,
+    onActivateField: handleActivateField,
     startDate,
     endDate,
+    startLabel: labels.startDate,
+    endLabel: labels.endDate,
     showRange,
     todayValue,
     weekdayLabels,
@@ -525,19 +425,12 @@ export function DateRangePicker({
     className: pickerClassName,
     children: [
       renderTriggerButton({
-        label: startTriggerLabel,
-        isOpen: isStartOpen,
-        triggerRef: startTriggerRef,
-        onToggle: toggleStartPicker,
+        label: triggerLabel,
+        isOpen,
+        triggerRef,
+        onToggle: handleToggle,
       }),
-      renderTriggerButton({
-        label: endTriggerLabel,
-        isOpen: isEndOpen,
-        triggerRef: endTriggerRef,
-        onToggle: toggleEndPicker,
-      }),
-      startPopupView,
-      endPopupView,
+      popupView,
     ],
   });
 }

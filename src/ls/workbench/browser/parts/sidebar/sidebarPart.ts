@@ -24,12 +24,17 @@ export type SidebarArticle = {
 export type SidebarLabels = {
   untitled: string;
   unknown: string;
+  articleType: string;
   authors: string;
   abstract: string;
-  description?: string;
+  description: string;
   publishedAt: string;
   source: string;
   fetchedAt: string;
+  controlsAriaLabel: string;
+  minimize: string;
+  maximize: string;
+  restore: string;
   close: string;
   emptyFiltered: string;
   emptyAll: string;
@@ -96,12 +101,17 @@ export function createSidebarPartLabels({
   return {
     untitled: ui.untitled,
     unknown: ui.unknown,
+    articleType: ui.articleType,
     authors: ui.authors,
     abstract: ui.abstract,
     description: ui.description,
     publishedAt: ui.publishedAt,
     source: ui.source,
     fetchedAt: ui.fetchedAt,
+    controlsAriaLabel: ui.titlebarControls,
+    minimize: ui.titlebarMinimize,
+    maximize: ui.titlebarMaximize,
+    restore: ui.titlebarRestore,
     close: ui.titlebarClose,
     emptyFiltered: ui.emptyFiltered,
     emptyAll: ui.emptyAll,
@@ -155,12 +165,17 @@ function createArticleCardLabels(labels: SidebarProps['labels']): ArticleDetails
   return {
     untitled: labels.untitled,
     unknown: labels.unknown,
+    articleType: labels.articleType,
     authors: labels.authors,
     abstract: labels.abstract,
     description: labels.description,
     publishedAt: labels.publishedAt,
     source: labels.source,
     fetchedAt: labels.fetchedAt,
+    controlsAriaLabel: labels.controlsAriaLabel,
+    minimize: labels.minimize,
+    maximize: labels.maximize,
+    restore: labels.restore,
     close: labels.close,
   };
 }
@@ -239,8 +254,8 @@ function renderActionBar({
       jsx(Button, {
         type: 'button',
         className: 'sidebar-fetch-btn',
-        variant: 'secondary',
-        size: 'sm',
+        variant: 'primary',
+        size: 'md',
         mode: 'text',
         textMode: 'with',
         iconMode: 'without',

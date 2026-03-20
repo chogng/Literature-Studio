@@ -18,38 +18,38 @@
 
 /* Sizes */
 .btn-sm {
-  height: 32px;
-  padding: 0 12px;
+  height: 28px;
+  padding: 0 10px;
   font-size: 13px;
 }
 
 .btn-md {
-  height: 40px;
-  padding: 0 16px;
+  height: 32px;
+  padding: 0 12px;
   font-size: 14px;
 }
 
 .btn-lg {
-  height: 48px;
-  padding: 0 24px;
+  height: 40px;
+  padding: 0 16px;
   font-size: 16px;
 }
 
 .btn-icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border-radius: 2px;
 }
 
 .btn-icon.btn-md {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
 }
 
 .btn-icon.btn-lg {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
 }
 
 .btn-mode-icon {
@@ -69,19 +69,19 @@
 }
 
 .btn-mode-icon.btn-sm {
-  --btn-icon-size: 32px;
+  --btn-icon-size: 28px;
 }
 
 .btn-mode-icon.btn-md {
-  --btn-icon-size: 40px;
+  --btn-icon-size: 32px;
 }
 
 .btn-mode-icon.btn-lg {
-  --btn-icon-size: 48px;
+  --btn-icon-size: 40px;
 }
 
 .btn-mode-icon.btn-icon {
-  --btn-icon-size: 32px;
+  --btn-icon-size: 28px;
 }
 
 /* Variants */
