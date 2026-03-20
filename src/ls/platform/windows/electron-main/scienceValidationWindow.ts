@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron';
 import { getPreviewDocumentSnapshot, getPreviewListingCandidateSnapshot, getPreviewState } from './previewView.js';
 import { createAuxiliaryWindow } from './window.js';
-import { appError } from '../../../base/common/errors.js';
+import { appError, isAppError } from '../../../base/common/errors.js';
 import { cleanText } from '../../../base/common/strings.js';
 import { READER_SHARED_WEB_PARTITION } from '../../native/electron-main/sharedWebSession.js';
 import {
@@ -60,6 +60,8 @@ function logScienceValidation(stage: string, details: Record<string, unknown>) {
 let scienceValidationWindow: BrowserWindow | null = null;
 const scienceValidationPromiseByUrl = new Map<string, Promise<ScienceValidationResult>>();
 const sciencePageValidationPromiseByUrl = new Map<string, Promise<ScienceValidationResult>>();
+const SCIENCE_VALIDATION_WINDOW_CLOSED_STATUS_TEXT =
+  'Science validation window was closed before verification completed.';
 
 async function tryUseExistingSciencePreview(pageUrl: string): Promise<ScienceValidationResult | null> {
   const previewState = getPreviewState();
@@ -184,13 +186,82 @@ function revealScienceValidationWindow(window: BrowserWindow) {
   window.focus();
 }
 
-async function executeScienceValidationScript(window: BrowserWindow, script: string) {
+type ScienceValidationScriptOptions = {
+  abortSignal?: AbortSignal;
+  pageUrl?: string;
+};
+
+function isScienceValidationClosedError(error: unknown) {
+  if (!isAppError(error) || error.code !== 'HTTP_REQUEST_FAILED') {
+    return false;
+  }
+
+  const status = cleanText(String(error.details?.status ?? '')).toUpperCase();
+  const statusText = cleanText(String(error.details?.statusText ?? ''));
+  return (
+    status === 'SCIENCE_VALIDATION_REQUIRED' &&
+    statusText === SCIENCE_VALIDATION_WINDOW_CLOSED_STATUS_TEXT
+  );
+}
+
+async function executeScienceValidationScript(
+  window: BrowserWindow,
+  script: string,
+  options: ScienceValidationScriptOptions = {},
+) {
+  const { abortSignal, pageUrl = '' } = options;
+  if (abortSignal?.aborted || window.isDestroyed() || window.webContents.isDestroyed()) {
+    throw toScienceValidationClosedError(pageUrl);
+  }
+
   const frame = window.webContents.mainFrame;
   if (!frame || frame.isDestroyed()) {
+    if (abortSignal?.aborted || window.isDestroyed() || window.webContents.isDestroyed()) {
+      throw toScienceValidationClosedError(pageUrl);
+    }
     return null;
   }
 
-  return await frame.executeJavaScript(script, true);
+  return await new Promise<unknown>((resolve, reject) => {
+    let settled = false;
+
+    const cleanup = () => {
+      window.removeListener('closed', handleClosed);
+      abortSignal?.removeEventListener('abort', handleAbort);
+    };
+
+    const resolveOnce = (value: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+
+    const rejectOnce = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    const handleClosed = () => {
+      rejectOnce(toScienceValidationClosedError(pageUrl));
+    };
+
+    const handleAbort = () => {
+      rejectOnce(toScienceValidationClosedError(pageUrl));
+    };
+
+    window.on('closed', handleClosed);
+    abortSignal?.addEventListener('abort', handleAbort, { once: true });
+
+    if (abortSignal?.aborted || window.isDestroyed() || window.webContents.isDestroyed()) {
+      handleAbort();
+      return;
+    }
+
+    frame.executeJavaScript(script, true).then(resolveOnce, rejectOnce);
+  });
 }
 
 function buildScienceDownloadTriggerScript(downloadUrl: string) {
@@ -249,16 +320,25 @@ function buildScienceDownloadTriggerScript(downloadUrl: string) {
 export async function triggerSciencePdfDownloadInValidationWindow(
   window: BrowserWindow,
   downloadUrl: string,
+  options: ScienceValidationScriptOptions = {},
 ) {
   return await executeScienceValidationScript(
     window,
     buildScienceDownloadTriggerScript(downloadUrl),
+    options,
   );
 }
 
-async function inspectScienceValidationWindow(window: BrowserWindow) {
+async function inspectScienceValidationWindow(
+  window: BrowserWindow,
+  options: ScienceValidationScriptOptions = {},
+) {
   try {
-    const state = await executeScienceValidationScript(window, SCIENCE_VALIDATION_STATE_SCRIPT);
+    const state = await executeScienceValidationScript(
+      window,
+      SCIENCE_VALIDATION_STATE_SCRIPT,
+      options,
+    );
     if (!state || typeof state !== 'object') {
       return null;
     }
@@ -279,21 +359,90 @@ async function inspectScienceValidationWindow(window: BrowserWindow) {
       hasStableReadyForListing: Boolean(current.hasStableReadyForListing),
       hasStableReadyForPage: Boolean(current.hasStableReadyForPage),
     } satisfies ScienceValidationWindowState;
-  } catch {
+  } catch (error) {
+    if (isScienceValidationClosedError(error)) {
+      throw error;
+    }
     return null;
   }
 }
 
-async function readScienceValidationHtml(window: BrowserWindow) {
+async function readScienceValidationHtml(
+  window: BrowserWindow,
+  options: ScienceValidationScriptOptions = {},
+) {
   try {
-    const resolvedHtml = await executeScienceValidationScript(window, SCIENCE_VALIDATION_HTML_SCRIPT);
+    const resolvedHtml = await executeScienceValidationScript(
+      window,
+      SCIENCE_VALIDATION_HTML_SCRIPT,
+      options,
+    );
     return typeof resolvedHtml === 'string' ? resolvedHtml : '';
-  } catch {
+  } catch (error) {
+    if (isScienceValidationClosedError(error)) {
+      throw error;
+    }
     return '';
   }
 }
 
-async function waitForScienceValidationBoot(window: BrowserWindow, pageUrl: string) {
+function toScienceValidationClosedError(pageUrl: string) {
+  return appError('HTTP_REQUEST_FAILED', {
+    status: 'SCIENCE_VALIDATION_REQUIRED',
+    statusText: SCIENCE_VALIDATION_WINDOW_CLOSED_STATUS_TEXT,
+    url: pageUrl,
+  });
+}
+
+async function waitForAbortableDelay(timeoutMs: number, abortSignal?: AbortSignal, pageUrl = '') {
+  if (!abortSignal) {
+    await new Promise((resolve) => setTimeout(resolve, timeoutMs));
+    return;
+  }
+
+  if (abortSignal.aborted) {
+    throw toScienceValidationClosedError(pageUrl);
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const cleanup = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      abortSignal.removeEventListener('abort', handleAbort);
+    };
+
+    const resolveOnce = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    };
+
+    const rejectOnce = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+
+    const handleAbort = () => {
+      rejectOnce(toScienceValidationClosedError(pageUrl));
+    };
+
+    timeoutId = setTimeout(resolveOnce, Math.max(0, timeoutMs));
+    abortSignal.addEventListener('abort', handleAbort, { once: true });
+  });
+}
+
+async function waitForScienceValidationBoot(
+  window: BrowserWindow,
+  pageUrl: string,
+  abortSignal?: AbortSignal,
+) {
   return await new Promise<'dom-ready' | 'load-finished' | 'boot-timeout'>((resolve, reject) => {
     let settled = false;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -309,6 +458,7 @@ async function waitForScienceValidationBoot(window: BrowserWindow, pageUrl: stri
       webContents.removeListener('dom-ready', handleDomReady);
       webContents.removeListener('did-fail-load', handleDidFailLoad);
       window.removeListener('closed', handleClosed);
+      abortSignal?.removeEventListener('abort', handleAbort);
     };
 
     const resolveOnce = (mode: 'dom-ready' | 'load-finished' | 'boot-timeout') => {
@@ -347,13 +497,11 @@ async function waitForScienceValidationBoot(window: BrowserWindow, pageUrl: stri
     };
 
     const handleClosed = () => {
-      rejectOnce(
-        appError('HTTP_REQUEST_FAILED', {
-          status: 'SCIENCE_VALIDATION_REQUIRED',
-          statusText: 'Science validation window was closed before verification completed.',
-          url: pageUrl,
-        }),
-      );
+      rejectOnce(toScienceValidationClosedError(pageUrl));
+    };
+
+    const handleAbort = () => {
+      rejectOnce(toScienceValidationClosedError(pageUrl));
     };
 
     timeoutId = setTimeout(() => {
@@ -363,6 +511,12 @@ async function waitForScienceValidationBoot(window: BrowserWindow, pageUrl: stri
     webContents.on('dom-ready', handleDomReady);
     webContents.on('did-fail-load', handleDidFailLoad);
     window.on('closed', handleClosed);
+    abortSignal?.addEventListener('abort', handleAbort, { once: true });
+
+    if (abortSignal?.aborted) {
+      handleAbort();
+      return;
+    }
 
     applyScienceValidationUserAgent(window);
     void window.webContents.loadURL(pageUrl, {
@@ -612,8 +766,16 @@ export async function withValidatedSciencePageWindow<T>(
   let keepWindowOpen = false;
   let lastLoggedStateSignature = '';
   let lastProgressLogAt = 0;
+  let lastKnownWindowUrl =
+    typeof window.webContents.getURL === 'function' ? cleanText(window.webContents.getURL()) : '';
+  const closeAbortController = new AbortController();
   const handleClosed = () => {
+    logScienceValidation('window_closed_abort_requested', {
+      pageUrl,
+      currentUrl: lastKnownWindowUrl,
+    });
     windowClosed = true;
+    closeAbortController.abort();
   };
   window.once('closed', handleClosed);
 
@@ -631,12 +793,13 @@ export async function withValidatedSciencePageWindow<T>(
     if (!window.isDestroyed() && !requireListingContent) {
       revealScienceValidationWindow(window);
     }
-    const currentWindowUrl =
-      typeof window.webContents.getURL === 'function' ? cleanText(window.webContents.getURL()) : '';
-    const navigationMode =
-      currentWindowUrl && matchesScienceNavigationComparableUrl(currentWindowUrl, pageUrl)
-        ? 'reuse-existing'
-        : await waitForScienceValidationBoot(window, pageUrl);
+      const currentWindowUrl =
+        typeof window.webContents.getURL === 'function' ? cleanText(window.webContents.getURL()) : '';
+      lastKnownWindowUrl = currentWindowUrl || lastKnownWindowUrl;
+      const navigationMode =
+        currentWindowUrl && matchesScienceNavigationComparableUrl(currentWindowUrl, pageUrl)
+          ? 'reuse-existing'
+        : await waitForScienceValidationBoot(window, pageUrl, closeAbortController.signal);
     if (navigationMode === 'reuse-existing') {
       logScienceValidation('reuse_existing_window', {
         pageUrl,
@@ -650,20 +813,34 @@ export async function withValidatedSciencePageWindow<T>(
           pageUrl,
           elapsedMs: Date.now() - startedAt,
         });
-        throw appError('HTTP_REQUEST_FAILED', {
-          status: 'SCIENCE_VALIDATION_REQUIRED',
-          statusText: 'Science validation window was closed before verification completed.',
-          url: pageUrl,
-        });
+        throw toScienceValidationClosedError(pageUrl);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, SCIENCE_VALIDATION_POLL_MS));
-      const state = await inspectScienceValidationWindow(window);
+      await waitForAbortableDelay(
+        SCIENCE_VALIDATION_POLL_MS,
+        closeAbortController.signal,
+        pageUrl,
+      );
+      if (windowClosed || window.isDestroyed() || window.webContents.isDestroyed()) {
+        logScienceValidation('closed_before_ready', {
+          pageUrl,
+          elapsedMs: Date.now() - startedAt,
+        });
+        throw toScienceValidationClosedError(pageUrl);
+      }
+      const state = await inspectScienceValidationWindow(window, {
+        abortSignal: closeAbortController.signal,
+        pageUrl,
+      });
       if (!state) {
         continue;
       }
+      lastKnownWindowUrl = state.currentUrl || lastKnownWindowUrl;
 
-      const html = await readScienceValidationHtml(window);
+      const html = await readScienceValidationHtml(window, {
+        abortSignal: closeAbortController.signal,
+        pageUrl,
+      });
       const elapsed = Date.now() - startedAt;
       const now = Date.now();
       const stateSignature = buildScienceValidationStateSignature(state);

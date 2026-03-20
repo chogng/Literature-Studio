@@ -184,6 +184,7 @@ export async function waitForPdfDownloadFromSession({
   timeoutMs = 45000,
   origin,
   originatingWebContentsId,
+  abortSignal,
   triggerDownload,
 }: {
   session: SessionDownloadListener;
@@ -193,6 +194,7 @@ export async function waitForPdfDownloadFromSession({
   timeoutMs?: number;
   origin: string;
   originatingWebContentsId?: number;
+  abortSignal?: AbortSignal;
   triggerDownload: () => Promise<unknown> | unknown;
 }): Promise<BrowserSessionDownloadResult | null> {
   return await new Promise<BrowserSessionDownloadResult | null>((resolve, reject) => {
@@ -204,6 +206,7 @@ export async function waitForPdfDownloadFromSession({
         clearTimeout(timeoutId);
       }
       session.removeListener('will-download', handleWillDownload);
+      abortSignal?.removeEventListener('abort', handleAbort);
     };
 
     const resolveOnce = (value: BrowserSessionDownloadResult | null) => {
@@ -218,6 +221,16 @@ export async function waitForPdfDownloadFromSession({
       settled = true;
       cleanup();
       reject(error);
+    };
+
+    const handleAbort = () => {
+      rejectOnce(
+        appError('PDF_DOWNLOAD_FAILED', {
+          status: 'DOWNLOAD_INTERRUPTED',
+          statusText: `${origin} download aborted`,
+          downloadUrl,
+        }),
+      );
     };
 
     const handleWillDownload = (
@@ -281,7 +294,13 @@ export async function waitForPdfDownloadFromSession({
       resolveOnce(null);
     }, Math.max(0, timeoutMs));
 
+    if (abortSignal?.aborted) {
+      handleAbort();
+      return;
+    }
+
     session.on('will-download', handleWillDownload);
+    abortSignal?.addEventListener('abort', handleAbort, { once: true });
     Promise.resolve(triggerDownload()).catch((error) => rejectOnce(error));
   });
 }

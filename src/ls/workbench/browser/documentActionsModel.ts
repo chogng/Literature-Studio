@@ -13,6 +13,7 @@ import {
   parseDesktopInvokeError,
 } from '../services/desktop/desktopError';
 import {
+  markPdfDownloadCancelled,
   markPdfDownloadFailed,
   markPdfDownloadStarted,
   markPdfDownloadSucceeded,
@@ -34,6 +35,15 @@ type UseDocumentActionsModelParams = {
 
 function resolveSciencePdfQueueMessage(ui: LocaleMessages) {
   return ui.toastSciencePdfQueued;
+}
+
+function isScienceValidationWindowClosedCancel(error: ReturnType<typeof parseDesktopInvokeError>) {
+  return (
+    error.code === 'PDF_DOWNLOAD_FAILED' &&
+    String(error.details?.status ?? '').toUpperCase() === 'SCIENCE_VALIDATION_REQUIRED' &&
+    String(error.details?.statusText ?? '') ===
+      'Science validation window was closed before verification completed.'
+  );
 }
 
 function openArticleSourceUrl(sourceUrl: string) {
@@ -100,7 +110,13 @@ export function useDocumentActionsModel({
           }),
         );
       } catch (downloadError) {
-        const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(downloadError));
+        const parsedError = parseDesktopInvokeError(downloadError);
+        if (isScienceValidationWindowClosedCancel(parsedError)) {
+          markPdfDownloadCancelled(preparedPdfDownload.normalizedSourceUrl);
+          return;
+        }
+
+        const localizedError = localizeDesktopInvokeError(ui, parsedError);
         markPdfDownloadFailed(preparedPdfDownload.normalizedSourceUrl, localizedError);
         toast.error(formatLocalized(ui.toastPdfDownloadFailed, { error: localizedError }));
       } finally {

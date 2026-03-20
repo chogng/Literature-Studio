@@ -51,6 +51,9 @@ import {
   resolveWindowFromWebContents,
 } from '../../platform/windows/electron-main/window.js';
 const FETCH_STATUS_CHANNEL = 'app:fetch-status';
+type AppInvokeResponse<T> =
+  | { ok: true; result: T }
+  | { ok: false; error: string };
 
 async function showArticleDetailsModal(
   parentWindow: ReturnType<typeof getMainWindow>,
@@ -158,16 +161,25 @@ export function registerAppIpc(storage: StorageService) {
     try {
       if (command === 'open_article_details_modal') {
         const target = resolveWindowFromWebContents(_event.sender);
-        return await showArticleDetailsModal(target, payload as OpenArticleDetailsModalPayload);
+        return {
+          ok: true,
+          result: await showArticleDetailsModal(target, payload as OpenArticleDetailsModalPayload),
+        } satisfies AppInvokeResponse<AppCommandResultMap[typeof command]>;
       }
 
-      return await invokeCommand(command, payload, storage, (channel, eventPayload) => {
-        if (!_event.sender.isDestroyed()) {
-          _event.sender.send(channel, eventPayload);
-        }
-      });
+      return {
+        ok: true,
+        result: await invokeCommand(command, payload, storage, (channel, eventPayload) => {
+          if (!_event.sender.isDestroyed()) {
+            _event.sender.send(channel, eventPayload);
+          }
+        }),
+      } satisfies AppInvokeResponse<AppCommandResultMap[typeof command]>;
     } catch (error) {
-      throw new Error(serializeAppError(error));
+      return {
+        ok: false,
+        error: serializeAppError(error),
+      } satisfies AppInvokeResponse<AppCommandResultMap[typeof command]>;
     }
   });
 

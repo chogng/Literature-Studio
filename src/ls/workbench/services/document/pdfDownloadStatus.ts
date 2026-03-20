@@ -105,6 +105,20 @@ export function markPdfDownloadFailed(pageUrl: string, errorMessage: string) {
   });
 }
 
+export function markPdfDownloadCancelled(pageUrl: string) {
+  const key = toComparablePageUrl(pageUrl);
+  if (!key) return;
+
+  const previous = readStatus(key);
+  writeStatus(key, {
+    ...previous,
+    pageUrl: key,
+    isDownloading: false,
+    hasSucceeded: false,
+    lastError: '',
+  });
+}
+
 export function getPdfDownloadStatus(pageUrl: string) {
   const key = toComparablePageUrl(pageUrl);
   if (!key) {

@@ -101,7 +101,27 @@ async function runSerializedSciencePdfDownload<T>(
   });
 
   try {
-    return await task();
+    const result = await task();
+    logSciencePdf('task_resolved', {
+      pageUrl,
+      queuePosition,
+    });
+    return result;
+  } catch (error) {
+    logSciencePdf('task_rejected', {
+      pageUrl,
+      queuePosition,
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+            }
+          : {
+              message: String(error),
+            },
+    });
+    throw error;
   } finally {
     sciencePdfDownloadQueueDepth = Math.max(0, sciencePdfDownloadQueueDepth - 1);
     releaseTurn();
@@ -131,16 +151,33 @@ async function triggerValidatedSciencePageDownload(
     return null;
   }
 
-  return await waitForPdfDownloadFromSession({
-    session: webContents.session,
-    downloadUrl,
-    downloadDir,
-    articleTitle,
-    timeoutMs,
-    origin: 'validated_page',
-    originatingWebContentsId: webContents.id,
-    triggerDownload: () => triggerSciencePdfDownloadInValidationWindow(window, downloadUrl),
-  });
+  const abortController = new AbortController();
+  const handleWindowClosed = () => {
+    abortController.abort();
+  };
+  window.once('closed', handleWindowClosed);
+
+  try {
+    return await waitForPdfDownloadFromSession({
+      session: webContents.session,
+      downloadUrl,
+      downloadDir,
+      articleTitle,
+      timeoutMs,
+      origin: 'validated_page',
+      originatingWebContentsId: webContents.id,
+      abortSignal: abortController.signal,
+      triggerDownload: () =>
+        triggerSciencePdfDownloadInValidationWindow(window, downloadUrl, {
+          abortSignal: abortController.signal,
+          pageUrl: downloadUrl,
+        }),
+    });
+  } finally {
+    if (!window.isDestroyed()) {
+      window.removeListener('closed', handleWindowClosed);
+    }
+  }
 }
 
 function shouldContinueWaitingForValidatedScienceAuthorization(
@@ -243,6 +280,19 @@ async function tryValidatedSciencePageDownload(
       failures: [] as PdfDownloadAttemptFailure[],
     };
   } catch (error) {
+    logSciencePdf('validated_page_exception', {
+      pageUrl,
+      downloadUrl,
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+            }
+          : {
+              message: String(error),
+            },
+    });
     return {
       downloaded: null,
       failures: [toPdfDownloadFailureFromError(downloadUrl, error)],

@@ -79,10 +79,22 @@ function normalizeInvokeError(error: unknown): DesktopInvokeError {
   return invokeError;
 }
 
+type AppInvokeResponse<T> =
+  | { ok: true; result: T }
+  | { ok: false; error: string };
+
 const electronAPI = {
   async invoke<TCommand extends AppCommand>(command: TCommand, args?: AppCommandPayloadMap[TCommand]) {
     try {
-      return await invokeIpc<AppCommandResultMap[TCommand]>('app:invoke', command, args ?? {});
+      const response = await invokeIpc<AppInvokeResponse<AppCommandResultMap[TCommand]>>(
+        'app:invoke',
+        command,
+        args ?? {},
+      );
+      if (!response.ok) {
+        throw new Error(response.error);
+      }
+      return response.result;
     } catch (error) {
       throw normalizeInvokeError(error);
     }

@@ -11,6 +11,36 @@ let mainWindow: BrowserWindow | null = null;
 const auxiliaryWindows = new Set<BrowserWindow>();
 const autoMinimizedAuxiliaryWindowIds = new Set<number>();
 let currentUseMica = true;
+const AUX_WINDOW_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+
+function logAuxiliaryWindow(stage: string, details: Record<string, unknown>) {
+  if (!AUX_WINDOW_LOG_ENABLED) return;
+
+  let encodedDetails = '';
+  try {
+    encodedDetails = JSON.stringify(details);
+  } catch {
+    encodedDetails = '{"error":"unserializable_log_details"}';
+  }
+
+  console.info(`[aux-window] ${stage} ${encodedDetails}`);
+}
+
+function getSafeWindowTitle(window: BrowserWindow) {
+  try {
+    return window.isDestroyed() ? '' : window.getTitle();
+  } catch {
+    return '';
+  }
+}
+
+function getSafeWindowUrl(window: BrowserWindow) {
+  try {
+    return window.isDestroyed() ? '' : window.webContents.getURL();
+  } catch {
+    return '';
+  }
+}
 
 function resolveWindowBackgroundMaterial(useMica: boolean) {
   if (process.platform !== 'win32') {
@@ -107,8 +137,42 @@ export function registerAuxiliaryWindow(window: BrowserWindow) {
   auxiliaryWindows.add(window);
   const webContentsId = window.webContents.id;
   applyWindowBackgroundMaterial(window, currentUseMica);
+  let lastKnownTitle = getSafeWindowTitle(window);
+  let lastKnownUrl = getSafeWindowUrl(window);
+
+  logAuxiliaryWindow('registered', {
+    id: webContentsId,
+    title: lastKnownTitle,
+    visible: window.isVisible(),
+    url: lastKnownUrl,
+  });
+
+  window.webContents.on('page-title-updated', () => {
+    lastKnownTitle = getSafeWindowTitle(window);
+    lastKnownUrl = getSafeWindowUrl(window);
+    logAuxiliaryWindow('title_updated', {
+      id: webContentsId,
+      title: lastKnownTitle,
+      url: lastKnownUrl,
+    });
+  });
+
+  window.webContents.on('did-finish-load', () => {
+    lastKnownTitle = getSafeWindowTitle(window);
+    lastKnownUrl = getSafeWindowUrl(window);
+    logAuxiliaryWindow('did_finish_load', {
+      id: webContentsId,
+      title: lastKnownTitle,
+      url: lastKnownUrl,
+    });
+  });
 
   window.on('closed', () => {
+    logAuxiliaryWindow('closed', {
+      id: webContentsId,
+      title: lastKnownTitle,
+      url: lastKnownUrl,
+    });
     auxiliaryWindows.delete(window);
     autoMinimizedAuxiliaryWindowIds.delete(webContentsId);
   });
