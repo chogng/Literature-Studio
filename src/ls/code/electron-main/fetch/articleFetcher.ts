@@ -25,7 +25,7 @@ import {
   batchLimitMax,
   batchLimitMin,
   defaultBatchLimit,
-} from '../../../platform/configuration/common/defaultBatchSources.js';
+} from '../../../platform/config/common/defaultBatchSources.js';
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from '../fetchTiming.js';
 import {
   buildPageHtmlFetchPlan,

@@ -151,6 +151,7 @@ export type SidebarPartViewProps = SidebarProps & {
 };
 
 function createArticleCardLabels(labels: SidebarProps['labels']): ArticleDetailsModalLabels {
+  // Keep modal labels aligned with card labels so both views stay localized consistently.
   return {
     untitled: labels.untitled,
     unknown: labels.unknown,
@@ -196,6 +197,7 @@ function renderSidebarContent({
     });
   }
 
+  // Distinguish "no data fetched yet" from "fetched but filtered out".
   return hasData
     ? jsx('div', { className: 'sidebar-empty-state', children: labels.emptyFiltered })
     : jsx('div', { className: 'sidebar-empty-state', children: labels.emptyAll });
@@ -219,6 +221,7 @@ function renderActionBar({
   | 'onFetchLatestBatch'
   | 'isBatchLoading'
 >) {
+  // Date range + fetch trigger are grouped as the sticky command surface of the sidebar.
   return jsxs('div', {
     className: 'sidebar-action-bar',
     children: [

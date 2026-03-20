@@ -11,7 +11,7 @@ import {
 import { registerDevShortcuts } from '../../platform/windows/electron-main/devShortcuts.js';
 import { registerAppLifecycleHandlers } from '../../platform/lifecycle/electron-main/lifecycleMain.js';
 import { registerAppIpc } from './ipc.js';
-import { getDefaultBatchSources } from '../../platform/configuration/common/defaultBatchSources.js';
+import { getDefaultBatchSources } from '../../platform/config/common/defaultBatchSources.js';
 import { createStorageService } from '../../platform/storage/electron-main/storageService.js';
 import { createMainWindow, getMainWindow } from '../../platform/windows/electron-main/window.js';
 

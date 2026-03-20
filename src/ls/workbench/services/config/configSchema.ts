@@ -6,7 +6,7 @@ import {
   defaultBatchLimit,
   defaultSameDomainOnly,
   getDefaultBatchSources,
-} from '../../../platform/configuration/common/defaultBatchSources.js';
+} from '../../../platform/config/common/defaultBatchSources.js';
 
 export {
   batchLimitMax,

@@ -44,6 +44,7 @@ function formatPublishedDate(value: string | null, locale: Locale, fallback: str
     return fallback;
   }
 
+  // Parse YYYY-MM-DD as local date to avoid timezone shifts from Date(string) parsing.
   const dateOnlyMatched = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (dateOnlyMatched) {
     const year = Number.parseInt(dateOnlyMatched[1], 10);
@@ -108,6 +109,7 @@ function renderToolbarActions({
   onDownload: () => void;
   onOpenDetails: () => void;
 }) {
+  // Visual state tracks whether the PDF has already been downloaded for this source URL.
   const downloadButtonTitle = hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL;
   const downloadButtonClassName = [
     'article-card-icon-btn',
@@ -165,6 +167,7 @@ export default function ArticleCard({
   };
 
   const handleOpenDetails = () => {
+    // Details modal is managed upstream; card only emits the open intent.
     void onOpenArticleDetails(article, labels);
   };
 

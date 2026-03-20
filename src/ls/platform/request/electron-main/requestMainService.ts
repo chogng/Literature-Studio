@@ -41,6 +41,7 @@ const browserRequestPromises = new Map<string, Promise<BrowserRequestSession | n
 const unsupportedBrowserRequestPartitions = new Set<string>();
 const browserRendererPromises = new Map<string, Promise<BrowserHtmlRenderer | null>>();
 const unsupportedBrowserRendererPartitions = new Set<string>();
+// A single hidden BrowserWindow is shared per partition and must run tasks sequentially.
 const browserRendererQueues = new Map<string, Promise<void>>();
 
 function isAbortError(error: unknown) {
@@ -214,6 +215,7 @@ async function resolveBrowserHtmlRenderer(partition: string) {
 }
 
 async function runBrowserHtmlRenderTask<T>(partition: string, task: () => Promise<T>) {
+  // Queue tasks per partition to avoid concurrent navigations on the same hidden renderer window.
   const previousTask = (browserRendererQueues.get(partition) ?? Promise.resolve()).catch(() => undefined);
   const currentTask = previousTask.then(task);
   browserRendererQueues.set(
@@ -232,6 +234,7 @@ export async function requestWithPreferredTransport({
   headers,
   browser,
 }: PreferredRequestOptions): Promise<{ response: Response; transport: PreferredRequestTransport }> {
+  // Prefer Chromium-session fetch when enabled, then transparently fall back to Node fetch.
   if (browser && browser.enabled !== false) {
     const browserRequestSession = await resolveBrowserRequestSession(browser.partition);
     if (browserRequestSession) {
@@ -362,6 +365,7 @@ export async function renderHtmlWithBrowserWindow({
         await sleep(settleMs);
       }
 
+      // Read the fully rendered DOM after optional settle delay for JS-heavy pages.
       const html = await window.webContents.executeJavaScript(
         `(() => {
           try {

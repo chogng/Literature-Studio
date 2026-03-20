@@ -9,7 +9,7 @@ import {
   batchLimitMin,
   defaultBatchLimit,
   defaultSameDomainOnly,
-} from '../../configuration/common/defaultBatchSources.js';
+} from '../../config/common/defaultBatchSources.js';
 
 type ConfigStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
 const fallbackLocale: 'zh' | 'en' = 'zh';

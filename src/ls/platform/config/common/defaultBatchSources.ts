@@ -5,6 +5,7 @@ export const batchLimitMax = 100;
 export const defaultBatchLimit = 50;
 export const defaultSameDomainOnly = true;
 
+// Immutable baseline list so callers can safely clone/reset source config.
 const defaultBatchSourceSeed: ReadonlyArray<BatchSource> = [
   {
     id: '1',
@@ -118,10 +119,12 @@ const defaultBatchSourceSeed: ReadonlyArray<BatchSource> = [
 export const defaultBatchSources = defaultBatchSourceSeed;
 
 export function getDefaultBatchSources(): BatchSource[] {
+  // Return fresh objects to avoid accidental shared mutations in config state.
   return defaultBatchSourceSeed.map((source) => ({
     id: source.id,
     url: source.url,
     journalTitle: source.journalTitle,
+    // Persist explicit null for downstream serializers that do not keep `undefined`.
     preferredExtractorId: source.preferredExtractorId ?? null,
   }));
 }
