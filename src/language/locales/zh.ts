@@ -144,7 +144,7 @@ const zh = {
   emptyState: '请输入链接后查看网页。',
   webPreviewTitle: '网页预览',
   toastClose: '关闭',
-  settingsLanguage: '界面语言',
+  settingsLanguage: 'Language',
   settingsLanguageHint: '切换后立即生效，并记住你的选择。',
   languageChinese: '\u7b80\u4f53\u4e2d\u6587',
   languageEnglish: 'English',
