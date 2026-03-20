@@ -5,7 +5,7 @@
   padding: 0 6px 6px;
   overflow: auto;
   display: grid;
-  gap: 18px;
+  gap: 6px;
 }
 
 .article-details-grid {
@@ -31,9 +31,9 @@
 
 .article-details-row dt {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
-  color: #5d7087;
+  color: #203247;
   line-height: 1.6;
 }
 

@@ -94,6 +94,20 @@ export function useSettingsModel({
     }
   }, [settingsModel, settingsModelContext, ui]);
 
+  const handleOpenConfigLocation = useCallback(async () => {
+    if (!desktopRuntime) {
+      toast.info(ui.toastDesktopDirPickerOnly);
+      return;
+    }
+
+    try {
+      await invokeDesktop('open_path', { path: settingsSnapshot.configPath });
+    } catch (openError) {
+      const localizedError = localizeSettingsError(ui, openError);
+      toast.error(formatLocalized(ui.toastOpenConfigLocationFailed, { error: localizedError }));
+    }
+  }, [desktopRuntime, invokeDesktop, settingsSnapshot.configPath, ui]);
+
   const handleLocaleChange = useCallback(
     (nextLocale: Locale) => {
       setLocale(nextLocale);
@@ -144,6 +158,7 @@ export function useSettingsModel({
     isSettingsLoading: settingsSnapshot.isSettingsLoading,
     isSettingsSaving: settingsSnapshot.isSettingsSaving,
     handleChoosePdfDownloadDir,
+    handleOpenConfigLocation,
     handleLocaleChange,
     handleSaveSettings,
     handleResetDownloadDir,

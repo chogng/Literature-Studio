@@ -32,6 +32,7 @@ export type SettingsPartLabels = {
   defaultPdfDir: string;
   downloadDirPlaceholder: string;
   chooseDirectory: string;
+  openConfigLocation: string;
   resetDefault: string;
   saving: string;
   saveSettings: string;
@@ -59,6 +60,7 @@ export type SettingsPartProps = {
   pdfDownloadDir: string;
   onPdfDownloadDirChange: (value: string) => void;
   onChoosePdfDownloadDir: () => void;
+  onOpenConfigLocation: () => void;
   desktopRuntime: boolean;
   configPath: string;
   isSettingsSaving: boolean;
@@ -93,6 +95,7 @@ export type SettingsPartActions = {
   onSameDomainOnlyChange: (checked: boolean) => void;
   onPdfDownloadDirChange: (value: string) => void;
   onChoosePdfDownloadDir: () => void;
+  onOpenConfigLocation: () => void;
   onOpenModalStyleTest: () => void;
   onResetDownloadDir: () => void;
   onSaveSettings: () => void;
@@ -133,6 +136,7 @@ export function createSettingsPartLabels({
     defaultPdfDir: ui.defaultPdfDir,
     downloadDirPlaceholder: ui.downloadDirPlaceholder,
     chooseDirectory: ui.chooseDirectory,
+    openConfigLocation: ui.openConfigLocation,
     resetDefault: ui.resetDefault,
     saving: ui.saving,
     saveSettings: ui.saveSettings,
@@ -169,6 +173,7 @@ export function createSettingsPartProps({
     onSameDomainOnlyChange,
     onPdfDownloadDirChange,
     onChoosePdfDownloadDir,
+    onOpenConfigLocation,
     onOpenModalStyleTest,
     onResetDownloadDir,
     onSaveSettings,
@@ -192,6 +197,7 @@ export function createSettingsPartProps({
     pdfDownloadDir,
     onPdfDownloadDirChange,
     onChoosePdfDownloadDir,
+    onOpenConfigLocation,
     desktopRuntime,
     configPath,
     isSettingsSaving,
@@ -358,7 +364,6 @@ function renderLocaleField({
           }),
         ],
       }),
-      jsx('p', { className: 'settings-hint', children: labels.settingsLanguageHint }),
     ],
   });
 }
@@ -497,16 +502,10 @@ function renderDownloadDirectoryField({
   | 'desktopRuntime'
   | 'isSettingsSaving'
 >) {
-  const currentDirectory = pdfDownloadDir.trim() ? pdfDownloadDir.trim() : labels.systemDownloads;
-
   return jsxs('label', {
     className: 'settings-field',
     children: [
       labels.defaultPdfDir,
-      jsxs('p', {
-        className: 'settings-hint',
-        children: [labels.currentDir, currentDirectory],
-      }),
       jsxs('div', {
         className: 'settings-input-row',
         children: [
@@ -523,7 +522,7 @@ function renderDownloadDirectoryField({
             type: 'button',
             mode: 'icon',
             variant: 'secondary',
-            size: 'sm',
+            size: 'md',
             iconMode: 'with',
             textMode: 'without',
             onClick: onChoosePdfDownloadDir,
@@ -541,18 +540,42 @@ function renderDownloadDirectoryField({
 function renderConfigPathField({
   labels,
   configPath,
-}: Pick<SettingsPartViewProps, 'labels' | 'configPath'>) {
+  desktopRuntime,
+  isSettingsSaving,
+  onOpenConfigLocation,
+}: Pick<
+  SettingsPartViewProps,
+  'labels' | 'configPath' | 'desktopRuntime' | 'isSettingsSaving' | 'onOpenConfigLocation'
+>) {
   return jsxs('label', {
     className: 'settings-field',
     children: [
       labels.settingsConfigPath,
-      jsx(Input, {
-        className: 'settings-input-control',
-        size: 'sm',
-        type: 'text',
-        value: configPath,
-        readOnly: true,
-        placeholder: '-',
+      jsxs('div', {
+        className: 'settings-input-row',
+        children: [
+          jsx(Input, {
+            className: 'settings-input-control',
+            size: 'sm',
+            type: 'text',
+            value: configPath,
+            readOnly: true,
+            placeholder: '-',
+          }),
+          jsx(Button, {
+            type: 'button',
+            mode: 'icon',
+            variant: 'secondary',
+            size: 'md',
+            iconMode: 'with',
+            textMode: 'without',
+            onClick: onOpenConfigLocation,
+            disabled: !desktopRuntime || isSettingsSaving || !configPath.trim(),
+            title: labels.openConfigLocation,
+            'aria-label': labels.openConfigLocation,
+            children: jsx(FolderOpen, { size: 16 }),
+          }),
+        ],
       }),
     ],
   });
@@ -577,6 +600,7 @@ export function SettingsPartView({
   pdfDownloadDir,
   onPdfDownloadDirChange,
   onChoosePdfDownloadDir,
+  onOpenConfigLocation,
   desktopRuntime,
   configPath,
   isSettingsSaving,
@@ -647,37 +671,27 @@ export function SettingsPartView({
               desktopRuntime,
               isSettingsSaving,
             }),
-            jsx('div', {
-              className: 'settings-actions',
-              children: [
-                jsx(Button, {
-                  type: 'button',
-                  mode: 'text',
-                  variant: 'secondary',
-                  textMode: 'with',
-                  iconMode: 'without',
-                  onClick: onResetDownloadDir,
-                  disabled: !pdfDownloadDir.trim() || isSettingsSaving,
-                  children: labels.resetDefault,
-                }),
-                showModalStyleTestButton
-                  ? jsx(Button, {
-                      type: 'button',
-                      mode: 'text',
-                      variant: 'outline',
-                      textMode: 'with',
-                      iconMode: 'without',
-                      onClick: onOpenModalStyleTest,
-                      disabled: isSettingsLoading || isSettingsSaving || !desktopRuntime,
-                      children: modalStyleTestButtonLabel,
-                    })
-                  : null,
-              ],
-            }),
-            jsx('p', { className: 'settings-hint', children: labels.settingsHintPath }),
+            showModalStyleTestButton
+              ? jsx('div', {
+                  className: 'settings-actions',
+                  children: jsx(Button, {
+                    type: 'button',
+                    mode: 'text',
+                    variant: 'outline',
+                    textMode: 'with',
+                    iconMode: 'without',
+                    onClick: onOpenModalStyleTest,
+                    disabled: isSettingsLoading || isSettingsSaving || !desktopRuntime,
+                    children: modalStyleTestButtonLabel,
+                  }),
+                })
+              : null,
             renderConfigPathField({
               labels,
               configPath,
+              desktopRuntime,
+              isSettingsSaving,
+              onOpenConfigLocation,
             }),
           ],
         }),

@@ -163,6 +163,10 @@ export interface SaveSettingsPayload {
   settings?: Partial<StoredAppSettings>;
 }
 
+export interface OpenPathPayload {
+  path?: string;
+}
+
 export interface PdfDownloadResult {
   filePath: string;
   sourceUrl: string;
@@ -188,6 +192,7 @@ export interface AppCommandPayloadMap {
   load_settings: undefined;
   save_settings: SaveSettingsPayload;
   pick_download_directory: undefined;
+  open_path: OpenPathPayload;
   preview_download_pdf: PreviewDownloadPdfPayload;
   export_articles_docx: ExportArticlesDocxPayload;
   open_article_details_modal: OpenArticleDetailsModalPayload;
@@ -199,6 +204,7 @@ export interface AppCommandResultMap {
   load_settings: AppSettings;
   save_settings: AppSettings;
   pick_download_directory: string | null;
+  open_path: boolean;
   preview_download_pdf: PdfDownloadResult;
   export_articles_docx: DocxExportResult | null;
   open_article_details_modal: boolean;

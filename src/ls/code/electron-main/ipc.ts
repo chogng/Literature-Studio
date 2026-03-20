@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron';
+import { app, ipcMain, shell } from 'electron';
 
 import type {
   AppCommand,
@@ -7,6 +7,7 @@ import type {
   FetchArticlePayload,
   FetchLatestArticlesPayload,
   OpenArticleDetailsModalPayload,
+  OpenPathPayload,
   PreviewDownloadPdfPayload,
   PreviewBounds,
   NativeModalState,
@@ -102,6 +103,15 @@ async function invokeCommand<TCommand extends AppCommand>(
       return storage.saveSettings((payload as SaveSettingsPayload)?.settings ?? {}) as Promise<AppCommandResultMap[TCommand]>;
     case 'pick_download_directory':
       return pickDirectoryDialog(getMainWindow()) as Promise<AppCommandResultMap[TCommand]>;
+    case 'open_path': {
+      const targetPath = (payload as OpenPathPayload)?.path?.trim();
+      if (!targetPath) {
+        throw appError('UNKNOWN_ERROR', { message: 'Path is required.' });
+      }
+
+      shell.showItemInFolder(targetPath);
+      return true as AppCommandResultMap[TCommand];
+    }
     case 'preview_download_pdf': {
       const previewHtml = await resolvePreviewSnapshotHtml(payload as PreviewDownloadPdfPayload);
       return previewDownloadPdf(
