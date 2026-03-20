@@ -1,5 +1,6 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDateInputValue, isDateRangeValid } from '../../../common/date';
 import './dateRangePicker.css';
 
@@ -260,14 +261,14 @@ function renderCalendarPopup(config: CalendarPopupConfig) {
             type: 'button',
             className: 'date-range-month-nav',
             onClick: () => config.onStepMonth(-1),
-            children: '<',
+            children: jsx(ChevronLeft, { size: 16, strokeWidth: 2 }),
           }),
           jsx('div', { className: 'date-range-month-title', children: config.monthTitle }),
           jsx('button', {
             type: 'button',
             className: 'date-range-month-nav',
             onClick: () => config.onStepMonth(1),
-            children: '>',
+            children: jsx(ChevronRight, { size: 16, strokeWidth: 2 }),
           }),
         ],
       }),

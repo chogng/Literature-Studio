@@ -30,7 +30,7 @@ const zh = {
   articleDetailsLoading: '正在加载文章详情...',
   articleDetailsUnavailable: '暂时无法显示文章详情。',
   emptyFiltered: '已有数据，但当前过滤条件没有匹配结果。',
-  emptyAll: '选择来源 或 键入链接，加载完成后抓取',
+  emptyAll: '选择来源 或 键入链接，点击抓取',
   settingsTitle: '设置',
   settingsLoading: '设置加载中...',
   settingsPageUrl: '默认批量抓取 URL',
