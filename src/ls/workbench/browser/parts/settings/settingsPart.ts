@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, FolderOpen, Plus, Save, Trash2 } from 'lucide-react
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import { Button } from '../../../../base/browser/ui/button/button';
+import { Dropdown } from '../../../../base/browser/ui/dropdown/dropdown';
 import { Input } from '../../../../base/browser/ui/input/input';
 import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
 import type { BatchSource } from '../../../services/config/configSchema';
@@ -224,29 +225,6 @@ type BatchSourceRowConfig = {
   onRemoveBatchSource: SettingsPartProps['onRemoveBatchSource'];
 };
 
-function renderLocaleButton({
-  value,
-  activeLocale,
-  label,
-  onLocaleChange,
-}: {
-  value: SettingsPartProps['locale'];
-  activeLocale: SettingsPartProps['locale'];
-  label: string;
-  onLocaleChange: SettingsPartProps['onLocaleChange'];
-}) {
-  const className =
-    activeLocale === value ? 'settings-language-btn is-active' : 'settings-language-btn';
-
-  return jsx('button', {
-    type: 'button',
-    className,
-    onClick: () => onLocaleChange(value),
-    'aria-pressed': activeLocale === value,
-    children: label,
-  });
-}
-
 function renderBatchSourceRow({
   source,
   index,
@@ -341,26 +319,27 @@ function renderLocaleField({
   locale,
   onLocaleChange,
 }: Pick<SettingsPartViewProps, 'labels' | 'locale' | 'onLocaleChange'>) {
+  const languageOptions = [
+    { value: 'zh', label: labels.languageChinese },
+    { value: 'en', label: labels.languageEnglish },
+  ];
+
   return jsxs('div', {
-    className: 'settings-field',
+    className: 'settings-field settings-language-field',
     children: [
-      jsx('span', { children: labels.settingsLanguage }),
       jsxs('div', {
-        className: 'settings-language-toggle',
-        role: 'group',
-        'aria-label': labels.settingsLanguage,
+        className: 'settings-language-row',
         children: [
-          renderLocaleButton({
-            value: 'zh',
-            activeLocale: locale,
-            label: labels.languageChinese,
-            onLocaleChange,
-          }),
-          renderLocaleButton({
-            value: 'en',
-            activeLocale: locale,
-            label: labels.languageEnglish,
-            onLocaleChange,
+          jsx('span', { children: labels.settingsLanguage }),
+          jsx(Dropdown, {
+            className: 'settings-language-toggle',
+            size: 'sm',
+            value: locale,
+            onChange: (event: { target: { value: string } }) =>
+              onLocaleChange(event.target.value as Locale),
+            'aria-label': labels.settingsLanguage,
+            title: labels.settingsLanguage,
+            options: languageOptions,
           }),
         ],
       }),
