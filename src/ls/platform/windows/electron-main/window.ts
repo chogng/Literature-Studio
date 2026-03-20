@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BrowserWindow, type WebContents } from 'electron';
+import { BrowserWindow, type BrowserWindowConstructorOptions, type WebContents } from 'electron';
 import type { WindowControlAction, WindowState } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { disposePreviewView, ensurePreviewView } from './previewView.js';
 
@@ -10,6 +10,23 @@ const __dirname = path.dirname(__filename);
 let mainWindow: BrowserWindow | null = null;
 const auxiliaryWindows = new Set<BrowserWindow>();
 const autoMinimizedAuxiliaryWindowIds = new Set<number>();
+let currentUseMica = true;
+
+function resolveWindowBackgroundMaterial(useMica: boolean) {
+  if (process.platform !== 'win32') {
+    return 'auto' as const;
+  }
+
+  return useMica ? ('mica' as const) : ('none' as const);
+}
+
+function applyWindowBackgroundMaterial(window: BrowserWindow, useMica: boolean) {
+  if (window.isDestroyed()) {
+    return;
+  }
+
+  window.setBackgroundMaterial(resolveWindowBackgroundMaterial(useMica));
+}
 
 function publishWindowState(window: BrowserWindow) {
   if (window.isDestroyed()) return;
@@ -21,6 +38,26 @@ function publishWindowState(window: BrowserWindow) {
 
 export function getMainWindow() {
   return mainWindow;
+}
+
+export function applyMainWindowBackgroundMaterial(
+  useMica: boolean,
+  window: BrowserWindow | null = mainWindow,
+) {
+  currentUseMica = useMica;
+
+  if (!window || window.isDestroyed()) {
+    for (const auxiliaryWindow of auxiliaryWindows) {
+      applyWindowBackgroundMaterial(auxiliaryWindow, useMica);
+    }
+    return;
+  }
+
+  applyWindowBackgroundMaterial(window, useMica);
+
+  for (const auxiliaryWindow of auxiliaryWindows) {
+    applyWindowBackgroundMaterial(auxiliaryWindow, useMica);
+  }
 }
 
 function closeAuxiliaryWindows() {
@@ -69,11 +106,26 @@ function restoreAuxiliaryWindows() {
 export function registerAuxiliaryWindow(window: BrowserWindow) {
   auxiliaryWindows.add(window);
   const webContentsId = window.webContents.id;
+  applyWindowBackgroundMaterial(window, currentUseMica);
 
   window.on('closed', () => {
     auxiliaryWindows.delete(window);
     autoMinimizedAuxiliaryWindowIds.delete(webContentsId);
   });
+}
+
+export function getCurrentUseMica() {
+  return currentUseMica;
+}
+
+export function createAuxiliaryWindow(options: BrowserWindowConstructorOptions) {
+  const window = new BrowserWindow({
+    ...options,
+    backgroundMaterial: resolveWindowBackgroundMaterial(currentUseMica),
+  });
+
+  registerAuxiliaryWindow(window);
+  return window;
 }
 
 export function resolveWindowFromWebContents(contents?: WebContents | null) {
@@ -112,7 +164,8 @@ export function getWindowState(window?: BrowserWindow | null): WindowState {
   };
 }
 
-export function createMainWindow() {
+export function createMainWindow(options: { useMica?: boolean } = {}) {
+  const useMica = options.useMica ?? true;
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -123,6 +176,7 @@ export function createMainWindow() {
     titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default',
     titleBarOverlay: false,
     backgroundColor: '#edf2f8',
+    backgroundMaterial: resolveWindowBackgroundMaterial(useMica),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
@@ -134,6 +188,7 @@ export function createMainWindow() {
   });
 
   const window = mainWindow;
+  applyMainWindowBackgroundMaterial(useMica, window);
   ensurePreviewView(window);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;

@@ -41,27 +41,22 @@
 }
 
 /* Shared skin for child modal windows. Keep reusable chrome styles here. */
-.child-window-shell-page,
-.article-details-window {
+.child-window-shell-page {
   height: 100%;
   padding: 0;
-  background: var(--workbench-chrome-bg);
+  background: transparent;
 }
 
-.child-window-shell-surface,
-.article-details-shell {
+.child-window-shell-surface {
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   border: 1px solid rgba(142, 162, 186, 0.45);
   border-radius: 0;
-  background: var(--workbench-chrome-bg);
+  background: transparent;
   box-shadow: 0 24px 56px rgba(37, 58, 84, 0.16);
   overflow: hidden;
-}
-
-.child-window-shell-surface-loading,
-.article-details-shell-loading {
+.child-window-shell-surface-loading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,8 +70,7 @@
   color: #42566e;
 }
 
-.child-window-shell-titlebar,
-.article-details-header {
+.child-window-shell-titlebar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -84,13 +78,12 @@
   height: 38px;
   min-height: 38px;
   padding: 0;
-  background: var(--workbench-chrome-bg);
+  background: transparent;
   -webkit-app-region: drag;
   user-select: none;
 }
 
-.child-window-shell-titlebar-heading,
-.article-details-heading {
+.child-window-shell-titlebar-heading {
   display: flex;
   align-items: center;
   height: 100%;
@@ -99,8 +92,7 @@
   padding-right: 12px;
 }
 
-.child-window-shell-titlebar-title,
-.article-details-title {
+.child-window-shell-titlebar-title {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
@@ -112,16 +104,14 @@
   text-overflow: ellipsis;
 }
 
-.child-window-shell-titlebar-controls,
-.article-details-window-controls {
+.child-window-shell-titlebar-controls {
   display: inline-flex;
   align-items: center;
   height: 100%;
   -webkit-app-region: no-drag;
 }
 
-.child-window-shell-titlebar-controls .titlebar-btn-window.btn-base.btn-mode-icon,
-.article-details-window-controls .titlebar-btn-window.btn-base.btn-mode-icon {
+.child-window-shell-titlebar-controls .titlebar-btn-window.btn-base.btn-mode-icon {
   width: 46px;
   min-width: 46px;
   max-width: 46px;
@@ -132,8 +122,7 @@
 }
 
 @media (max-width: 720px) {
-  .child-window-shell-titlebar-heading,
-  .article-details-heading {
+  .child-window-shell-titlebar-heading {
     padding-left: 6px;
   }
 }

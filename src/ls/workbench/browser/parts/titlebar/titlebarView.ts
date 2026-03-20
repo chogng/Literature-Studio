@@ -352,7 +352,7 @@ function renderSourceSelector({
   return jsx('div', {
     className: 'titlebar-journal-bar',
     children: jsx(Dropdown, {
-      className: 'titlebar-source-select',
+      className: `titlebar-source-select ${selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
       style: { '--titlebar-source-width': `${selectorWidthCh}ch` },
       value: selectedAddressBarSourceId,
       onChange: (event: DropdownChangeEvent) => onSelectAddressBarSource(event.target.value),

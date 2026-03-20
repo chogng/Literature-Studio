@@ -62,7 +62,7 @@ button:disabled {
   grid-template-rows: 1fr;
   padding: 0 8px 8px;
   overflow: hidden;
-  background: var(--workbench-chrome-bg);
+  background: transparent;
 }
 
 .app-shell.app-shell-settings {
