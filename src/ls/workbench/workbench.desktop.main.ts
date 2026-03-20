@@ -1,10 +1,10 @@
 //#region --- workbench common
-import './workbench.common.main';
-import './workbench.desktop.main.css';
+import 'ls/workbench/workbench.common.main';
+import 'ls/workbench/workbench.desktop.main.css';
 
 //#region --- workbench (desktop main)
-import './electron-sandbox/desktop.main';
-import './electron-sandbox/desktop.contribution';
+import 'ls/workbench/electron-sandbox/desktop.main';
+import 'ls/workbench/electron-sandbox/desktop.contribution';
 
 //#region --- workbench parts
-import './browser/workbench';
+import 'ls/workbench/browser/workbench';
