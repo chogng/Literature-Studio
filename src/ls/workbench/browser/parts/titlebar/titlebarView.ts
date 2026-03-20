@@ -19,7 +19,6 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
-  RefreshCcw,
   Settings,
 } from 'lucide-react';
 import { Button } from '../../../../base/browser/ui/button/button';
@@ -30,7 +29,6 @@ import {
   requestTitlebarNavigateBack,
   requestTitlebarNavigateForward,
   requestTitlebarNavigateWeb,
-  requestTitlebarRefresh,
   requestToggleTitlebarSidebar,
   requestExportTitlebarDocx,
   requestToggleTitlebarSettings,
@@ -49,7 +47,6 @@ export type TitlebarLabels = {
   closeLabel: string;
   backLabel: string;
   forwardLabel: string;
-  refreshLabel: string;
   exportDocxLabel: string;
   noExportableArticlesLabel: string;
 };
@@ -69,7 +66,6 @@ export type TitlebarProps = {
   canExportDocx?: boolean;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
-  onRefresh?: () => void;
   onAddressBarSourceMenuOpenChange?: (isOpen: boolean) => void;
   onAddressBarSourceMenuDispose?: () => void;
   webUrl?: string;
@@ -100,7 +96,6 @@ const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   closeLabel: '',
   backLabel: '',
   forwardLabel: '',
-  refreshLabel: '',
   exportDocxLabel: '',
   noExportableArticlesLabel: '',
 };
@@ -282,13 +277,6 @@ function renderNavigationGroup({
         disabled: !browserUrl || !canGoForward,
         icon: jsx(ArrowRight, { size: 14, strokeWidth: 1.5 }),
       }),
-      renderIconButton({
-        className: 'titlebar-btn titlebar-btn-nav',
-        label: labels.refreshLabel,
-        onClick: requestTitlebarRefresh,
-        disabled: !browserUrl,
-        icon: jsx(RefreshCcw, { size: 14, strokeWidth: 1.5 }),
-      }),
     ],
   });
 }
@@ -385,7 +373,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     canExportDocx = false,
     onNavigateBack,
     onNavigateForward,
-    onRefresh,
     onAddressBarSourceMenuOpenChange,
     onAddressBarSourceMenuDispose,
     webUrl,
@@ -498,7 +485,7 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     canGoBack,
     canGoForward,
     labels,
-    isVisible: Boolean(onNavigateBack || onNavigateForward || onRefresh),
+    isVisible: Boolean(onNavigateBack || onNavigateForward),
   });
   const webUrlView = renderWebUrlBar({
     webUrl,

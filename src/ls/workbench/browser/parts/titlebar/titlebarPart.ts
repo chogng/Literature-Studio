@@ -34,7 +34,6 @@ export type TitlebarPartActions = {
   handleToggleSidebar: () => void;
   handlePreviewBack: () => void;
   handlePreviewForward: () => void;
-  handleBrowserRefresh: () => void;
   handleAddressBarSourceMenuOpenChange: (isOpen: boolean) => void;
   handleAddressBarSourceMenuDispose: () => void;
   handleWebUrlChange: (url: string) => void;
@@ -71,7 +70,6 @@ export function createTitlebarPartProps({
     handleToggleSidebar,
     handlePreviewBack,
     handlePreviewForward,
-    handleBrowserRefresh,
     handleAddressBarSourceMenuOpenChange,
     handleAddressBarSourceMenuDispose,
     handleWebUrlChange,
@@ -90,7 +88,6 @@ export function createTitlebarPartProps({
       closeLabel: ui.titlebarClose,
       backLabel: ui.titlebarBack,
       forwardLabel: ui.titlebarForward,
-      refreshLabel: ui.titlebarRefresh,
       exportDocxLabel: ui.titlebarExportDocx,
       noExportableArticlesLabel: ui.titlebarNoExportableArticles,
     },
@@ -105,7 +102,6 @@ export function createTitlebarPartProps({
     canExportDocx,
     onNavigateBack: handlePreviewBack,
     onNavigateForward: handlePreviewForward,
-    onRefresh: handleBrowserRefresh,
     onAddressBarSourceMenuOpenChange: handleAddressBarSourceMenuOpenChange,
     onAddressBarSourceMenuDispose: handleAddressBarSourceMenuDispose,
     ...createTitlebarQuickAccessProps({

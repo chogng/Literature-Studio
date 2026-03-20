@@ -3,7 +3,6 @@ export type TitlebarUiAction =
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'NAVIGATE_BACK' }
   | { type: 'NAVIGATE_FORWARD' }
-  | { type: 'REFRESH' }
   | { type: 'NAVIGATE_WEB' }
   | { type: 'TOGGLE_SETTINGS' }
   | { type: 'EXPORT_DOCX' };
@@ -39,10 +38,6 @@ export function requestTitlebarNavigateBack() {
 
 export function requestTitlebarNavigateForward() {
   emitTitlebarUiAction({ type: 'NAVIGATE_FORWARD' });
-}
-
-export function requestTitlebarRefresh() {
-  emitTitlebarUiAction({ type: 'REFRESH' });
 }
 
 export function requestTitlebarNavigateWeb() {

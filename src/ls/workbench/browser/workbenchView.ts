@@ -294,14 +294,6 @@ function WorkbenchContentView() {
     navigateToAddressBarUrl(webUrl, true);
   }, [navigateToAddressBarUrl, webUrl]);
 
-  const handleBrowserRefresh = useCallback(() => {
-    previewNavigationModel.handleBrowserRefresh({
-      electronRuntime,
-      previewRuntime,
-      ui,
-    });
-  }, [electronRuntime, previewNavigationModel, previewRuntime, ui]);
-
   const handlePreviewBack = useCallback(() => {
     previewNavigationModel.handlePreviewBack({
       previewRuntime,
@@ -478,11 +470,6 @@ function WorkbenchContentView() {
         return;
       }
 
-      if (action.type === 'REFRESH') {
-        handleBrowserRefresh();
-        return;
-      }
-
       if (action.type === 'NAVIGATE_WEB') {
         handleNavigateWeb();
         return;
@@ -498,8 +485,7 @@ function WorkbenchContentView() {
       }
     });
   }, [
-    handleBrowserRefresh,
-      handleExportArticlesDocx,
+    handleExportArticlesDocx,
     handleNavigateWeb,
     handlePreviewBack,
     handlePreviewForward,
@@ -574,7 +560,6 @@ function WorkbenchContentView() {
           handleToggleSidebar,
           handlePreviewBack,
           handlePreviewForward,
-          handleBrowserRefresh,
           handleAddressBarSourceMenuOpenChange,
           handleAddressBarSourceMenuDispose,
           handleWebUrlChange,
@@ -590,7 +575,6 @@ function WorkbenchContentView() {
       fetchStatus,
       handleAddressBarSourceMenuDispose,
       handleAddressBarSourceMenuOpenChange,
-      handleBrowserRefresh,
       handleCycleAddressBarSource,
       handlePreviewBack,
       handlePreviewForward,
