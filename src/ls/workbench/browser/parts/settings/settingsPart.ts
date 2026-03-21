@@ -603,7 +603,7 @@ function renderAppearanceField({
         className: 'settings-toggle-row',
         children: [
           jsx('span', {
-            className: 'settings-toggle-subtitle',
+            className: 'settings-hint',
             children: labels.settingsUseMica,
           }),
           jsx(Switch, {

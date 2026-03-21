@@ -47,9 +47,9 @@ const zh = {
   batchJournalTitlePlaceholder: '该 URL 对应的期刊名（例如：Nature News）',
   settingsBatchOptions: '默认批量抓取选项',
   settingsBatchHint:
-    '在 Reader 页点击“抓取”时，如果地址栏不为空，会优先只抓地址栏中的 URL；只有地址栏为空时，才会使用这里配置的 URL。数量会对每个 URL 分别生效。',
+    '在 Reader 页点击“抓取”时，如果地址栏不为空，会优先只抓地址栏中的 URL；只有地址栏为空时，才会使用这里配置的 URL。单次最大抓取数量会对每条 URL 分别生效。',
   settingsAppearanceTitle: '\u7a97\u53e3\u5916\u89c2',
-  settingsUseMica: '\u542f\u7528 Windows Mica \u80cc\u666f',
+  settingsUseMica: '透明背景',
   settingsUseMicaHint:
     '\u4ec5\u5728\u684c\u9762\u7aef\u751f\u6548\u3002Windows \u652f\u6301\u65f6\uff0c\u6807\u9898\u680f\u548c\u4e3b\u754c\u9762\u5e95\u5c42\u4f1a\u8ddf\u968f Mica \u6750\u8d28\u3002',
   defaultPdfDir: 'PDF下载到',
@@ -144,7 +144,7 @@ const zh = {
   emptyState: '请输入链接后查看网页。',
   webPreviewTitle: '网页预览',
   toastClose: '关闭',
-  settingsLanguage: 'Language',
+  settingsLanguage: '语言',
   settingsLanguageHint: '切换后立即生效，并记住你的选择。',
   languageChinese: '\u7b80\u4f53\u4e2d\u6587',
   languageEnglish: 'English',

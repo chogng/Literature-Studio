@@ -47,9 +47,9 @@ const en = {
   batchJournalTitlePlaceholder: 'Journal title for this URL (e.g., Nature News)',
   settingsBatchOptions: 'Default batch fetch options',
   settingsBatchHint:
-    'When you click "Fetch" in Reader, a non-empty address bar takes priority and is used as the only source. The URLs here are used only when the address bar is empty. Count is applied to each URL.',
+    'When you click "Fetch" in Reader, a non-empty address bar takes priority and is used as the only source. The URLs here are used only when the address bar is empty. Max fetch count is applied per URL.',
   settingsAppearanceTitle: 'Window appearance',
-  settingsUseMica: 'Use Windows Mica background',
+  settingsUseMica: 'Transparent background',
   settingsUseMicaHint:
     'Available in the desktop app. The titlebar and app shell will pick up the system Mica material when Windows supports it.',
   defaultPdfDir: 'Default PDF download directory',
