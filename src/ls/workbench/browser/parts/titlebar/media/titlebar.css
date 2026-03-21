@@ -129,8 +129,8 @@
 }
 
 .titlebar-url-bar {
-  width: min(100%, 560px);
-  min-width: 280px;
+  width: min(100%, 600px);
+  min-width: 400px;
   -webkit-app-region: no-drag;
 }
 
