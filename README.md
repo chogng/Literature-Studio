@@ -1,35 +1,61 @@
-# Journal Reader (Electron + React + Vite)
+# Literature Studio
 
-一个用于阅读期刊网页、抓取文章信息、批量处理最新文章的桌面应用骨架。
+一个面向期刊网页阅读与文献信息整理的桌面应用，基于 Electron、React、TypeScript 和 Vite 构建。
 
-## 功能概览
+它现在不只是“抓文章骨架”，而是一套已经跑起来的工作台：
 
-- 左侧结果面板：展示抓取结果与历史记录
-- 右侧网页预览：在桌面模式下直接浏览目标网页
-- 支持单篇文章抓取
-- 支持从期刊首页或最新文章页批量抓取
-- 支持按起止日期筛选批量抓取范围
-- 支持按关键词和来源 URL 过滤结果
-- 支持本地设置保存
-- 支持 PDF 下载目录配置
-- 支持导出结构化信息
+- 在桌面端直接预览期刊网页，而不是依赖易受限制的 `iframe`
+- 从单篇文章页抓取结构化信息
+- 从期刊列表页或最新文章页批量抓取文章
+- 按日期范围、来源和关键词过滤结果
+- 下载文章 PDF
+- 选中文献卡片后导出 DOCX
+- 在设置页维护默认抓取源、下载目录、语言和模型提供方配置
 
-当前抓取结果主要包括：
+## 当前能力
 
-- 标题 `title`
-- DOI `doi`
-- 作者 `authors`
-- 摘要 `abstract`
-- 发布时间 `publishedAt`
-- 来源链接 `sourceUrl`
+### Reader 工作台
+
+- 左侧侧边栏展示抓取结果，并支持筛选与选择模式
+- 顶部地址栏支持手动输入 URL，也支持“快速来源”切换
+- 右侧预览区在 Electron 中使用原生预览桥接，可正常显示很多禁止 iframe 嵌入的站点
+- 支持单篇抓取和批量抓取
+- 批量抓取支持起止日期限制
+- 批量抓取支持同域限制
+
+### 文献处理
+
+- 抓取结果包含标题、作者、摘要或描述、DOI、发布日期、来源链接等结构化字段
+- 支持打开文章详情弹窗
+- 支持按文章来源下载 PDF
+- 支持将选中的文献卡片导出为 DOCX
+- DOCX 导出会按期刊分组，并复用本地模型配置将摘要或描述翻译为中文
+
+### 设置与本地存储
+
+- 支持中英文界面切换
+- 支持维护默认批量抓取来源列表
+- 支持配置默认 PDF 下载目录
+- 支持配置和测试 GLM、Kimi、DeepSeek 等 OpenAI 兼容接口
+- 设置与历史记录会保存到本地
+
+默认内置了一批常用来源，包括：
+
+- `Science`
+- `Science Advances`
+- `Nature Latest News`
+- `Nature Opinion`
+- 多个 Nature research-articles / reviews-and-analysis 列表页
+- `arXiv Computer Science`
 
 ## 技术栈
 
-- 前端：React 19 + Vite 7 + TypeScript
-- 桌面壳：Electron
-- 抓取后端：Electron Main Process + Node.js + Cheerio
+- 渲染层：React 19 + TypeScript + Vite 7
+- 桌面壳：Electron 37
+- 抓取与文件处理：Electron Main Process + Node.js
+- HTML 解析：Cheerio
 
-## 开发启动
+## 开发
 
 安装依赖：
 
@@ -43,98 +69,96 @@ npm install
 npm run dev
 ```
 
+这个命令会同时启动：
+
+- Vite 渲染层开发服务器
+- Electron 主进程 TypeScript watch 构建
+- Electron 进程自动重启
+
+如果端口被旧进程占用，`predev` 会先运行 [`kill-dev-ports.ps1`](/c:/Users/lanxi/Desktop/Literature-Studio/kill-dev-ports.ps1)。
+
 ## 纯 Web 调试模式
 
-如果只想快速排查前端布局，而不依赖 Electron 主进程能力，可以使用：
+如果只想调布局或交互，不需要 Electron 主进程能力，可以运行：
 
 ```bash
 npm run dev:web
 ```
 
-说明：
+这个模式下：
 
-- 这个模式主要用于调试界面布局和交互
-- 纯 Web 模式下，抓取、历史、目录选择、PDF 下载等桌面能力不可用
-- 纯 Web 模式下的网页预览仍然会受到 `iframe` 安全策略限制
+- 可用于调试前端界面
+- 不支持抓取、PDF 下载、DOCX 导出、目录选择、模型连通性测试等桌面能力
+- 网页预览仍会受到浏览器 `iframe` 安全策略限制
 
 ## 构建与运行
 
-构建项目：
+构建：
 
 ```bash
 npm run build
 ```
 
-构建后启动桌面应用：
+启动桌面应用：
 
 ```bash
 npm run start
 ```
 
-## 项目结构说明
+可选检查：
 
-- 主进程入口：[electron/main.ts](c:\Users\lanxi\Desktop\Literature-Studio\electron\main.ts)
-- 预加载桥接：[electron/preload.ts](c:\Users\lanxi\Desktop\Literature-Studio\electron\preload.ts)
-- 主窗口管理：[electron/window.ts](c:\Users\lanxi\Desktop\Literature-Studio\electron\window.ts)
-- 原生网页预览管理：[electron/preview-view.ts](c:\Users\lanxi\Desktop\Literature-Studio\electron\preview-view.ts)
-- 渲染层主界面：[src/App.tsx](c:\Users\lanxi\Desktop\Literature-Studio\src\App.tsx)
-- 阅读视图：[src/views/ReaderView.tsx](c:\Users\lanxi\Desktop\Literature-Studio\src\views\ReaderView.tsx)
+```bash
+npm run check:i18n
+```
 
-Electron 侧主要通过 `window.electronAPI.invoke` 和 `window.electronAPI.preview` 与渲染进程通信。
+## 数据与配置位置
 
-## 预览白屏问题记录
+应用启动时会把 Electron 的用户数据目录统一映射到 `~/.reader`：
 
-### 现象
+- 配置文件：`~/.reader/config/config.json`
+- 历史记录：`~/.reader/data/history.json`
+- 缓存与临时目录：`~/.reader/cache/*`
+- 日志目录：`~/.reader/logs`
 
-- 在地址栏输入链接并按 Enter 后，右侧预览区白屏
-- 某些站点，例如 `nature.com`，控制台会出现 `X-Frame-Options: deny` 或 `frame-ancestors` 相关报错
-- 开发过程中可能伴随 React Fast Refresh 的 `useEffect` 依赖警告，但这不是白屏主因
+对应实现可以看 [`environmentMainService.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/platform/environment/electron-main/environmentMainService.ts)。
 
-### 根因
+## 目录速览
 
-- 旧方案依赖 `iframe` 或 `webview` 思路承载网页
-- 当目标站点禁止被嵌入时，浏览器安全策略会直接拦截页面显示
-- 当渲染进程已经运行在 Electron 中，但新的 `main` / `preload` 尚未完整重启时，会出现“Electron 壳已启动，但桌面预览桥未就绪”的错位状态
-- 这时界面表面上像是“容器没铺满”或“高度顶不出来”，实际上是预览承载方式和运行时判断错了
+- 渲染层入口：[`src/main.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/main.ts)
+- 工作台主视图：[`workbenchView.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/workbench/browser/workbenchView.ts)
+- 预览导航模型：[`previewNavigationModel.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/workbench/browser/previewNavigationModel.ts)
+- 设置模型：[`settingsModel.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/workbench/services/settings/settingsModel.ts)
+- 默认抓取源：[`defaultBatchSources.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/platform/config/common/defaultBatchSources.ts)
+- Electron 主进程入口：[`main.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/code/electron-main/main.ts)
+- IPC 命令注册：[`ipc.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/code/electron-main/ipc.ts)
+- 预览视图实现：[`previewView.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/platform/windows/electron-main/previewView.ts)
+- DOCX 导出：[`docx.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/code/electron-main/document/docx.ts)
+- 站点专用列表提取器：[`README.md`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/code/electron-main/fetch/sourceExtractors/README.md)
 
-### 解决方案
+## 预览机制说明
 
-- 在主进程中使用 `WebContentsView` 承载右侧网页预览，而不是继续依赖 `iframe` / `webview`
-- 渲染进程中的预览区域只负责提供占位容器
-- 渲染进程通过 IPC 持续把容器的 `bounds`、可见性和导航意图同步给主进程
-- 主进程根据这些信息调用 `setBounds` / `setVisible`，让原生预览视图与 React 布局保持一致
-- 在运行时区分 `electronRuntime` 和 `previewRuntime`
+桌面模式下，右侧网页预览不是简单的 `iframe`，而是由主进程维护原生预览视图，渲染层只负责同步容器位置、可见性和导航意图。
 
-含义如下：
+这带来几个直接好处：
 
-- `electronRuntime`：当前运行在 Electron 环境中
-- `previewRuntime`：新的桌面预览桥已经真正可用
+- 很多禁止 iframe 嵌入的站点仍可正常预览
+- 预览区域能跟随 React 布局稳定同步
+- 地址栏、快速来源和主进程预览状态可以统一管理
 
-额外兜底：
+如果你改到了主进程、预加载桥、IPC 或预览视图相关代码，通常需要完整重启一次 `npm run dev` 对应的 Electron 进程，单纯热更新往往不够。
 
-- 当 `previewRuntime` 未就绪时，界面会直接提示需要完整重启 Electron
-- 不再静默退回到 `iframe` 后继续白屏
+## 当前已知限制
 
-### 结果
+- `npm run dev:web` 无法绕过站点自身的 iframe 安全策略
+- 某些出版社仍需要更专用的提取器或 PDF 策略
+- 前进和后退依赖桌面预览桥可用
+- DOCX 导出中的翻译能力依赖本地已配置且可连通的模型提供方
 
-- 桌面模式下，像 `nature.com` 这类禁止 iframe 嵌入的页面也可以正常显示
-- 右侧预览区域能够随容器正确铺满
-- 纯 Web 调试模式下仍然会受到 `iframe` 策略限制，这属于预期行为
+## 相关脚本
 
-### 注意
-
-- 只改渲染进程代码后进行热更新通常不够
-- 只要改到了 `electron/main.ts`、`electron/preload.ts`、IPC 或 `WebContentsView` 逻辑，就需要完整重启 `npm run dev` 对应的 Electron 进程
-
-## 当前限制
-
-- 纯 Web 模式无法绕过所有站点的 iframe 安全策略
-- 某些站点需要额外的专用抓取逻辑
-- 前进/后退等导航能力依赖桌面预览桥可用
-
-## 后续可扩展方向
-
-- 为不同出版商增加专用解析器
-- 增加更稳定的历史存储方案，例如 SQLite
-- 增加更强的全文提取能力
-- 为必须执行 JS 的站点接入 Playwright sidecar
+- `npm run dev`：桌面开发模式
+- `npm run dev:web`：纯 Web 调试模式
+- `npm run build`：构建渲染层与 Electron 代码
+- `npm run start`：构建后启动桌面应用
+- `npm run preview`：Vite 预览
+- `npm run check:i18n`：检查中英文文案键是否一致
