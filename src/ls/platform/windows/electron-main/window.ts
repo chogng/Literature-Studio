@@ -6,6 +6,7 @@ import { disposePreviewView, ensurePreviewView } from './previewView.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const workbenchRendererPathname = '/src/ls/code/electron-sandbox/workbench/workbench.html';
 
 let mainWindow: BrowserWindow | null = null;
 const auxiliaryWindows = new Set<BrowserWindow>();
@@ -68,6 +69,40 @@ function publishWindowState(window: BrowserWindow) {
 
 export function getMainWindow() {
   return mainWindow;
+}
+
+export function resolveWorkbenchRendererUrl(
+  devServerUrl: string,
+  query: Record<string, string | undefined> = {},
+) {
+  const url = new URL(devServerUrl);
+  url.pathname = workbenchRendererPathname;
+  url.search = '';
+
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === 'string') {
+      url.searchParams.set(key, value);
+    }
+  }
+
+  return url.toString();
+}
+
+export function resolveWorkbenchRendererFilePath() {
+  return path.join(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    '..',
+    'dist',
+    'src',
+    'ls',
+    'code',
+    'electron-sandbox',
+    'workbench',
+    'workbench.html',
+  );
 }
 
 export function applyMainWindowBackgroundMaterial(
@@ -257,9 +292,9 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
-    void window.loadURL(devUrl);
+    void window.loadURL(resolveWorkbenchRendererUrl(devUrl));
   } else {
-    void window.loadFile(path.join(__dirname, '..', '..', '..', '..', 'dist', 'index.html'));
+    void window.loadFile(resolveWorkbenchRendererFilePath());
   }
 
   window.on('closed', () => {

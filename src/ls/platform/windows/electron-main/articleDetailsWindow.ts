@@ -7,7 +7,11 @@ import type {
   OpenArticleDetailsModalPayload,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { appError } from '../../../base/common/errors.js';
-import { createAuxiliaryWindow } from './window.js';
+import {
+  createAuxiliaryWindow,
+  resolveWorkbenchRendererFilePath,
+  resolveWorkbenchRendererUrl,
+} from './window.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,17 +34,17 @@ function applyWindowChrome(window: BrowserWindow) {
 function resolveRendererTarget(kind: NativeModalState['kind']) {
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
-    const url = new URL(devUrl);
-    url.searchParams.set(nativeModalQueryKey, kind);
     return {
       type: 'url' as const,
-      target: url.toString(),
+      target: resolveWorkbenchRendererUrl(devUrl, {
+        [nativeModalQueryKey]: kind,
+      }),
     };
   }
 
   return {
     type: 'file' as const,
-    target: path.join(__dirname, '..', '..', '..', '..', 'dist', 'index.html'),
+    target: resolveWorkbenchRendererFilePath(),
     query: {
       [nativeModalQueryKey]: kind,
     },
