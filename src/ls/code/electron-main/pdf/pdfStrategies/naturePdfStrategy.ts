@@ -1,4 +1,4 @@
-﻿import { appError } from '../../../../base/common/errors.js';
+import { appError } from '../../../../base/common/errors.js';
 import {
   persistDownloadedPdf,
   tryBrowserSessionDownloadCandidates,
@@ -85,6 +85,7 @@ async function downloadNatureResearchPdfWithFallbacks(request: PdfDownloadContex
     attemptedUrls: request.naturePdfCandidateUrls,
     failures: summarizeNatureFailures(failures),
   });
+
   throw appError('PDF_DOWNLOAD_FAILED', {
     status: latestFailure?.status ?? 'PDF_LINK_NOT_FOUND',
     statusText:
@@ -105,7 +106,3 @@ export const naturePdfStrategy: PdfDownloadStrategy = {
     return await downloadNatureResearchPdfWithFallbacks(request);
   },
 };
-
-
-
-

@@ -18,6 +18,6 @@ export interface PdfDownloadStrategy {
   id: string;
   priority: PdfDownloadStrategyPriority;
   matches(request: PdfDownloadContext): boolean;
-  download(request: PdfDownloadContext): Promise<PdfDownloadResult>;
+  download(request: PdfDownloadContext): Promise<PdfDownloadResult | null>;
 }
 

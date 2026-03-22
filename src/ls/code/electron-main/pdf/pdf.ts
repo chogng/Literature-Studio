@@ -19,6 +19,7 @@ import {
   tryDownloadPdfCandidates,
   type PdfDownloadAttemptFailure,
 } from '../../../platform/download/electron-main/pdfDownload.js';
+import { natureLatestNewsPdfStrategy } from './pdfStrategies/natureLatestNewsPdfStrategy.js';
 import { naturePdfStrategy } from './pdfStrategies/naturePdfStrategy.js';
 import { sciencePdfStrategy } from './pdfStrategies/sciencePdfStrategy.js';
 import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategies/pdfStrategyTypes.js';
@@ -209,6 +210,7 @@ function buildPdfDownloadCandidates(pdfUrl: string, pageUrl: string) {
 
 const pdfDownloadStrategies: readonly PdfDownloadStrategy[] = [
   sciencePdfStrategy,
+  natureLatestNewsPdfStrategy,
   naturePdfStrategy,
 ];
 
@@ -417,7 +419,14 @@ export async function previewDownloadPdf(
       pageUrl: request.pageUrl,
       strategyId: exclusiveStrategy.id,
     });
-    return await exclusiveStrategy.download(request);
+    const result = await exclusiveStrategy.download(request);
+    if (result) {
+      return result;
+    }
+    logPdfStrategy('exclusive_skipped', {
+      pageUrl: request.pageUrl,
+      strategyId: exclusiveStrategy.id,
+    });
   }
 
   const preferredStrategies = matchingStrategies.filter(
@@ -430,6 +439,13 @@ export async function previewDownloadPdf(
     });
     try {
       const result = await strategy.download(request);
+      if (!result) {
+        logPdfStrategy('preferred_skipped', {
+          pageUrl: request.pageUrl,
+          strategyId: strategy.id,
+        });
+        continue;
+      }
       logPdfStrategy('preferred_success', {
         pageUrl: request.pageUrl,
         strategyId: strategy.id,

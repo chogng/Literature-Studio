@@ -1482,6 +1482,27 @@ export async function getPreviewListingCandidateSnapshot(
   }
 }
 
+function normalizeComparablePreviewUrl(value: string) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) return '';
+
+  try {
+    const parsed = new URL(normalized);
+    parsed.hash = '';
+    if (parsed.pathname !== '/') {
+      parsed.pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+    }
+    return parsed.toString();
+  } catch {
+    return normalized;
+  }
+}
+
+function isAbortLikePreviewNavigationError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\bERR_ABORTED\b/i.test(message) || /\(-3\)\s+loading\b/i.test(message);
+}
+
 export async function navigatePreview(url: string) {
   if (!previewView || previewView.webContents.isDestroyed()) {
     throw appError('PREVIEW_NOT_READY');
@@ -1489,8 +1510,182 @@ export async function navigatePreview(url: string) {
 
   previewState.visible = true;
   applyPreviewBounds();
-  await previewView.webContents.loadURL(url);
-  updatePreviewState();
+
+  let navigationFailure: unknown = null;
+  void previewView.webContents.loadURL(url).catch((error) => {
+    if (isAbortLikePreviewNavigationError(error)) {
+      return;
+    }
+    navigationFailure = error;
+  });
+
+  const startedAt = Date.now();
+  const timeoutMs = 12000;
+  while (Date.now() - startedAt < timeoutMs) {
+    if (navigationFailure) {
+      throw navigationFailure;
+    }
+
+    updatePreviewState();
+    const currentUrl = normalizeComparablePreviewUrl(previewState.url);
+    const targetUrl = normalizeComparablePreviewUrl(url);
+    if (currentUrl === targetUrl) {
+      updatePreviewState();
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
+
+  throw appError('PREVIEW_NOT_READY', {
+    message: 'Timed out while waiting for preview URL to match target.',
+    targetUrl: url,
+    currentUrl: previewState.url,
+  });
+}
+
+export async function navigatePreviewForPrint(url: string, timeoutMs = 12000) {
+  if (!previewView || previewView.webContents.isDestroyed()) {
+    throw appError('PREVIEW_NOT_READY');
+  }
+
+  previewState.visible = true;
+  applyPreviewBounds();
+  await navigatePreview(url);
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < Math.max(1000, timeoutMs)) {
+    const mainReady = await executePreviewScript<boolean>(
+      `(() => {
+        const main = document.querySelector('main#content');
+        if (!main) return false;
+        const title = (main.querySelector('h1')?.textContent ?? '').replace(/\\s+/g, ' ').trim();
+        const text = (main.textContent ?? '').replace(/\\s+/g, ' ').trim();
+        const rect = main.getBoundingClientRect();
+        return Boolean(title) && text.length >= 120 && rect.height > 120;
+      })()`,
+      { timeoutMs: 800 },
+    );
+    if (mainReady === true) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+
+  throw appError('PREVIEW_NOT_READY', {
+    message: 'Timed out while waiting for preview main content to become printable.',
+    targetUrl: url,
+    currentUrl: previewState.url,
+  });
+}
+
+export async function waitForPreviewPrintLayout(stabilizeMs = 1200) {
+  if (!previewView || previewView.webContents.isDestroyed()) {
+    throw appError('PREVIEW_NOT_READY');
+  }
+
+  try {
+    await previewView.webContents.executeJavaScript(
+      `(() => {
+        const maxWaitMs = Math.max(1800, ${Math.max(0, Math.trunc(stabilizeMs))} + 1800);
+        const settleMs = Math.max(250, Math.min(600, ${Math.max(0, Math.trunc(stabilizeMs))}));
+        const startedAt = Date.now();
+
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const normalizeText = (value) => String(value ?? '').replace(/\\s+/g, ' ').trim();
+        const readMainSignature = () => {
+          const main = document.querySelector('main#content');
+          if (!main) {
+            return { ready: false, signature: 'missing-main' };
+          }
+
+          const titleNode = main.querySelector('h1');
+          const titleText = normalizeText(titleNode?.textContent ?? '');
+          const textSample = normalizeText(main.textContent ?? '').slice(0, 1500);
+          const mainRect = main.getBoundingClientRect();
+          const images = Array.from(main.querySelectorAll('img')).filter((image) => {
+            const rect = image.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return false;
+            // Only wait for images that are already visible or close to the first viewport
+            // of the article body. Deep lazy-loaded images should not block PDF generation.
+            return rect.top < Math.max(window.innerHeight * 1.5, 1400);
+          });
+          const imageCount = images.length;
+          const loadedImageCount = images.filter((image) => image.complete && image.naturalWidth > 0).length;
+          const hasMeaningfulLayout = mainRect.height > 240 || textSample.length > 400;
+          const ready = Boolean(titleText) && Boolean(textSample) && hasMeaningfulLayout;
+          const imagesReady = imageCount === 0 || imageCount === loadedImageCount;
+
+          return {
+            ready: ready && imagesReady,
+            signature: JSON.stringify({
+              titleText,
+              textSample,
+              imageCount,
+              loadedImageCount,
+            }),
+          };
+        };
+
+        return new Promise((resolve) => {
+          let lastStableSignature = '';
+          let stableSince = 0;
+
+          const tick = async () => {
+            const snapshot = readMainSignature();
+            const now = Date.now();
+
+            if (snapshot.ready) {
+              if (snapshot.signature === lastStableSignature) {
+                if (!stableSince) {
+                  stableSince = now;
+                }
+                if (now - stableSince >= settleMs) {
+                  resolve(undefined);
+                  return;
+                }
+              } else {
+                lastStableSignature = snapshot.signature;
+                stableSince = now;
+              }
+            }
+
+            if (now - startedAt >= maxWaitMs) {
+              resolve(undefined);
+              return;
+            }
+
+            await sleep(150);
+            tick();
+          };
+
+          void tick();
+        });
+      })()`,
+      true,
+    );
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, Math.trunc(stabilizeMs))));
+  }
+}
+
+export async function printCurrentPreviewToPdf() {
+  if (!previewView || previewView.webContents.isDestroyed()) {
+    throw appError('PREVIEW_NOT_READY');
+  }
+
+  return await previewView.webContents.printToPDF({
+    printBackground: true,
+    preferCSSPageSize: true,
+    displayHeaderFooter: false,
+    margins: {
+      top: 0.4,
+      bottom: 0.4,
+      left: 0.4,
+      right: 0.4,
+    },
+  });
 }
 
 export function reloadPreview() {
