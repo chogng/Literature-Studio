@@ -105,6 +105,22 @@ npm run build
 npm run start
 ```
 
+触发 GitHub Actions 自动打包发布：
+
+```bash
+git tag -a vX.Y.Z -m "release vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+当前发布 workflow 会生成这些产物：
+
+- Windows 安装包
+- Windows Portable
+- macOS DMG
+- macOS ZIP
+
+首个发布版本可以从 `v0.1.0` 开始。
+
 可选检查：
 
 ```bash

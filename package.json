@@ -2,6 +2,8 @@
   "name": "journal-reader",
   "private": true,
   "version": "0.1.0",
+  "description": "Desktop studio for reading journal websites and organizing literature.",
+  "author": "chogng",
   "main": "dist-electron/code/electron-main/main.js",
   "type": "module",
   "scripts": {
@@ -14,6 +16,8 @@
     "dev:electron": "concurrently -k \"npm:dev:electron:build\" \"npm:dev:electron:run\"",
     "dev:web": "vite --config vite.web.config.ts",
     "check:i18n": "node scripts/check-i18n-keys.mjs",
+    "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip --x64 --publish never",
     "build": "npm run build:electron && tsc && vite build",
     "start": "npm run build:electron && node dist-electron/code/electron-main/launch.js dist-electron/code/electron-main/main.js",
     "preview": "vite preview"
@@ -30,9 +34,54 @@
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "electron": "^37.5.1",
+    "electron-builder": "^26.8.1",
     "nodemon": "^3.1.10",
     "typescript": "~5.9.3",
     "vite": "^7.2.0",
     "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.chogng.literaturestudio",
+    "productName": "Literature Studio",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "dist-electron/code/electron-main/main.js"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
+    }
   }
 }
