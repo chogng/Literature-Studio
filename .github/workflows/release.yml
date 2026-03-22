@@ -33,7 +33,7 @@ jobs:
 
       - name: Sync Package Version To Tag
         shell: bash
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
 
       - name: Build Windows Artifacts
         run: npm run dist:win
@@ -50,7 +50,7 @@ jobs:
 
   build-macos:
     name: Build macOS DMG And ZIP
-    runs-on: macos-13
+    runs-on: macos-latest
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
@@ -67,7 +67,7 @@ jobs:
         run: npm ci
 
       - name: Sync Package Version To Tag
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
 
       - name: Build macOS Artifacts
         run: npm run dist:mac
