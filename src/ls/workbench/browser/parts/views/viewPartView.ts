@@ -82,7 +82,7 @@ export default function ViewPartView({
     ref: viewPartRef,
     className: 'web-frame-container',
     children: jsx('div', {
-      className: 'native-webview-host',
+      className: 'native-preview-host',
       children: previewContent,
     }),
   });
