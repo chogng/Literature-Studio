@@ -15,9 +15,9 @@ import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
 } from '../services/config/configSchema';
-import NativeMenuOverlayWindow from './nativeMenuOverlayWindow';
+import MenuOverlayWindow from './menuOverlayWindow';
 import ArticleDetailsModalWindow from './articleDetailsModalWindow';
-import NativeToastOverlayWindow from './nativeToastOverlayWindow';
+import ToastOverlayWindow from './toastOverlayWindow';
 import { useBatchFetchModel } from './batchFetchModel';
 import { useDocumentActionsModel } from './documentActionsModel';
 import {
@@ -73,6 +73,10 @@ const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
 
 function getArticleSelectionKey(article: Pick<Article, 'sourceUrl' | 'fetchedAt'>) {
   return `${article.sourceUrl}::${article.fetchedAt}`;
+}
+
+function buildSelectedArticleOrderLookup(selectedArticleKeysInOrder: readonly string[]) {
+  return new Map(selectedArticleKeysInOrder.map((key, index) => [key, index + 1]));
 }
 
 function detectNativeModalKind() {
@@ -155,7 +159,7 @@ function WorkbenchContentView() {
   const [fetchSeedUrl, setFetchSeedUrl] = useState(DEFAULT_ARTICLE_URL);
   const [articles, setArticles] = useState<Article[]>([]);
   const [isSelectionModeEnabled, setIsSelectionModeEnabled] = useState(false);
-  const [selectedArticleKeys, setSelectedArticleKeys] = useState<Set<string>>(() => new Set());
+  const [selectedArticleKeysInOrder, setSelectedArticleKeysInOrder] = useState<string[]>([]);
 
   const workbenchState = useSyncExternalStore(
     subscribeWorkbenchState,
@@ -202,6 +206,8 @@ function WorkbenchContentView() {
     setUseMica,
     pdfDownloadDir,
     setPdfDownloadDir,
+    pdfFileNameUseSelectionOrder,
+    setPdfFileNameUseSelectionOrder,
     activeLlmProvider,
     setActiveLlmProvider,
     llmProviders,
@@ -247,17 +253,41 @@ function WorkbenchContentView() {
   } = useReaderState({ articles });
 
   useEffect(() => {
-    setSelectedArticleKeys((previousKeys) => {
-      if (previousKeys.size === 0) {
+    setSelectedArticleKeysInOrder((previousKeys) => {
+      if (previousKeys.length === 0) {
         return previousKeys;
       }
 
       const visibleKeys = new Set(filteredArticles.map((article) => getArticleSelectionKey(article)));
-      const nextKeys = new Set([...previousKeys].filter((key) => visibleKeys.has(key)));
+      const nextKeys = previousKeys.filter((key) => visibleKeys.has(key));
 
-      return nextKeys.size === previousKeys.size ? previousKeys : nextKeys;
+      return nextKeys.length === previousKeys.length ? previousKeys : nextKeys;
     });
   }, [filteredArticles]);
+
+  const selectedArticleKeys = useMemo(
+    () => new Set(selectedArticleKeysInOrder),
+    [selectedArticleKeysInOrder],
+  );
+
+  const selectedArticleOrderLookup = useMemo(
+    () => buildSelectedArticleOrderLookup(selectedArticleKeysInOrder),
+    [selectedArticleKeysInOrder],
+  );
+
+  const exportableArticles = useMemo(() => {
+    if (selectedArticleKeysInOrder.length === 0) {
+      return [];
+    }
+
+    const filteredArticleMap = new Map(
+      filteredArticles.map((article) => [getArticleSelectionKey(article), article] as const),
+    );
+
+    return selectedArticleKeysInOrder
+      .map((key) => filteredArticleMap.get(key))
+      .filter((article): article is Article => Boolean(article));
+  }, [filteredArticles, selectedArticleKeysInOrder]);
 
   const previewNavigationModel = useMemo(() => new PreviewNavigationModel(), []);
   const previewNavigationSnapshot = useSyncExternalStore(
@@ -406,9 +436,10 @@ function WorkbenchContentView() {
       locale,
       ui,
       pdfDownloadDir,
-      exportableArticles: filteredArticles.filter((article) =>
-        selectedArticleKeys.has(getArticleSelectionKey(article)),
-      ),
+      pdfFileNameUseSelectionOrder,
+      isSelectionModeEnabled,
+      selectedArticleOrderLookup,
+      exportableArticles,
     });
 
   const handleToggleSelectionMode = useCallback(() => {
@@ -418,16 +449,12 @@ function WorkbenchContentView() {
   const handleToggleArticleSelected = useCallback((article: Article) => {
     const articleKey = getArticleSelectionKey(article);
 
-    setSelectedArticleKeys((previousKeys) => {
-      const nextKeys = new Set(previousKeys);
-
-      if (nextKeys.has(articleKey)) {
-        nextKeys.delete(articleKey);
-      } else {
-        nextKeys.add(articleKey);
+    setSelectedArticleKeysInOrder((previousKeys) => {
+      if (previousKeys.includes(articleKey)) {
+        return previousKeys.filter((key) => key !== articleKey);
       }
 
-      return nextKeys;
+      return [...previousKeys, articleKey];
     });
   }, []);
 
@@ -599,6 +626,7 @@ function WorkbenchContentView() {
           sameDomainOnly,
           useMica,
           pdfDownloadDir,
+          pdfFileNameUseSelectionOrder,
           activeLlmProvider,
           llmProviders,
           activeTranslationProvider,
@@ -620,6 +648,7 @@ function WorkbenchContentView() {
           onSameDomainOnlyChange: setSameDomainOnly,
           onUseMicaChange: setUseMica,
           onPdfDownloadDirChange: setPdfDownloadDir,
+          onPdfFileNameUseSelectionOrderChange: setPdfFileNameUseSelectionOrder,
           onChoosePdfDownloadDir: () => void handleChoosePdfDownloadDir(),
           onActiveLlmProviderChange: setActiveLlmProvider,
           onLlmProviderApiKeyChange: setLlmProviderApiKey,
@@ -660,12 +689,14 @@ function WorkbenchContentView() {
       translationProviders,
       locale,
       pdfDownloadDir,
+      pdfFileNameUseSelectionOrder,
       sameDomainOnly,
       useMica,
       setBatchLimit,
       setActiveLlmProvider,
       setActiveTranslationProvider,
       setPdfDownloadDir,
+      setPdfFileNameUseSelectionOrder,
       setLlmProviderApiKey,
       setLlmProviderModel,
       setTranslationProviderApiKey,
@@ -700,11 +731,11 @@ export default function WorkbenchView() {
   const nativeModalKind = detectNativeModalKind();
 
   if (nativeOverlayKind === 'toast') {
-    return jsx(NativeToastOverlayWindow, {});
+    return jsx(ToastOverlayWindow, {});
   }
 
   if (nativeOverlayKind === 'menu') {
-    return jsx(NativeMenuOverlayWindow, {});
+    return jsx(MenuOverlayWindow, {});
   }
 
   if (nativeModalKind === 'article-details') {

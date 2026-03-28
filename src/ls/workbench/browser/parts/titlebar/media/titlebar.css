@@ -57,13 +57,14 @@
 .titlebar-source-select {
   --dropdown-height: var(--titlebar-field-height);
   --dropdown-radius: var(--titlebar-field-radius);
-  --dropdown-border: var(--titlebar-field-border);
+  --dropdown-border: transparent;
   --dropdown-border-hover: var(--titlebar-field-border-hover);
   --dropdown-border-focus: var(--titlebar-field-border-focus);
-  --dropdown-bg: rgba(255, 255, 255, 0.6);
+  --dropdown-bg: transparent;
   --dropdown-bg-hover: var(--titlebar-field-bg-hover);
   --dropdown-bg-focus: var(--titlebar-field-bg-focus);
-  width: clamp(160px, var(--titlebar-source-width, 18ch), min(520px, 48vw));
+  width: min(var(--titlebar-source-width, 56px), min(520px, 48vw));
+  min-width: 56px;
   max-width: min(520px, 48vw);
   flex: 0 1 auto;
   height: var(--titlebar-field-height) !important;
@@ -74,24 +75,23 @@
 }
 
 .titlebar-source-select.dropdown-wrapper {
-  background-color: rgba(255, 255, 255, 0.6);
+  background-color: transparent;
+  border: none;
   box-shadow: none;
 }
 
 .titlebar-source-select.dropdown-wrapper:hover:not(.dropdown-disabled) {
   background-color: var(--titlebar-field-bg-hover);
-  border-color: var(--titlebar-field-border-hover);
 }
 
 .titlebar-source-select.dropdown-wrapper.dropdown-focused {
   background-color: var(--titlebar-field-bg-focus);
-  border-color: var(--titlebar-field-border-focus);
   box-shadow: none;
 }
 
 .titlebar-source-select .dropdown-field {
-  padding: 0 32px 0 12px;
-  text-overflow: clip !important;
+  padding: 0 10px;
+  text-overflow: ellipsis;
 }
 
 .titlebar-source-select.is-placeholder .dropdown-field {
@@ -99,15 +99,11 @@
 }
 
 .titlebar-source-select .dropdown-icon-wrapper {
-  right: 8px;
-  width: 20px;
+  display: none;
 }
 
 .titlebar-source-select .dropdown-chevron {
-  width: 14px;
-  height: 14px;
-  stroke-width: 1.8;
-  display: block;
+  display: none;
 }
 
 .titlebar-source-select.dropdown-focused {
@@ -138,6 +134,7 @@
   width: auto;
   flex: 0 0 auto;
   min-width: auto;
+  margin-right: 6px;
   -webkit-app-region: no-drag;
 }
 

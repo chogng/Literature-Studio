@@ -48,11 +48,13 @@ button:disabled {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  background: var(--workbench-chrome-bg);
+  background: transparent;
 }
 
-.app-window.is-mica-enabled {
-  background: transparent;
+/* Keep the frameless host transparent and fill the inner shell instead. */
+.app-window:not(.is-mica-enabled) .titlebar,
+.app-window:not(.is-mica-enabled) .app-shell {
+  background: var(--workbench-chrome-bg);
 }
 
 .app-shell {

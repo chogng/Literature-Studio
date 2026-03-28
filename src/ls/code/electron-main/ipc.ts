@@ -29,18 +29,18 @@ import {
 } from '../../platform/windows/electron-main/previewView.js';
 import { getNativeModalState, openArticleDetailsModal } from '../../platform/windows/electron-main/articleDetailsWindow.js';
 import {
-  dismissNativeToast,
-  getNativeToastState,
-  reportNativeToastLayout,
-  setNativeToastHovering,
-  showNativeToast,
-} from '../../platform/windows/electron-main/nativeToastOverlayView.js';
+  dismissToast,
+  getToastState,
+  reportToastLayout,
+  setToastHovering,
+  showToast,
+} from '../../platform/windows/electron-main/toastOverlayView.js';
 import {
-  closeNativeMenu,
-  getNativeMenuState,
-  openNativeMenu,
-  selectNativeMenuOption,
-} from '../../platform/windows/electron-main/nativeMenuOverlayView.js';
+  closeMenuOverlay,
+  getMenuOverlayState,
+  openMenuOverlay,
+  selectMenuOption,
+} from '../../platform/windows/electron-main/menuOverlayView.js';
 import {
   fetchArticle,
   fetchLatestArticles,
@@ -225,39 +225,39 @@ export function registerAppIpc(storage: StorageService) {
   });
 
   ipcMain.on('app:native-toast-show', (event, options) => {
-    showNativeToast(resolveWindowFromWebContents(event.sender), options);
+    showToast(resolveWindowFromWebContents(event.sender), options);
   });
 
   ipcMain.on('app:native-toast-dismiss', (_event, id: number) => {
-    dismissNativeToast(id);
+    dismissToast(id);
   });
 
   ipcMain.handle('app:native-toast-get-state', () => {
-    return getNativeToastState();
+    return getToastState();
   });
 
   ipcMain.on('app:native-toast-layout', (event, layout) => {
-    reportNativeToastLayout(event.sender.id, layout);
+    reportToastLayout(event.sender.id, layout);
   });
 
   ipcMain.on('app:native-toast-hover', (_event, hovering: boolean) => {
-    setNativeToastHovering(hovering);
+    setToastHovering(hovering);
   });
 
   ipcMain.on('app:native-menu-open', (event, payload) => {
-    openNativeMenu(resolveWindowFromWebContents(event.sender), event.sender.id, payload);
+    openMenuOverlay(resolveWindowFromWebContents(event.sender), event.sender.id, payload);
   });
 
   ipcMain.on('app:native-menu-close', (_event, requestId: string) => {
-    closeNativeMenu(requestId);
+    closeMenuOverlay(requestId);
   });
 
   ipcMain.handle('app:native-menu-get-state', () => {
-    return getNativeMenuState();
+    return getMenuOverlayState();
   });
 
   ipcMain.on('app:native-menu-select', (_event, requestId: string, value: string) => {
-    selectNativeMenuOption(requestId, value);
+    selectMenuOption(requestId, value);
   });
 
   ipcMain.handle('app:preview-navigate', async (_event, url: string) => {

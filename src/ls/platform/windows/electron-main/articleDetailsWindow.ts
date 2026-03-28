@@ -79,7 +79,8 @@ function createModalWindow(_parentWindow: BrowserWindow, title: string) {
     maximizable: true,
     fullscreenable: false,
     frame: false,
-    titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default',
+    titleBarStyle:
+      process.platform === 'darwin' || process.platform === 'win32' ? 'hidden' : 'default',
     titleBarOverlay: false,
     autoHideMenuBar: true,
     backgroundColor: '#eff4fb',

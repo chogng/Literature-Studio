@@ -1,5 +1,13 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { Check } from 'lucide-react';
 
 import type {
@@ -7,7 +15,7 @@ import type {
   NativeMenuState,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
 import '../../base/browser/ui/dropdown/dropdown.css';
-import './media/nativeMenuOverlayWindow.css';
+import './media/menuOverlayWindow.css';
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -21,6 +29,7 @@ function normalizeMenuState(state: NativeMenuState | null | undefined): NativeMe
   return {
     ...state,
     options: Array.isArray(state.options) ? state.options : [],
+    align: state.align === 'center' ? 'center' : 'start',
   };
 }
 
@@ -48,8 +57,12 @@ function resolveMenuLayout(state: NativeMenuState | null, measuredMenuWidth: num
     Math.max(120, state.triggerRect.width),
     maxWidth,
   );
+  const preferredLeft =
+    state.align === 'center'
+      ? state.triggerRect.x + (state.triggerRect.width - width) / 2
+      : state.triggerRect.x;
   const left = clamp(
-    state.triggerRect.x,
+    preferredLeft,
     viewportPadding,
     Math.max(viewportPadding, window.innerWidth - width - viewportPadding),
   );
@@ -98,7 +111,7 @@ function renderMenuItem(
   );
 }
 
-export default function NativeMenuOverlayWindow() {
+export default function MenuOverlayWindow() {
   const [menuState, setMenuState] = useState<NativeMenuState | null>(null);
   const [measuredMenuWidth, setMeasuredMenuWidth] = useState<number | null>(null);
   const menuSurfaceRef = useRef<HTMLDivElement | null>(null);
@@ -184,7 +197,7 @@ export default function NativeMenuOverlayWindow() {
 
   return jsx('main', {
     className: 'native-menu-overlay-page',
-    onMouseDown: (event) => {
+    onMouseDown: (event: ReactMouseEvent<HTMLElement>) => {
       if (!normalizedMenuState) {
         return;
       }
@@ -205,7 +218,7 @@ export default function NativeMenuOverlayWindow() {
               top: menuLayout.top === undefined ? undefined : `${menuLayout.top}px`,
               bottom: menuLayout.bottom === undefined ? undefined : `${menuLayout.bottom}px`,
             } as CSSProperties,
-            onMouseDown: (event) => {
+            onMouseDown: (event: ReactMouseEvent<HTMLDivElement>) => {
               event.stopPropagation();
             },
             children: normalizedMenuState.options.map((option) =>

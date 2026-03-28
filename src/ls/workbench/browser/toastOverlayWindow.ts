@@ -5,7 +5,7 @@ import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
 import type { NativeToastState, NativeToastType } from '../../base/parts/sandbox/common/desktopTypes.js';
 import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
 import '../../base/browser/ui/toast/toast.css';
-import './media/nativeToastOverlayWindow.css';
+import './media/toastOverlayWindow.css';
 
 const fallbackToastState: NativeToastState = {
   items: [],
@@ -48,7 +48,7 @@ function getToastIcon(type: NativeToastType) {
   }
 }
 
-export default function NativeToastOverlayWindow() {
+export default function ToastOverlayWindow() {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [toastState, setToastState] = useState<NativeToastState>(fallbackToastState);
   const ui = useMemo(() => getLocaleMessages(detectInitialLocale()), []);

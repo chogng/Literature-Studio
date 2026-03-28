@@ -12,23 +12,23 @@ import type {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const nativeMenuStateChannel = 'app:native-menu-state';
-const nativeMenuEventChannel = 'app:native-menu-event';
-const nativeMenuQueryKey = 'nativeOverlay';
-const nativeMenuQueryValue = 'menu';
+const menuStateChannel = 'app:native-menu-state';
+const menuEventChannel = 'app:native-menu-event';
+const overlayQueryKey = 'nativeOverlay';
+const overlayQueryValue = 'menu';
 const hiddenBounds = { x: 0, y: 0, width: 0, height: 0 };
 
-let nativeMenuWindow: BrowserWindow | null = null;
-let nativeMenuView: WebContentsView | null = null;
-let nativeMenuState: NativeMenuState | null = null;
+let menuWindow: BrowserWindow | null = null;
+let menuView: WebContentsView | null = null;
+let menuState: NativeMenuState | null = null;
 
-function resolveRendererTarget() {
+function resolveOverlayRendererTarget() {
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
     const url = new URL(devUrl);
     url.pathname = '/src/ls/code/electron-sandbox/workbench/workbench.html';
     url.search = '';
-    url.searchParams.set(nativeMenuQueryKey, nativeMenuQueryValue);
+    url.searchParams.set(overlayQueryKey, overlayQueryValue);
 
     return {
       type: 'url' as const,
@@ -53,30 +53,30 @@ function resolveRendererTarget() {
       'workbench.html',
     ),
     query: {
-      [nativeMenuQueryKey]: nativeMenuQueryValue,
+      [overlayQueryKey]: overlayQueryValue,
     },
   };
 }
 
-function hasNativeMenuQuery(url: string) {
+function hasOverlayQuery(url: string) {
   if (!url) {
     return false;
   }
 
   try {
-    return new URL(url).searchParams.get(nativeMenuQueryKey) === nativeMenuQueryValue;
+    return new URL(url).searchParams.get(overlayQueryKey) === overlayQueryValue;
   } catch {
     return false;
   }
 }
 
-async function ensureNativeMenuRendererLoaded(view: WebContentsView) {
+async function ensureRendererLoaded(view: WebContentsView) {
   const currentUrl = view.webContents.getURL();
-  if (hasNativeMenuQuery(currentUrl)) {
+  if (hasOverlayQuery(currentUrl)) {
     return;
   }
 
-  const target = resolveRendererTarget();
+  const target = resolveOverlayRendererTarget();
   if (target.type === 'url') {
     await view.webContents.loadURL(target.target);
     return;
@@ -85,7 +85,7 @@ async function ensureNativeMenuRendererLoaded(view: WebContentsView) {
   await view.webContents.loadFile(target.target, { query: target.query });
 }
 
-function normalizeRect(value: NativeMenuRect): NativeMenuRect {
+function normalizeMenuRect(value: NativeMenuRect): NativeMenuRect {
   return {
     x: Math.max(0, Math.trunc(value.x)),
     y: Math.max(0, Math.trunc(value.y)),
@@ -94,61 +94,61 @@ function normalizeRect(value: NativeMenuRect): NativeMenuRect {
   };
 }
 
-function emitNativeMenuState() {
-  if (!nativeMenuView || nativeMenuView.webContents.isDestroyed()) {
+function emitState() {
+  if (!menuView || menuView.webContents.isDestroyed()) {
     return;
   }
 
-  nativeMenuView.webContents.send(nativeMenuStateChannel, nativeMenuState);
+  menuView.webContents.send(menuStateChannel, menuState);
 }
 
-function emitNativeMenuEvent(targetWebContentsId: number, event: NativeMenuEvent) {
+function emitEvent(targetWebContentsId: number, event: NativeMenuEvent) {
   const target = webContents.fromId(targetWebContentsId);
   if (!target || target.isDestroyed()) {
     return;
   }
 
-  target.send(nativeMenuEventChannel, event);
+  target.send(menuEventChannel, event);
 }
 
-function applyNativeMenuBounds() {
-  if (!nativeMenuView) {
+function syncMenuBounds() {
+  if (!menuView) {
     return;
   }
 
-  const targetWindow = nativeMenuWindow;
-  if (!targetWindow || targetWindow.isDestroyed() || !nativeMenuState) {
-    nativeMenuView.setVisible(false);
-    nativeMenuView.setBounds(hiddenBounds);
+  const targetWindow = menuWindow;
+  if (!targetWindow || targetWindow.isDestroyed() || !menuState) {
+    menuView.setVisible(false);
+    menuView.setBounds(hiddenBounds);
     return;
   }
 
   const [contentWidth, contentHeight] = targetWindow.getContentSize();
   if (contentWidth <= 0 || contentHeight <= 0) {
-    nativeMenuView.setVisible(false);
-    nativeMenuView.setBounds(hiddenBounds);
+    menuView.setVisible(false);
+    menuView.setBounds(hiddenBounds);
     return;
   }
 
-  nativeMenuView.setBounds({
+  menuView.setBounds({
     x: 0,
     y: 0,
     width: contentWidth,
     height: contentHeight,
   });
-  nativeMenuView.setVisible(true);
+  menuView.setVisible(true);
 }
 
 function bindWindowResize(window: BrowserWindow) {
   const handleWindowBoundsChange = () => {
-    applyNativeMenuBounds();
+    syncMenuBounds();
   };
 
   window.on('resize', handleWindowBoundsChange);
   window.on('maximize', handleWindowBoundsChange);
   window.on('unmaximize', handleWindowBoundsChange);
 
-  nativeMenuView?.webContents.once('destroyed', () => {
+  menuView?.webContents.once('destroyed', () => {
     if (window.isDestroyed()) {
       return;
     }
@@ -158,7 +158,7 @@ function bindWindowResize(window: BrowserWindow) {
   });
 }
 
-function createNativeMenuView(window: BrowserWindow) {
+function createMenuView(window: BrowserWindow) {
   const view = new WebContentsView({
     webPreferences: {
       preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
@@ -173,33 +173,33 @@ function createNativeMenuView(window: BrowserWindow) {
   view.setBounds(hiddenBounds);
   window.contentView.addChildView(view);
   view.webContents.on('did-finish-load', () => {
-    emitNativeMenuState();
-    applyNativeMenuBounds();
+    emitState();
+    syncMenuBounds();
   });
   bindWindowResize(window);
 
   return view;
 }
 
-function ensureNativeMenuView(window: BrowserWindow) {
+function ensureMenuView(window: BrowserWindow) {
   if (
-    nativeMenuWindow === window &&
-    nativeMenuView &&
-    !nativeMenuView.webContents.isDestroyed()
+    menuWindow === window &&
+    menuView &&
+    !menuView.webContents.isDestroyed()
   ) {
-    return nativeMenuView;
+    return menuView;
   }
 
-  disposeNativeMenuOverlay();
-  nativeMenuWindow = window;
-  nativeMenuView = createNativeMenuView(window);
-  void ensureNativeMenuRendererLoaded(nativeMenuView).catch(() => {
+  disposeMenuOverlay();
+  menuWindow = window;
+  menuView = createMenuView(window);
+  void ensureRendererLoaded(menuView).catch(() => {
     // Best effort only.
   });
-  return nativeMenuView;
+  return menuView;
 }
 
-export function openNativeMenu(window: BrowserWindow | null | undefined, senderId: number, payload: NativeMenuOpenPayload) {
+export function openMenuOverlay(window: BrowserWindow | null | undefined, senderId: number, payload: NativeMenuOpenPayload) {
   if (!window || window.isDestroyed()) {
     return;
   }
@@ -216,74 +216,75 @@ export function openNativeMenu(window: BrowserWindow | null | undefined, senderI
     return;
   }
 
-  ensureNativeMenuView(window);
-  nativeMenuState = {
+  ensureMenuView(window);
+  menuState = {
     requestId: payload.requestId,
-    triggerRect: normalizeRect(payload.triggerRect),
+    triggerRect: normalizeMenuRect(payload.triggerRect),
     options,
     value: typeof payload.value === 'string' ? payload.value : '',
+    align: payload.align === 'center' ? 'center' : 'start',
     sourceWebContentsId: senderId,
   };
-  emitNativeMenuState();
-  applyNativeMenuBounds();
+  emitState();
+  syncMenuBounds();
 }
 
-export function closeNativeMenu(requestId?: string) {
-  if (!nativeMenuState) {
+export function closeMenuOverlay(requestId?: string) {
+  if (!menuState) {
     return;
   }
 
-  if (requestId && nativeMenuState.requestId !== requestId) {
+  if (requestId && menuState.requestId !== requestId) {
     return;
   }
 
-  const previousState = nativeMenuState;
-  nativeMenuState = null;
-  emitNativeMenuState();
-  applyNativeMenuBounds();
-  emitNativeMenuEvent(previousState.sourceWebContentsId, {
+  const previousState = menuState;
+  menuState = null;
+  emitState();
+  syncMenuBounds();
+  emitEvent(previousState.sourceWebContentsId, {
     requestId: previousState.requestId,
     type: 'close',
   });
 }
 
-export function getNativeMenuState() {
-  return nativeMenuState;
+export function getMenuOverlayState() {
+  return menuState;
 }
 
-export function selectNativeMenuOption(requestId: string, value: string) {
-  if (!nativeMenuState || nativeMenuState.requestId !== requestId) {
+export function selectMenuOption(requestId: string, value: string) {
+  if (!menuState || menuState.requestId !== requestId) {
     return;
   }
 
-  const previousState = nativeMenuState;
-  nativeMenuState = null;
-  emitNativeMenuState();
-  applyNativeMenuBounds();
-  emitNativeMenuEvent(previousState.sourceWebContentsId, {
+  const previousState = menuState;
+  menuState = null;
+  emitState();
+  syncMenuBounds();
+  emitEvent(previousState.sourceWebContentsId, {
     requestId,
     type: 'select',
     value,
   });
 }
 
-export function disposeNativeMenuOverlay(window?: BrowserWindow | null) {
-  if (!nativeMenuView) {
+export function disposeMenuOverlay(window?: BrowserWindow | null) {
+  if (!menuView) {
     return;
   }
 
-  if (window && nativeMenuWindow && nativeMenuWindow !== window) {
+  if (window && menuWindow && menuWindow !== window) {
     return;
   }
 
-  const view = nativeMenuView;
-  nativeMenuView = null;
+  const view = menuView;
+  menuView = null;
 
-  if (nativeMenuWindow && !nativeMenuWindow.isDestroyed()) {
-    nativeMenuWindow.contentView.removeChildView(view);
+  if (menuWindow && !menuWindow.isDestroyed()) {
+    menuWindow.contentView.removeChildView(view);
   }
 
   view.webContents.close({ waitForBeforeUnload: false });
-  nativeMenuWindow = null;
-  nativeMenuState = null;
+  menuWindow = null;
+  menuState = null;
 }

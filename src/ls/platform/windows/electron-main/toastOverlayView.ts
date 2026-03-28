@@ -136,7 +136,7 @@ function startNativeToastTimer(id: number) {
   clearNativeToastTimer(id);
   timerState.startedAt = Date.now();
   timerState.timeoutId = setTimeout(() => {
-    dismissNativeToast(id);
+    dismissToast(id);
   }, timerState.remainingMs);
 }
 
@@ -279,7 +279,7 @@ function ensureNativeToastView(window: BrowserWindow) {
     return nativeToastView;
   }
 
-  disposeNativeToastOverlay();
+  disposeToastOverlay();
   nativeToastWindow = window;
   nativeToastView = createNativeToastView(window);
   void ensureNativeToastRendererLoaded(nativeToastView).catch(() => {
@@ -306,7 +306,7 @@ function normalizeNativeToastOptions(options: NativeToastOptions) {
   };
 }
 
-export function showNativeToast(window: BrowserWindow | null | undefined, options: NativeToastOptions) {
+export function showToast(window: BrowserWindow | null | undefined, options: NativeToastOptions) {
   if (!window || window.isDestroyed()) {
     return;
   }
@@ -342,7 +342,7 @@ export function showNativeToast(window: BrowserWindow | null | undefined, option
   }
 }
 
-export function dismissNativeToast(id: number) {
+export function dismissToast(id: number) {
   deleteNativeToastTimer(id);
   if (nativeToastState.items.length === 0) {
     return;
@@ -364,11 +364,11 @@ export function dismissNativeToast(id: number) {
   applyNativeToastBounds();
 }
 
-export function getNativeToastState(): NativeToastState {
+export function getToastState(): NativeToastState {
   return nativeToastState;
 }
 
-export function reportNativeToastLayout(senderId: number, layout: NativeToastLayout) {
+export function reportToastLayout(senderId: number, layout: NativeToastLayout) {
   if (
     !nativeToastView ||
     nativeToastView.webContents.isDestroyed() ||
@@ -391,7 +391,7 @@ export function reportNativeToastLayout(senderId: number, layout: NativeToastLay
   applyNativeToastBounds();
 }
 
-export function setNativeToastHovering(hovering: boolean) {
+export function setToastHovering(hovering: boolean) {
   nativeToastHovering = hovering;
 
   if (nativeToastHovering) {
@@ -402,7 +402,7 @@ export function setNativeToastHovering(hovering: boolean) {
   resumeAllNativeToastTimers();
 }
 
-export function disposeNativeToastOverlay(window?: BrowserWindow | null) {
+export function disposeToastOverlay(window?: BrowserWindow | null) {
   if (!nativeToastView) {
     return;
   }

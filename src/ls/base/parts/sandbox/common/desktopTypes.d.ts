@@ -57,6 +57,7 @@ export type DateRange = import('../../../common/date.js').DateRange;
 
 export interface StoredAppSettings {
   defaultDownloadDir: string | null;
+  pdfFileNameUseSelectionOrder: boolean;
   defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
@@ -282,11 +283,14 @@ export interface NativeMenuRect {
   height: number;
 }
 
+export type NativeMenuAlign = 'start' | 'center';
+
 export interface NativeMenuOpenPayload {
   requestId: string;
   triggerRect: NativeMenuRect;
   options: NativeMenuOption[];
   value?: string;
+  align?: NativeMenuAlign;
 }
 
 export interface NativeMenuState {
@@ -294,6 +298,7 @@ export interface NativeMenuState {
   triggerRect: NativeMenuRect;
   options: NativeMenuOption[];
   value: string;
+  align: NativeMenuAlign;
   sourceWebContentsId: number;
 }
 

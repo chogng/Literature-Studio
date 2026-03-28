@@ -1,6 +1,5 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import {
-  useCallback,
   useEffect,
   useRef,
   type ChangeEvent,
@@ -123,6 +122,37 @@ type DropdownChangeEvent = {
     value: string;
   };
 };
+
+const MIN_SOURCE_TRIGGER_WIDTH_PX = 56;
+const MAX_SOURCE_TRIGGER_WIDTH_PX = 520;
+const SOURCE_TRIGGER_HORIZONTAL_PADDING_PX = 22;
+const SOURCE_TRIGGER_FONT = '12px "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
+let sourceTriggerMeasureCanvas: HTMLCanvasElement | null = null;
+
+function measureSourceTriggerWidth(label: string): number {
+  const text = label.trim();
+  if (!text) {
+    return MIN_SOURCE_TRIGGER_WIDTH_PX;
+  }
+
+  const fallback = Math.ceil(text.length * 8 + SOURCE_TRIGGER_HORIZONTAL_PADDING_PX);
+  if (typeof document === 'undefined') {
+    return Math.min(Math.max(fallback, MIN_SOURCE_TRIGGER_WIDTH_PX), MAX_SOURCE_TRIGGER_WIDTH_PX);
+  }
+
+  if (!sourceTriggerMeasureCanvas) {
+    sourceTriggerMeasureCanvas = document.createElement('canvas');
+  }
+
+  const context = sourceTriggerMeasureCanvas.getContext('2d');
+  if (!context) {
+    return Math.min(Math.max(fallback, MIN_SOURCE_TRIGGER_WIDTH_PX), MAX_SOURCE_TRIGGER_WIDTH_PX);
+  }
+
+  context.font = SOURCE_TRIGGER_FONT;
+  const measured = Math.ceil(context.measureText(text).width + SOURCE_TRIGGER_HORIZONTAL_PADDING_PX);
+  return Math.min(Math.max(measured, MIN_SOURCE_TRIGGER_WIDTH_PX), MAX_SOURCE_TRIGGER_WIDTH_PX);
+}
 
 function createSourceOptions(
   addressBarSourcePlaceholder: string | undefined,
@@ -290,14 +320,14 @@ function renderSourceSelector({
   const selectedOption =
     sourceOptions.find((option) => option.value === selectedAddressBarSourceId) || sourceOptions[0];
   const selectedLabel = selectedOption?.label?.trim() || addressBarSourcePlaceholder || '';
-  const selectorWidthCh = Math.min(Math.max(selectedLabel.length + 4, 16), 48);
+  const selectorWidthPx = measureSourceTriggerWidth(selectedLabel);
 
   return jsx('div', {
     className: 'titlebar-journal-bar',
     children: jsx(Dropdown, {
       ref: sourceSelectorRef,
       className: `titlebar-source-select ${selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
-      style: { '--titlebar-source-width': `${selectorWidthCh}ch` },
+      style: { '--titlebar-source-width': `${selectorWidthPx}px` },
       value: selectedAddressBarSourceId,
       onChange: (event: DropdownChangeEvent) => onSelectAddressBarSource(event.target.value),
       'aria-label': addressBarSourceAriaLabel || addressBarSourcePlaceholder,
@@ -469,13 +499,13 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
       }),
       jsxs('div', {
         className: 'titlebar-center',
-        children: [navigationView, webUrlView, sourceSelectorView],
+        children: [navigationView, webUrlView],
       }),
       jsxs('div', {
         className: 'titlebar-controls',
         role: 'group',
         'aria-label': labels.controlsAriaLabel,
-        children: [exportButtonView, settingsButtonView, windowControls],
+        children: [sourceSelectorView, exportButtonView, settingsButtonView, windowControls],
       }),
     ],
   });

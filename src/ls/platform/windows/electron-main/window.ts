@@ -2,8 +2,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow, type BrowserWindowConstructorOptions, type WebContents } from 'electron';
 import type { WindowControlAction, WindowState } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { disposeNativeMenuOverlay } from './nativeMenuOverlayView.js';
-import { disposeNativeToastOverlay } from './nativeToastOverlayView.js';
+import { disposeMenuOverlay } from './menuOverlayView.js';
+import { disposeToastOverlay } from './toastOverlayView.js';
 import { disposePreviewView, ensurePreviewView } from './previewView.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -51,6 +51,12 @@ function resolveWindowBackgroundMaterial(useMica: boolean) {
   }
 
   return useMica ? ('mica' as const) : ('none' as const);
+}
+
+function resolveFramelessTitleBarStyle() {
+  return process.platform === 'darwin' || process.platform === 'win32'
+    ? ('hidden' as const)
+    : ('default' as const);
 }
 
 function applyWindowBackgroundMaterial(window: BrowserWindow, useMica: boolean) {
@@ -274,7 +280,7 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
     minHeight: 680,
     title: 'Literature Studio',
     frame: false,
-    titleBarStyle: process.platform === 'darwin' ? 'hidden' : 'default',
+    titleBarStyle: resolveFramelessTitleBarStyle(),
     titleBarOverlay: false,
     backgroundColor: '#edf2f8',
     backgroundMaterial: resolveWindowBackgroundMaterial(useMica),
@@ -300,8 +306,8 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
 
   window.on('closed', () => {
     closeAuxiliaryWindows();
-    disposeNativeMenuOverlay(window);
-    disposeNativeToastOverlay(window);
+    disposeMenuOverlay(window);
+    disposeToastOverlay(window);
     disposePreviewView(window);
     mainWindow = null;
   });
