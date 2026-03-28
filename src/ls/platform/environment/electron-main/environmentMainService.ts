@@ -13,11 +13,29 @@ export type ReaderEnvironmentPaths = {
   logsDir: string;
   configFile: string;
   historyFile: string;
+  translationCacheFile: string;
 };
+
+function resolvePortableExecutableDir() {
+  const portableDir = process.env.PORTABLE_EXECUTABLE_DIR?.trim();
+  if (portableDir) {
+    return portableDir;
+  }
+
+  const portableFile = process.env.PORTABLE_EXECUTABLE_FILE?.trim();
+  if (portableFile) {
+    return path.dirname(portableFile);
+  }
+
+  return null;
+}
 
 export function resolveEnvironmentMainPaths(): ReaderEnvironmentPaths {
   const previousUserDataDir = app.getPath('userData');
-  const rootDir = path.join(app.getPath('home'), '.reader');
+  const portableExecutableDir = resolvePortableExecutableDir();
+  const rootDir = portableExecutableDir
+    ? path.join(portableExecutableDir, '.reader')
+    : path.join(app.getPath('home'), '.reader');
   const configDir = path.join(rootDir, 'config');
   const dataDir = path.join(rootDir, 'data');
   const cacheDir = path.join(rootDir, 'cache');
@@ -36,6 +54,7 @@ export function resolveEnvironmentMainPaths(): ReaderEnvironmentPaths {
     logsDir,
     configFile: path.join(configDir, 'config.json'),
     historyFile: path.join(dataDir, 'history.json'),
+    translationCacheFile: path.join(dataDir, 'translation-cache.json'),
   };
 }
 

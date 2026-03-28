@@ -2,6 +2,7 @@ import type {
   AppSettings as DesktopAppSettings,
   ElectronInvoke,
   LlmSettings,
+  TranslationSettings,
   StoredAppSettings as DesktopStoredAppSettings,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../language/i18n';
@@ -14,6 +15,7 @@ import {
   resolveConfigBatchSources,
 } from '../config/configSchema';
 import { cloneLlmSettings, createDefaultLlmSettings } from '../llm/config.js';
+import { cloneTranslationSettings, createDefaultTranslationSettings } from '../translation/config.js';
 
 export type StoredAppSettingsPayload = DesktopStoredAppSettings;
 export type AppSettingsPayload = DesktopAppSettings;
@@ -27,6 +29,7 @@ export type ResolvedSettingsState = {
   locale: Locale | null;
   configPath: string;
   llm: LlmSettings;
+  translation: TranslationSettings;
 };
 
 export type SaveSettingsDraft = {
@@ -37,6 +40,7 @@ export type SaveSettingsDraft = {
   useMica: boolean;
   locale: Locale;
   llm: LlmSettings;
+  translation: TranslationSettings;
 };
 
 export type SaveSettingsPayloadBuild = {
@@ -71,6 +75,7 @@ export function resolveSettingsState(
     locale: loadedLocale,
     configPath: loadedConfigPath,
     llm: cloneLlmSettings(loaded.llm ?? createDefaultLlmSettings()),
+    translation: cloneTranslationSettings(loaded.translation ?? createDefaultTranslationSettings()),
   };
 }
 
@@ -91,6 +96,7 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       useMica: draft.useMica,
       locale: draft.locale,
       llm: cloneLlmSettings(draft.llm),
+      translation: cloneTranslationSettings(draft.translation),
     },
   };
 }

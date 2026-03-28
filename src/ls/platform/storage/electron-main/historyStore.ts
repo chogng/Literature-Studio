@@ -32,6 +32,12 @@ export function createHistoryStore(historyFile: string): HistoryStore {
 
   return {
     async saveFetchedArticles(items) {
+      // Note: this file currently behaves like a raw fetch history cache.
+      // For article collection workflows, fetched articles should not always be retained.
+      // A later review/filtering step may decide whether an article belongs to the target domain:
+      // out-of-domain articles should be discarded, while in-domain articles can be promoted into
+      // a persistent database. That decision, and the actual persistence, may require human-assisted
+      // review and should likely only append into the long-term store when a dedicated mode is enabled.
       const previous = await readHistory();
       const next = [...items, ...previous];
       const seen = new Set<string>();

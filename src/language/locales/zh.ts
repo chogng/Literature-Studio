@@ -78,6 +78,18 @@ const zh = {
   settingsLlmHideApiKey: '\u9690\u85cf',
   settingsLlmHint:
     '\u6bcf\u4e2a provider \u7684 API Key \u548c\u6a21\u578b\u90fd\u4f1a\u5355\u72ec\u4fdd\u5b58\uff0c\u5207\u6362 provider \u65f6\u4e0d\u4f1a\u4e22\u5931\u4e4b\u524d\u7684\u914d\u7f6e\u3002',
+  settingsTranslationTitle: '\u4e13\u7528\u7ffb\u8bd1 API',
+  settingsTranslationProvider: '\u7ffb\u8bd1\u63d0\u4f9b\u65b9',
+  settingsTranslationProviderHint:
+    '\u4e13\u7528\u7ffb\u8bd1 API \u5728\u77ed\u6587\u672c\u7ffb\u8bd1\u573a\u666f\u901a\u5e38\u6bd4\u901a\u7528\u5bf9\u8bdd\u6a21\u578b\u66f4\u5feb\u3002',
+  settingsTranslationProviderDeepL: 'DeepL',
+  settingsTranslationApiKey: '\u7ffb\u8bd1 API Key',
+  settingsTranslationApiKeyPlaceholder: '\u8bf7\u8f93\u5165\u5f53\u524d\u7ffb\u8bd1 provider \u7684 API Key',
+  settingsTranslationTestConnection: '\u6d4b\u8bd5',
+  settingsTranslationShowApiKey: '\u663e\u793a',
+  settingsTranslationHideApiKey: '\u9690\u85cf',
+  settingsTranslationHint:
+    '\u914d\u7f6e\u540e\uff0cDOCX \u7ffb\u8bd1\u4f1a\u4f18\u5148\u8d70\u8fd9\u6761\u4e13\u7528\u7ffb\u8bd1\u94fe\u8def\uff0c\u9700\u8981\u65f6\u518d\u56de\u9000\u5230 LLM \u94fe\u8def\u3002',
   statusError: '错误',
   statusInfo: '状态',
   statusReady: '就绪',
@@ -137,6 +149,8 @@ const zh = {
     '\u6a21\u578b\u8fde\u63a5\u6d4b\u8bd5\u4ec5\u652f\u6301\u684c\u9762\u7aef\uff0c\u8bf7\u5728 Electron \u5e94\u7528\u4e2d\u4f7f\u7528\u3002',
   toastLlmConnectionSucceeded: '\u8fde\u63a5\u6210\u529f\uff1a{provider} / {model}',
   toastLlmConnectionFailed: '\u6a21\u578b\u8fde\u63a5\u6d4b\u8bd5\u5931\u8d25\uff1a{error}',
+  toastTranslationConnectionSucceeded: '\u7ffb\u8bd1 API \u8fde\u63a5\u6210\u529f\uff1a{provider}',
+  toastTranslationConnectionFailed: '\u7ffb\u8bd1 API \u6d4b\u8bd5\u5931\u8d25\uff1a{error}',
   toastPreviewRuntimeUnavailable: '桌面预览桥未就绪，请完整重启 Electron 进程。',
   toastPreviewBackUnsupported: 'Electron 嵌入预览暂不支持后退。',
   toastPreviewForwardUnsupported: 'Electron 嵌入预览暂不支持前进。',

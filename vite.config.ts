@@ -7,6 +7,7 @@ const workbenchHtmlPath = fileURLToPath(
 );
 
 export default defineConfig({
+  base: './',
   clearScreen: false,
   resolve: {
     alias: {

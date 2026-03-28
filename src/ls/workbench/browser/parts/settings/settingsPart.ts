@@ -10,6 +10,8 @@ import { Switch } from '../../../../base/browser/ui/switch/switch';
 import type {
   LlmProviderId,
   LlmProviderSettings,
+  TranslationProviderId,
+  TranslationProviderSettings,
 } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
 import type { BatchSource } from '../../../services/config/configSchema';
@@ -66,6 +68,16 @@ export type SettingsPartLabels = {
   settingsLlmShowApiKey: string;
   settingsLlmHideApiKey: string;
   settingsLlmHint: string;
+  settingsTranslationTitle: string;
+  settingsTranslationProvider: string;
+  settingsTranslationProviderHint: string;
+  settingsTranslationProviderDeepL: string;
+  settingsTranslationApiKey: string;
+  settingsTranslationApiKeyPlaceholder: string;
+  settingsTranslationTestConnection: string;
+  settingsTranslationShowApiKey: string;
+  settingsTranslationHideApiKey: string;
+  settingsTranslationHint: string;
 };
 
 export type SettingsPartProps = {
@@ -93,12 +105,18 @@ export type SettingsPartProps = {
   llmProviders: Record<LlmProviderId, LlmProviderSettings>;
   onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void;
   onLlmProviderModelChange: (provider: LlmProviderId, model: string) => void;
+  activeTranslationProvider: TranslationProviderId;
+  onActiveTranslationProviderChange: (provider: TranslationProviderId) => void;
+  translationProviders: Record<TranslationProviderId, TranslationProviderSettings>;
+  onTranslationProviderApiKeyChange: (provider: TranslationProviderId, apiKey: string) => void;
   onTestLlmConnection: () => void;
+  onTestTranslationConnection: () => void;
   onOpenConfigLocation: () => void;
   desktopRuntime: boolean;
   configPath: string;
   isSettingsSaving: boolean;
   isTestingLlmConnection: boolean;
+  isTestingTranslationConnection: boolean;
   onResetDownloadDir: () => void;
   onSaveSettings: () => void;
 };
@@ -114,10 +132,13 @@ export type SettingsPartState = {
   pdfDownloadDir: string;
   activeLlmProvider: LlmProviderId;
   llmProviders: Record<LlmProviderId, LlmProviderSettings>;
+  activeTranslationProvider: TranslationProviderId;
+  translationProviders: Record<TranslationProviderId, TranslationProviderSettings>;
   desktopRuntime: boolean;
   configPath: string;
   isSettingsSaving: boolean;
   isTestingLlmConnection: boolean;
+  isTestingTranslationConnection: boolean;
 };
 
 export type SettingsPartActions = {
@@ -135,7 +156,10 @@ export type SettingsPartActions = {
   onActiveLlmProviderChange: (provider: LlmProviderId) => void;
   onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void;
   onLlmProviderModelChange: (provider: LlmProviderId, model: string) => void;
+  onActiveTranslationProviderChange: (provider: TranslationProviderId) => void;
+  onTranslationProviderApiKeyChange: (provider: TranslationProviderId, apiKey: string) => void;
   onTestLlmConnection: () => void;
+  onTestTranslationConnection: () => void;
   onOpenConfigLocation: () => void;
   onResetDownloadDir: () => void;
   onSaveSettings: () => void;
@@ -200,6 +224,16 @@ export function createSettingsPartLabels({
     settingsLlmShowApiKey: ui.settingsLlmShowApiKey,
     settingsLlmHideApiKey: ui.settingsLlmHideApiKey,
     settingsLlmHint: ui.settingsLlmHint,
+    settingsTranslationTitle: ui.settingsTranslationTitle,
+    settingsTranslationProvider: ui.settingsTranslationProvider,
+    settingsTranslationProviderHint: ui.settingsTranslationProviderHint,
+    settingsTranslationProviderDeepL: ui.settingsTranslationProviderDeepL,
+    settingsTranslationApiKey: ui.settingsTranslationApiKey,
+    settingsTranslationApiKeyPlaceholder: ui.settingsTranslationApiKeyPlaceholder,
+    settingsTranslationTestConnection: ui.settingsTranslationTestConnection,
+    settingsTranslationShowApiKey: ui.settingsTranslationShowApiKey,
+    settingsTranslationHideApiKey: ui.settingsTranslationHideApiKey,
+    settingsTranslationHint: ui.settingsTranslationHint,
   };
 }
 
@@ -216,10 +250,13 @@ export function createSettingsPartProps({
     pdfDownloadDir,
     activeLlmProvider,
     llmProviders,
+    activeTranslationProvider,
+    translationProviders,
     desktopRuntime,
     configPath,
     isSettingsSaving,
     isTestingLlmConnection,
+    isTestingTranslationConnection,
   },
   actions: {
     onLocaleChange,
@@ -236,7 +273,10 @@ export function createSettingsPartProps({
     onActiveLlmProviderChange,
     onLlmProviderApiKeyChange,
     onLlmProviderModelChange,
+    onActiveTranslationProviderChange,
+    onTranslationProviderApiKeyChange,
     onTestLlmConnection,
+    onTestTranslationConnection,
     onOpenConfigLocation,
     onResetDownloadDir,
     onSaveSettings,
@@ -267,12 +307,18 @@ export function createSettingsPartProps({
     llmProviders,
     onLlmProviderApiKeyChange,
     onLlmProviderModelChange,
+    activeTranslationProvider,
+    onActiveTranslationProviderChange,
+    translationProviders,
+    onTranslationProviderApiKeyChange,
     onTestLlmConnection,
+    onTestTranslationConnection,
     onOpenConfigLocation,
     desktopRuntime,
     configPath,
     isSettingsSaving,
     isTestingLlmConnection,
+    isTestingTranslationConnection,
     onResetDownloadDir,
     onSaveSettings,
   };
@@ -750,6 +796,107 @@ function LlmField({
   });
 }
 
+function TranslationField({
+  labels,
+  activeTranslationProvider,
+  translationProviders,
+  onActiveTranslationProviderChange,
+  onTranslationProviderApiKeyChange,
+  onTestTranslationConnection,
+  isSettingsSaving,
+  isTestingTranslationConnection,
+}: Pick<
+  SettingsPartViewProps,
+  | 'labels'
+  | 'activeTranslationProvider'
+  | 'translationProviders'
+  | 'onActiveTranslationProviderChange'
+  | 'onTranslationProviderApiKeyChange'
+  | 'onTestTranslationConnection'
+  | 'isSettingsSaving'
+  | 'isTestingTranslationConnection'
+>) {
+  const [showApiKey, setShowApiKey] = useState(false);
+  const providerOptions = [{ value: 'deepl', label: labels.settingsTranslationProviderDeepL }];
+  const activeProviderSettings = translationProviders[activeTranslationProvider];
+
+  return jsxs('div', {
+    className: 'settings-field',
+    children: [
+      jsx('span', { children: labels.settingsTranslationTitle }),
+      jsxs('div', {
+        className: 'settings-llm-grid',
+        children: [
+          jsxs('label', {
+            className: 'settings-field',
+            children: [
+              labels.settingsTranslationProvider,
+              jsx(Dropdown, {
+                className: 'settings-llm-provider',
+                size: 'sm',
+                value: activeTranslationProvider,
+                options: providerOptions,
+                onChange: (event: { target: { value: string } }) =>
+                  onActiveTranslationProviderChange(event.target.value as TranslationProviderId),
+                'aria-label': labels.settingsTranslationProvider,
+                title: labels.settingsTranslationProvider,
+              }),
+            ],
+          }),
+          jsxs('label', {
+            className: 'settings-field settings-llm-api-field settings-llm-span-2',
+            children: [
+              labels.settingsTranslationApiKey,
+              jsxs('div', {
+                className: 'settings-input-row settings-llm-api-row',
+                children: [
+                  jsx(Input, {
+                    className: 'settings-input-control settings-api-key-input',
+                    size: 'sm',
+                    type: showApiKey ? 'text' : 'password',
+                    value: activeProviderSettings.apiKey,
+                    onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                      onTranslationProviderApiKeyChange(activeTranslationProvider, event.target.value),
+                    placeholder: labels.settingsTranslationApiKeyPlaceholder,
+                    rightIcon: jsx('button', {
+                      type: 'button',
+                      className: 'settings-password-toggle',
+                      onClick: () => setShowApiKey((currentValue) => !currentValue),
+                      'aria-label': showApiKey
+                        ? labels.settingsTranslationHideApiKey
+                        : labels.settingsTranslationShowApiKey,
+                      title: showApiKey
+                        ? labels.settingsTranslationHideApiKey
+                        : labels.settingsTranslationShowApiKey,
+                      children: showApiKey
+                        ? jsx(EyeOff, { size: 16, strokeWidth: 1.8 })
+                        : jsx(Eye, { size: 16, strokeWidth: 1.8 }),
+                    }),
+                  }),
+                  jsx(Button, {
+                    className: 'settings-llm-test-btn',
+                    type: 'button',
+                    mode: 'text',
+                    variant: 'primary',
+                    size: 'md',
+                    textMode: 'with',
+                    iconMode: 'with',
+                    leftIcon: jsx(PlugZap, { size: 14, strokeWidth: 1.8 }),
+                    isLoading: isTestingTranslationConnection,
+                    onClick: onTestTranslationConnection,
+                    disabled: isSettingsSaving,
+                    children: labels.settingsTranslationTestConnection,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
 function renderConfigPathField({
   labels,
   configPath,
@@ -820,12 +967,18 @@ export function SettingsPartView({
   llmProviders,
   onLlmProviderApiKeyChange,
   onLlmProviderModelChange,
+  activeTranslationProvider,
+  onActiveTranslationProviderChange,
+  translationProviders,
+  onTranslationProviderApiKeyChange,
   onTestLlmConnection,
+  onTestTranslationConnection,
   onOpenConfigLocation,
   desktopRuntime,
   configPath,
   isSettingsSaving,
   isTestingLlmConnection,
+  isTestingTranslationConnection,
   onSaveSettings,
 }: SettingsPartViewProps) {
   return jsx('main', {
@@ -904,6 +1057,16 @@ export function SettingsPartView({
               onTestLlmConnection,
               isSettingsSaving,
               isTestingLlmConnection,
+            }),
+            jsx(TranslationField, {
+              labels,
+              activeTranslationProvider,
+              translationProviders,
+              onActiveTranslationProviderChange,
+              onTranslationProviderApiKeyChange,
+              onTestTranslationConnection,
+              isSettingsSaving,
+              isTestingTranslationConnection,
             }),
             renderConfigPathField({
               labels,

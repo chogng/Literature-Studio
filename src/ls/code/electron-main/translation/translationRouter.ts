@@ -1,0 +1,215 @@
+import { createHash } from 'node:crypto';
+
+import type { LlmSettings, TranslationSettings } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import { cleanText } from '../../../base/common/strings.js';
+import type { StorageService, TranslationCacheRecord } from '../../../platform/storage/common/storage.js';
+import {
+  getLlmTranslationCacheIdentity,
+  translateTextsWithLlm,
+  type TranslationBatchItem,
+} from '../llm/llmTranslation.js';
+import { hasUsableTranslationSettings, translateTextsWithDedicatedApi } from './translation.js';
+
+// Central translation orchestrator.
+// Responsibilities:
+// 1. choose dedicated translation API vs. LLM fallback
+// 2. deduplicate repeated texts within one job
+// 3. manage translation cache keys and persistence
+// 4. batch and run translation work with bounded concurrency
+const maxTranslationBatchItems = 8;
+const maxTranslationBatchChars = 12000;
+const translationBatchConcurrency = 3;
+const translationCacheVersion = 'scientific-zh-v1';
+
+type TranslationCacheItem = TranslationBatchItem & {
+  cacheKey: string;
+};
+
+function buildTranslationBatches(items: TranslationBatchItem[]) {
+  const batches: TranslationBatchItem[][] = [];
+  let currentBatch: TranslationBatchItem[] = [];
+  let currentChars = 0;
+
+  items.forEach((item) => {
+    const itemChars = item.text.length;
+    const shouldFlush =
+      currentBatch.length > 0 &&
+      (currentBatch.length >= maxTranslationBatchItems || currentChars + itemChars > maxTranslationBatchChars);
+
+    if (shouldFlush) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentChars = 0;
+    }
+
+    currentBatch.push(item);
+    currentChars += itemChars;
+  });
+
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch);
+  }
+
+  return batches;
+}
+
+function createTranslationCacheKey(
+  provider: string,
+  baseUrl: string,
+  model: string,
+  text: string,
+) {
+  const hash = createHash('sha256').update(text).digest('hex');
+  return `${translationCacheVersion}:${provider}:${baseUrl}:${model}:${hash}`;
+}
+
+async function runBatchesWithConcurrency<TItem>(
+  items: TItem[],
+  concurrency: number,
+  worker: (item: TItem) => Promise<void>,
+) {
+  if (items.length === 0) {
+    return;
+  }
+
+  const normalizedConcurrency = Math.max(1, Math.min(concurrency, items.length));
+  let nextIndex = 0;
+
+  await Promise.all(
+    Array.from({ length: normalizedConcurrency }, async () => {
+      while (true) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+
+        if (currentIndex >= items.length) {
+          return;
+        }
+
+        await worker(items[currentIndex]);
+      }
+    }),
+  );
+}
+
+function buildUniqueTranslationItems(
+  texts: string[],
+  provider: string,
+  baseUrl: string,
+  model: string,
+) {
+  const cacheKeyToIndexes = new Map<string, number[]>();
+  const uniqueItems: TranslationCacheItem[] = [];
+
+  texts.forEach((text, index) => {
+    const cacheKey = createTranslationCacheKey(provider, baseUrl, model, text);
+    const indexes = cacheKeyToIndexes.get(cacheKey);
+    if (indexes) {
+      indexes.push(index);
+      return;
+    }
+
+    cacheKeyToIndexes.set(cacheKey, [index]);
+    uniqueItems.push({ index, text, cacheKey });
+  });
+
+  return { uniqueItems, cacheKeyToIndexes };
+}
+
+function applyTranslatedValue(
+  translatedTexts: string[],
+  cacheKeyToIndexes: Map<string, number[]>,
+  cacheKey: string,
+  value: string,
+) {
+  for (const targetIndex of cacheKeyToIndexes.get(cacheKey) ?? []) {
+    translatedTexts[targetIndex] = value;
+  }
+}
+
+function resolveTranslationCacheIdentity(
+  llmSettings: LlmSettings,
+  translationSettings: TranslationSettings,
+) {
+  if (hasUsableTranslationSettings(translationSettings)) {
+    return {
+      provider: `translation:${translationSettings.activeProvider}`,
+      baseUrl: translationSettings.providers[translationSettings.activeProvider].baseUrl,
+      model: 'translate-to-zh-hans',
+      mode: 'dedicated' as const,
+    };
+  }
+
+  const llmIdentity = getLlmTranslationCacheIdentity(llmSettings);
+  return {
+    ...llmIdentity,
+    mode: 'llm' as const,
+  };
+}
+
+export async function translateTextsToChinese(
+  texts: string[],
+  llmSettings: LlmSettings,
+  translationSettings: TranslationSettings,
+  storage: StorageService,
+): Promise<string[]> {
+  const normalizedTexts = texts.map((text) => cleanText(text));
+  if (normalizedTexts.length === 0) {
+    return [];
+  }
+
+  const route = resolveTranslationCacheIdentity(llmSettings, translationSettings);
+  const translatedTexts = [...normalizedTexts];
+  const { uniqueItems, cacheKeyToIndexes } = buildUniqueTranslationItems(
+    normalizedTexts,
+    route.provider,
+    route.baseUrl,
+    route.model,
+  );
+
+  const cachedTranslations = await storage.loadTranslationCache(uniqueItems.map((item) => item.cacheKey));
+  const uncachedItems: TranslationCacheItem[] = [];
+
+  uniqueItems.forEach((item) => {
+    const cachedValue = cachedTranslations[item.cacheKey];
+    if (cachedValue) {
+      applyTranslatedValue(translatedTexts, cacheKeyToIndexes, item.cacheKey, cachedValue);
+      return;
+    }
+
+    uncachedItems.push(item);
+  });
+
+  const batches = buildTranslationBatches(uncachedItems.map((item) => ({ index: item.index, text: item.text })));
+  const uncachedByIndex = new Map(
+    uncachedItems.map((item) => [item.index, item] satisfies [number, TranslationCacheItem]),
+  );
+  const cacheEntriesToSave: TranslationCacheRecord[] = [];
+
+  await runBatchesWithConcurrency(batches, translationBatchConcurrency, async (batch) => {
+    const batchTranslations =
+      route.mode === 'dedicated'
+        ? await translateTextsWithDedicatedApi(
+            batch.map((item) => item.text),
+            translationSettings,
+          )
+        : await translateTextsWithLlm(batch, llmSettings);
+
+    batch.forEach((item, index) => {
+      const uncachedItem = uncachedByIndex.get(item.index);
+      if (!uncachedItem) {
+        return;
+      }
+
+      const translatedValue = batchTranslations[index];
+      applyTranslatedValue(translatedTexts, cacheKeyToIndexes, uncachedItem.cacheKey, translatedValue);
+      cacheEntriesToSave.push({
+        key: uncachedItem.cacheKey,
+        value: translatedValue,
+      });
+    });
+  });
+
+  await storage.saveTranslationCache(cacheEntriesToSave);
+
+  return translatedTexts;
+}

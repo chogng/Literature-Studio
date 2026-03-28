@@ -19,6 +19,11 @@ import {
   isLlmModelIdForProvider,
   isLlmProviderId,
 } from '../../../workbench/services/llm/registry.js';
+import {
+  createDefaultTranslationSettings,
+  defaultTranslationProviderSettings,
+} from '../../../workbench/services/translation/config.js';
+import { isTranslationProviderId } from '../../../workbench/services/translation/registry.js';
 
 type ConfigStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
 const fallbackLocale: 'zh' | 'en' = 'zh';
@@ -43,7 +48,7 @@ async function writeJson(filePath: string, value: unknown) {
 }
 
 function serializeConfigValue(value: unknown) {
-  if (!value || typeof value !== 'object' || !('llm' in value)) {
+  if (!value || typeof value !== 'object' || !('llm' in value) || !('translation' in value)) {
     return value;
   }
 
@@ -64,6 +69,16 @@ function serializeConfigValue(value: unknown) {
         },
       ]),
   );
+  const serializedTranslationProviders = Object.fromEntries(
+    Object.entries(settings.translation.providers)
+      .filter(([, provider]) => cleanText(provider.apiKey))
+      .map(([providerId, provider]) => [
+        providerId,
+        {
+          apiKey: provider.apiKey,
+        },
+      ]),
+  );
 
   return {
     ...settings,
@@ -71,6 +86,10 @@ function serializeConfigValue(value: unknown) {
     llm: {
       ...settings.llm,
       providers: serializedProviders,
+    },
+    translation: {
+      ...settings.translation,
+      providers: serializedTranslationProviders,
     },
   };
 }
@@ -185,6 +204,7 @@ function normalizeSettings(
     useMica: typeof payload.useMica === 'boolean' ? payload.useMica : true,
     locale: normalizeLocale(payload.locale, defaultLocale),
     llm: normalizeLlmSettings(payload.llm),
+    translation: normalizeTranslationSettings(payload.translation),
   };
 }
 
@@ -235,6 +255,43 @@ function normalizeLlmModel(
   }
 
   return isLlmModelIdForProvider(provider, model) ? model : getDefaultModelForProvider(provider);
+}
+
+function normalizeTranslationSettings(payload: unknown): StoredAppSettings['translation'] {
+  const defaults = createDefaultTranslationSettings();
+  const translationPayload =
+    payload && typeof payload === 'object' ? (payload as Partial<StoredAppSettings['translation']>) : {};
+  const activeProvider = isTranslationProviderId(translationPayload.activeProvider)
+    ? translationPayload.activeProvider
+    : defaults.activeProvider;
+  const providersPayload:
+    Partial<Record<keyof StoredAppSettings['translation']['providers'], unknown>> =
+      translationPayload.providers && typeof translationPayload.providers === 'object'
+        ? translationPayload.providers
+        : {};
+
+  return {
+    activeProvider,
+    providers: {
+      deepl: normalizeTranslationProviderSettings('deepl', providersPayload.deepl),
+    },
+  };
+}
+
+function normalizeTranslationProviderSettings(
+  provider: keyof StoredAppSettings['translation']['providers'],
+  payload: unknown,
+) {
+  const defaults = defaultTranslationProviderSettings[provider];
+  const providerPayload =
+    payload && typeof payload === 'object'
+      ? (payload as Partial<StoredAppSettings['translation']['providers'][typeof provider]>)
+      : {};
+
+  return {
+    apiKey: cleanText(providerPayload.apiKey),
+    baseUrl: defaults.baseUrl,
+  };
 }
 
 function attachConfigPath(settings: StoredAppSettings, configPath: string): AppSettings {

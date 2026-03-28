@@ -27,6 +27,7 @@ app.whenReady().then(async () => {
     {
       historyFile: environmentMainPaths.historyFile,
       configFile: environmentMainPaths.configFile,
+      translationCacheFile: environmentMainPaths.translationCacheFile,
     },
     {
       defaultLocale: resolveEnvironmentMainLocale(),

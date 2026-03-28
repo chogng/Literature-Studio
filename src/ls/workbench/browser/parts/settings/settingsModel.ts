@@ -164,6 +164,25 @@ export function useSettingsModel({
     }
   }, [desktopRuntime, settingsModel, settingsModelContext, ui]);
 
+  const handleTestTranslationConnection = useCallback(async () => {
+    if (!desktopRuntime) {
+      toast.info(ui.toastDesktopLlmTestOnly);
+      return;
+    }
+
+    try {
+      const result = await settingsModel.testTranslationConnection(settingsModelContext);
+      toast.success(
+        formatLocalized(ui.toastTranslationConnectionSucceeded, {
+          provider: result.provider,
+        }),
+      );
+    } catch (testError) {
+      const localizedError = localizeSettingsError(ui, testError);
+      toast.error(formatLocalized(ui.toastTranslationConnectionFailed, { error: localizedError }));
+    }
+  }, [desktopRuntime, settingsModel, settingsModelContext, ui]);
+
   return {
     batchSources: settingsSnapshot.batchSources,
     batchLimit: settingsSnapshot.batchLimit,
@@ -179,15 +198,21 @@ export function useSettingsModel({
     llmProviders: settingsSnapshot.llmProviders,
     setLlmProviderApiKey: settingsModel.setLlmProviderApiKey,
     setLlmProviderModel: settingsModel.setLlmProviderModel,
+    activeTranslationProvider: settingsSnapshot.activeTranslationProvider,
+    setActiveTranslationProvider: settingsModel.setActiveTranslationProvider,
+    translationProviders: settingsSnapshot.translationProviders,
+    setTranslationProviderApiKey: settingsModel.setTranslationProviderApiKey,
     configPath: settingsSnapshot.configPath,
     isSettingsLoading: settingsSnapshot.isSettingsLoading,
     isSettingsSaving: settingsSnapshot.isSettingsSaving,
     isTestingLlmConnection: settingsSnapshot.isTestingLlmConnection,
+    isTestingTranslationConnection: settingsSnapshot.isTestingTranslationConnection,
     handleChoosePdfDownloadDir,
     handleOpenConfigLocation,
     handleLocaleChange,
     handleSaveSettings,
     handleTestLlmConnection,
+    handleTestTranslationConnection,
     handleResetDownloadDir,
     handleBatchSourceUrlChange: settingsModel.handleBatchSourceUrlChange,
     handleBatchSourceJournalTitleChange: settingsModel.handleBatchSourceJournalTitleChange,

@@ -8,6 +8,8 @@ import {
 import {
   type LlmProviderId,
   type LlmProviderSettings,
+  type TranslationProviderId,
+  type TranslationProviderSettings,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import {
   buildSaveSettingsPayload,
@@ -25,6 +27,7 @@ import {
 } from './settingsEditing';
 import { cloneLlmSettings, createDefaultLlmSettings } from '../llm/config.js';
 import { resolveLlmRoute } from '../llm/routing.js';
+import { cloneTranslationSettings, createDefaultTranslationSettings } from '../translation/config.js';
 
 export type SettingsModelSnapshot = {
   pdfDownloadDir: string;
@@ -34,10 +37,13 @@ export type SettingsModelSnapshot = {
   useMica: boolean;
   activeLlmProvider: LlmProviderId;
   llmProviders: Record<LlmProviderId, LlmProviderSettings>;
+  activeTranslationProvider: TranslationProviderId;
+  translationProviders: Record<TranslationProviderId, TranslationProviderSettings>;
   configPath: string;
   isSettingsLoading: boolean;
   isSettingsSaving: boolean;
   isTestingLlmConnection: boolean;
+  isTestingTranslationConnection: boolean;
 };
 
 type SettingsModelContext = {
@@ -74,6 +80,7 @@ function createInitialSettingsModelSnapshot(
   initialBatchSources: BatchSource[],
 ): SettingsModelSnapshot {
   const defaultLlmSettings = createDefaultLlmSettings();
+  const defaultTranslationSettings = createDefaultTranslationSettings();
 
   return {
     pdfDownloadDir: '',
@@ -83,10 +90,13 @@ function createInitialSettingsModelSnapshot(
     useMica: true,
     activeLlmProvider: defaultLlmSettings.activeProvider,
     llmProviders: defaultLlmSettings.providers,
+    activeTranslationProvider: defaultTranslationSettings.activeProvider,
+    translationProviders: defaultTranslationSettings.providers,
     configPath: '',
     isSettingsLoading: false,
     isSettingsSaving: false,
     isTestingLlmConnection: false,
+    isTestingTranslationConnection: false,
   };
 }
 
@@ -209,6 +219,30 @@ export class SettingsModel {
     }));
   };
 
+  readonly setActiveTranslationProvider = (activeTranslationProvider: TranslationProviderId) => {
+    if (this.snapshot.activeTranslationProvider === activeTranslationProvider) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      activeTranslationProvider,
+    }));
+  };
+
+  readonly setTranslationProviderApiKey = (provider: TranslationProviderId, apiKey: string) => {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      translationProviders: {
+        ...snapshot.translationProviders,
+        [provider]: {
+          ...snapshot.translationProviders[provider],
+          apiKey,
+        },
+      },
+    }));
+  };
+
   readonly resetDownloadDir = () => {
     this.setPdfDownloadDir('');
   };
@@ -277,6 +311,8 @@ export class SettingsModel {
         useMica: resolved.useMica,
         activeLlmProvider: resolved.llm.activeProvider,
         llmProviders: cloneLlmSettings(resolved.llm).providers,
+        activeTranslationProvider: resolved.translation.activeProvider,
+        translationProviders: cloneTranslationSettings(resolved.translation).providers,
         configPath: resolved.configPath,
       }));
 
@@ -342,6 +378,8 @@ export class SettingsModel {
       useMica,
       activeLlmProvider,
       llmProviders,
+      activeTranslationProvider,
+      translationProviders,
       configPath,
     } =
       this.snapshot;
@@ -357,6 +395,13 @@ export class SettingsModel {
         providers: cloneLlmSettings({
           activeProvider: activeLlmProvider,
           providers: llmProviders,
+        }).providers,
+      },
+      translation: {
+        activeProvider: activeTranslationProvider,
+        providers: cloneTranslationSettings({
+          activeProvider: activeTranslationProvider,
+          providers: translationProviders,
         }).providers,
       },
     });
@@ -376,6 +421,8 @@ export class SettingsModel {
         useMica: resolved.useMica,
         activeLlmProvider: resolved.llm.activeProvider,
         llmProviders: cloneLlmSettings(resolved.llm).providers,
+        activeTranslationProvider: resolved.translation.activeProvider,
+        translationProviders: cloneTranslationSettings(resolved.translation).providers,
         configPath: resolved.configPath,
       }));
 
@@ -419,6 +466,31 @@ export class SettingsModel {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         isTestingLlmConnection: false,
+      }));
+    }
+  }
+
+  async testTranslationConnection({
+    invokeDesktop,
+  }: SettingsModelContext) {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      isTestingTranslationConnection: true,
+    }));
+
+    try {
+      const { activeTranslationProvider, translationProviders } = this.snapshot;
+      const providerSettings = translationProviders[activeTranslationProvider];
+
+      return await invokeDesktop('test_translation_connection', {
+        provider: activeTranslationProvider,
+        apiKey: providerSettings.apiKey,
+        baseUrl: providerSettings.baseUrl,
+      });
+    } finally {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        isTestingTranslationConnection: false,
       }));
     }
   }

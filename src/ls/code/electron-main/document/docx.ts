@@ -18,7 +18,7 @@ import {
 } from './docxCopy.js';
 import { cleanText } from '../../../base/common/strings.js';
 import { showSaveDialog } from '../../../platform/dialogs/electron-main/dialogMainService.js';
-import { translateTextsToChinese } from '../llm/llmTranslation.js';
+import { translateArticlesToChinese } from '../translation/articleTranslation.js';
 
 type ZipEntry = {
   name: string;
@@ -130,11 +130,6 @@ type JournalArticleGroup = {
   articles: Article[];
 };
 
-type PreferredDocxContent = {
-  field: 'descriptionText' | 'abstractText';
-  text: string;
-};
-
 function resolveJournalTitle(article: Article, locale: SupportedLocale) {
   const explicitTitle = cleanText(article.journalTitle);
   if (explicitTitle) return explicitTitle;
@@ -176,53 +171,8 @@ function groupArticlesByJournal(articles: Article[], locale: SupportedLocale): J
   return groups;
 }
 
-function resolvePreferredDocxContent(article: Article): PreferredDocxContent | null {
-  const description = cleanText(article.descriptionText);
-  if (description) {
-    return {
-      field: 'descriptionText',
-      text: description,
-    };
-  }
-
-  const abstract = cleanText(article.abstractText);
-  if (abstract) {
-    return {
-      field: 'abstractText',
-      text: abstract,
-    };
-  }
-
-  return null;
-}
-
 async function translateDocxArticlesToChinese(articles: Article[], storage: StorageService) {
-  const selectedContent = articles
-    .map((article, index) => {
-      const preferredContent = resolvePreferredDocxContent(article);
-      return preferredContent ? { index, ...preferredContent } : null;
-    })
-    .filter((item): item is { index: number; field: 'descriptionText' | 'abstractText'; text: string } => Boolean(item));
-
-  if (selectedContent.length === 0) {
-    return articles;
-  }
-
-  const settings = await storage.loadSettings();
-  const translatedTexts = await translateTextsToChinese(
-    selectedContent.map((item) => item.text),
-    settings.llm,
-  );
-  const translatedArticles = [...articles];
-
-  selectedContent.forEach((item, index) => {
-    translatedArticles[item.index] = {
-      ...translatedArticles[item.index],
-      [item.field]: translatedTexts[index],
-    };
-  });
-
-  return translatedArticles;
+  return translateArticlesToChinese(articles, storage);
 }
 
 function articleParagraphsXml(article: Article, indexInJournal: number, locale: SupportedLocale) {

@@ -7,15 +7,22 @@ import {
   resolveLlmRequestFromPayload,
 } from './llm.js';
 
+// LLM-based translation implementation only.
+// This module owns the prompt contract and response normalization for the
+// chat-completions translation path, but does not decide when that path should
+// be used. Routing, caching, and concurrency live in translationRouter.ts.
 const llmTranslationTimeoutMs = 45000;
-const maxTranslationBatchItems = 8;
-const maxTranslationBatchChars = 12000;
 
 type TranslationBatchResponse = {
   translations?: Array<{
     index?: unknown;
     text?: unknown;
   }>;
+};
+
+export type TranslationBatchItem = {
+  index: number;
+  text: string;
 };
 
 function resolveLlmRequestFromSettings(settings: LlmSettings) {
@@ -37,37 +44,9 @@ function parseJsonText<T>(value: string): T {
   return JSON.parse(candidate) as T;
 }
 
-function buildTranslationBatches(texts: string[]) {
-  const batches: Array<Array<{ index: number; text: string }>> = [];
-  let currentBatch: Array<{ index: number; text: string }> = [];
-  let currentChars = 0;
-
-  texts.forEach((text, index) => {
-    const itemChars = text.length;
-    const shouldFlush =
-      currentBatch.length > 0 &&
-      (currentBatch.length >= maxTranslationBatchItems || currentChars + itemChars > maxTranslationBatchChars);
-
-    if (shouldFlush) {
-      batches.push(currentBatch);
-      currentBatch = [];
-      currentChars = 0;
-    }
-
-    currentBatch.push({ index, text });
-    currentChars += itemChars;
-  });
-
-  if (currentBatch.length > 0) {
-    batches.push(currentBatch);
-  }
-
-  return batches;
-}
-
 function normalizeTranslationBatch(
   responseText: string,
-  batch: Array<{ index: number; text: string }>,
+  batch: TranslationBatchItem[],
   provider: LlmProviderId,
 ) {
   let parsed: TranslationBatchResponse;
@@ -104,59 +83,64 @@ function normalizeTranslationBatch(
   return batch.map((item) => translatedByIndex.get(item.index) || item.text);
 }
 
-export async function translateTextsToChinese(texts: string[], settings: LlmSettings): Promise<string[]> {
-  const normalizedTexts = texts.map((text) => cleanText(text));
-  if (normalizedTexts.length === 0) {
+function createBatchRequestMessage(batch: TranslationBatchItem[]) {
+  return JSON.stringify({
+    task: 'Translate each item into Simplified Chinese.',
+    output: {
+      format: 'JSON object',
+      schema: {
+        translations: [{ index: 0, text: 'translated text' }],
+      },
+    },
+    rules: [
+      'Keep the same index values.',
+      'Do not omit any item.',
+      'Do not add explanations or markdown.',
+      'If the source text is already Chinese, return a polished Simplified Chinese version.',
+    ],
+    items: batch,
+  });
+}
+
+export function getLlmTranslationCacheIdentity(settings: LlmSettings) {
+  const request = resolveLlmRequestFromSettings(settings);
+
+  return {
+    provider: request.provider,
+    baseUrl: request.baseUrl,
+    model: request.model,
+  };
+}
+
+export async function translateTextsWithLlm(
+  batch: TranslationBatchItem[],
+  settings: LlmSettings,
+): Promise<string[]> {
+  if (batch.length === 0) {
     return [];
   }
 
   const request = resolveLlmRequestFromSettings(settings);
-  const translatedTexts = [...normalizedTexts];
-  const batches = buildTranslationBatches(normalizedTexts);
-
-  for (const batch of batches) {
-    const responseJson = await requestChatCompletion(
-      request,
-      {
-        model: request.model,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a precise scientific translator. Translate each input text into concise, fluent Simplified Chinese. Preserve meaning, terminology, numbers, and line breaks. Return JSON only.',
-          },
-          {
-            role: 'user',
-            content: JSON.stringify({
-              task: 'Translate each item into Simplified Chinese.',
-              output: {
-                format: 'JSON object',
-                schema: {
-                  translations: [{ index: 0, text: 'translated text' }],
-                },
-              },
-              rules: [
-                'Keep the same index values.',
-                'Do not omit any item.',
-                'Do not add explanations or markdown.',
-                'If the source text is already Chinese, return a polished Simplified Chinese version.',
-              ],
-              items: batch,
-            }),
-          },
-        ],
-        max_tokens: 4000,
-        temperature: 0,
-      },
-      llmTranslationTimeoutMs,
-    );
-    const responseText = extractResponseContent(responseJson);
-    const batchTranslations = normalizeTranslationBatch(responseText, batch, request.provider);
-
-    batch.forEach((item, index) => {
-      translatedTexts[item.index] = batchTranslations[index];
-    });
-  }
-
-  return translatedTexts;
+  const responseJson = await requestChatCompletion(
+    request,
+    {
+      model: request.model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a precise scientific translator. Translate each input text into concise, fluent Simplified Chinese. Preserve meaning, terminology, numbers, and line breaks. Return JSON only.',
+        },
+        {
+          role: 'user',
+          content: createBatchRequestMessage(batch),
+        },
+      ],
+      max_tokens: 4000,
+      temperature: 0,
+    },
+    llmTranslationTimeoutMs,
+  );
+  const responseText = extractResponseContent(responseJson);
+  return normalizeTranslationBatch(responseText, batch, request.provider);
 }
