@@ -63,8 +63,8 @@
   --dropdown-bg: rgba(255, 255, 255, 0.6);
   --dropdown-bg-hover: var(--titlebar-field-bg-hover);
   --dropdown-bg-focus: var(--titlebar-field-bg-focus);
-  width: clamp(160px, var(--titlebar-source-width, 18ch), min(320px, 35vw));
-  max-width: min(320px, 35vw);
+  width: clamp(160px, var(--titlebar-source-width, 18ch), min(520px, 48vw));
+  max-width: min(520px, 48vw);
   flex: 0 1 auto;
   height: var(--titlebar-field-height) !important;
   border-radius: var(--titlebar-field-radius) !important;

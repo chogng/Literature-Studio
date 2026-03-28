@@ -62,8 +62,6 @@ export type TitlebarProps = {
   canExportDocx?: boolean;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
-  onAddressBarSourceMenuOpenChange?: (isOpen: boolean) => void;
-  onAddressBarSourceMenuDispose?: () => void;
   webUrl?: string;
   onWebUrlChange?: (url: string) => void;
   articleUrlPlaceholder?: string;
@@ -274,7 +272,6 @@ function renderSourceSelector({
   addressBarSourceAriaLabel,
   addressBarSourcePlaceholder,
   onSelectAddressBarSource,
-  onOpenChange,
   onKeyDown,
   sourceSelectorRef,
 }: {
@@ -283,7 +280,6 @@ function renderSourceSelector({
   addressBarSourceAriaLabel?: string;
   addressBarSourcePlaceholder?: string;
   onSelectAddressBarSource?: (sourceId: string) => void;
-  onOpenChange: (isOpen: boolean) => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
   sourceSelectorRef?: Ref<HTMLDivElement>;
 }) {
@@ -294,7 +290,7 @@ function renderSourceSelector({
   const selectedOption =
     sourceOptions.find((option) => option.value === selectedAddressBarSourceId) || sourceOptions[0];
   const selectedLabel = selectedOption?.label?.trim() || addressBarSourcePlaceholder || '';
-  const selectorWidthCh = Math.min(Math.max(selectedLabel.length + 4, 16), 30);
+  const selectorWidthCh = Math.min(Math.max(selectedLabel.length + 4, 16), 48);
 
   return jsx('div', {
     className: 'titlebar-journal-bar',
@@ -304,7 +300,6 @@ function renderSourceSelector({
       style: { '--titlebar-source-width': `${selectorWidthCh}ch` },
       value: selectedAddressBarSourceId,
       onChange: (event: DropdownChangeEvent) => onSelectAddressBarSource(event.target.value),
-      onOpenChange,
       'aria-label': addressBarSourceAriaLabel || addressBarSourcePlaceholder,
       title: addressBarSourceAriaLabel || addressBarSourcePlaceholder,
       onKeyDown,
@@ -314,7 +309,6 @@ function renderSourceSelector({
 }
 
 export function TitlebarView(inputProps: TitlebarViewProps = {}) {
-  const isSourceMenuOpenRef = useRef(false);
   const sourceSelectorRef = useRef<HTMLDivElement | null>(null);
   const webUrlInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -333,8 +327,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     canExportDocx = false,
     onNavigateBack,
     onNavigateForward,
-    onAddressBarSourceMenuOpenChange,
-    onAddressBarSourceMenuDispose,
     webUrl,
     onWebUrlChange,
     articleUrlPlaceholder,
@@ -347,21 +339,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
   } = inputProps;
 
   const sourceOptions = createSourceOptions(addressBarSourcePlaceholder, addressBarSourceOptions);
-
-  const handleSourceMenuOpenChange = useCallback((isOpen: boolean) => {
-    isSourceMenuOpenRef.current = isOpen;
-    onAddressBarSourceMenuOpenChange?.(isOpen);
-  }, [onAddressBarSourceMenuOpenChange]);
-
-  useEffect(() => {
-    return () => {
-      if (!isSourceMenuOpenRef.current) {
-        return;
-      }
-
-      onAddressBarSourceMenuDispose?.();
-    };
-  }, [onAddressBarSourceMenuDispose]);
 
   useEffect(() => {
     return subscribeTitlebarUiActions((action) => {
@@ -450,7 +427,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     addressBarSourceAriaLabel,
     addressBarSourcePlaceholder,
     onSelectAddressBarSource,
-    onOpenChange: handleSourceMenuOpenChange,
     onKeyDown: handleSourceSelectorKeyDown,
     sourceSelectorRef,
   });

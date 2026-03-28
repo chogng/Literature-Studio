@@ -33,6 +33,21 @@ export interface DropdownProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onC
   onOpenChange?: (isOpen: boolean) => void;
 }
 
+let nativeDropdownRequestId = 0;
+
+function shouldUseNativeMenuOverlay() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const nativeOverlayKind = new URLSearchParams(window.location.search).get('nativeOverlay');
+  if (nativeOverlayKind === 'menu' || nativeOverlayKind === 'toast') {
+    return false;
+  }
+
+  return typeof window.electronAPI?.menu?.open === 'function';
+}
+
 export const Dropdown = forwardRef(function Dropdown(
   {
     className = '',
@@ -55,6 +70,8 @@ export const Dropdown = forwardRef(function Dropdown(
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const isOpenRef = useRef(false);
+  const nativeRequestIdRef = useRef(`native-dropdown-${++nativeDropdownRequestId}`);
+  const usesNativeMenuOverlay = shouldUseNativeMenuOverlay();
 
   const setRefs = useCallback(
     (node: HTMLDivElement | null) => {
@@ -83,7 +100,7 @@ export const Dropdown = forwardRef(function Dropdown(
   );
 
   useEffect(() => {
-    if (!isOpen) {
+    if (usesNativeMenuOverlay || !isOpen) {
       return;
     }
 
@@ -98,15 +115,85 @@ export const Dropdown = forwardRef(function Dropdown(
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
     };
-  }, [isOpen, updateOpenState]);
+  }, [isOpen, updateOpenState, usesNativeMenuOverlay]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    if (!usesNativeMenuOverlay) {
+      return;
+    }
+
+    const menuApi = window.electronAPI?.menu;
+    const requestId = nativeRequestIdRef.current;
+    const openNativeMenu = () => {
+      const triggerRect = containerRef.current?.getBoundingClientRect();
+      if (!triggerRect) {
+        return;
+      }
+
+      menuApi?.open({
+        requestId,
+        triggerRect: {
+          x: triggerRect.x,
+          y: triggerRect.y,
+          width: triggerRect.width,
+          height: triggerRect.height,
+        },
+        options,
+        value,
+      });
+    };
+
+    openNativeMenu();
+
+    const handleViewportChange = () => {
+      openNativeMenu();
+    };
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [isOpen, options, updateOpenState, usesNativeMenuOverlay, value]);
 
   useEffect(() => {
     return () => {
       if (isOpenRef.current) {
         onOpenChange?.(false);
+        if (usesNativeMenuOverlay) {
+          window.electronAPI?.menu?.close(nativeRequestIdRef.current);
+        }
       }
     };
-  }, [onOpenChange]);
+  }, [onOpenChange, usesNativeMenuOverlay]);
+
+  useEffect(() => {
+    if (!usesNativeMenuOverlay) {
+      return;
+    }
+
+    const menuApi = window.electronAPI?.menu;
+    if (!menuApi?.onEvent) {
+      return;
+    }
+
+    return menuApi.onEvent((event) => {
+      if (event.requestId !== nativeRequestIdRef.current) {
+        return;
+      }
+
+      updateOpenState(false);
+      setIsFocused(false);
+      if (event.type === 'select' && typeof event.value === 'string') {
+        onChange?.({ target: { value: event.value } });
+      }
+    });
+  }, [onChange, updateOpenState, usesNativeMenuOverlay]);
 
   const updateMenuPosition = useCallback(() => {
     if (!isOpenRef.current || !containerRef.current || !menuRef.current) {
@@ -135,7 +222,7 @@ export const Dropdown = forwardRef(function Dropdown(
   }, [isOpen, options.length, updateMenuPosition]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || usesNativeMenuOverlay) {
       return;
     }
 
@@ -156,6 +243,9 @@ export const Dropdown = forwardRef(function Dropdown(
     event.stopPropagation();
 
     if (!disabled) {
+      if (usesNativeMenuOverlay && isOpenRef.current) {
+        window.electronAPI?.menu?.close(nativeRequestIdRef.current);
+      }
       updateOpenState(!isOpenRef.current);
       setIsFocused(true);
     }
@@ -198,38 +288,39 @@ export const Dropdown = forwardRef(function Dropdown(
     .join(' ');
 
   const selectedOption = options.find((option) => option.value === value) || options[0];
-  const menuView = isOpen
-    ? jsx('div', {
-        ref: menuRef,
-        className: `dropdown-menu dropdown-menu-${menuPlacement}`,
-        style: menuMaxHeight ? { maxHeight: `${menuMaxHeight}px` } : undefined,
-        children: options.map((option) =>
-          jsxs(
-            'div',
-            {
-              className: `dropdown-menu-item ${value === option.value ? 'selected' : ''} ${option.disabled ? 'disabled' : ''}`,
-              title: option.title,
-              onClick: (event: ReactMouseEvent<HTMLDivElement>) => {
-                if (!option.disabled) {
-                  handleSelect(option.value, event);
-                }
+  const menuView =
+    isOpen && !usesNativeMenuOverlay
+      ? jsx('div', {
+          ref: menuRef,
+          className: `dropdown-menu dropdown-menu-${menuPlacement}`,
+          style: menuMaxHeight ? { maxHeight: `${menuMaxHeight}px` } : undefined,
+          children: options.map((option) =>
+            jsxs(
+              'div',
+              {
+                className: `dropdown-menu-item ${value === option.value ? 'selected' : ''} ${option.disabled ? 'disabled' : ''}`,
+                title: option.title,
+                onClick: (event: ReactMouseEvent<HTMLDivElement>) => {
+                  if (!option.disabled) {
+                    handleSelect(option.value, event);
+                  }
+                },
+                children: [
+                  jsx('div', { className: 'dropdown-menu-item-content', children: option.label }),
+                  value === option.value
+                    ? jsx(Check, {
+                        size: 14,
+                        strokeWidth: 2,
+                        className: 'dropdown-menu-item-check',
+                      })
+                    : null,
+                ],
               },
-              children: [
-                jsx('div', { className: 'dropdown-menu-item-content', children: option.label }),
-                value === option.value
-                  ? jsx(Check, {
-                      size: 14,
-                      strokeWidth: 2,
-                      className: 'dropdown-menu-item-check',
-                    })
-                  : null,
-              ],
-            },
-            option.value,
+              option.value,
+            ),
           ),
-        ),
-      })
-    : null;
+        })
+      : null;
 
   return jsxs('div', {
     ref: setRefs,
@@ -242,11 +333,16 @@ export const Dropdown = forwardRef(function Dropdown(
       onFocus?.(event);
     },
     onBlur: (event: FocusEvent<HTMLDivElement>) => {
+      if (usesNativeMenuOverlay && isOpenRef.current) {
+        onBlur?.(event);
+        return;
+      }
+
       if (!containerRef.current?.contains(event.relatedTarget as Node)) {
         setIsFocused(false);
         updateOpenState(false);
-        onBlur?.(event);
       }
+      onBlur?.(event);
     },
     ...props,
     children: [

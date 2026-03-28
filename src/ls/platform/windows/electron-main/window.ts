@@ -2,6 +2,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow, type BrowserWindowConstructorOptions, type WebContents } from 'electron';
 import type { WindowControlAction, WindowState } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import { disposeNativeMenuOverlay } from './nativeMenuOverlayView.js';
+import { disposeNativeToastOverlay } from './nativeToastOverlayView.js';
 import { disposePreviewView, ensurePreviewView } from './previewView.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -298,6 +300,8 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
 
   window.on('closed', () => {
     closeAuxiliaryWindows();
+    disposeNativeMenuOverlay(window);
+    disposeNativeToastOverlay(window);
     disposePreviewView(window);
     mainWindow = null;
   });

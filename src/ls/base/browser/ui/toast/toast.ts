@@ -40,6 +40,18 @@ function createToastOptions(options: ToastOptions | string): ToastOptions {
   };
 }
 
+function shouldUseNativeToastOverlay() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  if (new URLSearchParams(window.location.search).get('nativeOverlay') === 'toast') {
+    return false;
+  }
+
+  return typeof window.electronAPI?.toast?.show === 'function';
+}
+
 function getToastIcon(type: ToastType) {
   const iconProps = {
     size: 18,
@@ -76,6 +88,11 @@ function dismissToast(id: number) {
 export const toast = {
   show: (options: ToastOptions | string) => {
     const defaultOptions = createToastOptions(options);
+    if (shouldUseNativeToastOverlay()) {
+      window.electronAPI?.toast?.show(defaultOptions);
+      return -1;
+    }
+
     const id = ++toastId;
     const newToast: ToastItem = { ...defaultOptions, id, isExiting: false };
 

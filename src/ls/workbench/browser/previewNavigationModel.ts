@@ -50,11 +50,6 @@ type PreviewNavigationButtonParams = {
   ui: LocaleMessages;
 };
 
-type AddressBarSourceMenuParams = {
-  previewRuntime: boolean;
-  browserUrl: string;
-};
-
 type AddressBarSourceSelectionParams = {
   sourceId: string;
   addressBarSourceOptions: QuickAccessSourceOption[];
@@ -311,28 +306,6 @@ export class PreviewNavigationModel {
     }
 
     window.electronAPI.preview.goForward();
-  }
-
-  handleAddressBarSourceMenuOpenChange(
-    { previewRuntime, browserUrl }: AddressBarSourceMenuParams,
-    isOpen: boolean,
-  ): void {
-    if (!previewRuntime || !window.electronAPI?.preview) {
-      return;
-    }
-
-    window.electronAPI.preview.setVisible(isOpen ? false : Boolean(browserUrl));
-  }
-
-  handleAddressBarSourceMenuDispose({
-    previewRuntime,
-    browserUrl,
-  }: AddressBarSourceMenuParams): void {
-    if (!previewRuntime || !window.electronAPI?.preview) {
-      return;
-    }
-
-    window.electronAPI.preview.setVisible(Boolean(browserUrl));
   }
 
   createAddressBarSourceOptions(
