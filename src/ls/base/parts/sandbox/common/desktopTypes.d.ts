@@ -34,6 +34,18 @@ export interface LlmSettings {
   providers: Record<LlmProviderId, LlmProviderSettings>;
 }
 
+export type TranslationProviderId = 'deepl';
+
+export interface TranslationProviderSettings {
+  apiKey: string;
+  baseUrl: string;
+}
+
+export interface TranslationSettings {
+  activeProvider: TranslationProviderId;
+  providers: Record<TranslationProviderId, TranslationProviderSettings>;
+}
+
 export interface FetchBatchSource {
   sourceId?: string;
   pageUrl?: string;
@@ -51,6 +63,7 @@ export interface StoredAppSettings {
   useMica: boolean;
   locale: Locale;
   llm: LlmSettings;
+  translation: TranslationSettings;
 }
 
 export interface AppSettings extends StoredAppSettings {
@@ -197,6 +210,18 @@ export interface LlmConnectionTestResult {
   responsePreview: string;
 }
 
+export interface TestTranslationConnectionPayload {
+  provider?: TranslationProviderId;
+  apiKey?: string;
+  baseUrl?: string;
+}
+
+export interface TranslationConnectionTestResult {
+  provider: TranslationProviderId;
+  baseUrl: string;
+  responsePreview: string;
+}
+
 export interface OpenPathPayload {
   path?: string;
 }
@@ -220,12 +245,71 @@ export interface ArticleDetailsModalState {
 
 export type NativeModalState = ArticleDetailsModalState;
 
+export type NativeToastType = 'info' | 'success' | 'error' | 'warning';
+
+export interface NativeToastOptions {
+  message: string;
+  type?: NativeToastType;
+  duration?: number;
+}
+
+export interface NativeToastItem {
+  id: number;
+  message: string;
+  type: NativeToastType;
+}
+
+export interface NativeToastState {
+  items: NativeToastItem[];
+}
+
+export interface NativeToastLayout {
+  width: number;
+  height: number;
+}
+
+export interface NativeMenuOption {
+  value: string;
+  label: string;
+  title?: string;
+  disabled?: boolean;
+}
+
+export interface NativeMenuRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface NativeMenuOpenPayload {
+  requestId: string;
+  triggerRect: NativeMenuRect;
+  options: NativeMenuOption[];
+  value?: string;
+}
+
+export interface NativeMenuState {
+  requestId: string;
+  triggerRect: NativeMenuRect;
+  options: NativeMenuOption[];
+  value: string;
+  sourceWebContentsId: number;
+}
+
+export interface NativeMenuEvent {
+  requestId: string;
+  type: 'select' | 'close';
+  value?: string;
+}
+
 export interface AppCommandPayloadMap {
   fetch_article: FetchArticlePayload;
   fetch_latest_articles: FetchLatestArticlesPayload;
   load_settings: undefined;
   save_settings: SaveSettingsPayload;
   test_llm_connection: TestLlmConnectionPayload;
+  test_translation_connection: TestTranslationConnectionPayload;
   pick_download_directory: undefined;
   open_path: OpenPathPayload;
   preview_download_pdf: PreviewDownloadPdfPayload;
@@ -239,6 +323,7 @@ export interface AppCommandResultMap {
   load_settings: AppSettings;
   save_settings: AppSettings;
   test_llm_connection: LlmConnectionTestResult;
+  test_translation_connection: TranslationConnectionTestResult;
   pick_download_directory: string | null;
   open_path: boolean;
   preview_download_pdf: PdfDownloadResult;
@@ -284,10 +369,30 @@ export interface ElectronModalApi {
   onStateChange: (listener: (state: NativeModalState | null) => void) => () => void;
 }
 
+export interface ElectronToastApi {
+  show: (options: NativeToastOptions) => void;
+  dismiss: (id: number) => void;
+  getState: () => Promise<NativeToastState>;
+  onStateChange: (listener: (state: NativeToastState) => void) => () => void;
+  reportLayout: (layout: NativeToastLayout) => void;
+  setHovering: (hovering: boolean) => void;
+}
+
+export interface ElectronMenuApi {
+  open: (payload: NativeMenuOpenPayload) => void;
+  close: (requestId: string) => void;
+  select: (requestId: string, value: string) => void;
+  getState: () => Promise<NativeMenuState | null>;
+  onStateChange: (listener: (state: NativeMenuState | null) => void) => () => void;
+  onEvent: (listener: (event: NativeMenuEvent) => void) => () => void;
+}
+
 export interface ElectronAPI {
   invoke: ElectronInvoke;
   windowControls?: ElectronWindowControls;
   preview?: ElectronPreviewApi;
   fetch?: ElectronFetchApi;
   modal?: ElectronModalApi;
+  toast?: ElectronToastApi;
+  menu?: ElectronMenuApi;
 }

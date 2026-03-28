@@ -14,6 +14,7 @@ import type {
   PreviewState,
   SaveSettingsPayload,
   TestLlmConnectionPayload,
+  TestTranslationConnectionPayload,
   WindowControlAction,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
 import type { StorageService } from '../../platform/storage/common/storage.js';
@@ -27,6 +28,19 @@ import {
   setPreviewVisible,
 } from '../../platform/windows/electron-main/previewView.js';
 import { getNativeModalState, openArticleDetailsModal } from '../../platform/windows/electron-main/articleDetailsWindow.js';
+import {
+  dismissNativeToast,
+  getNativeToastState,
+  reportNativeToastLayout,
+  setNativeToastHovering,
+  showNativeToast,
+} from '../../platform/windows/electron-main/nativeToastOverlayView.js';
+import {
+  closeNativeMenu,
+  getNativeMenuState,
+  openNativeMenu,
+  selectNativeMenuOption,
+} from '../../platform/windows/electron-main/nativeMenuOverlayView.js';
 import {
   fetchArticle,
   fetchLatestArticles,
@@ -43,6 +57,7 @@ import { previewDownloadPdf } from './pdf/pdf.js';
 import { appError, serializeAppError } from '../../base/common/errors.js';
 import { pickDirectoryDialog } from '../../platform/dialogs/electron-main/dialogMainService.js';
 import { testLlmConnection } from './llm/llm.js';
+import { testTranslationConnection } from './translation/translation.js';
 import {
   applyMainWindowBackgroundMaterial,
   getMainWindow,
@@ -114,6 +129,10 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'test_llm_connection':
       return testLlmConnection(
         payload as TestLlmConnectionPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'test_translation_connection':
+      return testTranslationConnection(
+        payload as TestTranslationConnectionPayload,
       ) as Promise<AppCommandResultMap[TCommand]>;
     case 'pick_download_directory':
       return pickDirectoryDialog(getMainWindow()) as Promise<AppCommandResultMap[TCommand]>;
@@ -203,6 +222,42 @@ export function registerAppIpc(storage: StorageService) {
   ipcMain.handle('app:modal-get-state', (event) => {
     const state: NativeModalState | null = getNativeModalState(event.sender.id);
     return state;
+  });
+
+  ipcMain.on('app:native-toast-show', (event, options) => {
+    showNativeToast(resolveWindowFromWebContents(event.sender), options);
+  });
+
+  ipcMain.on('app:native-toast-dismiss', (_event, id: number) => {
+    dismissNativeToast(id);
+  });
+
+  ipcMain.handle('app:native-toast-get-state', () => {
+    return getNativeToastState();
+  });
+
+  ipcMain.on('app:native-toast-layout', (event, layout) => {
+    reportNativeToastLayout(event.sender.id, layout);
+  });
+
+  ipcMain.on('app:native-toast-hover', (_event, hovering: boolean) => {
+    setNativeToastHovering(hovering);
+  });
+
+  ipcMain.on('app:native-menu-open', (event, payload) => {
+    openNativeMenu(resolveWindowFromWebContents(event.sender), event.sender.id, payload);
+  });
+
+  ipcMain.on('app:native-menu-close', (_event, requestId: string) => {
+    closeNativeMenu(requestId);
+  });
+
+  ipcMain.handle('app:native-menu-get-state', () => {
+    return getNativeMenuState();
+  });
+
+  ipcMain.on('app:native-menu-select', (_event, requestId: string, value: string) => {
+    selectNativeMenuOption(requestId, value);
   });
 
   ipcMain.handle('app:preview-navigate', async (_event, url: string) => {

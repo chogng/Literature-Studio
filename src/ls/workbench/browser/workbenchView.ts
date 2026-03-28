@@ -15,7 +15,9 @@ import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
 } from '../services/config/configSchema';
+import NativeMenuOverlayWindow from './nativeMenuOverlayWindow';
 import ArticleDetailsModalWindow from './articleDetailsModalWindow';
+import NativeToastOverlayWindow from './nativeToastOverlayWindow';
 import { useBatchFetchModel } from './batchFetchModel';
 import { useDocumentActionsModel } from './documentActionsModel';
 import {
@@ -79,6 +81,14 @@ function detectNativeModalKind() {
   }
 
   return new URLSearchParams(window.location.search).get('nativeModal');
+}
+
+function detectNativeOverlayKind() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return new URLSearchParams(window.location.search).get('nativeOverlay');
 }
 
 function resolveRuntimeState() {
@@ -197,15 +207,21 @@ function WorkbenchContentView() {
     llmProviders,
     setLlmProviderApiKey,
     setLlmProviderModel,
+    activeTranslationProvider,
+    setActiveTranslationProvider,
+    translationProviders,
+    setTranslationProviderApiKey,
     configPath,
     isSettingsLoading,
     isSettingsSaving,
     isTestingLlmConnection,
+    isTestingTranslationConnection,
     handleChoosePdfDownloadDir,
     handleOpenConfigLocation,
     handleLocaleChange,
     handleSaveSettings,
     handleTestLlmConnection,
+    handleTestTranslationConnection,
     handleResetDownloadDir,
     handleBatchSourceUrlChange,
     handleBatchSourceJournalTitleChange,
@@ -298,26 +314,6 @@ function WorkbenchContentView() {
       ui,
     });
   }, [previewNavigationModel, previewRuntime, ui]);
-
-  const handleAddressBarSourceMenuOpenChange = useCallback(
-    (isOpen: boolean) => {
-      previewNavigationModel.handleAddressBarSourceMenuOpenChange(
-        {
-          previewRuntime,
-          browserUrl,
-        },
-        isOpen,
-      );
-    },
-    [browserUrl, previewNavigationModel, previewRuntime],
-  );
-
-  const handleAddressBarSourceMenuDispose = useCallback(() => {
-    previewNavigationModel.handleAddressBarSourceMenuDispose({
-      previewRuntime,
-      browserUrl,
-    });
-  }, [browserUrl, previewNavigationModel, previewRuntime]);
 
   const addressBarSourceOptions = useMemo(
     () => previewNavigationModel.createAddressBarSourceOptions(batchSources),
@@ -541,8 +537,6 @@ function WorkbenchContentView() {
           handleToggleSidebar,
           handlePreviewBack,
           handlePreviewForward,
-          handleAddressBarSourceMenuOpenChange,
-          handleAddressBarSourceMenuDispose,
           handleWebUrlChange,
           handleSelectAddressBarSource,
           handleCycleAddressBarSource,
@@ -553,8 +547,6 @@ function WorkbenchContentView() {
       addressBarSourceOptions,
       browserUrl,
       canExportDocx,
-      handleAddressBarSourceMenuDispose,
-      handleAddressBarSourceMenuOpenChange,
       handleCycleAddressBarSource,
       handlePreviewBack,
       handlePreviewForward,
@@ -609,10 +601,13 @@ function WorkbenchContentView() {
           pdfDownloadDir,
           activeLlmProvider,
           llmProviders,
+          activeTranslationProvider,
+          translationProviders,
           desktopRuntime,
           configPath,
           isSettingsSaving,
           isTestingLlmConnection,
+          isTestingTranslationConnection,
         },
         actions: {
           onLocaleChange: handleLocaleChange,
@@ -629,7 +624,10 @@ function WorkbenchContentView() {
           onActiveLlmProviderChange: setActiveLlmProvider,
           onLlmProviderApiKeyChange: setLlmProviderApiKey,
           onLlmProviderModelChange: setLlmProviderModel,
+          onActiveTranslationProviderChange: setActiveTranslationProvider,
+          onTranslationProviderApiKeyChange: setTranslationProviderApiKey,
           onTestLlmConnection: () => void handleTestLlmConnection(),
+          onTestTranslationConnection: () => void handleTestTranslationConnection(),
           onOpenConfigLocation: () => void handleOpenConfigLocation(),
           onResetDownloadDir: handleResetDownloadDir,
           onSaveSettings: () => void handleSaveSettings(),
@@ -640,6 +638,7 @@ function WorkbenchContentView() {
       batchSources,
       configPath,
       activeLlmProvider,
+      activeTranslationProvider,
       desktopRuntime,
       handleAddBatchSource,
       handleBatchSourceJournalTitleChange,
@@ -648,6 +647,7 @@ function WorkbenchContentView() {
       handleOpenConfigLocation,
       handleLocaleChange,
       handleTestLlmConnection,
+      handleTestTranslationConnection,
       handleMoveBatchSource,
       handleRemoveBatchSource,
       handleResetDownloadDir,
@@ -655,16 +655,20 @@ function WorkbenchContentView() {
       isSettingsLoading,
       isSettingsSaving,
       isTestingLlmConnection,
+      isTestingTranslationConnection,
       llmProviders,
+      translationProviders,
       locale,
       pdfDownloadDir,
       sameDomainOnly,
       useMica,
       setBatchLimit,
       setActiveLlmProvider,
+      setActiveTranslationProvider,
       setPdfDownloadDir,
       setLlmProviderApiKey,
       setLlmProviderModel,
+      setTranslationProviderApiKey,
       setSameDomainOnly,
       ui,
     ],
@@ -692,7 +696,16 @@ function WorkbenchContentView() {
 }
 
 export default function WorkbenchView() {
+  const nativeOverlayKind = detectNativeOverlayKind();
   const nativeModalKind = detectNativeModalKind();
+
+  if (nativeOverlayKind === 'toast') {
+    return jsx(NativeToastOverlayWindow, {});
+  }
+
+  if (nativeOverlayKind === 'menu') {
+    return jsx(NativeMenuOverlayWindow, {});
+  }
 
   if (nativeModalKind === 'article-details') {
     return jsx(ArticleDetailsModalWindow, {});

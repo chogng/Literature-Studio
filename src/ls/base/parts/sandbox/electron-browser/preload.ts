@@ -5,7 +5,13 @@ import type {
   AppCommandPayloadMap,
   AppCommandResultMap,
   FetchStatus,
+  NativeMenuEvent,
+  NativeMenuOpenPayload,
+  NativeMenuState,
   NativeModalState,
+  NativeToastLayout,
+  NativeToastOptions,
+  NativeToastState,
   PreviewBounds,
   PreviewState,
   WindowControlAction,
@@ -169,6 +175,51 @@ const electronAPI = {
     },
     onStateChange(listener: (state: NativeModalState | null) => void) {
       return subscribeIpc<NativeModalState | null>('app:modal-state', listener, null);
+    },
+  },
+  toast: {
+    show(options: NativeToastOptions) {
+      sendIpc('app:native-toast-show', options);
+    },
+    dismiss(id: number) {
+      sendIpc('app:native-toast-dismiss', id);
+    },
+    getState() {
+      return invokeIpc<NativeToastState>('app:native-toast-get-state');
+    },
+    onStateChange(listener: (state: NativeToastState) => void) {
+      return subscribeIpc<NativeToastState>('app:native-toast-state', listener, {
+        items: [],
+      });
+    },
+    reportLayout(layout: NativeToastLayout) {
+      sendIpc('app:native-toast-layout', layout);
+    },
+    setHovering(hovering: boolean) {
+      sendIpc('app:native-toast-hover', hovering);
+    },
+  },
+  menu: {
+    open(payload: NativeMenuOpenPayload) {
+      sendIpc('app:native-menu-open', payload);
+    },
+    close(requestId: string) {
+      sendIpc('app:native-menu-close', requestId);
+    },
+    select(requestId: string, value: string) {
+      sendIpc('app:native-menu-select', requestId, value);
+    },
+    getState() {
+      return invokeIpc<NativeMenuState | null>('app:native-menu-get-state');
+    },
+    onStateChange(listener: (state: NativeMenuState | null) => void) {
+      return subscribeIpc<NativeMenuState | null>('app:native-menu-state', listener, null);
+    },
+    onEvent(listener: (event: NativeMenuEvent) => void) {
+      return subscribeIpc<NativeMenuEvent>('app:native-menu-event', listener, {
+        requestId: '',
+        type: 'close',
+      });
     },
   },
 };
