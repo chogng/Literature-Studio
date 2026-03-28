@@ -30,8 +30,34 @@ type UseDocumentActionsModelParams = {
   locale: Locale;
   ui: LocaleMessages;
   pdfDownloadDir: string;
+  pdfFileNameUseSelectionOrder: boolean;
+  isSelectionModeEnabled: boolean;
+  selectedArticleOrderLookup: ReadonlyMap<string, number>;
   exportableArticles: Article[];
 };
+
+function getArticleSelectionKey(article: Pick<Article, 'sourceUrl' | 'fetchedAt'>) {
+  return `${article.sourceUrl}::${article.fetchedAt}`;
+}
+
+function buildDownloadArticleTitle(
+  article: Pick<Article, 'title' | 'sourceUrl' | 'fetchedAt'>,
+  pdfFileNameUseSelectionOrder: boolean,
+  isSelectionModeEnabled: boolean,
+  selectedArticleOrderLookup: ReadonlyMap<string, number>,
+) {
+  const articleTitle = typeof article.title === 'string' ? article.title.trim() : '';
+  if (!articleTitle) {
+    return article.title;
+  }
+
+  if (!pdfFileNameUseSelectionOrder || !isSelectionModeEnabled) {
+    return article.title;
+  }
+
+  const order = selectedArticleOrderLookup.get(getArticleSelectionKey(article));
+  return typeof order === 'number' ? `${order}. ${articleTitle}` : article.title;
+}
 
 function resolveSciencePdfQueueMessage(ui: LocaleMessages) {
   return ui.toastSciencePdfQueued;
@@ -56,6 +82,9 @@ export function useDocumentActionsModel({
   locale,
   ui,
   pdfDownloadDir,
+  pdfFileNameUseSelectionOrder,
+  isSelectionModeEnabled,
+  selectedArticleOrderLookup,
   exportableArticles,
 }: UseDocumentActionsModelParams) {
   const sciencePdfDownloadCountRef = useRef(0);
@@ -66,13 +95,8 @@ export function useDocumentActionsModel({
   );
 
   const handleSharedPdfDownload = useCallback(
-    async (
-      sourceUrl: string,
-      articleTitle?: string,
-      journalTitle?: string | null,
-      doi?: string | null,
-    ) => {
-      const preparedPdfDownload = preparePdfDownload(sourceUrl, doi);
+    async (article: Pick<Article, 'title' | 'sourceUrl' | 'fetchedAt' | 'journalTitle' | 'doi'>) => {
+      const preparedPdfDownload = preparePdfDownload(article.sourceUrl, article.doi);
       if (!preparedPdfDownload) {
         toast.error(ui.toastEnterArticleUrl);
         return;
@@ -97,9 +121,14 @@ export function useDocumentActionsModel({
         const result = await invokeDesktop('preview_download_pdf', {
           pageUrl: preparedPdfDownload.normalizedSourceUrl,
           downloadUrl: preparedPdfDownload.preferredPdfUrl,
-          doi: typeof doi === 'string' ? doi : undefined,
-          articleTitle,
-          journalTitle: typeof journalTitle === 'string' ? journalTitle : undefined,
+          doi: typeof article.doi === 'string' ? article.doi : undefined,
+          articleTitle: buildDownloadArticleTitle(
+            article,
+            pdfFileNameUseSelectionOrder,
+            isSelectionModeEnabled,
+            selectedArticleOrderLookup,
+          ),
+          journalTitle: typeof article.journalTitle === 'string' ? article.journalTitle : undefined,
           customDownloadDir: resolvePreferredDirectory(pdfDownloadDir),
         });
         markPdfDownloadSucceeded(preparedPdfDownload.normalizedSourceUrl, result);
@@ -125,7 +154,16 @@ export function useDocumentActionsModel({
         }
       }
     },
-    [desktopRuntime, invokeDesktop, locale, pdfDownloadDir, ui],
+    [
+      desktopRuntime,
+      invokeDesktop,
+      isSelectionModeEnabled,
+      locale,
+      pdfDownloadDir,
+      pdfFileNameUseSelectionOrder,
+      selectedArticleOrderLookup,
+      ui,
+    ],
   );
 
   const handleOpenArticleDetails = useCallback(

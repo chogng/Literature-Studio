@@ -193,6 +193,8 @@ export function useSettingsModel({
     setUseMica: settingsModel.setUseMica,
     pdfDownloadDir: settingsSnapshot.pdfDownloadDir,
     setPdfDownloadDir: settingsModel.setPdfDownloadDir,
+    pdfFileNameUseSelectionOrder: settingsSnapshot.pdfFileNameUseSelectionOrder,
+    setPdfFileNameUseSelectionOrder: settingsModel.setPdfFileNameUseSelectionOrder,
     activeLlmProvider: settingsSnapshot.activeLlmProvider,
     setActiveLlmProvider: settingsModel.setActiveLlmProvider,
     llmProviders: settingsSnapshot.llmProviders,

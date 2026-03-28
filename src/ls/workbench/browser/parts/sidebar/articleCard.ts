@@ -14,10 +14,7 @@ type ArticleCardProps = {
   locale: Locale;
   labels: ArticleCardLabels;
   onDownloadPdf: (
-    sourceUrl: string,
-    articleTitle?: string,
-    journalTitle?: string | null,
-    doi?: string | null,
+    article: SidebarArticle,
   ) => Promise<void>;
   onOpenArticleDetails: (
     article: SidebarArticle,
@@ -167,7 +164,7 @@ export default function ArticleCard({
     }
 
     try {
-      await onDownloadPdf(article.sourceUrl, article.title, article.journalTitle, article.doi);
+      await onDownloadPdf(article);
     } catch {
       // The shared download handler is responsible for user-facing error messages.
     }

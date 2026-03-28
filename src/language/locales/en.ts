@@ -53,6 +53,9 @@ const en = {
   settingsUseMicaHint:
     'Available in the desktop app. The titlebar and app shell will pick up the system Mica material when Windows supports it.',
   defaultPdfDir: 'Default PDF download directory',
+  pdfFileNameUseSelectionOrder: 'Prefix PDF file names with selection order',
+  pdfFileNameUseSelectionOrderHint:
+    'Only applies in selection mode. Selected PDFs are named like "1. Article Title"; regular single downloads still use the title only.',
   downloadDirPlaceholder: 'Leave empty to use the system Downloads folder',
   chooseDirectory: 'Choose directory',
   openConfigLocation: 'Open file location',

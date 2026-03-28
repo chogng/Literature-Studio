@@ -22,6 +22,7 @@ export type AppSettingsPayload = DesktopAppSettings;
 
 export type ResolvedSettingsState = {
   pdfDownloadDir: string;
+  pdfFileNameUseSelectionOrder: boolean;
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
@@ -34,6 +35,7 @@ export type ResolvedSettingsState = {
 
 export type SaveSettingsDraft = {
   pdfDownloadDir: string;
+  pdfFileNameUseSelectionOrder: boolean;
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
@@ -65,6 +67,10 @@ export function resolveSettingsState(
 
   return {
     pdfDownloadDir: typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '',
+    pdfFileNameUseSelectionOrder:
+      typeof loaded.pdfFileNameUseSelectionOrder === 'boolean'
+        ? loaded.pdfFileNameUseSelectionOrder
+        : false,
     batchSources: resolvedBatchSources,
     batchLimit: normalizeBatchLimit(loaded.defaultBatchLimit, defaultBatchLimit),
     sameDomainOnly:
@@ -90,6 +96,7 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
     nextBatchLimit,
     payload: {
       defaultDownloadDir: nextDir || null,
+      pdfFileNameUseSelectionOrder: draft.pdfFileNameUseSelectionOrder,
       defaultBatchSources: nextBatchSources,
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: draft.sameDomainOnly,

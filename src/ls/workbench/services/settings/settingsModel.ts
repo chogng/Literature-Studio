@@ -31,6 +31,7 @@ import { cloneTranslationSettings, createDefaultTranslationSettings } from '../t
 
 export type SettingsModelSnapshot = {
   pdfDownloadDir: string;
+  pdfFileNameUseSelectionOrder: boolean;
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
@@ -84,6 +85,7 @@ function createInitialSettingsModelSnapshot(
 
   return {
     pdfDownloadDir: '',
+    pdfFileNameUseSelectionOrder: false,
     batchSources: initialBatchSources,
     batchLimit: defaultBatchLimit,
     sameDomainOnly: defaultSameDomainOnly,
@@ -179,6 +181,17 @@ export class SettingsModel {
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       pdfDownloadDir,
+    }));
+  };
+
+  readonly setPdfFileNameUseSelectionOrder = (pdfFileNameUseSelectionOrder: boolean) => {
+    if (this.snapshot.pdfFileNameUseSelectionOrder === pdfFileNameUseSelectionOrder) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      pdfFileNameUseSelectionOrder,
     }));
   };
 
@@ -305,6 +318,7 @@ export class SettingsModel {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         pdfDownloadDir: resolved.pdfDownloadDir,
+        pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
@@ -372,6 +386,7 @@ export class SettingsModel {
 
     const {
       pdfDownloadDir,
+      pdfFileNameUseSelectionOrder,
       batchSources,
       batchLimit,
       sameDomainOnly,
@@ -385,6 +400,7 @@ export class SettingsModel {
       this.snapshot;
     const { nextDir, payload } = buildSaveSettingsPayload({
       pdfDownloadDir,
+      pdfFileNameUseSelectionOrder,
       batchSources,
       batchLimit,
       sameDomainOnly,
@@ -415,6 +431,7 @@ export class SettingsModel {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         pdfDownloadDir: resolved.pdfDownloadDir,
+        pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,

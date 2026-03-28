@@ -195,6 +195,10 @@ function normalizeSettings(
 
   return {
     defaultDownloadDir: downloadDir || null,
+    pdfFileNameUseSelectionOrder:
+      typeof payload.pdfFileNameUseSelectionOrder === 'boolean'
+        ? payload.pdfFileNameUseSelectionOrder
+        : false,
     defaultBatchSources: normalizedBatchSources,
     defaultBatchLimit: normalizedLimit,
     defaultSameDomainOnly:

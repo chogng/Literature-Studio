@@ -65,10 +65,7 @@ export type SidebarProps = {
   onBatchEndDateChange: (value: string) => void;
   onFetchLatestBatch: () => void;
   onDownloadPdf: (
-    sourceUrl: string,
-    articleTitle?: string,
-    journalTitle?: string | null,
-    doi?: string | null,
+    article: SidebarArticle,
   ) => Promise<void>;
   onOpenArticleDetails: (
     article: SidebarArticle,

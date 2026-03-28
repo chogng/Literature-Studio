@@ -45,6 +45,8 @@ export type SettingsPartLabels = {
   settingsUseMicaHint: string;
   settingsBatchHint: string;
   defaultPdfDir: string;
+  pdfFileNameUseSelectionOrder: string;
+  pdfFileNameUseSelectionOrderHint: string;
   downloadDirPlaceholder: string;
   chooseDirectory: string;
   openConfigLocation: string;
@@ -98,7 +100,9 @@ export type SettingsPartProps = {
   useMica: boolean;
   onUseMicaChange: (checked: boolean) => void;
   pdfDownloadDir: string;
+  pdfFileNameUseSelectionOrder: boolean;
   onPdfDownloadDirChange: (value: string) => void;
+  onPdfFileNameUseSelectionOrderChange: (checked: boolean) => void;
   onChoosePdfDownloadDir: () => void;
   activeLlmProvider: LlmProviderId;
   onActiveLlmProviderChange: (provider: LlmProviderId) => void;
@@ -130,6 +134,7 @@ export type SettingsPartState = {
   sameDomainOnly: boolean;
   useMica: boolean;
   pdfDownloadDir: string;
+  pdfFileNameUseSelectionOrder: boolean;
   activeLlmProvider: LlmProviderId;
   llmProviders: Record<LlmProviderId, LlmProviderSettings>;
   activeTranslationProvider: TranslationProviderId;
@@ -152,6 +157,7 @@ export type SettingsPartActions = {
   onSameDomainOnlyChange: (checked: boolean) => void;
   onUseMicaChange: (checked: boolean) => void;
   onPdfDownloadDirChange: (value: string) => void;
+  onPdfFileNameUseSelectionOrderChange: (checked: boolean) => void;
   onChoosePdfDownloadDir: () => void;
   onActiveLlmProviderChange: (provider: LlmProviderId) => void;
   onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void;
@@ -201,6 +207,8 @@ export function createSettingsPartLabels({
     settingsUseMicaHint: ui.settingsUseMicaHint,
     settingsBatchHint: ui.settingsBatchHint,
     defaultPdfDir: ui.defaultPdfDir,
+    pdfFileNameUseSelectionOrder: ui.pdfFileNameUseSelectionOrder,
+    pdfFileNameUseSelectionOrderHint: ui.pdfFileNameUseSelectionOrderHint,
     downloadDirPlaceholder: ui.downloadDirPlaceholder,
     chooseDirectory: ui.chooseDirectory,
     openConfigLocation: ui.openConfigLocation,
@@ -248,6 +256,7 @@ export function createSettingsPartProps({
     sameDomainOnly,
     useMica,
     pdfDownloadDir,
+    pdfFileNameUseSelectionOrder,
     activeLlmProvider,
     llmProviders,
     activeTranslationProvider,
@@ -269,6 +278,7 @@ export function createSettingsPartProps({
     onSameDomainOnlyChange,
     onUseMicaChange,
     onPdfDownloadDirChange,
+    onPdfFileNameUseSelectionOrderChange,
     onChoosePdfDownloadDir,
     onActiveLlmProviderChange,
     onLlmProviderApiKeyChange,
@@ -300,7 +310,9 @@ export function createSettingsPartProps({
     useMica,
     onUseMicaChange,
     pdfDownloadDir,
+    pdfFileNameUseSelectionOrder,
     onPdfDownloadDirChange,
+    onPdfFileNameUseSelectionOrderChange,
     onChoosePdfDownloadDir,
     activeLlmProvider,
     onActiveLlmProviderChange,
@@ -583,7 +595,9 @@ function renderBatchOptionsField({
 function renderDownloadDirectoryField({
   labels,
   pdfDownloadDir,
+  pdfFileNameUseSelectionOrder,
   onPdfDownloadDirChange,
+  onPdfFileNameUseSelectionOrderChange,
   onChoosePdfDownloadDir,
   desktopRuntime,
   isSettingsSaving,
@@ -591,7 +605,9 @@ function renderDownloadDirectoryField({
   SettingsPartViewProps,
   | 'labels'
   | 'pdfDownloadDir'
+  | 'pdfFileNameUseSelectionOrder'
   | 'onPdfDownloadDirChange'
+  | 'onPdfFileNameUseSelectionOrderChange'
   | 'onChoosePdfDownloadDir'
   | 'desktopRuntime'
   | 'isSettingsSaving'
@@ -624,6 +640,28 @@ function renderDownloadDirectoryField({
             title: labels.chooseDirectory,
             'aria-label': labels.chooseDirectory,
             children: jsx(FolderOpen, { size: 16 }),
+          }),
+        ],
+      }),
+      jsxs('div', {
+        className: 'settings-toggle-row',
+        children: [
+          jsxs('div', {
+            children: [
+              jsx('span', { className: 'settings-hint', children: labels.pdfFileNameUseSelectionOrder }),
+              jsx('p', {
+                className: 'settings-hint settings-toggle-subtitle',
+                children: labels.pdfFileNameUseSelectionOrderHint,
+              }),
+            ],
+          }),
+          jsx(Switch, {
+            checked: pdfFileNameUseSelectionOrder,
+            disabled: isSettingsSaving,
+            onChange: (event: ChangeEvent<HTMLInputElement>) =>
+              onPdfFileNameUseSelectionOrderChange(event.target.checked),
+            'aria-label': labels.pdfFileNameUseSelectionOrder,
+            title: labels.pdfFileNameUseSelectionOrder,
           }),
         ],
       }),
@@ -960,7 +998,9 @@ export function SettingsPartView({
   useMica,
   onUseMicaChange,
   pdfDownloadDir,
+  pdfFileNameUseSelectionOrder,
   onPdfDownloadDirChange,
+  onPdfFileNameUseSelectionOrderChange,
   onChoosePdfDownloadDir,
   activeLlmProvider,
   onActiveLlmProviderChange,
@@ -1042,7 +1082,9 @@ export function SettingsPartView({
             renderDownloadDirectoryField({
               labels,
               pdfDownloadDir,
+              pdfFileNameUseSelectionOrder,
               onPdfDownloadDirChange,
+              onPdfFileNameUseSelectionOrderChange,
               onChoosePdfDownloadDir,
               desktopRuntime,
               isSettingsSaving,
