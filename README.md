@@ -178,3 +178,8 @@ npm run check:i18n
 - `npm run start`：构建后启动桌面应用
 - `npm run preview`：Vite 预览
 - `npm run check:i18n`：检查中英文文案键是否一致
+- `npm run test:writing-editor`：verify ProseMirror writing-editor invariants around `citation`, `figure`, and `figure_ref`
+
+## Writing Editor Notes
+
+- [`docs/prosemirror-writing-editor.md`](/c:/Users/lanxi/Desktop/Literature-Studio/docs/prosemirror-writing-editor.md) records the current ProseMirror document contract and the lightweight regression test entry point.

@@ -16,6 +16,7 @@
     "dev:electron": "concurrently -k \"npm:dev:electron:build\" \"npm:dev:electron:run\"",
     "dev:web": "vite --config vite.web.config.ts",
     "check:i18n": "node scripts/check-i18n-keys.mjs",
+    "test:writing-editor": "node scripts/run-writing-editor-tests.mjs",
     "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never",
     "dist:mac": "npm run build && electron-builder --mac dmg zip --x64 --publish never",
     "build": "npm run build:electron && tsc && vite build",
