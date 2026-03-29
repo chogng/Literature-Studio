@@ -238,8 +238,8 @@ function renderSidebarToggle({
     label: sidebarToggleLabel,
     onClick: requestToggleTitlebarSidebar,
     icon: isSidebarOpen
-      ? jsx(PanelLeftClose, { size: 14, strokeWidth: 1.5 })
-      : jsx(PanelLeftOpen, { size: 14, strokeWidth: 1.5 }),
+      ? jsx(PanelLeftClose, { size: 16, strokeWidth: 1.5 })
+      : jsx(PanelLeftOpen, { size: 16, strokeWidth: 1.5 }),
   });
 }
 
@@ -261,8 +261,8 @@ function renderAuxiliarySidebarToggle({
     label: auxiliarySidebarToggleLabel,
     onClick: requestToggleTitlebarAuxiliarySidebar,
     icon: isAuxiliarySidebarOpen
-      ? jsx(PanelRightClose, { size: 14, strokeWidth: 1.5 })
-      : jsx(PanelRightOpen, { size: 14, strokeWidth: 1.5 }),
+      ? jsx(PanelRightClose, { size: 16, strokeWidth: 1.5 })
+      : jsx(PanelRightOpen, { size: 16, strokeWidth: 1.5 }),
   });
 }
 
@@ -285,14 +285,14 @@ function renderNavigationGroup({
         label: labels.backLabel,
         onClick: requestTitlebarNavigateBack,
         disabled: !browserUrl || !canGoBack,
-        icon: jsx(ArrowLeft, { size: 14, strokeWidth: 1.5 }),
+        icon: jsx(ArrowLeft, { size: 16, strokeWidth: 1.5 }),
       }),
       renderIconButton({
         className: 'titlebar-btn titlebar-btn-nav',
         label: labels.forwardLabel,
         onClick: requestTitlebarNavigateForward,
         disabled: !browserUrl || !canGoForward,
-        icon: jsx(ArrowRight, { size: 14, strokeWidth: 1.5 }),
+        icon: jsx(ArrowRight, { size: 16, strokeWidth: 1.5 }),
       }),
     ],
   });
@@ -510,14 +510,14 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
       title: canExportDocx ? labels.exportDocxLabel : labels.noExportableArticlesLabel,
       onClick: requestExportTitlebarDocx,
       disabled: !canExportDocx,
-      icon: jsx(FileText, { size: 14, strokeWidth: 1.5 }),
+      icon: jsx(FileText, { size: 16, strokeWidth: 1.5 }),
     });
   const settingsButtonView =
     renderIconButton({
       className: 'titlebar-btn titlebar-btn-settings',
       label: labels.settingsLabel,
       onClick: requestToggleTitlebarSettings,
-      icon: jsx(Settings, { size: 14, strokeWidth: 1.5 }),
+      icon: jsx(Settings, { size: 16, strokeWidth: 1.5 }),
     });
   const windowControls = jsx(WindowControlsGroup, {
     className: 'titlebar-window-controls',

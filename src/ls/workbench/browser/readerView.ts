@@ -31,6 +31,8 @@ type ReaderViewProps = {
     librarySnapshot: LibraryDocumentsResult;
     isLibraryLoading: boolean;
     onRefreshLibrary?: () => void;
+    onDownloadPdf?: () => void;
+    onCreateDraftTab?: () => void;
   };
   auxiliarySidebarProps: {
     labels: SecondarySidebarProps["labels"];
@@ -67,11 +69,11 @@ function renderSidebarPart({
   }
 
   if (activeSidebarKind === "primary") {
-    return jsx(PrimarySidebarPartView, {
-      partRef: primarySidebarPartRef,
-      ...primarySidebarProps,
-    });
-  }
+  return jsx(PrimarySidebarPartView, {
+    partRef: primarySidebarPartRef,
+    ...primarySidebarProps,
+  });
+}
 
   return jsx(SecondarySidebarPartView, {
     partRef: secondarySidebarPartRef,

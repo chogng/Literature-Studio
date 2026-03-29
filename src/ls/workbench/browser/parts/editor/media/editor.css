@@ -38,30 +38,6 @@
   color: #203040;
 }
 
-.editor-toolbar-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px 12px;
-}
-
-.editor-mode-switcher {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.editor-mode-btn.btn-base {
-  border-radius: 999px;
-}
-
-.editor-workspace-actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .editor-workspace-action-btn.btn-base {
   border-radius: 999px;
 }
@@ -155,10 +131,6 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-.editor-content.is-mode-split {
-  grid-template-columns: minmax(420px, 1.12fr) minmax(320px, 0.88fr);
-}
-
 .editor-draft-pane,
 .editor-source-pane {
   min-height: 0;
@@ -211,20 +183,6 @@
   border-radius: 0;
 }
 
-.editor-draft-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.editor-draft-toolbar-main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
 .editor-mode-pill {
   display: inline-flex;
   align-items: center;
@@ -245,29 +203,6 @@
   color: #6b7c8d;
   border: 1px solid #d9e3ec;
   background: #f4f7fa;
-}
-
-.editor-stats {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: #607285;
-  font-size: 12px;
-}
-
-.editor-title-field {
-  display: grid;
-  gap: 6px;
-}
-
-.editor-field-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #415366;
-}
-
-.editor-title-input {
-  width: 100%;
 }
 
 .editor-assistant-card {
@@ -338,18 +273,6 @@
   padding: 24px;
 }
 
-@media (max-width: 1180px) {
-  .editor-content.is-mode-split {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(260px, 40%);
-  }
-
-  .editor-source-pane {
-    border-left: 0;
-    border-top: 1px solid #e4ebf3;
-  }
-}
-
 @media (max-width: 760px) {
   .editor-toolbar,
   .editor-draft-pane {
@@ -357,9 +280,7 @@
     padding-right: 10px;
   }
 
-  .editor-toolbar-head,
-  .editor-toolbar-actions,
-  .editor-draft-toolbar {
+  .editor-toolbar-head {
     align-items: flex-start;
     flex-direction: column;
   }

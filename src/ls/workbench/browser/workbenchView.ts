@@ -20,6 +20,7 @@ import {
 } from "./window";
 import { ToastContainer } from "../../base/browser/ui/toast/toast";
 import type { Article } from "../services/article/articleFetch";
+import { normalizeUrl } from "../common/url";
 import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
@@ -31,6 +32,12 @@ import { useLibraryModel } from "./libraryModel";
 import ToastOverlayWindow from "./toastOverlayWindow";
 import { useBatchFetchModel } from "./batchFetchModel";
 import { useDocumentActionsModel } from "./documentActionsModel";
+import { preparePdfDownload } from "../services/document/documentActionService";
+import {
+  reduceQuickAccessAction,
+  type QuickAccessAction,
+  type QuickAccessCommand,
+} from "../services/quickAccess/quickAccessService";
 import {
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchShellClassName,
@@ -80,6 +87,8 @@ type ActivePageViewConfig = {
     librarySnapshot: ReturnType<typeof useLibraryModel>["librarySnapshot"];
     isLibraryLoading: boolean;
     onRefreshLibrary: () => void;
+    onDownloadPdf: () => void;
+    onCreateDraftTab: () => void;
   };
   auxiliarySidebarProps: {
     isKnowledgeBaseModeEnabled: boolean;
@@ -132,6 +141,16 @@ type WorkbenchShellConfig = {
 
 const DEFAULT_ARTICLE_URL = "";
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
+
+function looksLikePdfUrl(url: string) {
+  const normalized = url.trim().toLowerCase();
+  return (
+    normalized.includes(".pdf") ||
+    normalized.includes("/pdf") ||
+    normalized.includes("format=pdf") ||
+    normalized.includes("download=pdf")
+  );
+}
 
 function getArticleSelectionKey(
   article: Pick<Article, "sourceUrl" | "fetchedAt">
@@ -385,17 +404,14 @@ function WorkbenchContentView() {
     tabs: editorTabs,
     activeTabId: activeEditorTabId,
     activeTab: activeEditorTab,
-    setDraftTitle,
     setDraftDocument,
     draftBody,
-    setViewMode: setEditorViewMode,
-    clearDraft,
-    stats: writingStats,
     activateTab: handleActivateEditorTab,
     closeTab: handleCloseEditorTab,
     createDraftTab: handleCreateDraftTab,
-    createWebTab: createEditorWebTab,
-    updateActiveWebTabUrl,
+    createWebTab: handleCreateWebTab,
+    createPdfTab: createEditorPdfTab,
+    updateActivePreviewTabUrl,
   } = useWritingEditorModel();
   const currentLlmSettings = useMemo(
     () => ({
@@ -564,11 +580,72 @@ function WorkbenchContentView() {
     navigateToAddressBarUrl(webUrl, true);
   }, [navigateToAddressBarUrl, webUrl]);
 
-  const handleCreateWebTab = useCallback(() => {
-    createEditorWebTab(browserUrl || webUrl);
-  }, [browserUrl, createEditorWebTab, webUrl]);
-  const activeEditorWebTabUrl =
-    activeEditorTab?.kind === "web" ? activeEditorTab.url : "";
+  const activeEditorPreviewTabUrl =
+    activeEditorTab?.kind === "web" || activeEditorTab?.kind === "pdf"
+      ? activeEditorTab.url
+      : "";
+  const {
+    canExportDocx,
+    handleSharedPdfDownload,
+    handleOpenArticleDetails,
+    handleExportArticlesDocx,
+  } = useDocumentActionsModel({
+    desktopRuntime,
+    invokeDesktop,
+    locale,
+    ui,
+    pdfDownloadDir,
+    pdfFileNameUseSelectionOrder,
+    isSelectionModeEnabled,
+    selectedArticleOrderLookup,
+    exportableArticles,
+    onLibraryUpdated: refreshLibrary,
+  });
+  const handleSidebarPdfDownload = useCallback(() => {
+    const sourceUrl = activeEditorPreviewTabUrl || browserUrl || webUrl;
+    if (!sourceUrl) {
+      return;
+    }
+
+    const matchedArticle = filteredArticles.find(
+      (article) => normalizeUrl(article.sourceUrl) === normalizeUrl(sourceUrl),
+    );
+
+    void handleSharedPdfDownload({
+      title: matchedArticle?.title ?? "",
+      sourceUrl,
+      fetchedAt: matchedArticle?.fetchedAt ?? new Date().toISOString(),
+      journalTitle: matchedArticle?.journalTitle ?? null,
+      doi: matchedArticle?.doi ?? null,
+      authors: matchedArticle?.authors ?? [],
+      publishedAt: matchedArticle?.publishedAt ?? null,
+      sourceId: matchedArticle?.sourceId ?? null,
+    });
+  }, [activeEditorPreviewTabUrl, browserUrl, filteredArticles, handleSharedPdfDownload, webUrl]);
+  const handleCreatePdfTab = useCallback(() => {
+    const seedUrl = activeEditorPreviewTabUrl || browserUrl || webUrl;
+    const preparedPdfDownload = seedUrl ? preparePdfDownload(seedUrl) : null;
+    const defaultPdfUrl = preparedPdfDownload?.preferredPdfUrl ?? "";
+    const shouldPromptForUrl =
+      !defaultPdfUrl ||
+      (preparedPdfDownload?.normalizedSourceUrl === defaultPdfUrl &&
+        !looksLikePdfUrl(defaultPdfUrl));
+    const nextInput = shouldPromptForUrl
+      ? window.prompt(ui.editorPdfUrlPrompt, defaultPdfUrl || "https://") ?? ""
+      : defaultPdfUrl;
+    const normalizedPdfUrl = normalizeUrl(nextInput);
+    if (!normalizedPdfUrl) {
+      return;
+    }
+
+    createEditorPdfTab(normalizedPdfUrl);
+  }, [
+    activeEditorPreviewTabUrl,
+    browserUrl,
+    createEditorPdfTab,
+    ui.editorPdfUrlPrompt,
+    webUrl,
+  ]);
 
   const handlePreviewBack = useCallback(() => {
     previewNavigationModel.handlePreviewBack({
@@ -596,73 +673,98 @@ function WorkbenchContentView() {
     );
   }, [batchSources, fetchSeedUrl, previewNavigationModel, webUrl]);
 
-  const handleWebUrlChange = useCallback(
-    (nextUrl: string) => {
-      previewNavigationModel.handleWebUrlChange(
-        nextUrl,
-        setWebUrl,
-        setFetchSeedUrl
+  const executeQuickAccessCommand = useCallback(
+    (command: QuickAccessCommand | null) => {
+      if (!command) {
+        return;
+      }
+
+      if (command.type === "UPDATE_URL_INPUT") {
+        previewNavigationModel.handleWebUrlChange(
+          command.url,
+          setWebUrl,
+          setFetchSeedUrl
+        );
+        return;
+      }
+
+      const normalizedUrl = normalizeUrl(command.url);
+      if (!normalizedUrl) {
+        return;
+      }
+
+      const didNavigate = navigateToAddressBarUrl(normalizedUrl, false);
+      if (!didNavigate) {
+        return;
+      }
+
+      if (command.openInEditorTab) {
+        handleCreateWebTab(normalizedUrl);
+      }
+    },
+    [
+      handleCreateWebTab,
+      navigateToAddressBarUrl,
+      previewNavigationModel,
+      setFetchSeedUrl,
+      setWebUrl,
+    ]
+  );
+
+  const dispatchQuickAccessAction = useCallback(
+    (action: QuickAccessAction) => {
+      executeQuickAccessCommand(
+        reduceQuickAccessAction(
+          {
+            addressBarSourceOptions,
+            selectedAddressBarSourceId,
+            openQuickSourceInEditorTab: knowledgeBaseModeEnabled,
+          },
+          action,
+        ),
       );
-    },
-    [previewNavigationModel, setFetchSeedUrl, setWebUrl]
-  );
-
-  const handleSelectAddressBarSource = useCallback(
-    (sourceId: string) => {
-      previewNavigationModel.handleSelectAddressBarSource({
-        sourceId,
-        addressBarSourceOptions,
-        navigateToUrl: navigateToAddressBarUrl,
-      });
-    },
-    [addressBarSourceOptions, navigateToAddressBarUrl, previewNavigationModel]
-  );
-
-  const handleCycleAddressBarSource = useCallback(
-    (direction: "prev" | "next") => {
-      previewNavigationModel.handleCycleAddressBarSource({
-        direction,
-        addressBarSourceOptions,
-        selectedAddressBarSourceId,
-        navigateToUrl: navigateToAddressBarUrl,
-      });
     },
     [
       addressBarSourceOptions,
-      navigateToAddressBarUrl,
-      previewNavigationModel,
+      executeQuickAccessCommand,
+      knowledgeBaseModeEnabled,
       selectedAddressBarSourceId,
     ]
   );
 
   useEffect(() => {
-    if (activeEditorTab?.kind !== "web" || !activeEditorWebTabUrl) {
+    if (activeEditorTab?.kind === "draft" || !activeEditorPreviewTabUrl) {
       return;
     }
 
-    if (activeEditorWebTabUrl === browserUrlRef.current) {
+    if (activeEditorPreviewTabUrl === browserUrlRef.current) {
       return;
     }
 
-    navigateToAddressBarUrl(activeEditorWebTabUrl, false);
+    navigateToAddressBarUrl(activeEditorPreviewTabUrl, false);
   }, [
     activeEditorTab?.id,
     activeEditorTab?.kind,
-    activeEditorWebTabUrl,
+    activeEditorPreviewTabUrl,
     navigateToAddressBarUrl,
   ]);
 
   useEffect(() => {
-    if (activeEditorTab?.kind !== "web" || !browserUrl) {
+    if (activeEditorTab?.kind === "draft" || !browserUrl) {
       return;
     }
 
-    if (activeEditorWebTabUrl === browserUrl) {
+    if (activeEditorPreviewTabUrl === browserUrl) {
       return;
     }
 
-    updateActiveWebTabUrl(browserUrl);
-  }, [activeEditorTab, activeEditorWebTabUrl, browserUrl, updateActiveWebTabUrl]);
+    updateActivePreviewTabUrl(browserUrl);
+  }, [
+    activeEditorTab,
+    activeEditorPreviewTabUrl,
+    browserUrl,
+    updateActivePreviewTabUrl,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -691,24 +793,6 @@ function WorkbenchContentView() {
     ui,
     onBeforeFetch: handleBatchFetchStart,
     onFetchSuccess: handleBatchFetchSuccess,
-  });
-
-  const {
-    canExportDocx,
-    handleSharedPdfDownload,
-    handleOpenArticleDetails,
-    handleExportArticlesDocx,
-  } = useDocumentActionsModel({
-    desktopRuntime,
-    invokeDesktop,
-    locale,
-    ui,
-    pdfDownloadDir,
-    pdfFileNameUseSelectionOrder,
-    isSelectionModeEnabled,
-    selectedArticleOrderLookup,
-    exportableArticles,
-    onLibraryUpdated: refreshLibrary,
   });
 
   const handleToggleSelectionMode = useCallback(() => {
@@ -850,8 +934,12 @@ function WorkbenchContentView() {
       librarySnapshot,
       isLibraryLoading,
       onRefreshLibrary: () => void refreshLibrary(),
+      onDownloadPdf: handleSidebarPdfDownload,
+      onCreateDraftTab: handleCreateDraftTab,
     }),
     [
+      handleCreateDraftTab,
+      handleSidebarPdfDownload,
       isLibraryLoading,
       librarySnapshot,
       refreshLibrary,
@@ -929,9 +1017,7 @@ function WorkbenchContentView() {
           handleToggleAuxiliarySidebar,
           handlePreviewBack,
           handlePreviewForward,
-          handleWebUrlChange,
-          handleSelectAddressBarSource,
-          handleCycleAddressBarSource,
+          dispatchQuickAccessAction,
         },
       }),
     [
@@ -939,13 +1025,11 @@ function WorkbenchContentView() {
       addressBarSourceOptions,
       browserUrl,
       canExportDocx,
-      handleCycleAddressBarSource,
+      dispatchQuickAccessAction,
       handlePreviewBack,
       handlePreviewForward,
-      handleSelectAddressBarSource,
       handleToggleSidebar,
       handleToggleAuxiliarySidebar,
-      handleWebUrlChange,
       handleWindowControl,
       isSidebarVisible,
       isAuxiliarySidebarVisible,
@@ -977,44 +1061,30 @@ function WorkbenchContentView() {
         state: {
           ui,
           viewPartProps,
-          isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
           tabs: editorTabs,
           activeTabId: activeEditorTabId,
           activeTab: activeEditorTab,
-          canCreateWebTab: Boolean((browserUrl || webUrl).trim()),
-          latestAssistantResult: assistantResult,
-          stats: writingStats,
         },
         actions: {
           onActivateTab: handleActivateEditorTab,
           onCloseTab: handleCloseEditorTab,
           onCreateDraftTab: handleCreateDraftTab,
-          onCreateWebTab: handleCreateWebTab,
-          onDraftTitleChange: setDraftTitle,
+          onCreatePdfTab: handleCreatePdfTab,
           onDraftDocumentChange: setDraftDocument,
-          onViewModeChange: setEditorViewMode,
-          onClearDraft: clearDraft,
         },
       }),
     [
       activeEditorTab,
       activeEditorTabId,
-      assistantResult,
       browserUrl,
-      clearDraft,
       editorTabs,
       handleActivateEditorTab,
       handleCloseEditorTab,
       handleCreateDraftTab,
-      handleCreateWebTab,
-      knowledgeBaseModeEnabled,
+      handleCreatePdfTab,
       setDraftDocument,
-      setDraftTitle,
-      setEditorViewMode,
       ui,
       viewPartProps,
-      webUrl,
-      writingStats,
     ]
   );
 

@@ -64,7 +64,9 @@ export type SidebarLabels = {
   loading: string;
   refresh: string;
   libraryTitle: string;
-  libraryDescription: string;
+  libraryAction: string;
+  pdfDownloadAction: string;
+  writingAction: string;
   libraryEmpty: string;
   libraryDocuments: string;
   libraryFiles: string;
@@ -189,7 +191,9 @@ export function createSidebarPartLabels({
     loading: ui.settingsLoading,
     refresh: ui.titlebarRefresh,
     libraryTitle: ui.settingsLibraryTitle,
-    libraryDescription: ui.knowledgeBaseSidebarDescription,
+    libraryAction: ui.sidebarLibraryAction,
+    pdfDownloadAction: ui.sidebarPdfDownloadAction,
+    writingAction: ui.sidebarWritingAction,
     libraryEmpty: ui.knowledgeBaseSidebarEmpty,
     libraryDocuments: ui.settingsLibraryStatusDocuments,
     libraryFiles: ui.settingsLibraryStatusFiles,
@@ -518,12 +522,16 @@ export function PrimarySidebarPartView({
   librarySnapshot,
   isLibraryLoading,
   onRefreshLibrary,
+  onDownloadPdf,
+  onCreateDraftTab,
 }: {
   partRef?: Ref<HTMLElement>;
   labels: SidebarLabels;
   librarySnapshot: LibraryDocumentsResult;
   isLibraryLoading: boolean;
   onRefreshLibrary?: () => void;
+  onDownloadPdf?: () => void;
+  onCreateDraftTab?: () => void;
 }) {
   return jsx(PrimarySidebar, {
     partRef,
@@ -531,6 +539,8 @@ export function PrimarySidebarPartView({
     librarySnapshot,
     isLibraryLoading,
     onRefreshLibrary,
+    onDownloadPdf,
+    onCreateDraftTab,
   });
 }
 

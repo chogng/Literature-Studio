@@ -50,19 +50,6 @@ type PreviewNavigationButtonParams = {
   ui: LocaleMessages;
 };
 
-type AddressBarSourceSelectionParams = {
-  sourceId: string;
-  addressBarSourceOptions: QuickAccessSourceOption[];
-  navigateToUrl: (url: string, showToast: boolean) => boolean;
-};
-
-type AddressBarSourceCycleParams = {
-  direction: QuickAccessCycleDirection;
-  addressBarSourceOptions: QuickAccessSourceOption[];
-  selectedAddressBarSourceId: string;
-  navigateToUrl: (url: string, showToast: boolean) => boolean;
-};
-
 type PreviewNavigationQuickAccessProvider = {
   applyUrlInput: (
     nextUrl: string,
@@ -336,39 +323,5 @@ export class PreviewNavigationModel {
       setWebUrl,
       setFetchSeedUrl,
     );
-  }
-
-  handleSelectAddressBarSource({
-    sourceId,
-    addressBarSourceOptions,
-    navigateToUrl,
-  }: AddressBarSourceSelectionParams): void {
-    const selectedSource = getPreviewNavigationQuickAccessProvider().findSourceOption(
-      addressBarSourceOptions,
-      sourceId,
-    );
-    if (!selectedSource) {
-      return;
-    }
-
-    navigateToUrl(selectedSource.url, false);
-  }
-
-  handleCycleAddressBarSource({
-    direction,
-    addressBarSourceOptions,
-    selectedAddressBarSourceId,
-    navigateToUrl,
-  }: AddressBarSourceCycleParams): void {
-    const nextSource = getPreviewNavigationQuickAccessProvider().resolveNextSourceOption(
-      addressBarSourceOptions,
-      selectedAddressBarSourceId,
-      direction,
-    );
-    if (!nextSource) {
-      return;
-    }
-
-    navigateToUrl(nextSource.url, false);
   }
 }

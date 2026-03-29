@@ -10,6 +10,37 @@ export type QuickAccessSourceOption = {
   journalTitle: string;
 };
 
+export type QuickAccessAction =
+  | {
+      type: 'UPDATE_URL_INPUT';
+      url: string;
+    }
+  | {
+      type: 'SELECT_SOURCE';
+      sourceId: string;
+    }
+  | {
+      type: 'CYCLE_SOURCE';
+      direction: QuickAccessCycleDirection;
+    };
+
+export type QuickAccessCommand =
+  | {
+      type: 'UPDATE_URL_INPUT';
+      url: string;
+    }
+  | {
+      type: 'OPEN_SOURCE_URL';
+      url: string;
+      openInEditorTab: boolean;
+    };
+
+export type QuickAccessMachineState = {
+  addressBarSourceOptions: ReadonlyArray<QuickAccessSourceOption>;
+  selectedAddressBarSourceId: string;
+  openQuickSourceInEditorTab: boolean;
+};
+
 export function applyQuickAccessUrlInput(
   nextUrl: string,
   setWebUrl: (value: string) => void,
@@ -87,4 +118,50 @@ export function resolveNextQuickAccessSourceOption(
       : (currentIndex + step + options.length) % options.length;
 
   return options[nextIndex] ?? null;
+}
+
+export function reduceQuickAccessAction(
+  state: QuickAccessMachineState,
+  action: QuickAccessAction,
+): QuickAccessCommand | null {
+  switch (action.type) {
+    case 'UPDATE_URL_INPUT':
+      return {
+        type: 'UPDATE_URL_INPUT',
+        url: action.url,
+      };
+    case 'SELECT_SOURCE': {
+      const selectedSource = findQuickAccessSourceOption(
+        state.addressBarSourceOptions,
+        action.sourceId,
+      );
+      if (!selectedSource) {
+        return null;
+      }
+
+      return {
+        type: 'OPEN_SOURCE_URL',
+        url: selectedSource.url,
+        openInEditorTab: state.openQuickSourceInEditorTab,
+      };
+    }
+    case 'CYCLE_SOURCE': {
+      const nextSource = resolveNextQuickAccessSourceOption(
+        state.addressBarSourceOptions,
+        state.selectedAddressBarSourceId,
+        action.direction,
+      );
+      if (!nextSource) {
+        return null;
+      }
+
+      return {
+        type: 'OPEN_SOURCE_URL',
+        url: nextSource.url,
+        openInEditorTab: state.openQuickSourceInEditorTab,
+      };
+    }
+    default:
+      return null;
+  }
 }

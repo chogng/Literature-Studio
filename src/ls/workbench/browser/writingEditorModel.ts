@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  collectWritingEditorStats,
   createEmptyWritingEditorDocument,
   createWritingEditorDocumentFromPlainText,
   normalizeWritingEditorDocument,
@@ -10,7 +9,7 @@ import {
 
 export type { WritingEditorDocument } from './writingEditorDocument';
 
-export type WritingEditorViewMode = 'draft' | 'split';
+export type WritingEditorViewMode = 'draft';
 
 export type WritingWorkspaceDraftTab = {
   id: string;
@@ -27,9 +26,20 @@ export type WritingWorkspaceWebTab = {
   url: string;
 };
 
+export type WritingWorkspacePdfTab = {
+  id: string;
+  kind: 'pdf';
+  title: string;
+  url: string;
+};
+
+export type WritingWorkspacePreviewTab =
+  | WritingWorkspaceWebTab
+  | WritingWorkspacePdfTab;
+
 export type WritingWorkspaceTab =
   | WritingWorkspaceDraftTab
-  | WritingWorkspaceWebTab;
+  | WritingWorkspacePreviewTab;
 
 type WritingWorkspaceState = {
   tabs: WritingWorkspaceTab[];
@@ -43,7 +53,7 @@ type StoredWritingWorkspaceState = {
   mruTabIds?: unknown;
 };
 
-const DEFAULT_VIEW_MODE: WritingEditorViewMode = 'split';
+const DEFAULT_VIEW_MODE: WritingEditorViewMode = 'draft';
 
 const draftStorageKeys = {
   title: 'ls.writingDraft.title',
@@ -82,15 +92,20 @@ function persistDraftValue(key: string, value: string) {
   }
 }
 
-function createWorkspaceTabId(prefix: 'draft' | 'web') {
+function createWorkspaceTabId(prefix: 'draft' | 'web' | 'pdf') {
   const randomPart = Math.random().toString(36).slice(2, 8);
   return `ls-${prefix}-tab-${Date.now().toString(36)}-${randomPart}`;
 }
 
 function readStoredViewMode(): WritingEditorViewMode {
   const value = readStoredValue(draftStorageKeys.viewMode);
-  if (value === 'draft' || value === 'split') {
+  if (value === 'draft') {
     return value;
+  }
+
+  // Legacy split mode is removed; migrate old values back to draft.
+  if (value === 'split') {
+    return DEFAULT_VIEW_MODE;
   }
 
   return DEFAULT_VIEW_MODE;
@@ -106,28 +121,11 @@ function createDraftTab(
     document: normalizeWritingEditorDocument(
       initial?.document ?? createEmptyWritingEditorDocument(),
     ),
-    viewMode:
-      initial?.viewMode === 'draft' || initial?.viewMode === 'split'
-        ? initial.viewMode
-        : DEFAULT_VIEW_MODE,
+    viewMode: initial?.viewMode === 'draft' ? initial.viewMode : DEFAULT_VIEW_MODE,
   };
 }
 
-function createWebTab(
-  url: string,
-  initial?: Partial<Pick<WritingWorkspaceWebTab, 'id' | 'title'>>,
-): WritingWorkspaceWebTab {
-  const normalizedUrl = url.trim();
-
-  return {
-    id: initial?.id ?? createWorkspaceTabId('web'),
-    kind: 'web',
-    title: initial?.title?.trim() || getWebTabTitle(normalizedUrl),
-    url: normalizedUrl,
-  };
-}
-
-function getWebTabTitle(url: string) {
+function getPreviewTabTitle(url: string) {
   if (!url.trim()) {
     return '';
   }
@@ -142,6 +140,35 @@ function getWebTabTitle(url: string) {
   } catch {
     return url;
   }
+}
+
+function createPreviewTab<K extends WritingWorkspacePreviewTab['kind']>(
+  kind: K,
+  url: string,
+  initial?: Partial<Pick<Extract<WritingWorkspacePreviewTab, { kind: K }>, 'id' | 'title'>>,
+): Extract<WritingWorkspacePreviewTab, { kind: K }> {
+  const normalizedUrl = url.trim();
+
+  return {
+    id: initial?.id ?? createWorkspaceTabId(kind),
+    kind,
+    title: initial?.title?.trim() || getPreviewTabTitle(normalizedUrl),
+    url: normalizedUrl,
+  } as Extract<WritingWorkspacePreviewTab, { kind: K }>;
+}
+
+function createWebTab(
+  url: string,
+  initial?: Partial<Pick<WritingWorkspaceWebTab, 'id' | 'title'>>,
+): WritingWorkspaceWebTab {
+  return createPreviewTab('web', url, initial);
+}
+
+function createPdfTab(
+  url: string,
+  initial?: Partial<Pick<WritingWorkspacePdfTab, 'id' | 'title'>>,
+): WritingWorkspacePdfTab {
+  return createPreviewTab('pdf', url, initial);
 }
 
 function normalizeWorkspaceTab(value: unknown): WritingWorkspaceTab | null {
@@ -161,6 +188,13 @@ function normalizeWorkspaceTab(value: unknown): WritingWorkspaceTab | null {
 
   if (candidate.kind === 'web' && typeof candidate.url === 'string') {
     return createWebTab(candidate.url, {
+      id: candidate.id,
+      title: typeof candidate.title === 'string' ? candidate.title : '',
+    });
+  }
+
+  if (candidate.kind === 'pdf' && typeof candidate.url === 'string') {
+    return createPdfTab(candidate.url, {
       id: candidate.id,
       title: typeof candidate.title === 'string' ? candidate.title : '',
     });
@@ -381,18 +415,31 @@ export function useWritingEditorModel() {
     });
   }, [updateWorkspaceState]);
 
-  const setDraftTitle = useCallback((value: string) => {
-    updateWorkspaceState((state) => ({
-      ...state,
-      tabs: state.tabs.map((tab) =>
-        tab.id === state.activeTabId && tab.kind === 'draft'
-          ? {
-              ...tab,
-              title: value,
-            }
-          : tab,
-      ),
-    }));
+  const createPdfWorkspaceTab = useCallback((url: string) => {
+    const normalizedUrl = url.trim();
+    if (!normalizedUrl) {
+      return;
+    }
+
+    updateWorkspaceState((state) => {
+      const existingTab = state.tabs.find(
+        (tab) => tab.kind === 'pdf' && tab.url === normalizedUrl,
+      );
+      if (existingTab) {
+        return {
+          ...state,
+          activeTabId: existingTab.id,
+          mruTabIds: touchMruTab(state.mruTabIds, existingTab.id),
+        };
+      }
+
+      const nextTab = createPdfTab(normalizedUrl);
+      return {
+        tabs: [...state.tabs, nextTab],
+        activeTabId: nextTab.id,
+        mruTabIds: touchMruTab(state.mruTabIds, nextTab.id),
+      };
+    });
   }, [updateWorkspaceState]);
 
   const setDraftDocument = useCallback((value: WritingEditorDocument) => {
@@ -409,54 +456,23 @@ export function useWritingEditorModel() {
     }));
   }, [updateWorkspaceState]);
 
-  const setViewMode = useCallback((value: WritingEditorViewMode) => {
-    updateWorkspaceState((state) => ({
-      ...state,
-      tabs: state.tabs.map((tab) =>
-        tab.id === state.activeTabId && tab.kind === 'draft'
-          ? {
-              ...tab,
-              viewMode: value,
-            }
-          : tab,
-      ),
-    }));
-  }, [updateWorkspaceState]);
-
-  const clearDraft = useCallback(() => {
-    updateWorkspaceState((state) => ({
-      ...state,
-      tabs: state.tabs.map((tab) =>
-        tab.id === state.activeTabId && tab.kind === 'draft'
-          ? {
-              ...tab,
-              title: '',
-              document: createEmptyWritingEditorDocument(),
-            }
-          : tab,
-      ),
-    }));
-  }, [updateWorkspaceState]);
-
-  const updateActiveWebTabUrl = useCallback((url: string) => {
+  const updateActivePreviewTabUrl = useCallback((url: string) => {
     const normalizedUrl = url.trim();
     updateWorkspaceState((state) => ({
       ...state,
       tabs: state.tabs.map((tab) =>
-        tab.id === state.activeTabId && tab.kind === 'web'
+        tab.id === state.activeTabId && tab.kind !== 'draft'
           ? {
               ...tab,
               url: normalizedUrl,
-              title: getWebTabTitle(normalizedUrl),
+              title: getPreviewTabTitle(normalizedUrl),
             }
           : tab,
       ),
     }));
   }, [updateWorkspaceState]);
 
-  const draftTitle = activeDraftTab?.title ?? '';
   const draftDocument = activeDraftTab?.document ?? createEmptyWritingEditorDocument();
-  const viewMode = activeDraftTab?.viewMode ?? DEFAULT_VIEW_MODE;
   const draftBody = useMemo(
     () =>
       contextDraftTab
@@ -464,35 +480,19 @@ export function useWritingEditorModel() {
         : '',
     [contextDraftTab],
   );
-  const stats = useMemo(
-    () =>
-      activeDraftTab
-        ? collectWritingEditorStats(activeDraftTab.document)
-        : {
-            wordCount: 0,
-            characterCount: 0,
-            paragraphCount: 0,
-          },
-    [activeDraftTab],
-  );
 
   return {
     tabs,
     activeTabId,
     activeTab,
-    draftTitle,
-    setDraftTitle,
     draftDocument,
     setDraftDocument,
     draftBody,
-    viewMode,
-    setViewMode,
-    clearDraft,
-    stats,
     activateTab,
     closeTab,
     createDraftTab: createDraftWorkspaceTab,
     createWebTab: createWebWorkspaceTab,
-    updateActiveWebTabUrl,
+    createPdfTab: createPdfWorkspaceTab,
+    updateActivePreviewTabUrl,
   };
 }

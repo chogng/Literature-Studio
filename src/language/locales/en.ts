@@ -1,8 +1,8 @@
 const en = {
   appName: 'Journal Reader',
   articleUrlPlaceholder: 'Article URL',
-  addressBarSourcePlaceholder: 'Quick source',
-  addressBarSourceAriaLabel: 'Quick source switcher',
+  addressBarSourcePlaceholder: 'Quick access',
+  addressBarSourceAriaLabel: 'Quick access switcher',
   navigateWeb: 'Navigate',
   fetchCurrentBusy: 'Fetching...',
   fetchCurrent: 'fetch',
@@ -31,7 +31,7 @@ const en = {
   articleDetailsUnavailable: 'Article details are unavailable.',
   emptyFiltered: 'Data exists, but no results match current filters.',
   emptyAll: 'No data yet. Fetch one article first, or click "Fetch".',
-  emptyAllQuickSourceAction: 'Quick source',
+  emptyAllQuickSourceAction: 'Quick access',
   emptyAllConnector: 'or',
   emptyAllInputLinkAction: 'enter a URL',
   emptyAllInputLinkSuffix: 'to fetch',
@@ -102,8 +102,9 @@ const en = {
   settingsRagHideApiKey: 'Hide',
   settingsRagHint:
     'This phase uses article metadata, abstracts, and descriptions as the retrieval corpus. PDF chunk retrieval can plug into the same route later.',
-  knowledgeBaseSidebarDescription:
-    'Manage registered literature, indexing status, and managed files here.',
+  sidebarLibraryAction: 'Library',
+  sidebarPdfDownloadAction: 'PDF download',
+  sidebarWritingAction: 'Writing',
   knowledgeBaseSidebarEmpty:
     'No documents are in the knowledge base yet. Turn on knowledge base mode, then download PDFs to register them here.',
   assistantSidebarTitle: 'Assistant',
@@ -136,10 +137,8 @@ const en = {
   assistantSidebarRerankOff: 'Rerank fallback',
   editorTitle: 'Writing Workspace',
   editorDraftMode: 'Draft',
-  editorSplitMode: 'Split',
   editorSourceMode: 'Source',
-  editorDraftTitle: 'Draft title',
-  editorDraftTitlePlaceholder: 'Write a working title for this section or manuscript',
+  editorPdfMode: 'PDF',
   editorDraftBodyPlaceholder:
     'Start drafting here. If you do not type a separate writing context in the assistant sidebar, the current draft is sent to the LLM as context.',
   editorParagraph: 'P',
@@ -160,16 +159,9 @@ const en = {
   editorFigureUrlPrompt: 'Figure image URL',
   editorFigureCaptionPrompt: 'Figure caption',
   editorFigureRefPrompt: 'Figure id to reference',
-  editorWordCount: 'Words:',
-  editorCharacterCount: 'Chars:',
-  editorParagraphCount: 'Paragraphs:',
-  editorClearDraft: 'Clear draft',
-  editorLatestAssistant: 'Latest assistant answer',
-  editorInsertAssistantAnswer: 'Insert answer',
-  editorInsertAssistantEvidence: 'Insert evidence notes',
   editorSourceTitle: 'Source preview',
-  editorNoAssistantYet:
-    'Run one assistant query on the right to get an answer that you can insert into the draft.',
+  editorPdfTitle: 'PDF preview',
+  editorPdfUrlPrompt: 'Enter a PDF URL',
   defaultPdfDir: 'Default PDF download directory',
   pdfFileNameUseSelectionOrder: 'Prefix PDF file names by multi-select order',
   pdfFileNameUseSelectionOrderHint:

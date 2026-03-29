@@ -3,11 +3,12 @@ import type {
   TitlebarProps,
 } from './titlebarView';
 import type {
+  QuickAccessAction,
   QuickAccessCycleDirection,
   QuickAccessSourceOption,
 } from '../../../services/quickAccess/quickAccessService';
 
-export type { QuickAccessCycleDirection };
+export type { QuickAccessAction, QuickAccessCycleDirection };
 
 type TitlebarQuickAccessState = {
   ui: LocaleMessages;
@@ -17,9 +18,7 @@ type TitlebarQuickAccessState = {
 };
 
 type TitlebarQuickAccessActions = {
-  handleWebUrlChange: (url: string) => void;
-  handleSelectAddressBarSource: (sourceId: string) => void;
-  handleCycleAddressBarSource: (direction: QuickAccessCycleDirection) => void;
+  dispatchQuickAccessAction: (action: QuickAccessAction) => void;
 };
 
 type CreateTitlebarQuickAccessPropsParams = {
@@ -35,9 +34,7 @@ export function createTitlebarQuickAccessProps({
     selectedAddressBarSourceId,
   },
   actions: {
-    handleWebUrlChange,
-    handleSelectAddressBarSource,
-    handleCycleAddressBarSource,
+    dispatchQuickAccessAction,
   },
 }: CreateTitlebarQuickAccessPropsParams): Pick<
   TitlebarProps,
@@ -53,12 +50,24 @@ export function createTitlebarQuickAccessProps({
 > {
   return {
     webUrl,
-    onWebUrlChange: handleWebUrlChange,
+    onWebUrlChange: (url: string) =>
+      dispatchQuickAccessAction({
+        type: 'UPDATE_URL_INPUT',
+        url,
+      }),
     articleUrlPlaceholder: ui.pageUrlPlaceholder,
     addressBarSourceOptions,
     selectedAddressBarSourceId,
-    onSelectAddressBarSource: handleSelectAddressBarSource,
-    onCycleAddressBarSource: handleCycleAddressBarSource,
+    onSelectAddressBarSource: (sourceId: string) =>
+      dispatchQuickAccessAction({
+        type: 'SELECT_SOURCE',
+        sourceId,
+      }),
+    onCycleAddressBarSource: (direction: QuickAccessCycleDirection) =>
+      dispatchQuickAccessAction({
+        type: 'CYCLE_SOURCE',
+        direction,
+      }),
     addressBarSourcePlaceholder: ui.addressBarSourcePlaceholder,
     addressBarSourceAriaLabel: ui.addressBarSourceAriaLabel,
   };

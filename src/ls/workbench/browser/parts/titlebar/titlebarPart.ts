@@ -5,7 +5,7 @@ import type { TitlebarAction, TitlebarProps } from './titlebarView';
 import type { WorkbenchPage } from '../../workbench';
 import {
   createTitlebarQuickAccessProps,
-  type QuickAccessCycleDirection,
+  type QuickAccessAction,
 } from './quickAccess';
 
 export type TitlebarPartState = {
@@ -29,9 +29,7 @@ export type TitlebarPartActions = {
   handleToggleAuxiliarySidebar: () => void;
   handlePreviewBack: () => void;
   handlePreviewForward: () => void;
-  handleWebUrlChange: (url: string) => void;
-  handleSelectAddressBarSource: (sourceId: string) => void;
-  handleCycleAddressBarSource: (direction: QuickAccessCycleDirection) => void;
+  dispatchQuickAccessAction: (action: QuickAccessAction) => void;
 };
 
 export type CreateTitlebarPartPropsParams = {
@@ -61,9 +59,7 @@ export function createTitlebarPartProps({
     handleToggleAuxiliarySidebar,
     handlePreviewBack,
     handlePreviewForward,
-    handleWebUrlChange,
-    handleSelectAddressBarSource,
-    handleCycleAddressBarSource,
+    dispatchQuickAccessAction,
   },
 }: CreateTitlebarPartPropsParams): TitlebarProps {
   return {
@@ -109,9 +105,7 @@ export function createTitlebarPartProps({
         selectedAddressBarSourceId,
       },
       actions: {
-        handleWebUrlChange,
-        handleSelectAddressBarSource,
-        handleCycleAddressBarSource,
+        dispatchQuickAccessAction,
       },
     }),
   };

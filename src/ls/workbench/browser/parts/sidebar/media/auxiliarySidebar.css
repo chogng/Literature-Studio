@@ -58,21 +58,46 @@
 
 .sidebar-chat-topbar {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  /* Anchor children to the top. This allows the scrollbar to expand downwards into the bottom padding without shifting elements up */
+  gap: 4px;
   min-width: 0;
-  padding: 10px 12px 0;
+  padding: 4px 12px;
 }
 
 .sidebar-chat-tab-strip {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 4px;
+  /* Pull the scrollbar dynamically into the topbar's bottom padding area. 
+     When scrollbar appears, layout height shrinks, but sibling buttons keep it at 26px */
+  margin-bottom: -4px;
+  /* Allow natural intrinsic height so scrollbar doesn't eat the tab content area */
   overflow-x: auto;
   overflow-y: hidden;
-  scrollbar-width: thin;
+}
+
+.sidebar-chat-tab-strip::-webkit-scrollbar {
+  height: 4px;
+}
+
+.sidebar-chat-tab-strip::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-chat-tab-strip::-webkit-scrollbar-thumb {
+  background: transparent; /* visually hide until hovering container */
+  border-radius: 999px;
+}
+
+.sidebar-chat-tab-strip:hover::-webkit-scrollbar-thumb {
+  background: rgba(132, 152, 173, 0.9);
+}
+
+.sidebar-chat-tab-strip::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 128, 151, 0.95);
 }
 
 .sidebar-chat-tab-item {
@@ -85,14 +110,14 @@
   width: 100%;
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  padding: 0 12px;
+  min-height: 26px;
+  padding: 0 10px;
   border: none;
-  border-radius: 8px;
-  background: #f6f9fc;
+  border-radius: 6px;
+  background: transparent;
   color: #415366;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -102,7 +127,7 @@
 }
 
 .sidebar-chat-tab:hover {
-  background: #ecf3fa;
+  background: transparent;
 }
 
 .sidebar-chat-tab.is-active {
@@ -112,23 +137,34 @@
 
 .sidebar-chat-tab-close {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 16px;
-  height: 16px;
+  top: 0;
+  right: 0;
+  width: 26px;
+  height: 100%;
   border: none;
-  border-radius: 999px;
+  border-radius: 0 6px 6px 0;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #0a5fbf;
-  color: #ffffff;
+  background: #ffffff;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #66798f;
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
   transform: scale(0.86);
-  transition: opacity 120ms ease, transform 120ms ease, background-color 120ms ease;
+  transition: opacity 120ms ease, transform 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.sidebar-chat-tab-item:hover .sidebar-chat-tab-close {
+  background: #ffffff;
+}
+
+.sidebar-chat-tab.is-active~.sidebar-chat-tab-close {
+  background: rgba(232, 241, 252, 0.7);
+  color: #0a5fbf;
 }
 
 .sidebar-chat-tab-item:hover .sidebar-chat-tab-close,
@@ -139,7 +175,13 @@
 }
 
 .sidebar-chat-tab-close:hover {
-  background: #084a96;
+  background: #ffffff !important;
+  color: #203040 !important;
+}
+
+.sidebar-chat-tab.is-active~.sidebar-chat-tab-close:hover {
+  background: rgba(219, 230, 245, 0.85) !important;
+  color: #084a96 !important;
 }
 
 .sidebar-chat-tab-close:focus-visible {
@@ -155,23 +197,31 @@
 }
 
 .sidebar-chat-topbar-action-btn.btn-base {
-  --btn-icon-size: 32px;
-  min-width: 32px;
-  width: 32px;
-  height: 32px;
+  --btn-icon-size: 26px;
+  min-width: 26px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border-radius: 999px;
+  border-radius: 6px;
 }
 
-.sidebar-chat-topbar-action-btn.btn-base.btn-mode-icon:hover:not(:disabled),
-.sidebar-chat-topbar-action-btn.btn-base.btn-mode-icon:active:not(:disabled) {
-  border-radius: 999px;
+.sidebar-chat-topbar-action-btn.btn-base:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-chat-topbar-action-btn.btn-base:active:not(:disabled) {
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-chat-topbar-action-btn.btn-base.is-active {
   background: #e8f1fc;
   border-color: #bfd7f4;
   color: #0a5fbf;
+}
+
+.sidebar-chat-topbar-action-btn.btn-base.is-active:hover:not(:disabled),
+.sidebar-chat-topbar-action-btn.btn-base.is-active:active:not(:disabled) {
+  background: #e8f1fc;
 }
 
 .sidebar-chat-popover {
