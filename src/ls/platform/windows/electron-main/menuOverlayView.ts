@@ -199,6 +199,14 @@ function ensureMenuView(window: BrowserWindow) {
   return menuView;
 }
 
+export function prewarmMenuOverlay(window: BrowserWindow | null | undefined) {
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+
+  ensureMenuView(window);
+}
+
 export function openMenuOverlay(window: BrowserWindow | null | undefined, senderId: number, payload: NativeMenuOpenPayload) {
   if (!window || window.isDestroyed()) {
     return;

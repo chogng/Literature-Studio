@@ -1,5 +1,6 @@
 :root {
   --workbench-chrome-bg: #eef3f9;
+  --workbench-chrome-bg-transparent: rgba(238, 243, 249, 0);
   font-family: 'IBM Plex Sans', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
   line-height: 1.4;
   color: #1a2530;
@@ -54,7 +55,7 @@ button:disabled {
 /* Keep the frameless host transparent and fill the inner shell instead. */
 .app-window:not(.is-mica-enabled) .titlebar,
 .app-window:not(.is-mica-enabled) .app-shell {
-  background: var(--workbench-chrome-bg);
+  background-color: var(--workbench-chrome-bg);
 }
 
 .app-shell {
@@ -64,7 +65,8 @@ button:disabled {
   grid-template-rows: 1fr;
   padding: 0 8px 8px;
   overflow: hidden;
-  background: transparent;
+  background-color: var(--workbench-chrome-bg-transparent);
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .app-shell.app-shell-settings {

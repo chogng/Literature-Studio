@@ -11,7 +11,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  background: transparent;
+  background-color: var(--workbench-chrome-bg-transparent);
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   padding: 0;
   user-select: none;
   position: relative;
@@ -21,7 +22,7 @@
 }
 
 .app-window.is-mica-enabled .titlebar {
-  background: transparent;
+  background-color: var(--workbench-chrome-bg-transparent);
 }
 
 .titlebar-start {
@@ -52,23 +53,24 @@
   padding: 0 8px;
   gap: 8px;
   min-width: 0;
+  transform: translateY(1px);
 }
 
 .titlebar-source-select {
   --dropdown-height: var(--titlebar-field-height);
-  --dropdown-radius: var(--titlebar-field-radius);
+  --dropdown-radius: 6px;
   --dropdown-border: transparent;
-  --dropdown-border-hover: var(--titlebar-field-border-hover);
-  --dropdown-border-focus: var(--titlebar-field-border-focus);
+  --dropdown-border-hover: transparent;
+  --dropdown-border-focus: transparent;
   --dropdown-bg: transparent;
-  --dropdown-bg-hover: var(--titlebar-field-bg-hover);
-  --dropdown-bg-focus: var(--titlebar-field-bg-focus);
+  --dropdown-bg-hover: rgba(0, 0, 0, 0.05);
+  --dropdown-bg-focus: rgba(0, 0, 0, 0.1);
   width: min(var(--titlebar-source-width, 56px), min(520px, 48vw));
   min-width: 56px;
   max-width: min(520px, 48vw);
   flex: 0 1 auto;
   height: var(--titlebar-field-height) !important;
-  border-radius: var(--titlebar-field-radius) !important;
+  border-radius: 6px !important;
   font-size: 12px;
   color: #304357;
   overflow: visible;
@@ -81,11 +83,11 @@
 }
 
 .titlebar-source-select.dropdown-wrapper:hover:not(.dropdown-disabled) {
-  background-color: var(--titlebar-field-bg-hover);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .titlebar-source-select.dropdown-wrapper.dropdown-focused {
-  background-color: var(--titlebar-field-bg-focus);
+  background-color: rgba(0, 0, 0, 0.1);
   box-shadow: none;
 }
 
@@ -142,17 +144,14 @@
   width: 100%;
   height: var(--titlebar-field-height) !important;
   background: rgba(255, 255, 255, 0.6) !important;
-  border-color: var(--titlebar-field-border) !important;
 }
 
 .titlebar-input-field:hover {
-  border-color: var(--titlebar-field-border-hover) !important;
   background: var(--titlebar-field-bg-hover) !important;
 }
 
 .titlebar-input-field.input-focused {
   background: var(--titlebar-field-bg-focus) !important;
-  border-color: var(--titlebar-field-border-focus) !important;
 }
 
 .titlebar-input-field .input-field {
@@ -222,6 +221,7 @@
   display: inline-flex;
   align-items: center;
   height: 100%;
+  transform: translateY(1px);
 }
 
 .titlebar-window-controls {
@@ -256,6 +256,7 @@
   align-self: stretch;
   border-radius: 0;
   aspect-ratio: auto;
+  transform: translateY(-1px);
 }
 
 .titlebar-btn.btn-base:hover {

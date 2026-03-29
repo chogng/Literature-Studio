@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
   type Dispatch,
   type SetStateAction,
@@ -29,6 +30,9 @@ type SettingsModelContext = {
   desktopRuntime: boolean;
   invokeDesktop: ElectronInvoke;
 };
+
+const immediateAutoSaveDelayMs = 0;
+const debouncedAutoSaveDelayMs = 650;
 
 function localizeSettingsError(ui: LocaleMessages, error: unknown) {
   return localizeDesktopInvokeError(ui, parseDesktopInvokeError(error));
@@ -59,6 +63,50 @@ export function useSettingsModel({
     }),
     [desktopRuntime, invokeDesktop],
   );
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushAutoSave = useCallback(() => {
+    void settingsModel.saveSettingsDraft({
+      ...settingsModelContext,
+      locale,
+    }).catch((saveError) => {
+      console.error('Failed to auto-save settings draft.', saveError);
+    });
+  }, [locale, settingsModel, settingsModelContext]);
+
+  const scheduleAutoSave = useCallback(
+    (delayMs: number) => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+
+      autoSaveTimerRef.current = setTimeout(() => {
+        autoSaveTimerRef.current = null;
+        flushAutoSave();
+      }, delayMs);
+    },
+    [flushAutoSave],
+  );
+
+  const scheduleImmediateAutoSave = useCallback(() => {
+    scheduleAutoSave(immediateAutoSaveDelayMs);
+  }, [scheduleAutoSave]);
+
+  const scheduleDebouncedAutoSave = useCallback(() => {
+    scheduleAutoSave(debouncedAutoSaveDelayMs);
+  }, [scheduleAutoSave]);
+
+  useEffect(() => {
+    return () => {
+      if (!autoSaveTimerRef.current) {
+        return;
+      }
+
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+      flushAutoSave();
+    };
+  }, [flushAutoSave]);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -79,22 +127,16 @@ export function useSettingsModel({
   const handleChoosePdfDownloadDir = useCallback(async () => {
     try {
       const result = await settingsModel.choosePdfDownloadDir(settingsModelContext);
-      if (result.kind === 'desktop-only') {
-        toast.info(ui.toastDesktopDirPickerOnly);
+      if (result.kind !== 'selected') {
         return;
       }
 
-      if (result.kind === 'not-selected') {
-        toast.info(ui.toastDirNotSelected);
-        return;
-      }
-
-      toast.success(formatLocalized(ui.toastDirSelected, { dir: result.dir }));
+      settingsModel.setPdfDownloadDir(result.dir);
+      scheduleImmediateAutoSave();
     } catch (pickError) {
-      const localizedError = localizeSettingsError(ui, pickError);
-      toast.error(formatLocalized(ui.toastPickDirFailed, { error: localizedError }));
+      console.error('Failed to choose PDF download directory.', pickError);
     }
-  }, [settingsModel, settingsModelContext, ui]);
+  }, [scheduleImmediateAutoSave, settingsModel, settingsModelContext]);
 
   const handleOpenConfigLocation = useCallback(async () => {
     if (!desktopRuntime) {
@@ -115,34 +157,133 @@ export function useSettingsModel({
       setLocale(nextLocale);
 
       void settingsModel.saveLocale(settingsModelContext, nextLocale).catch((saveError) => {
-        const localizedError = localizeSettingsError(ui, saveError);
-        toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
+        console.error('Failed to save locale setting.', saveError);
       });
     },
-    [setLocale, settingsModel, settingsModelContext, ui],
+    [setLocale, settingsModel, settingsModelContext],
   );
 
-  const handleSaveSettings = useCallback(async () => {
-    try {
-      const result = await settingsModel.saveSettings({
-        ...settingsModelContext,
-        locale,
-      });
-      if (result.locale) {
-        setLocale(result.locale);
-      }
+  const handleBatchLimitChange = useCallback(
+    (nextBatchLimit: number) => {
+      settingsModel.setBatchLimit(nextBatchLimit);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
 
-      toast.success(ui.toastSettingsSaved);
-    } catch (saveError) {
-      const localizedError = localizeSettingsError(ui, saveError);
-      toast.error(formatLocalized(ui.toastSaveSettingsFailed, { error: localizedError }));
-    }
-  }, [locale, setLocale, settingsModel, settingsModelContext, ui]);
+  const handleSameDomainOnlyChange = useCallback(
+    (nextSameDomainOnly: boolean) => {
+      settingsModel.setSameDomainOnly(nextSameDomainOnly);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleUseMicaChange = useCallback(
+    (nextUseMica: boolean) => {
+      settingsModel.setUseMica(nextUseMica);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handlePdfDownloadDirChange = useCallback(
+    (nextPdfDownloadDir: string) => {
+      settingsModel.setPdfDownloadDir(nextPdfDownloadDir);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handlePdfFileNameUseSelectionOrderChange = useCallback(
+    (nextPdfFileNameUseSelectionOrder: boolean) => {
+      settingsModel.setPdfFileNameUseSelectionOrder(nextPdfFileNameUseSelectionOrder);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleActiveLlmProviderChange = useCallback(
+    (nextProvider: 'glm' | 'kimi' | 'deepseek') => {
+      settingsModel.setActiveLlmProvider(nextProvider);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleLlmProviderApiKeyChange = useCallback(
+    (provider: 'glm' | 'kimi' | 'deepseek', apiKey: string) => {
+      settingsModel.setLlmProviderApiKey(provider, apiKey);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleLlmProviderModelChange = useCallback(
+    (provider: 'glm' | 'kimi' | 'deepseek', model: string) => {
+      settingsModel.setLlmProviderModel(provider, model);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleActiveTranslationProviderChange = useCallback(
+    (nextProvider: 'deepl') => {
+      settingsModel.setActiveTranslationProvider(nextProvider);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleTranslationProviderApiKeyChange = useCallback(
+    (provider: 'deepl', apiKey: string) => {
+      settingsModel.setTranslationProviderApiKey(provider, apiKey);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
 
   const handleResetDownloadDir = useCallback(() => {
     settingsModel.resetDownloadDir();
-    toast.info(ui.toastResetDirInput);
-  }, [settingsModel, ui]);
+    scheduleImmediateAutoSave();
+  }, [scheduleImmediateAutoSave, settingsModel]);
+
+  const handleBatchSourceUrlChange = useCallback(
+    (index: number, nextUrl: string) => {
+      settingsModel.handleBatchSourceUrlChange(index, nextUrl);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleBatchSourceJournalTitleChange = useCallback(
+    (index: number, nextJournalTitle: string) => {
+      settingsModel.handleBatchSourceJournalTitleChange(index, nextJournalTitle);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleAddBatchSource = useCallback(() => {
+    settingsModel.handleAddBatchSource();
+    scheduleImmediateAutoSave();
+  }, [scheduleImmediateAutoSave, settingsModel]);
+
+  const handleRemoveBatchSource = useCallback(
+    (index: number) => {
+      settingsModel.handleRemoveBatchSource(index);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleMoveBatchSource = useCallback(
+    (index: number, direction: 'up' | 'down') => {
+      settingsModel.handleMoveBatchSource(index, direction);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
 
   const handleTestLlmConnection = useCallback(async () => {
     if (!desktopRuntime) {
@@ -186,24 +327,24 @@ export function useSettingsModel({
   return {
     batchSources: settingsSnapshot.batchSources,
     batchLimit: settingsSnapshot.batchLimit,
-    setBatchLimit: settingsModel.setBatchLimit,
+    setBatchLimit: handleBatchLimitChange,
     sameDomainOnly: settingsSnapshot.sameDomainOnly,
-    setSameDomainOnly: settingsModel.setSameDomainOnly,
+    setSameDomainOnly: handleSameDomainOnlyChange,
     useMica: settingsSnapshot.useMica,
-    setUseMica: settingsModel.setUseMica,
+    setUseMica: handleUseMicaChange,
     pdfDownloadDir: settingsSnapshot.pdfDownloadDir,
-    setPdfDownloadDir: settingsModel.setPdfDownloadDir,
+    setPdfDownloadDir: handlePdfDownloadDirChange,
     pdfFileNameUseSelectionOrder: settingsSnapshot.pdfFileNameUseSelectionOrder,
-    setPdfFileNameUseSelectionOrder: settingsModel.setPdfFileNameUseSelectionOrder,
+    setPdfFileNameUseSelectionOrder: handlePdfFileNameUseSelectionOrderChange,
     activeLlmProvider: settingsSnapshot.activeLlmProvider,
-    setActiveLlmProvider: settingsModel.setActiveLlmProvider,
+    setActiveLlmProvider: handleActiveLlmProviderChange,
     llmProviders: settingsSnapshot.llmProviders,
-    setLlmProviderApiKey: settingsModel.setLlmProviderApiKey,
-    setLlmProviderModel: settingsModel.setLlmProviderModel,
+    setLlmProviderApiKey: handleLlmProviderApiKeyChange,
+    setLlmProviderModel: handleLlmProviderModelChange,
     activeTranslationProvider: settingsSnapshot.activeTranslationProvider,
-    setActiveTranslationProvider: settingsModel.setActiveTranslationProvider,
+    setActiveTranslationProvider: handleActiveTranslationProviderChange,
     translationProviders: settingsSnapshot.translationProviders,
-    setTranslationProviderApiKey: settingsModel.setTranslationProviderApiKey,
+    setTranslationProviderApiKey: handleTranslationProviderApiKeyChange,
     configPath: settingsSnapshot.configPath,
     isSettingsLoading: settingsSnapshot.isSettingsLoading,
     isSettingsSaving: settingsSnapshot.isSettingsSaving,
@@ -212,14 +353,14 @@ export function useSettingsModel({
     handleChoosePdfDownloadDir,
     handleOpenConfigLocation,
     handleLocaleChange,
-    handleSaveSettings,
+    handleUseMicaChange,
     handleTestLlmConnection,
     handleTestTranslationConnection,
     handleResetDownloadDir,
-    handleBatchSourceUrlChange: settingsModel.handleBatchSourceUrlChange,
-    handleBatchSourceJournalTitleChange: settingsModel.handleBatchSourceJournalTitleChange,
-    handleAddBatchSource: settingsModel.handleAddBatchSource,
-    handleRemoveBatchSource: settingsModel.handleRemoveBatchSource,
-    handleMoveBatchSource: settingsModel.handleMoveBatchSource,
+    handleBatchSourceUrlChange,
+    handleBatchSourceJournalTitleChange,
+    handleAddBatchSource,
+    handleRemoveBatchSource,
+    handleMoveBatchSource,
   };
 }

@@ -82,6 +82,8 @@ async function showArticleDetailsModal(
   return openArticleDetailsModal(targetWindow, payload);
 }
 
+let micaMaterialTimeout: ReturnType<typeof setTimeout> | null = null;
+
 
 async function invokeCommand<TCommand extends AppCommand>(
   command: TCommand,
@@ -123,7 +125,18 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'save_settings':
       {
         const saved = await storage.saveSettings((payload as SaveSettingsPayload)?.settings ?? {});
-        applyMainWindowBackgroundMaterial(saved.useMica);
+        if (micaMaterialTimeout) {
+          clearTimeout(micaMaterialTimeout);
+          micaMaterialTimeout = null;
+        }
+        if (saved.useMica) {
+          applyMainWindowBackgroundMaterial(true);
+        } else {
+          micaMaterialTimeout = setTimeout(() => {
+            applyMainWindowBackgroundMaterial(false);
+            micaMaterialTimeout = null;
+          }, 300);
+        }
         return saved as AppCommandResultMap[TCommand];
       }
     case 'test_llm_connection':

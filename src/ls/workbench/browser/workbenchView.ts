@@ -225,7 +225,6 @@ function WorkbenchContentView() {
     handleChoosePdfDownloadDir,
     handleOpenConfigLocation,
     handleLocaleChange,
-    handleSaveSettings,
     handleTestLlmConnection,
     handleTestTranslationConnection,
     handleResetDownloadDir,
@@ -659,7 +658,6 @@ function WorkbenchContentView() {
           onTestTranslationConnection: () => void handleTestTranslationConnection(),
           onOpenConfigLocation: () => void handleOpenConfigLocation(),
           onResetDownloadDir: handleResetDownloadDir,
-          onSaveSettings: () => void handleSaveSettings(),
         },
       }),
     [
@@ -680,7 +678,6 @@ function WorkbenchContentView() {
       handleMoveBatchSource,
       handleRemoveBatchSource,
       handleResetDownloadDir,
-      handleSaveSettings,
       isSettingsLoading,
       isSettingsSaving,
       isTestingLlmConnection,

@@ -288,6 +288,8 @@ function renderWebUrlBar({
       ref: inputRef,
       className: 'titlebar-input-field titlebar-field-base',
       size: 'sm',
+      appearance: 'flat',
+      hidePlaceholderOnFocus: true,
       value: webUrl,
       onChange: (event: ChangeEvent<HTMLInputElement>) => onWebUrlChange(event.target.value),
       onKeyDown,

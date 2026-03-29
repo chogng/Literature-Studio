@@ -374,6 +374,69 @@ export class SettingsModel {
     });
   }
 
+  async saveSettingsDraft({
+    desktopRuntime,
+    invokeDesktop,
+    locale,
+  }: SaveSettingsContext): Promise<void> {
+    const {
+      pdfDownloadDir,
+      pdfFileNameUseSelectionOrder,
+      batchSources,
+      batchLimit,
+      sameDomainOnly,
+      useMica,
+      activeLlmProvider,
+      llmProviders,
+      activeTranslationProvider,
+      translationProviders,
+      configPath,
+    } =
+      this.snapshot;
+    const { payload } = buildSaveSettingsPayload({
+      pdfDownloadDir,
+      pdfFileNameUseSelectionOrder,
+      batchSources,
+      batchLimit,
+      sameDomainOnly,
+      useMica,
+      locale,
+      llm: {
+        activeProvider: activeLlmProvider,
+        providers: cloneLlmSettings({
+          activeProvider: activeLlmProvider,
+          providers: llmProviders,
+        }).providers,
+      },
+      translation: {
+        activeProvider: activeTranslationProvider,
+        providers: cloneTranslationSettings({
+          activeProvider: activeTranslationProvider,
+          providers: translationProviders,
+        }).providers,
+      },
+    });
+    const saved = await saveAppSettings(desktopRuntime, invokeDesktop, payload);
+    const resolved = resolveSettingsState(saved, {
+      fallbackConfigPath: configPath,
+    });
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      pdfDownloadDir: resolved.pdfDownloadDir,
+      pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
+      batchSources: resolved.batchSources,
+      batchLimit: resolved.batchLimit,
+      sameDomainOnly: resolved.sameDomainOnly,
+      useMica: resolved.useMica,
+      activeLlmProvider: resolved.llm.activeProvider,
+      llmProviders: cloneLlmSettings(resolved.llm).providers,
+      activeTranslationProvider: resolved.translation.activeProvider,
+      translationProviders: cloneTranslationSettings(resolved.translation).providers,
+      configPath: resolved.configPath,
+    }));
+  }
+
   async saveSettings({
     desktopRuntime,
     invokeDesktop,

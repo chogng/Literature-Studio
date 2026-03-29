@@ -1,6 +1,6 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import { useState, type ChangeEvent, type Ref } from 'react';
-import { ArrowDown, ArrowUp, Eye, EyeOff, FolderOpen, Plus, PlugZap, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, FolderOpen, Plus, PlugZap, Trash2 } from 'lucide-react';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import { Button } from '../../../../base/browser/ui/button/button';
@@ -51,8 +51,6 @@ export type SettingsPartLabels = {
   chooseDirectory: string;
   openConfigLocation: string;
   resetDefault: string;
-  saving: string;
-  saveSettings: string;
   settingsHintPath: string;
   settingsConfigPath: string;
   currentDir: string;
@@ -122,7 +120,6 @@ export type SettingsPartProps = {
   isTestingLlmConnection: boolean;
   isTestingTranslationConnection: boolean;
   onResetDownloadDir: () => void;
-  onSaveSettings: () => void;
 };
 
 export type SettingsPartState = {
@@ -168,7 +165,6 @@ export type SettingsPartActions = {
   onTestTranslationConnection: () => void;
   onOpenConfigLocation: () => void;
   onResetDownloadDir: () => void;
-  onSaveSettings: () => void;
 };
 
 type CreateSettingsPartLabelsParams = {
@@ -213,8 +209,6 @@ export function createSettingsPartLabels({
     chooseDirectory: ui.chooseDirectory,
     openConfigLocation: ui.openConfigLocation,
     resetDefault: ui.resetDefault,
-    saving: ui.saving,
-    saveSettings: ui.saveSettings,
     settingsHintPath: ui.settingsHintPath,
     settingsConfigPath: ui.settingsConfigPath,
     currentDir: ui.currentDir,
@@ -289,7 +283,6 @@ export function createSettingsPartProps({
     onTestTranslationConnection,
     onOpenConfigLocation,
     onResetDownloadDir,
-    onSaveSettings,
   },
 }: CreateSettingsPartPropsParams): SettingsPartProps {
   return {
@@ -332,7 +325,6 @@ export function createSettingsPartProps({
     isTestingLlmConnection,
     isTestingTranslationConnection,
     onResetDownloadDir,
-    onSaveSettings,
   };
 }
 
@@ -1019,7 +1011,6 @@ export function SettingsPartView({
   isSettingsSaving,
   isTestingLlmConnection,
   isTestingTranslationConnection,
-  onSaveSettings,
 }: SettingsPartViewProps) {
   return jsx('main', {
     ref: partRef,
@@ -1029,20 +1020,7 @@ export function SettingsPartView({
       children: [
         jsxs('div', {
           className: 'panel-title settings-header',
-          children: [
-            jsx('span', { children: labels.settingsTitle }),
-            jsx(Button, {
-              type: 'button',
-              mode: 'text',
-              variant: 'primary',
-              textMode: 'with',
-              iconMode: 'with',
-              leftIcon: jsx(Save, { size: 14, strokeWidth: 1.8 }),
-              onClick: onSaveSettings,
-              disabled: isSettingsLoading || isSettingsSaving,
-              children: isSettingsSaving ? labels.saving : labels.saveSettings,
-            }),
-          ],
+          children: jsx('span', { children: labels.settingsTitle }),
         }),
         jsxs('div', {
           className: 'settings-content',

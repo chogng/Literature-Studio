@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow, type BrowserWindowConstructorOptions, type WebContents } from 'electron';
 import type { WindowControlAction, WindowState } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { disposeMenuOverlay } from './menuOverlayView.js';
+import { disposeMenuOverlay, prewarmMenuOverlay } from './menuOverlayView.js';
 import { disposeToastOverlay } from './toastOverlayView.js';
 import { disposePreviewView, ensurePreviewView } from './previewView.js';
 
@@ -326,6 +326,11 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
   window.on('enter-full-screen', () => publishWindowState(window));
   window.on('leave-full-screen', () => publishWindowState(window));
   window.webContents.on('did-finish-load', () => publishWindowState(window));
+  window.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      prewarmMenuOverlay(window);
+    }, 0);
+  });
 
   return window;
 }

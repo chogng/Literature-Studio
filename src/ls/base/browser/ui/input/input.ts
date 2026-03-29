@@ -13,6 +13,7 @@ import { XCircle } from 'lucide-react';
 import './input.css';
 
 export type InputSize = 'sm' | 'md' | 'lg';
+export type InputAppearance = 'default' | 'flat';
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label?: string;
@@ -23,6 +24,8 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   clearable?: boolean;
   onClear?: () => void;
   size?: InputSize;
+  appearance?: InputAppearance;
+  hidePlaceholderOnFocus?: boolean;
 }
 
 export const Input = forwardRef(function Input(
@@ -36,8 +39,11 @@ export const Input = forwardRef(function Input(
     clearable,
     onClear,
     size = 'md',
+    appearance = 'default',
+    hidePlaceholderOnFocus = false,
     disabled,
     value,
+    placeholder,
     onChange,
     onFocus,
     onBlur,
@@ -82,6 +88,7 @@ export const Input = forwardRef(function Input(
   const wrapperClassName = [
     'input-wrapper',
     `input-${size}`,
+    appearance === 'flat' ? 'input-appearance-flat' : '',
     isFocused ? 'input-focused' : '',
     error ? 'input-error' : '',
     disabled ? 'input-disabled' : '',
@@ -109,6 +116,7 @@ export const Input = forwardRef(function Input(
             className: 'input-field',
             disabled,
             value,
+            placeholder: hidePlaceholderOnFocus && isFocused ? '' : placeholder,
             onChange,
             onFocus: handleFocus,
             onBlur: handleBlur,
