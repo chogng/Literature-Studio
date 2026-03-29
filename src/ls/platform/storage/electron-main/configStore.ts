@@ -1,7 +1,12 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
-import type { AppSettings, BatchSource, StoredAppSettings } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type {
+  AppSettings,
+  BatchSource,
+  RagSettings,
+  StoredAppSettings,
+} from '../../../base/parts/sandbox/common/desktopTypes.js';
 import type { StorageService } from '../common/storage.js';
 import { cleanText } from '../../../base/common/strings.js';
 import {
@@ -24,9 +29,19 @@ import {
   defaultTranslationProviderSettings,
 } from '../../../workbench/services/translation/config.js';
 import { isTranslationProviderId } from '../../../workbench/services/translation/registry.js';
+import {
+  createDefaultRagSettings,
+  defaultRagProviderSettings,
+  defaultRagRetrievalCandidateCount,
+  defaultRagRetrievalTopK,
+} from '../../../workbench/services/rag/config.js';
+import { isRagProviderId } from '../../../workbench/services/rag/registry.js';
 
 type ConfigStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
 const fallbackLocale: 'zh' | 'en' = 'zh';
+const defaultMaxConcurrentIndexJobs = 1;
+const minConcurrentIndexJobs = 1;
+const maxConcurrentIndexJobs = 4;
 
 type ConfigStoreOptions = {
   defaultLocale?: 'zh' | 'en';
@@ -209,6 +224,7 @@ function normalizeSettings(
     locale: normalizeLocale(payload.locale, defaultLocale),
     llm: normalizeLlmSettings(payload.llm),
     translation: normalizeTranslationSettings(payload.translation),
+    rag: normalizeRagSettings(payload.rag),
   };
 }
 
@@ -296,6 +312,84 @@ function normalizeTranslationProviderSettings(
     apiKey: cleanText(providerPayload.apiKey),
     baseUrl: defaults.baseUrl,
   };
+}
+
+function normalizeRagSettings(payload: unknown): RagSettings {
+  const defaults = createDefaultRagSettings();
+  const ragPayload =
+    payload && typeof payload === 'object' ? (payload as Partial<RagSettings>) : {};
+  const parsedConcurrentJobs = Number.parseInt(String(ragPayload.maxConcurrentIndexJobs), 10);
+  const normalizedConcurrentJobs = Number.isNaN(parsedConcurrentJobs)
+    ? defaultMaxConcurrentIndexJobs
+    : Math.min(maxConcurrentIndexJobs, Math.max(minConcurrentIndexJobs, parsedConcurrentJobs));
+  const libraryDirectory =
+    typeof ragPayload.libraryDirectory === 'string' ? cleanText(ragPayload.libraryDirectory) : '';
+  const knowledgeBaseModeEnabled =
+    typeof ragPayload.knowledgeBaseModeEnabled === 'boolean'
+      ? ragPayload.knowledgeBaseModeEnabled
+      : typeof ragPayload.enabled === 'boolean'
+        ? ragPayload.enabled
+        : true;
+  const activeProvider = isRagProviderId(ragPayload.activeProvider)
+    ? ragPayload.activeProvider
+    : defaults.activeProvider;
+  const providersPayload =
+    ragPayload.providers && typeof ragPayload.providers === 'object'
+      ? ragPayload.providers
+      : defaults.providers;
+  const parsedCandidateCount = Number.parseInt(String(ragPayload.retrievalCandidateCount), 10);
+  const retrievalCandidateCount = Number.isNaN(parsedCandidateCount)
+    ? defaultRagRetrievalCandidateCount
+    : Math.min(20, Math.max(3, parsedCandidateCount));
+  const parsedTopK = Number.parseInt(String(ragPayload.retrievalTopK), 10);
+  const retrievalTopK = Number.isNaN(parsedTopK)
+    ? defaultRagRetrievalTopK
+    : Math.min(8, Math.max(1, parsedTopK));
+
+  return {
+    enabled: knowledgeBaseModeEnabled,
+    knowledgeBaseModeEnabled,
+    autoIndexDownloadedPdf:
+      typeof ragPayload.autoIndexDownloadedPdf === 'boolean'
+        ? ragPayload.autoIndexDownloadedPdf
+        : true,
+    libraryStorageMode:
+      ragPayload.libraryStorageMode === 'managed-copy' ? 'managed-copy' : 'linked-original',
+    libraryDirectory: libraryDirectory || null,
+    maxConcurrentIndexJobs: normalizedConcurrentJobs,
+    activeProvider,
+    providers: {
+      moark: normalizeRagProviderSettings(providersPayload.moark),
+    },
+    retrievalCandidateCount,
+    retrievalTopK: Math.min(retrievalCandidateCount, retrievalTopK),
+  };
+}
+
+function normalizeRagProviderSettings(payload: unknown) {
+  const defaults = defaultRagProviderSettings.moark;
+  const providerPayload =
+    payload && typeof payload === 'object'
+      ? (payload as Partial<RagSettings['providers']['moark']>)
+      : {};
+
+  return {
+    apiKey: cleanText(providerPayload.apiKey),
+    baseUrl: cleanText(providerPayload.baseUrl) || defaults.baseUrl,
+    embeddingModel: cleanText(providerPayload.embeddingModel) || defaults.embeddingModel,
+    rerankerModel: cleanText(providerPayload.rerankerModel) || defaults.rerankerModel,
+    embeddingPath: normalizeRelativeApiPath(providerPayload.embeddingPath, defaults.embeddingPath),
+    rerankPath: normalizeRelativeApiPath(providerPayload.rerankPath, defaults.rerankPath),
+  };
+}
+
+function normalizeRelativeApiPath(value: unknown, fallbackValue: string): string {
+  const pathValue = cleanText(value) || fallbackValue;
+  if (/^https?:\/\//i.test(pathValue)) {
+    return pathValue.replace(/\/+$/, '');
+  }
+
+  return pathValue.startsWith('/') ? pathValue : `/${pathValue}`;
 }
 
 function attachConfigPath(settings: StoredAppSettings, configPath: string): AppSettings {

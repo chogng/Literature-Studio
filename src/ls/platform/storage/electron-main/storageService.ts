@@ -1,13 +1,18 @@
-﻿import type { BatchSource } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { BatchSource } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import type { StorageService } from '../common/storage.js';
+import { appError } from '../../../base/common/errors.js';
 import { createConfigStore } from './configStore.js';
 import { createHistoryStore } from './historyStore.js';
+import { createLibraryStore } from './libraryStore.js';
 import { createTranslationCacheStore } from './translationCacheStore.js';
 
 interface StoragePaths {
   historyFile: string;
   configFile: string;
   translationCacheFile: string;
+  libraryDbFile: string;
+  libraryFilesDir: string;
+  ragCacheDir: string;
 }
 
 interface StorageOptions {
@@ -22,6 +27,11 @@ export function createStorageService(paths: StoragePaths, options: StorageOption
     defaultBatchSources: options.defaultBatchSources,
   });
   const translationCacheStore = createTranslationCacheStore(paths.translationCacheFile);
+  const libraryStore = createLibraryStore({
+    libraryDbFile: paths.libraryDbFile,
+    libraryFilesDir: paths.libraryFilesDir,
+    ragCacheDir: paths.ragCacheDir,
+  });
 
   return {
     async saveFetchedArticles(items) {
@@ -42,6 +52,34 @@ export function createStorageService(paths: StoragePaths, options: StorageOption
 
     async saveSettings(settings = {}) {
       return configStore.saveSettings(settings);
+    },
+
+    async registerLibraryDocument(payload) {
+      const settings = await configStore.loadSettings();
+      const knowledgeBaseModeEnabled =
+        settings.rag.knowledgeBaseModeEnabled ?? settings.rag.enabled;
+      if (!knowledgeBaseModeEnabled) {
+        throw appError('UNKNOWN_ERROR', {
+          message: 'Knowledge base mode is disabled.',
+        });
+      }
+      return libraryStore.registerLibraryDocument({
+        ...payload,
+        storageMode: settings.rag.libraryStorageMode,
+        libraryDirectory: settings.rag.libraryDirectory,
+      } as typeof payload);
+    },
+
+    async getLibraryDocumentStatus(payload) {
+      return libraryStore.getLibraryDocumentStatus(payload);
+    },
+
+    async listLibraryDocuments(payload) {
+      return libraryStore.listLibraryDocuments(payload);
+    },
+
+    async reindexLibraryDocument(payload) {
+      return libraryStore.reindexLibraryDocument(payload);
     },
   };
 }

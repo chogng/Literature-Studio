@@ -2,6 +2,7 @@ export type TitlebarUiAction =
   | { type: 'OPEN_ADDRESS_BAR_SOURCE_MENU' }
   | { type: 'FOCUS_WEB_URL_INPUT' }
   | { type: 'TOGGLE_SIDEBAR' }
+  | { type: 'TOGGLE_AUXILIARY_SIDEBAR' }
   | { type: 'NAVIGATE_BACK' }
   | { type: 'NAVIGATE_FORWARD' }
   | { type: 'NAVIGATE_WEB' }
@@ -35,6 +36,10 @@ export function requestFocusTitlebarWebUrlInput() {
 
 export function requestToggleTitlebarSidebar() {
   emitTitlebarUiAction({ type: 'TOGGLE_SIDEBAR' });
+}
+
+export function requestToggleTitlebarAuxiliarySidebar() {
+  emitTitlebarUiAction({ type: 'TOGGLE_AUXILIARY_SIDEBAR' });
 }
 
 export function requestTitlebarNavigateBack() {

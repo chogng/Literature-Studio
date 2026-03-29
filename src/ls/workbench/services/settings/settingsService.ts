@@ -2,6 +2,7 @@ import type {
   AppSettings as DesktopAppSettings,
   ElectronInvoke,
   LlmSettings,
+  RagSettings,
   TranslationSettings,
   StoredAppSettings as DesktopStoredAppSettings,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
@@ -15,6 +16,7 @@ import {
   resolveConfigBatchSources,
 } from '../config/configSchema';
 import { cloneLlmSettings, createDefaultLlmSettings } from '../llm/config.js';
+import { cloneRagSettings, createDefaultRagSettings } from '../rag/config.js';
 import { cloneTranslationSettings, createDefaultTranslationSettings } from '../translation/config.js';
 
 export type StoredAppSettingsPayload = DesktopStoredAppSettings;
@@ -31,6 +33,7 @@ export type ResolvedSettingsState = {
   configPath: string;
   llm: LlmSettings;
   translation: TranslationSettings;
+  rag: RagSettings;
 };
 
 export type SaveSettingsDraft = {
@@ -43,6 +46,7 @@ export type SaveSettingsDraft = {
   locale: Locale;
   llm: LlmSettings;
   translation: TranslationSettings;
+  rag: RagSettings;
 };
 
 export type SaveSettingsPayloadBuild = {
@@ -82,6 +86,7 @@ export function resolveSettingsState(
     configPath: loadedConfigPath,
     llm: cloneLlmSettings(loaded.llm ?? createDefaultLlmSettings()),
     translation: cloneTranslationSettings(loaded.translation ?? createDefaultTranslationSettings()),
+    rag: cloneRagSettings(loaded.rag ?? createDefaultRagSettings()),
   };
 }
 
@@ -104,6 +109,11 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       locale: draft.locale,
       llm: cloneLlmSettings(draft.llm),
       translation: cloneTranslationSettings(draft.translation),
+      rag: cloneRagSettings({
+        ...draft.rag,
+        enabled: draft.rag.knowledgeBaseModeEnabled ?? draft.rag.enabled,
+        knowledgeBaseModeEnabled: draft.rag.knowledgeBaseModeEnabled ?? draft.rag.enabled,
+      }),
     },
   };
 }

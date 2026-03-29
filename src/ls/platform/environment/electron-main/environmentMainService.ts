@@ -14,6 +14,9 @@ export type ReaderEnvironmentPaths = {
   configFile: string;
   historyFile: string;
   translationCacheFile: string;
+  libraryDbFile: string;
+  libraryFilesDir: string;
+  ragCacheDir: string;
 };
 
 function resolvePortableExecutableDir() {
@@ -55,6 +58,9 @@ export function resolveEnvironmentMainPaths(): ReaderEnvironmentPaths {
     configFile: path.join(configDir, 'config.json'),
     historyFile: path.join(dataDir, 'history.json'),
     translationCacheFile: path.join(dataDir, 'translation-cache.json'),
+    libraryDbFile: path.join(dataDir, 'library.sqlite'),
+    libraryFilesDir: path.join(dataDir, 'library-files'),
+    ragCacheDir: path.join(cacheDir, 'rag'),
   };
 }
 
@@ -109,6 +115,8 @@ export async function prepareEnvironmentMain(paths: ReaderEnvironmentPaths) {
     fs.mkdir(paths.sessionDir, { recursive: true }),
     fs.mkdir(paths.tempDir, { recursive: true }),
     fs.mkdir(paths.logsDir, { recursive: true }),
+    fs.mkdir(paths.libraryFilesDir, { recursive: true }),
+    fs.mkdir(paths.ragCacheDir, { recursive: true }),
   ]);
 
   await cleanupLegacyStorageFiles(paths);

@@ -28,6 +28,9 @@ app.whenReady().then(async () => {
       historyFile: environmentMainPaths.historyFile,
       configFile: environmentMainPaths.configFile,
       translationCacheFile: environmentMainPaths.translationCacheFile,
+      libraryDbFile: environmentMainPaths.libraryDbFile,
+      libraryFilesDir: environmentMainPaths.libraryFilesDir,
+      ragCacheDir: environmentMainPaths.ragCacheDir,
     },
     {
       defaultLocale: resolveEnvironmentMainLocale(),

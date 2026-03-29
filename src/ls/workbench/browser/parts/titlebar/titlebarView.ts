@@ -14,6 +14,8 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Settings,
 } from 'lucide-react';
 import { Button } from '../../../../base/browser/ui/button/button';
@@ -21,6 +23,7 @@ import { Dropdown } from '../../../../base/browser/ui/dropdown/dropdown';
 import { Input } from '../../../../base/browser/ui/input/input';
 import { WindowControlsGroup, type WindowControlsAction } from './windowControls';
 import {
+  requestToggleTitlebarAuxiliarySidebar,
   requestTitlebarNavigateBack,
   requestTitlebarNavigateForward,
   requestTitlebarNavigateWeb,
@@ -42,6 +45,8 @@ export type TitlebarLabels = {
   closeLabel: string;
   backLabel: string;
   forwardLabel: string;
+  showAssistantLabel: string;
+  hideAssistantLabel: string;
   exportDocxLabel: string;
   noExportableArticlesLabel: string;
 };
@@ -54,6 +59,9 @@ export type TitlebarProps = {
   isSidebarOpen?: boolean;
   sidebarToggleLabel?: string;
   onToggleSidebar?: () => void;
+  isAuxiliarySidebarOpen?: boolean;
+  auxiliarySidebarToggleLabel?: string;
+  onToggleAuxiliarySidebar?: () => void;
   onToggleSettings?: () => void;
   browserUrl?: string;
   canGoBack?: boolean;
@@ -83,6 +91,8 @@ const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   closeLabel: '',
   backLabel: '',
   forwardLabel: '',
+  showAssistantLabel: '',
+  hideAssistantLabel: '',
   exportDocxLabel: '',
   noExportableArticlesLabel: '',
 };
@@ -233,6 +243,29 @@ function renderSidebarToggle({
   });
 }
 
+function renderAuxiliarySidebarToggle({
+  isAuxiliarySidebarOpen,
+  auxiliarySidebarToggleLabel,
+  isVisible,
+}: {
+  isAuxiliarySidebarOpen: boolean;
+  auxiliarySidebarToggleLabel?: string;
+  isVisible: boolean;
+}) {
+  if (!isVisible || !auxiliarySidebarToggleLabel) {
+    return null;
+  }
+
+  return renderIconButton({
+    className: 'titlebar-btn titlebar-btn-auxiliary',
+    label: auxiliarySidebarToggleLabel,
+    onClick: requestToggleTitlebarAuxiliarySidebar,
+    icon: isAuxiliarySidebarOpen
+      ? jsx(PanelRightClose, { size: 14, strokeWidth: 1.5 })
+      : jsx(PanelRightOpen, { size: 14, strokeWidth: 1.5 }),
+  });
+}
+
 function renderNavigationGroup({
   browserUrl,
   canGoBack,
@@ -353,6 +386,9 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     isSidebarOpen = true,
     sidebarToggleLabel,
     onToggleSidebar,
+    isAuxiliarySidebarOpen = false,
+    auxiliarySidebarToggleLabel,
+    onToggleAuxiliarySidebar,
     browserUrl,
     canGoBack = false,
     canGoForward = false,
@@ -439,6 +475,11 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     sidebarToggleLabel,
     isVisible: Boolean(onToggleSidebar),
   });
+  const auxiliarySidebarToggleView = renderAuxiliarySidebarToggle({
+    isAuxiliarySidebarOpen,
+    auxiliarySidebarToggleLabel,
+    isVisible: Boolean(onToggleAuxiliarySidebar),
+  });
   const navigationView = renderNavigationGroup({
     browserUrl,
     canGoBack,
@@ -507,7 +548,13 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
         className: 'titlebar-controls',
         role: 'group',
         'aria-label': labels.controlsAriaLabel,
-        children: [sourceSelectorView, exportButtonView, settingsButtonView, windowControls],
+        children: [
+          sourceSelectorView,
+          auxiliarySidebarToggleView,
+          exportButtonView,
+          settingsButtonView,
+          windowControls,
+        ],
       }),
     ],
   });

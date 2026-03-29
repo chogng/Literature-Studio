@@ -138,6 +138,20 @@ export function useSettingsModel({
     }
   }, [scheduleImmediateAutoSave, settingsModel, settingsModelContext]);
 
+  const handleChooseLibraryDirectory = useCallback(async () => {
+    try {
+      const result = await settingsModel.chooseLibraryDirectory(settingsModelContext);
+      if (result.kind !== 'selected') {
+        return;
+      }
+
+      settingsModel.setLibraryDirectory(result.dir);
+      scheduleImmediateAutoSave();
+    } catch (pickError) {
+      console.error('Failed to choose library directory.', pickError);
+    }
+  }, [scheduleImmediateAutoSave, settingsModel, settingsModelContext]);
+
   const handleOpenConfigLocation = useCallback(async () => {
     if (!desktopRuntime) {
       toast.info(ui.toastDesktopDirPickerOnly);
@@ -198,6 +212,110 @@ export function useSettingsModel({
   const handlePdfFileNameUseSelectionOrderChange = useCallback(
     (nextPdfFileNameUseSelectionOrder: boolean) => {
       settingsModel.setPdfFileNameUseSelectionOrder(nextPdfFileNameUseSelectionOrder);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleRagEnabledChange = useCallback(
+    (nextRagEnabled: boolean) => {
+      settingsModel.setRagEnabled(nextRagEnabled);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleAutoIndexDownloadedPdfChange = useCallback(
+    (nextAutoIndexDownloadedPdf: boolean) => {
+      settingsModel.setAutoIndexDownloadedPdf(nextAutoIndexDownloadedPdf);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleLibraryStorageModeChange = useCallback(
+    (nextLibraryStorageMode: 'linked-original' | 'managed-copy') => {
+      settingsModel.setLibraryStorageMode(nextLibraryStorageMode);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleLibraryDirectoryChange = useCallback(
+    (nextLibraryDirectory: string) => {
+      settingsModel.setLibraryDirectory(nextLibraryDirectory);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleMaxConcurrentIndexJobsChange = useCallback(
+    (nextMaxConcurrentIndexJobs: number) => {
+      settingsModel.setMaxConcurrentIndexJobs(nextMaxConcurrentIndexJobs);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleRagProviderApiKeyChange = useCallback(
+    (provider: 'moark', apiKey: string) => {
+      settingsModel.setRagProviderApiKey(provider, apiKey);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleRagProviderBaseUrlChange = useCallback(
+    (provider: 'moark', baseUrl: string) => {
+      settingsModel.setRagProviderBaseUrl(provider, baseUrl);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleRagProviderEmbeddingModelChange = useCallback(
+    (provider: 'moark', embeddingModel: string) => {
+      settingsModel.setRagProviderEmbeddingModel(provider, embeddingModel);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleRagProviderRerankerModelChange = useCallback(
+    (provider: 'moark', rerankerModel: string) => {
+      settingsModel.setRagProviderRerankerModel(provider, rerankerModel);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleRagProviderEmbeddingPathChange = useCallback(
+    (provider: 'moark', embeddingPath: string) => {
+      settingsModel.setRagProviderEmbeddingPath(provider, embeddingPath);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleRagProviderRerankPathChange = useCallback(
+    (provider: 'moark', rerankPath: string) => {
+      settingsModel.setRagProviderRerankPath(provider, rerankPath);
+      scheduleDebouncedAutoSave();
+    },
+    [scheduleDebouncedAutoSave, settingsModel],
+  );
+
+  const handleRetrievalCandidateCountChange = useCallback(
+    (nextRetrievalCandidateCount: number) => {
+      settingsModel.setRetrievalCandidateCount(nextRetrievalCandidateCount);
+      scheduleImmediateAutoSave();
+    },
+    [scheduleImmediateAutoSave, settingsModel],
+  );
+
+  const handleRetrievalTopKChange = useCallback(
+    (nextRetrievalTopK: number) => {
+      settingsModel.setRetrievalTopK(nextRetrievalTopK);
       scheduleImmediateAutoSave();
     },
     [scheduleImmediateAutoSave, settingsModel],
@@ -305,6 +423,27 @@ export function useSettingsModel({
     }
   }, [desktopRuntime, settingsModel, settingsModelContext, ui]);
 
+  const handleTestRagConnection = useCallback(async () => {
+    if (!desktopRuntime) {
+      toast.info(ui.toastDesktopLlmTestOnly);
+      return;
+    }
+
+    try {
+      const result = await settingsModel.testRagConnection(settingsModelContext);
+      toast.success(
+        formatLocalized(ui.toastRagConnectionSucceeded, {
+          provider: result.provider,
+          embeddingModel: result.embeddingModel,
+          rerankerModel: result.rerankerModel,
+        }),
+      );
+    } catch (testError) {
+      const localizedError = localizeSettingsError(ui, testError);
+      toast.error(formatLocalized(ui.toastRagConnectionFailed, { error: localizedError }));
+    }
+  }, [desktopRuntime, settingsModel, settingsModelContext, ui]);
+
   const handleTestTranslationConnection = useCallback(async () => {
     if (!desktopRuntime) {
       toast.info(ui.toastDesktopLlmTestOnly);
@@ -332,6 +471,28 @@ export function useSettingsModel({
     setSameDomainOnly: handleSameDomainOnlyChange,
     useMica: settingsSnapshot.useMica,
     setUseMica: handleUseMicaChange,
+    ragEnabled: settingsSnapshot.ragEnabled,
+    setRagEnabled: handleRagEnabledChange,
+    autoIndexDownloadedPdf: settingsSnapshot.autoIndexDownloadedPdf,
+    setAutoIndexDownloadedPdf: handleAutoIndexDownloadedPdfChange,
+    libraryStorageMode: settingsSnapshot.libraryStorageMode,
+    setLibraryStorageMode: handleLibraryStorageModeChange,
+    libraryDirectory: settingsSnapshot.libraryDirectory,
+    setLibraryDirectory: handleLibraryDirectoryChange,
+    maxConcurrentIndexJobs: settingsSnapshot.maxConcurrentIndexJobs,
+    setMaxConcurrentIndexJobs: handleMaxConcurrentIndexJobsChange,
+    activeRagProvider: settingsSnapshot.activeRagProvider,
+    ragProviders: settingsSnapshot.ragProviders,
+    retrievalCandidateCount: settingsSnapshot.retrievalCandidateCount,
+    retrievalTopK: settingsSnapshot.retrievalTopK,
+    setRagProviderApiKey: handleRagProviderApiKeyChange,
+    setRagProviderBaseUrl: handleRagProviderBaseUrlChange,
+    setRagProviderEmbeddingModel: handleRagProviderEmbeddingModelChange,
+    setRagProviderRerankerModel: handleRagProviderRerankerModelChange,
+    setRagProviderEmbeddingPath: handleRagProviderEmbeddingPathChange,
+    setRagProviderRerankPath: handleRagProviderRerankPathChange,
+    setRetrievalCandidateCount: handleRetrievalCandidateCountChange,
+    setRetrievalTopK: handleRetrievalTopKChange,
     pdfDownloadDir: settingsSnapshot.pdfDownloadDir,
     setPdfDownloadDir: handlePdfDownloadDirChange,
     pdfFileNameUseSelectionOrder: settingsSnapshot.pdfFileNameUseSelectionOrder,
@@ -348,12 +509,15 @@ export function useSettingsModel({
     configPath: settingsSnapshot.configPath,
     isSettingsLoading: settingsSnapshot.isSettingsLoading,
     isSettingsSaving: settingsSnapshot.isSettingsSaving,
+    isTestingRagConnection: settingsSnapshot.isTestingRagConnection,
     isTestingLlmConnection: settingsSnapshot.isTestingLlmConnection,
     isTestingTranslationConnection: settingsSnapshot.isTestingTranslationConnection,
     handleChoosePdfDownloadDir,
+    handleChooseLibraryDirectory,
     handleOpenConfigLocation,
     handleLocaleChange,
     handleUseMicaChange,
+    handleTestRagConnection,
     handleTestLlmConnection,
     handleTestTranslationConnection,
     handleResetDownloadDir,

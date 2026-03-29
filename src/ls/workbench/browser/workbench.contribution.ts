@@ -68,6 +68,8 @@ export function createWorkbenchContainerStateContribution(): Disposable {
 
     delete container.dataset.workbenchPage;
     delete container.dataset.sidebarVisible;
+    delete container.dataset.auxiliarySidebarVisible;
+    delete container.dataset.activeSidebarKind;
     delete container.dataset.workbenchParts;
   };
 
@@ -93,6 +95,11 @@ export function createWorkbenchContainerStateContribution(): Disposable {
     lastContainer.dataset.sidebarVisible = String(
       getWorkbenchLayoutStateSnapshot().isSidebarVisible,
     );
+    lastContainer.dataset.auxiliarySidebarVisible = String(
+      getWorkbenchLayoutStateSnapshot().isAuxiliarySidebarVisible,
+    );
+    lastContainer.dataset.activeSidebarKind =
+      getWorkbenchLayoutStateSnapshot().activeSidebarKind;
     lastContainer.dataset.workbenchParts = registeredPartIds;
   };
 

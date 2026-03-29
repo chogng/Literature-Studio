@@ -46,6 +46,32 @@ export interface TranslationSettings {
   providers: Record<TranslationProviderId, TranslationProviderSettings>;
 }
 
+export type LibraryStorageMode = 'linked-original' | 'managed-copy';
+
+export type RagProviderId = 'moark';
+
+export interface RagProviderSettings {
+  apiKey: string;
+  baseUrl: string;
+  embeddingModel: string;
+  rerankerModel: string;
+  embeddingPath: string;
+  rerankPath: string;
+}
+
+export interface RagSettings {
+  enabled: boolean;
+  knowledgeBaseModeEnabled?: boolean;
+  autoIndexDownloadedPdf: boolean;
+  libraryStorageMode: LibraryStorageMode;
+  libraryDirectory: string | null;
+  maxConcurrentIndexJobs: number;
+  activeProvider: RagProviderId;
+  providers: Record<RagProviderId, RagProviderSettings>;
+  retrievalCandidateCount: number;
+  retrievalTopK: number;
+}
+
 export interface FetchBatchSource {
   sourceId?: string;
   pageUrl?: string;
@@ -65,6 +91,7 @@ export interface StoredAppSettings {
   locale: Locale;
   llm: LlmSettings;
   translation: TranslationSettings;
+  rag: RagSettings;
 }
 
 export interface AppSettings extends StoredAppSettings {
@@ -94,6 +121,13 @@ export type AppErrorCode =
   | 'LLM_MODEL_MISSING'
   | 'LLM_BASE_URL_INVALID'
   | 'LLM_CONNECTION_FAILED'
+  | 'RAG_PROVIDER_UNSUPPORTED'
+  | 'RAG_API_KEY_MISSING'
+  | 'RAG_BASE_URL_INVALID'
+  | 'RAG_EMBEDDING_MODEL_MISSING'
+  | 'RAG_RERANKER_MODEL_MISSING'
+  | 'RAG_CONNECTION_FAILED'
+  | 'RAG_QUERY_EMPTY'
   | 'UNKNOWN_ERROR';
 
 export interface AppErrorPayload {
@@ -156,6 +190,9 @@ export interface PreviewDownloadPdfPayload {
   downloadUrl?: string;
   doi?: string;
   articleTitle?: string;
+  authors?: string[];
+  publishedAt?: string | null;
+  sourceId?: string | null;
   journalTitle?: string;
   customDownloadDir?: string | null;
 }
@@ -223,6 +260,25 @@ export interface TranslationConnectionTestResult {
   responsePreview: string;
 }
 
+export interface TestRagConnectionPayload {
+  provider?: RagProviderId;
+  apiKey?: string;
+  baseUrl?: string;
+  embeddingModel?: string;
+  rerankerModel?: string;
+  embeddingPath?: string;
+  rerankPath?: string;
+}
+
+export interface RagConnectionTestResult {
+  provider: RagProviderId;
+  baseUrl: string;
+  embeddingModel: string;
+  rerankerModel: string;
+  embeddingDimensions: number;
+  rerankCount: number;
+}
+
 export interface OpenPathPayload {
   path?: string;
 }
@@ -230,11 +286,126 @@ export interface OpenPathPayload {
 export interface PdfDownloadResult {
   filePath: string;
   sourceUrl: string;
+  libraryRegistration?: LibraryRegistrationResult | null;
 }
 
 export interface DocxExportResult {
   filePath: string;
   articleCount: number;
+}
+
+export type LibraryIngestStatus = 'registered' | 'queued' | 'indexing' | 'ready' | 'failed';
+
+export type LibraryJobType = 'register' | 'extract' | 'chunk' | 'embed' | 'reindex';
+
+export type LibraryJobStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export type LibraryDedupeReason =
+  | 'new'
+  | 'file_path'
+  | 'doi'
+  | 'file_sha256'
+  | 'title_author_year';
+
+export interface IndexDownloadedPdfPayload {
+  filePath?: string;
+  sourceUrl?: string;
+  sourceId?: string | null;
+  doi?: string | null;
+  articleTitle?: string | null;
+  authors?: string[];
+  journalTitle?: string | null;
+  publishedAt?: string | null;
+}
+
+export interface LibraryRegistrationResult {
+  documentId: string;
+  fileId: string;
+  jobId: string;
+  dedupeReason: LibraryDedupeReason;
+  storageMode: LibraryStorageMode;
+  ingestStatus: LibraryIngestStatus;
+  filePath: string;
+}
+
+export interface LibraryDocumentStatusPayload {
+  documentId?: string;
+  sourceUrl?: string;
+  doi?: string;
+  filePath?: string;
+}
+
+export interface LibraryDocumentSummary {
+  documentId: string;
+  title: string | null;
+  doi: string | null;
+  authors: string[];
+  journalTitle: string | null;
+  publishedAt: string | null;
+  sourceUrl: string | null;
+  sourceId: string | null;
+  ingestStatus: LibraryIngestStatus;
+  fileCount: number;
+  latestFilePath: string | null;
+  latestDownloadedAt: string | null;
+  latestJobType: LibraryJobType | null;
+  latestJobStatus: LibraryJobStatus | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListLibraryDocumentsPayload {
+  limit?: number;
+}
+
+export interface LibraryDocumentsResult {
+  items: LibraryDocumentSummary[];
+  totalCount: number;
+  fileCount: number;
+  queuedJobCount: number;
+  libraryDbFile: string;
+  defaultManagedDirectory: string;
+  ragCacheDir: string;
+}
+
+export interface ReindexLibraryDocumentPayload {
+  documentId?: string;
+}
+
+export interface ReindexLibraryDocumentResult {
+  jobId: string;
+  documentId: string;
+  status: LibraryJobStatus;
+  jobType: LibraryJobType;
+}
+
+export interface RagEvidenceItem {
+  rank: number;
+  title: string;
+  journalTitle: string | null;
+  publishedAt: string | null;
+  sourceUrl: string;
+  score: number | null;
+  excerpt: string;
+}
+
+export interface RagAnswerArticlesPayload {
+  question?: string;
+  writingContext?: string | null;
+  articles?: Article[];
+  llm?: LlmSettings;
+  rag?: RagSettings;
+}
+
+export interface RagAnswerResult {
+  answer: string;
+  evidence: RagEvidenceItem[];
+  provider: RagProviderId;
+  llmProvider: LlmProviderId;
+  llmModel: string;
+  embeddingModel: string;
+  rerankerModel: string;
+  rerankApplied: boolean;
 }
 
 export interface ArticleDetailsModalState {
@@ -315,9 +486,15 @@ export interface AppCommandPayloadMap {
   save_settings: SaveSettingsPayload;
   test_llm_connection: TestLlmConnectionPayload;
   test_translation_connection: TestTranslationConnectionPayload;
+  test_rag_connection: TestRagConnectionPayload;
   pick_download_directory: undefined;
   open_path: OpenPathPayload;
   preview_download_pdf: PreviewDownloadPdfPayload;
+  index_downloaded_pdf: IndexDownloadedPdfPayload;
+  get_library_document_status: LibraryDocumentStatusPayload;
+  list_library_documents: ListLibraryDocumentsPayload;
+  reindex_library_document: ReindexLibraryDocumentPayload;
+  rag_answer_articles: RagAnswerArticlesPayload;
   export_articles_docx: ExportArticlesDocxPayload;
   open_article_details_modal: OpenArticleDetailsModalPayload;
 }
@@ -329,9 +506,15 @@ export interface AppCommandResultMap {
   save_settings: AppSettings;
   test_llm_connection: LlmConnectionTestResult;
   test_translation_connection: TranslationConnectionTestResult;
+  test_rag_connection: RagConnectionTestResult;
   pick_download_directory: string | null;
   open_path: boolean;
   preview_download_pdf: PdfDownloadResult;
+  index_downloaded_pdf: LibraryRegistrationResult;
+  get_library_document_status: LibraryDocumentSummary | null;
+  list_library_documents: LibraryDocumentsResult;
+  reindex_library_document: ReindexLibraryDocumentResult;
+  rag_answer_articles: RagAnswerResult;
   export_articles_docx: DocxExportResult | null;
   open_article_details_modal: boolean;
 }

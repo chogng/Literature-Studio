@@ -14,6 +14,8 @@ export type TitlebarPartState = {
   webUrl: string;
   isWindowMaximized: boolean;
   isSidebarVisible: boolean;
+  isKnowledgeBaseModeEnabled: boolean;
+  isAuxiliarySidebarVisible: boolean;
   browserUrl: string;
   previewState: Pick<PreviewState, 'canGoBack' | 'canGoForward'>;
   canExportDocx: boolean;
@@ -24,6 +26,7 @@ export type TitlebarPartState = {
 export type TitlebarPartActions = {
   handleWindowControl: (action: TitlebarAction) => void;
   handleToggleSidebar: () => void;
+  handleToggleAuxiliarySidebar: () => void;
   handlePreviewBack: () => void;
   handlePreviewForward: () => void;
   handleWebUrlChange: (url: string) => void;
@@ -44,6 +47,8 @@ export function createTitlebarPartProps({
     webUrl,
     isWindowMaximized,
     isSidebarVisible,
+    isKnowledgeBaseModeEnabled,
+    isAuxiliarySidebarVisible,
     browserUrl,
     previewState,
     canExportDocx,
@@ -53,6 +58,7 @@ export function createTitlebarPartProps({
   actions: {
     handleWindowControl,
     handleToggleSidebar,
+    handleToggleAuxiliarySidebar,
     handlePreviewBack,
     handlePreviewForward,
     handleWebUrlChange,
@@ -71,6 +77,8 @@ export function createTitlebarPartProps({
       closeLabel: ui.titlebarClose,
       backLabel: ui.titlebarBack,
       forwardLabel: ui.titlebarForward,
+      showAssistantLabel: ui.titlebarShowAssistant,
+      hideAssistantLabel: ui.titlebarHideAssistant,
       exportDocxLabel: ui.titlebarExportDocx,
       noExportableArticlesLabel: ui.titlebarNoExportableArticles,
     },
@@ -79,6 +87,14 @@ export function createTitlebarPartProps({
     isSidebarOpen: isSidebarVisible,
     sidebarToggleLabel: isSidebarVisible ? ui.sidebarCollapse : ui.sidebarExpand,
     onToggleSidebar: activePage === 'reader' ? handleToggleSidebar : undefined,
+    isAuxiliarySidebarOpen: isAuxiliarySidebarVisible,
+    auxiliarySidebarToggleLabel: isAuxiliarySidebarVisible
+      ? ui.titlebarHideAssistant
+      : ui.titlebarShowAssistant,
+    onToggleAuxiliarySidebar:
+      activePage === 'reader' && isKnowledgeBaseModeEnabled
+        ? handleToggleAuxiliarySidebar
+        : undefined,
     browserUrl,
     canGoBack: previewState.canGoBack,
     canGoForward: previewState.canGoForward,

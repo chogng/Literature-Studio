@@ -17,6 +17,8 @@ import {
 } from '../services/config/configSchema';
 import MenuOverlayWindow from './menuOverlayWindow';
 import ArticleDetailsModalWindow from './articleDetailsModalWindow';
+import { useAssistantModel } from './assistantModel';
+import { useLibraryModel } from './libraryModel';
 import ToastOverlayWindow from './toastOverlayWindow';
 import { useBatchFetchModel } from './batchFetchModel';
 import { useDocumentActionsModel } from './documentActionsModel';
@@ -24,13 +26,19 @@ import {
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchShellClassName,
   WORKBENCH_PART_IDS,
+  setAuxiliarySidebarVisible,
+  setSidebarVisible,
+  setWorkbenchSidebarKind,
   subscribeWorkbenchLayoutState,
   toggleSidebarVisibility,
+  toggleAuxiliarySidebarVisibility,
   useWorkbenchPartRef,
 } from './layout';
 import { createEditorPartProps } from './parts/editor/editorPart';
 import { createSettingsPartProps, SettingsPartView } from './parts/settings/settingsPart';
-import { createSidebarPartProps } from './parts/sidebar/sidebarPart';
+import {
+  createSidebarPartProps,
+} from './parts/sidebar/sidebarPart';
 import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
 import { subscribeTitlebarUiActions } from './parts/titlebar/titlebarActions';
 import { TitlebarView } from './parts/titlebar/titlebarView';
@@ -38,6 +46,7 @@ import { PreviewNavigationModel } from './previewNavigationModel';
 import { useReaderState } from './readerState';
 import ReaderView from './readerView';
 import { useSettingsModel } from './parts/settings/settingsModel';
+import { useWritingEditorModel } from './writingEditorModel';
 import {
   getWorkbenchStateSnapshot,
   subscribeWorkbenchState,
@@ -52,7 +61,27 @@ type SelectionModePhase = 'off' | 'multi' | 'all';
 type ActivePageViewConfig = {
   activePage: ActivePage;
   isSidebarVisible: boolean;
-  sidebarProps: ReturnType<typeof createSidebarPartProps>;
+  activeSidebarKind: ReturnType<typeof getWorkbenchLayoutStateSnapshot>['activeSidebarKind'];
+  isAuxiliarySidebarVisible: boolean;
+  secondarySidebarProps: ReturnType<typeof createSidebarPartProps>;
+  primarySidebarProps: {
+    librarySnapshot: ReturnType<typeof useLibraryModel>['librarySnapshot'];
+    isLibraryLoading: boolean;
+    onRefreshLibrary: () => void;
+  };
+  auxiliarySidebarProps: {
+    isKnowledgeBaseModeEnabled: boolean;
+    librarySnapshot: ReturnType<typeof useLibraryModel>['librarySnapshot'];
+    question: string;
+    onQuestionChange: (value: string) => void;
+    writingContext: string;
+    onWritingContextChange: (value: string) => void;
+    result: ReturnType<typeof useAssistantModel>['result'];
+    isAsking: boolean;
+    errorMessage: string | null;
+    onAsk: () => void;
+    availableArticleCount: number;
+  };
   editorPartProps: ReturnType<typeof createEditorPartProps>;
   settingsPartRef: ReturnType<typeof useWorkbenchPartRef>;
   settingsPartProps: ReturnType<typeof createSettingsPartProps>;
@@ -112,7 +141,11 @@ function resolveRuntimeState() {
 function renderActivePageView({
   activePage,
   isSidebarVisible,
-  sidebarProps,
+  activeSidebarKind,
+  isAuxiliarySidebarVisible,
+  secondarySidebarProps,
+  primarySidebarProps,
+  auxiliarySidebarProps,
   editorPartProps,
   settingsPartRef,
   settingsPartProps,
@@ -120,7 +153,11 @@ function renderActivePageView({
   if (activePage === 'reader') {
     return jsx(ReaderView, {
       isSidebarVisible,
-      sidebarProps,
+      activeSidebarKind,
+      isAuxiliarySidebarVisible,
+      secondarySidebarProps,
+      primarySidebarProps,
+      auxiliarySidebarProps,
       editorPartProps,
     });
   }
@@ -175,7 +212,8 @@ function WorkbenchContentView() {
   );
 
   const { activePage } = workbenchState;
-  const { isSidebarVisible } = workbenchLayoutState;
+  const { isSidebarVisible, activeSidebarKind, isAuxiliarySidebarVisible } =
+    workbenchLayoutState;
 
   const workbenchContainerRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.container);
   const titlebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
@@ -206,6 +244,28 @@ function WorkbenchContentView() {
     setSameDomainOnly,
     useMica,
     setUseMica,
+    ragEnabled,
+    setRagEnabled,
+    autoIndexDownloadedPdf,
+    setAutoIndexDownloadedPdf,
+    libraryStorageMode,
+    setLibraryStorageMode,
+    libraryDirectory,
+    setLibraryDirectory,
+    maxConcurrentIndexJobs,
+    setMaxConcurrentIndexJobs,
+    activeRagProvider,
+    ragProviders,
+    retrievalCandidateCount,
+    retrievalTopK,
+    setRagProviderApiKey,
+    setRagProviderBaseUrl,
+    setRagProviderEmbeddingModel,
+    setRagProviderRerankerModel,
+    setRagProviderEmbeddingPath,
+    setRagProviderRerankPath,
+    setRetrievalCandidateCount,
+    setRetrievalTopK,
     pdfDownloadDir,
     setPdfDownloadDir,
     pdfFileNameUseSelectionOrder,
@@ -222,11 +282,14 @@ function WorkbenchContentView() {
     configPath,
     isSettingsLoading,
     isSettingsSaving,
+    isTestingRagConnection,
     isTestingLlmConnection,
     isTestingTranslationConnection,
     handleChoosePdfDownloadDir,
+    handleChooseLibraryDirectory,
     handleOpenConfigLocation,
     handleLocaleChange,
+    handleTestRagConnection,
     handleTestLlmConnection,
     handleTestTranslationConnection,
     handleResetDownloadDir,
@@ -243,6 +306,21 @@ function WorkbenchContentView() {
     setLocale,
     initialBatchSources: INITIAL_BATCH_SOURCES,
   });
+  const {
+    librarySnapshot,
+    isLibraryLoading,
+    refreshLibrary,
+  } = useLibraryModel({
+    desktopRuntime,
+    invokeDesktop,
+  });
+  const knowledgeBaseModeEnabled = ragEnabled;
+
+  useEffect(() => {
+    setWorkbenchSidebarKind(knowledgeBaseModeEnabled ? 'primary' : 'secondary');
+    setSidebarVisible(true);
+    setAuxiliarySidebarVisible(knowledgeBaseModeEnabled);
+  }, [knowledgeBaseModeEnabled]);
 
   const {
     batchStartDate,
@@ -252,6 +330,67 @@ function WorkbenchContentView() {
     filteredArticles,
     hasData,
   } = useReaderState({ articles });
+  const {
+    draftTitle,
+    setDraftTitle,
+    draftBody,
+    setDraftBody,
+    viewMode: editorViewMode,
+    setViewMode: setEditorViewMode,
+    clearDraft,
+    stats: writingStats,
+  } = useWritingEditorModel();
+  const currentLlmSettings = useMemo(
+    () => ({
+      activeProvider: activeLlmProvider,
+      providers: llmProviders,
+    }),
+    [activeLlmProvider, llmProviders],
+  );
+  const currentRagSettings = useMemo(
+    () => ({
+      enabled: knowledgeBaseModeEnabled,
+      knowledgeBaseModeEnabled,
+      autoIndexDownloadedPdf,
+      libraryStorageMode,
+      libraryDirectory: libraryDirectory.trim() || null,
+      maxConcurrentIndexJobs,
+      activeProvider: activeRagProvider,
+      providers: ragProviders,
+      retrievalCandidateCount,
+      retrievalTopK,
+    }),
+    [
+      activeRagProvider,
+      autoIndexDownloadedPdf,
+      knowledgeBaseModeEnabled,
+      libraryDirectory,
+      libraryStorageMode,
+      maxConcurrentIndexJobs,
+      ragProviders,
+      retrievalCandidateCount,
+      retrievalTopK,
+    ],
+  );
+  const {
+    question: assistantQuestion,
+    setQuestion: setAssistantQuestion,
+    writingContext: assistantWritingContext,
+    setWritingContext: setAssistantWritingContext,
+    result: assistantResult,
+    isAsking: isAssistantAsking,
+    errorMessage: assistantErrorMessage,
+    handleAsk: handleAssistantAsk,
+  } = useAssistantModel({
+    desktopRuntime,
+    invokeDesktop,
+    ui,
+    isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
+    articles: filteredArticles,
+    llmSettings: currentLlmSettings,
+    ragSettings: currentRagSettings,
+    fallbackWritingContext: draftBody,
+  });
   const filteredArticleKeysInOrder = useMemo(
     () => filteredArticles.map((article) => getArticleSelectionKey(article)),
     [filteredArticles],
@@ -456,6 +595,7 @@ function WorkbenchContentView() {
       isSelectionModeEnabled,
       selectedArticleOrderLookup,
       exportableArticles,
+      onLibraryUpdated: refreshLibrary,
     });
 
   const handleToggleSelectionMode = useCallback(() => {
@@ -495,10 +635,19 @@ function WorkbenchContentView() {
     toggleSidebarVisibility();
   }, []);
 
+  const handleToggleAuxiliarySidebar = useCallback(() => {
+    toggleAuxiliarySidebarVisibility();
+  }, []);
+
   useEffect(() => {
     return subscribeTitlebarUiActions((action) => {
       if (action.type === 'TOGGLE_SIDEBAR') {
         toggleSidebarVisibility();
+        return;
+      }
+
+      if (action.type === 'TOGGLE_AUXILIARY_SIDEBAR') {
+        toggleAuxiliarySidebarVisibility();
         return;
       }
 
@@ -533,7 +682,7 @@ function WorkbenchContentView() {
     handlePreviewForward,
   ]);
 
-  const sidebarProps = useMemo(
+  const secondarySidebarProps = useMemo(
     () =>
       createSidebarPartProps({
         state: {
@@ -579,6 +728,47 @@ function WorkbenchContentView() {
     ],
   );
 
+  const primarySidebarProps = useMemo(
+    () => ({
+      labels: secondarySidebarProps.labels,
+      librarySnapshot,
+      isLibraryLoading,
+      onRefreshLibrary: () => void refreshLibrary(),
+    }),
+    [isLibraryLoading, librarySnapshot, refreshLibrary, secondarySidebarProps.labels],
+  );
+
+  const auxiliarySidebarProps = useMemo(
+    () => ({
+      labels: secondarySidebarProps.labels,
+      isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
+      librarySnapshot,
+      question: assistantQuestion,
+      onQuestionChange: setAssistantQuestion,
+      writingContext: assistantWritingContext,
+      onWritingContextChange: setAssistantWritingContext,
+      result: assistantResult,
+      isAsking: isAssistantAsking,
+      errorMessage: assistantErrorMessage,
+      onAsk: () => void handleAssistantAsk(),
+      availableArticleCount: filteredArticles.length,
+    }),
+    [
+      assistantErrorMessage,
+      assistantQuestion,
+      assistantResult,
+      assistantWritingContext,
+      filteredArticles.length,
+      handleAssistantAsk,
+      isAssistantAsking,
+      knowledgeBaseModeEnabled,
+      librarySnapshot,
+      secondarySidebarProps.labels,
+      setAssistantQuestion,
+      setAssistantWritingContext,
+    ],
+  );
+
   const titlebarProps = useMemo(
     () =>
       createTitlebarPartProps({
@@ -588,6 +778,8 @@ function WorkbenchContentView() {
           webUrl,
           isWindowMaximized,
           isSidebarVisible,
+          isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
+          isAuxiliarySidebarVisible,
           browserUrl,
           previewState,
           canExportDocx,
@@ -597,6 +789,7 @@ function WorkbenchContentView() {
         actions: {
           handleWindowControl,
           handleToggleSidebar,
+          handleToggleAuxiliarySidebar,
           handlePreviewBack,
           handlePreviewForward,
           handleWebUrlChange,
@@ -614,9 +807,11 @@ function WorkbenchContentView() {
       handlePreviewForward,
       handleSelectAddressBarSource,
       handleToggleSidebar,
+      handleToggleAuxiliarySidebar,
       handleWebUrlChange,
       handleWindowControl,
       isSidebarVisible,
+      isAuxiliarySidebarVisible,
       isWindowMaximized,
       previewState,
       selectedAddressBarSourceId,
@@ -643,10 +838,36 @@ function WorkbenchContentView() {
     () =>
       createEditorPartProps({
         state: {
+          ui,
           viewPartProps,
+          isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
+          draftTitle,
+          draftBody,
+          viewMode: editorViewMode,
+          latestAssistantResult: assistantResult,
+          stats: writingStats,
+        },
+        actions: {
+          onDraftTitleChange: setDraftTitle,
+          onDraftBodyChange: setDraftBody,
+          onViewModeChange: setEditorViewMode,
+          onClearDraft: clearDraft,
         },
       }),
-    [viewPartProps],
+    [
+      assistantResult,
+      clearDraft,
+      draftBody,
+      draftTitle,
+      editorViewMode,
+      knowledgeBaseModeEnabled,
+      setDraftBody,
+      setDraftTitle,
+      setEditorViewMode,
+      ui,
+      viewPartProps,
+      writingStats,
+    ],
   );
 
   const settingsPartProps = useMemo(
@@ -660,6 +881,15 @@ function WorkbenchContentView() {
           batchLimit,
           sameDomainOnly,
           useMica,
+          ragEnabled,
+          autoIndexDownloadedPdf,
+          libraryStorageMode,
+          libraryDirectory,
+          maxConcurrentIndexJobs,
+          activeRagProvider,
+          ragProviders,
+          retrievalCandidateCount,
+          retrievalTopK,
           pdfDownloadDir,
           pdfFileNameUseSelectionOrder,
           activeLlmProvider,
@@ -668,7 +898,16 @@ function WorkbenchContentView() {
           translationProviders,
           desktopRuntime,
           configPath,
+          isLibraryLoading,
+          libraryDocumentCount: librarySnapshot.totalCount,
+          libraryFileCount: librarySnapshot.fileCount,
+          libraryQueuedJobCount: librarySnapshot.queuedJobCount,
+          libraryDocuments: librarySnapshot.items,
+          libraryDbFile: librarySnapshot.libraryDbFile,
+          defaultManagedDirectory: librarySnapshot.defaultManagedDirectory,
+          ragCacheDir: librarySnapshot.ragCacheDir,
           isSettingsSaving,
+          isTestingRagConnection,
           isTestingLlmConnection,
           isTestingTranslationConnection,
         },
@@ -682,14 +921,41 @@ function WorkbenchContentView() {
           onBatchLimitChange: (value) => setBatchLimit(normalizeBatchLimit(value, 1)),
           onSameDomainOnlyChange: setSameDomainOnly,
           onUseMicaChange: setUseMica,
+          onRagEnabledChange: setRagEnabled,
+          onAutoIndexDownloadedPdfChange: setAutoIndexDownloadedPdf,
+          onLibraryStorageModeChange: setLibraryStorageMode,
+          onLibraryDirectoryChange: setLibraryDirectory,
+          onMaxConcurrentIndexJobsChange: (value) =>
+            setMaxConcurrentIndexJobs(
+              Math.min(4, Math.max(1, Number.parseInt(String(value), 10) || 1)),
+            ),
+          onRagProviderApiKeyChange: setRagProviderApiKey,
+          onRagProviderBaseUrlChange: setRagProviderBaseUrl,
+          onRagProviderEmbeddingModelChange: setRagProviderEmbeddingModel,
+          onRagProviderRerankerModelChange: setRagProviderRerankerModel,
+          onRagProviderEmbeddingPathChange: setRagProviderEmbeddingPath,
+          onRagProviderRerankPathChange: setRagProviderRerankPath,
+          onRetrievalCandidateCountChange: (value) =>
+            setRetrievalCandidateCount(
+              Math.min(20, Math.max(3, Number.parseInt(String(value), 10) || 10)),
+            ),
+          onRetrievalTopKChange: (value) =>
+            setRetrievalTopK(
+              Math.min(
+                retrievalCandidateCount,
+                Math.max(1, Number.parseInt(String(value), 10) || 4),
+              ),
+            ),
           onPdfDownloadDirChange: setPdfDownloadDir,
           onPdfFileNameUseSelectionOrderChange: setPdfFileNameUseSelectionOrder,
+          onChooseLibraryDirectory: () => void handleChooseLibraryDirectory(),
           onChoosePdfDownloadDir: () => void handleChoosePdfDownloadDir(),
           onActiveLlmProviderChange: setActiveLlmProvider,
           onLlmProviderApiKeyChange: setLlmProviderApiKey,
           onLlmProviderModelChange: setLlmProviderModel,
           onActiveTranslationProviderChange: setActiveTranslationProvider,
           onTranslationProviderApiKeyChange: setTranslationProviderApiKey,
+          onTestRagConnection: () => void handleTestRagConnection(),
           onTestLlmConnection: () => void handleTestLlmConnection(),
           onTestTranslationConnection: () => void handleTestTranslationConnection(),
           onOpenConfigLocation: () => void handleOpenConfigLocation(),
@@ -700,15 +966,19 @@ function WorkbenchContentView() {
       batchLimit,
       batchSources,
       configPath,
+      activeRagProvider,
       activeLlmProvider,
       activeTranslationProvider,
+      autoIndexDownloadedPdf,
       desktopRuntime,
       handleAddBatchSource,
       handleBatchSourceJournalTitleChange,
       handleBatchSourceUrlChange,
+      handleChooseLibraryDirectory,
       handleChoosePdfDownloadDir,
       handleOpenConfigLocation,
       handleLocaleChange,
+      handleTestRagConnection,
       handleTestLlmConnection,
       handleTestTranslationConnection,
       handleMoveBatchSource,
@@ -716,23 +986,46 @@ function WorkbenchContentView() {
       handleResetDownloadDir,
       isSettingsLoading,
       isSettingsSaving,
+      isTestingRagConnection,
       isTestingLlmConnection,
       isTestingTranslationConnection,
       llmProviders,
+      libraryDirectory,
+      librarySnapshot,
+      ragProviders,
       translationProviders,
       locale,
+      maxConcurrentIndexJobs,
       pdfDownloadDir,
       pdfFileNameUseSelectionOrder,
+      ragEnabled,
+      libraryStorageMode,
+      retrievalCandidateCount,
+      retrievalTopK,
+      isLibraryLoading,
       sameDomainOnly,
       useMica,
       setBatchLimit,
+      setAutoIndexDownloadedPdf,
       setActiveLlmProvider,
       setActiveTranslationProvider,
+      setLibraryDirectory,
+      setLibraryStorageMode,
+      setMaxConcurrentIndexJobs,
       setPdfDownloadDir,
       setPdfFileNameUseSelectionOrder,
+      setRagProviderApiKey,
+      setRagProviderBaseUrl,
+      setRagProviderEmbeddingModel,
+      setRagProviderRerankerModel,
+      setRagProviderEmbeddingPath,
+      setRagProviderRerankPath,
+      setRetrievalCandidateCount,
+      setRetrievalTopK,
       setLlmProviderApiKey,
       setLlmProviderModel,
       setTranslationProviderApiKey,
+      setRagEnabled,
       setSameDomainOnly,
       ui,
     ],
@@ -741,7 +1034,11 @@ function WorkbenchContentView() {
   const activePageView = renderActivePageView({
     activePage,
     isSidebarVisible,
-    sidebarProps,
+    activeSidebarKind,
+    isAuxiliarySidebarVisible,
+    secondarySidebarProps,
+    primarySidebarProps,
+    auxiliarySidebarProps,
     editorPartProps,
     settingsPartRef,
     settingsPartProps,

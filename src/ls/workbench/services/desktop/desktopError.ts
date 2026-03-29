@@ -114,6 +114,28 @@ export function localizeDesktopInvokeError(
         status: detailValue(details, 'status', '?'),
         statusText: detailValue(details, 'statusText', error.message || ui.errorUnknown),
       }).trim();
+    case 'RAG_PROVIDER_UNSUPPORTED':
+      return formatLocalized(ui.errorRagProviderUnsupported, {
+        provider: detailValue(details, 'provider', '?'),
+      });
+    case 'RAG_API_KEY_MISSING':
+      return ui.errorRagApiKeyMissing;
+    case 'RAG_BASE_URL_INVALID':
+      return formatLocalized(ui.errorRagBaseUrlInvalid, {
+        value: detailValue(details, 'value', '?'),
+      });
+    case 'RAG_EMBEDDING_MODEL_MISSING':
+      return ui.errorRagEmbeddingModelMissing;
+    case 'RAG_RERANKER_MODEL_MISSING':
+      return ui.errorRagRerankerModelMissing;
+    case 'RAG_CONNECTION_FAILED':
+      return formatLocalized(ui.errorRagConnectionFailed, {
+        provider: detailValue(details, 'provider', '?'),
+        status: detailValue(details, 'status', '?'),
+        statusText: detailValue(details, 'statusText', error.message || ui.errorUnknown),
+      }).trim();
+    case 'RAG_QUERY_EMPTY':
+      return ui.errorRagQueryEmpty;
     default:
       return error.message || ui.errorUnknown;
   }

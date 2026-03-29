@@ -34,6 +34,7 @@ type UseDocumentActionsModelParams = {
   isSelectionModeEnabled: boolean;
   selectedArticleOrderLookup: ReadonlyMap<string, number>;
   exportableArticles: Article[];
+  onLibraryUpdated?: () => void | Promise<void>;
 };
 
 function getArticleSelectionKey(article: Pick<Article, 'sourceUrl' | 'fetchedAt'>) {
@@ -86,6 +87,7 @@ export function useDocumentActionsModel({
   isSelectionModeEnabled,
   selectedArticleOrderLookup,
   exportableArticles,
+  onLibraryUpdated,
 }: UseDocumentActionsModelParams) {
   const sciencePdfDownloadCountRef = useRef(0);
 
@@ -95,7 +97,12 @@ export function useDocumentActionsModel({
   );
 
   const handleSharedPdfDownload = useCallback(
-    async (article: Pick<Article, 'title' | 'sourceUrl' | 'fetchedAt' | 'journalTitle' | 'doi'>) => {
+    async (
+      article: Pick<
+        Article,
+        'title' | 'sourceUrl' | 'fetchedAt' | 'journalTitle' | 'doi' | 'authors' | 'publishedAt' | 'sourceId'
+      >,
+    ) => {
       const preparedPdfDownload = preparePdfDownload(article.sourceUrl, article.doi);
       if (!preparedPdfDownload) {
         toast.error(ui.toastEnterArticleUrl);
@@ -128,10 +135,14 @@ export function useDocumentActionsModel({
             isSelectionModeEnabled,
             selectedArticleOrderLookup,
           ),
+          authors: article.authors,
+          publishedAt: typeof article.publishedAt === 'string' ? article.publishedAt : null,
+          sourceId: typeof article.sourceId === 'string' ? article.sourceId : null,
           journalTitle: typeof article.journalTitle === 'string' ? article.journalTitle : undefined,
           customDownloadDir: resolvePreferredDirectory(pdfDownloadDir),
         });
         markPdfDownloadSucceeded(preparedPdfDownload.normalizedSourceUrl, result);
+        void onLibraryUpdated?.();
         toast.success(
           formatLocalized(ui.toastPdfDownloaded, {
             filePath: result.filePath,
@@ -163,6 +174,7 @@ export function useDocumentActionsModel({
       pdfFileNameUseSelectionOrder,
       selectedArticleOrderLookup,
       ui,
+      onLibraryUpdated,
     ],
   );
 

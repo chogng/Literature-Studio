@@ -1,7 +1,12 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import { CalendarRange, CheckSquare, Download } from 'lucide-react';
-import type { Ref } from 'react';
-import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { ChangeEvent, Ref } from 'react';
+import type {
+  ArticleDetailsModalLabels,
+  LibraryDocumentSummary,
+  LibraryDocumentsResult,
+  RagAnswerResult,
+} from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../../../base/browser/ui/button/button';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
@@ -23,6 +28,7 @@ export type SidebarArticle = {
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
+  sourceId?: string | null;
   journalTitle?: string | null;
 };
 
@@ -54,6 +60,42 @@ export type SidebarLabels = {
   selectionModeEnterMulti: string;
   selectionModeSelectAll: string;
   selectionModeExit: string;
+  loading: string;
+  refresh: string;
+  libraryTitle: string;
+  libraryDescription: string;
+  libraryEmpty: string;
+  libraryDocuments: string;
+  libraryFiles: string;
+  libraryQueuedJobs: string;
+  libraryDbFile: string;
+  libraryFilesDir: string;
+  libraryCacheDir: string;
+  libraryStatusRegistered: string;
+  libraryStatusQueued: string;
+  libraryStatusRunning: string;
+  libraryStatusFailed: string;
+  assistantTitle: string;
+  assistantDescriptionEnabled: string;
+  assistantDescriptionDisabled: string;
+  assistantModeOn: string;
+  assistantModeOff: string;
+  assistantReady: string;
+  assistantPlaceholderEnabled: string;
+  assistantPlaceholderDisabled: string;
+  assistantSend: string;
+  assistantSendBusy: string;
+  assistantQuestion: string;
+  assistantQuestionPlaceholder: string;
+  assistantContext: string;
+  assistantContextPlaceholder: string;
+  assistantAnswerTitle: string;
+  assistantEvidenceTitle: string;
+  assistantSources: string;
+  assistantNoArticles: string;
+  assistantQuestionRequired: string;
+  assistantRerankOn: string;
+  assistantRerankOff: string;
 };
 
 export type SidebarSelectionModePhase = 'off' | 'multi' | 'all';
@@ -147,6 +189,42 @@ export function createSidebarPartLabels({
     selectionModeEnterMulti: ui.sidebarSelectionModeEnterMulti,
     selectionModeSelectAll: ui.sidebarSelectionModeSelectAll,
     selectionModeExit: ui.sidebarSelectionModeExit,
+    loading: ui.settingsLoading,
+    refresh: ui.titlebarRefresh,
+    libraryTitle: ui.settingsLibraryTitle,
+    libraryDescription: ui.knowledgeBaseSidebarDescription,
+    libraryEmpty: ui.knowledgeBaseSidebarEmpty,
+    libraryDocuments: ui.settingsLibraryStatusDocuments,
+    libraryFiles: ui.settingsLibraryStatusFiles,
+    libraryQueuedJobs: ui.settingsLibraryStatusQueuedJobs,
+    libraryDbFile: ui.settingsLibraryDbFile,
+    libraryFilesDir: ui.settingsLibraryFilesDir,
+    libraryCacheDir: ui.settingsLibraryCacheDir,
+    libraryStatusRegistered: ui.settingsLibraryDocumentRegistered,
+    libraryStatusQueued: ui.settingsLibraryDocumentQueued,
+    libraryStatusRunning: ui.settingsLibraryDocumentRunning,
+    libraryStatusFailed: ui.settingsLibraryDocumentFailed,
+    assistantTitle: ui.assistantSidebarTitle,
+    assistantDescriptionEnabled: ui.assistantSidebarDescriptionEnabled,
+    assistantDescriptionDisabled: ui.assistantSidebarDescriptionDisabled,
+    assistantModeOn: ui.assistantSidebarModeOn,
+    assistantModeOff: ui.assistantSidebarModeOff,
+    assistantReady: ui.assistantSidebarReady,
+    assistantPlaceholderEnabled: ui.assistantSidebarPlaceholderEnabled,
+    assistantPlaceholderDisabled: ui.assistantSidebarPlaceholderDisabled,
+    assistantSend: ui.assistantSidebarSend,
+    assistantSendBusy: ui.assistantSidebarSendBusy,
+    assistantQuestion: ui.assistantSidebarQuestion,
+    assistantQuestionPlaceholder: ui.assistantSidebarQuestionPlaceholder,
+    assistantContext: ui.assistantSidebarContext,
+    assistantContextPlaceholder: ui.assistantSidebarContextPlaceholder,
+    assistantAnswerTitle: ui.assistantSidebarAnswerTitle,
+    assistantEvidenceTitle: ui.assistantSidebarEvidenceTitle,
+    assistantSources: ui.assistantSidebarSources,
+    assistantNoArticles: ui.assistantSidebarNoArticles,
+    assistantQuestionRequired: ui.assistantSidebarQuestionRequired,
+    assistantRerankOn: ui.assistantSidebarRerankOn,
+    assistantRerankOff: ui.assistantSidebarRerankOff,
   };
 }
 
@@ -422,5 +500,470 @@ export function SidebarPartView({
     ref: partRef,
     className: 'panel sidebar-panel',
     children: [actionBarView, contentView],
+  });
+}
+
+function formatLibraryDate(value: string | null) {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  return normalized;
+}
+
+function resolveLibraryDocumentStatusLabel(
+  labels: Pick<
+    SidebarLabels,
+    | 'libraryStatusRegistered'
+    | 'libraryStatusQueued'
+    | 'libraryStatusRunning'
+    | 'libraryStatusFailed'
+  >,
+  document: LibraryDocumentSummary,
+) {
+  if (document.latestJobStatus === 'failed' || document.ingestStatus === 'failed') {
+    return labels.libraryStatusFailed;
+  }
+
+  if (document.latestJobStatus === 'running' || document.ingestStatus === 'indexing') {
+    return labels.libraryStatusRunning;
+  }
+
+  if (document.latestJobStatus === 'queued' || document.ingestStatus === 'queued') {
+    return labels.libraryStatusQueued;
+  }
+
+  return labels.libraryStatusRegistered;
+}
+
+function renderLibraryDocumentItem(
+  document: LibraryDocumentSummary,
+  index: number,
+  labels: SidebarLabels,
+) {
+  const title = document.title?.trim() || labels.untitled;
+  const authors = document.authors.length > 0 ? document.authors.join(', ') : labels.unknown;
+  const journal = document.journalTitle?.trim() || labels.unknown;
+  const publishedAt = formatLibraryDate(document.publishedAt);
+  const statusLabel = resolveLibraryDocumentStatusLabel(labels, document);
+
+  return jsxs(
+    'li',
+    {
+      className: 'library-doc-card',
+      children: [
+        jsxs('div', {
+          className: 'library-doc-card-main',
+          children: [
+            jsx('h3', { className: 'library-doc-card-title', title, children: title }),
+            jsx('p', { className: 'library-doc-card-meta', children: authors }),
+            jsx('p', {
+              className: 'library-doc-card-meta',
+              children: [journal, publishedAt].filter(Boolean).join(' | ') || labels.unknown,
+            }),
+          ],
+        }),
+        jsxs('div', {
+          className: 'library-doc-card-aside',
+          children: [
+            jsx('span', {
+              className: `library-doc-status library-doc-status-${document.ingestStatus}`,
+              children: statusLabel,
+            }),
+            jsx('span', { className: 'library-doc-count', children: document.fileCount }),
+          ],
+        }),
+      ],
+    },
+    `${document.documentId}-${index}`,
+  );
+}
+
+function renderPrimarySidebarContent({
+  labels,
+  librarySnapshot,
+  isLibraryLoading,
+  onRefreshLibrary,
+}: {
+  labels: SidebarLabels;
+  librarySnapshot: LibraryDocumentsResult;
+  isLibraryLoading: boolean;
+  onRefreshLibrary?: () => void;
+}) {
+  return jsxs('div', {
+    className: 'sidebar-primary-content',
+    children: [
+      jsxs('div', {
+        className: 'sidebar-workbench-header',
+        children: [
+          jsxs('div', {
+            className: 'sidebar-workbench-header-main',
+            children: [
+              jsx('h2', { className: 'sidebar-workbench-title', children: labels.libraryTitle }),
+              jsx('p', {
+                className: 'sidebar-workbench-description',
+                children: labels.libraryDescription,
+              }),
+            ],
+          }),
+          jsx(Button, {
+            type: 'button',
+            className: 'sidebar-refresh-btn',
+            variant: 'secondary',
+            size: 'sm',
+            mode: 'text',
+            textMode: 'with',
+            iconMode: 'without',
+            onClick: onRefreshLibrary,
+            disabled: isLibraryLoading || !onRefreshLibrary,
+            children: isLibraryLoading ? labels.loading : labels.refresh,
+          }),
+        ],
+      }),
+      jsxs('div', {
+        className: 'sidebar-stats-grid',
+        children: [
+          jsxs('div', {
+            className: 'sidebar-stat-card',
+            children: [
+              jsx('span', { children: labels.libraryDocuments }),
+              jsx('strong', { children: librarySnapshot.totalCount }),
+            ],
+          }),
+          jsxs('div', {
+            className: 'sidebar-stat-card',
+            children: [
+              jsx('span', { children: labels.libraryFiles }),
+              jsx('strong', { children: librarySnapshot.fileCount }),
+            ],
+          }),
+          jsxs('div', {
+            className: 'sidebar-stat-card',
+            children: [
+              jsx('span', { children: labels.libraryQueuedJobs }),
+              jsx('strong', { children: librarySnapshot.queuedJobCount }),
+            ],
+          }),
+        ],
+      }),
+      jsxs('div', {
+        className: 'sidebar-path-stack',
+        children: [
+          jsxs('p', {
+            children: [
+              `${labels.libraryDbFile}: `,
+              jsx('code', { children: librarySnapshot.libraryDbFile || labels.unknown }),
+            ],
+          }),
+          jsxs('p', {
+            children: [
+              `${labels.libraryFilesDir}: `,
+              jsx('code', {
+                children: librarySnapshot.defaultManagedDirectory || labels.unknown,
+              }),
+            ],
+          }),
+          jsxs('p', {
+            children: [
+              `${labels.libraryCacheDir}: `,
+              jsx('code', { children: librarySnapshot.ragCacheDir || labels.unknown }),
+            ],
+          }),
+        ],
+      }),
+      librarySnapshot.items.length > 0
+        ? jsx('ul', {
+            className: 'library-doc-list',
+            children: librarySnapshot.items.map((document, index) =>
+              renderLibraryDocumentItem(document, index, labels),
+            ),
+          })
+        : jsx('div', {
+            className: 'sidebar-empty-state sidebar-empty-state-library',
+            children: labels.libraryEmpty,
+          }),
+    ],
+  });
+}
+
+export function PrimarySidebarPartView({
+  partRef,
+  labels,
+  librarySnapshot,
+  isLibraryLoading,
+  onRefreshLibrary,
+}: {
+  partRef?: Ref<HTMLElement>;
+  labels: SidebarLabels;
+  librarySnapshot: LibraryDocumentsResult;
+  isLibraryLoading: boolean;
+  onRefreshLibrary?: () => void;
+}) {
+  return jsx('section', {
+    ref: partRef,
+    className: 'panel sidebar-panel sidebar-panel-primary',
+    children: renderPrimarySidebarContent({
+      labels,
+      librarySnapshot,
+      isLibraryLoading,
+      onRefreshLibrary,
+    }),
+  });
+}
+
+function renderAuxiliarySidebarContent({
+  labels,
+  isKnowledgeBaseModeEnabled,
+  librarySnapshot,
+  question,
+  onQuestionChange,
+  writingContext,
+  onWritingContextChange,
+  result,
+  isAsking,
+  errorMessage,
+  onAsk,
+  availableArticleCount,
+}: {
+  labels: SidebarLabels;
+  isKnowledgeBaseModeEnabled: boolean;
+  librarySnapshot: LibraryDocumentsResult;
+  question: string;
+  onQuestionChange: (value: string) => void;
+  writingContext: string;
+  onWritingContextChange: (value: string) => void;
+  result: RagAnswerResult | null;
+  isAsking: boolean;
+  errorMessage: string | null;
+  onAsk: () => void;
+  availableArticleCount: number;
+}) {
+  return jsxs('div', {
+    className: 'sidebar-auxiliary-content',
+    children: [
+      jsxs('div', {
+        className: 'sidebar-workbench-header',
+        children: [
+          jsxs('div', {
+            className: 'sidebar-workbench-header-main',
+            children: [
+              jsx('h2', { className: 'sidebar-workbench-title', children: labels.assistantTitle }),
+              jsx('p', {
+                className: 'sidebar-workbench-description',
+                children: isKnowledgeBaseModeEnabled
+                  ? labels.assistantDescriptionEnabled
+                  : labels.assistantDescriptionDisabled,
+              }),
+            ],
+          }),
+          jsx('span', {
+            className: `sidebar-mode-pill ${isKnowledgeBaseModeEnabled ? 'is-enabled' : 'is-disabled'}`,
+            children: isKnowledgeBaseModeEnabled
+              ? labels.assistantModeOn
+              : labels.assistantModeOff,
+          }),
+        ],
+      }),
+      jsxs('div', {
+        className: 'sidebar-stats-grid',
+        children: [
+          jsxs('div', {
+            className: 'sidebar-stat-card',
+            children: [
+              jsx('span', { children: labels.libraryDocuments }),
+              jsx('strong', { children: librarySnapshot.totalCount }),
+            ],
+          }),
+          jsxs('div', {
+            className: 'sidebar-stat-card',
+            children: [
+              jsx('span', { children: labels.assistantSources }),
+              jsx('strong', { children: availableArticleCount }),
+            ],
+          }),
+          jsxs('div', {
+            className: 'sidebar-stat-card',
+            children: [
+              jsx('span', { children: labels.libraryQueuedJobs }),
+              jsx('strong', { children: librarySnapshot.queuedJobCount }),
+            ],
+          }),
+        ],
+      }),
+      jsxs('div', {
+        className: 'sidebar-chat-placeholder',
+        children: [
+          jsxs('label', {
+            className: 'sidebar-chat-field',
+            children: [
+              jsx('span', { className: 'sidebar-chat-label', children: labels.assistantQuestion }),
+              jsx('textarea', {
+                className: 'sidebar-chat-input',
+                rows: 4,
+                value: question,
+                onChange: (event: ChangeEvent<HTMLTextAreaElement>) =>
+                  onQuestionChange(event.target.value),
+                placeholder: isKnowledgeBaseModeEnabled
+                  ? labels.assistantQuestionPlaceholder
+                  : labels.assistantPlaceholderDisabled,
+                disabled: !isKnowledgeBaseModeEnabled || isAsking,
+              }),
+            ],
+          }),
+          jsxs('label', {
+            className: 'sidebar-chat-field',
+            children: [
+              jsx('span', { className: 'sidebar-chat-label', children: labels.assistantContext }),
+              jsx('textarea', {
+                className: 'sidebar-chat-input sidebar-chat-context-input',
+                rows: 5,
+                value: writingContext,
+                onChange: (event: ChangeEvent<HTMLTextAreaElement>) =>
+                  onWritingContextChange(event.target.value),
+                placeholder: labels.assistantContextPlaceholder,
+                disabled: !isKnowledgeBaseModeEnabled || isAsking,
+              }),
+            ],
+          }),
+          errorMessage
+            ? jsx('p', {
+                className: 'sidebar-chat-error',
+                children: errorMessage,
+              })
+            : null,
+          !errorMessage && isKnowledgeBaseModeEnabled && availableArticleCount === 0
+            ? jsx('p', {
+                className: 'sidebar-chat-error',
+                children: labels.assistantNoArticles,
+              })
+            : null,
+          jsx(Button, {
+            type: 'button',
+            className: 'sidebar-chat-send-btn',
+            variant: 'secondary',
+            size: 'md',
+            mode: 'text',
+            textMode: 'with',
+            iconMode: 'without',
+            disabled:
+              !isKnowledgeBaseModeEnabled || isAsking || availableArticleCount === 0 || !question.trim(),
+            onClick: onAsk,
+            children: isAsking ? labels.assistantSendBusy : labels.assistantSend,
+          }),
+          result
+            ? jsxs('div', {
+                className: 'sidebar-chat-result',
+                children: [
+                  jsxs('div', {
+                    className: 'sidebar-chat-result-header',
+                    children: [
+                      jsx('strong', { children: labels.assistantAnswerTitle }),
+                      jsx('span', {
+                        className: `sidebar-mode-pill ${result.rerankApplied ? 'is-enabled' : 'is-disabled'}`,
+                        children: result.rerankApplied
+                          ? labels.assistantRerankOn
+                          : labels.assistantRerankOff,
+                      }),
+                    ],
+                  }),
+                  jsx('p', {
+                    className: 'sidebar-chat-answer',
+                    children: result.answer,
+                  }),
+                  result.evidence.length > 0
+                    ? jsxs('div', {
+                        className: 'sidebar-chat-evidence',
+                        children: [
+                          jsx('strong', { children: labels.assistantEvidenceTitle }),
+                          jsx('ul', {
+                            className: 'sidebar-chat-evidence-list',
+                            children: result.evidence.map((item) =>
+                              jsxs(
+                                'li',
+                                {
+                                  className: 'sidebar-chat-evidence-item',
+                                  children: [
+                                    jsx('strong', {
+                                      className: 'sidebar-chat-evidence-title',
+                                      children: `[${item.rank}] ${item.title}`,
+                                    }),
+                                    jsx('p', {
+                                      className: 'sidebar-chat-evidence-meta',
+                                      children: [item.journalTitle, item.publishedAt]
+                                        .filter(Boolean)
+                                        .join(' | '),
+                                    }),
+                                    jsx('p', {
+                                      className: 'sidebar-chat-evidence-text',
+                                      children: item.excerpt,
+                                    }),
+                                  ],
+                                },
+                                `${item.sourceUrl}-${item.rank}`,
+                              ),
+                            ),
+                          }),
+                        ],
+                      })
+                    : null,
+                ],
+              })
+            : jsx('textarea', {
+            className: 'sidebar-chat-input',
+            rows: 6,
+            readOnly: true,
+            value: isKnowledgeBaseModeEnabled
+              ? labels.assistantPlaceholderEnabled
+              : labels.assistantPlaceholderDisabled,
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
+export function AuxiliarySidebarPartView({
+  partRef,
+  labels,
+  isKnowledgeBaseModeEnabled,
+  librarySnapshot,
+  question,
+  onQuestionChange,
+  writingContext,
+  onWritingContextChange,
+  result,
+  isAsking,
+  errorMessage,
+  onAsk,
+  availableArticleCount,
+}: {
+  partRef?: Ref<HTMLElement>;
+  labels: SidebarLabels;
+  isKnowledgeBaseModeEnabled: boolean;
+  librarySnapshot: LibraryDocumentsResult;
+  question: string;
+  onQuestionChange: (value: string) => void;
+  writingContext: string;
+  onWritingContextChange: (value: string) => void;
+  result: RagAnswerResult | null;
+  isAsking: boolean;
+  errorMessage: string | null;
+  onAsk: () => void;
+  availableArticleCount: number;
+}) {
+  return jsx('section', {
+    ref: partRef,
+    className: 'panel sidebar-panel sidebar-panel-auxiliary',
+    children: renderAuxiliarySidebarContent({
+      labels,
+      isKnowledgeBaseModeEnabled,
+      librarySnapshot,
+      question,
+      onQuestionChange,
+      writingContext,
+      onWritingContextChange,
+      result,
+      isAsking,
+      errorMessage,
+      onAsk,
+      availableArticleCount,
+    }),
   });
 }

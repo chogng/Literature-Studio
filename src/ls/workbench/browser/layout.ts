@@ -1,8 +1,12 @@
-import { useCallback, type RefCallback } from 'react';
+import { useCallback, type CSSProperties, type RefCallback } from 'react';
 import type { WorkbenchPage } from './workbench';
+
+export type WorkbenchSidebarKind = 'secondary' | 'primary';
 
 export type WorkbenchLayoutStateSnapshot = {
   isSidebarVisible: boolean;
+  activeSidebarKind: WorkbenchSidebarKind;
+  isAuxiliarySidebarVisible: boolean;
 };
 
 type WorkbenchLayoutEvent =
@@ -12,6 +16,17 @@ type WorkbenchLayoutEvent =
     }
   | {
       type: 'TOGGLE_SIDEBAR_VISIBILITY';
+    }
+  | {
+      type: 'SET_ACTIVE_SIDEBAR_KIND';
+      kind: WorkbenchSidebarKind;
+    }
+  | {
+      type: 'SET_AUXILIARY_SIDEBAR_VISIBLE';
+      visible: boolean;
+    }
+  | {
+      type: 'TOGGLE_AUXILIARY_SIDEBAR_VISIBILITY';
     };
 
 type WorkbenchShellLayoutParams = {
@@ -20,12 +35,17 @@ type WorkbenchShellLayoutParams = {
 
 type WorkbenchContentLayoutParams = {
   isSidebarVisible: boolean;
+  isAuxiliarySidebarVisible: boolean;
+  activeSidebarKind: WorkbenchSidebarKind;
 };
 
 export const WORKBENCH_PART_IDS = {
   container: 'workbench.container',
   titlebar: 'workbench.titlebar',
-  sidebar: 'workbench.sidebar',
+  sidebar: 'workbench.secondarySidebar',
+  secondarySidebar: 'workbench.secondarySidebar',
+  primarySidebar: 'workbench.primarySidebar',
+  auxiliarySidebar: 'workbench.auxiliarySidebar',
   settings: 'workbench.settings',
   editor: 'workbench.editor',
   view: 'workbench.view',
@@ -37,12 +57,16 @@ export type WorkbenchPartId =
 
 const DEFAULT_WORKBENCH_LAYOUT_STATE: WorkbenchLayoutStateSnapshot = {
   isSidebarVisible: true,
+  activeSidebarKind: 'secondary',
+  isAuxiliarySidebarVisible: false,
 };
 
 const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement | null> = {
   [WORKBENCH_PART_IDS.container]: null,
   [WORKBENCH_PART_IDS.titlebar]: null,
   [WORKBENCH_PART_IDS.sidebar]: null,
+  [WORKBENCH_PART_IDS.primarySidebar]: null,
+  [WORKBENCH_PART_IDS.auxiliarySidebar]: null,
   [WORKBENCH_PART_IDS.settings]: null,
   [WORKBENCH_PART_IDS.editor]: null,
   [WORKBENCH_PART_IDS.view]: null,
@@ -78,6 +102,27 @@ function reduceWorkbenchLayoutState(
       return {
         ...state,
         isSidebarVisible: !state.isSidebarVisible,
+      };
+    case 'SET_ACTIVE_SIDEBAR_KIND':
+      if (state.activeSidebarKind === event.kind) {
+        return state;
+      }
+      return {
+        ...state,
+        activeSidebarKind: event.kind,
+      };
+    case 'SET_AUXILIARY_SIDEBAR_VISIBLE':
+      if (state.isAuxiliarySidebarVisible === event.visible) {
+        return state;
+      }
+      return {
+        ...state,
+        isAuxiliarySidebarVisible: event.visible,
+      };
+    case 'TOGGLE_AUXILIARY_SIDEBAR_VISIBILITY':
+      return {
+        ...state,
+        isAuxiliarySidebarVisible: !state.isAuxiliarySidebarVisible,
       };
     default:
       return state;
@@ -129,6 +174,26 @@ export function toggleSidebarVisibility() {
   });
 }
 
+export function setWorkbenchSidebarKind(kind: WorkbenchSidebarKind) {
+  dispatchWorkbenchLayoutEvent({
+    type: 'SET_ACTIVE_SIDEBAR_KIND',
+    kind,
+  });
+}
+
+export function setAuxiliarySidebarVisible(visible: boolean) {
+  dispatchWorkbenchLayoutEvent({
+    type: 'SET_AUXILIARY_SIDEBAR_VISIBLE',
+    visible,
+  });
+}
+
+export function toggleAuxiliarySidebarVisibility() {
+  dispatchWorkbenchLayoutEvent({
+    type: 'TOGGLE_AUXILIARY_SIDEBAR_VISIBILITY',
+  });
+}
+
 export function getWorkbenchPartDomNode(partId: WorkbenchPartId) {
   return workbenchPartDomSnapshot[partId];
 }
@@ -162,6 +227,43 @@ export function getWorkbenchShellClassName({
 
 export function getWorkbenchContentClassName({
   isSidebarVisible,
+  isAuxiliarySidebarVisible,
+  activeSidebarKind,
 }: WorkbenchContentLayoutParams) {
-  return `content-grid ${isSidebarVisible ? '' : 'is-sidebar-collapsed'}`.trim();
+  return [
+    'content-grid',
+    isSidebarVisible ? '' : 'is-sidebar-collapsed',
+    isAuxiliarySidebarVisible ? 'is-auxiliary-sidebar-visible' : '',
+    `is-active-sidebar-${activeSidebarKind}`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+export function getWorkbenchContentStyle({
+  isSidebarVisible,
+  isAuxiliarySidebarVisible,
+}: WorkbenchContentLayoutParams): CSSProperties {
+  const desktopColumns =
+    isSidebarVisible && isAuxiliarySidebarVisible
+      ? 'minmax(288px, 332px) minmax(0, 1fr) minmax(332px, 380px)'
+      : isSidebarVisible
+        ? 'minmax(288px, 332px) minmax(0, 1fr)'
+        : isAuxiliarySidebarVisible
+          ? 'minmax(0, 1fr) minmax(332px, 380px)'
+          : 'minmax(0, 1fr)';
+
+  const mobileRows =
+    isSidebarVisible && isAuxiliarySidebarVisible
+      ? 'minmax(208px, 28%) minmax(0, 1fr) minmax(208px, 30%)'
+      : isSidebarVisible
+        ? 'minmax(220px, 36%) minmax(0, 1fr)'
+        : isAuxiliarySidebarVisible
+          ? 'minmax(0, 1fr) minmax(220px, 30%)'
+          : 'minmax(0, 1fr)';
+
+  return {
+    ['--workbench-content-columns' as string]: desktopColumns,
+    ['--workbench-content-mobile-rows' as string]: mobileRows,
+  };
 }

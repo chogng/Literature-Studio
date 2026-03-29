@@ -6,14 +6,20 @@ import type {
   AppCommandResultMap,
   FetchArticlePayload,
   FetchLatestArticlesPayload,
+  IndexDownloadedPdfPayload,
+  LibraryDocumentStatusPayload,
+  ListLibraryDocumentsPayload,
   OpenArticleDetailsModalPayload,
   OpenPathPayload,
   PreviewDownloadPdfPayload,
   PreviewBounds,
   NativeModalState,
   PreviewState,
+  ReindexLibraryDocumentPayload,
+  RagAnswerArticlesPayload,
   SaveSettingsPayload,
   TestLlmConnectionPayload,
+  TestRagConnectionPayload,
   TestTranslationConnectionPayload,
   WindowControlAction,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
@@ -57,6 +63,7 @@ import { previewDownloadPdf } from './pdf/pdf.js';
 import { appError, serializeAppError } from '../../base/common/errors.js';
 import { pickDirectoryDialog } from '../../platform/dialogs/electron-main/dialogMainService.js';
 import { testLlmConnection } from './llm/llm.js';
+import { answerQuestionFromArticles, testRagConnection } from './rag/rag.js';
 import { testTranslationConnection } from './translation/translation.js';
 import {
   applyMainWindowBackgroundMaterial,
@@ -147,6 +154,10 @@ async function invokeCommand<TCommand extends AppCommand>(
       return testTranslationConnection(
         payload as TestTranslationConnectionPayload,
       ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'test_rag_connection':
+      return testRagConnection(
+        payload as TestRagConnectionPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
     case 'pick_download_directory':
       return pickDirectoryDialog(getMainWindow()) as Promise<AppCommandResultMap[TCommand]>;
     case 'open_path': {
@@ -160,12 +171,57 @@ async function invokeCommand<TCommand extends AppCommand>(
     }
     case 'preview_download_pdf': {
       const previewHtml = await resolvePreviewSnapshotHtml(payload as PreviewDownloadPdfPayload);
-      return previewDownloadPdf(
+      const downloadResult = await previewDownloadPdf(
         payload as PreviewDownloadPdfPayload,
         app.getPath('downloads'),
         previewHtml,
-      ) as Promise<AppCommandResultMap[TCommand]>;
+      );
+
+      try {
+        const settings = await storage.loadSettings();
+        const knowledgeBaseModeEnabled =
+          settings.rag.knowledgeBaseModeEnabled ?? settings.rag.enabled;
+        if (knowledgeBaseModeEnabled && settings.rag.autoIndexDownloadedPdf) {
+          const registration = await storage.registerLibraryDocument({
+            ...(payload as PreviewDownloadPdfPayload),
+            filePath: downloadResult.filePath,
+            sourceUrl: downloadResult.sourceUrl,
+          });
+          return {
+            ...downloadResult,
+            libraryRegistration: registration,
+          } as AppCommandResultMap[TCommand];
+        }
+      } catch (registrationError) {
+        console.error('Failed to auto-register downloaded PDF in the library.', registrationError);
+      }
+
+      return {
+        ...downloadResult,
+        libraryRegistration: null,
+      } as AppCommandResultMap[TCommand];
     }
+    case 'index_downloaded_pdf':
+      return storage.registerLibraryDocument(
+        payload as IndexDownloadedPdfPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'get_library_document_status':
+      return storage.getLibraryDocumentStatus(
+        payload as LibraryDocumentStatusPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'list_library_documents':
+      return storage.listLibraryDocuments(
+        payload as ListLibraryDocumentsPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'reindex_library_document':
+      return storage.reindexLibraryDocument(
+        payload as ReindexLibraryDocumentPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'rag_answer_articles':
+      return answerQuestionFromArticles(
+        payload as RagAnswerArticlesPayload,
+        await storage.loadSettings(),
+      ) as Promise<AppCommandResultMap[TCommand]>;
     case 'export_articles_docx':
       {
         const mainWindow = getMainWindow();

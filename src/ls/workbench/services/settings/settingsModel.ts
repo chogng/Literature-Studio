@@ -6,8 +6,11 @@ import {
   defaultSameDomainOnly,
 } from '../config/configSchema';
 import {
+  type LibraryStorageMode,
   type LlmProviderId,
   type LlmProviderSettings,
+  type RagProviderId,
+  type RagProviderSettings,
   type TranslationProviderId,
   type TranslationProviderSettings,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
@@ -27,6 +30,8 @@ import {
 } from './settingsEditing';
 import { cloneLlmSettings, createDefaultLlmSettings } from '../llm/config.js';
 import { resolveLlmRoute } from '../llm/routing.js';
+import { cloneRagSettings, createDefaultRagSettings } from '../rag/config.js';
+import { resolveRagRoute } from '../rag/routing.js';
 import { cloneTranslationSettings, createDefaultTranslationSettings } from '../translation/config.js';
 
 export type SettingsModelSnapshot = {
@@ -36,6 +41,16 @@ export type SettingsModelSnapshot = {
   batchLimit: number;
   sameDomainOnly: boolean;
   useMica: boolean;
+  ragEnabled: boolean;
+  knowledgeBaseModeEnabled: boolean;
+  autoIndexDownloadedPdf: boolean;
+  libraryStorageMode: LibraryStorageMode;
+  libraryDirectory: string;
+  maxConcurrentIndexJobs: number;
+  activeRagProvider: RagProviderId;
+  ragProviders: Record<RagProviderId, RagProviderSettings>;
+  retrievalCandidateCount: number;
+  retrievalTopK: number;
   activeLlmProvider: LlmProviderId;
   llmProviders: Record<LlmProviderId, LlmProviderSettings>;
   activeTranslationProvider: TranslationProviderId;
@@ -43,6 +58,7 @@ export type SettingsModelSnapshot = {
   configPath: string;
   isSettingsLoading: boolean;
   isSettingsSaving: boolean;
+  isTestingRagConnection: boolean;
   isTestingLlmConnection: boolean;
   isTestingTranslationConnection: boolean;
 };
@@ -80,6 +96,7 @@ export type SaveSettingsResult = {
 function createInitialSettingsModelSnapshot(
   initialBatchSources: BatchSource[],
 ): SettingsModelSnapshot {
+  const defaultRagSettings = createDefaultRagSettings();
   const defaultLlmSettings = createDefaultLlmSettings();
   const defaultTranslationSettings = createDefaultTranslationSettings();
 
@@ -90,6 +107,16 @@ function createInitialSettingsModelSnapshot(
     batchLimit: defaultBatchLimit,
     sameDomainOnly: defaultSameDomainOnly,
     useMica: true,
+    ragEnabled: true,
+    knowledgeBaseModeEnabled: true,
+    autoIndexDownloadedPdf: true,
+    libraryStorageMode: 'linked-original',
+    libraryDirectory: '',
+    maxConcurrentIndexJobs: 1,
+    activeRagProvider: defaultRagSettings.activeProvider,
+    ragProviders: cloneRagSettings(defaultRagSettings).providers,
+    retrievalCandidateCount: defaultRagSettings.retrievalCandidateCount,
+    retrievalTopK: defaultRagSettings.retrievalTopK,
     activeLlmProvider: defaultLlmSettings.activeProvider,
     llmProviders: defaultLlmSettings.providers,
     activeTranslationProvider: defaultTranslationSettings.activeProvider,
@@ -97,6 +124,7 @@ function createInitialSettingsModelSnapshot(
     configPath: '',
     isSettingsLoading: false,
     isSettingsSaving: false,
+    isTestingRagConnection: false,
     isTestingLlmConnection: false,
     isTestingTranslationConnection: false,
   };
@@ -170,6 +198,189 @@ export class SettingsModel {
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       useMica,
+    }));
+  };
+
+  readonly setRagEnabled = (ragEnabled: boolean) => {
+    if (this.snapshot.ragEnabled === ragEnabled && this.snapshot.knowledgeBaseModeEnabled === ragEnabled) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      ragEnabled,
+      knowledgeBaseModeEnabled: ragEnabled,
+    }));
+  };
+
+  readonly setKnowledgeBaseModeEnabled = (knowledgeBaseModeEnabled: boolean) => {
+    if (
+      this.snapshot.ragEnabled === knowledgeBaseModeEnabled &&
+      this.snapshot.knowledgeBaseModeEnabled === knowledgeBaseModeEnabled
+    ) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      ragEnabled: knowledgeBaseModeEnabled,
+      knowledgeBaseModeEnabled,
+    }));
+  };
+
+  readonly setAutoIndexDownloadedPdf = (autoIndexDownloadedPdf: boolean) => {
+    if (this.snapshot.autoIndexDownloadedPdf === autoIndexDownloadedPdf) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      autoIndexDownloadedPdf,
+    }));
+  };
+
+  readonly setLibraryStorageMode = (libraryStorageMode: LibraryStorageMode) => {
+    if (this.snapshot.libraryStorageMode === libraryStorageMode) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      libraryStorageMode,
+    }));
+  };
+
+  readonly setLibraryDirectory = (libraryDirectory: string) => {
+    if (this.snapshot.libraryDirectory === libraryDirectory) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      libraryDirectory,
+    }));
+  };
+
+  readonly setMaxConcurrentIndexJobs = (maxConcurrentIndexJobs: number) => {
+    if (this.snapshot.maxConcurrentIndexJobs === maxConcurrentIndexJobs) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      maxConcurrentIndexJobs,
+    }));
+  };
+
+  readonly setActiveRagProvider = (activeRagProvider: RagProviderId) => {
+    if (this.snapshot.activeRagProvider === activeRagProvider) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      activeRagProvider,
+    }));
+  };
+
+  readonly setRagProviderApiKey = (provider: RagProviderId, apiKey: string) => {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      ragProviders: {
+        ...snapshot.ragProviders,
+        [provider]: {
+          ...snapshot.ragProviders[provider],
+          apiKey,
+        },
+      },
+    }));
+  };
+
+  readonly setRagProviderBaseUrl = (provider: RagProviderId, baseUrl: string) => {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      ragProviders: {
+        ...snapshot.ragProviders,
+        [provider]: {
+          ...snapshot.ragProviders[provider],
+          baseUrl,
+        },
+      },
+    }));
+  };
+
+  readonly setRagProviderEmbeddingModel = (provider: RagProviderId, embeddingModel: string) => {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      ragProviders: {
+        ...snapshot.ragProviders,
+        [provider]: {
+          ...snapshot.ragProviders[provider],
+          embeddingModel,
+        },
+      },
+    }));
+  };
+
+  readonly setRagProviderRerankerModel = (provider: RagProviderId, rerankerModel: string) => {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      ragProviders: {
+        ...snapshot.ragProviders,
+        [provider]: {
+          ...snapshot.ragProviders[provider],
+          rerankerModel,
+        },
+      },
+    }));
+  };
+
+  readonly setRagProviderEmbeddingPath = (provider: RagProviderId, embeddingPath: string) => {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      ragProviders: {
+        ...snapshot.ragProviders,
+        [provider]: {
+          ...snapshot.ragProviders[provider],
+          embeddingPath,
+        },
+      },
+    }));
+  };
+
+  readonly setRagProviderRerankPath = (provider: RagProviderId, rerankPath: string) => {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      ragProviders: {
+        ...snapshot.ragProviders,
+        [provider]: {
+          ...snapshot.ragProviders[provider],
+          rerankPath,
+        },
+      },
+    }));
+  };
+
+  readonly setRetrievalCandidateCount = (retrievalCandidateCount: number) => {
+    if (this.snapshot.retrievalCandidateCount === retrievalCandidateCount) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      retrievalCandidateCount,
+      retrievalTopK: Math.min(retrievalCandidateCount, snapshot.retrievalTopK),
+    }));
+  };
+
+  readonly setRetrievalTopK = (retrievalTopK: number) => {
+    if (this.snapshot.retrievalTopK === retrievalTopK) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      retrievalTopK: Math.min(snapshot.retrievalCandidateCount, retrievalTopK),
     }));
   };
 
@@ -323,6 +534,16 @@ export class SettingsModel {
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
         useMica: resolved.useMica,
+        ragEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
+        knowledgeBaseModeEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
+        autoIndexDownloadedPdf: resolved.rag.autoIndexDownloadedPdf,
+        libraryStorageMode: resolved.rag.libraryStorageMode,
+        libraryDirectory: resolved.rag.libraryDirectory ?? '',
+        maxConcurrentIndexJobs: resolved.rag.maxConcurrentIndexJobs,
+        activeRagProvider: resolved.rag.activeProvider,
+        ragProviders: cloneRagSettings(resolved.rag).providers,
+        retrievalCandidateCount: resolved.rag.retrievalCandidateCount,
+        retrievalTopK: resolved.rag.retrievalTopK,
         activeLlmProvider: resolved.llm.activeProvider,
         llmProviders: cloneLlmSettings(resolved.llm).providers,
         activeTranslationProvider: resolved.translation.activeProvider,
@@ -365,6 +586,30 @@ export class SettingsModel {
     };
   }
 
+  async chooseLibraryDirectory({
+    desktopRuntime,
+    invokeDesktop,
+  }: SettingsModelContext): Promise<ChoosePdfDownloadDirResult> {
+    if (!desktopRuntime) {
+      return {
+        kind: 'desktop-only',
+      };
+    }
+
+    const selected = await invokeDesktop<string | null>('pick_download_directory');
+    if (!selected) {
+      return {
+        kind: 'not-selected',
+      };
+    }
+
+    this.setLibraryDirectory(selected);
+    return {
+      kind: 'selected',
+      dir: selected,
+    };
+  }
+
   async saveLocale(
     { desktopRuntime, invokeDesktop }: SettingsModelContext,
     locale: Locale,
@@ -386,6 +631,16 @@ export class SettingsModel {
       batchLimit,
       sameDomainOnly,
       useMica,
+      ragEnabled,
+      knowledgeBaseModeEnabled,
+      autoIndexDownloadedPdf,
+      libraryStorageMode,
+      libraryDirectory,
+      maxConcurrentIndexJobs,
+      activeRagProvider,
+      ragProviders,
+      retrievalCandidateCount,
+      retrievalTopK,
       activeLlmProvider,
       llmProviders,
       activeTranslationProvider,
@@ -401,6 +656,29 @@ export class SettingsModel {
       sameDomainOnly,
       useMica,
       locale,
+      rag: {
+        enabled: knowledgeBaseModeEnabled ?? ragEnabled,
+        knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
+        autoIndexDownloadedPdf,
+        libraryStorageMode,
+        libraryDirectory: libraryDirectory.trim() || null,
+        maxConcurrentIndexJobs,
+        activeProvider: activeRagProvider,
+        providers: cloneRagSettings({
+          enabled: knowledgeBaseModeEnabled ?? ragEnabled,
+          knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
+          autoIndexDownloadedPdf,
+          libraryStorageMode,
+          libraryDirectory: libraryDirectory.trim() || null,
+          maxConcurrentIndexJobs,
+          activeProvider: activeRagProvider,
+          providers: ragProviders,
+          retrievalCandidateCount,
+          retrievalTopK,
+        }).providers,
+        retrievalCandidateCount,
+        retrievalTopK,
+      },
       llm: {
         activeProvider: activeLlmProvider,
         providers: cloneLlmSettings({
@@ -429,6 +707,16 @@ export class SettingsModel {
       batchLimit: resolved.batchLimit,
       sameDomainOnly: resolved.sameDomainOnly,
       useMica: resolved.useMica,
+      ragEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
+      knowledgeBaseModeEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
+      autoIndexDownloadedPdf: resolved.rag.autoIndexDownloadedPdf,
+      libraryStorageMode: resolved.rag.libraryStorageMode,
+      libraryDirectory: resolved.rag.libraryDirectory ?? '',
+      maxConcurrentIndexJobs: resolved.rag.maxConcurrentIndexJobs,
+      activeRagProvider: resolved.rag.activeProvider,
+      ragProviders: cloneRagSettings(resolved.rag).providers,
+      retrievalCandidateCount: resolved.rag.retrievalCandidateCount,
+      retrievalTopK: resolved.rag.retrievalTopK,
       activeLlmProvider: resolved.llm.activeProvider,
       llmProviders: cloneLlmSettings(resolved.llm).providers,
       activeTranslationProvider: resolved.translation.activeProvider,
@@ -454,6 +742,16 @@ export class SettingsModel {
       batchLimit,
       sameDomainOnly,
       useMica,
+      ragEnabled,
+      knowledgeBaseModeEnabled,
+      autoIndexDownloadedPdf,
+      libraryStorageMode,
+      libraryDirectory,
+      maxConcurrentIndexJobs,
+      activeRagProvider,
+      ragProviders,
+      retrievalCandidateCount,
+      retrievalTopK,
       activeLlmProvider,
       llmProviders,
       activeTranslationProvider,
@@ -469,6 +767,29 @@ export class SettingsModel {
       sameDomainOnly,
       useMica,
       locale,
+      rag: {
+        enabled: knowledgeBaseModeEnabled ?? ragEnabled,
+        knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
+        autoIndexDownloadedPdf,
+        libraryStorageMode,
+        libraryDirectory: libraryDirectory.trim() || null,
+        maxConcurrentIndexJobs,
+        activeProvider: activeRagProvider,
+        providers: cloneRagSettings({
+          enabled: knowledgeBaseModeEnabled ?? ragEnabled,
+          knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
+          autoIndexDownloadedPdf,
+          libraryStorageMode,
+          libraryDirectory: libraryDirectory.trim() || null,
+          maxConcurrentIndexJobs,
+          activeProvider: activeRagProvider,
+          providers: ragProviders,
+          retrievalCandidateCount,
+          retrievalTopK,
+        }).providers,
+        retrievalCandidateCount,
+        retrievalTopK,
+      },
       llm: {
         activeProvider: activeLlmProvider,
         providers: cloneLlmSettings({
@@ -499,6 +820,16 @@ export class SettingsModel {
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
         useMica: resolved.useMica,
+        ragEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
+        knowledgeBaseModeEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
+        autoIndexDownloadedPdf: resolved.rag.autoIndexDownloadedPdf,
+        libraryStorageMode: resolved.rag.libraryStorageMode,
+        libraryDirectory: resolved.rag.libraryDirectory ?? '',
+        maxConcurrentIndexJobs: resolved.rag.maxConcurrentIndexJobs,
+        activeRagProvider: resolved.rag.activeProvider,
+        ragProviders: cloneRagSettings(resolved.rag).providers,
+        retrievalCandidateCount: resolved.rag.retrievalCandidateCount,
+        retrievalTopK: resolved.rag.retrievalTopK,
         activeLlmProvider: resolved.llm.activeProvider,
         llmProviders: cloneLlmSettings(resolved.llm).providers,
         activeTranslationProvider: resolved.translation.activeProvider,
@@ -546,6 +877,57 @@ export class SettingsModel {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         isTestingLlmConnection: false,
+      }));
+    }
+  }
+
+  async testRagConnection({
+    invokeDesktop,
+  }: SettingsModelContext) {
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      isTestingRagConnection: true,
+    }));
+
+    try {
+      const {
+        activeRagProvider,
+        ragProviders,
+        retrievalCandidateCount,
+        retrievalTopK,
+        ragEnabled,
+        knowledgeBaseModeEnabled,
+        autoIndexDownloadedPdf,
+        libraryStorageMode,
+        libraryDirectory,
+        maxConcurrentIndexJobs,
+      } = this.snapshot;
+      const route = resolveRagRoute({
+        enabled: knowledgeBaseModeEnabled ?? ragEnabled,
+        knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
+        autoIndexDownloadedPdf,
+        libraryStorageMode,
+        libraryDirectory: libraryDirectory.trim() || null,
+        maxConcurrentIndexJobs,
+        activeProvider: activeRagProvider,
+        providers: ragProviders,
+        retrievalCandidateCount,
+        retrievalTopK,
+      });
+
+      return await invokeDesktop('test_rag_connection', {
+        provider: route.provider,
+        apiKey: route.apiKey,
+        baseUrl: route.baseUrl,
+        embeddingModel: route.embeddingModel,
+        rerankerModel: route.rerankerModel,
+        embeddingPath: route.embeddingPath,
+        rerankPath: route.rerankPath,
+      });
+    } finally {
+      this.updateSnapshot((snapshot) => ({
+        ...snapshot,
+        isTestingRagConnection: false,
       }));
     }
   }

@@ -281,6 +281,11 @@
   margin-right: 4px;
 }
 
+.titlebar-btn-auxiliary.btn-base {
+  -webkit-app-region: no-drag;
+  margin-right: 4px;
+}
+
 .titlebar-btn-nav.btn-base:disabled {
   opacity: 0.38;
 }
