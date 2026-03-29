@@ -24,20 +24,6 @@
   backdrop-filter: blur(12px);
 }
 
-.editor-toolbar-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.editor-toolbar-title h2 {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.2;
-  color: #203040;
-}
-
 .editor-workspace-action-btn.btn-base {
   border-radius: 999px;
 }
@@ -127,7 +113,7 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-.editor-content.is-mode-web {
+.editor-content.is-mode-preview {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -175,11 +161,15 @@
 }
 
 .editor-source-body {
+  display: flex;
   min-height: 0;
   overflow: hidden;
 }
 
 .editor-source-body > .web-frame-container {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   border-radius: 0;
 }
 
@@ -278,11 +268,6 @@
   .editor-draft-pane {
     padding-left: 10px;
     padding-right: 10px;
-  }
-
-  .editor-toolbar-head {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .editor-tab {

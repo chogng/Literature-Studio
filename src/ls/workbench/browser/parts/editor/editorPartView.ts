@@ -1,5 +1,5 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import { Suspense, lazy, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import { type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { FilePenLine, FileText, Globe, Plus, X } from 'lucide-react';
 import { Button } from '../../../../base/browser/ui/button/button';
 import type {
@@ -9,14 +9,11 @@ import type {
 } from '../../writingEditorModel';
 import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../layout';
 import type { WritingEditorSurfaceLabels } from './prosemirror/prosemirrorEditor';
-import ViewPartView from '../views/viewPartView';
 import type { ViewPartProps } from '../views/viewPartView';
+import { resolveEditorPane } from './panes/editorPaneRegistry';
 import './media/editor.css';
 
-const ProseMirrorEditor = lazy(() => import('./prosemirror/prosemirrorEditor'));
-
 export type EditorPartLabels = {
-  title: string;
   draftMode: string;
   sourceMode: string;
   pdfMode: string;
@@ -88,94 +85,6 @@ function getTabDisplayLabel(
   }
 
   return tab.title.trim() || labels.sourceMode;
-}
-
-function DraftPane({
-  labels,
-  draftTab,
-  onDraftDocumentChange,
-}: Pick<
-  EditorPartProps,
-  | 'labels'
-  | 'onDraftDocumentChange'
-> & {
-  draftTab: WritingWorkspaceDraftTab;
-}) {
-  return jsxs('div', {
-    className: 'editor-draft-pane',
-    children: [
-      jsx(Suspense, {
-        fallback: jsx('div', {
-          className: 'editor-loading-shell',
-          children: jsx('div', {
-            className: 'editor-loading-card',
-            children: labels.draftBodyPlaceholder,
-          }),
-        }),
-        children: jsx(ProseMirrorEditor, {
-          document: draftTab.document,
-          placeholder: labels.draftBodyPlaceholder,
-          labels: {
-            paragraph: labels.paragraph,
-            heading1: labels.heading1,
-            heading2: labels.heading2,
-            heading3: labels.heading3,
-            bold: labels.bold,
-            italic: labels.italic,
-            bulletList: labels.bulletList,
-            orderedList: labels.orderedList,
-            blockquote: labels.blockquote,
-            undo: labels.undo,
-            redo: labels.redo,
-            insertCitation: labels.insertCitation,
-            insertFigure: labels.insertFigure,
-            insertFigureRef: labels.insertFigureRef,
-            citationPrompt: labels.citationPrompt,
-            figureUrlPrompt: labels.figureUrlPrompt,
-            figureCaptionPrompt: labels.figureCaptionPrompt,
-            figureRefPrompt: labels.figureRefPrompt,
-          },
-          onDocumentChange: onDraftDocumentChange,
-        }),
-      }),
-    ],
-  });
-}
-
-function SourcePane({
-  viewPartProps,
-  heading,
-  subheading,
-}: Pick<EditorPartProps, 'viewPartProps'> & {
-  heading: string;
-  subheading?: string;
-}) {
-  return jsxs('div', {
-    className: 'editor-source-pane',
-    children: [
-      jsxs('div', {
-        className: 'editor-source-header',
-        children: [
-          jsxs('div', {
-            className: 'editor-source-heading',
-            children: [
-              jsx('strong', { children: heading }),
-              subheading
-                ? jsx('span', {
-                    className: 'editor-source-subheading',
-                    children: subheading,
-                  })
-                : null,
-            ],
-          }),
-        ],
-      }),
-      jsx('div', {
-        className: 'editor-source-body',
-        children: jsx(ViewPartView, { ...viewPartProps }),
-      }),
-    ],
-  });
 }
 
 function renderEditorContent(props: EditorPartProps) {
@@ -266,43 +175,24 @@ function renderEditorContent(props: EditorPartProps) {
     });
   }
 
-  const contentView =
-    activeTab.kind === 'draft'
-      ? jsx(DraftPane, {
-          ...props,
-          draftTab: activeTab,
-        })
-      : jsx(SourcePane, {
-          viewPartProps: props.viewPartProps,
-          heading:
-            activeTab.kind === 'pdf'
-              ? activeTab.title.trim() || labels.pdfTitle
-              : activeTab.title.trim() || labels.sourceMode,
-          subheading: activeTab.url,
-        });
+  const resolvedPane = resolveEditorPane(activeTab, {
+    labels: props.labels,
+    viewPartProps: props.viewPartProps,
+    onDraftDocumentChange: props.onDraftDocumentChange,
+  });
+  const editorContentClassName = ['editor-content', ...resolvedPane.contentClassNames].join(' ');
 
   return jsxs('div', {
     className: 'editor-shell',
     children: [
       jsxs('div', {
         className: 'editor-toolbar',
-        children: [
-          jsxs('div', {
-            className: 'editor-toolbar-head',
-            children: jsxs('div', {
-              className: 'editor-toolbar-title',
-              children: [jsx('h2', { children: labels.title })],
-            }),
-          }),
-          tabStripView,
-        ],
+        children: [tabStripView],
       }),
       jsx('div', {
-        className: [
-          'editor-content',
-          activeTab.kind === 'draft' ? 'is-mode-draft' : 'is-mode-web',
-        ].join(' '),
-        children: contentView,
+        className: editorContentClassName,
+        'data-editor-pane': resolvedPane.paneId,
+        children: resolvedPane.view,
       }),
     ],
   });

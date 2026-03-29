@@ -86,6 +86,8 @@ export type SidebarLabels = {
   assistantReady: string;
   assistantPlaceholderEnabled: string;
   assistantPlaceholderDisabled: string;
+  assistantVoice: string;
+  assistantImage: string;
   assistantSend: string;
   assistantSendBusy: string;
   assistantQuestion: string;
@@ -213,6 +215,8 @@ export function createSidebarPartLabels({
     assistantReady: ui.assistantSidebarReady,
     assistantPlaceholderEnabled: ui.assistantSidebarPlaceholderEnabled,
     assistantPlaceholderDisabled: ui.assistantSidebarPlaceholderDisabled,
+    assistantVoice: ui.assistantSidebarVoice,
+    assistantImage: ui.assistantSidebarImage,
     assistantSend: ui.assistantSidebarSend,
     assistantSendBusy: ui.assistantSidebarSendBusy,
     assistantQuestion: ui.assistantSidebarQuestion,
@@ -562,6 +566,7 @@ export function AuxiliarySidebarPartView({
   onCreateConversation,
   onActivateConversation,
   onCloseConversation,
+  onCloseAuxiliarySidebar,
   onToggleHistory,
   onToggleMoreMenu,
 }: {
@@ -586,6 +591,7 @@ export function AuxiliarySidebarPartView({
   onCreateConversation: () => void;
   onActivateConversation: (conversationId: string) => void;
   onCloseConversation: (conversationId: string) => void;
+  onCloseAuxiliarySidebar: () => void;
   onToggleHistory: () => void;
   onToggleMoreMenu: () => void;
 }) {
@@ -609,6 +615,7 @@ export function AuxiliarySidebarPartView({
       onCreateConversation,
       onActivateConversation,
       onCloseConversation,
+      onCloseAuxiliarySidebar,
       onToggleHistory,
       onToggleMoreMenu,
     }),

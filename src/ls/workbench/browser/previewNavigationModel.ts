@@ -19,7 +19,6 @@ type StringStateSetter = (value: string | ((current: string) => string)) => void
 
 export type PreviewNavigationSnapshot = {
   browserUrl: string;
-  iframeReloadKey: number;
   previewState: PreviewState;
 };
 
@@ -77,7 +76,6 @@ type PreviewNavigationQuickAccessProvider = {
 
 const DEFAULT_PREVIEW_NAVIGATION_SNAPSHOT: PreviewNavigationSnapshot = {
   browserUrl: '',
-  iframeReloadKey: 0,
   previewState: EMPTY_PREVIEW_STATE,
 };
 
@@ -137,13 +135,6 @@ export class PreviewNavigationModel {
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       previewState,
-    }));
-  }
-
-  private increaseIframeReloadKey() {
-    this.updateSnapshot((snapshot) => ({
-      ...snapshot,
-      iframeReloadKey: snapshot.iframeReloadKey + 1,
     }));
   }
 
@@ -241,7 +232,7 @@ export class PreviewNavigationModel {
       return false;
     }
 
-    if (previewNavigation.kind === 'native-preview' && window.electronAPI?.preview) {
+    if (previewNavigation.kind === 'webcontents-preview' && window.electronAPI?.preview) {
       void window.electronAPI.preview.navigate(previewNavigation.normalizedUrl).catch(() => {
         window.electronAPI?.preview?.setVisible(false);
       });
@@ -269,12 +260,9 @@ export class PreviewNavigationModel {
       return;
     }
 
-    if (previewRefreshMode === 'native-preview' && window.electronAPI?.preview) {
+    if (previewRefreshMode === 'webcontents-preview' && window.electronAPI?.preview) {
       window.electronAPI.preview.reload();
-      return;
     }
-
-    this.increaseIframeReloadKey();
   }
 
   handlePreviewBack({ previewRuntime, ui }: PreviewNavigationButtonParams): void {

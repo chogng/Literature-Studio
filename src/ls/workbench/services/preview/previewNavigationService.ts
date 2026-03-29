@@ -12,10 +12,9 @@ export const EMPTY_PREVIEW_STATE: PreviewState = {
 export type PreviewNavigationResult =
   | { kind: 'invalid-url' }
   | { kind: 'preview-runtime-unavailable'; normalizedUrl: string }
-  | { kind: 'native-preview'; normalizedUrl: string }
-  | { kind: 'iframe'; normalizedUrl: string };
+  | { kind: 'webcontents-preview'; normalizedUrl: string };
 
-export type PreviewRefreshMode = 'preview-runtime-unavailable' | 'native-preview' | 'iframe';
+export type PreviewRefreshMode = 'preview-runtime-unavailable' | 'webcontents-preview';
 
 export type PreviewStateUrlUpdate = {
   browserUrl: string;
@@ -33,22 +32,17 @@ export function resolvePreviewNavigation(
     return { kind: 'invalid-url' };
   }
 
-  if (electronRuntime && !previewRuntime) {
+  // This app only supports the native Electron webContents preview surface.
+  // Do not fall back to iframe/webview rendering here.
+  if (!electronRuntime || !previewRuntime) {
     return {
       kind: 'preview-runtime-unavailable',
       normalizedUrl,
     };
   }
 
-  if (previewRuntime) {
-    return {
-      kind: 'native-preview',
-      normalizedUrl,
-    };
-  }
-
   return {
-    kind: 'iframe',
+    kind: 'webcontents-preview',
     normalizedUrl,
   };
 }
@@ -57,11 +51,11 @@ export function resolvePreviewRefreshMode(
   electronRuntime: boolean,
   previewRuntime: boolean,
 ): PreviewRefreshMode {
-  if (electronRuntime && !previewRuntime) {
+  if (!electronRuntime || !previewRuntime) {
     return 'preview-runtime-unavailable';
   }
 
-  return previewRuntime ? 'native-preview' : 'iframe';
+  return 'webcontents-preview';
 }
 
 export function resolvePreviewStateUrlUpdate(

@@ -6,12 +6,10 @@ import './media/view.css';
 export type ViewPartLabels = {
   emptyState: string;
   previewUnavailable: string;
-  webPreviewTitle: string;
 };
 
 export type ViewPartProps = {
   browserUrl: string;
-  iframeReloadKey: number;
   electronRuntime: boolean;
   previewRuntime: boolean;
   labels: ViewPartLabels;
@@ -19,7 +17,6 @@ export type ViewPartProps = {
 
 function renderPreviewContent({
   browserUrl,
-  iframeReloadKey,
   electronRuntime,
   previewRuntime,
   labels,
@@ -31,34 +28,24 @@ function renderPreviewContent({
     return jsx('div', { className: 'web-frame', 'aria-hidden': 'true' });
   }
 
-  if (electronRuntime) {
-    if (previewRuntime) {
-      return jsx('div', {
-        ref: onPreviewHostRef,
-        className: 'web-frame web-frame-placeholder',
-        'aria-hidden': 'true',
-      });
-    }
-
+  if (!electronRuntime || !previewRuntime) {
     return jsx('div', {
       className: 'empty-state preview-runtime-warning',
       children: labels.previewUnavailable,
     });
   }
 
-  return jsx('iframe', {
-    key: `${browserUrl}-${iframeReloadKey}`,
-    className: 'web-frame',
-    src: browserUrl,
-    title: labels.webPreviewTitle,
-    sandbox: 'allow-forms allow-scripts allow-same-origin',
-    scrolling: 'yes',
+  // This view is only a DOM anchor for the shared Electron webContents preview.
+  // Never render iframe/webview here: preview tabs must reuse the existing native surface.
+  return jsx('div', {
+    ref: onPreviewHostRef,
+    className: 'web-frame web-frame-placeholder',
+    'aria-hidden': 'true',
   });
 }
 
 export default function ViewPartView({
   browserUrl,
-  iframeReloadKey,
   electronRuntime,
   previewRuntime,
   labels,
@@ -71,7 +58,6 @@ export default function ViewPartView({
 
   const previewContent = renderPreviewContent({
     browserUrl,
-    iframeReloadKey,
     electronRuntime,
     previewRuntime,
     labels,

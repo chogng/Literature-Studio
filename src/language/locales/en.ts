@@ -119,6 +119,8 @@ const en = {
     'Ask about a topic, then review evidence-backed passages and citations here.',
   assistantSidebarPlaceholderDisabled:
     'Assistant is disabled until knowledge base mode is turned on.',
+  assistantSidebarVoice: 'Voice',
+  assistantSidebarImage: 'Image',
   assistantSidebarSend: 'Send',
   assistantSidebarSendBusy: 'Asking...',
   assistantSidebarQuestion: 'Question',

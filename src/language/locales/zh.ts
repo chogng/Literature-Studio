@@ -119,6 +119,8 @@ const zh = {
     '在这里询问主题，然后查看带出处的证据片段和引用。',
   assistantSidebarPlaceholderDisabled:
     '未开启知识库模式时，助手侧栏会保持禁用。',
+  assistantSidebarVoice: '\u8bed\u97f3',
+  assistantSidebarImage: '\u56fe\u7247',
   assistantSidebarSend: '发送',
   assistantSidebarSendBusy: '检索中...',
   assistantSidebarQuestion: '问题',

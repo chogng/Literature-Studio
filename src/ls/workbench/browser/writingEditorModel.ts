@@ -33,6 +33,8 @@ export type WritingWorkspacePdfTab = {
   url: string;
 };
 
+// Preview tabs only store editor input metadata. The active preview tab temporarily owns one shared
+// preview surface instead of spawning a dedicated browser/view instance per tab.
 export type WritingWorkspacePreviewTab =
   | WritingWorkspaceWebTab
   | WritingWorkspacePdfTab;
@@ -395,6 +397,8 @@ export function useWritingEditorModel() {
     }
 
     updateWorkspaceState((state) => {
+      // Mirror upstream open-editor behavior: the same preview resource re-activates its tab
+      // instead of creating duplicate entries in the strip.
       const existingTab = state.tabs.find(
         (tab) => tab.kind === 'web' && tab.url === normalizedUrl,
       );
@@ -422,6 +426,7 @@ export function useWritingEditorModel() {
     }
 
     updateWorkspaceState((state) => {
+      // Keep PDF tabs aligned with web tabs: one resource maps to one tab/input entry.
       const existingTab = state.tabs.find(
         (tab) => tab.kind === 'pdf' && tab.url === normalizedUrl,
       );
@@ -461,6 +466,8 @@ export function useWritingEditorModel() {
     updateWorkspaceState((state) => ({
       ...state,
       tabs: state.tabs.map((tab) =>
+        // When the shared preview navigates while a preview tab owns it, update that tab's
+        // input so the tab title/url stay consistent with the visible editor content.
         tab.id === state.activeTabId && tab.kind !== 'draft'
           ? {
               ...tab,

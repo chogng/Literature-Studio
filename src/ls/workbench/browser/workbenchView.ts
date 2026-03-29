@@ -60,6 +60,12 @@ import { createTitlebarPartProps } from "./parts/titlebar/titlebarPart";
 import { subscribeTitlebarUiActions } from "./parts/titlebar/titlebarActions";
 import { TitlebarView } from "./parts/titlebar/titlebarView";
 import { PreviewNavigationModel } from "./previewNavigationModel";
+import {
+  createPreviewSurfaceSnapshot,
+  resolvePreviewSourceUrl,
+  shouldNavigateSharedPreviewFromTab,
+  shouldSyncPreviewTabFromSharedPreview,
+} from "./previewSurfaceState";
 import { useReaderState } from "./readerState";
 import ReaderView from "./readerView";
 import { useSettingsModel } from "./parts/settings/settingsModel";
@@ -116,6 +122,7 @@ type ActivePageViewConfig = {
     onCloseConversation: ReturnType<
       typeof useAssistantModel
     >["handleCloseConversation"];
+    onCloseAuxiliarySidebar: () => void;
     onToggleHistory: ReturnType<
       typeof useAssistantModel
     >["handleToggleHistory"];
@@ -538,9 +545,13 @@ function WorkbenchContentView() {
     previewNavigationModel.getSnapshot,
     previewNavigationModel.getSnapshot
   );
-  const { browserUrl, iframeReloadKey, previewState } =
+  const { browserUrl, previewState } =
     previewNavigationSnapshot;
   const browserUrlRef = useRef(browserUrl);
+  const previewSurfaceSnapshot = useMemo(
+    () => createPreviewSurfaceSnapshot(activeEditorTab),
+    [activeEditorTab]
+  );
 
   useEffect(() => {
     browserUrlRef.current = browserUrl;
@@ -580,10 +591,6 @@ function WorkbenchContentView() {
     navigateToAddressBarUrl(webUrl, true);
   }, [navigateToAddressBarUrl, webUrl]);
 
-  const activeEditorPreviewTabUrl =
-    activeEditorTab?.kind === "web" || activeEditorTab?.kind === "pdf"
-      ? activeEditorTab.url
-      : "";
   const {
     canExportDocx,
     handleSharedPdfDownload,
@@ -602,7 +609,11 @@ function WorkbenchContentView() {
     onLibraryUpdated: refreshLibrary,
   });
   const handleSidebarPdfDownload = useCallback(() => {
-    const sourceUrl = activeEditorPreviewTabUrl || browserUrl || webUrl;
+    const sourceUrl = resolvePreviewSourceUrl(
+      previewSurfaceSnapshot,
+      browserUrl,
+      webUrl
+    );
     if (!sourceUrl) {
       return;
     }
@@ -621,9 +632,19 @@ function WorkbenchContentView() {
       publishedAt: matchedArticle?.publishedAt ?? null,
       sourceId: matchedArticle?.sourceId ?? null,
     });
-  }, [activeEditorPreviewTabUrl, browserUrl, filteredArticles, handleSharedPdfDownload, webUrl]);
+  }, [
+    browserUrl,
+    filteredArticles,
+    handleSharedPdfDownload,
+    previewSurfaceSnapshot,
+    webUrl,
+  ]);
   const handleCreatePdfTab = useCallback(() => {
-    const seedUrl = activeEditorPreviewTabUrl || browserUrl || webUrl;
+    const seedUrl = resolvePreviewSourceUrl(
+      previewSurfaceSnapshot,
+      browserUrl,
+      webUrl
+    );
     const preparedPdfDownload = seedUrl ? preparePdfDownload(seedUrl) : null;
     const defaultPdfUrl = preparedPdfDownload?.preferredPdfUrl ?? "";
     const shouldPromptForUrl =
@@ -640,9 +661,9 @@ function WorkbenchContentView() {
 
     createEditorPdfTab(normalizedPdfUrl);
   }, [
-    activeEditorPreviewTabUrl,
     browserUrl,
     createEditorPdfTab,
+    previewSurfaceSnapshot,
     ui.editorPdfUrlPrompt,
     webUrl,
   ]);
@@ -718,7 +739,7 @@ function WorkbenchContentView() {
           {
             addressBarSourceOptions,
             selectedAddressBarSourceId,
-            openQuickSourceInEditorTab: knowledgeBaseModeEnabled,
+            openQuickSourceInEditorTab: true,
           },
           action,
         ),
@@ -727,42 +748,36 @@ function WorkbenchContentView() {
     [
       addressBarSourceOptions,
       executeQuickAccessCommand,
-      knowledgeBaseModeEnabled,
       selectedAddressBarSourceId,
     ]
   );
 
   useEffect(() => {
-    if (activeEditorTab?.kind === "draft" || !activeEditorPreviewTabUrl) {
+    // When a preview tab is active, it temporarily owns the shared preview surface.
+    if (
+      !shouldNavigateSharedPreviewFromTab(
+        previewSurfaceSnapshot,
+        browserUrlRef.current
+      )
+    ) {
       return;
     }
-
-    if (activeEditorPreviewTabUrl === browserUrlRef.current) {
-      return;
-    }
-
-    navigateToAddressBarUrl(activeEditorPreviewTabUrl, false);
+    navigateToAddressBarUrl(previewSurfaceSnapshot.activePreviewTabUrl, false);
   }, [
-    activeEditorTab?.id,
-    activeEditorTab?.kind,
-    activeEditorPreviewTabUrl,
     navigateToAddressBarUrl,
+    previewSurfaceSnapshot,
   ]);
 
   useEffect(() => {
-    if (activeEditorTab?.kind === "draft" || !browserUrl) {
+    if (
+      !shouldSyncPreviewTabFromSharedPreview(previewSurfaceSnapshot, browserUrl)
+    ) {
       return;
     }
-
-    if (activeEditorPreviewTabUrl === browserUrl) {
-      return;
-    }
-
     updateActivePreviewTabUrl(browserUrl);
   }, [
-    activeEditorTab,
-    activeEditorPreviewTabUrl,
     browserUrl,
+    previewSurfaceSnapshot,
     updateActivePreviewTabUrl,
   ]);
 
@@ -837,6 +852,9 @@ function WorkbenchContentView() {
 
   const handleToggleAuxiliarySidebar = useCallback(() => {
     toggleAuxiliarySidebarVisibility();
+  }, []);
+  const handleCloseAuxiliarySidebar = useCallback(() => {
+    setAuxiliarySidebarVisible(false);
   }, []);
 
   useEffect(() => {
@@ -967,6 +985,7 @@ function WorkbenchContentView() {
       onCreateConversation: handleAssistantCreateConversation,
       onActivateConversation: handleAssistantActivateConversation,
       onCloseConversation: handleAssistantCloseConversation,
+      onCloseAuxiliarySidebar: handleCloseAuxiliarySidebar,
       onToggleHistory: handleAssistantToggleHistory,
       onToggleMoreMenu: handleAssistantToggleMoreMenu,
     }),
@@ -987,6 +1006,7 @@ function WorkbenchContentView() {
       isAssistantAsking,
       isAssistantHistoryOpen,
       isAssistantMoreMenuOpen,
+      handleCloseAuxiliarySidebar,
       knowledgeBaseModeEnabled,
       librarySnapshot,
       secondarySidebarProps.labels,
@@ -1044,16 +1064,14 @@ function WorkbenchContentView() {
   const viewPartProps = useMemo(() => {
     return {
       browserUrl,
-      iframeReloadKey,
       electronRuntime,
       previewRuntime,
       labels: {
         emptyState: ui.emptyState,
         previewUnavailable: ui.previewUnavailable,
-        webPreviewTitle: ui.webPreviewTitle,
       },
     };
-  }, [browserUrl, electronRuntime, iframeReloadKey, previewRuntime, ui]);
+  }, [browserUrl, electronRuntime, previewRuntime, ui]);
 
   const editorPartProps = useMemo(
     () =>

@@ -41,11 +41,10 @@ export function createEditorPartProps({
     onCreateDraftTab,
     onCreatePdfTab,
     onDraftDocumentChange,
-  },
+    },
 }: CreateEditorPartPropsParams): EditorPartProps {
   return {
     labels: {
-      title: ui.editorTitle,
       draftMode: ui.editorDraftMode,
       sourceMode: ui.editorSourceMode,
       pdfMode: ui.editorPdfMode,

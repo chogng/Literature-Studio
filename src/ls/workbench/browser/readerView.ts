@@ -45,6 +45,7 @@ type ReaderViewProps = {
     errorMessage: string | null;
     onAsk: () => void;
     availableArticleCount: number;
+    onCloseAuxiliarySidebar: () => void;
   };
   editorPartProps: EditorPartProps;
 };
@@ -69,11 +70,11 @@ function renderSidebarPart({
   }
 
   if (activeSidebarKind === "primary") {
-  return jsx(PrimarySidebarPartView, {
-    partRef: primarySidebarPartRef,
-    ...primarySidebarProps,
-  });
-}
+    return jsx(PrimarySidebarPartView, {
+      partRef: primarySidebarPartRef,
+      ...primarySidebarProps,
+    });
+  }
 
   return jsx(SecondarySidebarPartView, {
     partRef: secondarySidebarPartRef,

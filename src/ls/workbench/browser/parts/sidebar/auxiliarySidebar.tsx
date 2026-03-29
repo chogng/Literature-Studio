@@ -1,6 +1,22 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { ArrowUp, Bot, Ellipsis, History, Plus, UserRound, X } from "lucide-react";
-import type { ChangeEvent, KeyboardEvent, MouseEvent } from "react";
+import {
+  ArrowUp,
+  Bot,
+  Ellipsis,
+  History,
+  Image,
+  Mic,
+  Plus,
+  UserRound,
+  X,
+} from "lucide-react";
+import {
+  useLayoutEffect,
+  useRef,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import { Button } from "../../../../base/browser/ui/button/button";
 import type { AssistantChatMessage } from "../../assistantModel";
 import type { SidebarLabels } from "./secondarySidebarPart";
@@ -27,6 +43,7 @@ type AuxiliarySidebarProps = {
   onCreateConversation: () => void;
   onActivateConversation: (conversationId: string) => void;
   onCloseConversation: (conversationId: string) => void;
+  onCloseAuxiliarySidebar: () => void;
   onToggleHistory: () => void;
   onToggleMoreMenu: () => void;
 };
@@ -48,9 +65,31 @@ export default function AuxiliarySidebar({
   onCreateConversation,
   onActivateConversation,
   onCloseConversation,
+  onCloseAuxiliarySidebar,
   onToggleHistory,
   onToggleMoreMenu,
 }: AuxiliarySidebarProps) {
+  const tabStripRef = useRef<HTMLDivElement | null>(null);
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
+
+  useLayoutEffect(() => {
+    const tabStrip = tabStripRef.current;
+    const activeTab = activeTabRef.current;
+    if (!tabStrip || !activeTab) {
+      return;
+    }
+
+    const activeIndex = conversations.findIndex(
+      (conversation) => conversation.id === activeConversationId
+    );
+    const alignToEnd = activeIndex === conversations.length - 1;
+    activeTab.scrollIntoView({
+      block: "nearest",
+      inline: alignToEnd ? "end" : "nearest",
+      behavior: "auto",
+    });
+  }, [activeConversationId, conversations.length]);
+
   const canSend = !isAsking && question.trim().length > 0;
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
@@ -71,6 +110,7 @@ export default function AuxiliarySidebar({
         children: [
           jsx("div", {
             className: "sidebar-chat-tab-strip",
+            ref: tabStripRef,
             children: conversations.map((conversation) =>
               jsxs(
                 "div",
@@ -85,23 +125,33 @@ export default function AuxiliarySidebar({
                       ]
                         .filter(Boolean)
                         .join(" "),
+                      ref:
+                        conversation.id === activeConversationId
+                          ? activeTabRef
+                          : undefined,
                       onClick: () => onActivateConversation(conversation.id),
                       title: conversation.title,
                       children: conversation.title,
                     }),
-                    conversations.length > 1
-                      ? jsx("button", {
-                          type: "button",
-                          className: "sidebar-chat-tab-close",
-                          title: "关闭对话",
-                          "aria-label": `关闭对话：${conversation.title}`,
-                          onClick: (event: MouseEvent<HTMLButtonElement>) => {
-                            event.stopPropagation();
-                            onCloseConversation(conversation.id);
-                          },
-                          children: jsx(X, { size: 11, strokeWidth: 2.5 }),
-                        })
-                      : null,
+                    jsx("button", {
+                      type: "button",
+                      className: "sidebar-chat-tab-close",
+                      title:
+                        conversations.length === 1 ? "关闭辅助侧栏" : "关闭对话",
+                      "aria-label":
+                        conversations.length === 1
+                          ? "关闭辅助侧栏"
+                          : `关闭对话：${conversation.title}`,
+                      onClick: (event: MouseEvent<HTMLButtonElement>) => {
+                        event.stopPropagation();
+                        if (conversations.length === 1) {
+                          onCloseAuxiliarySidebar();
+                          return;
+                        }
+                        onCloseConversation(conversation.id);
+                      },
+                      children: jsx(X, { size: 11, strokeWidth: 2.5 }),
+                    }),
                   ],
                 },
                 conversation.id
@@ -390,21 +440,51 @@ export default function AuxiliarySidebar({
                 placeholder: labels.assistantQuestionPlaceholder,
                 disabled: isAsking,
               }),
-              jsx(Button, {
-                type: "button",
-                className: "sidebar-chat-send-btn sidebar-chat-send-icon-btn",
-                variant: "primary",
-                size: "md",
-                mode: "icon",
-                leftIcon: jsx(ArrowUp, { size: 16, strokeWidth: 2.2 }),
-                disabled: !canSend,
-                onClick: onAsk,
-                "aria-label": isAsking
-                  ? labels.assistantSendBusy
-                  : labels.assistantSend,
-                title: isAsking
-                  ? labels.assistantSendBusy
-                  : labels.assistantSend,
+              jsxs("div", {
+                className: "sidebar-chat-composer-toolbar",
+                children: [
+                  jsxs("div", {
+                    className: "sidebar-chat-composer-tools",
+                    children: [
+                      jsx(Button, {
+                        type: "button",
+                        className: "sidebar-chat-composer-tool-btn",
+                        variant: "ghost",
+                        size: "sm",
+                        mode: "icon",
+                        leftIcon: jsx(Mic, { size: 16, strokeWidth: 2 }),
+                        "aria-label": labels.assistantVoice,
+                        title: labels.assistantVoice,
+                      }),
+                      jsx(Button, {
+                        type: "button",
+                        className: "sidebar-chat-composer-tool-btn",
+                        variant: "ghost",
+                        size: "sm",
+                        mode: "icon",
+                        leftIcon: jsx(Image, { size: 16, strokeWidth: 2 }),
+                        "aria-label": labels.assistantImage,
+                        title: labels.assistantImage,
+                      }),
+                    ],
+                  }),
+                  jsx(Button, {
+                    type: "button",
+                    className: "sidebar-chat-send-btn sidebar-chat-send-icon-btn",
+                    variant: "primary",
+                    size: "md",
+                    mode: "icon",
+                    leftIcon: jsx(ArrowUp, { size: 16, strokeWidth: 2.2 }),
+                    disabled: !canSend,
+                    onClick: onAsk,
+                    "aria-label": isAsking
+                      ? labels.assistantSendBusy
+                      : labels.assistantSend,
+                    title: isAsking
+                      ? labels.assistantSendBusy
+                      : labels.assistantSend,
+                  }),
+                ],
               }),
             ],
           }),
