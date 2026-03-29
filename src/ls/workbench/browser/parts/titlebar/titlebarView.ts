@@ -137,6 +137,8 @@ const MIN_SOURCE_TRIGGER_WIDTH_PX = 56;
 const MAX_SOURCE_TRIGGER_WIDTH_PX = 520;
 const SOURCE_TRIGGER_HORIZONTAL_PADDING_PX = 22;
 const SOURCE_TRIGGER_FONT = '12px "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
+const IS_MACOS_PLATFORM =
+  typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.platform);
 let sourceTriggerMeasureCanvas: HTMLCanvasElement | null = null;
 
 function measureSourceTriggerWidth(label: string): number {
@@ -207,17 +209,6 @@ function renderIconButton({
     },
     key,
   );
-}
-
-function renderBrand({
-  appName,
-}: {
-  appName: string;
-}) {
-  return jsx('div', {
-    className: 'titlebar-brand',
-    children: jsx('span', { className: 'titlebar-app-name', children: appName }),
-  });
 }
 
 function renderSidebarToggle({
@@ -379,7 +370,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
 
   const {
     partRef,
-    appName = 'Journal Reader',
     labels = DEFAULT_TITLEBAR_LABELS,
     isWindowMaximized = false,
     onWindowControl = FALLBACK_WINDOW_CONTROL,
@@ -475,6 +465,8 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     sidebarToggleLabel,
     isVisible: Boolean(onToggleSidebar),
   });
+  const sidebarToggleInStartView = IS_MACOS_PLATFORM ? null : sidebarToggleView;
+  const sidebarToggleAfterWindowControlsView = IS_MACOS_PLATFORM ? sidebarToggleView : null;
   const auxiliarySidebarToggleView = renderAuxiliarySidebarToggle({
     isAuxiliarySidebarOpen,
     auxiliarySidebarToggleLabel,
@@ -536,9 +528,9 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     ref: partRef,
     className: 'titlebar',
     children: [
-      jsxs('div', {
+      jsx('div', {
         className: 'titlebar-start',
-        children: [renderBrand({ appName }), sidebarToggleView],
+        children: sidebarToggleInStartView,
       }),
       jsxs('div', {
         className: 'titlebar-center',
@@ -554,6 +546,7 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
           exportButtonView,
           settingsButtonView,
           windowControls,
+          sidebarToggleAfterWindowControlsView,
         ],
       }),
     ],

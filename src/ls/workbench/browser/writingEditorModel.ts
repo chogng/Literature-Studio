@@ -216,11 +216,7 @@ function touchMruTab(mruTabIds: ReadonlyArray<string>, tabId: string) {
 function normalizeWorkspaceState(
   state: WritingWorkspaceState,
 ): WritingWorkspaceState {
-  let tabs = state.tabs;
-  if (tabs.length === 0) {
-    tabs = [createDraftTab()];
-  }
-
+  const tabs = state.tabs;
   const tabIdSet = new Set(tabs.map((tab) => tab.id));
   const normalizedMruTabIds = toUniqueIds(
     [...state.mruTabIds, ...tabs.map((tab) => tab.id)].filter((tabId) =>

@@ -32,7 +32,6 @@ import { useLibraryModel } from "./libraryModel";
 import ToastOverlayWindow from "./toastOverlayWindow";
 import { useBatchFetchModel } from "./batchFetchModel";
 import { useDocumentActionsModel } from "./documentActionsModel";
-import { preparePdfDownload } from "../services/document/documentActionService";
 import {
   reduceQuickAccessAction,
   type QuickAccessAction,
@@ -50,7 +49,7 @@ import {
   toggleAuxiliarySidebarVisibility,
   useWorkbenchPartRef,
 } from "./layout";
-import { createEditorPartProps } from "./parts/editor/editorPart";
+import { useEditorPartModel } from "./parts/editor/editorPart";
 import {
   createSettingsPartProps,
   SettingsPartView,
@@ -61,7 +60,6 @@ import { subscribeTitlebarUiActions } from "./parts/titlebar/titlebarActions";
 import { TitlebarView } from "./parts/titlebar/titlebarView";
 import { PreviewNavigationModel } from "./previewNavigationModel";
 import {
-  createPreviewSurfaceSnapshot,
   resolvePreviewSourceUrl,
   shouldNavigateSharedPreviewFromTab,
   shouldSyncPreviewTabFromSharedPreview,
@@ -69,7 +67,6 @@ import {
 import { useReaderState } from "./readerState";
 import ReaderView from "./readerView";
 import { useSettingsModel } from "./parts/settings/settingsModel";
-import { useWritingEditorModel } from "./writingEditorModel";
 import {
   getWorkbenchStateSnapshot,
   subscribeWorkbenchState,
@@ -130,7 +127,7 @@ type ActivePageViewConfig = {
       typeof useAssistantModel
     >["handleToggleMoreMenu"];
   };
-  editorPartProps: ReturnType<typeof createEditorPartProps>;
+  editorPartProps: ReturnType<typeof useEditorPartModel>["editorPartProps"];
   settingsPartRef: ReturnType<typeof useWorkbenchPartRef>;
   settingsPartProps: ReturnType<typeof createSettingsPartProps>;
 };
@@ -148,16 +145,6 @@ type WorkbenchShellConfig = {
 
 const DEFAULT_ARTICLE_URL = "";
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
-
-function looksLikePdfUrl(url: string) {
-  const normalized = url.trim().toLowerCase();
-  return (
-    normalized.includes(".pdf") ||
-    normalized.includes("/pdf") ||
-    normalized.includes("format=pdf") ||
-    normalized.includes("download=pdf")
-  );
-}
 
 function getArticleSelectionKey(
   article: Pick<Article, "sourceUrl" | "fetchedAt">
@@ -407,19 +394,6 @@ function WorkbenchContentView() {
     filteredArticles,
     hasData,
   } = useReaderState({ articles });
-  const {
-    tabs: editorTabs,
-    activeTabId: activeEditorTabId,
-    activeTab: activeEditorTab,
-    setDraftDocument,
-    draftBody,
-    activateTab: handleActivateEditorTab,
-    closeTab: handleCloseEditorTab,
-    createDraftTab: handleCreateDraftTab,
-    createWebTab: handleCreateWebTab,
-    createPdfTab: createEditorPdfTab,
-    updateActivePreviewTabUrl,
-  } = useWritingEditorModel();
   const currentLlmSettings = useMemo(
     () => ({
       activeProvider: activeLlmProvider,
@@ -452,6 +426,42 @@ function WorkbenchContentView() {
       retrievalTopK,
     ]
   );
+  const previewNavigationModel = useMemo(
+    () => new PreviewNavigationModel(),
+    []
+  );
+  const previewNavigationSnapshot = useSyncExternalStore(
+    previewNavigationModel.subscribe,
+    previewNavigationModel.getSnapshot,
+    previewNavigationModel.getSnapshot
+  );
+  const { browserUrl, previewState } =
+    previewNavigationSnapshot;
+  const viewPartProps = useMemo(() => {
+    return {
+      browserUrl,
+      electronRuntime,
+      previewRuntime,
+      labels: {
+        emptyState: ui.emptyState,
+        previewUnavailable: ui.previewUnavailable,
+      },
+    };
+  }, [browserUrl, electronRuntime, previewRuntime, ui]);
+  const browserUrlRef = useRef(browserUrl);
+  const {
+    draftBody,
+    createDraftTab: handleCreateDraftTab,
+    createWebTab: handleCreateWebTab,
+    previewSurfaceSnapshot,
+    updateActivePreviewTabUrl,
+    editorPartProps,
+  } = useEditorPartModel({
+    ui,
+    viewPartProps,
+    browserUrl,
+    webUrl,
+  });
   const {
     question: assistantQuestion,
     setQuestion: setAssistantQuestion,
@@ -535,23 +545,6 @@ function WorkbenchContentView() {
       .map((key) => filteredArticleMap.get(key))
       .filter((article): article is Article => Boolean(article));
   }, [filteredArticles, selectedArticleKeysInOrder]);
-
-  const previewNavigationModel = useMemo(
-    () => new PreviewNavigationModel(),
-    []
-  );
-  const previewNavigationSnapshot = useSyncExternalStore(
-    previewNavigationModel.subscribe,
-    previewNavigationModel.getSnapshot,
-    previewNavigationModel.getSnapshot
-  );
-  const { browserUrl, previewState } =
-    previewNavigationSnapshot;
-  const browserUrlRef = useRef(browserUrl);
-  const previewSurfaceSnapshot = useMemo(
-    () => createPreviewSurfaceSnapshot(activeEditorTab),
-    [activeEditorTab]
-  );
 
   useEffect(() => {
     browserUrlRef.current = browserUrl;
@@ -639,35 +632,6 @@ function WorkbenchContentView() {
     previewSurfaceSnapshot,
     webUrl,
   ]);
-  const handleCreatePdfTab = useCallback(() => {
-    const seedUrl = resolvePreviewSourceUrl(
-      previewSurfaceSnapshot,
-      browserUrl,
-      webUrl
-    );
-    const preparedPdfDownload = seedUrl ? preparePdfDownload(seedUrl) : null;
-    const defaultPdfUrl = preparedPdfDownload?.preferredPdfUrl ?? "";
-    const shouldPromptForUrl =
-      !defaultPdfUrl ||
-      (preparedPdfDownload?.normalizedSourceUrl === defaultPdfUrl &&
-        !looksLikePdfUrl(defaultPdfUrl));
-    const nextInput = shouldPromptForUrl
-      ? window.prompt(ui.editorPdfUrlPrompt, defaultPdfUrl || "https://") ?? ""
-      : defaultPdfUrl;
-    const normalizedPdfUrl = normalizeUrl(nextInput);
-    if (!normalizedPdfUrl) {
-      return;
-    }
-
-    createEditorPdfTab(normalizedPdfUrl);
-  }, [
-    browserUrl,
-    createEditorPdfTab,
-    previewSurfaceSnapshot,
-    ui.editorPdfUrlPrompt,
-    webUrl,
-  ]);
-
   const handlePreviewBack = useCallback(() => {
     previewNavigationModel.handlePreviewBack({
       previewRuntime,
@@ -1058,51 +1022,6 @@ function WorkbenchContentView() {
       selectedAddressBarSourceId,
       ui,
       webUrl,
-    ]
-  );
-
-  const viewPartProps = useMemo(() => {
-    return {
-      browserUrl,
-      electronRuntime,
-      previewRuntime,
-      labels: {
-        emptyState: ui.emptyState,
-        previewUnavailable: ui.previewUnavailable,
-      },
-    };
-  }, [browserUrl, electronRuntime, previewRuntime, ui]);
-
-  const editorPartProps = useMemo(
-    () =>
-      createEditorPartProps({
-        state: {
-          ui,
-          viewPartProps,
-          tabs: editorTabs,
-          activeTabId: activeEditorTabId,
-          activeTab: activeEditorTab,
-        },
-        actions: {
-          onActivateTab: handleActivateEditorTab,
-          onCloseTab: handleCloseEditorTab,
-          onCreateDraftTab: handleCreateDraftTab,
-          onCreatePdfTab: handleCreatePdfTab,
-          onDraftDocumentChange: setDraftDocument,
-        },
-      }),
-    [
-      activeEditorTab,
-      activeEditorTabId,
-      browserUrl,
-      editorTabs,
-      handleActivateEditorTab,
-      handleCloseEditorTab,
-      handleCreateDraftTab,
-      handleCreatePdfTab,
-      setDraftDocument,
-      ui,
-      viewPartProps,
     ]
   );
 

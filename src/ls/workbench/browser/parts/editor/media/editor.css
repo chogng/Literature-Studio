@@ -15,46 +15,65 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
-.editor-toolbar {
-  display: grid;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid #e4ebf3;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(12px);
+.editor-tabs-header {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0;
+  background: #f3f6f9;
 }
 
 .editor-workspace-action-btn.btn-base {
   border-radius: 999px;
 }
 
-.editor-tab-strip {
+.editor-tabs-container {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-end;
+  gap: 1px;
+  flex: 1;
   min-width: 0;
+  height: 100%;
   overflow-x: auto;
-  padding-bottom: 2px;
+  overflow-y: hidden;
+  padding: 0 6px;
+  border-bottom: 1px solid #dce3ea;
 }
 
 .editor-tab {
+  position: relative;
   display: inline-flex;
-  align-items: center;
+  align-items: stretch;
+  flex: 0 0 auto;
   min-width: 0;
   max-width: 260px;
-  border: 1px solid #d9e4ee;
-  border-radius: 14px;
-  background: rgba(247, 250, 253, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+}
+
+.editor-tab:hover {
+  background: rgba(223, 231, 239, 0.7);
 }
 
 .editor-tab.is-active {
-  border-color: #8eb7ee;
-  background:
-    linear-gradient(180deg, rgba(238, 245, 255, 0.96), rgba(248, 251, 255, 0.98));
-  box-shadow:
-    0 8px 18px rgba(30, 85, 146, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  border-color: #dce3ea;
+  background: #fbfcfd;
+  box-shadow: none;
+}
+
+.editor-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: #fbfcfd;
+  z-index: 1;
 }
 
 .editor-tab-main {
@@ -62,36 +81,56 @@
   align-items: center;
   min-width: 0;
   max-width: 100%;
-  padding: 8px 8px 8px 12px;
+  height: 33px;
+  padding: 0 6px 0 10px;
   border: 0;
   background: transparent;
-  color: #314252;
+  color: #58697b;
   cursor: pointer;
+  font: inherit;
+}
+
+.editor-tab:hover .editor-tab-main {
+  color: #304253;
+}
+
+.editor-tab.is-active .editor-tab-main {
+  color: #1d2f41;
 }
 
 .editor-tab-close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-right: 6px;
+  width: 24px;
+  height: 33px;
+  margin-right: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 4px;
   background: transparent;
   color: #698099;
   cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.editor-tab:hover .editor-tab-close,
+.editor-tab:focus-within .editor-tab-close,
+.editor-tab.is-active .editor-tab-close {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .editor-tab-close:hover {
-  background: rgba(19, 45, 76, 0.08);
+  background: rgba(90, 110, 132, 0.14);
   color: #223548;
 }
 
 .editor-tab-label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -99,7 +138,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.3;
 }
 
@@ -131,8 +171,7 @@
 
 .editor-source-pane {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  border-left: 1px solid #e4ebf3;
+  grid-template-rows: minmax(0, 1fr);
   background: rgba(248, 250, 253, 0.72);
 }
 
@@ -264,10 +303,14 @@
 }
 
 @media (max-width: 760px) {
-  .editor-toolbar,
+  .editor-tabs-header,
   .editor-draft-pane {
     padding-left: 10px;
     padding-right: 10px;
+  }
+
+  .editor-tabs-container {
+    padding: 0 4px;
   }
 
   .editor-tab {

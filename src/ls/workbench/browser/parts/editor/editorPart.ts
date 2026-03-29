@@ -1,4 +1,12 @@
+import { useCallback, useMemo } from 'react';
 import type { LocaleMessages } from '../../../../../language/locales';
+import { normalizeUrl } from '../../../common/url';
+import {
+  createPreviewSurfaceSnapshot,
+  resolvePreviewSourceUrl,
+} from '../../previewSurfaceState';
+import { preparePdfDownload } from '../../../services/document/documentActionService';
+import { useWritingEditorModel } from '../../writingEditorModel';
 import type {
   WritingEditorDocument,
   WritingWorkspaceTab,
@@ -21,6 +29,15 @@ export type EditorPartActions = {
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
 };
+
+type UseEditorPartModelParams = {
+  ui: LocaleMessages;
+  viewPartProps: ViewPartProps;
+  browserUrl: string;
+  webUrl: string;
+};
+
+export type EditorPartModel = ReturnType<typeof useEditorPartModel>;
 
 type CreateEditorPartPropsParams = {
   state: EditorPartState;
@@ -80,5 +97,117 @@ export function createEditorPartProps({
     onCreateDraftTab,
     onCreatePdfTab,
     onDraftDocumentChange,
+  };
+}
+
+function looksLikePdfUrl(url: string) {
+  const normalized = url.trim().toLowerCase();
+  return (
+    normalized.includes('.pdf') ||
+    normalized.includes('/pdf') ||
+    normalized.includes('format=pdf') ||
+    normalized.includes('download=pdf')
+  );
+}
+
+export function useEditorPartModel({
+  ui,
+  viewPartProps,
+  browserUrl,
+  webUrl,
+}: UseEditorPartModelParams) {
+  const {
+    tabs,
+    activeTabId,
+    activeTab,
+    setDraftDocument,
+    draftBody,
+    activateTab,
+    closeTab,
+    createDraftTab,
+    createWebTab,
+    createPdfTab,
+    updateActivePreviewTabUrl,
+  } = useWritingEditorModel();
+
+  // The editor part is the boundary where workbench-level preview state and
+  // workspace tab state are composed into one editor-facing model.
+  const previewSurfaceSnapshot = useMemo(
+    () => createPreviewSurfaceSnapshot(activeTab),
+    [activeTab],
+  );
+
+  const handleCreatePdfTab = useCallback(() => {
+    const seedUrl = resolvePreviewSourceUrl(
+      previewSurfaceSnapshot,
+      browserUrl,
+      webUrl,
+    );
+    const preparedPdfDownload = seedUrl ? preparePdfDownload(seedUrl) : null;
+    const defaultPdfUrl = preparedPdfDownload?.preferredPdfUrl ?? '';
+    const shouldPromptForUrl =
+      !defaultPdfUrl ||
+      (preparedPdfDownload?.normalizedSourceUrl === defaultPdfUrl &&
+        !looksLikePdfUrl(defaultPdfUrl));
+    const nextInput = shouldPromptForUrl
+      ? window.prompt(ui.editorPdfUrlPrompt, defaultPdfUrl || 'https://') ?? ''
+      : defaultPdfUrl;
+    const normalizedPdfUrl = normalizeUrl(nextInput);
+    if (!normalizedPdfUrl) {
+      return;
+    }
+
+    createPdfTab(normalizedPdfUrl);
+  }, [
+    browserUrl,
+    createPdfTab,
+    previewSurfaceSnapshot,
+    ui.editorPdfUrlPrompt,
+    webUrl,
+  ]);
+
+  const editorPartProps = useMemo(
+    () =>
+      createEditorPartProps({
+        state: {
+          ui,
+          viewPartProps,
+          tabs,
+          activeTabId,
+          activeTab,
+        },
+        actions: {
+          onActivateTab: activateTab,
+          onCloseTab: closeTab,
+          onCreateDraftTab: createDraftTab,
+          onCreatePdfTab: handleCreatePdfTab,
+          onDraftDocumentChange: setDraftDocument,
+        },
+      }),
+    [
+      activateTab,
+      activeTab,
+      activeTabId,
+      closeTab,
+      createDraftTab,
+      handleCreatePdfTab,
+      setDraftDocument,
+      tabs,
+      ui,
+      viewPartProps,
+    ],
+  );
+
+  return {
+    tabs,
+    activeTabId,
+    activeTab,
+    draftBody,
+    setDraftDocument,
+    createDraftTab,
+    createWebTab,
+    previewSurfaceSnapshot,
+    updateActivePreviewTabUrl,
+    editorPartProps,
   };
 }
