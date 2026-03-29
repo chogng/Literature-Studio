@@ -167,7 +167,7 @@ const zh = {
   languageEnglish: 'English',
   sidebarCollapse: '收起侧边栏',
   sidebarExpand: '展开侧边栏',
-  sidebarSelectionModeEnterSingle: '单选',
+  sidebarSelectionModeEnterMulti: '多选',
   sidebarSelectionModeSelectAll: '全选',
   sidebarSelectionModeExit: '取消',
   titlebarControls: '窗口控制',

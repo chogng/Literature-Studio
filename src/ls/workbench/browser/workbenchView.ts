@@ -47,7 +47,7 @@ import './media/workbench.css';
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 type ActivePage = ReturnType<typeof getWorkbenchStateSnapshot>['activePage'];
-type SelectionModePhase = 'off' | 'single' | 'all';
+type SelectionModePhase = 'off' | 'multi' | 'all';
 
 type ActivePageViewConfig = {
   activePage: ActivePage;
@@ -462,10 +462,10 @@ function WorkbenchContentView() {
     setSelectionModePhase((previousPhase) => {
       if (previousPhase === 'off') {
         setSelectedArticleKeysInOrder([]);
-        return 'single';
+        return 'multi';
       }
 
-      if (previousPhase === 'single') {
+      if (previousPhase === 'multi') {
         setSelectedArticleKeysInOrder(filteredArticleKeysInOrder);
         return 'all';
       }
@@ -483,11 +483,6 @@ function WorkbenchContentView() {
     const articleKey = getArticleSelectionKey(article);
 
     setSelectedArticleKeysInOrder((previousKeys) => {
-      if (selectionModePhase === 'single') {
-        const isOnlySelected = previousKeys.length === 1 && previousKeys[0] === articleKey;
-        return isOnlySelected ? [] : [articleKey];
-      }
-
       if (previousKeys.includes(articleKey)) {
         return previousKeys.filter((key) => key !== articleKey);
       }

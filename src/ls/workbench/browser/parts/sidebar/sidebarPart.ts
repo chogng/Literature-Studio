@@ -51,12 +51,12 @@ export type SidebarLabels = {
   endDate: string;
   fetchLatestBusy: string;
   fetchLatest: string;
-  selectionModeEnterSingle: string;
+  selectionModeEnterMulti: string;
   selectionModeSelectAll: string;
   selectionModeExit: string;
 };
 
-export type SidebarSelectionModePhase = 'off' | 'single' | 'all';
+export type SidebarSelectionModePhase = 'off' | 'multi' | 'all';
 
 export type SidebarProps = {
   articles: SidebarArticle[];
@@ -144,7 +144,7 @@ export function createSidebarPartLabels({
     endDate: ui.endDate,
     fetchLatestBusy: ui.fetchLatestBusy,
     fetchLatest: ui.fetchLatest,
-    selectionModeEnterSingle: ui.sidebarSelectionModeEnterSingle,
+    selectionModeEnterMulti: ui.sidebarSelectionModeEnterMulti,
     selectionModeSelectAll: ui.sidebarSelectionModeSelectAll,
     selectionModeExit: ui.sidebarSelectionModeExit,
   };
@@ -319,8 +319,8 @@ function renderActionBar({
 }) {
   const selectionButtonLabel =
     selectionModePhase === 'off'
-      ? labels.selectionModeEnterSingle
-      : selectionModePhase === 'single'
+      ? labels.selectionModeEnterMulti
+      : selectionModePhase === 'multi'
         ? labels.selectionModeSelectAll
         : labels.selectionModeExit;
 

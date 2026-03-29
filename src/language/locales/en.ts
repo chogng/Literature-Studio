@@ -163,7 +163,7 @@ const en = {
   languageEnglish: 'English',
   sidebarCollapse: 'Collapse sidebar',
   sidebarExpand: 'Expand sidebar',
-  sidebarSelectionModeEnterSingle: 'Single',
+  sidebarSelectionModeEnterMulti: 'Multi-select',
   sidebarSelectionModeSelectAll: 'Select all',
   sidebarSelectionModeExit: 'Cancel',
   titlebarControls: 'Window controls',
