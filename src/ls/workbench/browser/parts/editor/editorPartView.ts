@@ -1,12 +1,35 @@
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
-import { Suspense, lazy, useRef, type ChangeEvent, type ReactNode } from 'react';
-import { Eraser, FilePenLine, Highlighter, PanelsLeftRight, Rows2 } from 'lucide-react';
+import {
+  Suspense,
+  lazy,
+  useRef,
+  type ChangeEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from 'react';
+import {
+  Eraser,
+  FilePenLine,
+  Globe,
+  Highlighter,
+  PanelsLeftRight,
+  Plus,
+  X,
+} from 'lucide-react';
 import type { RagAnswerResult } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../../../base/browser/ui/button/button';
 import { Input } from '../../../../base/browser/ui/input/input';
-import type { WritingEditorDocument, WritingEditorViewMode } from '../../writingEditorModel';
+import type {
+  WritingEditorDocument,
+  WritingEditorViewMode,
+  WritingWorkspaceDraftTab,
+  WritingWorkspaceTab,
+} from '../../writingEditorModel';
 import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../layout';
-import type { WritingEditorSurfaceHandle, WritingEditorSurfaceLabels } from './prosemirror/prosemirrorEditor';
+import type {
+  WritingEditorSurfaceHandle,
+  WritingEditorSurfaceLabels,
+} from './prosemirror/prosemirrorEditor';
 import ViewPartView from '../views/viewPartView';
 import type { ViewPartProps } from '../views/viewPartView';
 import './media/editor.css';
@@ -18,6 +41,7 @@ export type EditorPartLabels = {
   draftMode: string;
   splitMode: string;
   sourceMode: string;
+  close: string;
   knowledgeBaseModeOn: string;
   knowledgeBaseModeOff: string;
   draftTitle: string;
@@ -38,15 +62,20 @@ export type EditorPartProps = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
   isKnowledgeBaseModeEnabled: boolean;
-  draftTitle: string;
-  draftDocument: WritingEditorDocument;
-  viewMode: WritingEditorViewMode;
+  tabs: WritingWorkspaceTab[];
+  activeTabId: string | null;
+  activeTab: WritingWorkspaceTab | null;
+  canCreateWebTab: boolean;
   latestAssistantResult: RagAnswerResult | null;
   stats: {
     wordCount: number;
     characterCount: number;
     paragraphCount: number;
   };
+  onActivateTab: (tabId: string) => void;
+  onCloseTab: (tabId: string) => void;
+  onCreateDraftTab: () => void;
+  onCreateWebTab: () => void;
   onDraftTitleChange: (value: string) => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onViewModeChange: (mode: WritingEditorViewMode) => void;
@@ -94,11 +123,57 @@ function renderModeButton({
   });
 }
 
+function renderWorkspaceActionButton({
+  label,
+  icon,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return jsx(Button, {
+    type: 'button',
+    className: 'editor-workspace-action-btn',
+    variant: 'secondary',
+    size: 'sm',
+    mode: 'text',
+    textMode: 'with',
+    iconMode: 'with',
+    leftIcon: icon,
+    onClick,
+    disabled,
+    children: label,
+  });
+}
+
+function getDraftTabDisplayLabel(
+  tab: WritingWorkspaceDraftTab,
+  labels: EditorPartLabels,
+  index: number,
+) {
+  const normalizedTitle = tab.title.trim();
+  return normalizedTitle || `${labels.draftMode} ${index + 1}`;
+}
+
+function getTabDisplayLabel(
+  tab: WritingWorkspaceTab,
+  labels: EditorPartLabels,
+  draftIndex: number,
+) {
+  if (tab.kind === 'draft') {
+    return getDraftTabDisplayLabel(tab, labels, draftIndex);
+  }
+
+  return tab.title.trim() || labels.sourceMode;
+}
+
 function DraftPane({
   labels,
   isKnowledgeBaseModeEnabled,
-  draftTitle,
-  draftDocument,
+  draftTab,
   latestAssistantResult,
   stats,
   onDraftTitleChange,
@@ -108,14 +183,14 @@ function DraftPane({
   EditorPartProps,
   | 'labels'
   | 'isKnowledgeBaseModeEnabled'
-  | 'draftTitle'
-  | 'draftDocument'
   | 'latestAssistantResult'
   | 'stats'
   | 'onDraftTitleChange'
   | 'onDraftDocumentChange'
   | 'onClearDraft'
->) {
+> & {
+  draftTab: WritingWorkspaceDraftTab;
+}) {
   const editorSurfaceRef = useRef<WritingEditorSurfaceHandle | null>(null);
 
   const handleInsertAssistantAnswer = () => {
@@ -181,7 +256,7 @@ function DraftPane({
             className: 'editor-title-input',
             size: 'sm',
             type: 'text',
-            value: draftTitle,
+            value: draftTab.title,
             onChange: (event: ChangeEvent<HTMLInputElement>) => onDraftTitleChange(event.target.value),
             placeholder: labels.draftTitlePlaceholder,
           }),
@@ -261,7 +336,7 @@ function DraftPane({
         }),
         children: jsx(ProseMirrorEditor, {
           ref: editorSurfaceRef,
-          document: draftDocument,
+          document: draftTab.document,
           placeholder: labels.draftBodyPlaceholder,
           labels: {
             paragraph: labels.paragraph,
@@ -291,15 +366,32 @@ function DraftPane({
 }
 
 function SourcePane({
-  labels,
   viewPartProps,
-}: Pick<EditorPartProps, 'labels' | 'viewPartProps'>) {
+  heading,
+  subheading,
+}: Pick<EditorPartProps, 'viewPartProps'> & {
+  heading: string;
+  subheading?: string;
+}) {
   return jsxs('div', {
     className: 'editor-source-pane',
     children: [
       jsxs('div', {
         className: 'editor-source-header',
-        children: [jsx('strong', { children: labels.sourceTitle })],
+        children: [
+          jsxs('div', {
+            className: 'editor-source-heading',
+            children: [
+              jsx('strong', { children: heading }),
+              subheading
+                ? jsx('span', {
+                    className: 'editor-source-subheading',
+                    children: subheading,
+                  })
+                : null,
+            ],
+          }),
+        ],
       }),
       jsx('div', {
         className: 'editor-source-body',
@@ -310,10 +402,119 @@ function SourcePane({
 }
 
 function renderEditorContent(props: EditorPartProps) {
-  const { labels, viewMode, onViewModeChange } = props;
+  const {
+    labels,
+    tabs,
+    activeTabId,
+    activeTab,
+    canCreateWebTab,
+    onActivateTab,
+    onCloseTab,
+    onCreateDraftTab,
+    onCreateWebTab,
+    onViewModeChange,
+  } = props;
 
-  const draftPane = jsx(DraftPane, { ...props });
-  const sourcePane = jsx(SourcePane, { ...props });
+  const activeDraftTab = activeTab?.kind === 'draft' ? activeTab : null;
+  const draftTabIds = tabs
+    .filter((tab) => tab.kind === 'draft')
+    .map((tab) => tab.id);
+
+  const tabStripView = jsx('div', {
+    className: 'editor-tab-strip',
+    role: 'tablist',
+    children: tabs.map((tab) => {
+      const draftIndex =
+        tab.kind === 'draft' ? draftTabIds.indexOf(tab.id) : -1;
+      const tabLabel = getTabDisplayLabel(tab, labels, Math.max(draftIndex, 0));
+      const isActive = tab.id === activeTabId;
+
+      return jsxs(
+        'div',
+        {
+          className: ['editor-tab', isActive ? 'is-active' : ''].filter(Boolean).join(' '),
+          children: [
+            jsx('button', {
+              type: 'button',
+              role: 'tab',
+              className: 'editor-tab-main',
+              'aria-selected': isActive,
+              title: tabLabel,
+              onClick: () => onActivateTab(tab.id),
+              children: jsxs('span', {
+                className: 'editor-tab-label',
+                children: [
+                  tab.kind === 'draft'
+                    ? jsx(FilePenLine, { size: 14, strokeWidth: 1.8 })
+                    : jsx(Globe, { size: 14, strokeWidth: 1.8 }),
+                  jsx('span', {
+                    className: 'editor-tab-label-text',
+                    children: tabLabel,
+                  }),
+                ],
+              }),
+            }),
+            jsx('button', {
+              type: 'button',
+              className: 'editor-tab-close',
+              title: labels.close,
+              onClick: (event: ReactMouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation();
+                onCloseTab(tab.id);
+              },
+              children: jsx(X, { size: 14, strokeWidth: 1.8 }),
+            }),
+          ],
+        },
+        tab.id,
+      );
+    }),
+  });
+
+  if (!activeTab) {
+    return jsxs('div', {
+      className: 'editor-shell',
+      children: [
+        jsx('div', {
+          className: 'editor-toolbar',
+          children: tabStripView,
+        }),
+        jsx('div', {
+          className: 'editor-empty-workspace',
+          children: renderWorkspaceActionButton({
+            label: labels.draftMode,
+            icon: jsx(Plus, { size: 14, strokeWidth: 1.8 }),
+            onClick: onCreateDraftTab,
+          }),
+        }),
+      ],
+    });
+  }
+
+  const contentView =
+    activeTab.kind === 'draft'
+      ? activeTab.viewMode === 'draft'
+        ? jsx(DraftPane, {
+            ...props,
+            draftTab: activeTab,
+          })
+        : jsxs(Fragment, {
+            children: [
+              jsx(DraftPane, {
+                ...props,
+                draftTab: activeTab,
+              }),
+              jsx(SourcePane, {
+                viewPartProps: props.viewPartProps,
+                heading: labels.sourceTitle,
+              }),
+            ],
+          })
+      : jsx(SourcePane, {
+          viewPartProps: props.viewPartProps,
+          heading: activeTab.title.trim() || labels.sourceMode,
+          subheading: activeTab.url,
+        });
 
   return jsxs('div', {
     className: 'editor-shell',
@@ -322,44 +523,65 @@ function renderEditorContent(props: EditorPartProps) {
         className: 'editor-toolbar',
         children: [
           jsxs('div', {
-            className: 'editor-toolbar-title',
-            children: [jsx('h2', { children: labels.title })],
-          }),
-          jsxs('div', {
-            className: 'editor-mode-switcher',
+            className: 'editor-toolbar-head',
             children: [
-              renderModeButton({
-                isActive: viewMode === 'draft',
-                label: labels.draftMode,
-                icon: jsx(FilePenLine, { size: 14, strokeWidth: 1.8 }),
-                onClick: () => onViewModeChange('draft'),
+              jsxs('div', {
+                className: 'editor-toolbar-title',
+                children: [jsx('h2', { children: labels.title })],
               }),
-              renderModeButton({
-                isActive: viewMode === 'split',
-                label: labels.splitMode,
-                icon: jsx(PanelsLeftRight, { size: 14, strokeWidth: 1.8 }),
-                onClick: () => onViewModeChange('split'),
-              }),
-              renderModeButton({
-                isActive: viewMode === 'source',
-                label: labels.sourceMode,
-                icon: jsx(Rows2, { size: 14, strokeWidth: 1.8 }),
-                onClick: () => onViewModeChange('source'),
+              jsxs('div', {
+                className: 'editor-toolbar-actions',
+                children: [
+                  activeDraftTab
+                    ? jsxs('div', {
+                        className: 'editor-mode-switcher',
+                        children: [
+                          renderModeButton({
+                            isActive: activeDraftTab.viewMode === 'draft',
+                            label: labels.draftMode,
+                            icon: jsx(FilePenLine, { size: 14, strokeWidth: 1.8 }),
+                            onClick: () => onViewModeChange('draft'),
+                          }),
+                          renderModeButton({
+                            isActive: activeDraftTab.viewMode === 'split',
+                            label: labels.splitMode,
+                            icon: jsx(PanelsLeftRight, { size: 14, strokeWidth: 1.8 }),
+                            onClick: () => onViewModeChange('split'),
+                          }),
+                        ],
+                      })
+                    : null,
+                  jsxs('div', {
+                    className: 'editor-workspace-actions',
+                    children: [
+                      renderWorkspaceActionButton({
+                        label: labels.draftMode,
+                        icon: jsx(Plus, { size: 14, strokeWidth: 1.8 }),
+                        onClick: onCreateDraftTab,
+                      }),
+                      renderWorkspaceActionButton({
+                        label: labels.sourceMode,
+                        icon: jsx(Globe, { size: 14, strokeWidth: 1.8 }),
+                        onClick: onCreateWebTab,
+                        disabled: !canCreateWebTab,
+                      }),
+                    ],
+                  }),
+                ],
               }),
             ],
           }),
+          tabStripView,
         ],
       }),
       jsx('div', {
-        className: ['editor-content', `is-mode-${viewMode}`].join(' '),
-        children:
-          viewMode === 'draft'
-            ? draftPane
-            : viewMode === 'source'
-              ? sourcePane
-              : jsxs(Fragment, {
-                  children: [draftPane, sourcePane],
-                }),
+        className: [
+          'editor-content',
+          activeTab.kind === 'draft'
+            ? `is-mode-${activeTab.viewMode}`
+            : 'is-mode-web',
+        ].join(' '),
+        children: contentView,
       }),
     ],
   });

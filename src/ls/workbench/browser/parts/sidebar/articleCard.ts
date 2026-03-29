@@ -1,11 +1,11 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import type { KeyboardEvent, MouseEventHandler } from 'react';
-import { ChevronDown, Download } from 'lucide-react';
-import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import { Button } from '../../../../base/browser/ui/button/button';
-import type { Locale } from '../../../../../language/i18n';
-import { usePdfDownloadStatus } from '../../../browser/pdfDownloadStatus';
-import type { SidebarArticle } from './sidebarPart';
+import { jsx, jsxs } from "react/jsx-runtime";
+import type { KeyboardEvent, MouseEventHandler } from "react";
+import { ChevronDown, Download } from "lucide-react";
+import type { ArticleDetailsModalLabels } from "../../../../base/parts/sandbox/common/desktopTypes.js";
+import { Button } from "../../../../base/browser/ui/button/button";
+import type { Locale } from "../../../../../language/i18n";
+import { usePdfDownloadStatus } from "../../../browser/pdfDownloadStatus";
+import type { SidebarArticle } from "./secondarySidebarPart";
 
 type ArticleCardLabels = ArticleDetailsModalLabels;
 
@@ -13,12 +13,10 @@ type ArticleCardProps = {
   article: SidebarArticle;
   locale: Locale;
   labels: ArticleCardLabels;
-  onDownloadPdf: (
-    article: SidebarArticle,
-  ) => Promise<void>;
+  onDownloadPdf: (article: SidebarArticle) => Promise<void>;
   onOpenArticleDetails: (
     article: SidebarArticle,
-    labels: ArticleDetailsModalLabels,
+    labels: ArticleDetailsModalLabels
   ) => void | Promise<void>;
   isSelectionModeEnabled: boolean;
   isSelected: boolean;
@@ -31,16 +29,20 @@ type ToolbarButtonConfig = {
   title: string;
   onClick: MouseEventHandler<HTMLButtonElement>;
   isLoading?: boolean;
-  ariaHasPopup?: 'dialog';
+  ariaHasPopup?: "dialog";
   icon: ReturnType<typeof jsx>;
 };
 
-const DOWNLOAD_PDF_LABEL = 'Download PDF';
-const VIEW_DETAILS_LABEL = 'View details';
-const DOWNLOADED_PDF_LABEL = 'PDF downloaded';
+const DOWNLOAD_PDF_LABEL = "Download PDF";
+const VIEW_DETAILS_LABEL = "View details";
+const DOWNLOADED_PDF_LABEL = "PDF downloaded";
 
-function formatPublishedDate(value: string | null, locale: Locale, fallback: string) {
-  const normalized = typeof value === 'string' ? value.trim() : '';
+function formatPublishedDate(
+  value: string | null,
+  locale: Locale,
+  fallback: string
+) {
+  const normalized = typeof value === "string" ? value.trim() : "";
   if (!normalized) {
     return fallback;
   }
@@ -54,7 +56,7 @@ function formatPublishedDate(value: string | null, locale: Locale, fallback: str
     const localDate = new Date(year, month - 1, day);
 
     if (!Number.isNaN(localDate.getTime())) {
-      return localDate.toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN');
+      return localDate.toLocaleDateString(locale === "en" ? "en-US" : "zh-CN");
     }
   }
 
@@ -63,12 +65,21 @@ function formatPublishedDate(value: string | null, locale: Locale, fallback: str
     return normalized;
   }
 
-  return parsed.toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN');
+  return parsed.toLocaleDateString(locale === "en" ? "en-US" : "zh-CN");
 }
 
-function createMetaText(article: SidebarArticle, locale: Locale, unknownLabel: string) {
-  const articleType = typeof article.articleType === 'string' ? article.articleType.trim() : '';
-  const publishedDate = formatPublishedDate(article.publishedAt, locale, unknownLabel);
+function createMetaText(
+  article: SidebarArticle,
+  locale: Locale,
+  unknownLabel: string
+) {
+  const articleType =
+    typeof article.articleType === "string" ? article.articleType.trim() : "";
+  const publishedDate = formatPublishedDate(
+    article.publishedAt,
+    locale,
+    unknownLabel
+  );
 
   return `${articleType || unknownLabel} | ${publishedDate}`;
 }
@@ -84,16 +95,16 @@ function renderToolbarButton({
 }: ToolbarButtonConfig) {
   return jsx(Button, {
     className,
-    type: 'button',
-    variant: 'ghost',
-    size: 'sm',
-    mode: 'icon',
-    iconMode: 'with',
-    textMode: 'without',
+    type: "button",
+    variant: "ghost",
+    size: "sm",
+    mode: "icon",
+    iconMode: "with",
+    textMode: "without",
     isLoading,
     onClick,
-    'aria-label': ariaLabel,
-    'aria-haspopup': ariaHasPopup,
+    "aria-label": ariaLabel,
+    "aria-haspopup": ariaHasPopup,
     title,
     children: icon,
   });
@@ -111,16 +122,18 @@ function renderToolbarActions({
   onOpenDetails: MouseEventHandler<HTMLButtonElement>;
 }) {
   // Visual state tracks whether the PDF has already been downloaded for this source URL.
-  const downloadButtonTitle = hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL;
+  const downloadButtonTitle = hasDownloaded
+    ? DOWNLOADED_PDF_LABEL
+    : DOWNLOAD_PDF_LABEL;
   const downloadButtonClassName = [
-    'article-card-icon-btn',
-    hasDownloaded ? 'is-downloaded' : '',
+    "secondary-sidebar-article-card-icon-btn",
+    hasDownloaded ? "is-downloaded" : "",
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 
-  return jsxs('div', {
-    className: 'article-card-toolbar-actions',
+  return jsxs("div", {
+    className: "secondary-sidebar-article-card-toolbar-actions",
     children: [
       renderToolbarButton({
         className: downloadButtonClassName,
@@ -131,11 +144,11 @@ function renderToolbarActions({
         icon: jsx(Download, { size: 14, strokeWidth: 1.7 }),
       }),
       renderToolbarButton({
-        className: 'article-card-icon-btn',
+        className: "secondary-sidebar-article-card-icon-btn",
         ariaLabel: VIEW_DETAILS_LABEL,
         title: VIEW_DETAILS_LABEL,
         onClick: onOpenDetails,
-        ariaHasPopup: 'dialog',
+        ariaHasPopup: "dialog",
         icon: jsx(ChevronDown, { size: 14, strokeWidth: 1.7 }),
       }),
     ],
@@ -192,7 +205,7 @@ export default function ArticleCard({
       return;
     }
 
-    if (event.key !== 'Enter' && event.key !== ' ') {
+    if (event.key !== "Enter" && event.key !== " ") {
       return;
     }
 
@@ -214,25 +227,32 @@ export default function ArticleCard({
     onOpenDetails: stopCardSelection(handleOpenDetails),
   });
 
-  return jsxs('li', {
+  return jsxs("li", {
     className: [
-      'article-card',
-      isSelectionModeEnabled ? 'is-selection-mode' : '',
-      isSelected ? 'is-selected' : '',
+      "secondary-sidebar-article-card",
+      isSelectionModeEnabled ? "is-selection-mode" : "",
+      isSelected ? "is-selected" : "",
     ]
       .filter(Boolean)
-      .join(' '),
+      .join(" "),
     onClick: handleCardClick,
     onKeyDown: handleCardKeyDown,
-    role: isSelectionModeEnabled ? 'button' : undefined,
+    role: isSelectionModeEnabled ? "button" : undefined,
     tabIndex: isSelectionModeEnabled ? 0 : undefined,
-    'aria-pressed': isSelectionModeEnabled ? isSelected : undefined,
+    "aria-pressed": isSelectionModeEnabled ? isSelected : undefined,
     children: [
-      jsxs('div', {
-        className: 'article-card-main',
+      jsxs("div", {
+        className: "secondary-sidebar-article-card-main",
         children: [
-          jsx('h3', { className: 'article-card-title', title, children: title }),
-          jsx('span', { className: 'article-card-meta', children: metaText }),
+          jsx("h3", {
+            className: "secondary-sidebar-article-card-title",
+            title,
+            children: title,
+          }),
+          jsx("span", {
+            className: "secondary-sidebar-article-card-meta",
+            children: metaText,
+          }),
         ],
       }),
       toolbarActionsView,

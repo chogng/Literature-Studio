@@ -1,6 +1,10 @@
 import type { LocaleMessages } from '../../../../../language/locales';
 import type { RagAnswerResult } from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import type { WritingEditorDocument, WritingEditorViewMode } from '../../writingEditorModel';
+import type {
+  WritingEditorDocument,
+  WritingEditorViewMode,
+  WritingWorkspaceTab,
+} from '../../writingEditorModel';
 import type { ViewPartProps } from '../views/viewPartView';
 import type { EditorPartProps } from './editorPartView';
 
@@ -8,9 +12,10 @@ export type EditorPartState = {
   ui: LocaleMessages;
   viewPartProps: ViewPartProps;
   isKnowledgeBaseModeEnabled: boolean;
-  draftTitle: string;
-  draftDocument: WritingEditorDocument;
-  viewMode: WritingEditorViewMode;
+  tabs: WritingWorkspaceTab[];
+  activeTabId: string | null;
+  activeTab: WritingWorkspaceTab | null;
+  canCreateWebTab: boolean;
   latestAssistantResult: RagAnswerResult | null;
   stats: {
     wordCount: number;
@@ -20,6 +25,10 @@ export type EditorPartState = {
 };
 
 export type EditorPartActions = {
+  onActivateTab: (tabId: string) => void;
+  onCloseTab: (tabId: string) => void;
+  onCreateDraftTab: () => void;
+  onCreateWebTab: () => void;
   onDraftTitleChange: (value: string) => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onViewModeChange: (mode: WritingEditorViewMode) => void;
@@ -36,13 +45,18 @@ export function createEditorPartProps({
     ui,
     viewPartProps,
     isKnowledgeBaseModeEnabled,
-    draftTitle,
-    draftDocument,
-    viewMode,
+    tabs,
+    activeTabId,
+    activeTab,
+    canCreateWebTab,
     latestAssistantResult,
     stats,
   },
   actions: {
+    onActivateTab,
+    onCloseTab,
+    onCreateDraftTab,
+    onCreateWebTab,
     onDraftTitleChange,
     onDraftDocumentChange,
     onViewModeChange,
@@ -55,6 +69,7 @@ export function createEditorPartProps({
       draftMode: ui.editorDraftMode,
       splitMode: ui.editorSplitMode,
       sourceMode: ui.editorSourceMode,
+      close: ui.toastClose,
       knowledgeBaseModeOn: ui.assistantSidebarModeOn,
       knowledgeBaseModeOff: ui.assistantSidebarModeOff,
       draftTitle: ui.editorDraftTitle,
@@ -90,11 +105,16 @@ export function createEditorPartProps({
     },
     viewPartProps,
     isKnowledgeBaseModeEnabled,
-    draftTitle,
-    draftDocument,
-    viewMode,
+    tabs,
+    activeTabId,
+    activeTab,
+    canCreateWebTab,
     latestAssistantResult,
     stats,
+    onActivateTab,
+    onCloseTab,
+    onCreateDraftTab,
+    onCreateWebTab,
     onDraftTitleChange,
     onDraftDocumentChange,
     onViewModeChange,

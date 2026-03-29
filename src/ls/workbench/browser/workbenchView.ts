@@ -1,27 +1,36 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
+import { jsx, jsxs } from "react/jsx-runtime";
 import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
-} from 'react';
-import { detectInitialLocale, getLocaleMessages, toDocumentLang, type Locale } from '../../../language/i18n';
-import { hasWorkbenchWindowControlsProvider, useWindowControls } from './window';
-import { ToastContainer } from '../../base/browser/ui/toast/toast';
-import type { Article } from '../services/article/articleFetch';
+} from "react";
+import {
+  detectInitialLocale,
+  getLocaleMessages,
+  toDocumentLang,
+  type Locale,
+} from "../../../language/i18n";
+import {
+  hasWorkbenchWindowControlsProvider,
+  useWindowControls,
+} from "./window";
+import { ToastContainer } from "../../base/browser/ui/toast/toast";
+import type { Article } from "../services/article/articleFetch";
 import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
-} from '../services/config/configSchema';
-import MenuOverlayWindow from './menuOverlayWindow';
-import ArticleDetailsModalWindow from './articleDetailsModalWindow';
-import { useAssistantModel } from './assistantModel';
-import { useLibraryModel } from './libraryModel';
-import ToastOverlayWindow from './toastOverlayWindow';
-import { useBatchFetchModel } from './batchFetchModel';
-import { useDocumentActionsModel } from './documentActionsModel';
+} from "../services/config/configSchema";
+import MenuOverlayWindow from "./menuOverlayWindow";
+import ArticleDetailsModalWindow from "./articleDetailsModalWindow";
+import { useAssistantModel } from "./assistantModel";
+import { useLibraryModel } from "./libraryModel";
+import ToastOverlayWindow from "./toastOverlayWindow";
+import { useBatchFetchModel } from "./batchFetchModel";
+import { useDocumentActionsModel } from "./documentActionsModel";
 import {
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchShellClassName,
@@ -33,53 +42,77 @@ import {
   toggleSidebarVisibility,
   toggleAuxiliarySidebarVisibility,
   useWorkbenchPartRef,
-} from './layout';
-import { createEditorPartProps } from './parts/editor/editorPart';
-import { createSettingsPartProps, SettingsPartView } from './parts/settings/settingsPart';
+} from "./layout";
+import { createEditorPartProps } from "./parts/editor/editorPart";
 import {
-  createSidebarPartProps,
-} from './parts/sidebar/sidebarPart';
-import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
-import { subscribeTitlebarUiActions } from './parts/titlebar/titlebarActions';
-import { TitlebarView } from './parts/titlebar/titlebarView';
-import { PreviewNavigationModel } from './previewNavigationModel';
-import { useReaderState } from './readerState';
-import ReaderView from './readerView';
-import { useSettingsModel } from './parts/settings/settingsModel';
-import { useWritingEditorModel } from './writingEditorModel';
+  createSettingsPartProps,
+  SettingsPartView,
+} from "./parts/settings/settingsPart";
+import { createSecondarySidebarPartProps } from "./parts/sidebar/secondarySidebarPart";
+import { createTitlebarPartProps } from "./parts/titlebar/titlebarPart";
+import { subscribeTitlebarUiActions } from "./parts/titlebar/titlebarActions";
+import { TitlebarView } from "./parts/titlebar/titlebarView";
+import { PreviewNavigationModel } from "./previewNavigationModel";
+import { useReaderState } from "./readerState";
+import ReaderView from "./readerView";
+import { useSettingsModel } from "./parts/settings/settingsModel";
+import { useWritingEditorModel } from "./writingEditorModel";
 import {
   getWorkbenchStateSnapshot,
   subscribeWorkbenchState,
   toggleWorkbenchSettings,
-} from './workbench';
-import './media/workbench.css';
+} from "./workbench";
+import "./media/workbench.css";
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
-type ActivePage = ReturnType<typeof getWorkbenchStateSnapshot>['activePage'];
-type SelectionModePhase = 'off' | 'multi' | 'all';
+type ActivePage = ReturnType<typeof getWorkbenchStateSnapshot>["activePage"];
+type SelectionModePhase = "off" | "multi" | "all";
 
 type ActivePageViewConfig = {
   activePage: ActivePage;
   isSidebarVisible: boolean;
-  activeSidebarKind: ReturnType<typeof getWorkbenchLayoutStateSnapshot>['activeSidebarKind'];
+  activeSidebarKind: ReturnType<
+    typeof getWorkbenchLayoutStateSnapshot
+  >["activeSidebarKind"];
   isAuxiliarySidebarVisible: boolean;
-  secondarySidebarProps: ReturnType<typeof createSidebarPartProps>;
+  secondarySidebarProps: ReturnType<typeof createSecondarySidebarPartProps>;
   primarySidebarProps: {
-    librarySnapshot: ReturnType<typeof useLibraryModel>['librarySnapshot'];
+    librarySnapshot: ReturnType<typeof useLibraryModel>["librarySnapshot"];
     isLibraryLoading: boolean;
     onRefreshLibrary: () => void;
   };
   auxiliarySidebarProps: {
     isKnowledgeBaseModeEnabled: boolean;
-    librarySnapshot: ReturnType<typeof useLibraryModel>['librarySnapshot'];
+    librarySnapshot: ReturnType<typeof useLibraryModel>["librarySnapshot"];
     question: string;
     onQuestionChange: (value: string) => void;
-    messages: ReturnType<typeof useAssistantModel>['messages'];
-    result: ReturnType<typeof useAssistantModel>['result'];
+    messages: ReturnType<typeof useAssistantModel>["messages"];
+    result: ReturnType<typeof useAssistantModel>["result"];
     isAsking: boolean;
     errorMessage: string | null;
     onAsk: () => void;
     availableArticleCount: number;
+    conversations: ReturnType<typeof useAssistantModel>["conversations"];
+    activeConversationId: ReturnType<
+      typeof useAssistantModel
+    >["activeConversationId"];
+    isHistoryOpen: ReturnType<typeof useAssistantModel>["isHistoryOpen"];
+    isMoreMenuOpen: ReturnType<typeof useAssistantModel>["isMoreMenuOpen"];
+    onCreateConversation: ReturnType<
+      typeof useAssistantModel
+    >["handleCreateConversation"];
+    onActivateConversation: ReturnType<
+      typeof useAssistantModel
+    >["handleActivateConversation"];
+    onCloseConversation: ReturnType<
+      typeof useAssistantModel
+    >["handleCloseConversation"];
+    onToggleHistory: ReturnType<
+      typeof useAssistantModel
+    >["handleToggleHistory"];
+    onToggleMoreMenu: ReturnType<
+      typeof useAssistantModel
+    >["handleToggleMoreMenu"];
   };
   editorPartProps: ReturnType<typeof createEditorPartProps>;
   settingsPartRef: ReturnType<typeof useWorkbenchPartRef>;
@@ -97,38 +130,46 @@ type WorkbenchShellConfig = {
   toastCloseLabel: string;
 };
 
-const DEFAULT_ARTICLE_URL = '';
+const DEFAULT_ARTICLE_URL = "";
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
 
-function getArticleSelectionKey(article: Pick<Article, 'sourceUrl' | 'fetchedAt'>) {
+function getArticleSelectionKey(
+  article: Pick<Article, "sourceUrl" | "fetchedAt">
+) {
   return `${article.sourceUrl}::${article.fetchedAt}`;
 }
 
-function buildSelectedArticleOrderLookup(selectedArticleKeysInOrder: readonly string[]) {
-  return new Map(selectedArticleKeysInOrder.map((key, index) => [key, index + 1]));
+function buildSelectedArticleOrderLookup(
+  selectedArticleKeysInOrder: readonly string[]
+) {
+  return new Map(
+    selectedArticleKeysInOrder.map((key, index) => [key, index + 1])
+  );
 }
 
 function detectNativeModalKind() {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return null;
   }
 
-  return new URLSearchParams(window.location.search).get('nativeModal');
+  return new URLSearchParams(window.location.search).get("nativeModal");
 }
 
 function detectNativeOverlayKind() {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return null;
   }
 
-  return new URLSearchParams(window.location.search).get('nativeOverlay');
+  return new URLSearchParams(window.location.search).get("nativeOverlay");
 }
 
 function resolveRuntimeState() {
   const electronRuntime =
-    typeof window !== 'undefined' && typeof window.electronAPI?.invoke === 'function';
+    typeof window !== "undefined" &&
+    typeof window.electronAPI?.invoke === "function";
   const previewRuntime =
-    typeof window !== 'undefined' && typeof window.electronAPI?.preview?.navigate === 'function';
+    typeof window !== "undefined" &&
+    typeof window.electronAPI?.preview?.navigate === "function";
 
   return {
     electronRuntime,
@@ -149,7 +190,7 @@ function renderActivePageView({
   settingsPartRef,
   settingsPartProps,
 }: ActivePageViewConfig) {
-  if (activePage === 'reader') {
+  if (activePage === "reader") {
     return jsx(ReaderView, {
       isSidebarVisible,
       activeSidebarKind,
@@ -177,14 +218,21 @@ function renderWorkbenchShell({
   activePageView,
   toastCloseLabel,
 }: WorkbenchShellConfig) {
-  return jsxs('div', {
+  return jsxs("div", {
     ref: workbenchContainerRef,
-    className: `app-window ${electronRuntime && useMica ? 'is-mica-enabled' : ''}`.trim(),
+    className: `app-window ${
+      electronRuntime && useMica ? "is-mica-enabled" : ""
+    }`.trim(),
     children: [
-      electronRuntime ? jsx(TitlebarView, { partRef: titlebarPartRef, ...titlebarProps }) : null,
-      jsxs('div', {
+      electronRuntime
+        ? jsx(TitlebarView, { partRef: titlebarPartRef, ...titlebarProps })
+        : null,
+      jsxs("div", {
         className: getWorkbenchShellClassName({ activePage }),
-        children: [activePageView, jsx(ToastContainer, { closeLabel: toastCloseLabel })],
+        children: [
+          activePageView,
+          jsx(ToastContainer, { closeLabel: toastCloseLabel }),
+        ],
       }),
     ],
   });
@@ -195,29 +243,35 @@ function WorkbenchContentView() {
   const [webUrl, setWebUrl] = useState(DEFAULT_ARTICLE_URL);
   const [fetchSeedUrl, setFetchSeedUrl] = useState(DEFAULT_ARTICLE_URL);
   const [articles, setArticles] = useState<Article[]>([]);
-  const [selectionModePhase, setSelectionModePhase] = useState<SelectionModePhase>('off');
-  const [selectedArticleKeysInOrder, setSelectedArticleKeysInOrder] = useState<string[]>([]);
-  const isSelectionModeEnabled = selectionModePhase !== 'off';
+  const [selectionModePhase, setSelectionModePhase] =
+    useState<SelectionModePhase>("off");
+  const [selectedArticleKeysInOrder, setSelectedArticleKeysInOrder] = useState<
+    string[]
+  >([]);
+  const isSelectionModeEnabled = selectionModePhase !== "off";
 
   const workbenchState = useSyncExternalStore(
     subscribeWorkbenchState,
     getWorkbenchStateSnapshot,
-    getWorkbenchStateSnapshot,
+    getWorkbenchStateSnapshot
   );
   const workbenchLayoutState = useSyncExternalStore(
     subscribeWorkbenchLayoutState,
     getWorkbenchLayoutStateSnapshot,
-    getWorkbenchLayoutStateSnapshot,
+    getWorkbenchLayoutStateSnapshot
   );
 
   const { activePage } = workbenchState;
   const { isSidebarVisible, activeSidebarKind, isAuxiliarySidebarVisible } =
     workbenchLayoutState;
 
-  const workbenchContainerRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.container);
+  const workbenchContainerRef = useWorkbenchPartRef(
+    WORKBENCH_PART_IDS.container
+  );
   const titlebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
   const settingsPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.settings);
-  const { electronRuntime, previewRuntime, desktopRuntime } = resolveRuntimeState();
+  const { electronRuntime, previewRuntime, desktopRuntime } =
+    resolveRuntimeState();
   const hasWindowControlsProvider = hasWorkbenchWindowControlsProvider();
   const { isWindowMaximized, handleWindowControl } = useWindowControls({
     electronRuntime: electronRuntime && hasWindowControlsProvider,
@@ -225,14 +279,14 @@ function WorkbenchContentView() {
   const ui = useMemo(() => getLocaleMessages(locale), [locale]);
 
   const invokeDesktop = useCallback(
-    async <T,>(command: string, args?: DesktopInvokeArgs): Promise<T> => {
+    async <T>(command: string, args?: DesktopInvokeArgs): Promise<T> => {
       if (window.electronAPI?.invoke) {
         return window.electronAPI.invoke<T>(command, args);
       }
 
-      throw new Error('Desktop invoke bridge is unavailable.');
+      throw new Error("Desktop invoke bridge is unavailable.");
     },
-    [],
+    []
   );
 
   const {
@@ -305,18 +359,16 @@ function WorkbenchContentView() {
     setLocale,
     initialBatchSources: INITIAL_BATCH_SOURCES,
   });
-  const {
-    librarySnapshot,
-    isLibraryLoading,
-    refreshLibrary,
-  } = useLibraryModel({
-    desktopRuntime,
-    invokeDesktop,
-  });
+  const { librarySnapshot, isLibraryLoading, refreshLibrary } = useLibraryModel(
+    {
+      desktopRuntime,
+      invokeDesktop,
+    }
+  );
   const knowledgeBaseModeEnabled = ragEnabled;
 
   useEffect(() => {
-    setWorkbenchSidebarKind(knowledgeBaseModeEnabled ? 'primary' : 'secondary');
+    setWorkbenchSidebarKind(knowledgeBaseModeEnabled ? "primary" : "secondary");
     setSidebarVisible(true);
     setAuxiliarySidebarVisible(knowledgeBaseModeEnabled);
   }, [knowledgeBaseModeEnabled]);
@@ -330,22 +382,27 @@ function WorkbenchContentView() {
     hasData,
   } = useReaderState({ articles });
   const {
-    draftTitle,
+    tabs: editorTabs,
+    activeTabId: activeEditorTabId,
+    activeTab: activeEditorTab,
     setDraftTitle,
-    draftDocument,
     setDraftDocument,
     draftBody,
-    viewMode: editorViewMode,
     setViewMode: setEditorViewMode,
     clearDraft,
     stats: writingStats,
+    activateTab: handleActivateEditorTab,
+    closeTab: handleCloseEditorTab,
+    createDraftTab: handleCreateDraftTab,
+    createWebTab: createEditorWebTab,
+    updateActiveWebTabUrl,
   } = useWritingEditorModel();
   const currentLlmSettings = useMemo(
     () => ({
       activeProvider: activeLlmProvider,
       providers: llmProviders,
     }),
-    [activeLlmProvider, llmProviders],
+    [activeLlmProvider, llmProviders]
   );
   const currentRagSettings = useMemo(
     () => ({
@@ -370,7 +427,7 @@ function WorkbenchContentView() {
       ragProviders,
       retrievalCandidateCount,
       retrievalTopK,
-    ],
+    ]
   );
   const {
     question: assistantQuestion,
@@ -379,7 +436,16 @@ function WorkbenchContentView() {
     result: assistantResult,
     isAsking: isAssistantAsking,
     errorMessage: assistantErrorMessage,
+    conversations: assistantConversations,
+    activeConversationId: activeAssistantConversationId,
+    isHistoryOpen: isAssistantHistoryOpen,
+    isMoreMenuOpen: isAssistantMoreMenuOpen,
     handleAsk: handleAssistantAsk,
+    handleCreateConversation: handleAssistantCreateConversation,
+    handleActivateConversation: handleAssistantActivateConversation,
+    handleCloseConversation: handleAssistantCloseConversation,
+    handleToggleHistory: handleAssistantToggleHistory,
+    handleToggleMoreMenu: handleAssistantToggleMoreMenu,
   } = useAssistantModel({
     desktopRuntime,
     invokeDesktop,
@@ -392,15 +458,17 @@ function WorkbenchContentView() {
   });
   const filteredArticleKeysInOrder = useMemo(
     () => filteredArticles.map((article) => getArticleSelectionKey(article)),
-    [filteredArticles],
+    [filteredArticles]
   );
 
   useEffect(() => {
     setSelectedArticleKeysInOrder((previousKeys) => {
-      if (selectionModePhase === 'all') {
+      if (selectionModePhase === "all") {
         if (
           previousKeys.length === filteredArticleKeysInOrder.length &&
-          previousKeys.every((key, index) => key === filteredArticleKeysInOrder[index])
+          previousKeys.every(
+            (key, index) => key === filteredArticleKeysInOrder[index]
+          )
         ) {
           return previousKeys;
         }
@@ -421,12 +489,12 @@ function WorkbenchContentView() {
 
   const selectedArticleKeys = useMemo(
     () => new Set(selectedArticleKeysInOrder),
-    [selectedArticleKeysInOrder],
+    [selectedArticleKeysInOrder]
   );
 
   const selectedArticleOrderLookup = useMemo(
     () => buildSelectedArticleOrderLookup(selectedArticleKeysInOrder),
-    [selectedArticleKeysInOrder],
+    [selectedArticleKeysInOrder]
   );
 
   const exportableArticles = useMemo(() => {
@@ -435,7 +503,9 @@ function WorkbenchContentView() {
     }
 
     const filteredArticleMap = new Map(
-      filteredArticles.map((article) => [getArticleSelectionKey(article), article] as const),
+      filteredArticles.map(
+        (article) => [getArticleSelectionKey(article), article] as const
+      )
     );
 
     return selectedArticleKeysInOrder
@@ -443,13 +513,22 @@ function WorkbenchContentView() {
       .filter((article): article is Article => Boolean(article));
   }, [filteredArticles, selectedArticleKeysInOrder]);
 
-  const previewNavigationModel = useMemo(() => new PreviewNavigationModel(), []);
+  const previewNavigationModel = useMemo(
+    () => new PreviewNavigationModel(),
+    []
+  );
   const previewNavigationSnapshot = useSyncExternalStore(
     previewNavigationModel.subscribe,
     previewNavigationModel.getSnapshot,
-    previewNavigationModel.getSnapshot,
+    previewNavigationModel.getSnapshot
   );
-  const { browserUrl, iframeReloadKey, previewState } = previewNavigationSnapshot;
+  const { browserUrl, iframeReloadKey, previewState } =
+    previewNavigationSnapshot;
+  const browserUrlRef = useRef(browserUrl);
+
+  useEffect(() => {
+    browserUrlRef.current = browserUrl;
+  }, [browserUrl]);
 
   useEffect(() => {
     return previewNavigationModel.connectPreviewState({
@@ -478,12 +557,18 @@ function WorkbenchContentView() {
       setFetchSeedUrl,
       setWebUrl,
       ui,
-    ],
+    ]
   );
 
   const handleNavigateWeb = useCallback(() => {
     navigateToAddressBarUrl(webUrl, true);
   }, [navigateToAddressBarUrl, webUrl]);
+
+  const handleCreateWebTab = useCallback(() => {
+    createEditorWebTab(browserUrl || webUrl);
+  }, [browserUrl, createEditorWebTab, webUrl]);
+  const activeEditorWebTabUrl =
+    activeEditorTab?.kind === "web" ? activeEditorTab.url : "";
 
   const handlePreviewBack = useCallback(() => {
     previewNavigationModel.handlePreviewBack({
@@ -501,21 +586,25 @@ function WorkbenchContentView() {
 
   const addressBarSourceOptions = useMemo(
     () => previewNavigationModel.createAddressBarSourceOptions(batchSources),
-    [batchSources, previewNavigationModel],
+    [batchSources, previewNavigationModel]
   );
   const selectedAddressBarSourceId = useMemo(() => {
     return previewNavigationModel.resolveSelectedAddressBarSourceId(
       fetchSeedUrl,
       webUrl,
-      batchSources,
+      batchSources
     );
   }, [batchSources, fetchSeedUrl, previewNavigationModel, webUrl]);
 
   const handleWebUrlChange = useCallback(
     (nextUrl: string) => {
-      previewNavigationModel.handleWebUrlChange(nextUrl, setWebUrl, setFetchSeedUrl);
+      previewNavigationModel.handleWebUrlChange(
+        nextUrl,
+        setWebUrl,
+        setFetchSeedUrl
+      );
     },
-    [previewNavigationModel, setFetchSeedUrl, setWebUrl],
+    [previewNavigationModel, setFetchSeedUrl, setWebUrl]
   );
 
   const handleSelectAddressBarSource = useCallback(
@@ -526,11 +615,11 @@ function WorkbenchContentView() {
         navigateToUrl: navigateToAddressBarUrl,
       });
     },
-    [addressBarSourceOptions, navigateToAddressBarUrl, previewNavigationModel],
+    [addressBarSourceOptions, navigateToAddressBarUrl, previewNavigationModel]
   );
 
   const handleCycleAddressBarSource = useCallback(
-    (direction: 'prev' | 'next') => {
+    (direction: "prev" | "next") => {
       previewNavigationModel.handleCycleAddressBarSource({
         direction,
         addressBarSourceOptions,
@@ -543,11 +632,40 @@ function WorkbenchContentView() {
       navigateToAddressBarUrl,
       previewNavigationModel,
       selectedAddressBarSourceId,
-    ],
+    ]
   );
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (activeEditorTab?.kind !== "web" || !activeEditorWebTabUrl) {
+      return;
+    }
+
+    if (activeEditorWebTabUrl === browserUrlRef.current) {
+      return;
+    }
+
+    navigateToAddressBarUrl(activeEditorWebTabUrl, false);
+  }, [
+    activeEditorTab?.id,
+    activeEditorTab?.kind,
+    activeEditorWebTabUrl,
+    navigateToAddressBarUrl,
+  ]);
+
+  useEffect(() => {
+    if (activeEditorTab?.kind !== "web" || !browserUrl) {
+      return;
+    }
+
+    if (activeEditorWebTabUrl === browserUrl) {
+      return;
+    }
+
+    updateActiveWebTabUrl(browserUrl);
+  }, [activeEditorTab, activeEditorWebTabUrl, browserUrl, updateActiveWebTabUrl]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
       return;
     }
 
@@ -562,10 +680,7 @@ function WorkbenchContentView() {
     setArticles(nextArticles);
   }, []);
 
-  const {
-    isBatchLoading,
-    handleFetchLatestBatch,
-  } = useBatchFetchModel({
+  const { isBatchLoading, handleFetchLatestBatch } = useBatchFetchModel({
     desktopRuntime,
     addressBarUrl: fetchSeedUrl || webUrl,
     batchSources,
@@ -583,52 +698,54 @@ function WorkbenchContentView() {
     handleSharedPdfDownload,
     handleOpenArticleDetails,
     handleExportArticlesDocx,
-  } =
-    useDocumentActionsModel({
-      desktopRuntime,
-      invokeDesktop,
-      locale,
-      ui,
-      pdfDownloadDir,
-      pdfFileNameUseSelectionOrder,
-      isSelectionModeEnabled,
-      selectedArticleOrderLookup,
-      exportableArticles,
-      onLibraryUpdated: refreshLibrary,
-    });
+  } = useDocumentActionsModel({
+    desktopRuntime,
+    invokeDesktop,
+    locale,
+    ui,
+    pdfDownloadDir,
+    pdfFileNameUseSelectionOrder,
+    isSelectionModeEnabled,
+    selectedArticleOrderLookup,
+    exportableArticles,
+    onLibraryUpdated: refreshLibrary,
+  });
 
   const handleToggleSelectionMode = useCallback(() => {
     setSelectionModePhase((previousPhase) => {
-      if (previousPhase === 'off') {
+      if (previousPhase === "off") {
         setSelectedArticleKeysInOrder([]);
-        return 'multi';
+        return "multi";
       }
 
-      if (previousPhase === 'multi') {
+      if (previousPhase === "multi") {
         setSelectedArticleKeysInOrder(filteredArticleKeysInOrder);
-        return 'all';
+        return "all";
       }
 
       setSelectedArticleKeysInOrder([]);
-      return 'off';
+      return "off";
     });
   }, [filteredArticleKeysInOrder]);
 
-  const handleToggleArticleSelected = useCallback((article: Article) => {
-    if (selectionModePhase === 'off') {
-      return;
-    }
-
-    const articleKey = getArticleSelectionKey(article);
-
-    setSelectedArticleKeysInOrder((previousKeys) => {
-      if (previousKeys.includes(articleKey)) {
-        return previousKeys.filter((key) => key !== articleKey);
+  const handleToggleArticleSelected = useCallback(
+    (article: Article) => {
+      if (selectionModePhase === "off") {
+        return;
       }
 
-      return [...previousKeys, articleKey];
-    });
-  }, [selectionModePhase]);
+      const articleKey = getArticleSelectionKey(article);
+
+      setSelectedArticleKeysInOrder((previousKeys) => {
+        if (previousKeys.includes(articleKey)) {
+          return previousKeys.filter((key) => key !== articleKey);
+        }
+
+        return [...previousKeys, articleKey];
+      });
+    },
+    [selectionModePhase]
+  );
 
   const handleToggleSidebar = useCallback(() => {
     toggleSidebarVisibility();
@@ -640,37 +757,37 @@ function WorkbenchContentView() {
 
   useEffect(() => {
     return subscribeTitlebarUiActions((action) => {
-      if (action.type === 'TOGGLE_SIDEBAR') {
+      if (action.type === "TOGGLE_SIDEBAR") {
         toggleSidebarVisibility();
         return;
       }
 
-      if (action.type === 'TOGGLE_AUXILIARY_SIDEBAR') {
+      if (action.type === "TOGGLE_AUXILIARY_SIDEBAR") {
         toggleAuxiliarySidebarVisibility();
         return;
       }
 
-      if (action.type === 'NAVIGATE_BACK') {
+      if (action.type === "NAVIGATE_BACK") {
         handlePreviewBack();
         return;
       }
 
-      if (action.type === 'NAVIGATE_FORWARD') {
+      if (action.type === "NAVIGATE_FORWARD") {
         handlePreviewForward();
         return;
       }
 
-      if (action.type === 'NAVIGATE_WEB') {
+      if (action.type === "NAVIGATE_WEB") {
         handleNavigateWeb();
         return;
       }
 
-      if (action.type === 'TOGGLE_SETTINGS') {
+      if (action.type === "TOGGLE_SETTINGS") {
         toggleWorkbenchSettings();
         return;
       }
 
-      if (action.type === 'EXPORT_DOCX') {
+      if (action.type === "EXPORT_DOCX") {
         void handleExportArticlesDocx();
       }
     });
@@ -683,7 +800,7 @@ function WorkbenchContentView() {
 
   const secondarySidebarProps = useMemo(
     () =>
-      createSidebarPartProps({
+      createSecondarySidebarPartProps({
         state: {
           ui,
           locale,
@@ -724,7 +841,7 @@ function WorkbenchContentView() {
       setBatchEndDate,
       setBatchStartDate,
       ui,
-    ],
+    ]
   );
 
   const primarySidebarProps = useMemo(
@@ -734,7 +851,12 @@ function WorkbenchContentView() {
       isLibraryLoading,
       onRefreshLibrary: () => void refreshLibrary(),
     }),
-    [isLibraryLoading, librarySnapshot, refreshLibrary, secondarySidebarProps.labels],
+    [
+      isLibraryLoading,
+      librarySnapshot,
+      refreshLibrary,
+      secondarySidebarProps.labels,
+    ]
   );
 
   const auxiliarySidebarProps = useMemo(
@@ -750,20 +872,38 @@ function WorkbenchContentView() {
       errorMessage: assistantErrorMessage,
       onAsk: () => void handleAssistantAsk(),
       availableArticleCount: filteredArticles.length,
+      conversations: assistantConversations,
+      activeConversationId: activeAssistantConversationId,
+      isHistoryOpen: isAssistantHistoryOpen,
+      isMoreMenuOpen: isAssistantMoreMenuOpen,
+      onCreateConversation: handleAssistantCreateConversation,
+      onActivateConversation: handleAssistantActivateConversation,
+      onCloseConversation: handleAssistantCloseConversation,
+      onToggleHistory: handleAssistantToggleHistory,
+      onToggleMoreMenu: handleAssistantToggleMoreMenu,
     }),
     [
+      activeAssistantConversationId,
       assistantErrorMessage,
       assistantQuestion,
+      assistantConversations,
+      handleAssistantActivateConversation,
+      handleAssistantCloseConversation,
       assistantMessages,
+      handleAssistantCreateConversation,
+      handleAssistantToggleHistory,
+      handleAssistantToggleMoreMenu,
       assistantResult,
       filteredArticles.length,
       handleAssistantAsk,
       isAssistantAsking,
+      isAssistantHistoryOpen,
+      isAssistantMoreMenuOpen,
       knowledgeBaseModeEnabled,
       librarySnapshot,
       secondarySidebarProps.labels,
       setAssistantQuestion,
-    ],
+    ]
   );
 
   const titlebarProps = useMemo(
@@ -814,7 +954,7 @@ function WorkbenchContentView() {
       selectedAddressBarSourceId,
       ui,
       webUrl,
-    ],
+    ]
   );
 
   const viewPartProps = useMemo(() => {
@@ -838,13 +978,18 @@ function WorkbenchContentView() {
           ui,
           viewPartProps,
           isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
-          draftTitle,
-          draftDocument,
-          viewMode: editorViewMode,
+          tabs: editorTabs,
+          activeTabId: activeEditorTabId,
+          activeTab: activeEditorTab,
+          canCreateWebTab: Boolean((browserUrl || webUrl).trim()),
           latestAssistantResult: assistantResult,
           stats: writingStats,
         },
         actions: {
+          onActivateTab: handleActivateEditorTab,
+          onCloseTab: handleCloseEditorTab,
+          onCreateDraftTab: handleCreateDraftTab,
+          onCreateWebTab: handleCreateWebTab,
           onDraftTitleChange: setDraftTitle,
           onDraftDocumentChange: setDraftDocument,
           onViewModeChange: setEditorViewMode,
@@ -852,19 +997,25 @@ function WorkbenchContentView() {
         },
       }),
     [
+      activeEditorTab,
+      activeEditorTabId,
       assistantResult,
+      browserUrl,
       clearDraft,
-      draftDocument,
-      draftTitle,
-      editorViewMode,
+      editorTabs,
+      handleActivateEditorTab,
+      handleCloseEditorTab,
+      handleCreateDraftTab,
+      handleCreateWebTab,
       knowledgeBaseModeEnabled,
       setDraftDocument,
       setDraftTitle,
       setEditorViewMode,
       ui,
       viewPartProps,
+      webUrl,
       writingStats,
-    ],
+    ]
   );
 
   const settingsPartProps = useMemo(
@@ -915,7 +1066,8 @@ function WorkbenchContentView() {
           onAddBatchSource: handleAddBatchSource,
           onRemoveBatchSource: handleRemoveBatchSource,
           onMoveBatchSource: handleMoveBatchSource,
-          onBatchLimitChange: (value) => setBatchLimit(normalizeBatchLimit(value, 1)),
+          onBatchLimitChange: (value) =>
+            setBatchLimit(normalizeBatchLimit(value, 1)),
           onSameDomainOnlyChange: setSameDomainOnly,
           onUseMicaChange: setUseMica,
           onRagEnabledChange: setRagEnabled,
@@ -924,7 +1076,7 @@ function WorkbenchContentView() {
           onLibraryDirectoryChange: setLibraryDirectory,
           onMaxConcurrentIndexJobsChange: (value) =>
             setMaxConcurrentIndexJobs(
-              Math.min(4, Math.max(1, Number.parseInt(String(value), 10) || 1)),
+              Math.min(4, Math.max(1, Number.parseInt(String(value), 10) || 1))
             ),
           onRagProviderApiKeyChange: setRagProviderApiKey,
           onRagProviderBaseUrlChange: setRagProviderBaseUrl,
@@ -934,14 +1086,17 @@ function WorkbenchContentView() {
           onRagProviderRerankPathChange: setRagProviderRerankPath,
           onRetrievalCandidateCountChange: (value) =>
             setRetrievalCandidateCount(
-              Math.min(20, Math.max(3, Number.parseInt(String(value), 10) || 10)),
+              Math.min(
+                20,
+                Math.max(3, Number.parseInt(String(value), 10) || 10)
+              )
             ),
           onRetrievalTopKChange: (value) =>
             setRetrievalTopK(
               Math.min(
                 retrievalCandidateCount,
-                Math.max(1, Number.parseInt(String(value), 10) || 4),
-              ),
+                Math.max(1, Number.parseInt(String(value), 10) || 4)
+              )
             ),
           onPdfDownloadDirChange: setPdfDownloadDir,
           onPdfFileNameUseSelectionOrderChange: setPdfFileNameUseSelectionOrder,
@@ -954,7 +1109,8 @@ function WorkbenchContentView() {
           onTranslationProviderApiKeyChange: setTranslationProviderApiKey,
           onTestRagConnection: () => void handleTestRagConnection(),
           onTestLlmConnection: () => void handleTestLlmConnection(),
-          onTestTranslationConnection: () => void handleTestTranslationConnection(),
+          onTestTranslationConnection: () =>
+            void handleTestTranslationConnection(),
           onOpenConfigLocation: () => void handleOpenConfigLocation(),
           onResetDownloadDir: handleResetDownloadDir,
         },
@@ -1025,7 +1181,7 @@ function WorkbenchContentView() {
       setRagEnabled,
       setSameDomainOnly,
       ui,
-    ],
+    ]
   );
 
   const activePageView = renderActivePageView({
@@ -1057,18 +1213,17 @@ export default function WorkbenchView() {
   const nativeOverlayKind = detectNativeOverlayKind();
   const nativeModalKind = detectNativeModalKind();
 
-  if (nativeOverlayKind === 'toast') {
+  if (nativeOverlayKind === "toast") {
     return jsx(ToastOverlayWindow, {});
   }
 
-  if (nativeOverlayKind === 'menu') {
+  if (nativeOverlayKind === "menu") {
     return jsx(MenuOverlayWindow, {});
   }
 
-  if (nativeModalKind === 'article-details') {
+  if (nativeModalKind === "article-details") {
     return jsx(ArticleDetailsModalWindow, {});
   }
 
   return jsx(WorkbenchContentView, {});
 }
-

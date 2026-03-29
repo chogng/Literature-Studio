@@ -137,6 +137,41 @@ export function useAssistantModel({
     setIsMoreMenuOpen(false);
   }, []);
 
+  const handleCloseConversation = useCallback((conversationId: string) => {
+    setConversations((previousConversations) => {
+      if (previousConversations.length <= 1) {
+        return previousConversations;
+      }
+
+      const closedConversationIndex = previousConversations.findIndex(
+        (conversation) => conversation.id === conversationId
+      );
+      if (closedConversationIndex < 0) {
+        return previousConversations;
+      }
+
+      const nextConversations = previousConversations.filter(
+        (conversation) => conversation.id !== conversationId
+      );
+
+      setActiveConversationId((previousActiveConversationId) => {
+        if (previousActiveConversationId !== conversationId) {
+          return previousActiveConversationId;
+        }
+
+        const fallbackIndex = Math.min(
+          closedConversationIndex,
+          nextConversations.length - 1
+        );
+        return nextConversations[fallbackIndex]?.id ?? nextConversations[0]?.id ?? "";
+      });
+
+      return nextConversations;
+    });
+    setIsHistoryOpen(false);
+    setIsMoreMenuOpen(false);
+  }, []);
+
   const handleToggleHistory = useCallback(() => {
     setIsHistoryOpen((previousValue) => !previousValue);
     setIsMoreMenuOpen(false);
@@ -254,6 +289,7 @@ export function useAssistantModel({
     handleAsk,
     handleCreateConversation,
     handleActivateConversation,
+    handleCloseConversation,
     handleToggleHistory,
     handleToggleMoreMenu,
   };

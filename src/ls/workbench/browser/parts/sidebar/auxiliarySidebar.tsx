@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { ArrowUp, Bot, Ellipsis, History, Plus, UserRound } from "lucide-react";
-import type { ChangeEvent, KeyboardEvent } from "react";
+import { ArrowUp, Bot, Ellipsis, History, Plus, UserRound, X } from "lucide-react";
+import type { ChangeEvent, KeyboardEvent, MouseEvent } from "react";
 import { Button } from "../../../../base/browser/ui/button/button";
 import type { AssistantChatMessage } from "../../assistantModel";
 import type { SidebarLabels } from "./secondarySidebarPart";
@@ -26,6 +26,7 @@ type AuxiliarySidebarProps = {
   isMoreMenuOpen: boolean;
   onCreateConversation: () => void;
   onActivateConversation: (conversationId: string) => void;
+  onCloseConversation: (conversationId: string) => void;
   onToggleHistory: () => void;
   onToggleMoreMenu: () => void;
 };
@@ -46,6 +47,7 @@ export default function AuxiliarySidebar({
   isMoreMenuOpen,
   onCreateConversation,
   onActivateConversation,
+  onCloseConversation,
   onToggleHistory,
   onToggleMoreMenu,
 }: AuxiliarySidebarProps) {
@@ -70,19 +72,37 @@ export default function AuxiliarySidebar({
           jsx("div", {
             className: "sidebar-chat-tab-strip",
             children: conversations.map((conversation) =>
-              jsx(
-                "button",
+              jsxs(
+                "div",
                 {
-                  type: "button",
-                  className: [
-                    "sidebar-chat-tab",
-                    conversation.id === activeConversationId ? "is-active" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" "),
-                  onClick: () => onActivateConversation(conversation.id),
-                  title: conversation.title,
-                  children: conversation.title,
+                  className: "sidebar-chat-tab-item",
+                  children: [
+                    jsx("button", {
+                      type: "button",
+                      className: [
+                        "sidebar-chat-tab",
+                        conversation.id === activeConversationId ? "is-active" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" "),
+                      onClick: () => onActivateConversation(conversation.id),
+                      title: conversation.title,
+                      children: conversation.title,
+                    }),
+                    conversations.length > 1
+                      ? jsx("button", {
+                          type: "button",
+                          className: "sidebar-chat-tab-close",
+                          title: "关闭对话",
+                          "aria-label": `关闭对话：${conversation.title}`,
+                          onClick: (event: MouseEvent<HTMLButtonElement>) => {
+                            event.stopPropagation();
+                            onCloseConversation(conversation.id);
+                          },
+                          children: jsx(X, { size: 11, strokeWidth: 2.5 }),
+                        })
+                      : null,
+                  ],
                 },
                 conversation.id
               )
@@ -96,9 +116,7 @@ export default function AuxiliarySidebar({
                 className: "sidebar-chat-topbar-action-btn",
                 variant: "ghost",
                 size: "sm",
-                mode: "text",
-                textMode: "without",
-                iconMode: "only",
+                mode: "icon",
                 leftIcon: jsx(Plus, { size: 16, strokeWidth: 2 }),
                 title: "添加新对话",
                 "aria-label": "添加新对话",
@@ -114,9 +132,7 @@ export default function AuxiliarySidebar({
                   .join(" "),
                 variant: "ghost",
                 size: "sm",
-                mode: "text",
-                textMode: "without",
-                iconMode: "only",
+                mode: "icon",
                 leftIcon: jsx(History, { size: 16, strokeWidth: 2 }),
                 title: "查看历史对话",
                 "aria-label": "查看历史对话",
@@ -132,9 +148,7 @@ export default function AuxiliarySidebar({
                   .join(" "),
                 variant: "ghost",
                 size: "sm",
-                mode: "text",
-                textMode: "without",
-                iconMode: "only",
+                mode: "icon",
                 leftIcon: jsx(Ellipsis, { size: 16, strokeWidth: 2 }),
                 title: "更多设置",
                 "aria-label": "更多设置",

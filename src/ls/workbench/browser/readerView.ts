@@ -1,37 +1,39 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import { type CSSProperties } from 'react';
+import { jsx, jsxs } from "react/jsx-runtime";
+import { type CSSProperties } from "react";
 import {
   getWorkbenchContentClassName,
   getWorkbenchContentStyle,
   WORKBENCH_PART_IDS,
   type WorkbenchSidebarKind,
   useWorkbenchPartRef,
-} from './layout';
-import EditorPartView, { type EditorPartProps } from './parts/editor/editorPartView';
+} from "./layout";
+import EditorPartView, {
+  type EditorPartProps,
+} from "./parts/editor/editorPartView";
 import {
   AuxiliarySidebarPartView,
   PrimarySidebarPartView,
-  SidebarPartView,
-  type SidebarProps,
-} from './parts/sidebar/sidebarPart';
+  SecondarySidebarPartView,
+  type SecondarySidebarProps,
+} from "./parts/sidebar/secondarySidebarPart";
 import type {
   LibraryDocumentsResult,
   RagAnswerResult,
-} from '../../base/parts/sandbox/common/desktopTypes.js';
+} from "../../base/parts/sandbox/common/desktopTypes.js";
 
 type ReaderViewProps = {
   isSidebarVisible: boolean;
   activeSidebarKind: WorkbenchSidebarKind;
   isAuxiliarySidebarVisible: boolean;
-  secondarySidebarProps: SidebarProps;
+  secondarySidebarProps: SecondarySidebarProps;
   primarySidebarProps: {
-    labels: SidebarProps['labels'];
+    labels: SecondarySidebarProps["labels"];
     librarySnapshot: LibraryDocumentsResult;
     isLibraryLoading: boolean;
     onRefreshLibrary?: () => void;
   };
   auxiliarySidebarProps: {
-    labels: SidebarProps['labels'];
+    labels: SecondarySidebarProps["labels"];
     isKnowledgeBaseModeEnabled: boolean;
     librarySnapshot: LibraryDocumentsResult;
     question: string;
@@ -56,19 +58,25 @@ function renderSidebarPart({
   isSidebarVisible: boolean;
   activeSidebarKind: WorkbenchSidebarKind;
   secondarySidebarPartRef: ReturnType<typeof useWorkbenchPartRef>;
-  secondarySidebarProps: SidebarProps;
+  secondarySidebarProps: SecondarySidebarProps;
   primarySidebarPartRef: ReturnType<typeof useWorkbenchPartRef>;
-  primarySidebarProps: ReaderViewProps['primarySidebarProps'];
+  primarySidebarProps: ReaderViewProps["primarySidebarProps"];
 }) {
   if (!isSidebarVisible) {
     return null;
   }
 
-  if (activeSidebarKind === 'primary') {
-    return jsx(PrimarySidebarPartView, { partRef: primarySidebarPartRef, ...primarySidebarProps });
+  if (activeSidebarKind === "primary") {
+    return jsx(PrimarySidebarPartView, {
+      partRef: primarySidebarPartRef,
+      ...primarySidebarProps,
+    });
   }
 
-  return jsx(SidebarPartView, { partRef: secondarySidebarPartRef, ...secondarySidebarProps });
+  return jsx(SecondarySidebarPartView, {
+    partRef: secondarySidebarPartRef,
+    ...secondarySidebarProps,
+  });
 }
 
 export default function ReaderView({
@@ -80,9 +88,15 @@ export default function ReaderView({
   auxiliarySidebarProps,
   editorPartProps,
 }: ReaderViewProps) {
-  const secondarySidebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.secondarySidebar);
-  const primarySidebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.primarySidebar);
-  const auxiliarySidebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.auxiliarySidebar);
+  const secondarySidebarPartRef = useWorkbenchPartRef(
+    WORKBENCH_PART_IDS.secondarySidebar
+  );
+  const primarySidebarPartRef = useWorkbenchPartRef(
+    WORKBENCH_PART_IDS.primarySidebar
+  );
+  const auxiliarySidebarPartRef = useWorkbenchPartRef(
+    WORKBENCH_PART_IDS.auxiliarySidebar
+  );
   const contentClassName = getWorkbenchContentClassName({
     isSidebarVisible,
     isAuxiliarySidebarVisible,
@@ -102,12 +116,19 @@ export default function ReaderView({
     primarySidebarProps,
   });
   const auxiliarySidebarPartView = isAuxiliarySidebarVisible
-    ? jsx(AuxiliarySidebarPartView, { partRef: auxiliarySidebarPartRef, ...auxiliarySidebarProps })
+    ? jsx(AuxiliarySidebarPartView, {
+        partRef: auxiliarySidebarPartRef,
+        ...auxiliarySidebarProps,
+      })
     : null;
 
-  return jsxs('main', {
+  return jsxs("main", {
     className: contentClassName,
     style: contentStyle,
-    children: [sidebarPartView, jsx(EditorPartView, { ...editorPartProps }), auxiliarySidebarPartView],
+    children: [
+      sidebarPartView,
+      jsx(EditorPartView, { ...editorPartProps }),
+      auxiliarySidebarPartView,
+    ],
   });
 }
