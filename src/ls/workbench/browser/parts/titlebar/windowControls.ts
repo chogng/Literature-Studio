@@ -93,7 +93,7 @@ export function WindowControlsGroup({
           className: buttonClassName,
           label: resolvedLabels.minimizeLabel,
           onClick: () => onWindowControl('minimize'),
-          icon: jsx(Minus, { size: 16, strokeWidth: 1.5 }),
+          icon: jsx(Minus, { size: 16, strokeWidth: 1.8 }),
         });
       }
 
@@ -104,8 +104,8 @@ export function WindowControlsGroup({
           label: isWindowMaximized ? resolvedLabels.restoreLabel : resolvedLabels.maximizeLabel,
           onClick: () => onWindowControl('toggle-maximize'),
           icon: isWindowMaximized
-            ? jsx(Copy, { size: 16, strokeWidth: 1.5 })
-            : jsx(Square, { size: 16, strokeWidth: 1.5 }),
+            ? jsx(Copy, { size: 16, strokeWidth: 1.8 })
+            : jsx(Square, { size: 14, strokeWidth: 1.8 }),
         });
       }
 
@@ -114,7 +114,7 @@ export function WindowControlsGroup({
         className: closeButtonClassName,
         label: resolvedLabels.closeLabel,
         onClick: () => onWindowControl('close'),
-        icon: jsx(X, { size: 16, strokeWidth: 1.5 }),
+        icon: jsx(X, { size: 16, strokeWidth: 1.8 }),
       });
     }),
   });
