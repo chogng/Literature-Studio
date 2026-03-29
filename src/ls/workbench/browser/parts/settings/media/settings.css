@@ -58,12 +58,13 @@
   overflow: hidden;
 }
 
-.settings-card {
+.panel.settings-card {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  border: 0;
 }
 
 .settings-header {

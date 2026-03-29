@@ -53,9 +53,9 @@ const en = {
   settingsUseMicaHint:
     'Available in the desktop app. The titlebar and app shell will pick up the system Mica material when Windows supports it.',
   defaultPdfDir: 'Default PDF download directory',
-  pdfFileNameUseSelectionOrder: 'Prefix PDF file names with selection order',
+  pdfFileNameUseSelectionOrder: 'Prefix PDF file names by multi-select order',
   pdfFileNameUseSelectionOrderHint:
-    'Only applies in selection mode. Selected PDFs are named like "1. Article Title"; regular single downloads still use the title only.',
+    'Only applies in multi-select mode. When enabled, names are like "1. Article Title"; when disabled, only the title is used.',
   downloadDirPlaceholder: 'Leave empty to use the system Downloads folder',
   chooseDirectory: 'Choose directory',
   openConfigLocation: 'Open file location',
@@ -163,7 +163,7 @@ const en = {
   languageEnglish: 'English',
   sidebarCollapse: 'Collapse sidebar',
   sidebarExpand: 'Expand sidebar',
-  sidebarSelectionMode: 'Select',
+  sidebarSelectionMode: 'Multi-select',
   titlebarControls: 'Window controls',
   titlebarSettings: 'Settings',
   titlebarMinimize: 'Minimize',

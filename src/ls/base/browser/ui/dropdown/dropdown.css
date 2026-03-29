@@ -22,12 +22,12 @@
 }
 
 .dropdown-wrapper:hover:not(.dropdown-disabled) {
-  border-color: var(--dropdown-border-hover);
+  border-color: var(--dropdown-border);
   background-color: var(--dropdown-bg-hover);
 }
 
 .dropdown-focused {
-  border-color: var(--dropdown-border-focus);
+  border-color: var(--dropdown-border);
   background-color: var(--dropdown-bg-focus);
 }
 
