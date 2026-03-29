@@ -18,6 +18,7 @@ import {
 } from './docxCopy.js';
 import { cleanText } from '../../../base/common/strings.js';
 import { showSaveDialog } from '../../../platform/dialogs/electron-main/dialogMainService.js';
+import { buildPdfDirectoryName } from '../../../platform/download/common/pdfFileName.js';
 import { translateArticlesToChinese } from '../translation/articleTranslation.js';
 
 type ZipEntry = {
@@ -427,7 +428,50 @@ function pad(value: number) {
   return String(value).padStart(2, '0');
 }
 
-export function buildBatchDocxFileName(referenceDate = new Date()) {
+function resolveSingleJournalDocxFileStem(articles: Article[], locale: SupportedLocale) {
+  if (articles.length === 0) {
+    return '';
+  }
+
+  const uncategorized = resolveDocxExportCopy(locale).uncategorizedJournal.toLowerCase();
+  const uniqueJournalTitles = new Map<string, string>();
+  for (const article of articles) {
+    const journalTitle = resolveJournalTitle(article, locale);
+    const normalizedTitle = journalTitle.toLowerCase();
+
+    if (!uniqueJournalTitles.has(normalizedTitle)) {
+      uniqueJournalTitles.set(normalizedTitle, journalTitle);
+    }
+
+    if (uniqueJournalTitles.size > 1) {
+      return '';
+    }
+  }
+
+  const onlyTitle = uniqueJournalTitles.values().next().value ?? '';
+  if (!onlyTitle || onlyTitle.toLowerCase() === uncategorized) {
+    return '';
+  }
+
+  return buildPdfDirectoryName(onlyTitle);
+}
+
+export function buildBatchDocxFileName(
+  {
+    articles = [],
+    locale = 'zh',
+    referenceDate = new Date(),
+  }: {
+    articles?: Article[];
+    locale?: SupportedLocale;
+    referenceDate?: Date;
+  } = {},
+) {
+  const preferredFileStem = resolveSingleJournalDocxFileStem(articles, locale);
+  if (preferredFileStem) {
+    return `${preferredFileStem}.docx`;
+  }
+
   const year = referenceDate.getFullYear();
   const month = pad(referenceDate.getMonth() + 1);
   const day = pad(referenceDate.getDate());
@@ -457,7 +501,10 @@ export async function exportArticlesDocx(
     {
       title: dialogCopy.title,
       buttonLabel: dialogCopy.buttonLabel,
-      defaultPath: path.join(preferredDirectory || defaultDownloadDir, buildBatchDocxFileName()),
+      defaultPath: path.join(
+        preferredDirectory || defaultDownloadDir,
+        buildBatchDocxFileName({ articles, locale }),
+      ),
       filters: [
         {
           name: 'Word Document',

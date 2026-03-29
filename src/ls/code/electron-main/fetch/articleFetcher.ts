@@ -2159,11 +2159,23 @@ export async function fetchLatestArticles(
   }
 
   const saveStartedAt = Date.now();
-  await storage.saveFetchedArticles(fetched);
-  timingLog(traceId, 'batch:save_done', {
-    ms: elapsedMs(saveStartedAt),
-    count: fetched.length,
-  });
+  void storage
+    .saveFetchedArticles(fetched)
+    .then(() => {
+      timingLog(traceId, 'batch:save_done', {
+        ms: elapsedMs(saveStartedAt),
+        count: fetched.length,
+        deferred: true,
+      });
+    })
+    .catch((error) => {
+      timingLog(traceId, 'batch:save_failed', {
+        ms: elapsedMs(saveStartedAt),
+        count: fetched.length,
+        deferred: true,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
   timingLog(traceId, 'batch:done', {
     totalMs: elapsedMs(totalStartedAt),
     sourceCount: pageSources.length,
@@ -2171,6 +2183,7 @@ export async function fetchLatestArticles(
     dedupedCount: fetched.length,
     dedupeDropped: Math.max(0, rawFetchedCount - fetched.length),
     failedSourceCount: failedSources.length,
+    historySave: 'deferred',
   });
   return fetched;
 }
