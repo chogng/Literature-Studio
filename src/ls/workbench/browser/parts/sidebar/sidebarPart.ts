@@ -51,8 +51,12 @@ export type SidebarLabels = {
   endDate: string;
   fetchLatestBusy: string;
   fetchLatest: string;
-  selectionMode: string;
+  selectionModeEnterSingle: string;
+  selectionModeSelectAll: string;
+  selectionModeExit: string;
 };
+
+export type SidebarSelectionModePhase = 'off' | 'single' | 'all';
 
 export type SidebarProps = {
   articles: SidebarArticle[];
@@ -73,6 +77,7 @@ export type SidebarProps = {
   ) => void | Promise<void>;
   isBatchLoading: boolean;
   isSelectionModeEnabled: boolean;
+  selectionModePhase: SidebarSelectionModePhase;
   selectedArticleKeys: ReadonlySet<string>;
   onToggleSelectionMode: () => void;
   onToggleArticleSelected: (article: SidebarArticle) => void;
@@ -87,6 +92,7 @@ export type SidebarPartState = {
   batchEndDate: string;
   isBatchLoading: boolean;
   isSelectionModeEnabled: boolean;
+  selectionModePhase: SidebarSelectionModePhase;
   selectedArticleKeys: ReadonlySet<string>;
 };
 
@@ -138,7 +144,9 @@ export function createSidebarPartLabels({
     endDate: ui.endDate,
     fetchLatestBusy: ui.fetchLatestBusy,
     fetchLatest: ui.fetchLatest,
-    selectionMode: ui.sidebarSelectionMode,
+    selectionModeEnterSingle: ui.sidebarSelectionModeEnterSingle,
+    selectionModeSelectAll: ui.sidebarSelectionModeSelectAll,
+    selectionModeExit: ui.sidebarSelectionModeExit,
   };
 }
 
@@ -152,6 +160,7 @@ export function createSidebarPartProps({
     batchEndDate,
     isBatchLoading,
     isSelectionModeEnabled,
+    selectionModePhase,
     selectedArticleKeys,
   },
   actions: {
@@ -178,6 +187,7 @@ export function createSidebarPartProps({
     onOpenArticleDetails,
     isBatchLoading,
     isSelectionModeEnabled,
+    selectionModePhase,
     selectedArticleKeys,
     onToggleSelectionMode,
     onToggleArticleSelected,
@@ -289,6 +299,7 @@ function renderActionBar({
   onFetchLatestBatch,
   isBatchLoading,
   isSelectionModeEnabled,
+  selectionModePhase,
   onToggleSelectionMode,
   hasSelectableArticles,
 }: Pick<
@@ -301,10 +312,18 @@ function renderActionBar({
   | 'onFetchLatestBatch'
   | 'isBatchLoading'
   | 'isSelectionModeEnabled'
+  | 'selectionModePhase'
   | 'onToggleSelectionMode'
 > & {
   hasSelectableArticles: boolean;
 }) {
+  const selectionButtonLabel =
+    selectionModePhase === 'off'
+      ? labels.selectionModeEnterSingle
+      : selectionModePhase === 'single'
+        ? labels.selectionModeSelectAll
+        : labels.selectionModeExit;
+
   // Date range + fetch trigger are grouped as the sticky command surface of the sidebar.
   return jsxs('div', {
     className: 'sidebar-action-bar',
@@ -333,9 +352,9 @@ function renderActionBar({
         iconMode: 'with',
         leftIcon: jsx(CheckSquare, { size: 14, strokeWidth: 1.8 }),
         onClick: onToggleSelectionMode,
-        disabled: !hasSelectableArticles,
+        disabled: !hasSelectableArticles && !isSelectionModeEnabled,
         'aria-pressed': isSelectionModeEnabled,
-        children: labels.selectionMode,
+        children: selectionButtonLabel,
       }),
       jsx(Button, {
         type: 'button',
@@ -369,6 +388,7 @@ export function SidebarPartView({
   onOpenArticleDetails,
   isBatchLoading,
   isSelectionModeEnabled,
+  selectionModePhase,
   selectedArticleKeys,
   onToggleSelectionMode,
   onToggleArticleSelected,
@@ -382,6 +402,7 @@ export function SidebarPartView({
     onFetchLatestBatch,
     isBatchLoading,
     isSelectionModeEnabled,
+    selectionModePhase,
     onToggleSelectionMode,
     hasSelectableArticles: articles.length > 0,
   });

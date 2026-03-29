@@ -47,6 +47,7 @@ import './media/workbench.css';
 
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 type ActivePage = ReturnType<typeof getWorkbenchStateSnapshot>['activePage'];
+type SelectionModePhase = 'off' | 'single' | 'all';
 
 type ActivePageViewConfig = {
   activePage: ActivePage;
@@ -158,8 +159,9 @@ function WorkbenchContentView() {
   const [webUrl, setWebUrl] = useState(DEFAULT_ARTICLE_URL);
   const [fetchSeedUrl, setFetchSeedUrl] = useState(DEFAULT_ARTICLE_URL);
   const [articles, setArticles] = useState<Article[]>([]);
-  const [isSelectionModeEnabled, setIsSelectionModeEnabled] = useState(false);
+  const [selectionModePhase, setSelectionModePhase] = useState<SelectionModePhase>('off');
   const [selectedArticleKeysInOrder, setSelectedArticleKeysInOrder] = useState<string[]>([]);
+  const isSelectionModeEnabled = selectionModePhase !== 'off';
 
   const workbenchState = useSyncExternalStore(
     subscribeWorkbenchState,
@@ -250,19 +252,34 @@ function WorkbenchContentView() {
     filteredArticles,
     hasData,
   } = useReaderState({ articles });
+  const filteredArticleKeysInOrder = useMemo(
+    () => filteredArticles.map((article) => getArticleSelectionKey(article)),
+    [filteredArticles],
+  );
 
   useEffect(() => {
     setSelectedArticleKeysInOrder((previousKeys) => {
+      if (selectionModePhase === 'all') {
+        if (
+          previousKeys.length === filteredArticleKeysInOrder.length &&
+          previousKeys.every((key, index) => key === filteredArticleKeysInOrder[index])
+        ) {
+          return previousKeys;
+        }
+
+        return filteredArticleKeysInOrder;
+      }
+
       if (previousKeys.length === 0) {
         return previousKeys;
       }
 
-      const visibleKeys = new Set(filteredArticles.map((article) => getArticleSelectionKey(article)));
+      const visibleKeys = new Set(filteredArticleKeysInOrder);
       const nextKeys = previousKeys.filter((key) => visibleKeys.has(key));
 
       return nextKeys.length === previousKeys.length ? previousKeys : nextKeys;
     });
-  }, [filteredArticles]);
+  }, [filteredArticleKeysInOrder, selectionModePhase]);
 
   const selectedArticleKeys = useMemo(
     () => new Set(selectedArticleKeysInOrder),
@@ -442,20 +459,42 @@ function WorkbenchContentView() {
     });
 
   const handleToggleSelectionMode = useCallback(() => {
-    setIsSelectionModeEnabled((previousValue) => !previousValue);
-  }, []);
+    setSelectionModePhase((previousPhase) => {
+      if (previousPhase === 'off') {
+        setSelectedArticleKeysInOrder([]);
+        return 'single';
+      }
+
+      if (previousPhase === 'single') {
+        setSelectedArticleKeysInOrder(filteredArticleKeysInOrder);
+        return 'all';
+      }
+
+      setSelectedArticleKeysInOrder([]);
+      return 'off';
+    });
+  }, [filteredArticleKeysInOrder]);
 
   const handleToggleArticleSelected = useCallback((article: Article) => {
+    if (selectionModePhase === 'off') {
+      return;
+    }
+
     const articleKey = getArticleSelectionKey(article);
 
     setSelectedArticleKeysInOrder((previousKeys) => {
+      if (selectionModePhase === 'single') {
+        const isOnlySelected = previousKeys.length === 1 && previousKeys[0] === articleKey;
+        return isOnlySelected ? [] : [articleKey];
+      }
+
       if (previousKeys.includes(articleKey)) {
         return previousKeys.filter((key) => key !== articleKey);
       }
 
       return [...previousKeys, articleKey];
     });
-  }, []);
+  }, [selectionModePhase]);
 
   const handleToggleSidebar = useCallback(() => {
     toggleSidebarVisibility();
@@ -511,6 +550,7 @@ function WorkbenchContentView() {
           batchEndDate,
           isBatchLoading,
           isSelectionModeEnabled,
+          selectionModePhase,
           selectedArticleKeys,
         },
         actions: {
@@ -535,6 +575,7 @@ function WorkbenchContentView() {
       hasData,
       isBatchLoading,
       isSelectionModeEnabled,
+      selectionModePhase,
       locale,
       selectedArticleKeys,
       setBatchEndDate,
