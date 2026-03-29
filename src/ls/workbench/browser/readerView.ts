@@ -36,8 +36,6 @@ type ReaderViewProps = {
     librarySnapshot: LibraryDocumentsResult;
     question: string;
     onQuestionChange: (value: string) => void;
-    writingContext: string;
-    onWritingContextChange: (value: string) => void;
     result: RagAnswerResult | null;
     isAsking: boolean;
     errorMessage: string | null;

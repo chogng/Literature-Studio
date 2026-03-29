@@ -74,8 +74,7 @@ type ActivePageViewConfig = {
     librarySnapshot: ReturnType<typeof useLibraryModel>['librarySnapshot'];
     question: string;
     onQuestionChange: (value: string) => void;
-    writingContext: string;
-    onWritingContextChange: (value: string) => void;
+    messages: ReturnType<typeof useAssistantModel>['messages'];
     result: ReturnType<typeof useAssistantModel>['result'];
     isAsking: boolean;
     errorMessage: string | null;
@@ -333,8 +332,9 @@ function WorkbenchContentView() {
   const {
     draftTitle,
     setDraftTitle,
+    draftDocument,
+    setDraftDocument,
     draftBody,
-    setDraftBody,
     viewMode: editorViewMode,
     setViewMode: setEditorViewMode,
     clearDraft,
@@ -375,8 +375,7 @@ function WorkbenchContentView() {
   const {
     question: assistantQuestion,
     setQuestion: setAssistantQuestion,
-    writingContext: assistantWritingContext,
-    setWritingContext: setAssistantWritingContext,
+    messages: assistantMessages,
     result: assistantResult,
     isAsking: isAssistantAsking,
     errorMessage: assistantErrorMessage,
@@ -745,8 +744,7 @@ function WorkbenchContentView() {
       librarySnapshot,
       question: assistantQuestion,
       onQuestionChange: setAssistantQuestion,
-      writingContext: assistantWritingContext,
-      onWritingContextChange: setAssistantWritingContext,
+      messages: assistantMessages,
       result: assistantResult,
       isAsking: isAssistantAsking,
       errorMessage: assistantErrorMessage,
@@ -756,8 +754,8 @@ function WorkbenchContentView() {
     [
       assistantErrorMessage,
       assistantQuestion,
+      assistantMessages,
       assistantResult,
-      assistantWritingContext,
       filteredArticles.length,
       handleAssistantAsk,
       isAssistantAsking,
@@ -765,7 +763,6 @@ function WorkbenchContentView() {
       librarySnapshot,
       secondarySidebarProps.labels,
       setAssistantQuestion,
-      setAssistantWritingContext,
     ],
   );
 
@@ -842,14 +839,14 @@ function WorkbenchContentView() {
           viewPartProps,
           isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
           draftTitle,
-          draftBody,
+          draftDocument,
           viewMode: editorViewMode,
           latestAssistantResult: assistantResult,
           stats: writingStats,
         },
         actions: {
           onDraftTitleChange: setDraftTitle,
-          onDraftBodyChange: setDraftBody,
+          onDraftDocumentChange: setDraftDocument,
           onViewModeChange: setEditorViewMode,
           onClearDraft: clearDraft,
         },
@@ -857,11 +854,11 @@ function WorkbenchContentView() {
     [
       assistantResult,
       clearDraft,
-      draftBody,
+      draftDocument,
       draftTitle,
       editorViewMode,
       knowledgeBaseModeEnabled,
-      setDraftBody,
+      setDraftDocument,
       setDraftTitle,
       setEditorViewMode,
       ui,

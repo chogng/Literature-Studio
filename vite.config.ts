@@ -26,6 +26,15 @@ export default defineConfig({
       input: {
         workbench: workbenchHtmlPath,
       },
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/prosemirror-')) {
+            return 'prosemirror-vendor';
+          }
+
+          return undefined;
+        },
+      },
     },
   },
 });

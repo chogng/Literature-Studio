@@ -25,6 +25,19 @@ type UseAssistantModelParams = {
   fallbackWritingContext?: string;
 };
 
+export type AssistantChatMessage =
+  | {
+      id: string;
+      role: 'user';
+      content: string;
+    }
+  | {
+      id: string;
+      role: 'assistant';
+      content: string;
+      result: RagAnswerResult;
+    };
+
 export function useAssistantModel({
   desktopRuntime,
   invokeDesktop,
@@ -36,10 +49,13 @@ export function useAssistantModel({
   fallbackWritingContext = '',
 }: UseAssistantModelParams) {
   const [question, setQuestion] = useState('');
-  const [writingContext, setWritingContext] = useState('');
   const [result, setResult] = useState<RagAnswerResult | null>(null);
+  const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [isAsking, setIsAsking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const createMessageId = () =>
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
   const handleAsk = useCallback(async () => {
     const normalizedQuestion = question.trim();
@@ -63,22 +79,40 @@ export function useAssistantModel({
       return;
     }
 
+    const userMessage: AssistantChatMessage = {
+      id: createMessageId(),
+      role: 'user',
+      content: normalizedQuestion,
+    };
+
+    setMessages((previousMessages) => [...previousMessages, userMessage]);
+    setQuestion('');
     setIsAsking(true);
     setErrorMessage(null);
 
     try {
       const nextResult = await invokeDesktop('rag_answer_articles', {
         question: normalizedQuestion,
-        writingContext: writingContext.trim() || fallbackWritingContext.trim() || null,
+        writingContext: fallbackWritingContext.trim() || null,
         articles,
         llm: llmSettings,
         rag: ragSettings,
       });
       setResult(nextResult);
+      setMessages((previousMessages) => [
+        ...previousMessages,
+        {
+          id: createMessageId(),
+          role: 'assistant',
+          content: nextResult.answer,
+          result: nextResult,
+        },
+      ]);
     } catch (askError) {
       const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(askError));
       setErrorMessage(localizedError);
       toast.error(formatLocalized(ui.toastRagAnswerFailed, { error: localizedError }));
+      setQuestion(normalizedQuestion);
     } finally {
       setIsAsking(false);
     }
@@ -91,15 +125,13 @@ export function useAssistantModel({
     question,
     ragSettings,
     ui,
-    writingContext,
     fallbackWritingContext,
   ]);
 
   return {
     question,
     setQuestion,
-    writingContext,
-    setWritingContext,
+    messages,
     result,
     isAsking,
     errorMessage,

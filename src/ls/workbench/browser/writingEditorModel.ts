@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  collectWritingEditorStats,
+  createEmptyWritingEditorDocument,
+  createWritingEditorDocumentFromPlainText,
+  normalizeWritingEditorDocument,
+  type WritingEditorDocument,
+  writingEditorDocumentToPlainText,
+} from './writingEditorDocument';
+
+export type { WritingEditorDocument } from './writingEditorDocument';
 
 export type WritingEditorViewMode = 'draft' | 'split' | 'source';
 
 const draftStorageKeys = {
   title: 'ls.writingDraft.title',
   body: 'ls.writingDraft.body',
+  document: 'ls.writingDraft.document',
   viewMode: 'ls.writingDraft.viewMode',
 } as const;
 
@@ -46,9 +57,26 @@ function persistDraftValue(key: string, value: string) {
   }
 }
 
+function readStoredDocument(): WritingEditorDocument {
+  const rawDocument = readStoredValue(draftStorageKeys.document);
+  if (rawDocument) {
+    try {
+      return normalizeWritingEditorDocument(JSON.parse(rawDocument));
+    } catch {
+      return createEmptyWritingEditorDocument();
+    }
+  }
+
+  // Migrate legacy textarea drafts into the structured ProseMirror document once.
+  const legacyBody = readStoredValue(draftStorageKeys.body);
+  return legacyBody
+    ? createWritingEditorDocumentFromPlainText(legacyBody)
+    : createEmptyWritingEditorDocument();
+}
+
 export function useWritingEditorModel() {
   const [draftTitle, setDraftTitle] = useState(() => readStoredValue(draftStorageKeys.title));
-  const [draftBody, setDraftBody] = useState(() => readStoredValue(draftStorageKeys.body));
+  const [draftDocument, setDraftDocument] = useState<WritingEditorDocument>(() => readStoredDocument());
   const [viewMode, setViewMode] = useState<WritingEditorViewMode>(() => readStoredViewMode());
 
   useEffect(() => {
@@ -56,8 +84,10 @@ export function useWritingEditorModel() {
   }, [draftTitle]);
 
   useEffect(() => {
-    persistDraftValue(draftStorageKeys.body, draftBody);
-  }, [draftBody]);
+    const normalizedDocument = normalizeWritingEditorDocument(draftDocument);
+    persistDraftValue(draftStorageKeys.document, JSON.stringify(normalizedDocument));
+    persistDraftValue(draftStorageKeys.body, writingEditorDocumentToPlainText(normalizedDocument));
+  }, [draftDocument]);
 
   useEffect(() => {
     persistDraftValue(draftStorageKeys.viewMode, viewMode);
@@ -65,27 +95,22 @@ export function useWritingEditorModel() {
 
   const clearDraft = useCallback(() => {
     setDraftTitle('');
-    setDraftBody('');
+    setDraftDocument(createEmptyWritingEditorDocument());
   }, []);
 
-  const stats = useMemo(() => {
-    const normalizedBody = draftBody.trim();
-    const characterCount = normalizedBody.replace(/\s+/g, '').length;
-    const wordCount = normalizedBody ? normalizedBody.split(/\s+/).filter(Boolean).length : 0;
-    const paragraphCount = normalizedBody ? normalizedBody.split(/\n{2,}/).filter(Boolean).length : 0;
+  const draftBody = useMemo(
+    () => writingEditorDocumentToPlainText(draftDocument),
+    [draftDocument],
+  );
 
-    return {
-      characterCount,
-      wordCount,
-      paragraphCount,
-    };
-  }, [draftBody]);
+  const stats = useMemo(() => collectWritingEditorStats(draftDocument), [draftDocument]);
 
   return {
     draftTitle,
     setDraftTitle,
+    draftDocument,
+    setDraftDocument,
     draftBody,
-    setDraftBody,
     viewMode,
     setViewMode,
     clearDraft,

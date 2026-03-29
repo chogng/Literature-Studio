@@ -1,11 +1,10 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import { CalendarRange, CheckSquare, Download } from 'lucide-react';
+import { Bot, CalendarRange, CheckSquare, Download, SendHorizontal, UserRound } from 'lucide-react';
 import type { ChangeEvent, Ref } from 'react';
 import type {
   ArticleDetailsModalLabels,
   LibraryDocumentSummary,
   LibraryDocumentsResult,
-  RagAnswerResult,
 } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../../../base/browser/ui/button/button';
 import type { Locale } from '../../../../../language/i18n';
@@ -15,6 +14,7 @@ import {
   requestFocusTitlebarWebUrlInput,
   requestOpenAddressBarSourceMenu,
 } from '../titlebar/titlebarActions';
+import type { AssistantChatMessage } from '../../assistantModel';
 import ArticleCard from './articleCard';
 import './media/sidebar.css';
 
@@ -711,12 +711,9 @@ export function PrimarySidebarPartView({
 function renderAuxiliarySidebarContent({
   labels,
   isKnowledgeBaseModeEnabled,
-  librarySnapshot,
+  messages,
   question,
   onQuestionChange,
-  writingContext,
-  onWritingContextChange,
-  result,
   isAsking,
   errorMessage,
   onAsk,
@@ -724,12 +721,9 @@ function renderAuxiliarySidebarContent({
 }: {
   labels: SidebarLabels;
   isKnowledgeBaseModeEnabled: boolean;
-  librarySnapshot: LibraryDocumentsResult;
+  messages: AssistantChatMessage[];
   question: string;
   onQuestionChange: (value: string) => void;
-  writingContext: string;
-  onWritingContextChange: (value: string) => void;
-  result: RagAnswerResult | null;
   isAsking: boolean;
   errorMessage: string | null;
   onAsk: () => void;
@@ -762,64 +756,109 @@ function renderAuxiliarySidebarContent({
         ],
       }),
       jsxs('div', {
-        className: 'sidebar-stats-grid',
+        className: 'sidebar-chat-shell',
         children: [
           jsxs('div', {
-            className: 'sidebar-stat-card',
+            className: 'sidebar-chat-thread',
             children: [
-              jsx('span', { children: labels.libraryDocuments }),
-              jsx('strong', { children: librarySnapshot.totalCount }),
-            ],
-          }),
-          jsxs('div', {
-            className: 'sidebar-stat-card',
-            children: [
-              jsx('span', { children: labels.assistantSources }),
-              jsx('strong', { children: availableArticleCount }),
-            ],
-          }),
-          jsxs('div', {
-            className: 'sidebar-stat-card',
-            children: [
-              jsx('span', { children: labels.libraryQueuedJobs }),
-              jsx('strong', { children: librarySnapshot.queuedJobCount }),
-            ],
-          }),
-        ],
-      }),
-      jsxs('div', {
-        className: 'sidebar-chat-placeholder',
-        children: [
-          jsxs('label', {
-            className: 'sidebar-chat-field',
-            children: [
-              jsx('span', { className: 'sidebar-chat-label', children: labels.assistantQuestion }),
-              jsx('textarea', {
-                className: 'sidebar-chat-input',
-                rows: 4,
-                value: question,
-                onChange: (event: ChangeEvent<HTMLTextAreaElement>) =>
-                  onQuestionChange(event.target.value),
-                placeholder: isKnowledgeBaseModeEnabled
-                  ? labels.assistantQuestionPlaceholder
-                  : labels.assistantPlaceholderDisabled,
-                disabled: !isKnowledgeBaseModeEnabled || isAsking,
-              }),
-            ],
-          }),
-          jsxs('label', {
-            className: 'sidebar-chat-field',
-            children: [
-              jsx('span', { className: 'sidebar-chat-label', children: labels.assistantContext }),
-              jsx('textarea', {
-                className: 'sidebar-chat-input sidebar-chat-context-input',
-                rows: 5,
-                value: writingContext,
-                onChange: (event: ChangeEvent<HTMLTextAreaElement>) =>
-                  onWritingContextChange(event.target.value),
-                placeholder: labels.assistantContextPlaceholder,
-                disabled: !isKnowledgeBaseModeEnabled || isAsking,
-              }),
+              messages.length === 0
+                ? jsx('p', {
+                    className: 'sidebar-chat-thread-empty',
+                    children: isKnowledgeBaseModeEnabled
+                      ? labels.assistantPlaceholderEnabled
+                      : labels.assistantPlaceholderDisabled,
+                  })
+                : null,
+              messages.map((message) =>
+                message.role === 'user'
+                  ? jsxs(
+                      'div',
+                      {
+                        className: 'sidebar-chat-message sidebar-chat-message-user',
+                        children: [
+                          jsx('span', {
+                            className: 'sidebar-chat-avatar sidebar-chat-avatar-user',
+                            children: jsx(UserRound, { size: 14, strokeWidth: 2 }),
+                          }),
+                          jsx('p', {
+                            className: 'sidebar-chat-message-text',
+                            children: message.content,
+                          }),
+                        ],
+                      },
+                      message.id,
+                    )
+                  : jsxs(
+                      'div',
+                      {
+                        className: 'sidebar-chat-message sidebar-chat-message-assistant',
+                        children: [
+                          jsx('span', {
+                            className: 'sidebar-chat-avatar sidebar-chat-avatar-assistant',
+                            children: jsx(Bot, { size: 14, strokeWidth: 2 }),
+                          }),
+                          jsxs('div', {
+                            className: 'sidebar-chat-message-body',
+                            children: [
+                              jsxs('div', {
+                                className: 'sidebar-chat-result-header',
+                                children: [
+                                  jsx('strong', { children: labels.assistantAnswerTitle }),
+                                  jsx('span', {
+                                    className: `sidebar-mode-pill ${message.result.rerankApplied ? 'is-enabled' : 'is-disabled'}`,
+                                    children: message.result.rerankApplied
+                                      ? labels.assistantRerankOn
+                                      : labels.assistantRerankOff,
+                                  }),
+                                ],
+                              }),
+                              jsx('p', {
+                                className: 'sidebar-chat-answer',
+                                children: message.content,
+                              }),
+                              message.result.evidence.length > 0
+                                ? jsxs('div', {
+                                    className: 'sidebar-chat-evidence',
+                                    children: [
+                                      jsx('strong', { children: labels.assistantEvidenceTitle }),
+                                      jsx('ul', {
+                                        className: 'sidebar-chat-evidence-list',
+                                        children: message.result.evidence.map((item) =>
+                                          jsxs(
+                                            'li',
+                                            {
+                                              className: 'sidebar-chat-evidence-item',
+                                              children: [
+                                                jsx('strong', {
+                                                  className: 'sidebar-chat-evidence-title',
+                                                  children: `[${item.rank}] ${item.title}`,
+                                                }),
+                                                jsx('p', {
+                                                  className: 'sidebar-chat-evidence-meta',
+                                                  children: [item.journalTitle, item.publishedAt]
+                                                    .filter(Boolean)
+                                                    .join(' | '),
+                                                }),
+                                                jsx('p', {
+                                                  className: 'sidebar-chat-evidence-text',
+                                                  children: item.excerpt,
+                                                }),
+                                              ],
+                                            },
+                                            `${item.sourceUrl}-${item.rank}`,
+                                          ),
+                                        ),
+                                      }),
+                                    ],
+                                  })
+                                : null,
+                            ],
+                          }),
+                        ],
+                      },
+                      message.id,
+                    ),
+              ),
             ],
           }),
           errorMessage
@@ -834,84 +873,39 @@ function renderAuxiliarySidebarContent({
                 children: labels.assistantNoArticles,
               })
             : null,
-          jsx(Button, {
-            type: 'button',
-            className: 'sidebar-chat-send-btn',
-            variant: 'secondary',
-            size: 'md',
-            mode: 'text',
-            textMode: 'with',
-            iconMode: 'without',
-            disabled:
-              !isKnowledgeBaseModeEnabled || isAsking || availableArticleCount === 0 || !question.trim(),
-            onClick: onAsk,
-            children: isAsking ? labels.assistantSendBusy : labels.assistantSend,
-          }),
-          result
-            ? jsxs('div', {
-                className: 'sidebar-chat-result',
-                children: [
-                  jsxs('div', {
-                    className: 'sidebar-chat-result-header',
-                    children: [
-                      jsx('strong', { children: labels.assistantAnswerTitle }),
-                      jsx('span', {
-                        className: `sidebar-mode-pill ${result.rerankApplied ? 'is-enabled' : 'is-disabled'}`,
-                        children: result.rerankApplied
-                          ? labels.assistantRerankOn
-                          : labels.assistantRerankOff,
-                      }),
-                    ],
-                  }),
-                  jsx('p', {
-                    className: 'sidebar-chat-answer',
-                    children: result.answer,
-                  }),
-                  result.evidence.length > 0
-                    ? jsxs('div', {
-                        className: 'sidebar-chat-evidence',
-                        children: [
-                          jsx('strong', { children: labels.assistantEvidenceTitle }),
-                          jsx('ul', {
-                            className: 'sidebar-chat-evidence-list',
-                            children: result.evidence.map((item) =>
-                              jsxs(
-                                'li',
-                                {
-                                  className: 'sidebar-chat-evidence-item',
-                                  children: [
-                                    jsx('strong', {
-                                      className: 'sidebar-chat-evidence-title',
-                                      children: `[${item.rank}] ${item.title}`,
-                                    }),
-                                    jsx('p', {
-                                      className: 'sidebar-chat-evidence-meta',
-                                      children: [item.journalTitle, item.publishedAt]
-                                        .filter(Boolean)
-                                        .join(' | '),
-                                    }),
-                                    jsx('p', {
-                                      className: 'sidebar-chat-evidence-text',
-                                      children: item.excerpt,
-                                    }),
-                                  ],
-                                },
-                                `${item.sourceUrl}-${item.rank}`,
-                              ),
-                            ),
-                          }),
-                        ],
-                      })
-                    : null,
-                ],
-              })
-            : jsx('textarea', {
-            className: 'sidebar-chat-input',
-            rows: 6,
-            readOnly: true,
-            value: isKnowledgeBaseModeEnabled
-              ? labels.assistantPlaceholderEnabled
-              : labels.assistantPlaceholderDisabled,
+          jsxs('div', {
+            className: 'sidebar-chat-composer',
+            children: [
+              jsx('textarea', {
+                className: 'sidebar-chat-input',
+                rows: 4,
+                value: question,
+                onChange: (event: ChangeEvent<HTMLTextAreaElement>) =>
+                  onQuestionChange(event.target.value),
+                'aria-label': labels.assistantQuestion,
+                placeholder: isKnowledgeBaseModeEnabled
+                  ? labels.assistantQuestionPlaceholder
+                  : labels.assistantPlaceholderDisabled,
+                disabled: !isKnowledgeBaseModeEnabled || isAsking,
+              }),
+              jsx(Button, {
+                type: 'button',
+                className: 'sidebar-chat-send-btn',
+                variant: 'secondary',
+                size: 'md',
+                mode: 'text',
+                textMode: 'with',
+                iconMode: 'with',
+                leftIcon: jsx(SendHorizontal, { size: 14, strokeWidth: 1.8 }),
+                disabled:
+                  !isKnowledgeBaseModeEnabled ||
+                  isAsking ||
+                  availableArticleCount === 0 ||
+                  !question.trim(),
+                onClick: onAsk,
+                children: isAsking ? labels.assistantSendBusy : labels.assistantSend,
+              }),
+            ],
           }),
         ],
       }),
@@ -923,12 +917,9 @@ export function AuxiliarySidebarPartView({
   partRef,
   labels,
   isKnowledgeBaseModeEnabled,
-  librarySnapshot,
+  messages,
   question,
   onQuestionChange,
-  writingContext,
-  onWritingContextChange,
-  result,
   isAsking,
   errorMessage,
   onAsk,
@@ -937,12 +928,9 @@ export function AuxiliarySidebarPartView({
   partRef?: Ref<HTMLElement>;
   labels: SidebarLabels;
   isKnowledgeBaseModeEnabled: boolean;
-  librarySnapshot: LibraryDocumentsResult;
+  messages: AssistantChatMessage[];
   question: string;
   onQuestionChange: (value: string) => void;
-  writingContext: string;
-  onWritingContextChange: (value: string) => void;
-  result: RagAnswerResult | null;
   isAsking: boolean;
   errorMessage: string | null;
   onAsk: () => void;
@@ -954,12 +942,9 @@ export function AuxiliarySidebarPartView({
     children: renderAuxiliarySidebarContent({
       labels,
       isKnowledgeBaseModeEnabled,
-      librarySnapshot,
+      messages,
       question,
       onQuestionChange,
-      writingContext,
-      onWritingContextChange,
-      result,
       isAsking,
       errorMessage,
       onAsk,

@@ -1,17 +1,15 @@
 import type { LocaleMessages } from '../../../../../language/locales';
+import type { RagAnswerResult } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { WritingEditorDocument, WritingEditorViewMode } from '../../writingEditorModel';
 import type { ViewPartProps } from '../views/viewPartView';
 import type { EditorPartProps } from './editorPartView';
-import type {
-  RagAnswerResult,
-} from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import type { WritingEditorViewMode } from '../../writingEditorModel';
 
 export type EditorPartState = {
   ui: LocaleMessages;
   viewPartProps: ViewPartProps;
   isKnowledgeBaseModeEnabled: boolean;
   draftTitle: string;
-  draftBody: string;
+  draftDocument: WritingEditorDocument;
   viewMode: WritingEditorViewMode;
   latestAssistantResult: RagAnswerResult | null;
   stats: {
@@ -23,7 +21,7 @@ export type EditorPartState = {
 
 export type EditorPartActions = {
   onDraftTitleChange: (value: string) => void;
-  onDraftBodyChange: (value: string) => void;
+  onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onViewModeChange: (mode: WritingEditorViewMode) => void;
   onClearDraft: () => void;
 };
@@ -39,14 +37,14 @@ export function createEditorPartProps({
     viewPartProps,
     isKnowledgeBaseModeEnabled,
     draftTitle,
-    draftBody,
+    draftDocument,
     viewMode,
     latestAssistantResult,
     stats,
   },
   actions: {
     onDraftTitleChange,
-    onDraftBodyChange,
+    onDraftDocumentChange,
     onViewModeChange,
     onClearDraft,
   },
@@ -71,16 +69,34 @@ export function createEditorPartProps({
       insertAssistantEvidence: ui.editorInsertAssistantEvidence,
       sourceTitle: ui.editorSourceTitle,
       emptyAssistant: ui.editorNoAssistantYet,
+      paragraph: ui.editorParagraph,
+      heading1: ui.editorHeading1,
+      heading2: ui.editorHeading2,
+      heading3: ui.editorHeading3,
+      bold: ui.editorBold,
+      italic: ui.editorItalic,
+      bulletList: ui.editorBulletList,
+      orderedList: ui.editorOrderedList,
+      blockquote: ui.editorBlockquote,
+      undo: ui.editorUndo,
+      redo: ui.editorRedo,
+      insertCitation: ui.editorInsertCitation,
+      insertFigure: ui.editorInsertFigure,
+      insertFigureRef: ui.editorInsertFigureRef,
+      citationPrompt: ui.editorCitationPrompt,
+      figureUrlPrompt: ui.editorFigureUrlPrompt,
+      figureCaptionPrompt: ui.editorFigureCaptionPrompt,
+      figureRefPrompt: ui.editorFigureRefPrompt,
     },
     viewPartProps,
     isKnowledgeBaseModeEnabled,
     draftTitle,
-    draftBody,
+    draftDocument,
     viewMode,
     latestAssistantResult,
     stats,
     onDraftTitleChange,
-    onDraftBodyChange,
+    onDraftDocumentChange,
     onViewModeChange,
     onClearDraft,
   };

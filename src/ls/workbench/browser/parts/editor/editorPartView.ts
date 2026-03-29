@@ -1,14 +1,17 @@
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
-import { useRef, type ChangeEvent, type ReactNode } from 'react';
+import { Suspense, lazy, useRef, type ChangeEvent, type ReactNode } from 'react';
 import { Eraser, FilePenLine, Highlighter, PanelsLeftRight, Rows2 } from 'lucide-react';
+import type { RagAnswerResult } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../../../base/browser/ui/button/button';
 import { Input } from '../../../../base/browser/ui/input/input';
+import type { WritingEditorDocument, WritingEditorViewMode } from '../../writingEditorModel';
 import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../layout';
-import type { RagAnswerResult } from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import type { WritingEditorViewMode } from '../../writingEditorModel';
+import type { WritingEditorSurfaceHandle, WritingEditorSurfaceLabels } from './prosemirror/prosemirrorEditor';
 import ViewPartView from '../views/viewPartView';
 import type { ViewPartProps } from '../views/viewPartView';
 import './media/editor.css';
+
+const ProseMirrorEditor = lazy(() => import('./prosemirror/prosemirrorEditor'));
 
 export type EditorPartLabels = {
   title: string;
@@ -29,14 +32,14 @@ export type EditorPartLabels = {
   insertAssistantEvidence: string;
   sourceTitle: string;
   emptyAssistant: string;
-};
+} & WritingEditorSurfaceLabels;
 
 export type EditorPartProps = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
   isKnowledgeBaseModeEnabled: boolean;
   draftTitle: string;
-  draftBody: string;
+  draftDocument: WritingEditorDocument;
   viewMode: WritingEditorViewMode;
   latestAssistantResult: RagAnswerResult | null;
   stats: {
@@ -45,7 +48,7 @@ export type EditorPartProps = {
     paragraphCount: number;
   };
   onDraftTitleChange: (value: string) => void;
-  onDraftBodyChange: (value: string) => void;
+  onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onViewModeChange: (mode: WritingEditorViewMode) => void;
   onClearDraft: () => void;
 };
@@ -56,45 +59,14 @@ function formatAssistantEvidence(result: RagAnswerResult) {
       [
         `- [${item.rank}] ${item.title}`,
         item.journalTitle || item.publishedAt
-          ? `  ${[item.journalTitle, item.publishedAt].filter(Boolean).join(' | ')}`
+          ? `${[item.journalTitle, item.publishedAt].filter(Boolean).join(' | ')}`
           : '',
-        `  ${item.excerpt}`,
+        item.excerpt,
       ]
         .filter(Boolean)
         .join('\n'),
     )
     .join('\n\n');
-}
-
-function insertIntoDraft(
-  currentValue: string,
-  insertion: string,
-  textarea: HTMLTextAreaElement | null,
-): { nextValue: string; nextSelectionStart: number; nextSelectionEnd: number } {
-  if (!textarea) {
-    const normalizedSpacer = currentValue.trim() ? '\n\n' : '';
-    const nextValue = `${currentValue}${normalizedSpacer}${insertion}`.trimStart();
-    return {
-      nextValue,
-      nextSelectionStart: nextValue.length,
-      nextSelectionEnd: nextValue.length,
-    };
-  }
-
-  const selectionStart = textarea.selectionStart ?? currentValue.length;
-  const selectionEnd = textarea.selectionEnd ?? currentValue.length;
-  const before = currentValue.slice(0, selectionStart);
-  const after = currentValue.slice(selectionEnd);
-  const leftSpacer = before && !before.endsWith('\n') ? '\n\n' : '';
-  const rightSpacer = after && !after.startsWith('\n') ? '\n\n' : '';
-  const nextValue = `${before}${leftSpacer}${insertion}${rightSpacer}${after}`;
-  const caretPosition = `${before}${leftSpacer}${insertion}`.length;
-
-  return {
-    nextValue,
-    nextSelectionStart: caretPosition,
-    nextSelectionEnd: caretPosition,
-  };
 }
 
 function renderModeButton({
@@ -126,43 +98,32 @@ function DraftPane({
   labels,
   isKnowledgeBaseModeEnabled,
   draftTitle,
-  draftBody,
+  draftDocument,
   latestAssistantResult,
   stats,
   onDraftTitleChange,
-  onDraftBodyChange,
+  onDraftDocumentChange,
   onClearDraft,
 }: Pick<
   EditorPartProps,
   | 'labels'
   | 'isKnowledgeBaseModeEnabled'
   | 'draftTitle'
-  | 'draftBody'
+  | 'draftDocument'
   | 'latestAssistantResult'
   | 'stats'
   | 'onDraftTitleChange'
-  | 'onDraftBodyChange'
+  | 'onDraftDocumentChange'
   | 'onClearDraft'
 >) {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editorSurfaceRef = useRef<WritingEditorSurfaceHandle | null>(null);
 
   const handleInsertAssistantAnswer = () => {
     if (!latestAssistantResult?.answer) {
       return;
     }
 
-    const insertion = latestAssistantResult.answer.trim();
-    const { nextValue, nextSelectionStart, nextSelectionEnd } = insertIntoDraft(
-      draftBody,
-      insertion,
-      textareaRef.current,
-    );
-    onDraftBodyChange(nextValue);
-
-    window.requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(nextSelectionStart, nextSelectionEnd);
-    });
+    editorSurfaceRef.current?.insertPlainText(latestAssistantResult.answer.trim());
   };
 
   const handleInsertAssistantEvidence = () => {
@@ -170,18 +131,7 @@ function DraftPane({
       return;
     }
 
-    const insertion = formatAssistantEvidence(latestAssistantResult);
-    const { nextValue, nextSelectionStart, nextSelectionEnd } = insertIntoDraft(
-      draftBody,
-      insertion,
-      textareaRef.current,
-    );
-    onDraftBodyChange(nextValue);
-
-    window.requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(nextSelectionStart, nextSelectionEnd);
-    });
+    editorSurfaceRef.current?.insertPlainText(formatAssistantEvidence(latestAssistantResult));
   };
 
   return jsxs('div', {
@@ -301,12 +251,40 @@ function DraftPane({
               }),
         ],
       }),
-      jsx('textarea', {
-        ref: textareaRef,
-        className: 'editor-draft-textarea',
-        value: draftBody,
-        onChange: (event: ChangeEvent<HTMLTextAreaElement>) => onDraftBodyChange(event.target.value),
-        placeholder: labels.draftBodyPlaceholder,
+      jsx(Suspense, {
+        fallback: jsx('div', {
+          className: 'editor-loading-shell',
+          children: jsx('div', {
+            className: 'editor-loading-card',
+            children: labels.draftBodyPlaceholder,
+          }),
+        }),
+        children: jsx(ProseMirrorEditor, {
+          ref: editorSurfaceRef,
+          document: draftDocument,
+          placeholder: labels.draftBodyPlaceholder,
+          labels: {
+            paragraph: labels.paragraph,
+            heading1: labels.heading1,
+            heading2: labels.heading2,
+            heading3: labels.heading3,
+            bold: labels.bold,
+            italic: labels.italic,
+            bulletList: labels.bulletList,
+            orderedList: labels.orderedList,
+            blockquote: labels.blockquote,
+            undo: labels.undo,
+            redo: labels.redo,
+            insertCitation: labels.insertCitation,
+            insertFigure: labels.insertFigure,
+            insertFigureRef: labels.insertFigureRef,
+            citationPrompt: labels.citationPrompt,
+            figureUrlPrompt: labels.figureUrlPrompt,
+            figureCaptionPrompt: labels.figureCaptionPrompt,
+            figureRefPrompt: labels.figureRefPrompt,
+          },
+          onDocumentChange: onDraftDocumentChange,
+        }),
       }),
     ],
   });
@@ -321,9 +299,7 @@ function SourcePane({
     children: [
       jsxs('div', {
         className: 'editor-source-header',
-        children: [
-          jsx('strong', { children: labels.sourceTitle }),
-        ],
+        children: [jsx('strong', { children: labels.sourceTitle })],
       }),
       jsx('div', {
         className: 'editor-source-body',
@@ -334,11 +310,7 @@ function SourcePane({
 }
 
 function renderEditorContent(props: EditorPartProps) {
-  const {
-    labels,
-    viewMode,
-    onViewModeChange,
-  } = props;
+  const { labels, viewMode, onViewModeChange } = props;
 
   const draftPane = jsx(DraftPane, { ...props });
   const sourcePane = jsx(SourcePane, { ...props });
@@ -351,9 +323,7 @@ function renderEditorContent(props: EditorPartProps) {
         children: [
           jsxs('div', {
             className: 'editor-toolbar-title',
-            children: [
-              jsx('h2', { children: labels.title }),
-            ],
+            children: [jsx('h2', { children: labels.title })],
           }),
           jsxs('div', {
             className: 'editor-mode-switcher',
