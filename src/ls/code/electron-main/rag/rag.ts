@@ -138,6 +138,26 @@ function buildEvidencePrompt(evidence: RagEvidenceItem[]): string {
 }
 
 function buildRagMessages(question: string, writingContext: string, evidence: RagEvidenceItem[]) {
+  if (evidence.length === 0) {
+    return [
+      {
+        role: 'system' as const,
+        content:
+          'You are a literature writing assistant. Provide concise and accurate answers, and clearly state uncertainty when context is insufficient.',
+      },
+      {
+        role: 'user' as const,
+        content: [
+          `Question:\n${question}`,
+          writingContext ? `Writing context:\n${writingContext}` : '',
+          'Answer directly and keep it practical for writing.',
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+      },
+    ];
+  }
+
   const evidencePrompt = buildEvidencePrompt(evidence);
   return [
     {
@@ -170,99 +190,99 @@ export async function answerQuestionFromArticles(
   const question = normalizeQuestion(payload.question);
   const writingContext = cleanText(payload.writingContext);
   const articles = resolveRelevantArticles(Array.isArray(payload.articles) ? payload.articles : []);
-
-  if (articles.length === 0) {
-    throw appError('UNKNOWN_ERROR', {
-      message: 'No fetched article abstracts are available for retrieval yet.',
-    });
-  }
-
   const ragSettings = resolveRagSettings(payload, appSettings);
   const llmSettings = resolveLlmSettings(payload, appSettings);
   const ragRoute = resolveRagRoute(ragSettings);
-  const moarkRequest = resolveMoarkRequest({
-    provider: ragRoute.provider,
-    apiKey: ragRoute.apiKey,
-    baseUrl: ragRoute.baseUrl,
-    embeddingModel: ragRoute.embeddingModel,
-    rerankerModel: ragRoute.rerankerModel,
-    embeddingPath: ragRoute.embeddingPath,
-    rerankPath: ragRoute.rerankPath,
-  });
-
-  const retrievalQuery = buildRetrievalQuery(question, writingContext);
-  const articleTexts = articles.map((article) => buildArticleText(article));
-  const embeddingVectors = await requestMoarkEmbeddings(
-    moarkRequest,
-    [retrievalQuery, ...articleTexts],
-    ragAnswerTimeoutMs,
-  );
-  const queryEmbedding = embeddingVectors[0] ?? [];
-  const documentEmbeddings = embeddingVectors.slice(1);
-  const embeddingRankedCandidates = articles
-    .map((article, index) => {
-      const articleText = articleTexts[index] ?? '';
-      return {
-        retrievalIndex: index,
-        article,
-        articleText,
-        excerpt: buildEvidenceExcerpt(article),
-        score: cosineSimilarity(queryEmbedding, documentEmbeddings[index] ?? []),
-      } satisfies RetrievalCandidate;
-    })
-    .sort((left, right) => right.score - left.score)
-    .slice(0, Math.min(ragRoute.retrievalCandidateCount, articles.length));
-  const indexedEmbeddingCandidates = embeddingRankedCandidates.map((candidate, index) => ({
-    ...candidate,
-    retrievalIndex: index,
-  }));
-
-  let rerankedCandidates = indexedEmbeddingCandidates;
+  const shouldUseRetrieval = ragSettings.enabled && articles.length > 0;
+  let evidence: RagEvidenceItem[] = [];
   let rerankApplied = false;
 
-  try {
-    const rerankResults = await requestMoarkRerank(
+  if (shouldUseRetrieval) {
+    const moarkRequest = resolveMoarkRequest({
+      provider: ragRoute.provider,
+      apiKey: ragRoute.apiKey,
+      baseUrl: ragRoute.baseUrl,
+      embeddingModel: ragRoute.embeddingModel,
+      rerankerModel: ragRoute.rerankerModel,
+      embeddingPath: ragRoute.embeddingPath,
+      rerankPath: ragRoute.rerankPath,
+    });
+
+    const retrievalQuery = buildRetrievalQuery(question, writingContext);
+    const articleTexts = articles.map((article) => buildArticleText(article));
+    const embeddingVectors = await requestMoarkEmbeddings(
       moarkRequest,
-      retrievalQuery,
-      indexedEmbeddingCandidates.map((candidate) => candidate.articleText),
-      Math.min(ragRoute.retrievalTopK, indexedEmbeddingCandidates.length),
+      [retrievalQuery, ...articleTexts],
       ragAnswerTimeoutMs,
     );
-    if (rerankResults.length > 0) {
-      const rerankedByIndex = new Map(
-        rerankResults.map((result, index) => [result.index, { position: index, score: result.score }] as const),
-      );
-      rerankedCandidates = indexedEmbeddingCandidates
-        .filter((candidate) => rerankedByIndex.has(candidate.retrievalIndex))
-        .sort((left, right) => {
-          const leftEntry = rerankedByIndex.get(left.retrievalIndex);
-          const rightEntry = rerankedByIndex.get(right.retrievalIndex);
-          return (leftEntry?.position ?? Number.MAX_SAFE_INTEGER) - (rightEntry?.position ?? Number.MAX_SAFE_INTEGER);
-        })
-        .map((candidate) => {
-          const rerankEntry = rerankedByIndex.get(candidate.retrievalIndex);
-          return {
-            ...candidate,
-            score: rerankEntry?.score ?? candidate.score,
-          };
-        });
-      rerankApplied = true;
-    }
-  } catch {
-    rerankedCandidates = indexedEmbeddingCandidates;
-  }
+    const queryEmbedding = embeddingVectors[0] ?? [];
+    const documentEmbeddings = embeddingVectors.slice(1);
+    const embeddingRankedCandidates = articles
+      .map((article, index) => {
+        const articleText = articleTexts[index] ?? '';
+        return {
+          retrievalIndex: index,
+          article,
+          articleText,
+          excerpt: buildEvidenceExcerpt(article),
+          score: cosineSimilarity(queryEmbedding, documentEmbeddings[index] ?? []),
+        } satisfies RetrievalCandidate;
+      })
+      .sort((left, right) => right.score - left.score)
+      .slice(0, Math.min(ragRoute.retrievalCandidateCount, articles.length));
+    const indexedEmbeddingCandidates = embeddingRankedCandidates.map((candidate, index) => ({
+      ...candidate,
+      retrievalIndex: index,
+    }));
 
-  const evidence = rerankedCandidates
-    .slice(0, Math.min(ragRoute.retrievalTopK, rerankedCandidates.length))
-    .map((candidate, index) => ({
-      rank: index + 1,
-      title: cleanText(candidate.article.title) || candidate.article.sourceUrl,
-      journalTitle: cleanText(candidate.article.journalTitle) || null,
-      publishedAt: cleanText(candidate.article.publishedAt) || null,
-      sourceUrl: candidate.article.sourceUrl,
-      score: Number.isFinite(candidate.score) ? candidate.score : null,
-      excerpt: candidate.excerpt,
-    })) satisfies RagEvidenceItem[];
+    let rerankedCandidates = indexedEmbeddingCandidates;
+
+    if (indexedEmbeddingCandidates.length > 0) {
+      try {
+        const rerankResults = await requestMoarkRerank(
+          moarkRequest,
+          retrievalQuery,
+          indexedEmbeddingCandidates.map((candidate) => candidate.articleText),
+          Math.min(ragRoute.retrievalTopK, indexedEmbeddingCandidates.length),
+          ragAnswerTimeoutMs,
+        );
+        if (rerankResults.length > 0) {
+          const rerankedByIndex = new Map(
+            rerankResults.map((result, index) => [result.index, { position: index, score: result.score }] as const),
+          );
+          rerankedCandidates = indexedEmbeddingCandidates
+            .filter((candidate) => rerankedByIndex.has(candidate.retrievalIndex))
+            .sort((left, right) => {
+              const leftEntry = rerankedByIndex.get(left.retrievalIndex);
+              const rightEntry = rerankedByIndex.get(right.retrievalIndex);
+              return (leftEntry?.position ?? Number.MAX_SAFE_INTEGER) - (rightEntry?.position ?? Number.MAX_SAFE_INTEGER);
+            })
+            .map((candidate) => {
+              const rerankEntry = rerankedByIndex.get(candidate.retrievalIndex);
+              return {
+                ...candidate,
+                score: rerankEntry?.score ?? candidate.score,
+              };
+            });
+          rerankApplied = true;
+        }
+      } catch {
+        rerankedCandidates = indexedEmbeddingCandidates;
+      }
+    }
+
+    evidence = rerankedCandidates
+      .slice(0, Math.min(ragRoute.retrievalTopK, rerankedCandidates.length))
+      .map((candidate, index) => ({
+        rank: index + 1,
+        title: cleanText(candidate.article.title) || candidate.article.sourceUrl,
+        journalTitle: cleanText(candidate.article.journalTitle) || null,
+        publishedAt: cleanText(candidate.article.publishedAt) || null,
+        sourceUrl: candidate.article.sourceUrl,
+        score: Number.isFinite(candidate.score) ? candidate.score : null,
+        excerpt: candidate.excerpt,
+      })) satisfies RagEvidenceItem[];
+  }
 
   const llmRoute = resolveLlmRoute(llmSettings, 'reasoning');
   const llmRequest = resolveLlmRequestFromPayload({

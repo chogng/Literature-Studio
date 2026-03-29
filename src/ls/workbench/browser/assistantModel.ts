@@ -1,18 +1,18 @@
-import { useCallback, useState } from 'react';
-import { toast } from '../../base/browser/ui/toast/toast';
+import { useCallback, useState } from "react";
+import { toast } from "../../base/browser/ui/toast/toast";
 import type {
   Article,
   ElectronInvoke,
   LlmSettings,
   RagAnswerResult,
   RagSettings,
-} from '../../base/parts/sandbox/common/desktopTypes.js';
-import type { LocaleMessages } from '../../../language/locales';
+} from "../../base/parts/sandbox/common/desktopTypes.js";
+import type { LocaleMessages } from "../../../language/locales";
 import {
   formatLocalized,
   localizeDesktopInvokeError,
   parseDesktopInvokeError,
-} from '../services/desktop/desktopError';
+} from "../services/desktop/desktopError";
 
 type UseAssistantModelParams = {
   desktopRuntime: boolean;
@@ -28,15 +28,27 @@ type UseAssistantModelParams = {
 export type AssistantChatMessage =
   | {
       id: string;
-      role: 'user';
+      role: "user";
       content: string;
     }
   | {
       id: string;
-      role: 'assistant';
+      role: "assistant";
       content: string;
       result: RagAnswerResult;
     };
+
+export type AssistantConversation = {
+  id: string;
+  title: string;
+  question: string;
+  result: RagAnswerResult | null;
+  messages: AssistantChatMessage[];
+  isAsking: boolean;
+  errorMessage: string | null;
+};
+
+const DEFAULT_CONVERSATION_TITLE = "新对话";
 
 export function useAssistantModel({
   desktopRuntime,
@@ -46,31 +58,106 @@ export function useAssistantModel({
   articles,
   llmSettings,
   ragSettings,
-  fallbackWritingContext = '',
+  fallbackWritingContext = "",
 }: UseAssistantModelParams) {
-  const [question, setQuestion] = useState('');
-  const [result, setResult] = useState<RagAnswerResult | null>(null);
-  const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
-  const [isAsking, setIsAsking] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
   const createMessageId = () =>
     `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
+  const createConversationId = () =>
+    `conversation-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
+  const createConversation = (index: number): AssistantConversation => ({
+    id: createConversationId(),
+    title:
+      index === 0
+        ? DEFAULT_CONVERSATION_TITLE
+        : `${DEFAULT_CONVERSATION_TITLE} ${index + 1}`,
+    question: "",
+    result: null,
+    messages: [],
+    isAsking: false,
+    errorMessage: null,
+  });
+
+  const [conversations, setConversations] = useState<AssistantConversation[]>([
+    createConversation(0),
+  ]);
+  const [activeConversationId, setActiveConversationId] = useState(
+    () => conversations[0]?.id ?? ""
+  );
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+
+  const activeConversation =
+    conversations.find(
+      (conversation) => conversation.id === activeConversationId
+    ) ?? conversations[0];
+
+  const updateActiveConversation = useCallback(
+    (
+      updater: (conversation: AssistantConversation) => AssistantConversation
+    ) => {
+      setConversations((previousConversations) =>
+        previousConversations.map((conversation) =>
+          conversation.id === activeConversationId
+            ? updater(conversation)
+            : conversation
+        )
+      );
+    },
+    [activeConversationId]
+  );
+
+  const handleQuestionChange = useCallback(
+    (value: string) => {
+      updateActiveConversation((conversation) => ({
+        ...conversation,
+        question: value,
+        errorMessage: null,
+      }));
+    },
+    [updateActiveConversation]
+  );
+
+  const handleCreateConversation = useCallback(() => {
+    setConversations((previousConversations) => {
+      const nextConversation = createConversation(previousConversations.length);
+      setActiveConversationId(nextConversation.id);
+      return [...previousConversations, nextConversation];
+    });
+    setIsHistoryOpen(false);
+    setIsMoreMenuOpen(false);
+  }, []);
+
+  const handleActivateConversation = useCallback((conversationId: string) => {
+    setActiveConversationId(conversationId);
+    setIsHistoryOpen(false);
+    setIsMoreMenuOpen(false);
+  }, []);
+
+  const handleToggleHistory = useCallback(() => {
+    setIsHistoryOpen((previousValue) => !previousValue);
+    setIsMoreMenuOpen(false);
+  }, []);
+
+  const handleToggleMoreMenu = useCallback(() => {
+    setIsMoreMenuOpen((previousValue) => !previousValue);
+    setIsHistoryOpen(false);
+  }, []);
+
   const handleAsk = useCallback(async () => {
-    const normalizedQuestion = question.trim();
+    if (!activeConversation) {
+      return;
+    }
+
+    const normalizedQuestion = activeConversation.question.trim();
     if (!normalizedQuestion) {
-      setErrorMessage(ui.assistantSidebarQuestionRequired);
-      return;
-    }
-
-    if (!isKnowledgeBaseModeEnabled) {
-      setErrorMessage(ui.assistantSidebarDescriptionDisabled);
-      return;
-    }
-
-    if (articles.length === 0) {
-      setErrorMessage(ui.assistantSidebarNoArticles);
+      updateActiveConversation((conversation) => ({
+        ...conversation,
+        errorMessage: ui.assistantSidebarQuestionRequired,
+      }));
       return;
     }
 
@@ -81,60 +168,93 @@ export function useAssistantModel({
 
     const userMessage: AssistantChatMessage = {
       id: createMessageId(),
-      role: 'user',
+      role: "user",
       content: normalizedQuestion,
     };
 
-    setMessages((previousMessages) => [...previousMessages, userMessage]);
-    setQuestion('');
-    setIsAsking(true);
-    setErrorMessage(null);
+    updateActiveConversation((conversation) => ({
+      ...conversation,
+      title:
+        conversation.messages.length === 0
+          ? normalizedQuestion.slice(0, 18) || DEFAULT_CONVERSATION_TITLE
+          : conversation.title,
+      messages: [...conversation.messages, userMessage],
+      question: "",
+      isAsking: true,
+      errorMessage: null,
+    }));
 
     try {
-      const nextResult = await invokeDesktop('rag_answer_articles', {
+      const retrievalArticles = isKnowledgeBaseModeEnabled ? articles : [];
+      const nextResult = await invokeDesktop("rag_answer_articles", {
         question: normalizedQuestion,
         writingContext: fallbackWritingContext.trim() || null,
-        articles,
+        articles: retrievalArticles,
         llm: llmSettings,
         rag: ragSettings,
       });
-      setResult(nextResult);
-      setMessages((previousMessages) => [
-        ...previousMessages,
-        {
-          id: createMessageId(),
-          role: 'assistant',
-          content: nextResult.answer,
-          result: nextResult,
-        },
-      ]);
+
+      updateActiveConversation((conversation) => ({
+        ...conversation,
+        result: nextResult,
+        messages: [
+          ...conversation.messages,
+          {
+            id: createMessageId(),
+            role: "assistant",
+            content: nextResult.answer,
+            result: nextResult,
+          },
+        ],
+      }));
     } catch (askError) {
-      const localizedError = localizeDesktopInvokeError(ui, parseDesktopInvokeError(askError));
-      setErrorMessage(localizedError);
-      toast.error(formatLocalized(ui.toastRagAnswerFailed, { error: localizedError }));
-      setQuestion(normalizedQuestion);
+      const localizedError = localizeDesktopInvokeError(
+        ui,
+        parseDesktopInvokeError(askError)
+      );
+      updateActiveConversation((conversation) => ({
+        ...conversation,
+        errorMessage: localizedError,
+        question: normalizedQuestion,
+      }));
+      toast.error(
+        formatLocalized(ui.toastRagAnswerFailed, { error: localizedError })
+      );
     } finally {
-      setIsAsking(false);
+      updateActiveConversation((conversation) => ({
+        ...conversation,
+        isAsking: false,
+      }));
     }
   }, [
+    activeConversation,
     articles,
     desktopRuntime,
+    fallbackWritingContext,
     invokeDesktop,
     isKnowledgeBaseModeEnabled,
     llmSettings,
-    question,
     ragSettings,
     ui,
-    fallbackWritingContext,
+    updateActiveConversation,
   ]);
 
   return {
-    question,
-    setQuestion,
-    messages,
-    result,
-    isAsking,
-    errorMessage,
+    conversations,
+    activeConversationId,
+    activeConversation,
+    question: activeConversation?.question ?? "",
+    setQuestion: handleQuestionChange,
+    messages: activeConversation?.messages ?? [],
+    result: activeConversation?.result ?? null,
+    isAsking: activeConversation?.isAsking ?? false,
+    errorMessage: activeConversation?.errorMessage ?? null,
+    isHistoryOpen,
+    isMoreMenuOpen,
     handleAsk,
+    handleCreateConversation,
+    handleActivateConversation,
+    handleToggleHistory,
+    handleToggleMoreMenu,
   };
 }
