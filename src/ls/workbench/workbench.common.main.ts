@@ -3,16 +3,16 @@ import {
   createWorkbenchContainerStateContribution,
   registerWorkbenchContribution,
   startWorkbenchContributions,
-} from 'ls/workbench/browser/workbench.contribution';
-import { createWorkbenchPreviewSurfaceContribution } from 'ls/workbench/browser/parts/views/viewService';
+} from 'ls/workbench/contrib/workbench/workbench.contribution';
+import { createWorkbenchWebContentViewContribution } from 'ls/workbench/contrib/webContentView/webContentView.contribution';
 //#endregion
 
 //#region --- workbench services
-import 'ls/workbench/services/quickAccess/quickAccess.contribution';
+import 'ls/workbench/contrib/quickAccess/quickAccess.contribution';
 //#endregion
 
 //#region --- workbench contributions
 registerWorkbenchContribution(createWorkbenchContainerStateContribution);
-registerWorkbenchContribution(createWorkbenchPreviewSurfaceContribution);
+registerWorkbenchContribution(createWorkbenchWebContentViewContribution);
 startWorkbenchContributions();
 //#endregion

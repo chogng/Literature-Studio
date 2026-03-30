@@ -4,11 +4,11 @@ import {
   WORKBENCH_PART_IDS,
   getWorkbenchLayoutStateSnapshot,
   subscribeWorkbenchLayoutState,
-} from './layout';
+} from '../../browser/layout';
 import {
   getWorkbenchStateSnapshot,
   subscribeWorkbenchState,
-} from './workbench';
+} from '../../browser/workbench';
 
 export type Disposable = {
   dispose: () => void;
@@ -73,7 +73,6 @@ export function createWorkbenchContainerStateContribution(): Disposable {
     delete container.dataset.workbenchParts;
   };
 
-  // Keep container DOM state synchronized outside React so future parts can observe workbench state from one place.
   const syncContainerState = () => {
     const workbenchPartDomSnapshot = getWorkbenchPartDomSnapshot();
     const nextContainer = workbenchPartDomSnapshot[WORKBENCH_PART_IDS.container];

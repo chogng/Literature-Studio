@@ -2,22 +2,22 @@ import {
   getWorkbenchPartDomSnapshot,
   subscribeWorkbenchPartDom,
   WORKBENCH_PART_IDS,
-} from '../../layout';
-import type { Disposable } from '../../workbench.contribution';
+} from '../../browser/layout';
+import type { Disposable } from '../workbench/workbench.contribution';
 
-function syncPreviewSurfaceBounds(previewHostElement: HTMLElement | null) {
+function syncWebContentViewBounds(webContentViewHostElement: HTMLElement | null) {
   const preview = window.electronAPI?.preview;
   if (!preview) {
     return;
   }
 
-  if (!previewHostElement) {
+  if (!webContentViewHostElement) {
     preview.setVisible(false);
     preview.setBounds(null);
     return;
   }
 
-  const rect = previewHostElement.getBoundingClientRect();
+  const rect = webContentViewHostElement.getBoundingClientRect();
   const width = Math.round(rect.width);
   const height = Math.round(rect.height);
 
@@ -36,7 +36,7 @@ function syncPreviewSurfaceBounds(previewHostElement: HTMLElement | null) {
   });
 }
 
-export function createWorkbenchPreviewSurfaceContribution(): Disposable | void {
+export function createWorkbenchWebContentViewContribution(): Disposable | void {
   if (
     typeof window === 'undefined' ||
     typeof window.electronAPI?.preview?.setBounds !== 'function' ||
@@ -45,8 +45,8 @@ export function createWorkbenchPreviewSurfaceContribution(): Disposable | void {
     return;
   }
 
-  let previewHostElement =
-    getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.previewHost];
+  let webContentViewHostElement =
+    getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.webContentViewHost];
   let resizeObserver: ResizeObserver | null = null;
   let frameId: number | null = null;
 
@@ -56,34 +56,35 @@ export function createWorkbenchPreviewSurfaceContribution(): Disposable | void {
       resizeObserver = null;
     }
 
-    if (!previewHostElement) {
+    if (!webContentViewHostElement) {
       return;
     }
 
     resizeObserver = new ResizeObserver(() =>
-      syncPreviewSurfaceBounds(previewHostElement)
+      syncWebContentViewBounds(webContentViewHostElement)
     );
-    resizeObserver.observe(previewHostElement);
+    resizeObserver.observe(webContentViewHostElement);
   };
 
   const syncFromPartDom = () => {
-    const nextPreviewHostElement =
-      getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.previewHost];
-    if (nextPreviewHostElement !== previewHostElement) {
-      previewHostElement = nextPreviewHostElement;
+    const nextWebContentViewHostElement =
+      getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.webContentViewHost];
+    if (nextWebContentViewHostElement !== webContentViewHostElement) {
+      webContentViewHostElement = nextWebContentViewHostElement;
       resetObserver();
     }
 
-    syncPreviewSurfaceBounds(previewHostElement);
+    syncWebContentViewBounds(webContentViewHostElement);
   };
 
-  const handleWindowResize = () => syncPreviewSurfaceBounds(previewHostElement);
+  const handleWindowResize = () =>
+    syncWebContentViewBounds(webContentViewHostElement);
   const unsubscribeWorkbenchPartDom = subscribeWorkbenchPartDom(syncFromPartDom);
   window.addEventListener('resize', handleWindowResize);
 
   resetObserver();
   frameId = window.requestAnimationFrame(() =>
-    syncPreviewSurfaceBounds(previewHostElement)
+    syncWebContentViewBounds(webContentViewHostElement)
   );
 
   return {
@@ -98,7 +99,7 @@ export function createWorkbenchPreviewSurfaceContribution(): Disposable | void {
         resizeObserver.disconnect();
       }
 
-      syncPreviewSurfaceBounds(null);
+      syncWebContentViewBounds(null);
     },
   };
 }
