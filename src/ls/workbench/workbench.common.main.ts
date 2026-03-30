@@ -12,6 +12,7 @@ import { createWorkbenchWebContentViewContribution } from 'ls/workbench/contrib/
 //#endregion
 
 //#region --- workbench services
+import 'ls/workbench/contrib/localization/localization.contribution';
 import 'ls/workbench/contrib/quickAccess/quickAccess.contribution';
 //#endregion
 

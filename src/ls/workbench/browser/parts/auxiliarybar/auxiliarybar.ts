@@ -1,11 +1,11 @@
-import type { AssistantChatMessage } from '../../assistantModel';
+import type { AssistantChatMessage, AssistantConversation } from '../../assistantModel';
 import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
 import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
-import type { SidebarLabels } from './secondarySidebarPart';
-import './media/auxiliarySidebar.css';
+import type { AuxiliaryBarLabels } from './auxiliarybarLabels';
+import './media/auxiliarybar.css';
 
-export type AuxiliarySidebarProps = {
-  labels: SidebarLabels;
+export type AuxiliaryBarProps = {
+  labels: AuxiliaryBarLabels;
   isKnowledgeBaseModeEnabled: boolean;
   messages: AssistantChatMessage[];
   question: string;
@@ -14,11 +14,7 @@ export type AuxiliarySidebarProps = {
   errorMessage: string | null;
   onAsk: () => void;
   availableArticleCount: number;
-  conversations: Array<{
-    id: string;
-    title: string;
-    messages: AssistantChatMessage[];
-  }>;
+  conversations: AssistantConversation[];
   activeConversationId: string;
   isHistoryOpen: boolean;
   isMoreMenuOpen: boolean;
@@ -41,11 +37,11 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-export class AuxiliarySidebar {
-  private props: AuxiliarySidebarProps;
+export class AuxiliaryBar {
+  private props: AuxiliaryBarProps;
   private readonly element = createElement('div', 'sidebar-auxiliary-content');
 
-  constructor(props: AuxiliarySidebarProps) {
+  constructor(props: AuxiliaryBarProps) {
     this.props = props;
     this.render();
   }
@@ -54,7 +50,7 @@ export class AuxiliarySidebar {
     return this.element;
   }
 
-  setProps(props: AuxiliarySidebarProps) {
+  setProps(props: AuxiliaryBarProps) {
     this.props = props;
     this.render();
   }
@@ -337,8 +333,8 @@ export class AuxiliarySidebar {
   }
 }
 
-export function createAuxiliarySidebar(props: AuxiliarySidebarProps) {
-  return new AuxiliarySidebar(props);
+export function createAuxiliaryBar(props: AuxiliaryBarProps) {
+  return new AuxiliaryBar(props);
 }
 
-export default AuxiliarySidebar;
+export default AuxiliaryBar;

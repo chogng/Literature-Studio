@@ -1,7 +1,6 @@
 import {
   type AssistantModel,
   type AssistantModelContext,
-  type AssistantModelSnapshot,
   createAssistantModel,
 } from './assistantModel';
 import {
@@ -43,6 +42,10 @@ import {
   createSettingsPartView,
   createSettingsPartProps,
 } from './parts/settings/settingsPart';
+import {
+  createAuxiliaryBarPartProps,
+  type AuxiliaryBarProps,
+} from './parts/auxiliarybar/auxiliarybarPart';
 import { createSecondarySidebarPartProps } from './parts/sidebar/secondarySidebarPart';
 import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
 import { createTitlebarView, type TitlebarView } from './parts/titlebar/titlebarView';
@@ -52,10 +55,8 @@ import { createArticleDetailsModalWindowView } from './articleDetailsModalWindow
 import { createReaderView } from './readerView';
 import { createToastHost, type ToastHost } from '../../base/browser/ui/toast/toastHost';
 import {
-  getWorkbenchLocaleSnapshot,
-  setWorkbenchLocale,
-  subscribeWorkbenchLocale,
-} from './locale';
+  localeService,
+} from '../contrib/localization/browser/localeService';
 import {
   getWorkbenchSessionSnapshot,
   setWorkbenchArticles,
@@ -175,15 +176,13 @@ function resolveRuntimeState() {
   const electronRuntime =
     typeof window !== 'undefined' &&
     typeof window.electronAPI?.invoke === 'function';
-  // TODO(migration): this runtime flag still probes the legacy Electron `preview` bridge.
-  // Rename it together with preload/main-process APIs.
-  const previewRuntime =
+  const webContentRuntime =
     typeof window !== 'undefined' &&
-    typeof window.electronAPI?.preview?.navigate === 'function';
+    typeof window.electronAPI?.webContent?.navigate === 'function';
 
   return {
     electronRuntime,
-    previewRuntime,
+    webContentRuntime,
     desktopRuntime: electronRuntime,
   };
 }
@@ -262,7 +261,7 @@ class WorkbenchHost {
   private isDisposed = false;
   private isRendering = false;
   private renderPending = false;
-  private previewRuntime = false;
+  private webContentRuntime = false;
   private previousBrowserUrl = '';
   private previousActiveContentTabId: string | null = null;
   private previousContentTargetId: string | null = null;
@@ -291,7 +290,7 @@ class WorkbenchHost {
 
   start() {
     this.globalDisposables.push(
-      subscribeWorkbenchLocale(this.requestRender),
+      localeService.subscribe(this.requestRender),
       subscribeWorkbenchSession(this.requestRender),
       subscribeWorkbenchState(this.requestRender),
       subscribeWorkbenchLayoutState(this.requestRender),
@@ -352,7 +351,7 @@ class WorkbenchHost {
   private ensureServiceSubscriptions(services: {
     settingsController: SettingsController;
     libraryModel: LibraryModel;
-    previewNavigationModel: WebContentNavigationModel;
+    webContentNavigationModel: WebContentNavigationModel;
     editorPartController: EditorPartModel;
     assistantModel: AssistantModel;
     documentActionsController: DocumentActionsController;
@@ -366,7 +365,7 @@ class WorkbenchHost {
     this.globalDisposables.push(
       services.settingsController.subscribe(this.requestRender),
       services.libraryModel.subscribe(this.requestRender),
-      services.previewNavigationModel.subscribe(this.requestRender),
+      services.webContentNavigationModel.subscribe(this.requestRender),
       services.editorPartController.subscribe(this.requestRender),
       services.assistantModel.subscribe(this.requestRender),
       services.documentActionsController.subscribe(this.requestRender),
@@ -376,16 +375,16 @@ class WorkbenchHost {
 
   private syncWebContentRuntime(
     webContentNavigationModelInstance: WebContentNavigationModel,
-    previewRuntime: boolean,
+    webContentRuntime: boolean,
   ) {
-    if (this.webContentStateDisposable && this.previewRuntime === previewRuntime) {
+    if (this.webContentStateDisposable && this.webContentRuntime === webContentRuntime) {
       return;
     }
 
     this.webContentStateDisposable?.();
-    this.previewRuntime = previewRuntime;
+    this.webContentRuntime = webContentRuntime;
     this.webContentStateDisposable = webContentNavigationModelInstance.connectPreviewState({
-      previewRuntime,
+      webContentRuntime,
       setWebUrl: setWorkbenchWebUrl,
       setFetchSeedUrl: setWorkbenchFetchSeedUrl,
     });
@@ -686,29 +685,7 @@ class WorkbenchHost {
       onDownloadPdf: () => void;
       onCreateDraftTab: () => void;
     };
-    auxiliarySidebarProps: {
-      labels: ReturnType<typeof createSecondarySidebarPartProps>['labels'];
-      isKnowledgeBaseModeEnabled: boolean;
-      librarySnapshot: LibraryModelSnapshot['librarySnapshot'];
-      question: string;
-      onQuestionChange: (value: string) => void;
-      messages: AssistantModelSnapshot['messages'];
-      result: AssistantModelSnapshot['result'];
-      isAsking: boolean;
-      errorMessage: string | null;
-      onAsk: () => void;
-      availableArticleCount: number;
-      conversations: AssistantModelSnapshot['conversations'];
-      activeConversationId: AssistantModelSnapshot['activeConversationId'];
-      isHistoryOpen: AssistantModelSnapshot['isHistoryOpen'];
-      isMoreMenuOpen: AssistantModelSnapshot['isMoreMenuOpen'];
-      onCreateConversation: () => void;
-      onActivateConversation: (conversationId: string) => void;
-      onCloseConversation: (conversationId: string) => void;
-      onCloseAuxiliarySidebar: () => void;
-      onToggleHistory: () => void;
-      onToggleMoreMenu: () => void;
-    };
+    auxiliarySidebarProps: AuxiliaryBarProps;
     editorPartProps: EditorPartProps;
   }) {
     this.settingsView?.dispose();
@@ -742,7 +719,7 @@ class WorkbenchHost {
   }
 
   private performRender() {
-    const locale = getWorkbenchLocaleSnapshot();
+    const locale = localeService.getLocale();
     const ui = getLocaleMessages(locale);
     const {
       webUrl,
@@ -757,7 +734,7 @@ class WorkbenchHost {
       activeSidebarKind,
       isAuxiliarySidebarVisible,
     } = getWorkbenchLayoutStateSnapshot();
-    const { electronRuntime, previewRuntime, desktopRuntime } =
+    const { electronRuntime, webContentRuntime, desktopRuntime } =
       resolveRuntimeState();
     const { isMaximized: isWindowMaximized } = getWindowStateSnapshot();
     const handleWindowControl = performWorkbenchWindowControl;
@@ -778,7 +755,6 @@ class WorkbenchHost {
       invokeDesktop,
       ui,
       locale,
-      applyLocale: setWorkbenchLocale,
       initialBatchSources: INITIAL_BATCH_SOURCES,
     });
     const settingsSnapshot = settingsControllerInstance.getSnapshot();
@@ -851,16 +827,16 @@ class WorkbenchHost {
     };
 
     const webContentNavigationModelInstance = getWorkbenchWebContentNavigationModel();
-    this.syncWebContentRuntime(webContentNavigationModelInstance, previewRuntime);
+    this.syncWebContentRuntime(webContentNavigationModelInstance, webContentRuntime);
     const { browserUrl, webContentState } =
       webContentNavigationModelInstance.getSnapshot();
     const viewPartProps = {
       browserUrl,
       electronRuntime,
-      previewRuntime,
+      webContentRuntime,
       labels: {
         emptyState: ui.emptyState,
-        contentUnavailable: ui.previewUnavailable,
+        contentUnavailable: ui.webContentUnavailable,
       },
     };
     const editorPartControllerInstance = getWorkbenchEditorPartController({
@@ -900,7 +876,6 @@ class WorkbenchHost {
     const {
       question: assistantQuestion,
       messages: assistantMessages,
-      result: assistantResult,
       isAsking: isAssistantAsking,
       errorMessage: assistantErrorMessage,
       conversations: assistantConversations,
@@ -949,7 +924,7 @@ class WorkbenchHost {
         nextUrl,
         showToast,
         electronRuntime,
-        previewRuntime,
+        webContentRuntime,
         ui,
         setWebUrl: setWorkbenchWebUrl,
         setFetchSeedUrl: setWorkbenchFetchSeedUrl,
@@ -1002,16 +977,16 @@ class WorkbenchHost {
       });
     };
 
-    const handlePreviewBack = () => {
-      webContentNavigationModelInstance.handlePreviewBack({
-        previewRuntime,
+    const handleWebContentBack = () => {
+      webContentNavigationModelInstance.handleWebContentBack({
+        webContentRuntime,
         ui,
       });
     };
 
-    const handlePreviewForward = () => {
-      webContentNavigationModelInstance.handlePreviewForward({
-        previewRuntime,
+    const handleWebContentForward = () => {
+      webContentNavigationModelInstance.handleWebContentForward({
+        webContentRuntime,
         ui,
       });
     };
@@ -1145,7 +1120,6 @@ class WorkbenchHost {
         invokeDesktop,
         ui,
         locale,
-        applyLocale: setWorkbenchLocale,
       },
       libraryModel: libraryModelInstance,
       libraryContext: {
@@ -1201,7 +1175,7 @@ class WorkbenchHost {
     this.ensureServiceSubscriptions({
       settingsController: settingsControllerInstance,
       libraryModel: libraryModelInstance,
-      previewNavigationModel: webContentNavigationModelInstance,
+      webContentNavigationModel: webContentNavigationModelInstance,
       editorPartController: editorPartControllerInstance,
       assistantModel: assistantModelInstance,
       documentActionsController: documentActionsControllerInstance,
@@ -1209,8 +1183,8 @@ class WorkbenchHost {
     });
 
     this.syncTitlebarCommandHandlers({
-      onNavigateBack: handlePreviewBack,
-      onNavigateForward: handlePreviewForward,
+      onNavigateBack: handleWebContentBack,
+      onNavigateForward: handleWebContentForward,
       onNavigateWeb: handleNavigateWeb,
       onExportDocx: handleExportArticlesDocx,
     });
@@ -1248,29 +1222,31 @@ class WorkbenchHost {
       onCreateDraftTab: handleCreateDraftTab,
     };
 
-    const auxiliarySidebarProps = {
-      labels: secondarySidebarProps.labels,
-      isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
-      librarySnapshot,
-      question: assistantQuestion,
-      onQuestionChange: setAssistantQuestion,
-      messages: assistantMessages,
-      result: assistantResult,
-      isAsking: isAssistantAsking,
-      errorMessage: assistantErrorMessage,
-      onAsk: () => void handleAssistantAsk(),
-      availableArticleCount: filteredArticles.length,
-      conversations: assistantConversations,
-      activeConversationId: activeAssistantConversationId,
-      isHistoryOpen: isAssistantHistoryOpen,
-      isMoreMenuOpen: isAssistantMoreMenuOpen,
-      onCreateConversation: handleAssistantCreateConversation,
-      onActivateConversation: handleAssistantActivateConversation,
-      onCloseConversation: handleAssistantCloseConversation,
-      onCloseAuxiliarySidebar: handleCloseAuxiliarySidebar,
-      onToggleHistory: handleAssistantToggleHistory,
-      onToggleMoreMenu: handleAssistantToggleMoreMenu,
-    };
+    const auxiliarySidebarProps = createAuxiliaryBarPartProps({
+      state: {
+        ui,
+        isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
+        question: assistantQuestion,
+        messages: assistantMessages,
+        isAsking: isAssistantAsking,
+        errorMessage: assistantErrorMessage,
+        availableArticleCount: filteredArticles.length,
+        conversations: assistantConversations,
+        activeConversationId: activeAssistantConversationId,
+        isHistoryOpen: isAssistantHistoryOpen,
+        isMoreMenuOpen: isAssistantMoreMenuOpen,
+      },
+      actions: {
+        onQuestionChange: setAssistantQuestion,
+        onAsk: () => void handleAssistantAsk(),
+        onCreateConversation: handleAssistantCreateConversation,
+        onActivateConversation: handleAssistantActivateConversation,
+        onCloseConversation: handleAssistantCloseConversation,
+        onCloseAuxiliarySidebar: handleCloseAuxiliarySidebar,
+        onToggleHistory: handleAssistantToggleHistory,
+        onToggleMoreMenu: handleAssistantToggleMoreMenu,
+      },
+    });
 
     const titlebarProps = createTitlebarPartProps({
       state: {
@@ -1291,8 +1267,8 @@ class WorkbenchHost {
         handleWindowControl,
         handleToggleSidebar: toggleSidebarVisibility,
         handleToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
-        handlePreviewBack,
-        handlePreviewForward,
+        handleWebContentBack,
+        handleWebContentForward,
         dispatchQuickAccessAction,
       },
     });
@@ -1337,7 +1313,6 @@ class WorkbenchHost {
         isTestingTranslationConnection,
       },
       actions: {
-        onLocaleChange: settingsControllerInstance.handleLocaleChange,
         onBatchSourceUrlChange: settingsControllerInstance.handleBatchSourceUrlChange,
         onBatchSourceJournalTitleChange:
           settingsControllerInstance.handleBatchSourceJournalTitleChange,

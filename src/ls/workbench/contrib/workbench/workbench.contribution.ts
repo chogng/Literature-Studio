@@ -11,9 +11,8 @@ import {
   subscribeWorkbenchState,
 } from '../../browser/workbench';
 import {
-  subscribeWorkbenchLocale,
-  syncWorkbenchDocumentLanguage,
-} from '../../browser/locale';
+  localeService,
+} from '../localization/browser/localeService';
 import { getWorkbenchTitlebarCommandHandlers } from '../../browser/titlebarCommands';
 import {
   getStatusbarStateSnapshot,
@@ -177,10 +176,10 @@ export function createWorkbenchStatusbarContribution(): Disposable {
 
 export function createWorkbenchDocumentLocaleContribution(): Disposable {
   const syncLocale = () => {
-    syncWorkbenchDocumentLanguage();
+    localeService.syncDocumentLanguage();
   };
 
-  const unsubscribeWorkbenchLocale = subscribeWorkbenchLocale(syncLocale);
+  const unsubscribeWorkbenchLocale = localeService.subscribe(syncLocale);
   syncLocale();
 
   return {

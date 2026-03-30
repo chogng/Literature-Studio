@@ -18,7 +18,6 @@ export type SettingsControllerContext = {
   invokeDesktop: ElectronInvoke;
   ui: LocaleMessages;
   locale: Locale;
-  applyLocale: (locale: Locale) => void;
 };
 
 type SettingsModelContext = {
@@ -124,16 +123,6 @@ export class SettingsController {
         }),
       );
     }
-  };
-
-  readonly handleLocaleChange = (nextLocale: Locale) => {
-    this.context.applyLocale(nextLocale);
-
-    void this.settingsModel
-      .saveLocale(this.getSettingsModelContext(), nextLocale)
-      .catch((saveError) => {
-        console.error('Failed to save locale setting.', saveError);
-      });
   };
 
   readonly setBatchLimit = (nextBatchLimit: number) => {
@@ -405,15 +394,9 @@ export class SettingsController {
     const loadSequence = ++this.loadSequence;
 
     try {
-      const { locale: loadedLocale } = await this.settingsModel.loadSettings(
-        this.getSettingsModelContext(),
-      );
+      await this.settingsModel.loadSettings(this.getSettingsModelContext());
       if (this.disposed || loadSequence !== this.loadSequence) {
         return;
-      }
-
-      if (loadedLocale) {
-        this.context.applyLocale(loadedLocale);
       }
     } catch (loadError) {
       if (this.disposed || loadSequence !== this.loadSequence) {

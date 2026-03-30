@@ -6,20 +6,21 @@ import {
 import { createEditorPartView, type EditorPartProps } from './parts/editor/editorPartView';
 import type { EditorStatusState } from './parts/editor/editorStatus';
 import {
-  createAuxiliarySidebarPartView,
   createPrimarySidebarPartView,
   createSecondarySidebarPartView,
-  AuxiliarySidebarPartView,
   PrimarySidebarPartView,
   SecondarySidebarPartView,
   type SecondarySidebarProps,
 } from './parts/sidebar/secondarySidebarPart';
+import {
+  createAuxiliaryBarPartView,
+  AuxiliaryBarPartView,
+  type AuxiliaryBarProps,
+} from './parts/auxiliarybar/auxiliarybarPart';
 import { initializeStatusbarState, updateStatusbarState } from './parts/statusbar/statusbarActions';
 import type {
   LibraryDocumentsResult,
-  RagAnswerResult,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
-import type { AssistantChatMessage, AssistantConversation } from './assistantModel';
 
 type ReaderViewProps = {
   isSidebarVisible: boolean;
@@ -34,29 +35,7 @@ type ReaderViewProps = {
     onDownloadPdf?: () => void;
     onCreateDraftTab?: () => void;
   };
-  auxiliarySidebarProps: {
-    labels: SecondarySidebarProps['labels'];
-    isKnowledgeBaseModeEnabled: boolean;
-    librarySnapshot: LibraryDocumentsResult;
-    question: string;
-    onQuestionChange: (value: string) => void;
-    messages: AssistantChatMessage[];
-    result: RagAnswerResult | null;
-    isAsking: boolean;
-    errorMessage: string | null;
-    onAsk: () => void;
-    availableArticleCount: number;
-    conversations: AssistantConversation[];
-    activeConversationId: string;
-    isHistoryOpen: boolean;
-    isMoreMenuOpen: boolean;
-    onCreateConversation: () => void;
-    onActivateConversation: (conversationId: string) => void;
-    onCloseConversation: (conversationId: string) => void;
-    onCloseAuxiliarySidebar: () => void;
-    onToggleHistory: () => void;
-    onToggleMoreMenu: () => void;
-  };
+  auxiliarySidebarProps: AuxiliaryBarProps;
   editorPartProps: EditorPartProps;
 };
 
@@ -79,7 +58,7 @@ export class ReaderView {
     | PrimarySidebarPartView
     | SecondarySidebarPartView
     | null = null;
-  private auxiliarySidebarView: AuxiliarySidebarPartView | null = null;
+  private auxiliarySidebarView: AuxiliaryBarPartView | null = null;
   private editorView: ReturnType<typeof createEditorPartView> | null = null;
 
   constructor(props: ReaderViewProps) {
@@ -197,7 +176,7 @@ export class ReaderView {
     }
 
     if (!this.auxiliarySidebarView) {
-      this.auxiliarySidebarView = createAuxiliarySidebarPartView(
+      this.auxiliarySidebarView = createAuxiliaryBarPartView(
         this.props.auxiliarySidebarProps,
       );
       return;
