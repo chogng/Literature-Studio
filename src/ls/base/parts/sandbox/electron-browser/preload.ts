@@ -13,6 +13,7 @@ import type {
   NativeToastOptions,
   NativeToastState,
   PreviewBounds,
+  PreviewNavigationMode,
   PreviewState,
   WindowControlAction,
   WindowState,
@@ -125,11 +126,16 @@ const electronAPI = {
     release(targetId?: string | null) {
       sendIpc('app:preview-release', { targetId: targetId ?? null });
     },
-    async navigate(url: string, targetId?: string | null) {
+    async navigate(
+      url: string,
+      targetId?: string | null,
+      mode?: PreviewNavigationMode,
+    ) {
       try {
         return await invokeIpc<PreviewState>('app:preview-navigate', {
           url,
           targetId: targetId ?? null,
+          mode,
         });
       } catch (error) {
         throw normalizeInvokeError(error);

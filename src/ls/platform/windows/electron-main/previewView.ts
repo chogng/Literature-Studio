@@ -7,7 +7,11 @@ import type {
 import { normalizeListingCandidateSeed } from '../../../code/electron-main/fetch/sourceExtractors/types.js';
 import { READER_SHARED_WEB_PARTITION } from '../../native/electron-main/sharedWebSession.js';
 import { shortenForLog } from '../../../code/electron-main/fetchTiming.js';
-import type { PreviewBounds, PreviewState } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type {
+  PreviewBounds,
+  PreviewNavigationMode,
+  PreviewState,
+} from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { appError } from '../../../base/common/errors.js';
 
 const previewPartition = READER_SHARED_WEB_PARTITION;
@@ -1752,13 +1756,68 @@ function isAbortLikePreviewNavigationError(error: unknown) {
   return /\bERR_ABORTED\b/i.test(message) || /\(-3\)\s+loading\b/i.test(message);
 }
 
-export async function navigatePreview(url: string) {
+function isPreviewFailureUrl(url: string) {
+  return /^about:blank$/i.test(url) || /^chrome-error:\/\//i.test(url);
+}
+
+function hasPreviewReachedStableDestination(
+  currentUrl: string,
+  targetUrl: string,
+  initialUrl: string,
+  isLoading: boolean,
+) {
+  if (!currentUrl || isPreviewFailureUrl(currentUrl)) {
+    return false;
+  }
+
+  if (currentUrl === targetUrl) {
+    return true;
+  }
+
+  if (isLoading) {
+    return false;
+  }
+
+  // Some journal landing pages immediately redirect or normalize the URL.
+  // Once the destination has stabilized on a different non-error page, treat it
+  // as a successful navigation instead of timing out and blanking the preview.
+  return currentUrl !== initialUrl;
+}
+
+function hasPreviewReachedTarget(
+  mode: PreviewNavigationMode,
+  currentUrl: string,
+  targetUrl: string,
+  initialUrl: string,
+  isLoading: boolean,
+) {
+  switch (mode) {
+    case 'strict':
+      return currentUrl === targetUrl;
+    case 'browser':
+    default:
+      return hasPreviewReachedStableDestination(
+        currentUrl,
+        targetUrl,
+        initialUrl,
+        isLoading,
+      );
+  }
+}
+
+export async function navigatePreview(
+  url: string,
+  mode: PreviewNavigationMode = 'browser',
+) {
   if (!previewView || previewView.webContents.isDestroyed()) {
     throw appError('PREVIEW_NOT_READY');
   }
 
   previewState.visible = true;
   applyPreviewBounds();
+
+  updatePreviewState();
+  const initialUrl = normalizeComparablePreviewUrl(previewState.url);
 
   let navigationFailure: unknown = null;
   void previewView.webContents.loadURL(url).catch((error) => {
@@ -1778,7 +1837,15 @@ export async function navigatePreview(url: string) {
     updatePreviewState();
     const currentUrl = normalizeComparablePreviewUrl(previewState.url);
     const targetUrl = normalizeComparablePreviewUrl(url);
-    if (currentUrl === targetUrl) {
+    if (
+      hasPreviewReachedTarget(
+        mode,
+        currentUrl,
+        targetUrl,
+        initialUrl,
+        previewState.isLoading,
+      )
+    ) {
       updatePreviewState();
       return;
     }
@@ -1787,15 +1854,23 @@ export async function navigatePreview(url: string) {
   }
 
   throw appError('PREVIEW_NOT_READY', {
-    message: 'Timed out while waiting for preview URL to match target.',
+    message:
+      mode === 'strict'
+        ? 'Timed out while waiting for preview URL to match target exactly.'
+        : 'Timed out while waiting for preview navigation to settle on a destination.',
     targetUrl: url,
     currentUrl: previewState.url,
+    navigationMode: mode,
   });
 }
 
-export async function navigatePreviewTarget(url: string, targetId?: string | null) {
+export async function navigatePreviewTarget(
+  url: string,
+  targetId?: string | null,
+  mode: PreviewNavigationMode = 'browser',
+) {
   activatePreviewTarget(targetId);
-  return await navigatePreview(url);
+  return await navigatePreview(url, mode);
 }
 
 export async function navigatePreviewForPrint(url: string, timeoutMs = 12000) {
@@ -1805,7 +1880,7 @@ export async function navigatePreviewForPrint(url: string, timeoutMs = 12000) {
 
   previewState.visible = true;
   applyPreviewBounds();
-  await navigatePreview(url);
+  await navigatePreview(url, 'strict');
 
   const startedAt = Date.now();
   while (Date.now() - startedAt < Math.max(1000, timeoutMs)) {

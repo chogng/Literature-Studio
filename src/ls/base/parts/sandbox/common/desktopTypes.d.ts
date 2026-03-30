@@ -161,12 +161,15 @@ export interface PreviewState {
   visible: boolean;
 }
 
+export type PreviewNavigationMode = 'browser' | 'strict';
+
 export interface PreviewTargetPayload {
   targetId?: string | null;
 }
 
 export interface PreviewNavigatePayload extends PreviewTargetPayload {
   url: string;
+  mode?: PreviewNavigationMode;
 }
 
 export type FetchStrategy = 'network-first' | 'preview-first' | 'compare';
@@ -463,6 +466,7 @@ export interface NativeMenuRect {
 }
 
 export type NativeMenuAlign = 'start' | 'center';
+export type NativeMenuCoverage = 'full-window' | 'trigger-band';
 
 export interface NativeMenuOpenPayload {
   requestId: string;
@@ -470,6 +474,7 @@ export interface NativeMenuOpenPayload {
   options: NativeMenuOption[];
   value?: string;
   align?: NativeMenuAlign;
+  coverage?: NativeMenuCoverage;
 }
 
 export interface NativeMenuState {
@@ -478,6 +483,7 @@ export interface NativeMenuState {
   options: NativeMenuOption[];
   value: string;
   align: NativeMenuAlign;
+  coverage: NativeMenuCoverage;
   sourceWebContentsId: number;
 }
 
@@ -548,7 +554,11 @@ export interface ElectronWindowControls {
 export interface ElectronPreviewApi {
   activate: (targetId?: string | null) => void;
   release: (targetId?: string | null) => void;
-  navigate: (url: string, targetId?: string | null) => Promise<PreviewState>;
+  navigate: (
+    url: string,
+    targetId?: string | null,
+    mode?: PreviewNavigationMode,
+  ) => Promise<PreviewState>;
   getState: (targetId?: string | null) => Promise<PreviewState>;
   setBounds: (bounds: PreviewBounds | null) => void;
   setVisible: (visible: boolean) => void;

@@ -39,7 +39,7 @@ function resolveMenuLayout(state: NativeMenuState | null, measuredMenuWidth: num
   }
 
   const viewportPadding = 8;
-  const menuOffset = 4;
+  const menuOffset = state.coverage === 'trigger-band' ? 8 : 4;
   const maxWidth = Math.max(160, window.innerWidth - viewportPadding * 2);
   const optionHeight = 36;
   const verticalPadding = 8;

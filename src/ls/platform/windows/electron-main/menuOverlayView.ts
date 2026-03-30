@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BrowserWindow, WebContentsView, webContents } from 'electron';
+import { BrowserWindow, webContents } from 'electron';
 
 import type {
   NativeMenuEvent,
@@ -16,10 +16,9 @@ const menuStateChannel = 'app:native-menu-state';
 const menuEventChannel = 'app:native-menu-event';
 const overlayQueryKey = 'nativeOverlay';
 const overlayQueryValue = 'menu';
-const hiddenBounds = { x: 0, y: 0, width: 0, height: 0 };
 
-let menuWindow: BrowserWindow | null = null;
-let menuView: WebContentsView | null = null;
+let menuParentWindow: BrowserWindow | null = null;
+let menuOverlayWindow: BrowserWindow | null = null;
 let menuState: NativeMenuState | null = null;
 
 function resolveOverlayRendererTarget() {
@@ -70,19 +69,19 @@ function hasOverlayQuery(url: string) {
   }
 }
 
-async function ensureRendererLoaded(view: WebContentsView) {
-  const currentUrl = view.webContents.getURL();
+async function ensureRendererLoaded(window: BrowserWindow) {
+  const currentUrl = window.webContents.getURL();
   if (hasOverlayQuery(currentUrl)) {
     return;
   }
 
   const target = resolveOverlayRendererTarget();
   if (target.type === 'url') {
-    await view.webContents.loadURL(target.target);
+    await window.loadURL(target.target);
     return;
   }
 
-  await view.webContents.loadFile(target.target, { query: target.query });
+  await window.loadFile(target.target, { query: target.query });
 }
 
 function normalizeMenuRect(value: NativeMenuRect): NativeMenuRect {
@@ -94,12 +93,32 @@ function normalizeMenuRect(value: NativeMenuRect): NativeMenuRect {
   };
 }
 
-function emitState() {
-  if (!menuView || menuView.webContents.isDestroyed()) {
+function syncMenuOverlayBounds() {
+  if (!menuOverlayWindow || menuOverlayWindow.isDestroyed()) {
     return;
   }
 
-  menuView.webContents.send(menuStateChannel, menuState);
+  const targetWindow = menuParentWindow;
+  if (!targetWindow || targetWindow.isDestroyed() || !menuState) {
+    menuOverlayWindow.hide();
+    return;
+  }
+
+  const contentBounds = targetWindow.getContentBounds();
+  if (contentBounds.width <= 0 || contentBounds.height <= 0) {
+    menuOverlayWindow.hide();
+    return;
+  }
+
+  menuOverlayWindow.setBounds(contentBounds, false);
+}
+
+function emitState() {
+  if (!menuOverlayWindow || menuOverlayWindow.isDestroyed()) {
+    return;
+  }
+
+  menuOverlayWindow.webContents.send(menuStateChannel, menuState);
 }
 
 function emitEvent(targetWebContentsId: number, event: NativeMenuEvent) {
@@ -111,55 +130,56 @@ function emitEvent(targetWebContentsId: number, event: NativeMenuEvent) {
   target.send(menuEventChannel, event);
 }
 
-function syncMenuBounds() {
-  if (!menuView) {
-    return;
-  }
-
-  const targetWindow = menuWindow;
-  if (!targetWindow || targetWindow.isDestroyed() || !menuState) {
-    menuView.setVisible(false);
-    menuView.setBounds(hiddenBounds);
-    return;
-  }
-
-  const [contentWidth, contentHeight] = targetWindow.getContentSize();
-  if (contentWidth <= 0 || contentHeight <= 0) {
-    menuView.setVisible(false);
-    menuView.setBounds(hiddenBounds);
-    return;
-  }
-
-  menuView.setBounds({
-    x: 0,
-    y: 0,
-    width: contentWidth,
-    height: contentHeight,
-  });
-  menuView.setVisible(true);
-}
-
-function bindWindowResize(window: BrowserWindow) {
-  const handleWindowBoundsChange = () => {
-    syncMenuBounds();
+function bindParentWindow(parentWindow: BrowserWindow, overlayWindow: BrowserWindow) {
+  const sync = () => {
+    syncMenuOverlayBounds();
+  };
+  const closeForParentStateChange = () => {
+    closeMenuOverlay();
   };
 
-  window.on('resize', handleWindowBoundsChange);
-  window.on('maximize', handleWindowBoundsChange);
-  window.on('unmaximize', handleWindowBoundsChange);
+  parentWindow.on('move', sync);
+  parentWindow.on('resize', sync);
+  parentWindow.on('maximize', sync);
+  parentWindow.on('unmaximize', sync);
+  parentWindow.on('enter-full-screen', sync);
+  parentWindow.on('leave-full-screen', sync);
+  parentWindow.on('minimize', closeForParentStateChange);
+  parentWindow.on('hide', closeForParentStateChange);
+  parentWindow.on('closed', closeForParentStateChange);
 
-  menuView?.webContents.once('destroyed', () => {
-    if (window.isDestroyed()) {
-      return;
+  overlayWindow.on('closed', () => {
+    if (!parentWindow.isDestroyed()) {
+      parentWindow.removeListener('move', sync);
+      parentWindow.removeListener('resize', sync);
+      parentWindow.removeListener('maximize', sync);
+      parentWindow.removeListener('unmaximize', sync);
+      parentWindow.removeListener('enter-full-screen', sync);
+      parentWindow.removeListener('leave-full-screen', sync);
+      parentWindow.removeListener('minimize', closeForParentStateChange);
+      parentWindow.removeListener('hide', closeForParentStateChange);
+      parentWindow.removeListener('closed', closeForParentStateChange);
     }
-    window.removeListener('resize', handleWindowBoundsChange);
-    window.removeListener('maximize', handleWindowBoundsChange);
-    window.removeListener('unmaximize', handleWindowBoundsChange);
   });
 }
 
-function createMenuView(window: BrowserWindow) {
-  const view = new WebContentsView({
+function createMenuOverlayWindow(parentWindow: BrowserWindow) {
+  const overlayWindow = new BrowserWindow({
+    parent: parentWindow,
+    show: false,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    focusable: true,
+    backgroundColor: '#00000000',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
       contextIsolation: true,
@@ -168,35 +188,63 @@ function createMenuView(window: BrowserWindow) {
     },
   });
 
-  view.setBackgroundColor('#00000000');
-  view.setVisible(false);
-  view.setBounds(hiddenBounds);
-  window.contentView.addChildView(view);
-  view.webContents.on('did-finish-load', () => {
-    emitState();
-    syncMenuBounds();
-  });
-  bindWindowResize(window);
+  if (typeof overlayWindow.removeMenu === 'function') {
+    overlayWindow.removeMenu();
+  } else {
+    overlayWindow.setMenuBarVisibility(false);
+  }
 
-  return view;
+  overlayWindow.on('blur', () => {
+    closeMenuOverlay();
+  });
+
+  overlayWindow.webContents.on('did-finish-load', () => {
+    syncMenuOverlayBounds();
+    emitState();
+  });
+
+  overlayWindow.on('closed', () => {
+    if (menuOverlayWindow === overlayWindow) {
+      menuOverlayWindow = null;
+      menuParentWindow = null;
+      menuState = null;
+    }
+  });
+
+  bindParentWindow(parentWindow, overlayWindow);
+  return overlayWindow;
 }
 
-function ensureMenuView(window: BrowserWindow) {
+function ensureMenuOverlayWindow(parentWindow: BrowserWindow) {
   if (
-    menuWindow === window &&
-    menuView &&
-    !menuView.webContents.isDestroyed()
+    menuParentWindow === parentWindow &&
+    menuOverlayWindow &&
+    !menuOverlayWindow.isDestroyed()
   ) {
-    return menuView;
+    return menuOverlayWindow;
   }
 
   disposeMenuOverlay();
-  menuWindow = window;
-  menuView = createMenuView(window);
-  void ensureRendererLoaded(menuView).catch(() => {
+  menuParentWindow = parentWindow;
+  menuOverlayWindow = createMenuOverlayWindow(parentWindow);
+  void ensureRendererLoaded(menuOverlayWindow).catch(() => {
     // Best effort only.
   });
-  return menuView;
+  return menuOverlayWindow;
+}
+
+function showMenuOverlayWindow() {
+  if (!menuOverlayWindow || menuOverlayWindow.isDestroyed()) {
+    return;
+  }
+
+  syncMenuOverlayBounds();
+
+  if (!menuOverlayWindow.isVisible()) {
+    menuOverlayWindow.show();
+  }
+
+  menuOverlayWindow.focus();
 }
 
 export function prewarmMenuOverlay(window: BrowserWindow | null | undefined) {
@@ -204,10 +252,14 @@ export function prewarmMenuOverlay(window: BrowserWindow | null | undefined) {
     return;
   }
 
-  ensureMenuView(window);
+  ensureMenuOverlayWindow(window);
 }
 
-export function openMenuOverlay(window: BrowserWindow | null | undefined, senderId: number, payload: NativeMenuOpenPayload) {
+export function openMenuOverlay(
+  window: BrowserWindow | null | undefined,
+  senderId: number,
+  payload: NativeMenuOpenPayload,
+) {
   if (!window || window.isDestroyed()) {
     return;
   }
@@ -224,21 +276,25 @@ export function openMenuOverlay(window: BrowserWindow | null | undefined, sender
     return;
   }
 
-  ensureMenuView(window);
+  ensureMenuOverlayWindow(window);
   menuState = {
     requestId: payload.requestId,
     triggerRect: normalizeMenuRect(payload.triggerRect),
     options,
     value: typeof payload.value === 'string' ? payload.value : '',
     align: payload.align === 'center' ? 'center' : 'start',
+    coverage: payload.coverage === 'trigger-band' ? 'trigger-band' : 'full-window',
     sourceWebContentsId: senderId,
   };
   emitState();
-  syncMenuBounds();
+  showMenuOverlayWindow();
 }
 
 export function closeMenuOverlay(requestId?: string) {
   if (!menuState) {
+    if (menuOverlayWindow && !menuOverlayWindow.isDestroyed() && menuOverlayWindow.isVisible()) {
+      menuOverlayWindow.hide();
+    }
     return;
   }
 
@@ -249,7 +305,11 @@ export function closeMenuOverlay(requestId?: string) {
   const previousState = menuState;
   menuState = null;
   emitState();
-  syncMenuBounds();
+
+  if (menuOverlayWindow && !menuOverlayWindow.isDestroyed() && menuOverlayWindow.isVisible()) {
+    menuOverlayWindow.hide();
+  }
+
   emitEvent(previousState.sourceWebContentsId, {
     requestId: previousState.requestId,
     type: 'close',
@@ -268,7 +328,11 @@ export function selectMenuOption(requestId: string, value: string) {
   const previousState = menuState;
   menuState = null;
   emitState();
-  syncMenuBounds();
+
+  if (menuOverlayWindow && !menuOverlayWindow.isDestroyed() && menuOverlayWindow.isVisible()) {
+    menuOverlayWindow.hide();
+  }
+
   emitEvent(previousState.sourceWebContentsId, {
     requestId,
     type: 'select',
@@ -277,22 +341,20 @@ export function selectMenuOption(requestId: string, value: string) {
 }
 
 export function disposeMenuOverlay(window?: BrowserWindow | null) {
-  if (!menuView) {
+  if (!menuOverlayWindow) {
     return;
   }
 
-  if (window && menuWindow && menuWindow !== window) {
+  if (window && menuParentWindow && menuParentWindow !== window) {
     return;
   }
 
-  const view = menuView;
-  menuView = null;
-
-  if (menuWindow && !menuWindow.isDestroyed()) {
-    menuWindow.contentView.removeChildView(view);
-  }
-
-  view.webContents.close({ waitForBeforeUnload: false });
-  menuWindow = null;
+  const overlayWindow = menuOverlayWindow;
+  menuOverlayWindow = null;
+  menuParentWindow = null;
   menuState = null;
+
+  if (!overlayWindow.isDestroyed()) {
+    overlayWindow.close();
+  }
 }

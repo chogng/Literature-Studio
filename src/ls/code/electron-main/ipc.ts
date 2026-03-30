@@ -14,6 +14,7 @@ import type {
   PreviewDownloadPdfPayload,
   PreviewBounds,
   NativeModalState,
+  PreviewNavigatePayload,
   PreviewState,
   ReindexLibraryDocumentPayload,
   RagAnswerArticlesPayload,
@@ -339,9 +340,9 @@ export function registerAppIpc(storage: StorageService) {
     releasePreviewTarget(payload?.targetId);
   });
 
-  ipcMain.handle('app:preview-navigate', async (_event, payload: { url: string; targetId?: string | null }) => {
+  ipcMain.handle('app:preview-navigate', async (_event, payload: PreviewNavigatePayload) => {
     try {
-      await navigatePreviewTarget(payload.url, payload.targetId);
+      await navigatePreviewTarget(payload.url, payload.targetId, payload.mode);
       return getPreviewState(payload.targetId);
     } catch (error) {
       throw new Error(serializeAppError(error));

@@ -269,9 +269,10 @@ export class PreviewNavigationModel {
 
     if (previewNavigation.kind === 'webcontents-preview' && window.electronAPI?.preview) {
       void window.electronAPI.preview
-        .navigate(previewNavigation.normalizedUrl, this.activeTargetId)
+        .navigate(previewNavigation.normalizedUrl, this.activeTargetId, 'browser')
         .catch(() => {
-          window.electronAPI?.preview?.setVisible(false);
+          // Keep the active preview surface mounted so a transient navigation
+          // mismatch does not collapse into an unrecoverable white screen.
         });
     }
 

@@ -48,8 +48,14 @@ function shouldUseNativeMenuOverlay() {
   return typeof window.electronAPI?.menu?.open === 'function';
 }
 
-function resolveNativeMenuAlign(className: string) {
-  return className.includes('titlebar-source-select') ? 'center' : 'start';
+function resolveNativeMenuAlign(_className: string) {
+  return 'start' as const;
+}
+
+function resolveNativeMenuCoverage(className: string) {
+  return className.includes('titlebar-source-select')
+    ? 'trigger-band'
+    : 'full-window';
 }
 
 export const Dropdown = forwardRef(function Dropdown(
@@ -150,6 +156,7 @@ export const Dropdown = forwardRef(function Dropdown(
         options,
         value,
         align: menuAlign,
+        coverage: resolveNativeMenuCoverage(className),
       });
     };
 
