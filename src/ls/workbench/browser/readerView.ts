@@ -1,4 +1,5 @@
 import { jsx, jsxs } from "react/jsx-runtime";
+import { useCallback, useEffect } from "react";
 import {
   createWorkbenchPartRef,
   getWorkbenchContentClassName,
@@ -9,12 +10,14 @@ import {
 import EditorPartView, {
   type EditorPartProps,
 } from "./parts/editor/editorPartView";
+import type { EditorStatusState } from "./parts/editor/editorStatus";
 import {
   AuxiliarySidebarPartView,
   PrimarySidebarPartView,
   SecondarySidebarPartView,
   type SecondarySidebarProps,
 } from "./parts/sidebar/secondarySidebarPart";
+import { initializeStatusbarState, updateStatusbarState } from "./parts/statusbar/statusbarActions";
 import type {
   LibraryDocumentsResult,
   RagAnswerResult,
@@ -99,6 +102,15 @@ export default function ReaderView({
   const auxiliarySidebarPartRef = createWorkbenchPartRef(
     WORKBENCH_PART_IDS.auxiliarySidebar
   );
+
+  useEffect(() => {
+    initializeStatusbarState(editorPartProps.labels.status);
+  }, [editorPartProps.labels.status.ready, editorPartProps.labels.status.statusbarAriaLabel]);
+
+  const handleEditorStatusChange = useCallback((status: EditorStatusState) => {
+    updateStatusbarState(status);
+  }, []);
+
   const contentClassName = getWorkbenchContentClassName({
     isSidebarVisible,
     isAuxiliarySidebarVisible,
@@ -124,13 +136,19 @@ export default function ReaderView({
       })
     : null;
 
-  return jsxs("main", {
-    className: contentClassName,
-    style: contentStyle,
-    children: [
-      sidebarPartView,
-      jsx(EditorPartView, { ...editorPartProps }),
-      auxiliarySidebarPartView,
-    ],
+  return jsxs("section", {
+    className: "reader-layout",
+    children: jsxs("main", {
+      className: contentClassName,
+      style: contentStyle,
+      children: [
+        sidebarPartView,
+        jsx(EditorPartView, {
+          ...editorPartProps,
+          onStatusChange: handleEditorStatusChange,
+        }),
+        auxiliarySidebarPartView,
+      ],
+    }),
   });
 }

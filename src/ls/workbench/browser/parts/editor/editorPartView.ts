@@ -4,6 +4,7 @@ import type {
   WritingWorkspaceTab,
 } from '../../writingEditorModel';
 import { WORKBENCH_PART_IDS, createWorkbenchPartRef } from '../../layout';
+import type { EditorStatusState } from './editorStatus';
 import type { ViewPartProps } from '../views/viewPartView';
 import type { EditorStatusLabels } from './editorStatus';
 import type { WritingEditorSurfaceLabels } from './prosemirror/prosemirrorEditor';
@@ -32,6 +33,7 @@ export type EditorPartProps = {
   onCreateDraftTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  onStatusChange?: (status: EditorStatusState) => void;
 };
 
 export default function EditorPartView(props: EditorPartProps) {

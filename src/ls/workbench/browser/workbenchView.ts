@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -67,6 +68,11 @@ import { createSecondarySidebarPartProps } from "./parts/sidebar/secondarySideba
 import { createTitlebarPartProps } from "./parts/titlebar/titlebarPart";
 import { subscribeTitlebarUiActions } from "./parts/titlebar/titlebarActions";
 import { TitlebarView } from "./parts/titlebar/titlebarView";
+import { StatusbarPart } from "./parts/statusbar/statusbarPart";
+import {
+  getStatusbarStateSnapshot,
+  subscribeStatusbarState,
+} from "./parts/statusbar/statusbarModel";
 import { PreviewNavigationModel } from "./previewNavigationModel";
 import {
   resolvePreviewSourceUrl,
@@ -140,6 +146,8 @@ type WorkbenchShellConfig = {
   useMica: boolean;
   titlebarPartRef: ReturnType<typeof createWorkbenchPartRef>;
   titlebarProps: ReturnType<typeof createTitlebarPartProps>;
+  statusbarPartRef: ReturnType<typeof createWorkbenchPartRef>;
+  statusbarVisible: boolean;
   activePage: ActivePage;
   activePageView: ReactNode;
   toastCloseLabel: string;
@@ -229,15 +237,21 @@ function renderWorkbenchShell({
   useMica,
   titlebarPartRef,
   titlebarProps,
+  statusbarPartRef,
+  statusbarVisible,
   activePage,
   activePageView,
   toastCloseLabel,
 }: WorkbenchShellConfig) {
   return jsxs("div", {
     ref: workbenchContainerRef,
-    className: `app-window ${
-      electronRuntime && useMica ? "is-mica-enabled" : ""
-    }`.trim(),
+    className: [
+      "app-window",
+      electronRuntime && useMica ? "is-mica-enabled" : "",
+      statusbarVisible ? "has-statusbar" : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
     children: [
       electronRuntime
         ? jsx(TitlebarView, { partRef: titlebarPartRef, ...titlebarProps })
@@ -249,6 +263,11 @@ function renderWorkbenchShell({
           jsx(ToastContainer, { closeLabel: toastCloseLabel }),
         ],
       }),
+      statusbarVisible
+        ? jsx("section", {
+            ref: statusbarPartRef,
+          })
+        : null,
     ],
   });
 }
@@ -284,7 +303,22 @@ function WorkbenchContentView() {
     WORKBENCH_PART_IDS.container
   );
   const titlebarPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
+  const statusbarPartDomRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.statusbar);
   const settingsPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.settings);
+  const statusbarPartRef = useRef<StatusbarPart | null>(null);
+  const bindStatusbarPartRef = useCallback(
+    (element: HTMLElement | null) => {
+      statusbarPartDomRef(element);
+      statusbarPartRef.current?.dispose();
+      statusbarPartRef.current = element ? new StatusbarPart(element) : null;
+    },
+    [statusbarPartDomRef]
+  );
+  const statusbarState = useSyncExternalStore(
+    subscribeStatusbarState,
+    getStatusbarStateSnapshot,
+    getStatusbarStateSnapshot
+  );
   const { electronRuntime, previewRuntime, desktopRuntime } =
     resolveRuntimeState();
   const hasWindowControlsProvider = hasWorkbenchWindowControlsProvider();
@@ -300,6 +334,17 @@ function WorkbenchContentView() {
   );
   const handleWindowControl = performWorkbenchWindowControl;
   const ui = useMemo(() => getLocaleMessages(locale), [locale]);
+
+  useEffect(() => {
+    statusbarPartRef.current?.render(statusbarState);
+  }, [statusbarState]);
+
+  useEffect(() => {
+    return () => {
+      statusbarPartRef.current?.dispose();
+      statusbarPartRef.current = null;
+    };
+  }, []);
 
   const invokeDesktop = useCallback(
     async <T>(command: string, args?: DesktopInvokeArgs): Promise<T> => {
@@ -1399,6 +1444,8 @@ function WorkbenchContentView() {
     useMica,
     titlebarPartRef,
     titlebarProps,
+    statusbarPartRef: bindStatusbarPartRef,
+    statusbarVisible: activePage === "reader",
     activePage,
     activePageView,
     toastCloseLabel: ui.toastClose,
