@@ -1,4 +1,5 @@
 import type { WindowControlAction } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import { createButtonView } from '../../../../base/browser/ui/button/button.js';
 
 export type WindowControlsAction = Extract<
   WindowControlAction,
@@ -42,24 +43,10 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-function createButton(params: {
-  className: string;
-  label: string;
-  text: string;
-  onClick: () => void;
-}) {
-  const button = createElement('button', params.className);
-  button.type = 'button';
-  button.setAttribute('aria-label', params.label);
-  button.title = params.label;
-  button.textContent = params.text;
-  button.addEventListener('click', params.onClick);
-  return button;
-}
-
 export class WindowControlsView {
   private props: WindowControlsGroupProps;
   private readonly element = createElement('div');
+  private readonly controlViews: Array<ReturnType<typeof createButtonView>> = [];
 
   constructor(props: WindowControlsGroupProps) {
     this.props = props;
@@ -76,6 +63,7 @@ export class WindowControlsView {
   }
 
   dispose() {
+    this.disposeControlViews();
     this.element.replaceChildren();
   }
 
@@ -97,28 +85,65 @@ export class WindowControlsView {
       'aria-label',
       labels?.controlsAriaLabel ?? resolvedLabels.closeLabel,
     );
-    this.element.replaceChildren(
-      createButton({
+    this.disposeControlViews();
+
+    const minimizeButton = this.trackControlView(
+      createButtonView({
         className: 'titlebar-btn titlebar-btn-window',
-        label: resolvedLabels.minimizeLabel,
-        text: '-',
+        variant: 'ghost',
+        size: 'md',
+        mode: 'icon',
+        ariaLabel: resolvedLabels.minimizeLabel,
+        title: resolvedLabels.minimizeLabel,
+        content: '-',
         onClick: () => onWindowControl('minimize'),
       }),
-      createButton({
+    );
+    const maximizeButton = this.trackControlView(
+      createButtonView({
         className: 'titlebar-btn titlebar-btn-window',
-        label: isWindowMaximized
+        variant: 'ghost',
+        size: 'md',
+        mode: 'icon',
+        ariaLabel: isWindowMaximized
           ? resolvedLabels.restoreLabel
           : resolvedLabels.maximizeLabel,
-        text: isWindowMaximized ? 'o' : '[]',
+        title: isWindowMaximized
+          ? resolvedLabels.restoreLabel
+          : resolvedLabels.maximizeLabel,
+        content: isWindowMaximized ? 'o' : '[]',
         onClick: () => onWindowControl('toggle-maximize'),
       }),
-      createButton({
+    );
+    const closeButton = this.trackControlView(
+      createButtonView({
         className: 'titlebar-btn titlebar-btn-window titlebar-btn-close',
-        label: resolvedLabels.closeLabel,
-        text: 'x',
+        variant: 'ghost',
+        size: 'md',
+        mode: 'icon',
+        ariaLabel: resolvedLabels.closeLabel,
+        title: resolvedLabels.closeLabel,
+        content: 'x',
         onClick: () => onWindowControl('close'),
       }),
     );
+
+    this.element.replaceChildren(
+      minimizeButton.getElement(),
+      maximizeButton.getElement(),
+      closeButton.getElement(),
+    );
+  }
+
+  private trackControlView(view: ReturnType<typeof createButtonView>) {
+    this.controlViews.push(view);
+    return view;
+  }
+
+  private disposeControlViews() {
+    while (this.controlViews.length > 0) {
+      this.controlViews.pop()?.dispose();
+    }
   }
 }
 

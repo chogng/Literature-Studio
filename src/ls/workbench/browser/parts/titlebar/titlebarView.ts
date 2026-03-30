@@ -1,4 +1,7 @@
 import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
+import { createButtonView } from '../../../../base/browser/ui/button/button.js';
+import { createDropdownView, type DropdownView } from '../../../../base/browser/ui/dropdown/dropdown.js';
+import { createInputView } from '../../../../base/browser/ui/input/input.js';
 import { getBrowserWindowChromeLayout } from '../../../../platform/windows/common/windowChrome.js';
 import {
   requestExportTitlebarDocx,
@@ -10,7 +13,10 @@ import {
   requestToggleTitlebarSidebar,
   subscribeTitlebarUiActions,
 } from './titlebarActions';
-import type { WindowControlsAction } from './windowControls';
+import {
+  createWindowControlsView,
+  type WindowControlsAction,
+} from './windowControls';
 import './media/titlebar.css';
 
 export type TitlebarAction = WindowControlsAction;
@@ -148,14 +154,17 @@ function createIconButton(params: {
   disabled?: boolean;
   title?: string;
 }) {
-  const button = createElement('button', params.className);
-  button.type = 'button';
-  button.textContent = params.text;
-  button.disabled = Boolean(params.disabled);
-  button.setAttribute('aria-label', params.label);
-  button.title = params.title ?? params.label;
-  button.addEventListener('click', params.onClick);
-  return button;
+  return createButtonView({
+    className: params.className,
+    variant: 'ghost',
+    size: 'md',
+    mode: 'icon',
+    ariaLabel: params.label,
+    title: params.title ?? params.label,
+    content: params.text,
+    disabled: params.disabled,
+    onClick: () => params.onClick(),
+  });
 }
 
 export class TitlebarView {
@@ -165,7 +174,8 @@ export class TitlebarView {
   private readonly startElement = createElement('div', 'titlebar-start');
   private readonly centerElement = createElement('div', 'titlebar-center');
   private readonly controlsElement = createElement('div', 'titlebar-controls');
-  private sourceSelector: HTMLSelectElement | null = null;
+  private readonly renderedViews: Array<{ dispose: () => void }> = [];
+  private sourceSelector: DropdownView | null = null;
   private webUrlInput: HTMLInputElement | null = null;
   private readonly unsubscribeUiActions: () => void;
 
@@ -180,7 +190,7 @@ export class TitlebarView {
     this.unsubscribeUiActions = subscribeTitlebarUiActions((action) => {
       if (action.type === 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
         this.sourceSelector?.focus();
-        this.sourceSelector?.click();
+        this.sourceSelector?.open();
         return;
       }
 
@@ -203,6 +213,7 @@ export class TitlebarView {
 
   dispose() {
     this.unsubscribeUiActions();
+    this.disposeRenderedViews();
     this.element.replaceChildren();
     this.sourceSelector = null;
     this.webUrlInput = null;
@@ -252,6 +263,7 @@ export class TitlebarView {
     this.controlsElement.setAttribute('role', 'group');
     this.controlsElement.setAttribute('aria-label', props.labels.controlsAriaLabel);
 
+    this.disposeRenderedViews();
     this.renderStart(props);
     this.renderCenter(props);
     this.renderControls(props);
@@ -263,7 +275,7 @@ export class TitlebarView {
       return;
     }
 
-    this.startElement.append(
+    const sidebarButton = this.trackView(
       createIconButton({
         className: 'titlebar-btn titlebar-btn-sidebar',
         label: props.sidebarToggleLabel,
@@ -271,13 +283,15 @@ export class TitlebarView {
         onClick: requestToggleTitlebarSidebar,
       }),
     );
+
+    this.startElement.append(sidebarButton.getElement());
   }
 
   private renderCenter(props: TitlebarProps & { labels: TitlebarLabels }) {
     this.centerElement.replaceChildren();
 
     const navGroup = createElement('div', 'titlebar-nav-group');
-    navGroup.append(
+    const backButton = this.trackView(
       createIconButton({
         className: 'titlebar-btn titlebar-btn-nav',
         label: props.labels.backLabel,
@@ -285,6 +299,8 @@ export class TitlebarView {
         onClick: requestTitlebarNavigateBack,
         disabled: !props.browserUrl || !props.canGoBack,
       }),
+    );
+    const forwardButton = this.trackView(
       createIconButton({
         className: 'titlebar-btn titlebar-btn-nav',
         label: props.labels.forwardLabel,
@@ -293,35 +309,50 @@ export class TitlebarView {
         disabled: !props.browserUrl || !props.canGoForward,
       }),
     );
+    navGroup.append(backButton.getElement(), forwardButton.getElement());
     this.centerElement.append(navGroup);
 
     if (props.onWebUrlChange) {
       const urlBar = createElement('div', 'titlebar-url-bar');
-      const input = createElement('input', 'titlebar-input-field titlebar-field-base');
-      input.value = props.webUrl ?? '';
-      input.placeholder = props.articleUrlPlaceholder ?? '';
-      input.addEventListener('input', () => props.onWebUrlChange?.(input.value));
-      input.addEventListener('keydown', (event) => {
-        if (props.onCycleAddressBarSource && event.altKey) {
-          if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            props.onCycleAddressBarSource('prev');
-            return;
+      const inputView = this.trackView(
+        createInputView({
+          className: 'titlebar-input-field titlebar-field-base',
+          value: props.webUrl ?? '',
+          placeholder: props.articleUrlPlaceholder ?? '',
+          size: 'sm',
+          onInput: (event) => {
+            if (event.target instanceof HTMLInputElement) {
+              props.onWebUrlChange?.(event.target.value);
+            }
+          },
+        }),
+      );
+      const inputElement = inputView.getElement().querySelector('.input-field');
+      if (inputElement instanceof HTMLInputElement) {
+        inputElement.addEventListener('keydown', (event) => {
+          if (props.onCycleAddressBarSource && event.altKey) {
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              props.onCycleAddressBarSource('prev');
+              return;
+            }
+
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              props.onCycleAddressBarSource('next');
+              return;
+            }
           }
 
-          if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            props.onCycleAddressBarSource('next');
-            return;
+          if (event.key === 'Enter') {
+            requestTitlebarNavigateWeb();
           }
-        }
-
-        if (event.key === 'Enter') {
-          requestTitlebarNavigateWeb();
-        }
-      });
-      this.webUrlInput = input;
-      urlBar.append(input);
+        });
+        this.webUrlInput = inputElement;
+      } else {
+        this.webUrlInput = null;
+      }
+      urlBar.append(inputView.getElement());
       this.centerElement.append(urlBar);
     } else {
       this.webUrlInput = null;
@@ -340,34 +371,26 @@ export class TitlebarView {
         sourceOptions.find((option) => option.value === props.selectedAddressBarSourceId) ??
         sourceOptions[0];
       const selectorWrap = createElement('div', 'titlebar-journal-bar');
-      const selector = createElement(
-        'select',
-        `titlebar-source-select ${props.selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
+      const selector = this.trackView(
+        createDropdownView({
+          options: sourceOptions,
+          value: props.selectedAddressBarSourceId ?? '',
+          className: `titlebar-source-select ${props.selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
+          title:
+            props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
+          onChange: (event) => props.onSelectAddressBarSource?.(event.target.value),
+        }),
       );
-      selector.value = props.selectedAddressBarSourceId ?? '';
-      selector.setAttribute(
+      const selectorElement = selector.getElement();
+      selectorElement.setAttribute(
         'aria-label',
         props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
       );
-      selector.title =
-        props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '';
-      selector.style.setProperty(
+      selectorElement.style.setProperty(
         '--titlebar-source-width',
         `${measureSourceTriggerWidth(selectedOption?.label ?? '')}px`,
       );
-      for (const option of sourceOptions) {
-        const optionElement = document.createElement('option');
-        optionElement.value = option.value;
-        optionElement.textContent = option.label;
-        if (option.title) {
-          optionElement.title = option.title;
-        }
-        selector.append(optionElement);
-      }
-      selector.addEventListener('change', () =>
-        props.onSelectAddressBarSource?.(selector.value),
-      );
-      selector.addEventListener('keydown', (event) => {
+      selectorElement.addEventListener('keydown', (event) => {
         if (!props.onCycleAddressBarSource || !event.altKey) {
           return;
         }
@@ -384,14 +407,14 @@ export class TitlebarView {
         }
       });
       this.sourceSelector = selector;
-      selectorWrap.append(selector);
+      selectorWrap.append(selectorElement);
       this.controlsElement.append(selectorWrap);
     } else {
       this.sourceSelector = null;
     }
 
     if (props.onToggleAuxiliarySidebar && props.auxiliarySidebarToggleLabel) {
-      this.controlsElement.append(
+      const auxiliaryButton = this.trackView(
         createIconButton({
           className: 'titlebar-btn titlebar-btn-auxiliary',
           label: props.auxiliarySidebarToggleLabel,
@@ -399,9 +422,10 @@ export class TitlebarView {
           onClick: requestToggleTitlebarAuxiliarySidebar,
         }),
       );
+      this.controlsElement.append(auxiliaryButton.getElement());
     }
 
-    this.controlsElement.append(
+    const exportButton = this.trackView(
       createIconButton({
         className: 'titlebar-btn titlebar-btn-export',
         label: props.labels.exportDocxLabel,
@@ -412,6 +436,8 @@ export class TitlebarView {
           ? props.labels.exportDocxLabel
           : props.labels.noExportableArticlesLabel,
       }),
+    );
+    const settingsButton = this.trackView(
       createIconButton({
         className: 'titlebar-btn titlebar-btn-settings',
         label: props.labels.settingsLabel,
@@ -419,35 +445,38 @@ export class TitlebarView {
         onClick: requestToggleTitlebarSettings,
       }),
     );
+    this.controlsElement.append(exportButton.getElement(), settingsButton.getElement());
 
     if (WINDOW_CHROME_LAYOUT.renderCustomWindowControls) {
-      const windowControls = createElement('div', 'titlebar-window-controls');
-      windowControls.setAttribute('role', 'group');
-      windowControls.setAttribute('aria-label', props.labels.controlsAriaLabel);
-      windowControls.append(
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-window',
-          label: props.labels.minimizeLabel,
-          text: '-',
-          onClick: () => props.onWindowControl('minimize'),
-        }),
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-window',
-          label: props.isWindowMaximized
-            ? props.labels.restoreLabel
-            : props.labels.maximizeLabel,
-          text: props.isWindowMaximized ? 'o' : '[]',
-          onClick: () => props.onWindowControl('toggle-maximize'),
-        }),
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-window titlebar-btn-close',
-          label: props.labels.closeLabel,
-          text: 'x',
-          onClick: () => props.onWindowControl('close'),
+      const windowControls = this.trackView(
+        createWindowControlsView({
+          className: 'titlebar-window-controls',
+          labels: {
+            controlsAriaLabel: props.labels.controlsAriaLabel,
+            minimizeLabel: props.labels.minimizeLabel,
+            maximizeLabel: props.labels.maximizeLabel,
+            restoreLabel: props.labels.restoreLabel,
+            closeLabel: props.labels.closeLabel,
+          },
+          isWindowMaximized: props.isWindowMaximized,
+          onWindowControl: props.onWindowControl,
         }),
       );
-      this.controlsElement.append(windowControls);
+      this.controlsElement.append(windowControls.getElement());
     }
+  }
+
+  private trackView<T extends { dispose: () => void }>(view: T) {
+    this.renderedViews.push(view);
+    return view;
+  }
+
+  private disposeRenderedViews() {
+    while (this.renderedViews.length > 0) {
+      this.renderedViews.pop()?.dispose();
+    }
+    this.sourceSelector = null;
+    this.webUrlInput = null;
   }
 }
 
