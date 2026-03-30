@@ -382,6 +382,9 @@ export class SecondarySidebarPartView {
     this.endDateInput.setAttribute('aria-label', this.props.labels.endDate);
 
     this.selectionButton.className = [
+      'btn-base',
+      'btn-secondary',
+      'btn-md',
       'secondary-sidebar-select-btn',
       this.props.isSelectionModeEnabled ? 'is-active' : '',
     ]
@@ -395,7 +398,12 @@ export class SecondarySidebarPartView {
       String(this.props.isSelectionModeEnabled),
     );
 
-    this.fetchButton.className = 'secondary-sidebar-fetch-btn';
+    this.fetchButton.className = [
+      'btn-base',
+      'btn-primary',
+      'btn-md',
+      'secondary-sidebar-fetch-btn',
+    ].join(' ');
     this.fetchButton.textContent = this.props.isBatchLoading
       ? this.props.labels.fetchLatestBusy
       : this.props.labels.fetchLatest;

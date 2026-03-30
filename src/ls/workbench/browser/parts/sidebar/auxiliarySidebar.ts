@@ -1,4 +1,6 @@
 import type { AssistantChatMessage } from '../../assistantModel';
+import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
 import type { SidebarLabels } from './secondarySidebarPart';
 import './media/auxiliarySidebar.css';
 
@@ -76,7 +78,13 @@ export class AuxiliarySidebar {
       const item = createElement('div', 'sidebar-chat-tab-item');
       const button = createElement(
         'button',
-        ['sidebar-chat-tab', conversation.id === this.props.activeConversationId ? 'is-active' : '']
+        [
+          'sidebar-chat-tab',
+          'btn-base',
+          'btn-ghost',
+          'btn-md',
+          conversation.id === this.props.activeConversationId ? 'is-active' : '',
+        ]
           .filter(Boolean)
           .join(' '),
       );
@@ -87,9 +95,12 @@ export class AuxiliarySidebar {
         this.props.onActivateConversation(conversation.id),
       );
 
-      const close = createElement('button', 'sidebar-chat-tab-close');
+      const close = createElement(
+        'button',
+        'sidebar-chat-tab-close btn-base btn-ghost btn-mode-icon btn-sm',
+      );
       close.type = 'button';
-      close.textContent = 'x';
+      close.append(createLxIcon(lxIconSemanticMap.assistant.closeConversation));
       close.addEventListener('click', (event) => {
         event.stopPropagation();
         if (this.props.conversations.length === 1) {
@@ -104,9 +115,9 @@ export class AuxiliarySidebar {
 
     const actions = createElement('div', 'sidebar-chat-action-bar');
     actions.append(
-      this.createActionButton('+', this.props.onCreateConversation),
-      this.createActionButton('H', this.props.onToggleHistory, this.props.isHistoryOpen),
-      this.createActionButton('...', this.props.onToggleMoreMenu, this.props.isMoreMenuOpen),
+      this.createActionButton(lxIconSemanticMap.assistant.newConversation, this.props.onCreateConversation),
+      this.createActionButton(lxIconSemanticMap.assistant.history, this.props.onToggleHistory, this.props.isHistoryOpen),
+      this.createActionButton(lxIconSemanticMap.assistant.more, this.props.onToggleMoreMenu, this.props.isMoreMenuOpen),
     );
     topbar.append(strip, actions);
     return topbar;
@@ -276,15 +287,19 @@ export class AuxiliarySidebar {
     const toolbar = createElement('div', 'sidebar-chat-composer-toolbar');
     const tools = createElement('div', 'sidebar-chat-composer-tools');
     tools.append(
-      this.createComposerButton(this.props.labels.assistantVoice, 'Mic'),
-      this.createComposerButton(this.props.labels.assistantImage, 'Img'),
+      this.createComposerButton(this.props.labels.assistantVoice, lxIconSemanticMap.assistant.voice),
+      this.createComposerButton(this.props.labels.assistantImage, lxIconSemanticMap.assistant.image),
     );
     const send = createElement(
       'button',
-      'sidebar-chat-send-btn sidebar-chat-send-icon-btn',
+      'sidebar-chat-send-btn sidebar-chat-send-icon-btn btn-base btn-primary btn-mode-icon btn-md',
     );
     send.type = 'button';
-    send.textContent = this.props.isAsking ? '...' : '^';
+    send.replaceChildren(
+      this.props.isAsking
+        ? createLxIcon(lxIconSemanticMap.assistant.busy)
+        : createLxIcon(lxIconSemanticMap.assistant.send),
+    );
     send.disabled = !canSend;
     send.title = this.props.isAsking
       ? this.props.labels.assistantSendBusy
@@ -296,23 +311,26 @@ export class AuxiliarySidebar {
     return composer;
   }
 
-  private createActionButton(text: string, onClick: () => void, isActive = false) {
+  private createActionButton(icon: LxIconName, onClick: () => void, isActive = false) {
     const button = createElement(
       'button',
-      ['sidebar-chat-topbar-action-btn', isActive ? 'is-active' : '']
+      ['sidebar-chat-topbar-action-btn', 'btn-base', 'btn-ghost', 'btn-mode-icon', 'btn-sm', isActive ? 'is-active' : '']
         .filter(Boolean)
         .join(' '),
     );
     button.type = 'button';
-    button.textContent = text;
+    button.append(createLxIcon(icon));
     button.addEventListener('click', onClick);
     return button;
   }
 
-  private createComposerButton(label: string, text: string) {
-    const button = createElement('button', 'sidebar-chat-composer-tool-btn');
+  private createComposerButton(label: string, icon: LxIconName) {
+    const button = createElement(
+      'button',
+      'sidebar-chat-composer-tool-btn btn-base btn-ghost btn-mode-icon btn-sm',
+    );
     button.type = 'button';
-    button.textContent = text;
+    button.append(createLxIcon(icon));
     button.title = label;
     button.setAttribute('aria-label', label);
     return button;

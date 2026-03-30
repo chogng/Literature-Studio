@@ -14,6 +14,10 @@ export type EditorPartLabels = {
   sourceMode: string;
   pdfMode: string;
   close: string;
+  emptyWorkspaceTitle: string;
+  emptyWorkspaceBody: string;
+  draftEmptyTitle: string;
+  draftEmptyBody: string;
   draftBodyPlaceholder: string;
   sourceTitle: string;
   pdfTitle: string;

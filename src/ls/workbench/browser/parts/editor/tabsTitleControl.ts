@@ -1,3 +1,5 @@
+import { createLxIcon } from '../../../../base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
 import { TitleControl } from './titleControl';
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -34,7 +36,10 @@ export class TabsTitleControl extends TitleControl {
         'div',
         ['editor-tab', tab.isActive ? 'is-active' : ''].filter(Boolean).join(' '),
       );
-      const mainButton = createElement('button', 'editor-tab-main');
+      const mainButton = createElement(
+        'button',
+        'editor-tab-main btn-base btn-ghost btn-md',
+      );
       mainButton.type = 'button';
       mainButton.setAttribute('role', 'tab');
       mainButton.setAttribute('aria-selected', String(tab.isActive));
@@ -49,11 +54,14 @@ export class TabsTitleControl extends TitleControl {
       label.append(kind, text);
       mainButton.append(label);
 
-      const closeButton = createElement('button', 'editor-tab-close');
+      const closeButton = createElement(
+        'button',
+        'editor-tab-close btn-base btn-ghost btn-mode-icon btn-sm',
+      );
       closeButton.type = 'button';
       closeButton.title = labels.close;
       closeButton.setAttribute('aria-label', labels.close);
-      closeButton.textContent = 'x';
+      closeButton.append(createLxIcon(lxIconSemanticMap.editor.closeTab));
       closeButton.addEventListener('click', (event) => {
         event.stopPropagation();
         onCloseTab(tab.id);

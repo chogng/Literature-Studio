@@ -15,7 +15,7 @@ import {
   createDocumentActionsController,
 } from './documentActionsModel';
 import { type LibraryModel, type LibraryModelContext, type LibraryModelSnapshot, createLibraryModel } from './libraryModel';
-import { PreviewNavigationModel } from './previewNavigationModel';
+import { WebContentNavigationModel } from './webContentNavigationModel';
 import {
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchShellClassName,
@@ -79,10 +79,10 @@ import {
   subscribeReaderState,
 } from './readerState';
 import {
-  resolvePreviewSourceUrl,
-  shouldSyncActivePreviewTabFromBrowserUrl,
-  type PreviewSurfaceSnapshot,
-} from './previewSurfaceState';
+  resolveContentSourceUrl,
+  shouldSyncActiveContentTabFromBrowserUrl,
+  type WebContentSurfaceSnapshot,
+} from './webContentSurfaceState';
 import { getLocaleMessages } from '../../../language/i18n';
 import type { Article } from '../services/article/articleFetch';
 import { normalizeUrl } from '../common/url';
@@ -97,6 +97,7 @@ import {
   type QuickAccessCommand,
 } from '../services/quickAccess/quickAccessService';
 import type { WritingWorkspaceTab } from './writingEditorModel';
+import './media/workbench.css';
 
 export type WorkbenchPage = 'reader' | 'settings';
 
@@ -140,7 +141,7 @@ let workbenchState = DEFAULT_WORKBENCH_STATE;
 const workbenchStateListeners = new Set<() => void>();
 let settingsController: SettingsController | null = null;
 let libraryModel: LibraryModel | null = null;
-let previewNavigationModel: PreviewNavigationModel | null = null;
+let webContentNavigationModel: WebContentNavigationModel | null = null;
 let editorPartController: EditorPartModel | null = null;
 let assistantModel: AssistantModel | null = null;
 let documentActionsController: DocumentActionsController | null = null;
@@ -174,6 +175,8 @@ function resolveRuntimeState() {
   const electronRuntime =
     typeof window !== 'undefined' &&
     typeof window.electronAPI?.invoke === 'function';
+  // TODO(migration): this runtime flag still probes the legacy Electron `preview` bridge.
+  // Rename it together with preload/main-process APIs.
   const previewRuntime =
     typeof window !== 'undefined' &&
     typeof window.electronAPI?.preview?.navigate === 'function';
@@ -224,12 +227,22 @@ function reduceWorkbenchState(
   }
 }
 
-function isPreviewTab(tab: WritingWorkspaceTab) {
+function isContentTab(tab: WritingWorkspaceTab) {
   return tab.kind !== 'draft';
 }
 
-function toPreviewTabIdSet(tabs: ReadonlyArray<WritingWorkspaceTab>) {
-  return new Set(tabs.filter(isPreviewTab).map((tab) => tab.id));
+function toContentTabIdSet(tabs: ReadonlyArray<WritingWorkspaceTab>) {
+  return new Set(tabs.filter(isContentTab).map((tab) => tab.id));
+}
+
+function areStringArraysEqual(
+  previous: readonly string[],
+  next: readonly string[],
+) {
+  return (
+    previous.length === next.length &&
+    previous.every((value, index) => value === next[index])
+  );
 }
 
 class WorkbenchHost {
@@ -244,17 +257,18 @@ class WorkbenchHost {
   private readerView: ReturnType<typeof createReaderView> | null = null;
   private settingsView: ReturnType<typeof createSettingsPartView> | null = null;
   private readonly globalDisposables: Array<() => void> = [];
-  private previewStateDisposable: (() => void) | null = null;
+  private webContentStateDisposable: (() => void) | null = null;
   private servicesSubscribed = false;
   private isDisposed = false;
   private isRendering = false;
   private renderPending = false;
   private previewRuntime = false;
   private previousBrowserUrl = '';
-  private previousActivePreviewTabId: string | null = null;
-  private previousPreviewTargetId: string | null = null;
-  private previousPreviewTargetUrl = '';
-  private previousPreviewTabIds = new Set<string>();
+  private previousActiveContentTabId: string | null = null;
+  private previousContentTargetId: string | null = null;
+  private previousContentTargetUrl = '';
+  private previousContentTabIds = new Set<string>();
+  private appliedKnowledgeBaseModeEnabled: boolean | null = null;
 
   constructor(rootElement: HTMLElement) {
     this.rootElement = rootElement;
@@ -294,8 +308,8 @@ class WorkbenchHost {
     }
 
     this.isDisposed = true;
-    this.previewStateDisposable?.();
-    this.previewStateDisposable = null;
+    this.webContentStateDisposable?.();
+    this.webContentStateDisposable = null;
     while (this.globalDisposables.length > 0) {
       this.globalDisposables.pop()?.();
     }
@@ -338,7 +352,7 @@ class WorkbenchHost {
   private ensureServiceSubscriptions(services: {
     settingsController: SettingsController;
     libraryModel: LibraryModel;
-    previewNavigationModel: PreviewNavigationModel;
+    previewNavigationModel: WebContentNavigationModel;
     editorPartController: EditorPartModel;
     assistantModel: AssistantModel;
     documentActionsController: DocumentActionsController;
@@ -360,17 +374,17 @@ class WorkbenchHost {
     );
   }
 
-  private syncPreviewRuntime(
-    previewNavigationModelInstance: PreviewNavigationModel,
+  private syncWebContentRuntime(
+    webContentNavigationModelInstance: WebContentNavigationModel,
     previewRuntime: boolean,
   ) {
-    if (this.previewStateDisposable && this.previewRuntime === previewRuntime) {
+    if (this.webContentStateDisposable && this.previewRuntime === previewRuntime) {
       return;
     }
 
-    this.previewStateDisposable?.();
+    this.webContentStateDisposable?.();
     this.previewRuntime = previewRuntime;
-    this.previewStateDisposable = previewNavigationModelInstance.connectPreviewState({
+    this.webContentStateDisposable = webContentNavigationModelInstance.connectPreviewState({
       previewRuntime,
       setWebUrl: setWorkbenchWebUrl,
       setFetchSeedUrl: setWorkbenchFetchSeedUrl,
@@ -378,6 +392,13 @@ class WorkbenchHost {
   }
 
   private syncKnowledgeBaseLayout(isKnowledgeBaseModeEnabled: boolean) {
+    if (
+      this.appliedKnowledgeBaseModeEnabled === isKnowledgeBaseModeEnabled
+    ) {
+      return;
+    }
+
+    this.appliedKnowledgeBaseModeEnabled = isKnowledgeBaseModeEnabled;
     setWorkbenchSidebarKind(
       isKnowledgeBaseModeEnabled ? 'primary' : 'secondary',
     );
@@ -416,31 +437,25 @@ class WorkbenchHost {
     });
   }
 
-  private createPreviewAwareEditorPartProps(params: {
+  private syncWebContentSurfaceState(params: {
     browserUrl: string;
     tabs: WritingWorkspaceTab[];
-    activateTab: (tabId: string) => void;
-    closeTab: (tabId: string) => void;
-    editorPartProps: EditorPartProps;
-    previewNavigationModel: PreviewNavigationModel;
-    previewSurfaceSnapshot: PreviewSurfaceSnapshot;
+    webContentNavigationModel: WebContentNavigationModel;
+    webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
-    updateActivePreviewTabUrl: (url: string) => void;
+    updateActiveContentTabUrl: (url: string) => void;
   }) {
     const {
       browserUrl,
       tabs,
-      activateTab,
-      closeTab,
-      editorPartProps,
-      previewNavigationModel: previewNavigation,
-      previewSurfaceSnapshot,
+      webContentNavigationModel,
+      webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
-      updateActivePreviewTabUrl,
+      updateActiveContentTabUrl,
     } = params;
 
-    const syncPreviewTarget = (targetId: string | null, targetUrl: string) => {
-      void previewNavigation
+    const syncContentTarget = (targetId: string | null, targetUrl: string) => {
+      void webContentNavigationModel
         .activateTarget(targetId, {
           setWebUrl: setWorkbenchWebUrl,
           setFetchSeedUrl: setWorkbenchFetchSeedUrl,
@@ -455,46 +470,62 @@ class WorkbenchHost {
     };
 
     if (
-      this.previousPreviewTargetId !== previewSurfaceSnapshot.activePreviewTabId ||
-      this.previousPreviewTargetUrl !== previewSurfaceSnapshot.activePreviewTabUrl
+      this.previousContentTargetId !== webContentSurfaceSnapshot.activeContentTabId ||
+      this.previousContentTargetUrl !== webContentSurfaceSnapshot.activeContentTabUrl
     ) {
-      syncPreviewTarget(
-        previewSurfaceSnapshot.activePreviewTabId,
-        previewSurfaceSnapshot.activePreviewTabUrl,
+      syncContentTarget(
+        webContentSurfaceSnapshot.activeContentTabId,
+        webContentSurfaceSnapshot.activeContentTabUrl,
       );
-      this.previousPreviewTargetId = previewSurfaceSnapshot.activePreviewTabId;
-      this.previousPreviewTargetUrl = previewSurfaceSnapshot.activePreviewTabUrl;
+      this.previousContentTargetId = webContentSurfaceSnapshot.activeContentTabId;
+      this.previousContentTargetUrl = webContentSurfaceSnapshot.activeContentTabUrl;
     }
 
-    const nextPreviewTabIds = toPreviewTabIdSet(tabs);
-    for (const previousTabId of this.previousPreviewTabIds) {
-      if (!nextPreviewTabIds.has(previousTabId)) {
-        previewNavigation.releaseTarget(previousTabId);
+    const nextContentTabIds = toContentTabIdSet(tabs);
+    for (const previousTabId of this.previousContentTabIds) {
+      if (!nextContentTabIds.has(previousTabId)) {
+        webContentNavigationModel.releaseTarget(previousTabId);
       }
     }
-    this.previousPreviewTabIds = nextPreviewTabIds;
+    this.previousContentTabIds = nextContentTabIds;
 
     if (
-      shouldSyncActivePreviewTabFromBrowserUrl(
-        previewSurfaceSnapshot,
+      shouldSyncActiveContentTabFromBrowserUrl(
+        webContentSurfaceSnapshot,
         browserUrl,
         this.previousBrowserUrl,
-        this.previousActivePreviewTabId,
+        this.previousActiveContentTabId,
       )
     ) {
-      updateActivePreviewTabUrl(browserUrl);
+      updateActiveContentTabUrl(browserUrl);
     }
 
     this.previousBrowserUrl = browserUrl;
-    this.previousActivePreviewTabId = previewSurfaceSnapshot.activePreviewTabId;
+    this.previousActiveContentTabId = webContentSurfaceSnapshot.activeContentTabId;
+  }
+
+  private createContentAwareEditorPartProps(params: {
+    tabs: WritingWorkspaceTab[];
+    activateTab: (tabId: string) => void;
+    closeTab: (tabId: string) => void;
+    editorPartProps: EditorPartProps;
+    webContentNavigationModel: WebContentNavigationModel;
+  }) {
+    const {
+      tabs,
+      activateTab,
+      closeTab,
+      editorPartProps,
+      webContentNavigationModel,
+    } = params;
 
     return {
       ...editorPartProps,
       onActivateTab: (tabId: string) => {
         const targetTab = tabs.find((tab) => tab.id === tabId) ?? null;
         activateTab(tabId);
-        void previewNavigation.activateTarget(
-          targetTab && isPreviewTab(targetTab) ? targetTab.id : null,
+        void webContentNavigationModel.activateTarget(
+          targetTab && isContentTab(targetTab) ? targetTab.id : null,
         );
       },
       onCloseTab: (tabId: string) => {
@@ -519,6 +550,125 @@ class WorkbenchHost {
       this.containerElement.removeChild(this.statusbarElement);
     }
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.statusbar, null);
+  }
+
+  private syncTitlebar(
+    electronRuntime: boolean,
+    titlebarProps: ReturnType<typeof createTitlebarPartProps>,
+  ) {
+    if (electronRuntime) {
+      if (!this.titlebarView) {
+        this.titlebarView = createTitlebarView(titlebarProps);
+        this.containerElement.prepend(this.titlebarView.getElement());
+        registerWorkbenchPartDomNode(
+          WORKBENCH_PART_IDS.titlebar,
+          this.titlebarView.getElement(),
+        );
+      } else {
+        this.titlebarView.setProps(titlebarProps);
+      }
+      return;
+    }
+
+    this.titlebarView?.dispose();
+    this.titlebarView = null;
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.titlebar, null);
+  }
+
+  private syncWorkbenchChrome(params: {
+    electronRuntime: boolean;
+    useMica: boolean;
+    activePage: WorkbenchPage;
+    titlebarProps: ReturnType<typeof createTitlebarPartProps>;
+  }) {
+    const { electronRuntime, useMica, activePage, titlebarProps } = params;
+
+    this.containerElement.className = [
+      'app-window',
+      electronRuntime ? 'has-titlebar' : '',
+      electronRuntime && useMica ? 'is-mica-enabled' : '',
+      activePage === 'reader' ? 'has-statusbar' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    this.shellElement.className = getWorkbenchShellClassName({ activePage });
+    this.syncStatusbarVisibility(activePage === 'reader');
+    this.syncTitlebar(electronRuntime, titlebarProps);
+  }
+
+  private syncTitlebarCommandHandlers(params: {
+    onNavigateBack: () => void;
+    onNavigateForward: () => void;
+    onNavigateWeb: () => void;
+    onExportDocx: () => Promise<void>;
+  }) {
+    const {
+      onNavigateBack,
+      onNavigateForward,
+      onNavigateWeb,
+      onExportDocx,
+    } = params;
+
+    setWorkbenchTitlebarCommandHandlers({
+      onToggleSidebar: toggleSidebarVisibility,
+      onToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
+      onNavigateBack,
+      onNavigateForward,
+      onNavigateWeb,
+      onToggleSettings: toggleWorkbenchSettings,
+      onExportDocx: () => {
+        void onExportDocx();
+      },
+    });
+  }
+
+  private syncPostRenderState(params: {
+    selectionModePhase: ReturnType<
+      typeof getWorkbenchSessionSnapshot
+    >['selectionModePhase'];
+    selectedArticleKeysInOrder: readonly string[];
+    filteredArticleKeysInOrder: string[];
+    browserUrl: string;
+    editorTabs: WritingWorkspaceTab[];
+    webContentNavigationModel: WebContentNavigationModel;
+    webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
+    navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
+    updateActiveContentTabUrl: (url: string) => void;
+  }) {
+    const {
+      selectionModePhase,
+      selectedArticleKeysInOrder,
+      filteredArticleKeysInOrder,
+      browserUrl,
+      editorTabs,
+      webContentNavigationModel,
+      webContentSurfaceSnapshot,
+      navigateToAddressBarUrl,
+      updateActiveContentTabUrl,
+    } = params;
+
+    const needsSelectionSync =
+      selectionModePhase === 'all'
+        ? !areStringArraysEqual(
+            selectedArticleKeysInOrder,
+            filteredArticleKeysInOrder,
+          )
+        : selectedArticleKeysInOrder.length > 0 &&
+          selectedArticleKeysInOrder.some(
+            (key) => !filteredArticleKeysInOrder.includes(key),
+          );
+    if (needsSelectionSync) {
+      this.syncSelectionState(filteredArticleKeysInOrder, selectionModePhase);
+    }
+
+    this.syncWebContentSurfaceState({
+      browserUrl,
+      tabs: editorTabs,
+      webContentNavigationModel,
+      webContentSurfaceSnapshot,
+      navigateToAddressBarUrl,
+      updateActiveContentTabUrl,
+    });
   }
 
   private renderReaderPage(props: {
@@ -700,17 +850,17 @@ class WorkbenchHost {
       retrievalTopK,
     };
 
-    const previewNavigationModelInstance = getWorkbenchPreviewNavigationModel();
-    this.syncPreviewRuntime(previewNavigationModelInstance, previewRuntime);
-    const { browserUrl, previewState } =
-      previewNavigationModelInstance.getSnapshot();
+    const webContentNavigationModelInstance = getWorkbenchWebContentNavigationModel();
+    this.syncWebContentRuntime(webContentNavigationModelInstance, previewRuntime);
+    const { browserUrl, webContentState } =
+      webContentNavigationModelInstance.getSnapshot();
     const viewPartProps = {
       browserUrl,
       electronRuntime,
       previewRuntime,
       labels: {
         emptyState: ui.emptyState,
-        previewUnavailable: ui.previewUnavailable,
+        contentUnavailable: ui.previewUnavailable,
       },
     };
     const editorPartControllerInstance = getWorkbenchEditorPartController({
@@ -725,15 +875,15 @@ class WorkbenchHost {
       draftBody,
       createDraftTab: handleCreateDraftTab,
       createWebTab: handleCreateWebTab,
-      previewSurfaceSnapshot,
-      updateActivePreviewTabUrl,
+      webContentSurfaceSnapshot,
+      updateActiveContentTabUrl,
       editorPartProps,
     } = {
       ...editorPartSnapshot,
       createDraftTab: editorPartControllerInstance.createDraftTab,
       createWebTab: editorPartControllerInstance.createWebTab,
-      updateActivePreviewTabUrl:
-        editorPartControllerInstance.updateActivePreviewTabUrl,
+      updateActiveContentTabUrl:
+        editorPartControllerInstance.updateActiveContentTabUrl,
     };
 
     const assistantModelInstance = getWorkbenchAssistantModel({
@@ -774,7 +924,6 @@ class WorkbenchHost {
     const filteredArticleKeysInOrder = filteredArticles.map((article) =>
       getArticleSelectionKey(article),
     );
-    this.syncSelectionState(filteredArticleKeysInOrder, selectionModePhase);
 
     const selectedArticleKeys = new Set(selectedArticleKeysInOrder);
     const selectedArticleOrderLookup = buildSelectedArticleOrderLookup(
@@ -796,7 +945,7 @@ class WorkbenchHost {
       nextUrl: string,
       showToast: boolean = true,
     ) =>
-      previewNavigationModelInstance.navigateToAddressBarUrl({
+      webContentNavigationModelInstance.navigateToAddressBarUrl({
         nextUrl,
         showToast,
         electronRuntime,
@@ -828,8 +977,8 @@ class WorkbenchHost {
       documentActionsControllerInstance.handleExportArticlesDocx;
 
     const handleSidebarPdfDownload = () => {
-      const sourceUrl = resolvePreviewSourceUrl(
-        previewSurfaceSnapshot,
+      const sourceUrl = resolveContentSourceUrl(
+        webContentSurfaceSnapshot,
         browserUrl,
         webUrl,
       );
@@ -854,23 +1003,23 @@ class WorkbenchHost {
     };
 
     const handlePreviewBack = () => {
-      previewNavigationModelInstance.handlePreviewBack({
+      webContentNavigationModelInstance.handlePreviewBack({
         previewRuntime,
         ui,
       });
     };
 
     const handlePreviewForward = () => {
-      previewNavigationModelInstance.handlePreviewForward({
+      webContentNavigationModelInstance.handlePreviewForward({
         previewRuntime,
         ui,
       });
     };
 
     const addressBarSourceOptions =
-      previewNavigationModelInstance.createAddressBarSourceOptions(batchSources);
+      webContentNavigationModelInstance.createAddressBarSourceOptions(batchSources);
     const selectedAddressBarSourceId =
-      previewNavigationModelInstance.resolveSelectedAddressBarSourceId(
+      webContentNavigationModelInstance.resolveSelectedAddressBarSourceId(
         fetchSeedUrl,
         webUrl,
         batchSources,
@@ -882,7 +1031,7 @@ class WorkbenchHost {
       }
 
       if (command.type === 'UPDATE_URL_INPUT') {
-        previewNavigationModelInstance.handleWebUrlChange(
+        webContentNavigationModelInstance.handleWebUrlChange(
           command.url,
           setWorkbenchWebUrl,
           setWorkbenchFetchSeedUrl,
@@ -916,16 +1065,12 @@ class WorkbenchHost {
       );
     };
 
-    const previewAwareEditorPartProps = this.createPreviewAwareEditorPartProps({
-      browserUrl,
+    const contentAwareEditorPartProps = this.createContentAwareEditorPartProps({
       tabs: editorTabs,
       activateTab: editorPartControllerInstance.onActivateTab,
       closeTab: editorPartControllerInstance.onCloseTab,
       editorPartProps,
-      previewNavigationModel: previewNavigationModelInstance,
-      previewSurfaceSnapshot,
-      navigateToAddressBarUrl,
-      updateActivePreviewTabUrl,
+      webContentNavigationModel: webContentNavigationModelInstance,
     });
 
     const handleBatchFetchStart = () => {
@@ -1056,23 +1201,18 @@ class WorkbenchHost {
     this.ensureServiceSubscriptions({
       settingsController: settingsControllerInstance,
       libraryModel: libraryModelInstance,
-      previewNavigationModel: previewNavigationModelInstance,
+      previewNavigationModel: webContentNavigationModelInstance,
       editorPartController: editorPartControllerInstance,
       assistantModel: assistantModelInstance,
       documentActionsController: documentActionsControllerInstance,
       batchFetchController: batchFetchControllerInstance,
     });
 
-    setWorkbenchTitlebarCommandHandlers({
-      onToggleSidebar: toggleSidebarVisibility,
-      onToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
+    this.syncTitlebarCommandHandlers({
       onNavigateBack: handlePreviewBack,
       onNavigateForward: handlePreviewForward,
       onNavigateWeb: handleNavigateWeb,
-      onToggleSettings: toggleWorkbenchSettings,
-      onExportDocx: () => {
-        void handleExportArticlesDocx();
-      },
+      onExportDocx: handleExportArticlesDocx,
     });
 
     const secondarySidebarProps = createSecondarySidebarPartProps({
@@ -1142,7 +1282,7 @@ class WorkbenchHost {
         isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
         isAuxiliarySidebarVisible,
         browserUrl,
-        previewState,
+        webContentState,
         canExportDocx,
         addressBarSourceOptions,
         selectedAddressBarSourceId,
@@ -1269,33 +1409,13 @@ class WorkbenchHost {
       },
     });
 
-    this.containerElement.className = [
-      'app-window',
-      electronRuntime ? 'has-titlebar' : '',
-      electronRuntime && useMica ? 'is-mica-enabled' : '',
-      activePage === 'reader' ? 'has-statusbar' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    this.shellElement.className = getWorkbenchShellClassName({ activePage });
-    this.syncStatusbarVisibility(activePage === 'reader');
+    this.syncWorkbenchChrome({
+      electronRuntime,
+      useMica,
+      activePage,
+      titlebarProps,
+    });
 
-    if (electronRuntime) {
-      if (!this.titlebarView) {
-        this.titlebarView = createTitlebarView(titlebarProps);
-        this.containerElement.prepend(this.titlebarView.getElement());
-        registerWorkbenchPartDomNode(
-          WORKBENCH_PART_IDS.titlebar,
-          this.titlebarView.getElement(),
-        );
-      } else {
-        this.titlebarView.setProps(titlebarProps);
-      }
-    } else {
-      this.titlebarView?.dispose();
-      this.titlebarView = null;
-      registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.titlebar, null);
-    }
     if (activePage === 'reader') {
       this.renderReaderPage({
         isSidebarVisible,
@@ -1304,11 +1424,24 @@ class WorkbenchHost {
         secondarySidebarProps,
         primarySidebarProps,
         auxiliarySidebarProps,
-        editorPartProps: previewAwareEditorPartProps,
+        editorPartProps: contentAwareEditorPartProps,
       });
     } else {
       this.renderSettingsPage(settingsPartProps);
     }
+
+    this.syncPostRenderState({
+      selectionModePhase,
+      selectedArticleKeysInOrder,
+      filteredArticleKeysInOrder,
+      browserUrl,
+      editorTabs,
+      webContentNavigationModel: webContentNavigationModelInstance,
+      webContentSurfaceSnapshot,
+      navigateToAddressBarUrl,
+      updateActiveContentTabUrl,
+    });
+
     this.toastHost.render(ui.toastClose);
   }
 }
@@ -1363,7 +1496,7 @@ export function disposeWorkbenchServices() {
   batchFetchController?.dispose();
   batchFetchController = null;
 
-  previewNavigationModel = null;
+  webContentNavigationModel = null;
   assistantModel = null;
 }
 
@@ -1385,9 +1518,9 @@ export function getWorkbenchLibraryModel(context: LibraryModelContext) {
   return libraryModel;
 }
 
-export function getWorkbenchPreviewNavigationModel() {
-  previewNavigationModel ??= new PreviewNavigationModel();
-  return previewNavigationModel;
+export function getWorkbenchWebContentNavigationModel() {
+  webContentNavigationModel ??= new WebContentNavigationModel();
+  return webContentNavigationModel;
 }
 
 export function getWorkbenchEditorPartController(

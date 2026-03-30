@@ -1,4 +1,5 @@
 //#region --- workbench core
+import 'ls/base/browser/ui/button/button.css';
 import {
   createWorkbenchContainerStateContribution,
   createWorkbenchDocumentLocaleContribution,
@@ -6,7 +7,6 @@ import {
   createWorkbenchStatusbarContribution,
   createWorkbenchTitlebarActionContribution,
   registerWorkbenchContribution,
-  startWorkbenchContributions,
 } from 'ls/workbench/contrib/workbench/workbench.contribution';
 import { createWorkbenchWebContentViewContribution } from 'ls/workbench/contrib/webContentView/webContentView.contribution';
 //#endregion
@@ -22,5 +22,4 @@ registerWorkbenchContribution(createWorkbenchServicesLifecycleContribution);
 registerWorkbenchContribution(createWorkbenchStatusbarContribution);
 registerWorkbenchContribution(createWorkbenchTitlebarActionContribution);
 registerWorkbenchContribution(createWorkbenchWebContentViewContribution);
-startWorkbenchContributions();
 //#endregion

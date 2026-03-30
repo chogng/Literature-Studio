@@ -10,6 +10,8 @@ import type {
   TranslationProviderId,
   TranslationProviderSettings,
 } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
 import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
 import type { BatchSource } from '../../../services/config/configSchema';
 import { getDefaultModelForProvider, getLlmModelsForProvider } from '../../../services/llm/registry.js';
@@ -196,15 +198,31 @@ function buildCheckbox(config: {
 
 function buildButton(config: {
   label: string;
+  icon?: LxIconName;
   className?: string;
   focusKey: string;
   title?: string;
   disabled?: boolean;
   onClick: () => void;
 }) {
-  const button = setFocusKey(el('button', `settings-native-button ${config.className ?? ''}`.trim()), config.focusKey);
+  const extraClasses = (config.className ?? '').trim();
+  const isIconButton = extraClasses.includes('settings-native-icon-button');
+  const buttonClassName = [
+    'settings-native-button',
+    'btn-base',
+    'btn-secondary',
+    isIconButton ? 'btn-mode-icon btn-sm' : 'btn-md',
+    extraClasses,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const button = setFocusKey(el('button', buttonClassName), config.focusKey);
   button.type = 'button';
-  button.textContent = config.label;
+  if (config.icon) {
+    button.append(createLxIcon(config.icon));
+  } else {
+    button.textContent = config.label;
+  }
   button.title = config.title ?? config.label;
   button.ariaLabel = config.title ?? config.label;
   button.disabled = Boolean(config.disabled);
@@ -358,8 +376,8 @@ export class SettingsPartView {
     const row = el('div', 'settings-url-row');
     const controls = el('div', 'settings-url-order-controls');
     controls.append(
-      buildButton({ label: 'Up', className: 'settings-native-icon-button', focusKey: `settings.batch.${index}.up`, title: this.props.labels.moveBatchUrlUp, disabled: index === 0 || this.props.isSettingsSaving, onClick: () => this.props.onMoveBatchSource(index, 'up') }),
-      buildButton({ label: 'Down', className: 'settings-native-icon-button', focusKey: `settings.batch.${index}.down`, title: this.props.labels.moveBatchUrlDown, disabled: index === total - 1 || this.props.isSettingsSaving, onClick: () => this.props.onMoveBatchSource(index, 'down') }),
+      buildButton({ label: 'Up', icon: lxIconSemanticMap.settings.moveUp, className: 'settings-native-icon-button', focusKey: `settings.batch.${index}.up`, title: this.props.labels.moveBatchUrlUp, disabled: index === 0 || this.props.isSettingsSaving, onClick: () => this.props.onMoveBatchSource(index, 'up') }),
+      buildButton({ label: 'Down', icon: lxIconSemanticMap.settings.moveDown, className: 'settings-native-icon-button', focusKey: `settings.batch.${index}.down`, title: this.props.labels.moveBatchUrlDown, disabled: index === total - 1 || this.props.isSettingsSaving, onClick: () => this.props.onMoveBatchSource(index, 'down') }),
     );
     const urlInput = buildInput({
       value: source.url,
@@ -377,6 +395,7 @@ export class SettingsPartView {
     });
     const removeButton = buildButton({
       label: 'X',
+      icon: lxIconSemanticMap.settings.removeBatchSource,
       className: 'settings-native-icon-button',
       focusKey: `settings.batch.${index}.remove`,
       title: this.props.labels.removeBatchUrl,
@@ -449,7 +468,7 @@ export class SettingsPartView {
     const directoryRow = el('div', 'settings-input-row');
     directoryRow.append(
       buildInput({ value: this.props.libraryDirectory, className: 'settings-input-control', focusKey: 'settings.library.directory', placeholder: this.props.labels.settingsLibraryDirectoryPlaceholder, onInput: this.props.onLibraryDirectoryChange }),
-      buildButton({ label: '...', className: 'settings-native-icon-button', focusKey: 'settings.library.chooseDirectory', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChooseLibraryDirectory }),
+      buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.library.chooseDirectory', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChooseLibraryDirectory }),
     );
     directoryField.append(
       text(this.props.labels.settingsLibraryDirectory),
@@ -530,7 +549,7 @@ export class SettingsPartView {
     const row = el('div', 'settings-input-row');
     row.append(
       buildInput({ value: this.props.pdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.download.dir', placeholder: this.props.labels.downloadDirPlaceholder, onInput: this.props.onPdfDownloadDirChange }),
-      buildButton({ label: '...', className: 'settings-native-icon-button', focusKey: 'settings.download.choose', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChoosePdfDownloadDir }),
+      buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.download.choose', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChoosePdfDownloadDir }),
     );
     const toggleRow = el('div', 'settings-toggle-row');
     const textBlock = el('div');
@@ -592,7 +611,7 @@ export class SettingsPartView {
     const row = el('div', 'settings-input-row');
     row.append(
       buildInput({ value: this.props.configPath, className: 'settings-input-control', focusKey: 'settings.config.path', readOnly: true }),
-      buildButton({ label: '...', className: 'settings-native-icon-button', focusKey: 'settings.config.open', title: this.props.labels.openConfigLocation, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving || !this.props.configPath.trim(), onClick: this.props.onOpenConfigLocation }),
+      buildButton({ label: '...', icon: lxIconSemanticMap.settings.openConfigLocation, className: 'settings-native-icon-button', focusKey: 'settings.config.open', title: this.props.labels.openConfigLocation, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving || !this.props.configPath.trim(), onClick: this.props.onOpenConfigLocation }),
     );
     field.append(text(this.props.labels.settingsConfigPath), row);
     return field;

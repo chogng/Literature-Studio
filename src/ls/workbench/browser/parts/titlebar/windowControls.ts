@@ -1,5 +1,7 @@
 import type { WindowControlAction } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { createButtonView } from '../../../../base/browser/ui/button/button.js';
+import { createLxIcon } from '../../../../base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
 
 export type WindowControlsAction = Extract<
   WindowControlAction,
@@ -123,7 +125,7 @@ export class WindowControlsView {
         mode: 'icon',
         ariaLabel: resolvedLabels.closeLabel,
         title: resolvedLabels.closeLabel,
-        content: 'x',
+        content: createLxIcon(lxIconSemanticMap.windowControls.close),
         onClick: () => onWindowControl('close'),
       }),
     );

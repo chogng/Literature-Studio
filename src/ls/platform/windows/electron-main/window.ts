@@ -15,6 +15,7 @@ const auxiliaryWindows = new Set<BrowserWindow>();
 const autoMinimizedAuxiliaryWindowIds = new Set<number>();
 let currentUseMica = true;
 const AUX_WINDOW_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const RENDERER_DEBUG_LOG_ENABLED = process.env.LS_RENDERER_DEBUG === '1';
 
 function logAuxiliaryWindow(stage: string, details: Record<string, unknown>) {
   if (!AUX_WINDOW_LOG_ENABLED) return;
@@ -44,6 +45,28 @@ function getSafeWindowUrl(window: BrowserWindow) {
     return '';
   }
 }
+
+function logRendererEvent(
+  stage: string,
+  window: BrowserWindow,
+  details: Record<string, unknown> = {},
+) {
+  console.info(
+    `[renderer:${stage}] ${JSON.stringify({
+      id: window.webContents.id,
+      title: getSafeWindowTitle(window),
+      url: getSafeWindowUrl(window),
+      ...details,
+    })}`,
+  );
+}
+
+type RendererConsoleMessageEvent = {
+  level: number;
+  message: string;
+  lineNumber: number;
+  sourceId: string;
+};
 
 function resolveWindowBackgroundMaterial(useMica: boolean) {
   if (process.platform !== 'win32') {
@@ -221,6 +244,107 @@ export function registerAuxiliaryWindow(window: BrowserWindow) {
   });
 }
 
+function wireRendererDiagnostics(window: BrowserWindow) {
+  const { webContents } = window;
+  const captureDomSnapshot = (stage: string) => {
+    void webContents
+      .executeJavaScript(
+        `(() => {
+          const describe = (selector) => {
+            const element = document.querySelector(selector);
+            if (!element) {
+              return { selector, present: false };
+            }
+
+            const rect = element.getBoundingClientRect();
+            return {
+              selector,
+              present: true,
+              className: element.className,
+              childElementCount: element.childElementCount,
+              textSample: (element.textContent || '').trim().slice(0, 120),
+              width: rect.width,
+              height: rect.height,
+            };
+          };
+
+          return {
+            location: window.location.href,
+            documentTitle: document.title,
+            root: describe('#root'),
+            appWindow: describe('.app-window'),
+            appShell: describe('.app-shell'),
+            readerLayout: describe('.reader-layout'),
+            contentGrid: describe('.content-grid'),
+            editorPanel: describe('.panel.web-panel'),
+            webFrameContainer: describe('.web-frame-container'),
+            settingsRoot: describe('.settings-root'),
+            bootstrapStatus: describe('.bootstrap-status'),
+          };
+        })()`,
+        true,
+      )
+      .then((snapshot) => {
+        logRendererEvent(stage, window, { snapshot });
+      })
+      .catch((error) => {
+        logRendererEvent(`${stage}-failed`, window, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+  };
+
+  if (RENDERER_DEBUG_LOG_ENABLED) {
+    webContents.on('dom-ready', () => {
+      logRendererEvent('dom-ready', window);
+    });
+
+    webContents.on('did-finish-load', () => {
+      logRendererEvent('did-finish-load', window);
+      captureDomSnapshot('dom-snapshot');
+      setTimeout(() => captureDomSnapshot('dom-snapshot-1000ms'), 1000);
+      setTimeout(() => captureDomSnapshot('dom-snapshot-3000ms'), 3000);
+    });
+  }
+
+  webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      logRendererEvent('did-fail-load', window, {
+        errorCode,
+        errorDescription,
+        validatedURL,
+        isMainFrame,
+      });
+    },
+  );
+
+  if (RENDERER_DEBUG_LOG_ENABLED) {
+    (webContents as any).on(
+      'console-message',
+      (_event: Electron.Event, details: RendererConsoleMessageEvent) => {
+        logRendererEvent('console', window, {
+          level: details.level,
+          message: details.message,
+          line: details.lineNumber,
+          sourceId: details.sourceId,
+        });
+      },
+    );
+  }
+
+  webContents.on('render-process-gone', (_event, details) => {
+    logRendererEvent('render-process-gone', window, {
+      reason: details.reason,
+      exitCode: details.exitCode,
+    });
+  });
+
+  webContents.on('unresponsive', () => {
+    logRendererEvent('unresponsive', window);
+  });
+}
+
 export function getCurrentUseMica() {
   return currentUseMica;
 }
@@ -296,6 +420,7 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
 
   const window = mainWindow;
   applyMainWindowBackgroundMaterial(useMica, window);
+  wireRendererDiagnostics(window);
   ensurePreviewView(window);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;

@@ -1,4 +1,4 @@
-import { registerPreviewNavigationQuickAccess } from 'ls/workbench/browser/previewNavigationModel';
+import { registerWebContentNavigationQuickAccess } from 'ls/workbench/browser/webContentNavigationModel';
 import {
   applyQuickAccessUrlInput,
   createQuickAccessSourceOptions,
@@ -7,7 +7,7 @@ import {
   resolveQuickAccessSourceId,
 } from 'ls/workbench/services/quickAccess/quickAccessService';
 
-registerPreviewNavigationQuickAccess({
+registerWebContentNavigationQuickAccess({
   applyUrlInput: applyQuickAccessUrlInput,
   createSourceOptions: createQuickAccessSourceOptions,
   findSourceOption: findQuickAccessSourceOption,

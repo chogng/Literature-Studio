@@ -1,6 +1,6 @@
 import type { LocaleMessages } from '../../../../../language/locales';
-import type { PreviewState } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
+import type { WebContentState } from '../../../services/webContent/webContentNavigationService';
 import type { TitlebarAction, TitlebarProps } from './titlebarView';
 import type { WorkbenchPage } from '../../workbench';
 import {
@@ -17,7 +17,7 @@ export type TitlebarPartState = {
   isKnowledgeBaseModeEnabled: boolean;
   isAuxiliarySidebarVisible: boolean;
   browserUrl: string;
-  previewState: Pick<PreviewState, 'canGoBack' | 'canGoForward'>;
+  webContentState: Pick<WebContentState, 'canGoBack' | 'canGoForward'>;
   canExportDocx: boolean;
   addressBarSourceOptions: QuickAccessSourceOption[];
   selectedAddressBarSourceId: string;
@@ -48,7 +48,7 @@ export function createTitlebarPartProps({
     isKnowledgeBaseModeEnabled,
     isAuxiliarySidebarVisible,
     browserUrl,
-    previewState,
+    webContentState,
     canExportDocx,
     addressBarSourceOptions,
     selectedAddressBarSourceId,
@@ -92,8 +92,8 @@ export function createTitlebarPartProps({
         ? handleToggleAuxiliarySidebar
         : undefined,
     browserUrl,
-    canGoBack: previewState.canGoBack,
-    canGoForward: previewState.canGoForward,
+    canGoBack: webContentState.canGoBack,
+    canGoForward: webContentState.canGoForward,
     canExportDocx,
     onNavigateBack: handlePreviewBack,
     onNavigateForward: handlePreviewForward,

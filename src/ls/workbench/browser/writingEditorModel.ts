@@ -32,15 +32,19 @@ export type WritingWorkspacePdfTab = {
   url: string;
 };
 
-// Preview tabs only store editor input metadata. The active preview tab temporarily owns one shared
-// preview surface instead of spawning a dedicated browser/view instance per tab.
-export type WritingWorkspacePreviewTab =
+// Content tabs only store editor input metadata. The active content tab temporarily owns one shared
+// web-content surface instead of spawning a dedicated browser/view instance per tab.
+export type WritingWorkspaceContentTab =
   | WritingWorkspaceWebTab
   | WritingWorkspacePdfTab;
 
+// TODO(migration): remove this alias after all editor/view code stops importing the legacy
+// preview-tab name.
+export type WritingWorkspacePreviewTab = WritingWorkspaceContentTab;
+
 export type WritingWorkspaceTab =
   | WritingWorkspaceDraftTab
-  | WritingWorkspacePreviewTab;
+  | WritingWorkspaceContentTab;
 
 type WritingWorkspaceState = {
   tabs: WritingWorkspaceTab[];
@@ -137,7 +141,7 @@ function createDraftTab(
   };
 }
 
-function getPreviewTabTitle(url: string) {
+function getContentTabTitle(url: string) {
   if (!url.trim()) {
     return '';
   }
@@ -154,33 +158,33 @@ function getPreviewTabTitle(url: string) {
   }
 }
 
-function createPreviewTab<K extends WritingWorkspacePreviewTab['kind']>(
+function createContentTab<K extends WritingWorkspaceContentTab['kind']>(
   kind: K,
   url: string,
-  initial?: Partial<Pick<Extract<WritingWorkspacePreviewTab, { kind: K }>, 'id' | 'title'>>,
-): Extract<WritingWorkspacePreviewTab, { kind: K }> {
+  initial?: Partial<Pick<Extract<WritingWorkspaceContentTab, { kind: K }>, 'id' | 'title'>>,
+): Extract<WritingWorkspaceContentTab, { kind: K }> {
   const normalizedUrl = url.trim();
 
   return {
     id: initial?.id ?? createWorkspaceTabId(kind),
     kind,
-    title: initial?.title?.trim() || getPreviewTabTitle(normalizedUrl),
+    title: initial?.title?.trim() || getContentTabTitle(normalizedUrl),
     url: normalizedUrl,
-  } as Extract<WritingWorkspacePreviewTab, { kind: K }>;
+  } as Extract<WritingWorkspaceContentTab, { kind: K }>;
 }
 
 function createWebTab(
   url: string,
   initial?: Partial<Pick<WritingWorkspaceWebTab, 'id' | 'title'>>,
 ): WritingWorkspaceWebTab {
-  return createPreviewTab('web', url, initial);
+  return createContentTab('web', url, initial);
 }
 
 function createPdfTab(
   url: string,
   initial?: Partial<Pick<WritingWorkspacePdfTab, 'id' | 'title'>>,
 ): WritingWorkspacePdfTab {
-  return createPreviewTab('pdf', url, initial);
+  return createContentTab('pdf', url, initial);
 }
 
 function normalizeWorkspaceTab(value: unknown): WritingWorkspaceTab | null {
@@ -508,7 +512,7 @@ export class WritingEditorModel {
     }));
   };
 
-  readonly updateActivePreviewTabUrl = (url: string) => {
+  readonly updateActiveContentTabUrl = (url: string) => {
     const normalizedUrl = url.trim();
     this.updateWorkspaceState((state) => ({
       ...state,
@@ -519,12 +523,16 @@ export class WritingEditorModel {
           ? {
               ...tab,
               url: normalizedUrl,
-              title: getPreviewTabTitle(normalizedUrl),
+              title: getContentTabTitle(normalizedUrl),
             }
           : tab,
       ),
     }));
   };
+
+  // TODO(migration): remove this alias after all controller/workbench call sites use
+  // `updateActiveContentTabUrl`.
+  readonly updateActivePreviewTabUrl = this.updateActiveContentTabUrl;
 
   readonly dispose = () => {
     this.listeners.clear();

@@ -1,4 +1,33 @@
-import 'ls/workbench/workbench.web.main';
-import { renderWorkbench } from 'ls/workbench/browser/workbench';
+import {
+  diagnoseWorkbenchDependencyImports,
+  isNativeWorkbenchAuxiliaryWindow,
+  installWorkbenchBootstrapErrorHandlers,
+  renderWorkbenchBootstrapError,
+  updateWorkbenchBootstrapStatus,
+} from './bootstrapWorkbench';
 
-renderWorkbench();
+async function bootstrapWorkbench() {
+  installWorkbenchBootstrapErrorHandlers('web');
+
+  try {
+    await import('./ls/workbench/workbench.web.main');
+
+    const { startWorkbenchContributions, stopWorkbenchContributions } =
+      await import('./ls/workbench/contrib/workbench/workbench.contribution');
+    if (!isNativeWorkbenchAuxiliaryWindow()) {
+      startWorkbenchContributions();
+      window.addEventListener('beforeunload', stopWorkbenchContributions, {
+        once: true,
+      });
+    }
+
+    await diagnoseWorkbenchDependencyImports('web');
+    const { renderWorkbench } = await import('./ls/workbench/browser/workbench');
+    renderWorkbench();
+  } catch (error) {
+    updateWorkbenchBootstrapStatus('web', 'startup failed', error);
+    renderWorkbenchBootstrapError('web', error);
+  }
+}
+
+void bootstrapWorkbench();

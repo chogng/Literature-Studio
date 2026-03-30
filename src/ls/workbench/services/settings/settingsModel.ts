@@ -93,6 +93,44 @@ export type SaveSettingsResult = {
   locale: Locale | null;
 };
 
+function areJsonEqual(previous: unknown, next: unknown) {
+  return JSON.stringify(previous) === JSON.stringify(next);
+}
+
+function areSettingsModelSnapshotsEqual(
+  previous: SettingsModelSnapshot,
+  next: SettingsModelSnapshot,
+) {
+  return (
+    previous.pdfDownloadDir === next.pdfDownloadDir &&
+    previous.pdfFileNameUseSelectionOrder === next.pdfFileNameUseSelectionOrder &&
+    previous.batchLimit === next.batchLimit &&
+    previous.sameDomainOnly === next.sameDomainOnly &&
+    previous.useMica === next.useMica &&
+    previous.ragEnabled === next.ragEnabled &&
+    previous.knowledgeBaseModeEnabled === next.knowledgeBaseModeEnabled &&
+    previous.autoIndexDownloadedPdf === next.autoIndexDownloadedPdf &&
+    previous.libraryStorageMode === next.libraryStorageMode &&
+    previous.libraryDirectory === next.libraryDirectory &&
+    previous.maxConcurrentIndexJobs === next.maxConcurrentIndexJobs &&
+    previous.activeRagProvider === next.activeRagProvider &&
+    previous.retrievalCandidateCount === next.retrievalCandidateCount &&
+    previous.retrievalTopK === next.retrievalTopK &&
+    previous.activeLlmProvider === next.activeLlmProvider &&
+    previous.activeTranslationProvider === next.activeTranslationProvider &&
+    previous.configPath === next.configPath &&
+    previous.isSettingsLoading === next.isSettingsLoading &&
+    previous.isSettingsSaving === next.isSettingsSaving &&
+    previous.isTestingRagConnection === next.isTestingRagConnection &&
+    previous.isTestingLlmConnection === next.isTestingLlmConnection &&
+    previous.isTestingTranslationConnection === next.isTestingTranslationConnection &&
+    areJsonEqual(previous.batchSources, next.batchSources) &&
+    areJsonEqual(previous.ragProviders, next.ragProviders) &&
+    areJsonEqual(previous.llmProviders, next.llmProviders) &&
+    areJsonEqual(previous.translationProviders, next.translationProviders)
+  );
+}
+
 function createInitialSettingsModelSnapshot(
   initialBatchSources: BatchSource[],
 ): SettingsModelSnapshot {
@@ -145,7 +183,10 @@ export class SettingsModel {
   }
 
   private setSnapshot(nextSnapshot: SettingsModelSnapshot) {
-    if (Object.is(this.snapshot, nextSnapshot)) {
+    if (
+      Object.is(this.snapshot, nextSnapshot) ||
+      areSettingsModelSnapshotsEqual(this.snapshot, nextSnapshot)
+    ) {
       return;
     }
 

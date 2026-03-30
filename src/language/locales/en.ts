@@ -141,6 +141,12 @@ const en = {
   editorDraftMode: 'Draft',
   editorSourceMode: 'Source',
   editorPdfMode: 'PDF',
+  editorEmptyWorkspaceTitle: 'No editor is open yet',
+  editorEmptyWorkspaceBody:
+    'This area is the editor workspace. Create a draft tab first, or use the URL flow above to open source or PDF preview.',
+  editorDraftEmptyTitle: 'Writing workspace is ready',
+  editorDraftEmptyBody:
+    'You are looking at an empty draft, not a failed load. Start writing here, or enter a URL above to switch into source or PDF preview.',
   editorDraftBodyPlaceholder:
     'Start drafting here. If you do not type a separate writing context in the assistant sidebar, the current draft is sent to the LLM as context.',
   editorParagraph: 'P',
@@ -234,6 +240,7 @@ const en = {
   errorPdfDownloadFailed: 'PDF download failed: {status} {statusText}',
   errorDocxExportNoArticles: 'There are no selected article cards to export.',
   errorDocxExportFailed: 'DOCX export failed: {error}',
+  // TODO(migration): rename preview-era locale keys after desktop bridge/api wording is migrated.
   errorPreviewNotReady: 'Preview view is not ready.',
   errorLlmProviderUnsupported: 'Unsupported provider: {provider}',
   errorLlmApiKeyMissing: 'API key cannot be empty.',
@@ -283,6 +290,7 @@ const en = {
   toastLlmConnectionFailed: 'Model connection test failed: {error}',
   toastTranslationConnectionSucceeded: 'Translation API connected: {provider}',
   toastTranslationConnectionFailed: 'Translation API test failed: {error}',
+  // TODO(migration): rename preview-era locale keys after desktop bridge/api wording is migrated.
   toastPreviewRuntimeUnavailable: 'Desktop preview bridge is unavailable. Fully restart the Electron process.',
   toastPreviewBackUnsupported: 'Embedded Electron preview does not support back navigation yet.',
   toastPreviewForwardUnsupported: 'Embedded Electron preview does not support forward navigation yet.',

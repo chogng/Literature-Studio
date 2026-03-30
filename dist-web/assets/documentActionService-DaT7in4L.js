@@ -1,0 +1,1 @@
+import{n as c,b as l,a as d}from"./url-DoB6aVe7.js";function f(r){return r>0}function s(r,n){const e=c(r);if(!e)return null;const o=l(e,n),t=d(e);return{normalizedSourceUrl:e,preferredPdfUrl:o||t||e,isSciencePdfDownload:!!o}}function u(r){return r.trim()||null}export{f as c,s as p,u as r};

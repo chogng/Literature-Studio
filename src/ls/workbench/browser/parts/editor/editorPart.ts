@@ -1,10 +1,10 @@
 import type { LocaleMessages } from '../../../../../language/locales';
 import { normalizeUrl } from '../../../common/url';
 import {
-  createPreviewSurfaceSnapshot,
-  resolvePreviewSourceUrl,
-  type PreviewSurfaceSnapshot,
-} from '../../previewSurfaceState';
+  createWebContentSurfaceSnapshot,
+  resolveContentSourceUrl,
+  type WebContentSurfaceSnapshot,
+} from '../../webContentSurfaceState';
 import { preparePdfDownload } from '../../../services/document/documentActionService';
 import {
   createWritingEditorModel,
@@ -42,7 +42,8 @@ export type EditorPartControllerSnapshot = Pick<
   WritingEditorModelSnapshot,
   'tabs' | 'activeTabId' | 'activeTab' | 'draftBody'
 > & {
-  previewSurfaceSnapshot: PreviewSurfaceSnapshot;
+  previewSurfaceSnapshot: WebContentSurfaceSnapshot;
+  webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
   editorPartProps: EditorPartProps;
 };
 
@@ -75,6 +76,10 @@ export function createEditorPartProps({
       sourceMode: ui.editorSourceMode,
       pdfMode: ui.editorPdfMode,
       close: ui.toastClose,
+      emptyWorkspaceTitle: ui.editorEmptyWorkspaceTitle,
+      emptyWorkspaceBody: ui.editorEmptyWorkspaceBody,
+      draftEmptyTitle: ui.editorDraftEmptyTitle,
+      draftEmptyBody: ui.editorDraftEmptyBody,
       draftBodyPlaceholder: ui.editorDraftBodyPlaceholder,
       sourceTitle: ui.editorSourceTitle,
       pdfTitle: ui.editorPdfTitle,
@@ -139,14 +144,15 @@ function createEditorPartControllerSnapshot(
 ): EditorPartControllerSnapshot {
   const { ui, viewPartProps } = context;
   const { tabs, activeTabId, activeTab, draftBody } = writingSnapshot;
-  const previewSurfaceSnapshot = createPreviewSurfaceSnapshot(activeTab);
+  const webContentSurfaceSnapshot = createWebContentSurfaceSnapshot(activeTab);
 
   return {
     tabs,
     activeTabId,
     activeTab,
     draftBody,
-    previewSurfaceSnapshot,
+    previewSurfaceSnapshot: webContentSurfaceSnapshot,
+    webContentSurfaceSnapshot,
     editorPartProps: createEditorPartProps({
       state: {
         ui,
@@ -158,6 +164,23 @@ function createEditorPartControllerSnapshot(
       actions,
     }),
   };
+}
+
+function areEditorPartControllerContextsEqual(
+  previous: EditorPartControllerContext,
+  next: EditorPartControllerContext,
+) {
+  return (
+    previous.ui === next.ui &&
+    previous.browserUrl === next.browserUrl &&
+    previous.webUrl === next.webUrl &&
+    previous.viewPartProps.browserUrl === next.viewPartProps.browserUrl &&
+    previous.viewPartProps.electronRuntime === next.viewPartProps.electronRuntime &&
+    previous.viewPartProps.previewRuntime === next.viewPartProps.previewRuntime &&
+    previous.viewPartProps.labels.emptyState === next.viewPartProps.labels.emptyState &&
+    previous.viewPartProps.labels.contentUnavailable ===
+      next.viewPartProps.labels.contentUnavailable
+  );
 }
 
 export class EditorPartController {
@@ -197,6 +220,10 @@ export class EditorPartController {
   readonly getSnapshot = () => this.snapshot;
 
   readonly setContext = (context: EditorPartControllerContext) => {
+    if (areEditorPartControllerContextsEqual(this.context, context)) {
+      return;
+    }
+
     this.context = context;
     this.refreshSnapshot();
   };
@@ -215,9 +242,13 @@ export class EditorPartController {
     this.writingEditorModel.createWebTab(url);
   };
 
-  readonly updateActivePreviewTabUrl = (url: string) => {
-    this.writingEditorModel.updateActivePreviewTabUrl(url);
+  readonly updateActiveContentTabUrl = (url: string) => {
+    this.writingEditorModel.updateActiveContentTabUrl(url);
   };
+
+  // TODO(migration): remove this alias after workbench/editor integrations stop using the
+  // preview-era method name.
+  readonly updateActivePreviewTabUrl = this.updateActiveContentTabUrl;
 
   private readonly setDraftDocument = (value: WritingEditorDocument) => {
     this.writingEditorModel.setDraftDocument(value);
@@ -233,9 +264,9 @@ export class EditorPartController {
 
   private readonly handleCreatePdfTab = () => {
     const { browserUrl, webUrl, ui } = this.context;
-    const { previewSurfaceSnapshot } = this.snapshot;
-    const seedUrl = resolvePreviewSourceUrl(
-      previewSurfaceSnapshot,
+    const { webContentSurfaceSnapshot } = this.snapshot;
+    const seedUrl = resolveContentSourceUrl(
+      webContentSurfaceSnapshot,
       browserUrl,
       webUrl,
     );

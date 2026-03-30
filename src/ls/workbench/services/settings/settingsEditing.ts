@@ -11,21 +11,35 @@ export function updateBatchSourceUrl(
   nextUrl: string,
 ): BatchSource[] {
   const sanitizedUrl = sanitizeUrlInput(nextUrl);
+  const targetSource = batchSources[index];
+  if (!targetSource) {
+    return [...batchSources];
+  }
 
-  return batchSources.map((source, sourceIndex) =>
-    sourceIndex === index
-      ? {
-          ...source,
-          url: sanitizedUrl,
-          journalTitle: resolveNextJournalTitleOnUrlChange({
-            currentJournalTitle: source.journalTitle,
-            previousUrl: source.url,
-            nextUrl: sanitizedUrl,
-            sourceTable: batchSources,
-          }),
-        }
-      : source,
-  );
+  const nextJournalTitle = resolveNextJournalTitleOnUrlChange({
+    currentJournalTitle: targetSource.journalTitle,
+    previousUrl: targetSource.url,
+    nextUrl: sanitizedUrl,
+    sourceTable: batchSources,
+  });
+  if (
+    targetSource.url === sanitizedUrl &&
+    targetSource.journalTitle === nextJournalTitle
+  ) {
+    return [...batchSources];
+  }
+
+  return batchSources.map((source, sourceIndex) => {
+    if (sourceIndex !== index) {
+      return source;
+    }
+
+    return {
+      ...source,
+      url: sanitizedUrl,
+      journalTitle: nextJournalTitle,
+    };
+  });
 }
 
 export function updateBatchSourceJournalTitle(
@@ -33,6 +47,15 @@ export function updateBatchSourceJournalTitle(
   index: number,
   nextJournalTitle: string,
 ): BatchSource[] {
+  const targetSource = batchSources[index];
+  if (!targetSource) {
+    return [...batchSources];
+  }
+
+  if (targetSource.journalTitle === nextJournalTitle) {
+    return [...batchSources];
+  }
+
   return batchSources.map((source, sourceIndex) =>
     sourceIndex === index
       ? {
@@ -70,7 +93,7 @@ export function moveBatchSource(
     targetIndex < 0 ||
     targetIndex >= batchSources.length
   ) {
-    return [...batchSources];
+    return batchSources.slice();
   }
 
   const nextBatchSources = [...batchSources];
