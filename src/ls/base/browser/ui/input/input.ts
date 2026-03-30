@@ -251,7 +251,10 @@ export class InputView {
 
     const showClearButton = Boolean(clearable && this.value && !disabled);
     if (showClearButton) {
-      const clearButton = createElement('button', 'input-clear-btn') as HTMLButtonElement;
+      const clearButton = createElement(
+        'button',
+        'input-clear-btn btn-base btn-ghost btn-mode-icon btn-sm',
+      ) as HTMLButtonElement;
       clearButton.type = 'button';
       clearButton.setAttribute('aria-label', 'Clear input');
       clearButton.append(createClearIcon(size === 'sm' ? 14 : 16));

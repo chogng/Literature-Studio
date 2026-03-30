@@ -10,6 +10,7 @@ import {
   type EditorStatusState,
 } from './editorStatus';
 import { resolveEditorPane, type EditorPaneRenderer } from './panes/editorPaneRegistry';
+import { EditorEmptyWorkspaceView } from './editorEmptyWorkspaceView';
 import type { EditorPartLabels } from './editorPartView';
 import { createEditorGroupModel, type EditorGroupModel } from './editorGroupModel';
 import { TabsTitleControl } from './tabsTitleControl';
@@ -42,20 +43,6 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.className = className;
   }
   return element;
-}
-
-function renderWorkspaceActionButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  const button = createElement('button', 'editor-workspace-action-btn');
-  button.type = 'button';
-  button.textContent = label;
-  button.addEventListener('click', onClick);
-  return button;
 }
 
 function createTitleAreaControl(
@@ -217,12 +204,17 @@ export class EditorGroupView {
   private readonly element = createElement('div', 'editor-shell');
   private readonly headerElement = createElement('div', 'editor-tabs-header');
   private readonly contentElement = createElement('div');
+  private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
   private activePaneRenderer: EditorPaneRenderer | null = null;
   private activePaneKey: string | null = null;
 
   constructor(props: EditorGroupViewProps) {
     this.props = props;
     this.controller = new EditorGroupController(props);
+    this.emptyWorkspaceView = new EditorEmptyWorkspaceView({
+      labels: props.labels,
+      onCreateDraftTab: props.onCreateDraftTab,
+    });
     this.element.append(this.headerElement, this.contentElement);
     this.render();
   }
@@ -258,16 +250,12 @@ export class EditorGroupView {
       this.activePaneRenderer?.dispose();
       this.activePaneRenderer = null;
       this.activePaneKey = null;
-      this.contentElement.replaceChildren();
-      const emptyWorkspace = createElement('div', 'editor-empty-workspace');
-      emptyWorkspace.append(
-        renderWorkspaceActionButton({
-          label: this.props.labels.draftMode,
-          onClick: this.props.onCreateDraftTab,
-        }),
-      );
+      this.emptyWorkspaceView.setProps({
+        labels: this.props.labels,
+        onCreateDraftTab: this.props.onCreateDraftTab,
+      });
       this.contentElement.className = 'editor-content';
-      this.contentElement.append(emptyWorkspace);
+      this.contentElement.replaceChildren(this.emptyWorkspaceView.getElement());
       return;
     }
 

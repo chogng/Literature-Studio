@@ -1,5 +1,7 @@
 import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../../language/i18n';
+import { createLxIcon } from '../../../../base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
 import {
   getPdfDownloadStatus,
   subscribePdfDownloadStatus,
@@ -104,11 +106,11 @@ export class ArticleCard {
   );
   private readonly downloadButton = createElement(
     'button',
-    'secondary-sidebar-article-card-icon-btn',
+    'secondary-sidebar-article-card-icon-btn btn-base btn-ghost btn-mode-icon btn-sm',
   );
   private readonly detailsButton = createElement(
     'button',
-    'secondary-sidebar-article-card-icon-btn',
+    'secondary-sidebar-article-card-icon-btn btn-base btn-ghost btn-mode-icon btn-sm',
   );
   private readonly unsubscribeDownloadStatus: () => void;
 
@@ -177,11 +179,21 @@ export class ArticleCard {
     this.downloadButton.type = 'button';
     this.downloadButton.className = [
       'secondary-sidebar-article-card-icon-btn',
+      'btn-base',
+      'btn-ghost',
+      'btn-mode-icon',
+      'btn-sm',
       hasDownloaded ? 'is-downloaded' : '',
     ]
       .filter(Boolean)
       .join(' ');
-    this.downloadButton.textContent = isDownloading ? '...' : 'PDF';
+    this.downloadButton.replaceChildren(
+      isDownloading
+        ? createLxIcon('sync')
+        : hasDownloaded
+          ? createLxIcon(lxIconSemanticMap.articleCard.downloaded)
+          : createLxIcon(lxIconSemanticMap.articleCard.download),
+    );
     this.downloadButton.disabled = isDownloading;
     this.downloadButton.setAttribute('aria-label', DOWNLOAD_PDF_LABEL);
     this.downloadButton.title = hasDownloaded
@@ -189,7 +201,9 @@ export class ArticleCard {
       : DOWNLOAD_PDF_LABEL;
 
     this.detailsButton.type = 'button';
-    this.detailsButton.textContent = 'v';
+    this.detailsButton.className =
+      'secondary-sidebar-article-card-icon-btn btn-base btn-ghost btn-mode-icon btn-sm';
+    this.detailsButton.replaceChildren(createLxIcon(lxIconSemanticMap.articleCard.details));
     this.detailsButton.setAttribute('aria-label', VIEW_DETAILS_LABEL);
     this.detailsButton.title = VIEW_DETAILS_LABEL;
     this.detailsButton.setAttribute('aria-haspopup', 'dialog');

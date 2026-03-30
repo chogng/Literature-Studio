@@ -2,6 +2,8 @@ import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
 } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
 import type { SidebarLabels } from './secondarySidebarPart';
 import './media/primarySidebar.css';
 
@@ -224,20 +226,20 @@ export class PrimarySidebar {
     this.actionsElement.replaceChildren(
       this.createActionButton(
         labels.libraryAction,
-        'Lib',
+        lxIconSemanticMap.library.refresh,
         this.props.onRefreshLibrary,
         isLibraryLoading || !this.props.onRefreshLibrary,
         true,
       ),
       this.createActionButton(
         labels.pdfDownloadAction,
-        'PDF',
+        lxIconSemanticMap.library.downloadPdf,
         this.props.onDownloadPdf,
         !this.props.onDownloadPdf,
       ),
       this.createActionButton(
         labels.writingAction,
-        'New',
+        lxIconSemanticMap.library.createDraft,
         this.props.onCreateDraftTab,
         !this.props.onCreateDraftTab,
       ),
@@ -251,19 +253,26 @@ export class PrimarySidebar {
 
   private createActionButton(
     label: string,
-    text: string,
+    icon: LxIconName,
     onClick: (() => void) | undefined,
     disabled: boolean,
     isActive: boolean = false,
   ) {
     const button = createElement(
       'button',
-      ['sidebar-chat-topbar-action-btn', isActive ? 'is-active' : '']
+      [
+        'sidebar-chat-topbar-action-btn',
+        'btn-base',
+        'btn-ghost',
+        'btn-mode-icon',
+        'btn-sm',
+        isActive ? 'is-active' : '',
+      ]
         .filter(Boolean)
         .join(' '),
     );
     button.type = 'button';
-    button.textContent = text;
+    button.append(createLxIcon(icon));
     button.title = label;
     button.setAttribute('aria-label', label);
     button.disabled = disabled;
@@ -312,7 +321,10 @@ export class PrimarySidebar {
     }
 
     const isExpanded = this.expandedFolders.has(node.id);
-    const button = createElement('button', 'library-tree-row library-tree-row-folder');
+    const button = createElement(
+      'button',
+      'library-tree-row library-tree-row-folder btn-base btn-ghost btn-md',
+    );
     button.type = 'button';
     button.style.paddingLeft = `${depth * 16}px`;
     button.setAttribute('role', 'treeitem');
@@ -328,8 +340,15 @@ export class PrimarySidebar {
 
     const label = createElement('span', 'library-tree-folder-label');
     label.textContent = node.name;
-    button.textContent = isExpanded ? 'v ' : '> ';
-    button.append(label);
+    button.append(
+      createLxIcon(
+        isExpanded
+          ? lxIconSemanticMap.library.folderExpanded
+          : lxIconSemanticMap.library.folderCollapsed,
+        'library-tree-chevron',
+      ),
+      label,
+    );
     if (node.id === 'root') {
       const count = createElement('span', 'library-tree-folder-count');
       count.textContent = String(librarySnapshotCount(node));

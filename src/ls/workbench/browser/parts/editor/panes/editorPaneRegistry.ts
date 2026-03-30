@@ -8,8 +8,8 @@ import type {
 import type { ViewPartProps } from '../../views/viewPartView';
 import type { EditorPartLabels } from '../editorPartView';
 import type { DraftEditorRuntimeState } from '../editorStatus';
+import { ContentEditorPane, type ContentEditorPaneProps } from './contentEditorPane';
 import { DraftEditorPane, type DraftEditorPaneProps } from './draftEditorPane';
-import { PreviewEditorPane, type PreviewEditorPaneProps } from './previewEditorPane';
 
 export type EditorPaneRenderer = {
   getElement: () => HTMLElement;
@@ -31,13 +31,13 @@ export type EditorPaneInput =
       tab: WritingWorkspaceDraftTab;
     }
   | {
-      paneId: 'web-preview';
-      contentClassNames: readonly ['is-mode-preview', 'is-mode-web'];
+      paneId: 'web';
+      contentClassNames: readonly ['is-mode-web'];
       tab: WritingWorkspaceWebTab;
     }
   | {
-      paneId: 'pdf-preview';
-      contentClassNames: readonly ['is-mode-preview', 'is-mode-pdf'];
+      paneId: 'pdf';
+      contentClassNames: readonly ['is-mode-pdf'];
       tab: WritingWorkspacePdfTab;
     };
 
@@ -60,15 +60,15 @@ function createEditorPaneInput(activeTab: WritingWorkspaceTab): EditorPaneInput 
 
   if (activeTab.kind === 'pdf') {
     return {
-      paneId: 'pdf-preview',
-      contentClassNames: ['is-mode-preview', 'is-mode-pdf'],
+      paneId: 'pdf',
+      contentClassNames: ['is-mode-pdf'],
       tab: activeTab,
     };
   }
 
   return {
-    paneId: 'web-preview',
-    contentClassNames: ['is-mode-preview', 'is-mode-web'],
+    paneId: 'web',
+    contentClassNames: ['is-mode-web'],
     tab: activeTab,
   };
 }
@@ -86,13 +86,13 @@ function createDraftPaneProps(
   };
 }
 
-function createPreviewPaneProps(
-  input: Extract<EditorPaneInput, { paneId: 'web-preview' | 'pdf-preview' }>,
+function createContentPaneProps(
+  input: Extract<EditorPaneInput, { paneId: 'web' | 'pdf' }>,
   context: EditorPaneResolverContext,
-): PreviewEditorPaneProps {
+): ContentEditorPaneProps {
   return {
     labels: context.labels,
-    previewTab: input.tab,
+    contentTab: input.tab,
     viewPartProps: context.viewPartProps,
   };
 }
@@ -116,25 +116,25 @@ export function resolveEditorPane(
         },
       };
     }
-    case 'web-preview': {
-      const paneProps = createPreviewPaneProps(input, context);
+    case 'web': {
+      const paneProps = createContentPaneProps(input, context);
       return {
-        paneId: 'web-preview',
-        paneKey: `web-preview:${input.tab.id}`,
+        paneId: 'web',
+        paneKey: `web:${input.tab.id}`,
         contentClassNames: input.contentClassNames,
-        createRenderer: () => new PreviewEditorPane(paneProps),
+        createRenderer: () => new ContentEditorPane(paneProps),
         updateRenderer: (renderer) => {
           renderer.setProps(paneProps);
         },
       };
     }
-    case 'pdf-preview': {
-      const paneProps = createPreviewPaneProps(input, context);
+    case 'pdf': {
+      const paneProps = createContentPaneProps(input, context);
       return {
-        paneId: 'pdf-preview',
-        paneKey: `pdf-preview:${input.tab.id}`,
+        paneId: 'pdf',
+        paneKey: `pdf:${input.tab.id}`,
         contentClassNames: input.contentClassNames,
-        createRenderer: () => new PreviewEditorPane(paneProps),
+        createRenderer: () => new ContentEditorPane(paneProps),
         updateRenderer: (renderer) => {
           renderer.setProps(paneProps);
         },

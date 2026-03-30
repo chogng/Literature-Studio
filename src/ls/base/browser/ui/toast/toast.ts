@@ -136,7 +136,11 @@ function renderToastItem(item: ToastItem, closeLabel: string) {
   );
   const icon = createElement('div', 'toast-icon', getToastIconText(item.type || 'info'));
   const content = createElement('div', 'toast-content', item.message);
-  const closeButton = createElement('button', 'toast-close', 'x');
+  const closeButton = createElement(
+    'button',
+    'toast-close btn-base btn-ghost btn-mode-icon btn-sm',
+    'x',
+  );
   closeButton.type = 'button';
   closeButton.setAttribute('aria-label', closeLabel);
   closeButton.addEventListener('click', () => dismissToast(item.id));

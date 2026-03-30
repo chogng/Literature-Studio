@@ -1,7 +1,12 @@
-import type { WritingEditorDocument, WritingWorkspaceDraftTab } from '../../../writingEditorModel';
+import {
+  type WritingEditorDocument,
+  type WritingWorkspaceDraftTab,
+} from '../../../writingEditorModel';
+import { writingEditorDocumentToPlainText } from '../../../writingEditorDocument';
 import type { DraftEditorRuntimeState } from '../editorStatus';
 import type { EditorPartLabels } from '../editorPartView';
 import { ProseMirrorEditor } from '../prosemirror/prosemirrorEditor';
+import { DraftEmptyStateView } from './draftEmptyStateView';
 
 export type DraftEditorPaneProps = {
   labels: EditorPartLabels;
@@ -12,12 +17,14 @@ export type DraftEditorPaneProps = {
 
 export class DraftEditorPane {
   private readonly element = document.createElement('div');
+  private readonly emptyStateView: DraftEmptyStateView;
   private readonly editor: ProseMirrorEditor;
 
   constructor(props: DraftEditorPaneProps) {
     this.element.className = 'editor-draft-pane';
+    this.emptyStateView = new DraftEmptyStateView(this.toEmptyStateProps(props));
     this.editor = new ProseMirrorEditor(this.toEditorProps(props));
-    this.element.append(this.editor.getElement());
+    this.element.append(this.emptyStateView.getElement(), this.editor.getElement());
   }
 
   getElement() {
@@ -26,6 +33,7 @@ export class DraftEditorPane {
 
   setProps(props: DraftEditorPaneProps) {
     this.editor.setProps(this.toEditorProps(props));
+    this.emptyStateView.setProps(this.toEmptyStateProps(props));
   }
 
   dispose() {
@@ -62,6 +70,16 @@ export class DraftEditorPane {
       },
       onDocumentChange: props.onDraftDocumentChange,
       onStatusChange: props.onStatusChange,
+    };
+  }
+
+  private toEmptyStateProps(props: DraftEditorPaneProps) {
+    return {
+      labels: {
+        draftEmptyTitle: props.labels.draftEmptyTitle,
+        draftEmptyBody: props.labels.draftEmptyBody,
+      },
+      visible: writingEditorDocumentToPlainText(props.draftTab.document).length === 0,
     };
   }
 }

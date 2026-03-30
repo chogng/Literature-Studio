@@ -46,7 +46,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 function createButton(
   label: string,
   onClick: () => void,
-  className = 'settings-native-button settings-native-button-secondary',
+  className = 'settings-native-button btn-base btn-secondary btn-md settings-native-button-secondary',
 ) {
   const button = createElement('button', className, label);
   button.type = 'button';

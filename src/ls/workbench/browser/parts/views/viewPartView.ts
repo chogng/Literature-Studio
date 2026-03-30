@@ -3,7 +3,7 @@ import './media/view.css';
 
 export type ViewPartLabels = {
   emptyState: string;
-  previewUnavailable: string;
+  contentUnavailable: string;
 };
 
 export type ViewPartProps = {
@@ -31,9 +31,15 @@ export class ViewPartView {
     'div',
     'native-webcontentview-host',
   );
+  private readonly webContentHost = createElement(
+    'div',
+    'web-frame web-frame-placeholder',
+  );
+  private isWebContentHostRegistered = false;
 
   constructor(props: ViewPartProps) {
     this.props = props;
+    this.webContentHost.setAttribute('aria-hidden', 'true');
     this.element.append(this.contentElement);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.view, this.element);
     this.render();
@@ -49,16 +55,16 @@ export class ViewPartView {
   }
 
   dispose() {
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, null);
+    this.setWebContentHostRegistered(false);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.view, null);
     this.element.replaceChildren();
   }
 
   private render() {
     this.contentElement.replaceChildren();
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, null);
 
     if (!this.props.browserUrl) {
+      this.setWebContentHostRegistered(false);
       const emptyFrame = createElement('div', 'web-frame');
       emptyFrame.setAttribute('aria-hidden', 'true');
       this.contentElement.append(emptyFrame);
@@ -66,25 +72,30 @@ export class ViewPartView {
     }
 
     if (!this.props.electronRuntime || !this.props.previewRuntime) {
+      this.setWebContentHostRegistered(false);
       const warning = createElement(
         'div',
         'empty-state preview-runtime-warning',
       );
-      warning.textContent = this.props.labels.previewUnavailable;
+      warning.textContent = this.props.labels.contentUnavailable;
       this.contentElement.append(warning);
       return;
     }
 
-    const webContentHost = createElement(
-      'div',
-      'web-frame web-frame-placeholder',
-    );
-    webContentHost.setAttribute('aria-hidden', 'true');
+    this.setWebContentHostRegistered(true);
+    this.contentElement.append(this.webContentHost);
+  }
+
+  private setWebContentHostRegistered(registered: boolean) {
+    if (this.isWebContentHostRegistered === registered) {
+      return;
+    }
+
+    this.isWebContentHostRegistered = registered;
     registerWorkbenchPartDomNode(
       WORKBENCH_PART_IDS.webContentViewHost,
-      webContentHost,
+      registered ? this.webContentHost : null,
     );
-    this.contentElement.append(webContentHost);
   }
 }
 

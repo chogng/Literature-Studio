@@ -1,5 +1,7 @@
 import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
 import { createButtonView } from '../../../../base/browser/ui/button/button.js';
+import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
 import { createDropdownView, type DropdownView } from '../../../../base/browser/ui/dropdown/dropdown.js';
 import { createInputView } from '../../../../base/browser/ui/input/input.js';
 import { getBrowserWindowChromeLayout } from '../../../../platform/windows/common/windowChrome.js';
@@ -149,7 +151,7 @@ function createSourceOptions(
 function createIconButton(params: {
   className: string;
   label: string;
-  text: string;
+  icon: LxIconName;
   onClick: () => void;
   disabled?: boolean;
   title?: string;
@@ -161,7 +163,7 @@ function createIconButton(params: {
     mode: 'icon',
     ariaLabel: params.label,
     title: params.title ?? params.label,
-    content: params.text,
+    content: createLxIcon(params.icon),
     disabled: params.disabled,
     onClick: () => params.onClick(),
   });
@@ -276,12 +278,14 @@ export class TitlebarView {
     }
 
     const sidebarButton = this.trackView(
-      createIconButton({
-        className: 'titlebar-btn titlebar-btn-sidebar',
-        label: props.sidebarToggleLabel,
-        text: props.isSidebarOpen ? '<' : '>',
-        onClick: requestToggleTitlebarSidebar,
-      }),
+        createIconButton({
+          className: 'titlebar-btn titlebar-btn-sidebar',
+          label: props.sidebarToggleLabel,
+          icon: props.isSidebarOpen
+            ? lxIconSemanticMap.titlebar.sidebarOpen
+            : lxIconSemanticMap.titlebar.sidebarClosed,
+          onClick: requestToggleTitlebarSidebar,
+        }),
     );
 
     this.startElement.append(sidebarButton.getElement());
@@ -292,22 +296,22 @@ export class TitlebarView {
 
     const navGroup = createElement('div', 'titlebar-nav-group');
     const backButton = this.trackView(
-      createIconButton({
-        className: 'titlebar-btn titlebar-btn-nav',
-        label: props.labels.backLabel,
-        text: '<',
-        onClick: requestTitlebarNavigateBack,
-        disabled: !props.browserUrl || !props.canGoBack,
-      }),
+        createIconButton({
+          className: 'titlebar-btn titlebar-btn-nav',
+          label: props.labels.backLabel,
+          icon: lxIconSemanticMap.titlebar.navigateBack,
+          onClick: requestTitlebarNavigateBack,
+          disabled: !props.browserUrl || !props.canGoBack,
+        }),
     );
     const forwardButton = this.trackView(
-      createIconButton({
-        className: 'titlebar-btn titlebar-btn-nav',
-        label: props.labels.forwardLabel,
-        text: '>',
-        onClick: requestTitlebarNavigateForward,
-        disabled: !props.browserUrl || !props.canGoForward,
-      }),
+        createIconButton({
+          className: 'titlebar-btn titlebar-btn-nav',
+          label: props.labels.forwardLabel,
+          icon: lxIconSemanticMap.titlebar.navigateForward,
+          onClick: requestTitlebarNavigateForward,
+          disabled: !props.browserUrl || !props.canGoForward,
+        }),
     );
     navGroup.append(backButton.getElement(), forwardButton.getElement());
     this.centerElement.append(navGroup);
@@ -418,7 +422,9 @@ export class TitlebarView {
         createIconButton({
           className: 'titlebar-btn titlebar-btn-auxiliary',
           label: props.auxiliarySidebarToggleLabel,
-          text: props.isAuxiliarySidebarOpen ? ']' : '[',
+          icon: props.isAuxiliarySidebarOpen
+            ? lxIconSemanticMap.titlebar.auxiliaryOpen
+            : lxIconSemanticMap.titlebar.auxiliaryClosed,
           onClick: requestToggleTitlebarAuxiliarySidebar,
         }),
       );
@@ -429,7 +435,7 @@ export class TitlebarView {
       createIconButton({
         className: 'titlebar-btn titlebar-btn-export',
         label: props.labels.exportDocxLabel,
-        text: 'Doc',
+        icon: lxIconSemanticMap.titlebar.exportDocx,
         onClick: requestExportTitlebarDocx,
         disabled: !props.canExportDocx,
         title: props.canExportDocx
@@ -441,7 +447,7 @@ export class TitlebarView {
       createIconButton({
         className: 'titlebar-btn titlebar-btn-settings',
         label: props.labels.settingsLabel,
-        text: 'Set',
+        icon: lxIconSemanticMap.titlebar.settings,
         onClick: requestToggleTitlebarSettings,
       }),
     );

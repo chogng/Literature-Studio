@@ -141,6 +141,12 @@ const zh = {
   editorDraftMode: '写作',
   editorSourceMode: '来源',
   editorPdfMode: 'PDF',
+  editorEmptyWorkspaceTitle: '还没有打开任何编辑器',
+  editorEmptyWorkspaceBody:
+    '这里是编辑工作区。先新建一个写作标签，或者通过上方链接流程打开来源 / PDF 预览。',
+  editorDraftEmptyTitle: '写作工作台已就绪',
+  editorDraftEmptyBody:
+    '当前显示的是空白草稿，不是加载失败。你可以直接开始写作，或者先在上方输入链接切到来源 / PDF 预览。',
   editorDraftBodyPlaceholder:
     '在这里开始写作。如果你没有在右侧助手栏单独填写“写作上下文”，当前草稿会自动作为上下文送入 LLM。',
   editorParagraph: '正文',
@@ -235,6 +241,7 @@ const zh = {
   errorPdfDownloadFailed: 'PDF 下载失败：{status} {statusText}',
   errorDocxExportNoArticles: '当前没有选中的文献卡片可导出。',
   errorDocxExportFailed: 'DOCX 导出失败：{error}',
+  // TODO(migration): desktop bridge 仍沿用 preview 命名，完成协议迁移后再统一 locale key。
   errorPreviewNotReady: '预览视图尚未就绪。',
   errorLlmProviderUnsupported: '\u4e0d\u652f\u6301\u7684 provider\uff1a{provider}',
   errorLlmApiKeyMissing: 'API Key 不能为空。',
@@ -287,6 +294,7 @@ const zh = {
   toastLlmConnectionFailed: '\u6a21\u578b\u8fde\u63a5\u6d4b\u8bd5\u5931\u8d25\uff1a{error}',
   toastTranslationConnectionSucceeded: '\u7ffb\u8bd1 API \u8fde\u63a5\u6210\u529f\uff1a{provider}',
   toastTranslationConnectionFailed: '\u7ffb\u8bd1 API \u6d4b\u8bd5\u5931\u8d25\uff1a{error}',
+  // TODO(migration): desktop bridge 仍沿用 preview 命名，完成协议迁移后再统一 locale key。
   toastPreviewRuntimeUnavailable: '桌面预览桥未就绪，请完整重启 Electron 进程。',
   toastPreviewBackUnsupported: 'Electron 嵌入预览暂不支持后退。',
   toastPreviewForwardUnsupported: 'Electron 嵌入预览暂不支持前进。',

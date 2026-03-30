@@ -177,7 +177,10 @@ export class DateRangePickerView {
   private readonly weekdayLabels = createWeekdayLabels();
   private readonly todayValue = formatDateInputValue(new Date());
   private readonly element = createElement('div', 'date-range-picker');
-  private readonly trigger = createElement('button', 'date-range-trigger');
+  private readonly trigger = createElement(
+    'button',
+    'date-range-trigger btn-base btn-secondary btn-md',
+  );
   private readonly triggerContent = createElement('span', 'date-range-trigger-content');
   private readonly triggerIcon = createElement('span', 'date-range-trigger-icon');
   private readonly triggerText = createElement('span', 'date-range-trigger-text');
@@ -333,7 +336,15 @@ export class DateRangePickerView {
   private renderSummaryButton(field: PickerField, label: string, value: string) {
     const button = createElement(
       'button',
-      `date-range-summary-button ${this.activeField === field ? 'is-active' : ''}`.trim(),
+      [
+        'date-range-summary-button',
+        'btn-base',
+        'btn-secondary',
+        'btn-md',
+        this.activeField === field ? 'is-active' : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
     );
     button.type = 'button';
     button.append(
@@ -364,14 +375,20 @@ export class DateRangePickerView {
     );
 
     const header = createElement('div', 'date-range-popup-header');
-    const prevButton = createElement('button', 'date-range-month-nav');
+    const prevButton = createElement(
+      'button',
+      'date-range-month-nav btn-base btn-ghost btn-mode-icon btn-sm',
+    );
     prevButton.type = 'button';
     prevButton.append(createChevronIcon('left'));
     prevButton.addEventListener('click', () => this.stepMonth(-1));
 
     const title = createElement('div', 'date-range-month-title', formatMonthTitle(this.visibleMonth));
 
-    const nextButton = createElement('button', 'date-range-month-nav');
+    const nextButton = createElement(
+      'button',
+      'date-range-month-nav btn-base btn-ghost btn-mode-icon btn-sm',
+    );
     nextButton.type = 'button';
     nextButton.append(createChevronIcon('right'));
     nextButton.addEventListener('click', () => this.stepMonth(1));
@@ -400,6 +417,9 @@ export class DateRangePickerView {
           'button',
           [
             'date-range-day',
+            'btn-base',
+            'btn-ghost',
+            'btn-sm',
             cell.inCurrentMonth ? '' : 'is-outside',
             isStart ? 'is-start' : '',
             isEnd ? 'is-end' : '',
@@ -428,7 +448,15 @@ export class DateRangePickerView {
     this.element.className = ['date-range-picker', this.props.className].filter(Boolean).join(' ');
 
     const triggerLabel = createTriggerLabel(this.props.labels);
-    this.trigger.className = `date-range-trigger ${this.isOpen ? 'is-active' : ''}`.trim();
+    this.trigger.className = [
+      'date-range-trigger',
+      'btn-base',
+      'btn-secondary',
+      'btn-md',
+      this.isOpen ? 'is-active' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
     this.trigger.setAttribute('aria-label', triggerLabel);
     this.trigger.setAttribute('aria-expanded', String(this.isOpen));
 

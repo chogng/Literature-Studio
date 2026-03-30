@@ -78,7 +78,7 @@ export type EditorStatusItem = {
 
 export type EditorStatusState = {
   ariaLabel: string;
-  kind: 'empty' | 'draft' | 'web-preview' | 'pdf-preview';
+  kind: 'empty' | 'draft' | 'web' | 'pdf';
   modeLabel?: string;
   summary?: string;
   leftItems: readonly EditorStatusItem[];
@@ -377,13 +377,13 @@ function createDraftEditorStatus(
   };
 }
 
-function createPreviewEditorStatus(
+function createContentEditorStatus(
   tab: Extract<WritingWorkspaceTab, { kind: 'web' | 'pdf' }>,
   labels: EditorStatusContextLabels,
 ): EditorStatusState {
   return {
     ariaLabel: labels.statusbarAriaLabel,
-    kind: tab.kind === 'pdf' ? 'pdf-preview' : 'web-preview',
+    kind: tab.kind === 'pdf' ? 'pdf' : 'web',
     modeLabel: tab.kind === 'pdf' ? labels.pdfMode : labels.sourceMode,
     leftItems: [],
     rightItems: [
@@ -415,7 +415,7 @@ export function createEditorStatus(
     return createDraftEditorStatus(activeTab, labels, draftRuntimeState);
   }
 
-  return createPreviewEditorStatus(activeTab, labels);
+  return createContentEditorStatus(activeTab, labels);
 }
 
 export function createDraftEditorRuntimeState(
