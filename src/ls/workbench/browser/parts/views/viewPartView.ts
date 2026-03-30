@@ -1,6 +1,5 @@
 import { jsx } from 'react/jsx-runtime';
-import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../layout';
-import { useWorkbenchPreviewView } from './viewService';
+import { WORKBENCH_PART_IDS, createWorkbenchPartRef } from '../../layout';
 import './media/view.css';
 
 export type ViewPartLabels = {
@@ -50,18 +49,15 @@ export default function ViewPartView({
   previewRuntime,
   labels,
 }: ViewPartProps) {
-  const viewPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.view);
-  const { handlePreviewHostRef } = useWorkbenchPreviewView({
-    browserUrl,
-    previewRuntime,
-  });
+  const viewPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.view);
+  const previewHostPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.previewHost);
 
   const previewContent = renderPreviewContent({
     browserUrl,
     electronRuntime,
     previewRuntime,
     labels,
-    onPreviewHostRef: handlePreviewHostRef,
+    onPreviewHostRef: previewHostPartRef,
   });
 
   return jsx('div', {

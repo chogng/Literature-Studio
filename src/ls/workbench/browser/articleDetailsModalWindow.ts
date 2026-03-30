@@ -1,4 +1,4 @@
-import { jsx } from 'react/jsx-runtime';
+import { jsx, jsxs } from 'react/jsx-runtime';
 import { useEffect, useMemo, useState } from 'react';
 import type { NativeModalState } from '../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../base/browser/ui/button/button';
@@ -88,7 +88,7 @@ function renderPlaceholderShell({
 }) {
   return jsx('main', {
     className: 'child-window-shell-page',
-    children: jsx('section', {
+    children: jsxs('section', {
       className: 'child-window-shell-surface child-window-shell-surface-loading',
       children: [
         jsx('p', {
@@ -112,7 +112,7 @@ function renderDetailGrid(detailRows: DetailRow[]) {
   return jsx('dl', {
     className: 'article-details-grid',
     children: detailRows.map((row) =>
-      jsx(
+      jsxs(
         'div',
         {
           className: `article-details-row ${row.wide ? 'article-details-row-wide' : ''}`.trim(),
@@ -133,7 +133,7 @@ function renderTextSection({
   title: string;
   value: string;
 }) {
-  return jsx('section', {
+  return jsxs('section', {
     className: 'article-details-section',
     'aria-labelledby': sectionId,
     children: [jsx('h2', { id: sectionId, children: title }), jsx('p', { children: value })],
@@ -234,7 +234,7 @@ export default function ArticleDetailsModalWindow() {
 
   return jsx('main', {
     className: 'child-window-shell-page',
-    children: jsx(ChildWindowShell, {
+    children: jsxs(ChildWindowShell, {
       title,
       titleId: 'article-details-title',
       classNames: {

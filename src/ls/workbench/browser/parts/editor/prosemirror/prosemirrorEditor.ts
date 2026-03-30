@@ -17,6 +17,10 @@ import { dropCursor } from 'prosemirror-dropcursor';
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
 import { Button } from '../../../../../base/browser/ui/button/button';
 import {
+  createDraftEditorRuntimeState,
+  type DraftEditorRuntimeState,
+} from '../editorStatus';
+import {
   type InsertFigurePayload,
   getWritingEditorToolbarState,
   insertCitationCommand,
@@ -80,7 +84,11 @@ type WritingEditorSurfaceProps = {
   document: WritingEditorDocument;
   placeholder: string;
   labels: WritingEditorSurfaceLabels;
+  statusLabels: {
+    blockFigure: string;
+  };
   onDocumentChange: (document: WritingEditorDocument) => void;
+  onStatusChange?: (status: DraftEditorRuntimeState) => void;
 };
 
 const emptyToolbarState = {
@@ -157,10 +165,16 @@ function createToolbarButton({
 }
 
 export const ProseMirrorEditor = forwardRef<WritingEditorSurfaceHandle, WritingEditorSurfaceProps>(
-  function ProseMirrorEditor({ document, placeholder, labels, onDocumentChange }, ref) {
+  function ProseMirrorEditor(
+    { document, placeholder, labels, statusLabels, onDocumentChange, onStatusChange },
+    ref,
+  ) {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const viewRef = useRef<EditorView | null>(null);
+    const labelsRef = useRef(labels);
+    const statusLabelsRef = useRef(statusLabels);
     const onDocumentChangeRef = useRef(onDocumentChange);
+    const onStatusChangeRef = useRef(onStatusChange);
     const [surfaceVersion, setSurfaceVersion] = useState(0);
     const documentKey = JSON.stringify(document);
     const normalizedDocument = useMemo(
@@ -170,6 +184,27 @@ export const ProseMirrorEditor = forwardRef<WritingEditorSurfaceHandle, WritingE
     const normalizedDocumentKey = JSON.stringify(normalizedDocument);
 
     onDocumentChangeRef.current = onDocumentChange;
+    onStatusChangeRef.current = onStatusChange;
+    labelsRef.current = labels;
+    statusLabelsRef.current = statusLabels;
+
+    const emitStatusChange = (nextState: EditorState) => {
+      const currentLabels = labelsRef.current;
+      const currentStatusLabels = statusLabelsRef.current;
+
+      onStatusChangeRef.current?.(
+        createDraftEditorRuntimeState(nextState, {
+          paragraph: currentLabels.paragraph,
+          heading1: currentLabels.heading1,
+          heading2: currentLabels.heading2,
+          heading3: currentLabels.heading3,
+          bulletList: currentLabels.bulletList,
+          orderedList: currentLabels.orderedList,
+          blockquote: currentLabels.blockquote,
+          blockFigure: currentStatusLabels.blockFigure,
+        }),
+      );
+    };
 
     useEffect(() => {
       const mountNode = hostRef.current;
@@ -190,6 +225,7 @@ export const ProseMirrorEditor = forwardRef<WritingEditorSurfaceHandle, WritingE
             // latest document instead of storing rendered numbers in the serialized JSON.
             syncWritingEditorDerivedLabels(editorView.dom, nextState.doc);
             onDocumentChangeRef.current(nextState.doc.toJSON() as WritingEditorDocument);
+            emitStatusChange(nextState);
             setSurfaceVersion((value) => value + 1);
           },
         },
@@ -197,6 +233,7 @@ export const ProseMirrorEditor = forwardRef<WritingEditorSurfaceHandle, WritingE
 
       viewRef.current = editorView;
       syncWritingEditorDerivedLabels(editorView.dom, editorView.state.doc);
+      emitStatusChange(editorView.state);
       setSurfaceVersion((value) => value + 1);
 
       return () => {
@@ -220,6 +257,7 @@ export const ProseMirrorEditor = forwardRef<WritingEditorSurfaceHandle, WritingE
       // instead of replaying local transactions back into the view.
       editorView.updateState(createWritingEditorState(normalizedDocument, placeholder));
       syncWritingEditorDerivedLabels(editorView.dom, editorView.state.doc);
+      emitStatusChange(editorView.state);
       setSurfaceVersion((value) => value + 1);
     }, [normalizedDocument, normalizedDocumentKey, placeholder]);
 

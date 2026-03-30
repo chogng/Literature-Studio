@@ -1,110 +1,104 @@
-import { useCallback, useEffect, useSyncExternalStore, type RefCallback } from 'react';
 import {
   getWorkbenchPartDomSnapshot,
-  registerWorkbenchPartDomNode,
   subscribeWorkbenchPartDom,
   WORKBENCH_PART_IDS,
 } from '../../layout';
+import type { Disposable } from '../../workbench.contribution';
 
-type UseWorkbenchPreviewViewParams = {
-  browserUrl: string;
-  previewRuntime: boolean;
-};
+function syncPreviewSurfaceBounds(previewHostElement: HTMLElement | null) {
+  const preview = window.electronAPI?.preview;
+  if (!preview) {
+    return;
+  }
 
-export function useWorkbenchPreviewView({
-  browserUrl,
-  previewRuntime,
-}: UseWorkbenchPreviewViewParams) {
-  const workbenchPartDomSnapshot = useSyncExternalStore(
-    subscribeWorkbenchPartDom,
-    getWorkbenchPartDomSnapshot,
-    getWorkbenchPartDomSnapshot,
-  );
-  const previewHostElement = workbenchPartDomSnapshot[WORKBENCH_PART_IDS.previewHost];
-  const hasPreviewSurface = Boolean(browserUrl);
+  if (!previewHostElement) {
+    preview.setVisible(false);
+    preview.setBounds(null);
+    return;
+  }
 
-  const handlePreviewHostRef = useCallback<RefCallback<HTMLDivElement>>((element) => {
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.previewHost, element);
-  }, []);
+  const rect = previewHostElement.getBoundingClientRect();
+  const width = Math.round(rect.width);
+  const height = Math.round(rect.height);
 
-  useEffect(() => {
-    if (!previewRuntime || !window.electronAPI?.preview) {
-      return;
+  if (width <= 0 || height <= 0) {
+    preview.setVisible(false);
+    preview.setBounds(null);
+    return;
+  }
+
+  preview.setVisible(true);
+  preview.setBounds({
+    x: Math.round(rect.x),
+    y: Math.round(rect.y),
+    width,
+    height,
+  });
+}
+
+export function createWorkbenchPreviewSurfaceContribution(): Disposable | void {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.electronAPI?.preview?.setBounds !== 'function' ||
+    typeof window.electronAPI?.preview?.setVisible !== 'function'
+  ) {
+    return;
+  }
+
+  let previewHostElement =
+    getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.previewHost];
+  let resizeObserver: ResizeObserver | null = null;
+  let frameId: number | null = null;
+
+  const resetObserver = () => {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
     }
-
-    const preview = window.electronAPI.preview;
-    // Keep the native preview bounds driven by the registered workbench part DOM instead of local view state.
-    const syncBounds = () => {
-      if (!previewHostElement) {
-        preview.setBounds(null);
-        return;
-      }
-
-      const rect = previewHostElement.getBoundingClientRect();
-      const width = Math.round(rect.width);
-      const height = Math.round(rect.height);
-
-      if (width <= 0 || height <= 0) {
-        preview.setBounds(null);
-        return;
-      }
-
-      preview.setBounds({
-        x: Math.round(rect.x),
-        y: Math.round(rect.y),
-        width,
-        height,
-      });
-    };
 
     if (!previewHostElement) {
-      preview.setBounds(null);
       return;
     }
 
-    const observer = new ResizeObserver(syncBounds);
-    observer.observe(previewHostElement);
+    resizeObserver = new ResizeObserver(() =>
+      syncPreviewSurfaceBounds(previewHostElement)
+    );
+    resizeObserver.observe(previewHostElement);
+  };
 
-    const frameId = window.requestAnimationFrame(syncBounds);
-    window.addEventListener('resize', syncBounds);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', syncBounds);
-      window.cancelAnimationFrame(frameId);
-      preview.setBounds(null);
-    };
-  }, [hasPreviewSurface, previewHostElement, previewRuntime]);
-
-  useEffect(() => {
-    if (!previewRuntime || !window.electronAPI?.preview) {
-      return;
+  const syncFromPartDom = () => {
+    const nextPreviewHostElement =
+      getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.previewHost];
+    if (nextPreviewHostElement !== previewHostElement) {
+      previewHostElement = nextPreviewHostElement;
+      resetObserver();
     }
 
-    const preview = window.electronAPI.preview;
-    if (!browserUrl) {
-      preview.setVisible(false);
-      preview.setBounds(null);
-      return;
-    }
+    syncPreviewSurfaceBounds(previewHostElement);
+  };
 
-    preview.setVisible(true);
-  }, [browserUrl, previewRuntime]);
+  const handleWindowResize = () => syncPreviewSurfaceBounds(previewHostElement);
+  const unsubscribeWorkbenchPartDom = subscribeWorkbenchPartDom(syncFromPartDom);
+  window.addEventListener('resize', handleWindowResize);
 
-  useEffect(() => {
-    if (!previewRuntime || !window.electronAPI?.preview) {
-      return;
-    }
-
-    const preview = window.electronAPI.preview;
-    return () => {
-      preview.setVisible(false);
-      preview.setBounds(null);
-    };
-  }, [previewRuntime]);
+  resetObserver();
+  frameId = window.requestAnimationFrame(() =>
+    syncPreviewSurfaceBounds(previewHostElement)
+  );
 
   return {
-    hasPreviewSurface,
-    handlePreviewHostRef,
+    dispose: () => {
+      unsubscribeWorkbenchPartDom();
+      window.removeEventListener('resize', handleWindowResize);
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+
+      syncPreviewSurfaceBounds(null);
+    },
   };
 }

@@ -1,6 +1,7 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import { Suspense, lazy } from 'react';
 import type { WritingEditorDocument, WritingWorkspaceDraftTab } from '../../../writingEditorModel';
+import type { DraftEditorRuntimeState } from '../editorStatus';
 import type { EditorPartLabels } from '../editorPartView';
 
 const ProseMirrorEditor = lazy(() => import('../prosemirror/prosemirrorEditor'));
@@ -9,12 +10,14 @@ export type DraftEditorPaneProps = {
   labels: EditorPartLabels;
   draftTab: WritingWorkspaceDraftTab;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  onStatusChange?: (status: DraftEditorRuntimeState) => void;
 };
 
 export default function DraftEditorPane({
   labels,
   draftTab,
   onDraftDocumentChange,
+  onStatusChange,
 }: DraftEditorPaneProps) {
   return jsxs('div', {
     className: 'editor-draft-pane',
@@ -30,6 +33,9 @@ export default function DraftEditorPane({
         children: jsx(ProseMirrorEditor, {
           document: draftTab.document,
           placeholder: labels.draftBodyPlaceholder,
+          statusLabels: {
+            blockFigure: labels.status.blockFigure,
+          },
           labels: {
             paragraph: labels.paragraph,
             heading1: labels.heading1,
@@ -51,6 +57,7 @@ export default function DraftEditorPane({
             figureRefPrompt: labels.figureRefPrompt,
           },
           onDocumentChange: onDraftDocumentChange,
+          onStatusChange,
         }),
       }),
     ],

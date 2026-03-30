@@ -3,8 +3,9 @@ import type {
   WritingEditorDocument,
   WritingWorkspaceTab,
 } from '../../writingEditorModel';
-import { WORKBENCH_PART_IDS, useWorkbenchPartRef } from '../../layout';
+import { WORKBENCH_PART_IDS, createWorkbenchPartRef } from '../../layout';
 import type { ViewPartProps } from '../views/viewPartView';
+import type { EditorStatusLabels } from './editorStatus';
 import type { WritingEditorSurfaceLabels } from './prosemirror/prosemirrorEditor';
 import { EditorGroupView } from './editorGroupView';
 import './media/editor.css';
@@ -17,6 +18,7 @@ export type EditorPartLabels = {
   draftBodyPlaceholder: string;
   sourceTitle: string;
   pdfTitle: string;
+  status: EditorStatusLabels;
 } & WritingEditorSurfaceLabels;
 
 export type EditorPartProps = {
@@ -33,7 +35,7 @@ export type EditorPartProps = {
 };
 
 export default function EditorPartView(props: EditorPartProps) {
-  const editorPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.editor);
+  const editorPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.editor);
 
   return jsx('section', {
     ref: editorPartRef,

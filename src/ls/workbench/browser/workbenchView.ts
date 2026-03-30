@@ -28,7 +28,10 @@ import {
 import MenuOverlayWindow from "./menuOverlayWindow";
 import ArticleDetailsModalWindow from "./articleDetailsModalWindow";
 import { useAssistantModel } from "./assistantModel";
-import { useLibraryModel } from "./libraryModel";
+import {
+  createLibraryModel,
+  type LibraryModelSnapshot,
+} from "./libraryModel";
 import ToastOverlayWindow from "./toastOverlayWindow";
 import { useBatchFetchModel } from "./batchFetchModel";
 import { useDocumentActionsModel } from "./documentActionsModel";
@@ -38,6 +41,7 @@ import {
   type QuickAccessCommand,
 } from "../services/quickAccess/quickAccessService";
 import {
+  createWorkbenchPartRef,
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchShellClassName,
   WORKBENCH_PART_IDS,
@@ -47,7 +51,6 @@ import {
   subscribeWorkbenchLayoutState,
   toggleSidebarVisibility,
   toggleAuxiliarySidebarVisibility,
-  useWorkbenchPartRef,
 } from "./layout";
 import { useEditorPartModel } from "./parts/editor/editorPart";
 import {
@@ -64,7 +67,13 @@ import {
   shouldNavigateSharedPreviewFromTab,
   shouldSyncPreviewTabFromSharedPreview,
 } from "./previewSurfaceState";
-import { useReaderState } from "./readerState";
+import {
+  getReaderStateSnapshot,
+  selectReaderDerivedState,
+  setBatchEndDate,
+  setBatchStartDate,
+  subscribeReaderState,
+} from "./readerState";
 import ReaderView from "./readerView";
 import { useSettingsModel } from "./parts/settings/settingsModel";
 import {
@@ -87,7 +96,7 @@ type ActivePageViewConfig = {
   isAuxiliarySidebarVisible: boolean;
   secondarySidebarProps: ReturnType<typeof createSecondarySidebarPartProps>;
   primarySidebarProps: {
-    librarySnapshot: ReturnType<typeof useLibraryModel>["librarySnapshot"];
+    librarySnapshot: LibraryModelSnapshot["librarySnapshot"];
     isLibraryLoading: boolean;
     onRefreshLibrary: () => void;
     onDownloadPdf: () => void;
@@ -95,7 +104,7 @@ type ActivePageViewConfig = {
   };
   auxiliarySidebarProps: {
     isKnowledgeBaseModeEnabled: boolean;
-    librarySnapshot: ReturnType<typeof useLibraryModel>["librarySnapshot"];
+    librarySnapshot: LibraryModelSnapshot["librarySnapshot"];
     question: string;
     onQuestionChange: (value: string) => void;
     messages: ReturnType<typeof useAssistantModel>["messages"];
@@ -128,15 +137,15 @@ type ActivePageViewConfig = {
     >["handleToggleMoreMenu"];
   };
   editorPartProps: ReturnType<typeof useEditorPartModel>["editorPartProps"];
-  settingsPartRef: ReturnType<typeof useWorkbenchPartRef>;
+  settingsPartRef: ReturnType<typeof createWorkbenchPartRef>;
   settingsPartProps: ReturnType<typeof createSettingsPartProps>;
 };
 
 type WorkbenchShellConfig = {
-  workbenchContainerRef: ReturnType<typeof useWorkbenchPartRef>;
+  workbenchContainerRef: ReturnType<typeof createWorkbenchPartRef>;
   electronRuntime: boolean;
   useMica: boolean;
-  titlebarPartRef: ReturnType<typeof useWorkbenchPartRef>;
+  titlebarPartRef: ReturnType<typeof createWorkbenchPartRef>;
   titlebarProps: ReturnType<typeof createTitlebarPartProps>;
   activePage: ActivePage;
   activePageView: ReactNode;
@@ -278,11 +287,11 @@ function WorkbenchContentView() {
   const { isSidebarVisible, activeSidebarKind, isAuxiliarySidebarVisible } =
     workbenchLayoutState;
 
-  const workbenchContainerRef = useWorkbenchPartRef(
+  const workbenchContainerRef = createWorkbenchPartRef(
     WORKBENCH_PART_IDS.container
   );
-  const titlebarPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
-  const settingsPartRef = useWorkbenchPartRef(WORKBENCH_PART_IDS.settings);
+  const titlebarPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.titlebar);
+  const settingsPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.settings);
   const { electronRuntime, previewRuntime, desktopRuntime } =
     resolveRuntimeState();
   const hasWindowControlsProvider = hasWorkbenchWindowControlsProvider();
@@ -299,6 +308,14 @@ function WorkbenchContentView() {
 
       throw new Error("Desktop invoke bridge is unavailable.");
     },
+    []
+  );
+  const libraryModel = useMemo(
+    () =>
+      createLibraryModel({
+        desktopRuntime,
+        invokeDesktop,
+      }),
     []
   );
 
@@ -368,16 +385,30 @@ function WorkbenchContentView() {
     desktopRuntime,
     invokeDesktop,
     ui,
-    locale,
-    setLocale,
-    initialBatchSources: INITIAL_BATCH_SOURCES,
+      locale,
+      setLocale,
+      initialBatchSources: INITIAL_BATCH_SOURCES,
   });
-  const { librarySnapshot, isLibraryLoading, refreshLibrary } = useLibraryModel(
-    {
+  useEffect(() => {
+    libraryModel.setContext({
       desktopRuntime,
       invokeDesktop,
-    }
+    });
+  }, [desktopRuntime, invokeDesktop, libraryModel]);
+  const { librarySnapshot, isLibraryLoading } = useSyncExternalStore(
+    libraryModel.subscribe,
+    libraryModel.getSnapshot,
+    libraryModel.getSnapshot
   );
+  useEffect(() => {
+    libraryModel.start();
+    return () => {
+      libraryModel.dispose();
+    };
+  }, [libraryModel]);
+  const refreshLibrary = useCallback(() => {
+    void libraryModel.refresh();
+  }, [libraryModel]);
   const knowledgeBaseModeEnabled = ragEnabled;
 
   useEffect(() => {
@@ -386,14 +417,24 @@ function WorkbenchContentView() {
     setAuxiliarySidebarVisible(knowledgeBaseModeEnabled);
   }, [knowledgeBaseModeEnabled]);
 
+  const readerStateSnapshot = useSyncExternalStore(
+    subscribeReaderState,
+    getReaderStateSnapshot,
+    getReaderStateSnapshot
+  );
   const {
     batchStartDate,
-    setBatchStartDate,
     batchEndDate,
-    setBatchEndDate,
     filteredArticles,
     hasData,
-  } = useReaderState({ articles });
+  } = useMemo(
+    () => ({
+      batchStartDate: readerStateSnapshot.batchStartDate,
+      batchEndDate: readerStateSnapshot.batchEndDate,
+      ...selectReaderDerivedState(readerStateSnapshot, articles),
+    }),
+    [articles, readerStateSnapshot]
+  );
   const currentLlmSettings = useMemo(
     () => ({
       activeProvider: activeLlmProvider,

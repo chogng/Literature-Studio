@@ -426,7 +426,7 @@ export default function AuxiliarySidebar({
                         )
                   ),
           }),
-          jsx("div", {
+          jsxs("div", {
             className: "sidebar-chat-composer",
             children: [
               jsx("textarea", {

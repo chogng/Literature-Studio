@@ -1,4 +1,3 @@
-import { useCallback, type CSSProperties, type RefCallback } from 'react';
 import type { WorkbenchPage } from './workbench';
 
 export type WorkbenchSidebarKind = 'secondary' | 'primary';
@@ -54,6 +53,7 @@ export const WORKBENCH_PART_IDS = {
 
 export type WorkbenchPartId =
   (typeof WORKBENCH_PART_IDS)[keyof typeof WORKBENCH_PART_IDS];
+export type WorkbenchPartRefCallback = (element: HTMLElement | null) => void;
 
 const DEFAULT_WORKBENCH_LAYOUT_STATE: WorkbenchLayoutStateSnapshot = {
   isSidebarVisible: true,
@@ -78,6 +78,10 @@ const workbenchLayoutListeners = new Set<() => void>();
 
 let workbenchPartDomSnapshot = DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT;
 const workbenchPartDomListeners = new Set<() => void>();
+const workbenchPartRefCallbacks = new Map<
+  WorkbenchPartId,
+  WorkbenchPartRefCallback
+>();
 
 function emitListeners(listeners: Set<() => void>) {
   for (const listener of listeners) {
@@ -213,10 +217,19 @@ export function registerWorkbenchPartDomNode(
   emitListeners(workbenchPartDomListeners);
 }
 
-export function useWorkbenchPartRef(partId: WorkbenchPartId) {
-  return useCallback<RefCallback<HTMLElement>>((element) => {
+export function createWorkbenchPartRef(
+  partId: WorkbenchPartId,
+): WorkbenchPartRefCallback {
+  const cachedCallback = workbenchPartRefCallbacks.get(partId);
+  if (cachedCallback) {
+    return cachedCallback;
+  }
+
+  const nextCallback: WorkbenchPartRefCallback = (element) => {
     registerWorkbenchPartDomNode(partId, element);
-  }, [partId]);
+  };
+  workbenchPartRefCallbacks.set(partId, nextCallback);
+  return nextCallback;
 }
 
 export function getWorkbenchShellClassName({
@@ -243,7 +256,7 @@ export function getWorkbenchContentClassName({
 export function getWorkbenchContentStyle({
   isSidebarVisible,
   isAuxiliarySidebarVisible,
-}: WorkbenchContentLayoutParams): CSSProperties {
+}: WorkbenchContentLayoutParams) {
   const desktopColumns =
     isSidebarVisible && isAuxiliarySidebarVisible
       ? 'minmax(288px, 332px) minmax(0, 1fr) minmax(332px, 380px)'
@@ -263,7 +276,7 @@ export function getWorkbenchContentStyle({
           : 'minmax(0, 1fr)';
 
   return {
-    ['--workbench-content-columns' as string]: desktopColumns,
-    ['--workbench-content-mobile-rows' as string]: mobileRows,
+    '--workbench-content-columns': desktopColumns,
+    '--workbench-content-mobile-rows': mobileRows,
   };
 }

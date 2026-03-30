@@ -360,9 +360,9 @@ export default function PrimarySidebar({
     children: jsxs("div", {
       className: "sidebar-primary-content",
       children: [
-        jsxs("div", {
+        jsx("div", {
           className: "sidebar-workbench-header",
-          children: jsx("div", {
+          children: jsxs("div", {
             className: "sidebar-chat-action-bar",
             children: [
               jsx(Button, {

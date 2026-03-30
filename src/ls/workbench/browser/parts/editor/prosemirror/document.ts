@@ -22,7 +22,7 @@ export type WritingEditorNode = {
 
 export type WritingEditorDocument = WritingEditorNode;
 
-type WritingEditorDerivedLabels = {
+export type WritingEditorDerivedLabels = {
   citationOrder: Map<string, number>;
   figureOrder: Map<string, number>;
 };
@@ -75,7 +75,7 @@ export function normalizeWritingEditorDocument(value: unknown): WritingEditorDoc
   }
 }
 
-function collectWritingEditorDerivedLabels(node: ProseMirrorNode): WritingEditorDerivedLabels {
+export function collectWritingEditorDerivedLabels(node: ProseMirrorNode): WritingEditorDerivedLabels {
   const citationOrder = new Map<string, number>();
   const figureOrder = new Map<string, number>();
   let nextCitationNumber = 1;
@@ -135,7 +135,7 @@ function formatFigureRefLeafText(
   return `${attrs.label} ${derivedLabels.figureOrder.get(normalizedTargetId) ?? '?'}`;
 }
 
-function getLeafText(
+export function getWritingEditorLeafText(
   node: ProseMirrorNode,
   derivedLabels: WritingEditorDerivedLabels,
 ) {
@@ -149,16 +149,29 @@ function getLeafText(
     return formatFigureRefLeafText(attrs, derivedLabels);
   }
 
+  if (node.type.name === 'hard_break') {
+    return '\n';
+  }
+
   return '';
+}
+
+export function getWritingEditorNodeText(
+  node: ProseMirrorNode,
+  derivedLabels: WritingEditorDerivedLabels,
+  from = 0,
+  to = node.content.size,
+) {
+  return node.textBetween(from, to, '\n\n', (child) =>
+    getWritingEditorLeafText(child, derivedLabels),
+  );
 }
 
 export function writingEditorDocumentToPlainText(document: WritingEditorDocument) {
   const node = writingEditorSchema.nodeFromJSON(normalizeWritingEditorDocument(document));
   const derivedLabels = collectWritingEditorDerivedLabels(node);
 
-  return node
-    .textBetween(0, node.content.size, '\n\n', (child) => getLeafText(child, derivedLabels))
-    .trim();
+  return getWritingEditorNodeText(node, derivedLabels).trim();
 }
 
 export function collectWritingEditorStats(document: WritingEditorDocument) {

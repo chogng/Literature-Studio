@@ -10,7 +10,7 @@ import {
   subscribeWorkbenchState,
 } from './workbench';
 
-type Disposable = {
+export type Disposable = {
   dispose: () => void;
 };
 

@@ -9,6 +9,7 @@ import type {
 } from '../../../writingEditorModel';
 import type { ViewPartProps } from '../../views/viewPartView';
 import type { EditorPartLabels } from '../editorPartView';
+import type { DraftEditorRuntimeState } from '../editorStatus';
 import DraftEditorPane from './draftEditorPane';
 import PreviewEditorPane from './previewEditorPane';
 
@@ -16,6 +17,7 @@ export type EditorPaneResolverContext = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  onDraftStatusChange: (tabId: string, status: DraftEditorRuntimeState) => void;
 };
 
 export type EditorPaneInput =
@@ -98,6 +100,11 @@ const draftEditorPaneDescriptor: EditorPaneDescriptor<
       labels: context.labels,
       draftTab: (input as Extract<EditorPaneInput, { paneId: 'draft' }>).tab,
       onDraftDocumentChange: context.onDraftDocumentChange,
+      onStatusChange: (status: DraftEditorRuntimeState) =>
+        context.onDraftStatusChange(
+          (input as Extract<EditorPaneInput, { paneId: 'draft' }>).tab.id,
+          status,
+        ),
     }),
 };
 

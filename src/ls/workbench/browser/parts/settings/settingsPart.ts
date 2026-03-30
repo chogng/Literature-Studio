@@ -1812,7 +1812,7 @@ export function SettingsPartView({
     children: jsxs('section', {
       className: 'panel settings-card',
       children: [
-        jsxs('div', {
+        jsx('div', {
           className: 'panel-title settings-header',
           children: jsx('span', { children: labels.settingsTitle }),
         }),

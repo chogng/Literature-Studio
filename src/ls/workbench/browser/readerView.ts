@@ -1,11 +1,10 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { type CSSProperties } from "react";
 import {
+  createWorkbenchPartRef,
   getWorkbenchContentClassName,
   getWorkbenchContentStyle,
   WORKBENCH_PART_IDS,
   type WorkbenchSidebarKind,
-  useWorkbenchPartRef,
 } from "./layout";
 import EditorPartView, {
   type EditorPartProps,
@@ -60,9 +59,9 @@ function renderSidebarPart({
 }: {
   isSidebarVisible: boolean;
   activeSidebarKind: WorkbenchSidebarKind;
-  secondarySidebarPartRef: ReturnType<typeof useWorkbenchPartRef>;
+  secondarySidebarPartRef: ReturnType<typeof createWorkbenchPartRef>;
   secondarySidebarProps: SecondarySidebarProps;
-  primarySidebarPartRef: ReturnType<typeof useWorkbenchPartRef>;
+  primarySidebarPartRef: ReturnType<typeof createWorkbenchPartRef>;
   primarySidebarProps: ReaderViewProps["primarySidebarProps"];
 }) {
   if (!isSidebarVisible) {
@@ -91,13 +90,13 @@ export default function ReaderView({
   auxiliarySidebarProps,
   editorPartProps,
 }: ReaderViewProps) {
-  const secondarySidebarPartRef = useWorkbenchPartRef(
+  const secondarySidebarPartRef = createWorkbenchPartRef(
     WORKBENCH_PART_IDS.secondarySidebar
   );
-  const primarySidebarPartRef = useWorkbenchPartRef(
+  const primarySidebarPartRef = createWorkbenchPartRef(
     WORKBENCH_PART_IDS.primarySidebar
   );
-  const auxiliarySidebarPartRef = useWorkbenchPartRef(
+  const auxiliarySidebarPartRef = createWorkbenchPartRef(
     WORKBENCH_PART_IDS.auxiliarySidebar
   );
   const contentClassName = getWorkbenchContentClassName({
@@ -109,7 +108,7 @@ export default function ReaderView({
     isSidebarVisible,
     isAuxiliarySidebarVisible,
     activeSidebarKind,
-  }) as CSSProperties;
+  });
   const sidebarPartView = renderSidebarPart({
     isSidebarVisible,
     activeSidebarKind,
