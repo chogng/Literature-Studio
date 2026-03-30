@@ -1,8 +1,4 @@
-import { jsx } from 'react/jsx-runtime';
-import { Copy, Minus, Square, X } from 'lucide-react';
 import type { WindowControlAction } from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import { Button } from '../../../../base/browser/ui/button/button';
-import './media/titlebar.css';
 
 export type WindowControlsAction = Extract<
   WindowControlAction,
@@ -19,105 +15,113 @@ export type WindowControlsLabels = {
   closeLabel?: string;
 };
 
-type WindowControlsGroupProps = {
+export type WindowControlsGroupProps = {
   labels?: WindowControlsLabels;
   isWindowMaximized?: boolean;
-  controls?: ReadonlyArray<WindowControlsItem>;
   className?: string;
-  buttonClassName?: string;
-  closeButtonClassName?: string;
   onWindowControl: (action: WindowControlsAction) => void;
 };
 
-const DEFAULT_CONTROLS: ReadonlyArray<WindowControlsItem> = ['minimize', 'toggle-maximize', 'close'];
-const DEFAULT_CONTROL_LABELS: Required<Omit<WindowControlsLabels, 'controlsAriaLabel'>> = {
+const DEFAULT_CONTROL_LABELS: Required<
+  Omit<WindowControlsLabels, 'controlsAriaLabel'>
+> = {
   minimizeLabel: 'Minimize',
   maximizeLabel: 'Maximize',
   restoreLabel: 'Restore',
   closeLabel: 'Close',
 };
 
-function renderWindowControlButton({
-  key,
-  className,
-  label,
-  onClick,
-  icon,
-}: {
-  key: string;
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
+
+function createButton(params: {
   className: string;
   label: string;
+  text: string;
   onClick: () => void;
-  icon: ReturnType<typeof jsx>;
 }) {
-  return jsx(
-    Button,
-    {
-      className,
-      variant: 'ghost',
-      size: 'sm',
-      mode: 'icon',
-      iconMode: 'with',
-      textMode: 'without',
-      onClick,
-      'aria-label': label,
-      title: label,
-      children: icon,
-    },
-    key,
-  );
+  const button = createElement('button', params.className);
+  button.type = 'button';
+  button.setAttribute('aria-label', params.label);
+  button.title = params.label;
+  button.textContent = params.text;
+  button.addEventListener('click', params.onClick);
+  return button;
 }
 
-export function WindowControlsGroup({
-  labels,
-  isWindowMaximized = false,
-  controls = DEFAULT_CONTROLS,
-  className = 'titlebar-window-controls',
-  buttonClassName = 'titlebar-btn titlebar-btn-window',
-  closeButtonClassName = 'titlebar-btn titlebar-btn-window titlebar-btn-close',
-  onWindowControl,
-}: WindowControlsGroupProps) {
-  const resolvedLabels = {
-    ...DEFAULT_CONTROL_LABELS,
-    ...labels,
-  };
+export class WindowControlsView {
+  private props: WindowControlsGroupProps;
+  private readonly element = createElement('div');
 
-  return jsx('div', {
-    className,
-    role: 'group',
-    'aria-label': labels?.controlsAriaLabel ?? resolvedLabels.closeLabel,
-    children: controls.map((control) => {
-      if (control === 'minimize') {
-        return renderWindowControlButton({
-          key: `window-control-${control}`,
-          className: buttonClassName,
-          label: resolvedLabels.minimizeLabel,
-          onClick: () => onWindowControl('minimize'),
-          icon: jsx(Minus, { size: 16, strokeWidth: 1.8 }),
-        });
-      }
+  constructor(props: WindowControlsGroupProps) {
+    this.props = props;
+    this.render();
+  }
 
-      if (control === 'toggle-maximize') {
-        return renderWindowControlButton({
-          key: `window-control-${control}`,
-          className: buttonClassName,
-          label: isWindowMaximized ? resolvedLabels.restoreLabel : resolvedLabels.maximizeLabel,
-          onClick: () => onWindowControl('toggle-maximize'),
-          icon: isWindowMaximized
-            ? jsx(Copy, { size: 16, strokeWidth: 1.8 })
-            : jsx(Square, { size: 14, strokeWidth: 1.8 }),
-        });
-      }
+  getElement() {
+    return this.element;
+  }
 
-      return renderWindowControlButton({
-        key: `window-control-${control}`,
-        className: closeButtonClassName,
+  setProps(props: WindowControlsGroupProps) {
+    this.props = props;
+    this.render();
+  }
+
+  dispose() {
+    this.element.replaceChildren();
+  }
+
+  private render() {
+    const {
+      labels,
+      isWindowMaximized = false,
+      className = 'titlebar-window-controls',
+      onWindowControl,
+    } = this.props;
+    const resolvedLabels = {
+      ...DEFAULT_CONTROL_LABELS,
+      ...labels,
+    };
+
+    this.element.className = className;
+    this.element.setAttribute('role', 'group');
+    this.element.setAttribute(
+      'aria-label',
+      labels?.controlsAriaLabel ?? resolvedLabels.closeLabel,
+    );
+    this.element.replaceChildren(
+      createButton({
+        className: 'titlebar-btn titlebar-btn-window',
+        label: resolvedLabels.minimizeLabel,
+        text: '-',
+        onClick: () => onWindowControl('minimize'),
+      }),
+      createButton({
+        className: 'titlebar-btn titlebar-btn-window',
+        label: isWindowMaximized
+          ? resolvedLabels.restoreLabel
+          : resolvedLabels.maximizeLabel,
+        text: isWindowMaximized ? 'o' : '[]',
+        onClick: () => onWindowControl('toggle-maximize'),
+      }),
+      createButton({
+        className: 'titlebar-btn titlebar-btn-window titlebar-btn-close',
         label: resolvedLabels.closeLabel,
+        text: 'x',
         onClick: () => onWindowControl('close'),
-        icon: jsx(X, { size: 16, strokeWidth: 1.8 }),
-      });
-    }),
-  });
+      }),
+    );
+  }
 }
 
-export default WindowControlsGroup;
+export function createWindowControlsView(props: WindowControlsGroupProps) {
+  return new WindowControlsView(props);
+}

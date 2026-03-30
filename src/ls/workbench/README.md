@@ -8,8 +8,8 @@ The codebase is still small enough that feature-local registrations can stay clo
 - `workbench.*.main.ts`
   - Entry points.
   - Import shared bootstrapping, platform bootstrapping, and top-level styles.
-- `browser/workbench.ts`, `browser/layout.ts`, `browser/workbenchView.ts`
-  - Workbench core state, layout state, and shell composition.
+- `browser/workbench.ts`, `browser/layout.ts`
+  - Workbench core state, layout state, and imperative shell composition.
 - `browser/parts/**`
   - UI parts and local part state.
 - `services/**`

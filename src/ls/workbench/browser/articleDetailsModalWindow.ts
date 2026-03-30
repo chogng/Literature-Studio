@@ -1,15 +1,12 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import { useSyncExternalStore } from 'react';
 import type { NativeModalState } from '../../base/parts/sandbox/common/desktopTypes.js';
-import { Button } from '../../base/browser/ui/button/button';
 import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
-import ChildWindowShell from './parts/window/childWindowShell';
 import {
   connectWorkbenchWindowControls,
   getWindowStateSnapshot,
   performWorkbenchWindowControl,
   subscribeWindowState,
 } from './window';
+import { createChildWindowShellView } from './parts/window/childWindowShell';
 import './media/articleDetailsModalContent.css';
 
 type ArticleDetailsModalWindowState = Extract<
@@ -30,6 +27,32 @@ type ArticleDetailsModalSnapshot = {
 };
 
 const fallbackUi = getLocaleMessages(detectInitialLocale());
+
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+  textContent?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (textContent !== undefined) {
+    element.textContent = textContent;
+  }
+  return element;
+}
+
+function createButton(
+  label: string,
+  onClick: () => void,
+  className = 'settings-native-button settings-native-button-secondary',
+) {
+  const button = createElement('button', className, label);
+  button.type = 'button';
+  button.addEventListener('click', onClick);
+  return button;
+}
 
 function normalizeLabel(label: string) {
   const trimmed = label.trimEnd();
@@ -88,69 +111,6 @@ function createDetailRows(modalState: ArticleDetailsModalWindowState): DetailRow
   ];
 }
 
-function renderPlaceholderShell({
-  message,
-  actionLabel,
-  onAction,
-}: {
-  message: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return jsx('main', {
-    className: 'child-window-shell-page',
-    children: jsxs('section', {
-      className: 'child-window-shell-surface child-window-shell-surface-loading',
-      children: [
-        jsx('p', {
-          className: 'article-details-placeholder',
-          children: message,
-        }),
-        actionLabel && onAction
-          ? jsx(Button, {
-              type: 'button',
-              variant: 'secondary',
-              onClick: onAction,
-              children: actionLabel,
-            })
-          : null,
-      ],
-    }),
-  });
-}
-
-function renderDetailGrid(detailRows: DetailRow[]) {
-  return jsx('dl', {
-    className: 'article-details-grid',
-    children: detailRows.map((row) =>
-      jsxs(
-        'div',
-        {
-          className: `article-details-row ${row.wide ? 'article-details-row-wide' : ''}`.trim(),
-          children: [jsx('dt', { children: row.label }), jsx('dd', { children: row.value })],
-        },
-        `${row.label}-${row.value}`,
-      ),
-    ),
-  });
-}
-
-function renderTextSection({
-  sectionId,
-  title,
-  value,
-}: {
-  sectionId: string;
-  title: string;
-  value: string;
-}) {
-  return jsxs('section', {
-    className: 'article-details-section',
-    'aria-labelledby': sectionId,
-    children: [jsx('h2', { id: sectionId, children: title }), jsx('p', { children: value })],
-  });
-}
-
 class ArticleDetailsModalController {
   private readonly listeners = new Set<() => void>();
   private snapshot: ArticleDetailsModalSnapshot = {
@@ -173,7 +133,7 @@ class ArticleDetailsModalController {
         isWindowMaximized: getWindowStateSnapshot().isMaximized,
       });
     });
-    this.initializeModalState();
+    void this.initializeModalState();
   }
 
   subscribe = (listener: () => void) => {
@@ -230,7 +190,7 @@ class ArticleDetailsModalController {
       return;
     }
 
-    this.setSnapshot({ isLoading: false });
+    this.setSnapshot({ isLoading: false, modalState: null });
   }
 
   private async initializeModalState() {
@@ -277,44 +237,102 @@ function getArticleDetailsModalController() {
   return articleDetailsModalController;
 }
 
-export default function ArticleDetailsModalWindow() {
-  const controller = getArticleDetailsModalController();
-  const { isLoading, modalState, isWindowMaximized } = useSyncExternalStore(
-    controller.subscribe,
-    controller.getSnapshot,
-    controller.getSnapshot,
-  );
-  const detailRows = modalState ? createDetailRows(modalState) : [];
+export class ArticleDetailsModalWindowView {
+  private readonly controller = getArticleDetailsModalController();
+  private readonly element = createElement('main', 'child-window-shell-page');
+  private readonly shellView = createChildWindowShellView({
+    title: '',
+    titleId: 'article-details-title',
+    classNames: {
+      root: 'child-window-shell-surface',
+      header: 'child-window-shell-titlebar',
+      heading: 'child-window-shell-titlebar-heading',
+      title: 'child-window-shell-titlebar-title',
+      controls: 'child-window-shell-titlebar-controls',
+      content: 'child-window-shell-content-body',
+      footer: 'article-details-footer',
+    },
+    onWindowControl: performWorkbenchWindowControl,
+    content: [],
+  });
+  private readonly unsubscribe = this.controller.subscribe(() => this.render());
 
-  const handleClose = () => performWorkbenchWindowControl('close');
-
-  if (isLoading) {
-    return renderPlaceholderShell({ message: fallbackUi.articleDetailsLoading });
+  constructor() {
+    this.render();
   }
 
-  if (!modalState) {
-    return renderPlaceholderShell({
-      message: fallbackUi.articleDetailsUnavailable,
-      actionLabel: fallbackUi.titlebarClose,
-      onAction: handleClose,
-    });
+  getElement() {
+    return this.element;
   }
 
-  const { article, labels } = modalState;
-  const title = detailValue(article.title, labels.untitled);
-  const abstractValue = detailValue(article.abstractText, labels.unknown);
-  const descriptionValue = detailValue(article.descriptionText, labels.unknown);
-  const windowControlLabels = {
-    controlsAriaLabel: labels.controlsAriaLabel,
-    minimizeLabel: labels.minimize,
-    maximizeLabel: labels.maximize,
-    restoreLabel: labels.restore,
-    closeLabel: labels.close,
-  };
+  dispose() {
+    this.unsubscribe();
+    this.shellView.dispose();
+    this.element.replaceChildren();
+  }
 
-  return jsx('main', {
-    className: 'child-window-shell-page',
-    children: jsxs(ChildWindowShell, {
+  private renderPlaceholder(message: string, actionLabel?: string) {
+    const surface = createElement(
+      'section',
+      'child-window-shell-surface child-window-shell-surface-loading',
+    );
+    surface.append(createElement('p', 'article-details-placeholder', message));
+    if (actionLabel) {
+      surface.append(
+        createButton(actionLabel, () => performWorkbenchWindowControl('close')),
+      );
+    }
+    this.element.replaceChildren(surface);
+  }
+
+  private renderDetailGrid(detailRows: DetailRow[]) {
+    const grid = createElement('dl', 'article-details-grid');
+    for (const row of detailRows) {
+      const wrapper = createElement(
+        'div',
+        `article-details-row${row.wide ? ' article-details-row-wide' : ''}`,
+      );
+      wrapper.append(createElement('dt', '', row.label), createElement('dd', '', row.value));
+      grid.append(wrapper);
+    }
+    return grid;
+  }
+
+  private renderTextSection(sectionId: string, title: string, value: string) {
+    const section = createElement('section', 'article-details-section');
+    section.setAttribute('aria-labelledby', sectionId);
+    section.append(
+      createElement('h2', '', title),
+      createElement('p', '', value),
+    );
+    (section.firstElementChild as HTMLElement).id = sectionId;
+    return section;
+  }
+
+  private render() {
+    const { isLoading, modalState, isWindowMaximized } =
+      this.controller.getSnapshot();
+
+    if (isLoading) {
+      this.renderPlaceholder(fallbackUi.articleDetailsLoading);
+      return;
+    }
+
+    if (!modalState) {
+      this.renderPlaceholder(
+        fallbackUi.articleDetailsUnavailable,
+        fallbackUi.titlebarClose,
+      );
+      return;
+    }
+
+    const { article, labels } = modalState;
+    const title = detailValue(article.title, labels.untitled);
+    const abstractValue = detailValue(article.abstractText, labels.unknown);
+    const descriptionValue = detailValue(article.descriptionText, labels.unknown);
+    const detailRows = createDetailRows(modalState);
+
+    this.shellView.setProps({
       title,
       titleId: 'article-details-title',
       classNames: {
@@ -326,28 +344,35 @@ export default function ArticleDetailsModalWindow() {
         content: 'child-window-shell-content-body',
         footer: 'article-details-footer',
       },
-      controlLabels: windowControlLabels,
+      controlLabels: {
+        controlsAriaLabel: labels.controlsAriaLabel,
+        minimizeLabel: labels.minimize,
+        maximizeLabel: labels.maximize,
+        restoreLabel: labels.restore,
+        closeLabel: labels.close,
+      },
       isWindowMaximized,
       onWindowControl: performWorkbenchWindowControl,
-      footer: jsx(Button, {
-        type: 'button',
-        variant: 'secondary',
-        onClick: handleClose,
-        children: labels.close,
-      }),
-      children: [
-        renderDetailGrid(detailRows),
-        renderTextSection({
-          sectionId: 'article-details-abstract-title',
-          title: normalizeLabel(labels.abstract),
-          value: abstractValue,
-        }),
-        renderTextSection({
-          sectionId: 'article-details-description-title',
-          title: normalizeLabel(labels.description),
-          value: descriptionValue,
-        }),
+      footer: createButton(labels.close, () => performWorkbenchWindowControl('close')),
+      content: [
+        this.renderDetailGrid(detailRows),
+        this.renderTextSection(
+          'article-details-abstract-title',
+          normalizeLabel(labels.abstract),
+          abstractValue,
+        ),
+        this.renderTextSection(
+          'article-details-description-title',
+          normalizeLabel(labels.description),
+          descriptionValue,
+        ),
       ],
-    }),
-  });
+    });
+
+    this.element.replaceChildren(this.shellView.getElement());
+  }
+}
+
+export function createArticleDetailsModalWindowView() {
+  return new ArticleDetailsModalWindowView();
 }

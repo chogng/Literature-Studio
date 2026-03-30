@@ -37,13 +37,9 @@
     "prosemirror-schema-list": "^1.5.1",
     "prosemirror-state": "^1.4.4",
     "prosemirror-transform": "^1.11.0",
-    "prosemirror-view": "^1.41.7",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "prosemirror-view": "^1.41.7"
   },
   "devDependencies": {
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "electron": "^37.5.1",

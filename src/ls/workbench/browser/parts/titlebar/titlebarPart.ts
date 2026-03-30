@@ -37,7 +37,7 @@ export type CreateTitlebarPartPropsParams = {
   actions: TitlebarPartActions;
 };
 
-// Keep this mapper in the workbench part layer so the React view stays dumb.
+// Keep this mapper in the workbench part layer so the titlebar view stays dumb.
 export function createTitlebarPartProps({
   state: {
     activePage,

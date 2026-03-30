@@ -1,6 +1,8 @@
 import {
+  connectWorkbenchWindowControls,
   registerWorkbenchWindowControlsProvider,
 } from 'ls/workbench/browser/window';
+import { registerWorkbenchContribution } from '../workbench/workbench.contribution';
 
 registerWorkbenchWindowControlsProvider({
   getState: async () => {
@@ -22,4 +24,14 @@ registerWorkbenchWindowControlsProvider({
   perform: (action) => {
     window.electronAPI?.windowControls?.perform(action);
   },
+});
+
+registerWorkbenchContribution(() => {
+  const electronRuntime =
+    typeof window !== 'undefined' &&
+    typeof window.electronAPI?.invoke === 'function';
+
+  return {
+    dispose: connectWorkbenchWindowControls(electronRuntime),
+  };
 });

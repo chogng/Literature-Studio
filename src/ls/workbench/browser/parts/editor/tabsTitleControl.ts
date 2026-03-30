@@ -1,70 +1,68 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import type { MouseEvent as ReactMouseEvent } from 'react';
-import { FilePenLine, FileText, Globe, X } from 'lucide-react';
 import { TitleControl } from './titleControl';
 
-function renderTabIcon(kind: 'draft' | 'web' | 'pdf') {
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
+
+function getTabKindLabel(kind: 'draft' | 'web' | 'pdf') {
   if (kind === 'draft') {
-    return jsx(FilePenLine, { size: 14, strokeWidth: 1.8 });
+    return 'D';
   }
 
   if (kind === 'pdf') {
-    return jsx(FileText, { size: 14, strokeWidth: 1.8 });
+    return 'P';
   }
 
-  return jsx(Globe, { size: 14, strokeWidth: 1.8 });
+  return 'W';
 }
 
 export class TabsTitleControl extends TitleControl {
   override render() {
     const { group, labels, onActivateTab, onCloseTab } = this.props;
+    const container = createElement('div', 'editor-tabs-container');
+    container.setAttribute('role', 'tablist');
 
-    // This class owns tab-strip rendering and interaction only. Tab state and
-    // label derivation stay outside in the group/editor models.
-    return jsx('div', {
-      className: 'editor-tabs-container',
-      role: 'tablist',
-      children: group.tabs.map((tab) =>
-        jsxs(
-          'div',
-          {
-            className: ['editor-tab', tab.isActive ? 'is-active' : '']
-              .filter(Boolean)
-              .join(' '),
-            children: [
-              jsx('button', {
-                type: 'button',
-                role: 'tab',
-                className: 'editor-tab-main',
-                'aria-selected': tab.isActive,
-                title: tab.title,
-                onClick: () => onActivateTab(tab.id),
-                children: jsxs('span', {
-                  className: 'editor-tab-label',
-                  children: [
-                    renderTabIcon(tab.kind),
-                    jsx('span', {
-                      className: 'editor-tab-label-text',
-                      children: tab.label,
-                    }),
-                  ],
-                }),
-              }),
-              jsx('button', {
-                type: 'button',
-                className: 'editor-tab-close',
-                title: labels.close,
-                onClick: (event: ReactMouseEvent<HTMLButtonElement>) => {
-                  event.stopPropagation();
-                  onCloseTab(tab.id);
-                },
-                children: jsx(X, { size: 16, strokeWidth: 1.8 }),
-              }),
-            ],
-          },
-          tab.id,
-        ),
-      ),
-    });
+    for (const tab of group.tabs) {
+      const tabElement = createElement(
+        'div',
+        ['editor-tab', tab.isActive ? 'is-active' : ''].filter(Boolean).join(' '),
+      );
+      const mainButton = createElement('button', 'editor-tab-main');
+      mainButton.type = 'button';
+      mainButton.setAttribute('role', 'tab');
+      mainButton.setAttribute('aria-selected', String(tab.isActive));
+      mainButton.title = tab.title;
+      mainButton.addEventListener('click', () => onActivateTab(tab.id));
+
+      const label = createElement('span', 'editor-tab-label');
+      const kind = createElement('span', 'editor-tab-kind');
+      kind.textContent = getTabKindLabel(tab.kind);
+      const text = createElement('span', 'editor-tab-label-text');
+      text.textContent = tab.label;
+      label.append(kind, text);
+      mainButton.append(label);
+
+      const closeButton = createElement('button', 'editor-tab-close');
+      closeButton.type = 'button';
+      closeButton.title = labels.close;
+      closeButton.setAttribute('aria-label', labels.close);
+      closeButton.textContent = 'x';
+      closeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        onCloseTab(tab.id);
+      });
+
+      tabElement.append(mainButton, closeButton);
+      container.append(tabElement);
+    }
+
+    return container;
   }
 }

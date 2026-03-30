@@ -1,23 +1,17 @@
-import { jsx, jsxs } from "react/jsx-runtime";
-import { CalendarRange, CheckSquare, Download } from "lucide-react";
 import type {
   ArticleDetailsModalLabels,
-  LibraryDocumentsResult,
-} from "../../../../base/parts/sandbox/common/desktopTypes.js";
-import type { Ref } from "react";
-import { Button } from "../../../../base/browser/ui/button/button";
-import type { Locale } from "../../../../../language/i18n";
-import type { LocaleMessages } from "../../../../../language/locales";
-import { DateRangePicker } from "../../../../base/browser/ui/dateRangePicker/dateRangePicker";
+} from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { Locale } from '../../../../../language/i18n';
+import type { LocaleMessages } from '../../../../../language/locales';
 import {
   requestFocusTitlebarWebUrlInput,
   requestOpenAddressBarSourceMenu,
-} from "../titlebar/titlebarActions";
-import type { AssistantChatMessage } from "../../assistantModel";
-import ArticleCard from "./articleCard";
-import AuxiliarySidebar from "./auxiliarySidebar";
-import PrimarySidebar from "./primarySidebar";
-import "./media/secondarySidebar.css";
+} from '../titlebar/titlebarActions';
+import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
+import { ArticleCard } from './articleCard';
+import { AuxiliarySidebar, type AuxiliarySidebarProps } from './auxiliarySidebar';
+import { PrimarySidebar, type PrimarySidebarProps } from './primarySidebar';
+import './media/secondarySidebar.css';
 
 export type SidebarArticle = {
   title: string;
@@ -103,7 +97,7 @@ export type SidebarLabels = {
   assistantRerankOff: string;
 };
 
-export type SidebarSelectionModePhase = "off" | "multi" | "all";
+export type SidebarSelectionModePhase = 'off' | 'multi' | 'all';
 export type SecondarySidebarProps = {
   articles: SidebarArticle[];
   hasData: boolean;
@@ -144,10 +138,10 @@ export type SidebarPartActions = {
   onBatchStartDateChange: (value: string) => void;
   onBatchEndDateChange: (value: string) => void;
   onFetchLatestBatch: () => void;
-  onDownloadPdf: SecondarySidebarProps["onDownloadPdf"];
-  onOpenArticleDetails: SecondarySidebarProps["onOpenArticleDetails"];
-  onToggleSelectionMode: SecondarySidebarProps["onToggleSelectionMode"];
-  onToggleArticleSelected: SecondarySidebarProps["onToggleArticleSelected"];
+  onDownloadPdf: SecondarySidebarProps['onDownloadPdf'];
+  onOpenArticleDetails: SecondarySidebarProps['onOpenArticleDetails'];
+  onToggleSelectionMode: SecondarySidebarProps['onToggleSelectionMode'];
+  onToggleArticleSelected: SecondarySidebarProps['onToggleArticleSelected'];
 };
 
 type CreateSidebarPartLabelsParams = {
@@ -158,7 +152,17 @@ type CreateSecondarySidebarPartPropsParams = {
   actions: SidebarPartActions;
 };
 
-// Keep sidebar label mapping centralized in the workbench part layer.
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
+
 export function createSidebarPartLabels({
   ui,
 }: CreateSidebarPartLabelsParams): SidebarLabels {
@@ -277,14 +281,9 @@ export function createSecondarySidebarPartProps({
   };
 }
 
-export type SecondarySidebarPartViewProps = SecondarySidebarProps & {
-  partRef?: Ref<HTMLElement>;
-};
-
 function createArticleCardLabels(
-  labels: SecondarySidebarProps["labels"]
+  labels: SecondarySidebarProps['labels'],
 ): ArticleDetailsModalLabels {
-  // Keep modal labels aligned with card labels so both views stay localized consistently.
   return {
     untitled: labels.untitled,
     unknown: labels.unknown,
@@ -303,321 +302,263 @@ function createArticleCardLabels(
   };
 }
 
-function renderSidebarContent({
-  articles,
-  hasData,
-  locale,
-  labels,
-  onDownloadPdf,
-  onOpenArticleDetails,
-  isSelectionModeEnabled,
-  selectedArticleKeys,
-  onToggleArticleSelected,
-}: Pick<
-  SecondarySidebarPartViewProps,
-  | "articles"
-  | "hasData"
-  | "locale"
-  | "labels"
-  | "onDownloadPdf"
-  | "onOpenArticleDetails"
-  | "isSelectionModeEnabled"
-  | "selectedArticleKeys"
-  | "onToggleArticleSelected"
->) {
-  if (articles.length > 0) {
-    const articleCardLabels = createArticleCardLabels(labels);
-    return jsx("ul", {
-      className: "secondary-sidebar-article-list",
+export class SecondarySidebarPartView {
+  private props: SecondarySidebarProps;
+  private readonly element = createElement('section', 'panel sidebar-panel');
+  private readonly actionBarElement = createElement(
+    'div',
+    'secondary-sidebar-action-bar',
+  );
+  private readonly contentElement = createElement('div');
+  private readonly startDateInput = createElement('input');
+  private readonly endDateInput = createElement('input');
+  private readonly selectionButton = createElement('button');
+  private readonly fetchButton = createElement('button');
+  private cards = new Map<string, ArticleCard>();
 
-      children: articles.map((article, index) =>
-        jsx(
-          ArticleCard,
-          {
-            article,
-            locale,
-            labels: articleCardLabels,
-            onDownloadPdf,
-            onOpenArticleDetails,
-            isSelectionModeEnabled,
-            isSelected: selectedArticleKeys.has(
-              `${article.sourceUrl}::${article.fetchedAt}`
-            ),
-            onToggleSelected: onToggleArticleSelected,
-          },
-          `${article.sourceUrl}-${article.fetchedAt}-${index}`
+  constructor(props: SecondarySidebarProps) {
+    this.props = props;
+    this.startDateInput.type = 'date';
+    this.endDateInput.type = 'date';
+    this.startDateInput.className = 'secondary-sidebar-date-picker';
+    this.endDateInput.className = 'secondary-sidebar-date-picker';
+    this.startDateInput.addEventListener('input', () =>
+      this.props.onBatchStartDateChange(this.startDateInput.value),
+    );
+    this.endDateInput.addEventListener('input', () =>
+      this.props.onBatchEndDateChange(this.endDateInput.value),
+    );
+    this.selectionButton.type = 'button';
+    this.selectionButton.addEventListener('click', () =>
+      this.props.onToggleSelectionMode(),
+    );
+    this.fetchButton.type = 'button';
+    this.fetchButton.addEventListener('click', () =>
+      this.props.onFetchLatestBatch(),
+    );
+    this.actionBarElement.append(
+      this.startDateInput,
+      this.endDateInput,
+      this.selectionButton,
+      this.fetchButton,
+    );
+    this.element.append(this.actionBarElement, this.contentElement);
+    registerWorkbenchPartDomNode(
+      WORKBENCH_PART_IDS.secondarySidebar,
+      this.element,
+    );
+    this.render();
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: SecondarySidebarProps) {
+    this.props = props;
+    this.render();
+  }
+
+  dispose() {
+    for (const card of this.cards.values()) {
+      card.dispose();
+    }
+    this.cards.clear();
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.secondarySidebar, null);
+    this.element.replaceChildren();
+  }
+
+  private render() {
+    const selectionButtonLabel =
+      this.props.selectionModePhase === 'off'
+        ? this.props.labels.selectionModeEnterMulti
+        : this.props.selectionModePhase === 'multi'
+          ? this.props.labels.selectionModeSelectAll
+          : this.props.labels.selectionModeExit;
+
+    this.startDateInput.value = this.props.batchStartDate;
+    this.endDateInput.value = this.props.batchEndDate;
+    this.startDateInput.setAttribute('aria-label', this.props.labels.startDate);
+    this.endDateInput.setAttribute('aria-label', this.props.labels.endDate);
+
+    this.selectionButton.className = [
+      'secondary-sidebar-select-btn',
+      this.props.isSelectionModeEnabled ? 'is-active' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    this.selectionButton.textContent = selectionButtonLabel;
+    this.selectionButton.disabled =
+      !this.props.articles.length && !this.props.isSelectionModeEnabled;
+    this.selectionButton.setAttribute(
+      'aria-pressed',
+      String(this.props.isSelectionModeEnabled),
+    );
+
+    this.fetchButton.className = 'secondary-sidebar-fetch-btn';
+    this.fetchButton.textContent = this.props.isBatchLoading
+      ? this.props.labels.fetchLatestBusy
+      : this.props.labels.fetchLatest;
+    this.fetchButton.disabled = this.props.isBatchLoading;
+
+    this.renderContent();
+  }
+
+  private renderContent() {
+    for (const [key, card] of this.cards) {
+      if (
+        !this.props.articles.some(
+          (article, index) => `${article.sourceUrl}-${article.fetchedAt}-${index}` === key,
         )
+      ) {
+        card.dispose();
+        this.cards.delete(key);
+      }
+    }
+
+    if (this.props.articles.length > 0) {
+      const articleCardLabels = createArticleCardLabels(this.props.labels);
+      const list = createElement('ul', 'secondary-sidebar-article-list');
+      this.props.articles.forEach((article, index) => {
+        const key = `${article.sourceUrl}-${article.fetchedAt}-${index}`;
+        const isSelected = this.props.selectedArticleKeys.has(
+          `${article.sourceUrl}::${article.fetchedAt}`,
+        );
+        let card = this.cards.get(key);
+        if (!card) {
+          card = new ArticleCard({
+            article,
+            locale: this.props.locale,
+            labels: articleCardLabels,
+            onDownloadPdf: this.props.onDownloadPdf,
+            onOpenArticleDetails: this.props.onOpenArticleDetails,
+            isSelectionModeEnabled: this.props.isSelectionModeEnabled,
+            isSelected,
+            onToggleSelected: this.props.onToggleArticleSelected,
+          });
+          this.cards.set(key, card);
+        } else {
+          card.setProps({
+            article,
+            locale: this.props.locale,
+            labels: articleCardLabels,
+            onDownloadPdf: this.props.onDownloadPdf,
+            onOpenArticleDetails: this.props.onOpenArticleDetails,
+            isSelectionModeEnabled: this.props.isSelectionModeEnabled,
+            isSelected,
+            onToggleSelected: this.props.onToggleArticleSelected,
+          });
+        }
+        list.append(card.getElement());
+      });
+      this.contentElement.replaceChildren(list);
+      return;
+    }
+
+    const empty = createElement('div', 'secondary-sidebar-empty-state');
+    if (this.props.hasData) {
+      empty.textContent = this.props.labels.emptyFiltered;
+      this.contentElement.replaceChildren(empty);
+      return;
+    }
+
+    const quickSource = createElement(
+      'button',
+      'secondary-sidebar-empty-state-action',
+    );
+    quickSource.type = 'button';
+    quickSource.textContent = this.props.labels.emptyAllQuickSourceAction;
+    quickSource.addEventListener('click', requestOpenAddressBarSourceMenu);
+
+    const inputLink = createElement(
+      'button',
+      'secondary-sidebar-empty-state-action',
+    );
+    inputLink.type = 'button';
+    inputLink.textContent = this.props.labels.emptyAllInputLinkAction;
+    inputLink.addEventListener('click', requestFocusTitlebarWebUrlInput);
+
+    empty.append(
+      quickSource,
+      document.createTextNode(` ${this.props.labels.emptyAllConnector} `),
+      inputLink,
+      document.createTextNode(
+        this.props.labels.emptyAllInputLinkSuffix
+          ? ` ${this.props.labels.emptyAllInputLinkSuffix}`
+          : this.props.labels.emptyAll,
       ),
-    });
+    );
+    this.contentElement.replaceChildren(empty);
+  }
+}
+
+export class PrimarySidebarPartView {
+  private readonly element = createElement(
+    'section',
+    'panel sidebar-panel sidebar-panel-primary',
+  );
+  private readonly sidebar: PrimarySidebar;
+
+  constructor(props: PrimarySidebarProps) {
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.primarySidebar, this.element);
+    this.sidebar = new PrimarySidebar(props);
+    this.element.append(this.sidebar.getElement());
   }
 
-  // Distinguish "no data fetched yet" from "fetched but filtered out".
-  if (hasData) {
-    return jsx("div", {
-      className: "secondary-sidebar-empty-state",
-      children: labels.emptyFiltered,
-    });
+  getElement() {
+    return this.element;
   }
 
-  return jsxs("div", {
-    className: "secondary-sidebar-empty-state",
-    children: [
-      jsx("button", {
-        type: "button",
-        className: "secondary-sidebar-empty-state-action",
-        onClick: requestOpenAddressBarSourceMenu,
-        children: labels.emptyAllQuickSourceAction,
-      }),
-      ` ${labels.emptyAllConnector} `,
-      jsx("button", {
-        type: "button",
-        className: "secondary-sidebar-empty-state-action",
-        onClick: requestFocusTitlebarWebUrlInput,
-        children: labels.emptyAllInputLinkAction,
-      }),
-      labels.emptyAllInputLinkSuffix
-        ? ` ${labels.emptyAllInputLinkSuffix}`
-        : labels.emptyAll,
-    ],
-  });
+  setProps(props: PrimarySidebarProps) {
+    this.sidebar.setProps(props);
+  }
+
+  dispose() {
+    this.sidebar.dispose();
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.primarySidebar, null);
+    this.element.replaceChildren();
+  }
 }
 
-function renderActionBar({
-  labels,
-  batchStartDate,
-  onBatchStartDateChange,
-  batchEndDate,
-  onBatchEndDateChange,
-  onFetchLatestBatch,
-  isBatchLoading,
-  isSelectionModeEnabled,
-  selectionModePhase,
-  onToggleSelectionMode,
-  hasSelectableArticles,
-}: Pick<
-  SecondarySidebarPartViewProps,
-  | "labels"
-  | "batchStartDate"
-  | "onBatchStartDateChange"
-  | "batchEndDate"
-  | "onBatchEndDateChange"
-  | "onFetchLatestBatch"
-  | "isBatchLoading"
-  | "isSelectionModeEnabled"
-  | "selectionModePhase"
-  | "onToggleSelectionMode"
-> & {
-  hasSelectableArticles: boolean;
-}) {
-  const selectionButtonLabel =
-    selectionModePhase === "off"
-      ? labels.selectionModeEnterMulti
-      : selectionModePhase === "multi"
-      ? labels.selectionModeSelectAll
-      : labels.selectionModeExit;
+export class AuxiliarySidebarPartView {
+  private readonly element = createElement(
+    'section',
+    'panel sidebar-panel sidebar-panel-auxiliary',
+  );
+  private readonly sidebar: AuxiliarySidebar;
 
-  // Date range + fetch trigger are grouped as the sticky command surface of the sidebar.
-  return jsxs("div", {
-    className: "secondary-sidebar-action-bar",
-    children: [
-      jsx(DateRangePicker, {
-        className: "secondary-sidebar-date-picker",
-        startDate: batchStartDate,
-        endDate: batchEndDate,
-        triggerIcon: jsx(CalendarRange, { size: 14, strokeWidth: 1.8 }),
-        labels: {
-          startDate: labels.startDate,
-          endDate: labels.endDate,
-        },
-        onStartDateChange: onBatchStartDateChange,
-        onEndDateChange: onBatchEndDateChange,
-      }),
-      jsx(Button, {
-        type: "button",
-        className: [
-          "secondary-sidebar-select-btn",
-          isSelectionModeEnabled ? "is-active" : "",
-        ]
-          .filter(Boolean)
-          .join(" "),
-        variant: "secondary",
-        size: "md",
-        mode: "text",
-        textMode: "with",
-        iconMode: "with",
-        leftIcon: jsx(CheckSquare, { size: 14, strokeWidth: 1.8 }),
-        onClick: onToggleSelectionMode,
-        disabled: !hasSelectableArticles && !isSelectionModeEnabled,
-        "aria-pressed": isSelectionModeEnabled,
-        children: selectionButtonLabel,
-      }),
-      jsx(Button, {
-        type: "button",
-        className: "secondary-sidebar-fetch-btn",
-        variant: "primary",
-        size: "md",
-        mode: "text",
-        textMode: "with",
-        iconMode: "with",
-        leftIcon: jsx(Download, { size: 14, strokeWidth: 1.8 }),
-        onClick: onFetchLatestBatch,
-        disabled: isBatchLoading,
-        children: isBatchLoading ? labels.fetchLatestBusy : labels.fetchLatest,
-      }),
-    ],
-  });
+  constructor(props: AuxiliarySidebarProps) {
+    registerWorkbenchPartDomNode(
+      WORKBENCH_PART_IDS.auxiliarySidebar,
+      this.element,
+    );
+    this.sidebar = new AuxiliarySidebar(props);
+    this.element.append(this.sidebar.getElement());
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: AuxiliarySidebarProps) {
+    this.sidebar.setProps(props);
+  }
+
+  dispose() {
+    this.sidebar.dispose();
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.auxiliarySidebar, null);
+    this.element.replaceChildren();
+  }
 }
 
-export function SecondarySidebarPartView({
-  partRef,
-  articles,
-  hasData,
-  locale,
-  labels,
-  batchStartDate,
-  onBatchStartDateChange,
-  batchEndDate,
-  onBatchEndDateChange,
-  onFetchLatestBatch,
-  onDownloadPdf,
-  onOpenArticleDetails,
-  isBatchLoading,
-  isSelectionModeEnabled,
-  selectionModePhase,
-  selectedArticleKeys,
-  onToggleSelectionMode,
-  onToggleArticleSelected,
-}: SecondarySidebarPartViewProps) {
-  const actionBarView = renderActionBar({
-    labels,
-    batchStartDate,
-    onBatchStartDateChange,
-    batchEndDate,
-    onBatchEndDateChange,
-    onFetchLatestBatch,
-    isBatchLoading,
-    isSelectionModeEnabled,
-    selectionModePhase,
-    onToggleSelectionMode,
-    hasSelectableArticles: articles.length > 0,
-  });
-  const contentView = renderSidebarContent({
-    articles,
-    hasData,
-    locale,
-    labels,
-    onDownloadPdf,
-    onOpenArticleDetails,
-    isSelectionModeEnabled,
-    selectedArticleKeys,
-    onToggleArticleSelected,
-  });
-
-  return jsxs("section", {
-    ref: partRef,
-    className: "panel sidebar-panel",
-    children: [actionBarView, contentView],
-  });
+export function createSecondarySidebarPartView(props: SecondarySidebarProps) {
+  return new SecondarySidebarPartView(props);
 }
 
-export function PrimarySidebarPartView({
-  partRef,
-  labels,
-  librarySnapshot,
-  isLibraryLoading,
-  onRefreshLibrary,
-  onDownloadPdf,
-  onCreateDraftTab,
-}: {
-  partRef?: Ref<HTMLElement>;
-  labels: SidebarLabels;
-  librarySnapshot: LibraryDocumentsResult;
-  isLibraryLoading: boolean;
-  onRefreshLibrary?: () => void;
-  onDownloadPdf?: () => void;
-  onCreateDraftTab?: () => void;
-}) {
-  return jsx(PrimarySidebar, {
-    partRef,
-    labels,
-    librarySnapshot,
-    isLibraryLoading,
-    onRefreshLibrary,
-    onDownloadPdf,
-    onCreateDraftTab,
-  });
+export function createPrimarySidebarPartView(props: PrimarySidebarProps) {
+  return new PrimarySidebarPartView(props);
 }
 
-export function AuxiliarySidebarPartView({
-  partRef,
-  labels,
-  isKnowledgeBaseModeEnabled,
-  messages,
-  question,
-  onQuestionChange,
-  isAsking,
-  errorMessage,
-  onAsk,
-  availableArticleCount,
-  conversations,
-  activeConversationId,
-  isHistoryOpen,
-  isMoreMenuOpen,
-  onCreateConversation,
-  onActivateConversation,
-  onCloseConversation,
-  onCloseAuxiliarySidebar,
-  onToggleHistory,
-  onToggleMoreMenu,
-}: {
-  partRef?: Ref<HTMLElement>;
-  labels: SidebarLabels;
-  isKnowledgeBaseModeEnabled: boolean;
-  messages: AssistantChatMessage[];
-  question: string;
-  onQuestionChange: (value: string) => void;
-  isAsking: boolean;
-  errorMessage: string | null;
-  onAsk: () => void;
-  availableArticleCount: number;
-  conversations: Array<{
-    id: string;
-    title: string;
-    messages: AssistantChatMessage[];
-  }>;
-  activeConversationId: string;
-  isHistoryOpen: boolean;
-  isMoreMenuOpen: boolean;
-  onCreateConversation: () => void;
-  onActivateConversation: (conversationId: string) => void;
-  onCloseConversation: (conversationId: string) => void;
-  onCloseAuxiliarySidebar: () => void;
-  onToggleHistory: () => void;
-  onToggleMoreMenu: () => void;
-}) {
-  return jsx("section", {
-    ref: partRef,
-    className: "panel sidebar-panel sidebar-panel-auxiliary",
-    children: jsx(AuxiliarySidebar, {
-      labels,
-      isKnowledgeBaseModeEnabled,
-      messages,
-      question,
-      onQuestionChange,
-      isAsking,
-      errorMessage,
-      onAsk,
-      availableArticleCount,
-      conversations,
-      activeConversationId,
-      isHistoryOpen,
-      isMoreMenuOpen,
-      onCreateConversation,
-      onActivateConversation,
-      onCloseConversation,
-      onCloseAuxiliarySidebar,
-      onToggleHistory,
-      onToggleMoreMenu,
-    }),
-  });
+export function createAuxiliarySidebarPartView(props: AuxiliarySidebarProps) {
+  return new AuxiliarySidebarPartView(props);
 }

@@ -6,9 +6,21 @@ import {
   subscribeWorkbenchLayoutState,
 } from '../../browser/layout';
 import {
+  disposeWorkbenchServices,
   getWorkbenchStateSnapshot,
   subscribeWorkbenchState,
 } from '../../browser/workbench';
+import {
+  subscribeWorkbenchLocale,
+  syncWorkbenchDocumentLanguage,
+} from '../../browser/locale';
+import { getWorkbenchTitlebarCommandHandlers } from '../../browser/titlebarCommands';
+import {
+  getStatusbarStateSnapshot,
+  subscribeStatusbarState,
+} from '../../browser/parts/statusbar/statusbarModel';
+import { StatusbarPart } from '../../browser/parts/statusbar/statusbarPart';
+import { subscribeTitlebarUiActions } from '../../browser/parts/titlebar/titlebarActions';
 
 export type Disposable = {
   dispose: () => void;
@@ -116,6 +128,121 @@ export function createWorkbenchContainerStateContribution(): Disposable {
       unsubscribeWorkbenchPartDom();
       clearContainerState(lastContainer);
       lastContainer = null;
+    },
+  };
+}
+
+export function createWorkbenchStatusbarContribution(): Disposable {
+  let currentHost: HTMLElement | null = null;
+  let statusbarPart: StatusbarPart | null = null;
+
+  const disposeStatusbarPart = () => {
+    statusbarPart?.dispose();
+    statusbarPart = null;
+  };
+
+  const syncStatusbarPart = () => {
+    const nextHost = getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.statusbar];
+
+    if (currentHost !== nextHost) {
+      disposeStatusbarPart();
+      currentHost = nextHost;
+    }
+
+    if (!currentHost) {
+      return;
+    }
+
+    if (!statusbarPart) {
+      statusbarPart = new StatusbarPart(currentHost);
+    }
+
+    statusbarPart.render(getStatusbarStateSnapshot());
+  };
+
+  const unsubscribeWorkbenchPartDom = subscribeWorkbenchPartDom(syncStatusbarPart);
+  const unsubscribeStatusbarState = subscribeStatusbarState(syncStatusbarPart);
+
+  syncStatusbarPart();
+
+  return {
+    dispose: () => {
+      unsubscribeWorkbenchPartDom();
+      unsubscribeStatusbarState();
+      disposeStatusbarPart();
+      currentHost = null;
+    },
+  };
+}
+
+export function createWorkbenchDocumentLocaleContribution(): Disposable {
+  const syncLocale = () => {
+    syncWorkbenchDocumentLanguage();
+  };
+
+  const unsubscribeWorkbenchLocale = subscribeWorkbenchLocale(syncLocale);
+  syncLocale();
+
+  return {
+    dispose: () => {
+      unsubscribeWorkbenchLocale();
+    },
+  };
+}
+
+export function createWorkbenchTitlebarActionContribution(): Disposable {
+  const unsubscribeTitlebarUiActions = subscribeTitlebarUiActions((action) => {
+    const handlers = getWorkbenchTitlebarCommandHandlers();
+    if (!handlers) {
+      return;
+    }
+
+    if (action.type === 'TOGGLE_SIDEBAR') {
+      handlers.onToggleSidebar();
+      return;
+    }
+
+    if (action.type === 'TOGGLE_AUXILIARY_SIDEBAR') {
+      handlers.onToggleAuxiliarySidebar();
+      return;
+    }
+
+    if (action.type === 'NAVIGATE_BACK') {
+      handlers.onNavigateBack();
+      return;
+    }
+
+    if (action.type === 'NAVIGATE_FORWARD') {
+      handlers.onNavigateForward();
+      return;
+    }
+
+    if (action.type === 'NAVIGATE_WEB') {
+      handlers.onNavigateWeb();
+      return;
+    }
+
+    if (action.type === 'TOGGLE_SETTINGS') {
+      handlers.onToggleSettings();
+      return;
+    }
+
+    if (action.type === 'EXPORT_DOCX') {
+      handlers.onExportDocx();
+    }
+  });
+
+  return {
+    dispose: () => {
+      unsubscribeTitlebarUiActions();
+    },
+  };
+}
+
+export function createWorkbenchServicesLifecycleContribution(): Disposable {
+  return {
+    dispose: () => {
+      disposeWorkbenchServices();
     },
   };
 }

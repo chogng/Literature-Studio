@@ -1,59 +1,21 @@
-import { jsx, jsxs } from "react/jsx-runtime";
-import { useState, useSyncExternalStore, type Ref } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  Download,
-  FilePenLine,
-  FileText,
-  FolderClosed,
-  FolderOpen,
-  Library,
-} from "lucide-react";
 import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
-} from "../../../../base/parts/sandbox/common/desktopTypes.js";
-import { Button } from "../../../../base/browser/ui/button/button";
-import type { SidebarLabels } from "./secondarySidebarPart";
-import "./media/primarySidebar.css";
+} from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { SidebarLabels } from './secondarySidebarPart';
+import './media/primarySidebar.css';
 
-function resolveLibraryDocumentStatusLabel(
-  labels: Pick<
-    SidebarLabels,
-    | "libraryStatusRegistered"
-    | "libraryStatusQueued"
-    | "libraryStatusRunning"
-    | "libraryStatusFailed"
-  >,
-  document: LibraryDocumentSummary
-) {
-  if (
-    document.latestJobStatus === "failed" ||
-    document.ingestStatus === "failed"
-  ) {
-    return labels.libraryStatusFailed;
-  }
-
-  if (
-    document.latestJobStatus === "running" ||
-    document.ingestStatus === "indexing"
-  ) {
-    return labels.libraryStatusRunning;
-  }
-
-  if (
-    document.latestJobStatus === "queued" ||
-    document.ingestStatus === "queued"
-  ) {
-    return labels.libraryStatusQueued;
-  }
-
-  return labels.libraryStatusRegistered;
-}
+export type PrimarySidebarProps = {
+  labels: SidebarLabels;
+  librarySnapshot: LibraryDocumentsResult;
+  isLibraryLoading: boolean;
+  onRefreshLibrary?: () => void;
+  onDownloadPdf?: () => void;
+  onCreateDraftTab?: () => void;
+};
 
 type LibraryTreeFolderNode = {
-  kind: "folder";
+  kind: 'folder';
   id: string;
   name: string;
   folders: LibraryTreeFolderNode[];
@@ -61,28 +23,73 @@ type LibraryTreeFolderNode = {
 };
 
 type LibraryTreeDocumentNode = {
-  kind: "document";
+  kind: 'document';
   id: string;
   document: LibraryDocumentSummary;
 };
 
 type LibraryTreeNode = LibraryTreeFolderNode | LibraryTreeDocumentNode;
 
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
+
+function resolveLibraryDocumentStatusLabel(
+  labels: Pick<
+    SidebarLabels,
+    | 'libraryStatusRegistered'
+    | 'libraryStatusQueued'
+    | 'libraryStatusRunning'
+    | 'libraryStatusFailed'
+  >,
+  document: LibraryDocumentSummary,
+) {
+  if (
+    document.latestJobStatus === 'failed' ||
+    document.ingestStatus === 'failed'
+  ) {
+    return labels.libraryStatusFailed;
+  }
+
+  if (
+    document.latestJobStatus === 'running' ||
+    document.ingestStatus === 'indexing'
+  ) {
+    return labels.libraryStatusRunning;
+  }
+
+  if (
+    document.latestJobStatus === 'queued' ||
+    document.ingestStatus === 'queued'
+  ) {
+    return labels.libraryStatusQueued;
+  }
+
+  return labels.libraryStatusRegistered;
+}
+
 function normalizePathSegment(value: string) {
-  return value.trim().replace(/[\\/]+/g, "/");
+  return value.trim().replace(/[\\/]+/g, '/');
 }
 
 function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function getDocumentPathSegments(
   document: LibraryDocumentSummary,
-  librarySnapshot: LibraryDocumentsResult
+  librarySnapshot: LibraryDocumentsResult,
 ) {
-  const filePath = normalizePathSegment(document.latestFilePath ?? "");
+  const filePath = normalizePathSegment(document.latestFilePath ?? '');
   const managedDirectory = normalizePathSegment(
-    librarySnapshot.defaultManagedDirectory
+    librarySnapshot.defaultManagedDirectory,
   );
 
   if (!filePath) {
@@ -92,45 +99,45 @@ function getDocumentPathSegments(
   if (managedDirectory) {
     const managedDirectoryPattern = new RegExp(
       `^${escapeRegExp(managedDirectory)}/?`,
-      "i"
+      'i',
     );
-    const relativePath = filePath.replace(managedDirectoryPattern, "");
+    const relativePath = filePath.replace(managedDirectoryPattern, '');
     if (relativePath && relativePath !== filePath) {
       return relativePath
-        .split("/")
+        .split('/')
         .slice(0, -1)
         .filter(Boolean);
     }
   }
 
-  const parts = filePath.split("/").filter(Boolean);
+  const parts = filePath.split('/').filter(Boolean);
   return parts.slice(Math.max(parts.length - 3, 0), -1);
 }
 
 function buildLibraryTree(
   librarySnapshot: LibraryDocumentsResult,
-  labels: SidebarLabels
+  labels: SidebarLabels,
 ) {
   const root: LibraryTreeFolderNode = {
-    kind: "folder",
-    id: "root",
+    kind: 'folder',
+    id: 'root',
     name: labels.libraryTitle,
     folders: [],
     documents: [],
   };
-  const folderIndex = new Map<string, LibraryTreeFolderNode>([["root", root]]);
+  const folderIndex = new Map<string, LibraryTreeFolderNode>([['root', root]]);
 
   for (const document of librarySnapshot.items) {
     const pathSegments = getDocumentPathSegments(document, librarySnapshot);
     let currentFolder = root;
-    let currentPath = "root";
+    let currentPath = 'root';
 
     for (const segment of pathSegments) {
       currentPath = `${currentPath}/${segment}`;
       let nextFolder = folderIndex.get(currentPath);
       if (!nextFolder) {
         nextFolder = {
-          kind: "folder",
+          kind: 'folder',
           id: currentPath,
           name: segment,
           folders: [],
@@ -149,8 +156,8 @@ function buildLibraryTree(
     folder.folders.sort((left, right) => left.name.localeCompare(right.name));
     folder.documents.sort((left, right) =>
       (left.title?.trim() || labels.untitled).localeCompare(
-        right.title?.trim() || labels.untitled
-      )
+        right.title?.trim() || labels.untitled,
+      ),
     );
     for (const childFolder of folder.folders) {
       sortFolder(childFolder);
@@ -161,156 +168,7 @@ function buildLibraryTree(
   return root;
 }
 
-function renderLibraryDocumentItem(document: LibraryDocumentSummary, labels: SidebarLabels) {
-  const title = document.title?.trim() || labels.untitled;
-  const authors =
-    document.authors.length > 0 ? document.authors.join(", ") : labels.unknown;
-  const statusLabel = resolveLibraryDocumentStatusLabel(labels, document);
-
-  return jsxs(
-    "div",
-    {
-      className: "library-tree-row library-tree-row-document",
-      role: "treeitem",
-      "aria-selected": false,
-      children: [
-        jsx("span", {
-          className: "library-tree-indent",
-          "aria-hidden": "true",
-        }),
-        jsx(FileText, {
-          size: 14,
-          strokeWidth: 1.8,
-          className: "library-tree-icon library-tree-icon-document",
-        }),
-        jsxs("div", {
-          className: "library-tree-document-main",
-          children: [
-            jsx("span", {
-              className: "library-tree-document-title",
-              title,
-              children: title,
-            }),
-            jsx("span", {
-              className: "library-tree-document-meta",
-              title: authors,
-              children: authors,
-            }),
-          ],
-        }),
-        jsxs("div", {
-          className: "library-tree-document-aside",
-          children: [
-            jsx("span", {
-              className: `library-doc-status library-doc-status-${document.ingestStatus}`,
-              children: statusLabel,
-            }),
-          ],
-        }),
-      ],
-    },
-    document.documentId
-  );
-}
-
-function renderLibraryTreeNode(
-  node: LibraryTreeNode,
-  depth: number,
-  labels: SidebarLabels,
-  expandedFolders: ReadonlySet<string>,
-  onToggleFolder: (id: string) => void
-): ReturnType<typeof jsx> {
-  if (node.kind === "document") {
-    return jsx(
-      "li",
-      {
-        children: jsx("div", {
-          style: { paddingLeft: `${depth * 16}px` },
-          children: renderLibraryDocumentItem(node.document, labels),
-        }),
-      },
-      node.id
-    );
-  }
-
-  const isExpanded = expandedFolders.has(node.id);
-  const childNodes: LibraryTreeNode[] = [
-    ...node.folders,
-    ...node.documents.map((document) => ({
-      kind: "document" as const,
-      id: document.documentId,
-      document,
-    })),
-  ];
-
-  return jsxs(
-    "li",
-    {
-      children: [
-        jsxs("button", {
-          type: "button",
-          className: "library-tree-row library-tree-row-folder",
-          onClick: () => onToggleFolder(node.id),
-          style: { paddingLeft: `${depth * 16}px` },
-          role: "treeitem",
-          "aria-expanded": isExpanded,
-          children: [
-            isExpanded
-              ? jsx(ChevronDown, {
-                  size: 14,
-                  strokeWidth: 1.8,
-                  className: "library-tree-chevron",
-                })
-              : jsx(ChevronRight, {
-                  size: 14,
-                  strokeWidth: 1.8,
-                  className: "library-tree-chevron",
-                }),
-            isExpanded
-              ? jsx(FolderOpen, {
-                  size: 14,
-                  strokeWidth: 1.8,
-                  className: "library-tree-icon library-tree-icon-folder",
-                })
-              : jsx(FolderClosed, {
-                  size: 14,
-                  strokeWidth: 1.8,
-                  className: "library-tree-icon library-tree-icon-folder",
-                }),
-            jsx("span", {
-              className: "library-tree-folder-label",
-              children: node.name,
-            }),
-            node.id === "root"
-              ? jsx("span", {
-                  className: "library-tree-folder-count",
-                  children: librarySnapshotCount(node),
-                })
-              : null,
-          ],
-        }),
-        isExpanded && childNodes.length > 0
-          ? jsx("ul", {
-              className: "library-tree-children",
-              role: "group",
-              children: childNodes.map((childNode) =>
-                renderLibraryTreeNode(
-                  childNode,
-                  depth + 1,
-                  labels,
-                  expandedFolders,
-                  onToggleFolder
-                )
-              ),
-            })
-          : null,
-      ],
-    },
-    node.id
-  );
-}
-
-function librarySnapshotCount(node: LibraryTreeFolderNode) {
+function librarySnapshotCount(node: LibraryTreeFolderNode): number {
   let count = node.documents.length;
   for (const folder of node.folders) {
     count += librarySnapshotCount(folder);
@@ -318,140 +176,194 @@ function librarySnapshotCount(node: LibraryTreeFolderNode) {
   return count;
 }
 
-type PrimarySidebarProps = {
-  partRef?: Ref<HTMLElement>;
-  labels: SidebarLabels;
-  librarySnapshot: LibraryDocumentsResult;
-  isLibraryLoading: boolean;
-  onRefreshLibrary?: () => void;
-  onDownloadPdf?: () => void;
-  onCreateDraftTab?: () => void;
-};
+export class PrimarySidebar {
+  private props: PrimarySidebarProps;
+  private readonly element = createElement(
+    'section',
+    'panel sidebar-panel sidebar-panel-primary',
+  );
+  private readonly contentElement = createElement(
+    'div',
+    'sidebar-primary-content',
+  );
+  private readonly headerElement = createElement(
+    'div',
+    'sidebar-workbench-header',
+  );
+  private readonly actionsElement = createElement(
+    'div',
+    'sidebar-chat-action-bar',
+  );
+  private readonly treeElement = createElement('div', 'library-tree');
+  private expandedFolders = new Set<string>(['root']);
 
-type PrimarySidebarSnapshot = {
-  expandedFolders: ReadonlySet<string>;
-};
+  constructor(props: PrimarySidebarProps) {
+    this.props = props;
+    this.treeElement.setAttribute('role', 'tree');
+    this.contentElement.append(this.headerElement, this.treeElement);
+    this.headerElement.append(this.actionsElement);
+    this.element.append(this.contentElement);
+    this.render();
+  }
 
-class PrimarySidebarController {
-  private snapshot: PrimarySidebarSnapshot = {
-    expandedFolders: new Set(["root"]),
-  };
-  private readonly listeners = new Set<() => void>();
+  getElement() {
+    return this.element;
+  }
 
-  subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  };
+  setProps(props: PrimarySidebarProps) {
+    this.props = props;
+    this.render();
+  }
 
-  getSnapshot = () => this.snapshot;
+  dispose() {
+    this.element.replaceChildren();
+  }
 
-  toggleFolder(id: string) {
-    const nextExpandedFolders = new Set(this.snapshot.expandedFolders);
-    if (nextExpandedFolders.has(id) && id !== "root") {
-      nextExpandedFolders.delete(id);
-    } else {
-      nextExpandedFolders.add(id);
+  private render() {
+    const { labels, librarySnapshot, isLibraryLoading } = this.props;
+    this.actionsElement.replaceChildren(
+      this.createActionButton(
+        labels.libraryAction,
+        'Lib',
+        this.props.onRefreshLibrary,
+        isLibraryLoading || !this.props.onRefreshLibrary,
+        true,
+      ),
+      this.createActionButton(
+        labels.pdfDownloadAction,
+        'PDF',
+        this.props.onDownloadPdf,
+        !this.props.onDownloadPdf,
+      ),
+      this.createActionButton(
+        labels.writingAction,
+        'New',
+        this.props.onCreateDraftTab,
+        !this.props.onCreateDraftTab,
+      ),
+    );
+
+    this.treeElement.setAttribute('aria-label', labels.libraryTitle);
+    const list = createElement('ul', 'library-tree-list');
+    list.append(this.renderLibraryTreeNode(buildLibraryTree(librarySnapshot, labels), 0));
+    this.treeElement.replaceChildren(list);
+  }
+
+  private createActionButton(
+    label: string,
+    text: string,
+    onClick: (() => void) | undefined,
+    disabled: boolean,
+    isActive: boolean = false,
+  ) {
+    const button = createElement(
+      'button',
+      ['sidebar-chat-topbar-action-btn', isActive ? 'is-active' : '']
+        .filter(Boolean)
+        .join(' '),
+    );
+    button.type = 'button';
+    button.textContent = text;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.disabled = disabled;
+    if (onClick) {
+      button.addEventListener('click', onClick);
+    }
+    return button;
+  }
+
+  private renderLibraryTreeNode(node: LibraryTreeNode, depth: number): HTMLLIElement {
+    const item = document.createElement('li');
+
+    if (node.kind === 'document') {
+      const title = node.document.title?.trim() || this.props.labels.untitled;
+      const authors =
+        node.document.authors.length > 0
+          ? node.document.authors.join(', ')
+          : this.props.labels.unknown;
+      const statusLabel = resolveLibraryDocumentStatusLabel(
+        this.props.labels,
+        node.document,
+      );
+      const row = createElement('div', 'library-tree-row library-tree-row-document');
+      row.setAttribute('role', 'treeitem');
+      row.style.paddingLeft = `${depth * 16}px`;
+
+      const titleElement = createElement('span', 'library-tree-document-title');
+      titleElement.textContent = title;
+      titleElement.title = title;
+      const metaElement = createElement('span', 'library-tree-document-meta');
+      metaElement.textContent = authors;
+      metaElement.title = authors;
+      const statusElement = createElement(
+        'span',
+        `library-doc-status library-doc-status-${node.document.ingestStatus}`,
+      );
+      statusElement.textContent = statusLabel;
+
+      const main = createElement('div', 'library-tree-document-main');
+      main.append(titleElement, metaElement);
+      const aside = createElement('div', 'library-tree-document-aside');
+      aside.append(statusElement);
+      row.append(main, aside);
+      item.append(row);
+      return item;
     }
 
-    this.snapshot = { expandedFolders: nextExpandedFolders };
-    for (const listener of this.listeners) {
-      listener();
+    const isExpanded = this.expandedFolders.has(node.id);
+    const button = createElement('button', 'library-tree-row library-tree-row-folder');
+    button.type = 'button';
+    button.style.paddingLeft = `${depth * 16}px`;
+    button.setAttribute('role', 'treeitem');
+    button.setAttribute('aria-expanded', String(isExpanded));
+    button.addEventListener('click', () => {
+      if (this.expandedFolders.has(node.id) && node.id !== 'root') {
+        this.expandedFolders.delete(node.id);
+      } else {
+        this.expandedFolders.add(node.id);
+      }
+      this.render();
+    });
+
+    const label = createElement('span', 'library-tree-folder-label');
+    label.textContent = node.name;
+    button.textContent = isExpanded ? 'v ' : '> ';
+    button.append(label);
+    if (node.id === 'root') {
+      const count = createElement('span', 'library-tree-folder-count');
+      count.textContent = String(librarySnapshotCount(node));
+      button.append(count);
     }
+    item.append(button);
+
+    if (isExpanded) {
+      const children = createElement('ul', 'library-tree-children');
+      children.setAttribute('role', 'group');
+      for (const folder of node.folders) {
+        children.append(this.renderLibraryTreeNode(folder, depth + 1));
+      }
+      for (const document of node.documents) {
+        children.append(
+          this.renderLibraryTreeNode(
+            {
+              kind: 'document',
+              id: document.documentId,
+              document,
+            },
+            depth + 1,
+          ),
+        );
+      }
+      item.append(children);
+    }
+
+    return item;
   }
 }
 
-export default function PrimarySidebar({
-  partRef,
-  labels,
-  librarySnapshot,
-  isLibraryLoading,
-  onRefreshLibrary,
-  onDownloadPdf,
-  onCreateDraftTab,
-}: PrimarySidebarProps) {
-  const [controller] = useState(
-    () => new PrimarySidebarController()
-  );
-  const { expandedFolders } = useSyncExternalStore(
-    controller.subscribe,
-    controller.getSnapshot,
-    controller.getSnapshot
-  );
-  const tree = buildLibraryTree(librarySnapshot, labels);
-
-  const handleToggleFolder = (id: string) => controller.toggleFolder(id);
-
-  return jsx("section", {
-    ref: partRef,
-    className: "panel sidebar-panel sidebar-panel-primary",
-    children: jsxs("div", {
-      className: "sidebar-primary-content",
-      children: [
-        jsx("div", {
-          className: "sidebar-workbench-header",
-          children: jsxs("div", {
-            className: "sidebar-chat-action-bar",
-            children: [
-              jsx(Button, {
-                type: "button",
-                className: [
-                  "sidebar-chat-topbar-action-btn",
-                  "is-active",
-                ].join(" "),
-                variant: "ghost",
-                size: "sm",
-                mode: "icon",
-                leftIcon: jsx(Library, { size: 16, strokeWidth: 2 }),
-                title: labels.libraryAction,
-                "aria-label": labels.libraryAction,
-                onClick: onRefreshLibrary,
-                disabled: isLibraryLoading || !onRefreshLibrary,
-              }),
-              jsx(Button, {
-                type: "button",
-                className: "sidebar-chat-topbar-action-btn",
-                variant: "ghost",
-                size: "sm",
-                mode: "icon",
-                leftIcon: jsx(Download, { size: 16, strokeWidth: 2 }),
-                title: labels.pdfDownloadAction,
-                "aria-label": labels.pdfDownloadAction,
-                onClick: onDownloadPdf,
-                disabled: !onDownloadPdf,
-              }),
-              jsx(Button, {
-                type: "button",
-                className: "sidebar-chat-topbar-action-btn",
-                variant: "ghost",
-                size: "sm",
-                mode: "icon",
-                leftIcon: jsx(FilePenLine, { size: 16, strokeWidth: 2 }),
-                title: labels.writingAction,
-                "aria-label": labels.writingAction,
-                onClick: onCreateDraftTab,
-                disabled: !onCreateDraftTab,
-              }),
-            ],
-          }),
-        }),
-        jsx("div", {
-          className: "library-tree",
-          role: "tree",
-          "aria-label": labels.libraryTitle,
-          children: jsx("ul", {
-            className: "library-tree-list",
-            children: renderLibraryTreeNode(
-              tree,
-              0,
-              labels,
-              expandedFolders,
-              handleToggleFolder
-            ),
-          }),
-        }),
-      ],
-    }),
-  });
+export function createPrimarySidebar(props: PrimarySidebarProps) {
+  return new PrimarySidebar(props);
 }
+
+export default PrimarySidebar;
