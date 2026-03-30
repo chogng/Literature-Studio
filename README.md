@@ -175,8 +175,10 @@ npm run check:i18n
 - `npm run dev`：桌面开发模式
 - `npm run dev:web`：纯 Web 调试模式
 - `npm run build`：构建渲染层与 Electron 代码
+- `npm run build:web`：构建纯 Web 发布产物到 `dist-web/`
 - `npm run start`：构建后启动桌面应用
 - `npm run preview`：Vite 预览
+- `npm run preview:web`：预览 `dist-web/` 的 Web 构建结果
 - `npm run check:i18n`：检查中英文文案键是否一致
 - `npm run test:writing-editor`：verify ProseMirror writing-editor invariants around `citation`, `figure`, and `figure_ref`
 
