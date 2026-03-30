@@ -93,7 +93,8 @@
 }
 
 .sidebar-chat-tab-strip::-webkit-scrollbar-thumb {
-  background: transparent; /* visually hide until hovering container */
+  background: transparent;
+  /* visually hide until hovering container */
   border-radius: 999px;
 }
 

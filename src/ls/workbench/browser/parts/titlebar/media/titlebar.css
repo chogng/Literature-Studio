@@ -94,6 +94,7 @@
 .titlebar-source-select .dropdown-field {
   padding: 0 10px;
   text-overflow: ellipsis;
+  justify-content: center;
 }
 
 .titlebar-source-select.is-placeholder .dropdown-field {
@@ -309,3 +310,4 @@
   background: #c50f1f;
   color: #fff;
 }
+

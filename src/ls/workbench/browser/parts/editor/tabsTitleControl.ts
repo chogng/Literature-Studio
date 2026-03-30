@@ -58,7 +58,7 @@ export class TabsTitleControl extends TitleControl {
                   event.stopPropagation();
                   onCloseTab(tab.id);
                 },
-                children: jsx(X, { size: 14, strokeWidth: 1.8 }),
+                children: jsx(X, { size: 16, strokeWidth: 1.8 }),
               }),
             ],
           },
