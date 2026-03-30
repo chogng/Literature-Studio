@@ -1,5 +1,4 @@
 import { jsx } from 'react/jsx-runtime';
-import type { ReactNode } from 'react';
 import type {
   WritingEditorDocument,
   WritingWorkspaceDraftTab,
@@ -12,6 +11,8 @@ import type { EditorPartLabels } from '../editorPartView';
 import type { DraftEditorRuntimeState } from '../editorStatus';
 import DraftEditorPane from './draftEditorPane';
 import PreviewEditorPane from './previewEditorPane';
+
+type EditorPaneView = ReturnType<typeof jsx>;
 
 export type EditorPaneResolverContext = {
   labels: EditorPartLabels;
@@ -40,16 +41,16 @@ export type EditorPaneInput =
 export type ResolvedEditorPane = {
   contentClassNames: readonly string[];
   paneId: EditorPaneInput['paneId'];
-  view: ReactNode;
+  view: EditorPaneView;
 };
 
 type EditorPaneDescriptor<TInput extends EditorPaneInput = EditorPaneInput> = {
   id: TInput['paneId'];
   matches: (input: EditorPaneInput) => input is TInput;
   render: (
-    input: EditorPaneInput,
+    input: TInput,
     context: EditorPaneResolverContext,
-  ) => ReactNode;
+  ) => EditorPaneView;
 };
 
 // Mirror the upstream editor split: tabs carry editor input identity, and the pane registry
@@ -98,11 +99,11 @@ const draftEditorPaneDescriptor: EditorPaneDescriptor<
   render: (input, context) =>
     jsx(DraftEditorPane, {
       labels: context.labels,
-      draftTab: (input as Extract<EditorPaneInput, { paneId: 'draft' }>).tab,
+      draftTab: input.tab,
       onDraftDocumentChange: context.onDraftDocumentChange,
       onStatusChange: (status: DraftEditorRuntimeState) =>
         context.onDraftStatusChange(
-          (input as Extract<EditorPaneInput, { paneId: 'draft' }>).tab.id,
+          input.tab.id,
           status,
         ),
     }),
@@ -114,11 +115,10 @@ const webPreviewEditorPaneDescriptor: EditorPaneDescriptor<
   id: 'web-preview',
   matches: (input): input is Extract<EditorPaneInput, { paneId: 'web-preview' }> =>
     input.paneId === 'web-preview',
-  render: (input, context) =>
-    renderPreviewPaneView(
-      input as Extract<EditorPaneInput, { paneId: 'web-preview' }>,
-      context,
-    ),
+  render: (
+    input: Extract<EditorPaneInput, { paneId: 'web-preview' }>,
+    context,
+  ) => renderPreviewPaneView(input, context),
 };
 
 const pdfPreviewEditorPaneDescriptor: EditorPaneDescriptor<
@@ -127,25 +127,17 @@ const pdfPreviewEditorPaneDescriptor: EditorPaneDescriptor<
   id: 'pdf-preview',
   matches: (input): input is Extract<EditorPaneInput, { paneId: 'pdf-preview' }> =>
     input.paneId === 'pdf-preview',
-  render: (input, context) =>
-    renderPreviewPaneView(
-      input as Extract<EditorPaneInput, { paneId: 'pdf-preview' }>,
-      context,
-    ),
+  render: (
+    input: Extract<EditorPaneInput, { paneId: 'pdf-preview' }>,
+    context,
+  ) => renderPreviewPaneView(input, context),
 };
 
-const editorPaneDescriptors = [
-  draftEditorPaneDescriptor,
-  webPreviewEditorPaneDescriptor,
-  pdfPreviewEditorPaneDescriptor,
-] as const satisfies readonly EditorPaneDescriptor[];
-
-function getEditorPaneDescriptor(input: EditorPaneInput) {
-  return (
-    editorPaneDescriptors.find((candidate) => candidate.matches(input)) ??
-    editorPaneDescriptors[0]
-  );
-}
+const editorPaneDescriptors = {
+  draft: draftEditorPaneDescriptor,
+  'web-preview': webPreviewEditorPaneDescriptor,
+  'pdf-preview': pdfPreviewEditorPaneDescriptor,
+} as const;
 
 // Keep the tab-to-pane mapping in one place so the editor shell stays focused on layout and activation.
 export function resolveEditorPane(
@@ -153,11 +145,25 @@ export function resolveEditorPane(
   context: EditorPaneResolverContext,
 ): ResolvedEditorPane {
   const input = createEditorPaneInput(activeTab);
-  const descriptor = getEditorPaneDescriptor(input);
 
-  return {
-    paneId: descriptor.id,
-    contentClassNames: input.contentClassNames,
-    view: descriptor.render(input, context),
-  };
+  switch (input.paneId) {
+    case 'draft':
+      return {
+        paneId: editorPaneDescriptors.draft.id,
+        contentClassNames: input.contentClassNames,
+        view: editorPaneDescriptors.draft.render(input, context),
+      };
+    case 'web-preview':
+      return {
+        paneId: editorPaneDescriptors['web-preview'].id,
+        contentClassNames: input.contentClassNames,
+        view: editorPaneDescriptors['web-preview'].render(input, context),
+      };
+    case 'pdf-preview':
+      return {
+        paneId: editorPaneDescriptors['pdf-preview'].id,
+        contentClassNames: input.contentClassNames,
+        view: editorPaneDescriptors['pdf-preview'].render(input, context),
+      };
+  }
 }

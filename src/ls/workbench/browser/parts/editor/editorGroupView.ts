@@ -1,5 +1,5 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import { useCallback, useMemo, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../../../../base/browser/ui/button/button';
 import type {
@@ -11,6 +11,7 @@ import {
   areDraftEditorRuntimeStatesEqual,
   createEditorStatus,
   type DraftEditorRuntimeState,
+  type EditorStatusState,
 } from './editorStatus';
 import EditorStatusView from './editorStatusView';
 import { resolveEditorPane } from './panes/editorPaneRegistry';
@@ -29,6 +30,11 @@ type EditorGroupViewProps = {
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+};
+
+type EditorGroupControllerSnapshot = {
+  group: EditorGroupModel;
+  editorStatus: EditorStatusState;
 };
 
 function renderWorkspaceActionButton({
@@ -68,66 +74,181 @@ function createTitleAreaControl(
   return new TabsTitleControl(titleControlProps);
 }
 
-export function EditorGroupView(props: EditorGroupViewProps) {
-  const [draftStatusByTabId, setDraftStatusByTabId] = useState<
-    Record<string, DraftEditorRuntimeState>
-  >({});
-  const group = createEditorGroupModel({
-    tabs: props.tabs,
-    activeTabId: props.activeTabId,
-    activeTab: props.activeTab,
-    labels: props.labels,
-  });
-  const titleAreaControl = createTitleAreaControl(props, group);
-  const handleDraftStatusChange = useCallback(
-    (tabId: string, nextStatus: DraftEditorRuntimeState) => {
-      setDraftStatusByTabId((current) => {
-        if (areDraftEditorRuntimeStatesEqual(current[tabId], nextStatus)) {
-          return current;
-        }
+function createEditorStatusLabels(labels: EditorPartLabels) {
+  return {
+    draftMode: labels.draftMode,
+    sourceMode: labels.sourceMode,
+    pdfMode: labels.pdfMode,
+    paragraph: labels.paragraph,
+    heading1: labels.heading1,
+    heading2: labels.heading2,
+    heading3: labels.heading3,
+    bulletList: labels.bulletList,
+    orderedList: labels.orderedList,
+    blockquote: labels.blockquote,
+    undo: labels.undo,
+    redo: labels.redo,
+    statusbarAriaLabel: labels.status.statusbarAriaLabel,
+    words: labels.status.words,
+    characters: labels.status.characters,
+    paragraphs: labels.status.paragraphs,
+    selection: labels.status.selection,
+    block: labels.status.block,
+    line: labels.status.line,
+    column: labels.status.column,
+    url: labels.status.url,
+    blockFigure: labels.status.blockFigure,
+    ready: labels.status.ready,
+  };
+}
 
-        return {
-          ...current,
-          [tabId]: nextStatus,
-        };
-      });
-    },
-    [],
-  );
-  const editorStatusLabels = useMemo(
-    () => ({
-      draftMode: props.labels.draftMode,
-      sourceMode: props.labels.sourceMode,
-      pdfMode: props.labels.pdfMode,
-      paragraph: props.labels.paragraph,
-      heading1: props.labels.heading1,
-      heading2: props.labels.heading2,
-      heading3: props.labels.heading3,
-      bulletList: props.labels.bulletList,
-      orderedList: props.labels.orderedList,
-      blockquote: props.labels.blockquote,
-      undo: props.labels.undo,
-      redo: props.labels.redo,
-      statusbarAriaLabel: props.labels.status.statusbarAriaLabel,
-      words: props.labels.status.words,
-      characters: props.labels.status.characters,
-      paragraphs: props.labels.status.paragraphs,
-      selection: props.labels.status.selection,
-      block: props.labels.status.block,
-      line: props.labels.status.line,
-      column: props.labels.status.column,
-      url: props.labels.status.url,
-      blockFigure: props.labels.status.blockFigure,
-      ready: props.labels.status.ready,
-    }),
-    [props.labels],
-  );
+function createEditorGroupControllerSnapshot(
+  context: EditorGroupViewProps,
+  draftStatusByTabId: Record<string, DraftEditorRuntimeState>,
+): EditorGroupControllerSnapshot {
+  const group = createEditorGroupModel({
+    tabs: context.tabs,
+    activeTabId: context.activeTabId,
+    activeTab: context.activeTab,
+    labels: context.labels,
+  });
   const activeDraftStatus =
     group.activeTab?.kind === 'draft' ? draftStatusByTabId[group.activeTab.id] : undefined;
-  const editorStatus = useMemo(
-    () => createEditorStatus(group.activeTab, editorStatusLabels, activeDraftStatus),
-    [activeDraftStatus, editorStatusLabels, group.activeTab],
+
+  return {
+    group,
+    editorStatus: createEditorStatus(
+      group.activeTab,
+      createEditorStatusLabels(context.labels),
+      activeDraftStatus,
+    ),
+  };
+}
+
+function createEditorGroupSnapshotKey(snapshot: EditorGroupControllerSnapshot) {
+  return JSON.stringify({
+    tabs: snapshot.group.tabs,
+    activeTabId: snapshot.group.activeTabId,
+    activeTab: snapshot.group.activeTab
+      ? {
+          id: snapshot.group.activeTab.id,
+          kind: snapshot.group.activeTab.kind,
+        }
+      : null,
+    editorStatus: snapshot.editorStatus,
+  });
+}
+
+class EditorGroupController {
+  private context: EditorGroupViewProps;
+  private draftStatusByTabId: Record<string, DraftEditorRuntimeState> = {};
+  private snapshot: EditorGroupControllerSnapshot;
+  private snapshotKey: string;
+  private readonly listeners = new Set<() => void>();
+
+  constructor(context: EditorGroupViewProps) {
+    this.context = context;
+    this.snapshot = createEditorGroupControllerSnapshot(
+      this.context,
+      this.draftStatusByTabId,
+    );
+    this.snapshotKey = createEditorGroupSnapshotKey(this.snapshot);
+  }
+
+  readonly subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  readonly getSnapshot = () => this.snapshot;
+
+  readonly setContext = (context: EditorGroupViewProps) => {
+    this.context = context;
+    this.pruneDraftStatuses();
+    this.refreshSnapshot();
+  };
+
+  readonly dispose = () => {
+    this.listeners.clear();
+  };
+
+  readonly updateDraftStatus = (tabId: string, nextStatus: DraftEditorRuntimeState) => {
+    if (areDraftEditorRuntimeStatesEqual(this.draftStatusByTabId[tabId], nextStatus)) {
+      return;
+    }
+
+    this.draftStatusByTabId = {
+      ...this.draftStatusByTabId,
+      [tabId]: nextStatus,
+    };
+    this.refreshSnapshot();
+  };
+
+  private emitChange() {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  private pruneDraftStatuses() {
+    const draftTabIds = new Set(
+      this.context.tabs
+        .filter((tab) => tab.kind === 'draft')
+        .map((tab) => tab.id),
+    );
+    const nextDraftStatusByTabId = Object.fromEntries(
+      Object.entries(this.draftStatusByTabId).filter(([tabId]) =>
+        draftTabIds.has(tabId),
+      ),
+    ) as Record<string, DraftEditorRuntimeState>;
+
+    if (
+      Object.keys(nextDraftStatusByTabId).length ===
+      Object.keys(this.draftStatusByTabId).length
+    ) {
+      return;
+    }
+
+    this.draftStatusByTabId = nextDraftStatusByTabId;
+  }
+
+  private refreshSnapshot() {
+    const nextSnapshot = createEditorGroupControllerSnapshot(
+      this.context,
+      this.draftStatusByTabId,
+    );
+    const nextSnapshotKey = createEditorGroupSnapshotKey(nextSnapshot);
+    if (nextSnapshotKey === this.snapshotKey) {
+      return;
+    }
+
+    this.snapshot = nextSnapshot;
+    this.snapshotKey = nextSnapshotKey;
+    this.emitChange();
+  }
+}
+
+export function EditorGroupView(props: EditorGroupViewProps) {
+  const [controller] = useState(() => new EditorGroupController(props));
+
+  useEffect(() => {
+    controller.setContext(props);
+  }, [controller, props]);
+
+  useEffect(() => {
+    return () => {
+      controller.dispose();
+    };
+  }, [controller]);
+
+  const { group, editorStatus } = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot,
   );
+  const titleAreaControl = createTitleAreaControl(props, group);
 
   if (!group.activeTab) {
     return jsxs('div', {
@@ -155,7 +276,7 @@ export function EditorGroupView(props: EditorGroupViewProps) {
     labels: props.labels,
     viewPartProps: props.viewPartProps,
     onDraftDocumentChange: props.onDraftDocumentChange,
-    onDraftStatusChange: handleDraftStatusChange,
+    onDraftStatusChange: controller.updateDraftStatus,
   });
   const editorContentClassName = ['editor-content', ...resolvedPane.contentClassNames].join(' ');
 
