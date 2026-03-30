@@ -158,8 +158,8 @@ const workbenchDependencyModules = [
     load: () => import('./ls/workbench/browser/readerView'),
   },
   {
-    label: 'ls/workbench/browser/locale',
-    load: () => import('./ls/workbench/browser/locale'),
+    label: 'ls/workbench/contrib/localization/browser/localeService',
+    load: () => import('./ls/workbench/contrib/localization/browser/localeService'),
   },
   {
     label: 'ls/workbench/browser/session',

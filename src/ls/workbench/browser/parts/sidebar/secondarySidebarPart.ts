@@ -9,7 +9,6 @@ import {
 } from '../titlebar/titlebarActions';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
 import { ArticleCard } from './articleCard';
-import { AuxiliarySidebar, type AuxiliarySidebarProps } from './auxiliarySidebar';
 import { PrimarySidebar, type PrimarySidebarProps } from './primarySidebar';
 import './media/secondarySidebar.css';
 
@@ -528,45 +527,10 @@ export class PrimarySidebarPartView {
   }
 }
 
-export class AuxiliarySidebarPartView {
-  private readonly element = createElement(
-    'section',
-    'panel sidebar-panel sidebar-panel-auxiliary',
-  );
-  private readonly sidebar: AuxiliarySidebar;
-
-  constructor(props: AuxiliarySidebarProps) {
-    registerWorkbenchPartDomNode(
-      WORKBENCH_PART_IDS.auxiliarySidebar,
-      this.element,
-    );
-    this.sidebar = new AuxiliarySidebar(props);
-    this.element.append(this.sidebar.getElement());
-  }
-
-  getElement() {
-    return this.element;
-  }
-
-  setProps(props: AuxiliarySidebarProps) {
-    this.sidebar.setProps(props);
-  }
-
-  dispose() {
-    this.sidebar.dispose();
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.auxiliarySidebar, null);
-    this.element.replaceChildren();
-  }
-}
-
 export function createSecondarySidebarPartView(props: SecondarySidebarProps) {
   return new SecondarySidebarPartView(props);
 }
 
 export function createPrimarySidebarPartView(props: PrimarySidebarProps) {
   return new PrimarySidebarPartView(props);
-}
-
-export function createAuxiliarySidebarPartView(props: AuxiliarySidebarProps) {
-  return new AuxiliarySidebarPartView(props);
 }

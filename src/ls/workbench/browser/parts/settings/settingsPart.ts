@@ -12,6 +12,11 @@ import type {
 } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
 import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
+import { createSwitchView } from '../../../../base/browser/ui/switch/switch.js';
+import {
+  createDisplayLanguageOptions,
+  requestSetDisplayLanguage,
+} from '../../../contrib/localization/browser/localizationsActions';
 import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
 import type { BatchSource } from '../../../services/config/configSchema';
 import { getDefaultModelForProvider, getLlmModelsForProvider } from '../../../services/llm/registry.js';
@@ -44,7 +49,7 @@ export type SettingsPartLabels = {
 };
 
 export type SettingsPartProps = {
-  labels: SettingsPartLabels; isSettingsLoading: boolean; locale: Locale; onLocaleChange: (locale: Locale) => void; batchSources: BatchSource[];
+  labels: SettingsPartLabels; isSettingsLoading: boolean; locale: Locale; batchSources: BatchSource[];
   onBatchSourceUrlChange: (index: number, url: string) => void; onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void; onAddBatchSource: () => void;
   onRemoveBatchSource: (index: number) => void; onMoveBatchSource: (index: number, direction: 'up' | 'down') => void; batchLimit: number; onBatchLimitChange: (value: string) => void;
   sameDomainOnly: boolean; onSameDomainOnlyChange: (checked: boolean) => void; useMica: boolean; onUseMicaChange: (checked: boolean) => void; ragEnabled: boolean;
@@ -75,7 +80,7 @@ export type SettingsPartState = {
 };
 
 export type SettingsPartActions = {
-  onLocaleChange: (locale: Locale) => void; onBatchSourceUrlChange: (index: number, url: string) => void; onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void;
+  onBatchSourceUrlChange: (index: number, url: string) => void; onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void;
   onAddBatchSource: () => void; onRemoveBatchSource: (index: number) => void; onMoveBatchSource: (index: number, direction: 'up' | 'down') => void; onBatchLimitChange: (value: string) => void;
   onSameDomainOnlyChange: (checked: boolean) => void; onUseMicaChange: (checked: boolean) => void; onRagEnabledChange: (checked: boolean) => void; onAutoIndexDownloadedPdfChange: (checked: boolean) => void;
   onLibraryStorageModeChange: (value: LibraryStorageMode) => void; onLibraryDirectoryChange: (value: string) => void; onChooseLibraryDirectory: () => void; onMaxConcurrentIndexJobsChange: (value: string) => void;
@@ -194,6 +199,23 @@ function buildCheckbox(config: {
   input.disabled = Boolean(config.disabled);
   input.addEventListener('change', () => config.onChange(input.checked));
   return input;
+}
+
+function buildSwitch(config: {
+  checked: boolean;
+  focusKey: string;
+  disabled?: boolean;
+  title?: string;
+  onChange: (checked: boolean) => void;
+}) {
+  const view = createSwitchView({
+    checked: config.checked,
+    disabled: config.disabled,
+    className: 'settings-toggle-switch',
+    title: config.title,
+    onChange: config.onChange,
+  });
+  return setFocusKey(view.getElement(), config.focusKey);
 }
 
 function buildButton(config: {
@@ -341,13 +363,10 @@ export class SettingsPartView {
     const label = el('span');
     label.textContent = this.props.labels.settingsLanguage;
     const select = buildSelect(
-      [
-        { value: 'zh', label: this.props.labels.languageChinese },
-        { value: 'en', label: this.props.labels.languageEnglish },
-      ],
+      createDisplayLanguageOptions(this.props.labels),
       this.props.locale,
       'settings.locale',
-      (value) => this.props.onLocaleChange(value as Locale),
+      (value) => requestSetDisplayLanguage(value as Locale),
       'settings-language-toggle',
     );
     row.append(label, select);
@@ -429,16 +448,17 @@ export class SettingsPartView {
   private renderAppearanceField() {
     const field = el('div', 'settings-field');
     const title = el('span'); title.textContent = this.props.labels.settingsAppearanceTitle;
-    const row = el('div', 'settings-toggle-row');
-    const label = el('span', 'settings-hint'); label.textContent = this.props.labels.settingsUseMica;
-    row.append(label, buildCheckbox({
-      checked: this.props.useMica,
-      className: 'settings-toggle-input',
-      focusKey: 'settings.appearance.useMica',
-      disabled: this.props.isSettingsSaving || !this.props.desktopRuntime,
-      onChange: this.props.onUseMicaChange,
-    }));
-    field.append(title, row);
+    field.append(
+      title,
+      this.renderToggleRow(
+        'settings.appearance.useMica',
+        this.props.labels.settingsUseMica,
+        this.props.labels.settingsUseMicaHint,
+        this.props.useMica,
+        this.props.isSettingsSaving || !this.props.desktopRuntime,
+        this.props.onUseMicaChange,
+      ),
+    );
     return field;
   }
 
@@ -555,7 +575,13 @@ export class SettingsPartView {
     const textBlock = el('div');
     const title = el('span', 'settings-hint'); title.textContent = this.props.labels.pdfFileNameUseSelectionOrder;
     textBlock.append(title, buildHint(this.props.labels.pdfFileNameUseSelectionOrderHint, 'settings-hint settings-toggle-subtitle'));
-    toggleRow.append(textBlock, buildCheckbox({ checked: this.props.pdfFileNameUseSelectionOrder, className: 'settings-toggle-input', focusKey: 'settings.download.selectionOrder', disabled: this.props.isSettingsSaving, onChange: this.props.onPdfFileNameUseSelectionOrderChange }));
+    toggleRow.append(textBlock, buildSwitch({
+      checked: this.props.pdfFileNameUseSelectionOrder,
+      focusKey: 'settings.download.selectionOrder',
+      disabled: this.props.isSettingsSaving,
+      title: this.props.labels.pdfFileNameUseSelectionOrder,
+      onChange: this.props.onPdfFileNameUseSelectionOrderChange,
+    }));
     field.append(text(this.props.labels.defaultPdfDir), row, toggleRow);
     return field;
   }
@@ -622,7 +648,7 @@ export class SettingsPartView {
     const textBlock = el('div');
     const label = el('span', 'settings-hint'); label.textContent = title;
     textBlock.append(label, buildHint(hint, 'settings-hint settings-toggle-subtitle'));
-    row.append(textBlock, buildCheckbox({ checked, className: 'settings-toggle-input', focusKey, disabled, onChange }));
+    row.append(textBlock, buildSwitch({ checked, focusKey, disabled, title, onChange }));
     return row;
   }
 
