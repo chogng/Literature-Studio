@@ -2,11 +2,10 @@ import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 
 const lsPath = fileURLToPath(new URL('./src/ls', import.meta.url));
-const workbenchHtmlPath = fileURLToPath(
-  new URL('./src/ls/code/electron-sandbox/workbench/workbench.html', import.meta.url),
-);
+const webIndexPath = fileURLToPath(new URL('./index.html', import.meta.url));
 
-// A web-friendly dev config (separate from the desktop app dev server ports).
+// Web mode serves the root index directly so `vite` dev opens at `/`
+// instead of requiring the nested Electron workbench HTML path.
 export default defineConfig({
   clearScreen: false,
   resolve: {
@@ -21,7 +20,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        workbench: workbenchHtmlPath,
+        index: webIndexPath,
       },
     },
   },

@@ -171,8 +171,8 @@ export class EditorPartController {
   constructor(context: EditorPartControllerContext) {
     this.context = context;
     this.actions = {
-      onActivateTab: this.activateTab,
-      onCloseTab: this.closeTab,
+      onActivateTab: this.onActivateTab,
+      onCloseTab: this.onCloseTab,
       onCreateDraftTab: this.createDraftTab,
       onCreatePdfTab: this.handleCreatePdfTab,
       onDraftDocumentChange: this.setDraftDocument,
@@ -223,11 +223,11 @@ export class EditorPartController {
     this.writingEditorModel.setDraftDocument(value);
   };
 
-  private readonly activateTab = (tabId: string) => {
+  readonly onActivateTab = (tabId: string) => {
     this.writingEditorModel.activateTab(tabId);
   };
 
-  private readonly closeTab = (tabId: string) => {
+  readonly onCloseTab = (tabId: string) => {
     this.writingEditorModel.closeTab(tabId);
   };
 

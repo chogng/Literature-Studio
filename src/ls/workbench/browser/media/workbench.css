@@ -88,6 +88,7 @@ button:disabled {
 }
 
 .content-grid {
+  height: 100%;
   min-height: 0;
   display: grid;
   grid-template-columns: var(
@@ -95,7 +96,15 @@ button:disabled {
     minmax(280px, 320px) minmax(0, 1fr)
   );
   grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
   gap: 6px;
+  overflow: hidden;
+}
+
+.content-grid > * {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .content-grid.is-sidebar-collapsed {
