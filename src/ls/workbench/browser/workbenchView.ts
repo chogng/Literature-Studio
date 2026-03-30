@@ -247,6 +247,7 @@ function renderWorkbenchShell({
     ref: workbenchContainerRef,
     className: [
       "app-window",
+      electronRuntime ? "has-titlebar" : "",
       electronRuntime && useMica ? "is-mica-enabled" : "",
       statusbarVisible ? "has-statusbar" : "",
     ]

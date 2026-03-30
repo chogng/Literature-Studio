@@ -45,14 +45,23 @@ button:disabled {
 }
 
 .app-window {
+  width: 100%;
   height: 100%;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
   background: transparent;
 }
 
 .app-window.has-statusbar {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.app-window.has-titlebar {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.app-window.has-titlebar.has-statusbar {
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
