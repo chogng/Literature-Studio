@@ -11,8 +11,9 @@
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
     "dev:renderer": "vite",
     "build:electron": "tsc -p tsconfig.electron.json",
+    "build:web": "tsc --noEmit && vite build --config vite.web.config.ts",
     "dev:electron:build": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
-    "dev:electron:run": "wait-on tcp:1420 file:dist-electron/code/electron-main/main.js && cross-env ELECTRON_RENDERER_URL=http://localhost:1420 nodemon --watch dist-electron --ext js --delay 2000ms --signal SIGTERM dist-electron/code/electron-main/launch.js dist-electron/code/electron-main/main.js",
+    "dev:electron:run": "wait-on tcp:127.0.0.1:1420 file:dist-electron/code/electron-main/main.js && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:1420 nodemon --watch dist-electron --ext js --delay 2000ms --signal SIGTERM dist-electron/code/electron-main/launch.js dist-electron/code/electron-main/main.js",
     "dev:electron": "concurrently -k \"npm:dev:electron:build\" \"npm:dev:electron:run\"",
     "dev:web": "vite --config vite.web.config.ts",
     "check:i18n": "node scripts/check-i18n-keys.mjs",
@@ -21,11 +22,11 @@
     "dist:mac": "npm run build && electron-builder --mac dmg zip --x64 --publish never",
     "build": "npm run build:electron && tsc && vite build",
     "start": "npm run build:electron && node dist-electron/code/electron-main/launch.js dist-electron/code/electron-main/main.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:web": "vite preview --config vite.web.config.ts"
   },
   "dependencies": {
     "cheerio": "^1.1.2",
-    "lucide-react": "^0.575.0",
     "prosemirror-commands": "^1.7.1",
     "prosemirror-dropcursor": "^1.8.2",
     "prosemirror-gapcursor": "^1.4.1",
