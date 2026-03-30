@@ -13,7 +13,6 @@ import {
   type DraftEditorRuntimeState,
   type EditorStatusState,
 } from './editorStatus';
-import EditorStatusView from './editorStatusView';
 import { resolveEditorPane } from './panes/editorPaneRegistry';
 import type { EditorPartLabels } from './editorPartView';
 import { createEditorGroupModel, type EditorGroupModel } from './editorGroupModel';
@@ -30,6 +29,7 @@ type EditorGroupViewProps = {
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  onStatusChange?: (status: EditorStatusState) => void;
 };
 
 type EditorGroupControllerSnapshot = {
@@ -248,6 +248,11 @@ export function EditorGroupView(props: EditorGroupViewProps) {
     controller.getSnapshot,
     controller.getSnapshot,
   );
+
+  useEffect(() => {
+    props.onStatusChange?.(editorStatus);
+  }, [editorStatus, props.onStatusChange]);
+
   const titleAreaControl = createTitleAreaControl(props, group);
 
   if (!group.activeTab) {
@@ -264,9 +269,6 @@ export function EditorGroupView(props: EditorGroupViewProps) {
             label: props.labels.draftMode,
             onClick: props.onCreateDraftTab,
           }),
-        }),
-        jsx(EditorStatusView, {
-          status: editorStatus,
         }),
       ],
     });
@@ -291,9 +293,6 @@ export function EditorGroupView(props: EditorGroupViewProps) {
         className: editorContentClassName,
         'data-editor-pane': resolvedPane.paneId,
         children: resolvedPane.view,
-      }),
-      jsx(EditorStatusView, {
-        status: editorStatus,
       }),
     ],
   });
