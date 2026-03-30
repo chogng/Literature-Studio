@@ -550,6 +550,8 @@ function WorkbenchContentView() {
       editorPartController.getSnapshot,
       editorPartController.getSnapshot
     ),
+    activateTab: editorPartController.onActivateTab,
+    closeTab: editorPartController.onCloseTab,
     createDraftTab: editorPartController.createDraftTab,
     createWebTab: editorPartController.createWebTab,
     updateActivePreviewTabUrl: editorPartController.updateActivePreviewTabUrl,
