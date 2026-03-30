@@ -9,7 +9,7 @@
   --titlebar-field-bg-focus: #ffffff;
   height: 38px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   background-color: var(--workbench-chrome-bg-transparent);
   transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -25,8 +25,25 @@
   background-color: var(--workbench-chrome-bg-transparent);
 }
 
-.titlebar-start {
+.titlebar-window-controls-container {
   grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 0;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-window-controls-container.window-controls-container-native {
+  width: var(--window-controls-width, 70px);
+  min-width: var(--window-controls-width, 70px);
+}
+
+.titlebar-start {
+  grid-column: 2;
   justify-self: start;
   display: flex;
   align-items: stretch;
@@ -43,7 +60,7 @@
 }
 
 .titlebar-center {
-  grid-column: 2;
+  grid-column: 3;
   justify-self: center;
   display: flex;
   align-items: center;
@@ -216,7 +233,7 @@
 }
 
 .titlebar-controls {
-  grid-column: 3;
+  grid-column: 4;
   justify-self: end;
   -webkit-app-region: no-drag;
   display: inline-flex;
@@ -229,6 +246,7 @@
   display: inline-flex;
   align-items: center;
   height: 100%;
+  -webkit-app-region: no-drag;
 }
 
 .titlebar-btn.btn-base {
@@ -310,4 +328,3 @@
   background: #c50f1f;
   color: #fff;
 }
-

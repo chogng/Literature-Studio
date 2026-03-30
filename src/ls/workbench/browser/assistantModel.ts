@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react";
 import { toast } from "../../base/browser/ui/toast/toast";
 import type {
   Article,
@@ -14,7 +13,7 @@ import {
   parseDesktopInvokeError,
 } from "../services/desktop/desktopError";
 
-type UseAssistantModelParams = {
+export type AssistantModelContext = {
   desktopRuntime: boolean;
   invokeDesktop: ElectronInvoke;
   ui: LocaleMessages;
@@ -50,25 +49,34 @@ export type AssistantConversation = {
 
 const DEFAULT_CONVERSATION_TITLE = "新对话";
 
-export function useAssistantModel({
-  desktopRuntime,
-  invokeDesktop,
-  ui,
-  isKnowledgeBaseModeEnabled,
-  articles,
-  llmSettings,
-  ragSettings,
-  fallbackWritingContext = "",
-}: UseAssistantModelParams) {
-  const createMessageId = () =>
-    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+type AssistantModelState = {
+  conversations: AssistantConversation[];
+  activeConversationId: string;
+  isHistoryOpen: boolean;
+  isMoreMenuOpen: boolean;
+};
 
-  const createConversationId = () =>
-    `conversation-${Date.now().toString(36)}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}`;
+export type AssistantModelSnapshot = AssistantModelState & {
+  activeConversation: AssistantConversation | null;
+  question: string;
+  messages: AssistantChatMessage[];
+  result: RagAnswerResult | null;
+  isAsking: boolean;
+  errorMessage: string | null;
+};
 
-  const createConversation = (index: number): AssistantConversation => ({
+function createMessageId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createConversationId() {
+  return `conversation-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+}
+
+function createConversation(index: number): AssistantConversation {
+  return {
     id: createConversationId(),
     title:
       index === 0
@@ -79,125 +87,185 @@ export function useAssistantModel({
     messages: [],
     isAsking: false,
     errorMessage: null,
-  });
+  };
+}
 
-  const [conversations, setConversations] = useState<AssistantConversation[]>([
-    createConversation(0),
-  ]);
-  const [activeConversationId, setActiveConversationId] = useState(
-    () => conversations[0]?.id ?? ""
+function normalizeState(state: AssistantModelState): AssistantModelState {
+  const activeConversationExists = state.conversations.some(
+    (conversation) => conversation.id === state.activeConversationId
   );
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const nextActiveConversationId =
+    activeConversationExists
+      ? state.activeConversationId
+      : state.conversations[0]?.id ?? "";
 
+  if (nextActiveConversationId === state.activeConversationId) {
+    return state;
+  }
+
+  return {
+    ...state,
+    activeConversationId: nextActiveConversationId,
+  };
+}
+
+function createSnapshot(state: AssistantModelState): AssistantModelSnapshot {
   const activeConversation =
-    conversations.find(
-      (conversation) => conversation.id === activeConversationId
-    ) ?? conversations[0];
+    state.conversations.find(
+      (conversation) => conversation.id === state.activeConversationId
+    ) ?? state.conversations[0] ?? null;
 
-  const updateActiveConversation = useCallback(
-    (
-      updater: (conversation: AssistantConversation) => AssistantConversation
-    ) => {
-      setConversations((previousConversations) =>
-        previousConversations.map((conversation) =>
-          conversation.id === activeConversationId
-            ? updater(conversation)
-            : conversation
-        )
-      );
-    },
-    [activeConversationId]
-  );
+  return {
+    ...state,
+    activeConversation,
+    question: activeConversation?.question ?? "",
+    messages: activeConversation?.messages ?? [],
+    result: activeConversation?.result ?? null,
+    isAsking: activeConversation?.isAsking ?? false,
+    errorMessage: activeConversation?.errorMessage ?? null,
+  };
+}
 
-  const handleQuestionChange = useCallback(
-    (value: string) => {
-      updateActiveConversation((conversation) => ({
-        ...conversation,
-        question: value,
-        errorMessage: null,
-      }));
-    },
-    [updateActiveConversation]
-  );
+export class AssistantModel {
+  private context: AssistantModelContext;
+  private state: AssistantModelState;
+  private snapshot: AssistantModelSnapshot;
+  private readonly listeners = new Set<() => void>();
 
-  const handleCreateConversation = useCallback(() => {
-    setConversations((previousConversations) => {
-      const nextConversation = createConversation(previousConversations.length);
-      setActiveConversationId(nextConversation.id);
-      return [...previousConversations, nextConversation];
+  constructor(context: AssistantModelContext) {
+    this.context = context;
+
+    const initialConversation = createConversation(0);
+    this.state = {
+      conversations: [initialConversation],
+      activeConversationId: initialConversation.id,
+      isHistoryOpen: false,
+      isMoreMenuOpen: false,
+    };
+    this.snapshot = createSnapshot(this.state);
+  }
+
+  readonly subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  readonly getSnapshot = () => this.snapshot;
+
+  readonly setContext = (context: AssistantModelContext) => {
+    this.context = context;
+  };
+
+  readonly setQuestion = (value: string) => {
+    this.updateActiveConversation((conversation) => ({
+      ...conversation,
+      question: value,
+      errorMessage: null,
+    }));
+  };
+
+  readonly handleCreateConversation = () => {
+    this.updateState((state) => {
+      const nextConversation = createConversation(state.conversations.length);
+      return {
+        ...state,
+        conversations: [...state.conversations, nextConversation],
+        activeConversationId: nextConversation.id,
+        isHistoryOpen: false,
+        isMoreMenuOpen: false,
+      };
     });
-    setIsHistoryOpen(false);
-    setIsMoreMenuOpen(false);
-  }, []);
+  };
 
-  const handleActivateConversation = useCallback((conversationId: string) => {
-    setActiveConversationId(conversationId);
-    setIsHistoryOpen(false);
-    setIsMoreMenuOpen(false);
-  }, []);
-
-  const handleCloseConversation = useCallback((conversationId: string) => {
-    setConversations((previousConversations) => {
-      if (previousConversations.length <= 1) {
-        return previousConversations;
+  readonly handleActivateConversation = (conversationId: string) => {
+    this.updateState((state) => {
+      if (
+        state.activeConversationId === conversationId ||
+        !state.conversations.some(
+          (conversation) => conversation.id === conversationId
+        )
+      ) {
+        return state;
       }
 
-      const closedConversationIndex = previousConversations.findIndex(
+      return {
+        ...state,
+        activeConversationId: conversationId,
+        isHistoryOpen: false,
+        isMoreMenuOpen: false,
+      };
+    });
+  };
+
+  readonly handleCloseConversation = (conversationId: string) => {
+    this.updateState((state) => {
+      if (state.conversations.length <= 1) {
+        return state;
+      }
+
+      const closedConversationIndex = state.conversations.findIndex(
         (conversation) => conversation.id === conversationId
       );
       if (closedConversationIndex < 0) {
-        return previousConversations;
+        return state;
       }
 
-      const nextConversations = previousConversations.filter(
+      const nextConversations = state.conversations.filter(
         (conversation) => conversation.id !== conversationId
       );
+      const nextActiveConversationId =
+        state.activeConversationId === conversationId
+          ? nextConversations[
+              Math.min(closedConversationIndex, nextConversations.length - 1)
+            ]?.id ?? nextConversations[0]?.id ?? ""
+          : state.activeConversationId;
 
-      setActiveConversationId((previousActiveConversationId) => {
-        if (previousActiveConversationId !== conversationId) {
-          return previousActiveConversationId;
-        }
-
-        const fallbackIndex = Math.min(
-          closedConversationIndex,
-          nextConversations.length - 1
-        );
-        return nextConversations[fallbackIndex]?.id ?? nextConversations[0]?.id ?? "";
-      });
-
-      return nextConversations;
+      return {
+        ...state,
+        conversations: nextConversations,
+        activeConversationId: nextActiveConversationId,
+        isHistoryOpen: false,
+        isMoreMenuOpen: false,
+      };
     });
-    setIsHistoryOpen(false);
-    setIsMoreMenuOpen(false);
-  }, []);
+  };
 
-  const handleToggleHistory = useCallback(() => {
-    setIsHistoryOpen((previousValue) => !previousValue);
-    setIsMoreMenuOpen(false);
-  }, []);
+  readonly handleToggleHistory = () => {
+    this.updateState((state) => ({
+      ...state,
+      isHistoryOpen: !state.isHistoryOpen,
+      isMoreMenuOpen: false,
+    }));
+  };
 
-  const handleToggleMoreMenu = useCallback(() => {
-    setIsMoreMenuOpen((previousValue) => !previousValue);
-    setIsHistoryOpen(false);
-  }, []);
+  readonly handleToggleMoreMenu = () => {
+    this.updateState((state) => ({
+      ...state,
+      isHistoryOpen: false,
+      isMoreMenuOpen: !state.isMoreMenuOpen,
+    }));
+  };
 
-  const handleAsk = useCallback(async () => {
+  readonly handleAsk = async () => {
+    const activeConversation = this.snapshot.activeConversation;
     if (!activeConversation) {
       return;
     }
 
     const normalizedQuestion = activeConversation.question.trim();
     if (!normalizedQuestion) {
-      updateActiveConversation((conversation) => ({
+      this.updateConversationById(activeConversation.id, (conversation) => ({
         ...conversation,
-        errorMessage: ui.assistantSidebarQuestionRequired,
+        errorMessage: this.context.ui.assistantSidebarQuestionRequired,
       }));
       return;
     }
 
-    if (!desktopRuntime) {
-      toast.info(ui.toastDesktopLlmTestOnly);
+    const context = this.context;
+    if (!context.desktopRuntime) {
+      toast.info(context.ui.toastDesktopLlmTestOnly);
       return;
     }
 
@@ -207,7 +275,7 @@ export function useAssistantModel({
       content: normalizedQuestion,
     };
 
-    updateActiveConversation((conversation) => ({
+    this.updateConversationById(activeConversation.id, (conversation) => ({
       ...conversation,
       title:
         conversation.messages.length === 0
@@ -220,16 +288,18 @@ export function useAssistantModel({
     }));
 
     try {
-      const retrievalArticles = isKnowledgeBaseModeEnabled ? articles : [];
-      const nextResult = await invokeDesktop("rag_answer_articles", {
+      const retrievalArticles = context.isKnowledgeBaseModeEnabled
+        ? context.articles
+        : [];
+      const nextResult = await context.invokeDesktop("rag_answer_articles", {
         question: normalizedQuestion,
-        writingContext: fallbackWritingContext.trim() || null,
+        writingContext: context.fallbackWritingContext?.trim() || null,
         articles: retrievalArticles,
-        llm: llmSettings,
-        rag: ragSettings,
+        llm: context.llmSettings,
+        rag: context.ragSettings,
       });
 
-      updateActiveConversation((conversation) => ({
+      this.updateConversationById(activeConversation.id, (conversation) => ({
         ...conversation,
         result: nextResult,
         messages: [
@@ -244,53 +314,96 @@ export function useAssistantModel({
       }));
     } catch (askError) {
       const localizedError = localizeDesktopInvokeError(
-        ui,
+        context.ui,
         parseDesktopInvokeError(askError)
       );
-      updateActiveConversation((conversation) => ({
+
+      this.updateConversationById(activeConversation.id, (conversation) => ({
         ...conversation,
         errorMessage: localizedError,
         question: normalizedQuestion,
       }));
       toast.error(
-        formatLocalized(ui.toastRagAnswerFailed, { error: localizedError })
+        formatLocalized(context.ui.toastRagAnswerFailed, {
+          error: localizedError,
+        })
       );
     } finally {
-      updateActiveConversation((conversation) => ({
+      this.updateConversationById(activeConversation.id, (conversation) => ({
         ...conversation,
         isAsking: false,
       }));
     }
-  }, [
-    activeConversation,
-    articles,
-    desktopRuntime,
-    fallbackWritingContext,
-    invokeDesktop,
-    isKnowledgeBaseModeEnabled,
-    llmSettings,
-    ragSettings,
-    ui,
-    updateActiveConversation,
-  ]);
-
-  return {
-    conversations,
-    activeConversationId,
-    activeConversation,
-    question: activeConversation?.question ?? "",
-    setQuestion: handleQuestionChange,
-    messages: activeConversation?.messages ?? [],
-    result: activeConversation?.result ?? null,
-    isAsking: activeConversation?.isAsking ?? false,
-    errorMessage: activeConversation?.errorMessage ?? null,
-    isHistoryOpen,
-    isMoreMenuOpen,
-    handleAsk,
-    handleCreateConversation,
-    handleActivateConversation,
-    handleCloseConversation,
-    handleToggleHistory,
-    handleToggleMoreMenu,
   };
+
+  private emitChange() {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  private setState(nextState: AssistantModelState) {
+    if (Object.is(this.state, nextState)) {
+      return;
+    }
+
+    this.state = nextState;
+    this.snapshot = createSnapshot(this.state);
+    this.emitChange();
+  }
+
+  private updateState(
+    updater: (state: AssistantModelState) => AssistantModelState
+  ) {
+    const nextState = normalizeState(updater(this.state));
+    this.setState(nextState);
+  }
+
+  private updateActiveConversation(
+    updater: (
+      conversation: AssistantConversation
+    ) => AssistantConversation
+  ) {
+    const activeConversation = this.snapshot.activeConversation;
+    if (!activeConversation) {
+      return;
+    }
+
+    this.updateConversationById(activeConversation.id, updater);
+  }
+
+  private updateConversationById(
+    conversationId: string,
+    updater: (
+      conversation: AssistantConversation
+    ) => AssistantConversation
+  ) {
+    this.updateState((state) => {
+      let changed = false;
+      const nextConversations = state.conversations.map((conversation) => {
+        if (conversation.id !== conversationId) {
+          return conversation;
+        }
+
+        const nextConversation = updater(conversation);
+        if (!Object.is(nextConversation, conversation)) {
+          changed = true;
+        }
+        return nextConversation;
+      });
+
+      if (!changed) {
+        return state;
+      }
+
+      return {
+        ...state,
+        conversations: nextConversations,
+      };
+    });
+  }
+}
+
+export function createAssistantModel(context: AssistantModelContext) {
+  return new AssistantModel(context);
 }

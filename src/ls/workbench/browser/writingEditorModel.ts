@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createEmptyWritingEditorDocument,
   createWritingEditorDocumentFromPlainText,
@@ -48,6 +47,17 @@ type WritingWorkspaceState = {
   activeTabId: string | null;
   mruTabIds: string[];
 };
+
+export type WritingEditorModelSnapshot = {
+  tabs: WritingWorkspaceTab[];
+  activeTabId: string | null;
+  mruTabIds: string[];
+  activeTab: WritingWorkspaceTab | null;
+  draftDocument: WritingEditorDocument;
+  draftBody: string;
+};
+
+type WritingEditorModelListener = () => void;
 
 type StoredWritingWorkspaceState = {
   tabs?: unknown;
@@ -302,97 +312,138 @@ function readStoredWorkspaceState(): WritingWorkspaceState {
   }
 }
 
-export function useWritingEditorModel() {
-  const [workspaceState, setWorkspaceState] = useState<WritingWorkspaceState>(() =>
-    readStoredWorkspaceState(),
+function resolveActiveTab(workspaceState: WritingWorkspaceState) {
+  return (
+    workspaceState.tabs.find((tab) => tab.id === workspaceState.activeTabId) ??
+    workspaceState.tabs[0] ??
+    null
   );
+}
 
-  const updateWorkspaceState = useCallback(
-    (updater: (state: WritingWorkspaceState) => WritingWorkspaceState) => {
-      setWorkspaceState((state) => normalizeWorkspaceState(updater(state)));
-    },
-    [],
-  );
+function resolveContextDraftTab(
+  workspaceState: WritingWorkspaceState,
+  activeTab: WritingWorkspaceTab | null,
+) {
+  if (activeTab?.kind === 'draft') {
+    return activeTab;
+  }
 
-  const { tabs, activeTabId, mruTabIds } = workspaceState;
-
-  const activeTab = useMemo(
-    () => tabs.find((tab) => tab.id === activeTabId) ?? tabs[0] ?? null,
-    [activeTabId, tabs],
-  );
-
-  const draftTabsInMruOrder = useMemo(() => {
-    const tabById = new Map(tabs.map((tab) => [tab.id, tab] as const));
-    return mruTabIds
+  const tabById = new Map(workspaceState.tabs.map((tab) => [tab.id, tab] as const));
+  return (
+    workspaceState.mruTabIds
       .map((tabId) => tabById.get(tabId))
-      .filter((tab): tab is WritingWorkspaceDraftTab => tab?.kind === 'draft');
-  }, [mruTabIds, tabs]);
+      .find((tab): tab is WritingWorkspaceDraftTab => tab?.kind === 'draft') ?? null
+  );
+}
 
-  const activeDraftTab =
-    activeTab?.kind === 'draft' ? activeTab : null;
-  const contextDraftTab = activeDraftTab ?? draftTabsInMruOrder[0] ?? null;
+function createWritingEditorModelSnapshot(
+  workspaceState: WritingWorkspaceState,
+): WritingEditorModelSnapshot {
+  const activeTab = resolveActiveTab(workspaceState);
+  const activeDraftTab = activeTab?.kind === 'draft' ? activeTab : null;
+  const contextDraftTab = resolveContextDraftTab(workspaceState, activeTab);
 
-  useEffect(() => {
-    persistDraftValue(
-      draftStorageKeys.workspace,
-      JSON.stringify({
-        tabs,
-        activeTabId,
-        mruTabIds,
-      }),
-    );
-  }, [activeTabId, mruTabIds, tabs]);
+  return {
+    tabs: workspaceState.tabs,
+    activeTabId: workspaceState.activeTabId,
+    mruTabIds: workspaceState.mruTabIds,
+    activeTab,
+    draftDocument: activeDraftTab?.document ?? createEmptyWritingEditorDocument(),
+    draftBody: contextDraftTab
+      ? writingEditorDocumentToPlainText(contextDraftTab.document)
+      : '',
+  };
+}
 
-  useEffect(() => {
-    persistDraftValue(draftStorageKeys.title, contextDraftTab?.title ?? '');
-    persistDraftValue(
-      draftStorageKeys.document,
-      contextDraftTab ? JSON.stringify(contextDraftTab.document) : '',
-    );
-    persistDraftValue(
-      draftStorageKeys.body,
-      contextDraftTab
-        ? writingEditorDocumentToPlainText(contextDraftTab.document)
-        : '',
-    );
-    persistDraftValue(
-      draftStorageKeys.viewMode,
-      contextDraftTab?.viewMode ?? DEFAULT_VIEW_MODE,
-    );
-  }, [contextDraftTab]);
+function persistWorkspaceState(workspaceState: WritingWorkspaceState) {
+  persistDraftValue(
+    draftStorageKeys.workspace,
+    JSON.stringify({
+      tabs: workspaceState.tabs,
+      activeTabId: workspaceState.activeTabId,
+      mruTabIds: workspaceState.mruTabIds,
+    }),
+  );
+}
 
-  const activateTab = useCallback((tabId: string) => {
-    updateWorkspaceState((state) => ({
+function persistContextDraftState(
+  workspaceState: WritingWorkspaceState,
+  activeTab: WritingWorkspaceTab | null,
+) {
+  const contextDraftTab = resolveContextDraftTab(workspaceState, activeTab);
+  persistDraftValue(draftStorageKeys.title, contextDraftTab?.title ?? '');
+  persistDraftValue(
+    draftStorageKeys.document,
+    contextDraftTab ? JSON.stringify(contextDraftTab.document) : '',
+  );
+  persistDraftValue(
+    draftStorageKeys.body,
+    contextDraftTab ? writingEditorDocumentToPlainText(contextDraftTab.document) : '',
+  );
+  persistDraftValue(
+    draftStorageKeys.viewMode,
+    contextDraftTab?.viewMode ?? DEFAULT_VIEW_MODE,
+  );
+}
+
+function persistWorkspaceSnapshot(workspaceState: WritingWorkspaceState) {
+  const activeTab = resolveActiveTab(workspaceState);
+  persistWorkspaceState(workspaceState);
+  persistContextDraftState(workspaceState, activeTab);
+}
+
+export class WritingEditorModel {
+  private workspaceState: WritingWorkspaceState;
+  private snapshot: WritingEditorModelSnapshot;
+  private listeners = new Set<WritingEditorModelListener>();
+
+  constructor(initialState: WritingWorkspaceState = readStoredWorkspaceState()) {
+    this.workspaceState = normalizeWorkspaceState(initialState);
+    this.snapshot = createWritingEditorModelSnapshot(this.workspaceState);
+    persistWorkspaceSnapshot(this.workspaceState);
+  }
+
+  readonly subscribe = (listener: WritingEditorModelListener) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  readonly getSnapshot = () => this.snapshot;
+
+  readonly activateTab = (tabId: string) => {
+    this.updateWorkspaceState((state) => ({
       ...state,
       activeTabId: tabId,
       mruTabIds: touchMruTab(state.mruTabIds, tabId),
     }));
-  }, [updateWorkspaceState]);
+  };
 
-  const closeTab = useCallback((tabId: string) => {
-    updateWorkspaceState((state) => ({
+  readonly closeTab = (tabId: string) => {
+    this.updateWorkspaceState((state) => ({
       tabs: state.tabs.filter((tab) => tab.id !== tabId),
       activeTabId: state.activeTabId === tabId ? null : state.activeTabId,
       mruTabIds: state.mruTabIds.filter((id) => id !== tabId),
     }));
-  }, [updateWorkspaceState]);
+  };
 
-  const createDraftWorkspaceTab = useCallback(() => {
+  readonly createDraftTab = () => {
     const nextTab = createDraftTab();
-    updateWorkspaceState((state) => ({
+    this.updateWorkspaceState((state) => ({
       tabs: [...state.tabs, nextTab],
       activeTabId: nextTab.id,
       mruTabIds: touchMruTab(state.mruTabIds, nextTab.id),
     }));
-  }, [updateWorkspaceState]);
+  };
 
-  const createWebWorkspaceTab = useCallback((url: string) => {
+  readonly createWebTab = (url: string) => {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       return;
     }
 
-    updateWorkspaceState((state) => {
+    this.updateWorkspaceState((state) => {
       // Mirror upstream open-editor behavior: the same preview resource re-activates its tab
       // instead of creating duplicate entries in the strip.
       const existingTab = state.tabs.find(
@@ -413,15 +464,15 @@ export function useWritingEditorModel() {
         mruTabIds: touchMruTab(state.mruTabIds, nextTab.id),
       };
     });
-  }, [updateWorkspaceState]);
+  };
 
-  const createPdfWorkspaceTab = useCallback((url: string) => {
+  readonly createPdfTab = (url: string) => {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       return;
     }
 
-    updateWorkspaceState((state) => {
+    this.updateWorkspaceState((state) => {
       // Keep PDF tabs aligned with web tabs: one resource maps to one tab/input entry.
       const existingTab = state.tabs.find(
         (tab) => tab.kind === 'pdf' && tab.url === normalizedUrl,
@@ -441,10 +492,10 @@ export function useWritingEditorModel() {
         mruTabIds: touchMruTab(state.mruTabIds, nextTab.id),
       };
     });
-  }, [updateWorkspaceState]);
+  };
 
-  const setDraftDocument = useCallback((value: WritingEditorDocument) => {
-    updateWorkspaceState((state) => ({
+  readonly setDraftDocument = (value: WritingEditorDocument) => {
+    this.updateWorkspaceState((state) => ({
       ...state,
       tabs: state.tabs.map((tab) =>
         tab.id === state.activeTabId && tab.kind === 'draft'
@@ -455,11 +506,11 @@ export function useWritingEditorModel() {
           : tab,
       ),
     }));
-  }, [updateWorkspaceState]);
+  };
 
-  const updateActivePreviewTabUrl = useCallback((url: string) => {
+  readonly updateActivePreviewTabUrl = (url: string) => {
     const normalizedUrl = url.trim();
-    updateWorkspaceState((state) => ({
+    this.updateWorkspaceState((state) => ({
       ...state,
       tabs: state.tabs.map((tab) =>
         // When the shared preview navigates while a preview tab owns it, update that tab's
@@ -473,29 +524,30 @@ export function useWritingEditorModel() {
           : tab,
       ),
     }));
-  }, [updateWorkspaceState]);
-
-  const draftDocument = activeDraftTab?.document ?? createEmptyWritingEditorDocument();
-  const draftBody = useMemo(
-    () =>
-      contextDraftTab
-        ? writingEditorDocumentToPlainText(contextDraftTab.document)
-        : '',
-    [contextDraftTab],
-  );
-
-  return {
-    tabs,
-    activeTabId,
-    activeTab,
-    draftDocument,
-    setDraftDocument,
-    draftBody,
-    activateTab,
-    closeTab,
-    createDraftTab: createDraftWorkspaceTab,
-    createWebTab: createWebWorkspaceTab,
-    createPdfTab: createPdfWorkspaceTab,
-    updateActivePreviewTabUrl,
   };
+
+  readonly dispose = () => {
+    this.listeners.clear();
+  };
+
+  private emitChange() {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  private updateWorkspaceState(
+    updater: (state: WritingWorkspaceState) => WritingWorkspaceState,
+  ) {
+    this.workspaceState = normalizeWorkspaceState(updater(this.workspaceState));
+    this.snapshot = createWritingEditorModelSnapshot(this.workspaceState);
+    persistWorkspaceSnapshot(this.workspaceState);
+    this.emitChange();
+  }
+}
+
+export function createWritingEditorModel(
+  initialState: WritingWorkspaceState = readStoredWorkspaceState(),
+) {
+  return new WritingEditorModel(initialState);
 }

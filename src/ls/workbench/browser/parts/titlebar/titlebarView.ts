@@ -1,10 +1,7 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
 import {
-  useEffect,
-  useRef,
   type ChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
   type Ref,
 } from 'react';
 import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
@@ -21,7 +18,11 @@ import {
 import { Button } from '../../../../base/browser/ui/button/button';
 import { Dropdown } from '../../../../base/browser/ui/dropdown/dropdown';
 import { Input } from '../../../../base/browser/ui/input/input';
-import { WindowControlsGroup, type WindowControlsAction } from './windowControls';
+import { getBrowserWindowChromeLayout } from '../../../../platform/windows/common/windowChrome.js';
+import {
+  WindowControlsGroup,
+  type WindowControlsAction,
+} from './windowControls';
 import {
   requestToggleTitlebarAuxiliarySidebar,
   requestTitlebarNavigateBack,
@@ -109,12 +110,14 @@ type SourceOptionView = {
   title?: string;
 };
 
+type TitlebarIconView = ReturnType<typeof jsx>;
+
 type TitlebarIconButtonConfig = {
   key?: string;
   className: string;
   label: string;
   onClick: () => void;
-  icon: ReactNode;
+  icon: TitlebarIconView;
   disabled?: boolean;
   title?: string;
 };
@@ -137,9 +140,46 @@ const MIN_SOURCE_TRIGGER_WIDTH_PX = 56;
 const MAX_SOURCE_TRIGGER_WIDTH_PX = 520;
 const SOURCE_TRIGGER_HORIZONTAL_PADDING_PX = 22;
 const SOURCE_TRIGGER_FONT = '12px "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
-const IS_MACOS_PLATFORM =
-  typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.platform);
+const WINDOW_CHROME_LAYOUT = getBrowserWindowChromeLayout();
 let sourceTriggerMeasureCanvas: HTMLCanvasElement | null = null;
+
+class TitlebarUiActionBridge {
+  private sourceSelector: HTMLDivElement | null = null;
+  private webUrlInput: HTMLInputElement | null = null;
+
+  constructor() {
+    subscribeTitlebarUiActions((action) => {
+      if (action.type === 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
+        if (!this.sourceSelector) {
+          return;
+        }
+
+        this.sourceSelector.focus();
+        this.sourceSelector.click();
+        return;
+      }
+
+      if (action.type === 'FOCUS_WEB_URL_INPUT') {
+        if (!this.webUrlInput) {
+          return;
+        }
+
+        this.webUrlInput.focus();
+        this.webUrlInput.select();
+      }
+    });
+  }
+
+  readonly bindSourceSelector: Ref<HTMLDivElement> = (node) => {
+    this.sourceSelector = node;
+  };
+
+  readonly bindWebUrlInput: Ref<HTMLInputElement> = (node) => {
+    this.webUrlInput = node;
+  };
+}
+
+const titlebarUiActionBridge = new TitlebarUiActionBridge();
 
 function measureSourceTriggerWidth(label: string): number {
   const text = label.trim();
@@ -365,9 +405,6 @@ function renderSourceSelector({
 }
 
 export function TitlebarView(inputProps: TitlebarViewProps = {}) {
-  const sourceSelectorRef = useRef<HTMLDivElement | null>(null);
-  const webUrlInputRef = useRef<HTMLInputElement | null>(null);
-
   const {
     partRef,
     labels = DEFAULT_TITLEBAR_LABELS,
@@ -397,31 +434,19 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
   } = inputProps;
 
   const sourceOptions = createSourceOptions(addressBarSourcePlaceholder, addressBarSourceOptions);
-
-  useEffect(() => {
-    return subscribeTitlebarUiActions((action) => {
-      if (action.type === 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
-        const sourceSelector = sourceSelectorRef.current;
-        if (!sourceSelector) {
-          return;
-        }
-
-        sourceSelector.focus();
-        sourceSelector.click();
-        return;
-      }
-
-      if (action.type === 'FOCUS_WEB_URL_INPUT') {
-        const webUrlInput = webUrlInputRef.current;
-        if (!webUrlInput) {
-          return;
-        }
-
-        webUrlInput.focus();
-        webUrlInput.select();
-      }
-    });
-  }, []);
+  const titlebarClassName = [
+    'titlebar',
+    `titlebar-platform-${WINDOW_CHROME_LAYOUT.platform}`,
+    `titlebar-style-${WINDOW_CHROME_LAYOUT.titleBarStyle}`,
+  ].join(' ');
+  const windowControlsContainerClassName = [
+    'titlebar-window-controls-container',
+    WINDOW_CHROME_LAYOUT.windowControlsContainerMode === 'native'
+      ? 'window-controls-container-native'
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const handleAddressBarKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.altKey && onCycleAddressBarSource) {
@@ -465,8 +490,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     sidebarToggleLabel,
     isVisible: Boolean(onToggleSidebar),
   });
-  const sidebarToggleInStartView = IS_MACOS_PLATFORM ? null : sidebarToggleView;
-  const sidebarToggleAfterWindowControlsView = IS_MACOS_PLATFORM ? sidebarToggleView : null;
   const auxiliarySidebarToggleView = renderAuxiliarySidebarToggle({
     isAuxiliarySidebarOpen,
     auxiliarySidebarToggleLabel,
@@ -484,7 +507,7 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     articleUrlPlaceholder,
     onWebUrlChange,
     onKeyDown: handleAddressBarKeyDown,
-    inputRef: webUrlInputRef,
+    inputRef: titlebarUiActionBridge.bindWebUrlInput,
   });
   const sourceSelectorView = renderSourceSelector({
     sourceOptions,
@@ -493,7 +516,7 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
     addressBarSourcePlaceholder,
     onSelectAddressBarSource,
     onKeyDown: handleSourceSelectorKeyDown,
-    sourceSelectorRef,
+    sourceSelectorRef: titlebarUiActionBridge.bindSourceSelector,
   });
   const exportButtonView =
     renderIconButton({
@@ -511,26 +534,38 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
       onClick: requestToggleTitlebarSettings,
       icon: jsx(Settings, { size: 16, strokeWidth: 2 }),
     });
-  const windowControls = jsx(WindowControlsGroup, {
-    className: 'titlebar-window-controls',
-    labels: {
-      controlsAriaLabel: labels.controlsAriaLabel,
-      minimizeLabel: labels.minimizeLabel,
-      maximizeLabel: labels.maximizeLabel,
-      restoreLabel: labels.restoreLabel,
-      closeLabel: labels.closeLabel,
-    },
-    isWindowMaximized,
-    onWindowControl,
+  const windowControls = WINDOW_CHROME_LAYOUT.renderCustomWindowControls
+    ? jsx(WindowControlsGroup, {
+        className: 'titlebar-window-controls',
+        labels: {
+          controlsAriaLabel: labels.controlsAriaLabel,
+          minimizeLabel: labels.minimizeLabel,
+          maximizeLabel: labels.maximizeLabel,
+          restoreLabel: labels.restoreLabel,
+          closeLabel: labels.closeLabel,
+        },
+        isWindowMaximized,
+        onWindowControl,
+      })
+    : null;
+  const leadingWindowControlsContainer = jsx('div', {
+    className: windowControlsContainerClassName,
+    style:
+      WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx > 0
+        ? {
+            '--window-controls-width': `${WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx}px`,
+          }
+        : undefined,
   });
 
   return jsxs('header', {
     ref: partRef,
-    className: 'titlebar',
+    className: titlebarClassName,
     children: [
+      leadingWindowControlsContainer,
       jsx('div', {
         className: 'titlebar-start',
-        children: sidebarToggleInStartView,
+        children: sidebarToggleView,
       }),
       jsxs('div', {
         className: 'titlebar-center',
@@ -546,7 +581,6 @@ export function TitlebarView(inputProps: TitlebarViewProps = {}) {
           exportButtonView,
           settingsButtonView,
           windowControls,
-          sidebarToggleAfterWindowControlsView,
         ],
       }),
     ],

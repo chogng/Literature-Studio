@@ -1,10 +1,13 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import type { KeyboardEvent, MouseEventHandler } from "react";
+import { useSyncExternalStore, type KeyboardEvent, type MouseEventHandler } from "react";
 import { ChevronDown, Download } from "lucide-react";
 import type { ArticleDetailsModalLabels } from "../../../../base/parts/sandbox/common/desktopTypes.js";
 import { Button } from "../../../../base/browser/ui/button/button";
 import type { Locale } from "../../../../../language/i18n";
-import { usePdfDownloadStatus } from "../../../browser/pdfDownloadStatus";
+import {
+  getPdfDownloadStatus,
+  subscribePdfDownloadStatus,
+} from "../../../browser/pdfDownloadStatus";
 import type { SidebarArticle } from "./secondarySidebarPart";
 
 type ArticleCardLabels = ArticleDetailsModalLabels;
@@ -166,7 +169,11 @@ export default function ArticleCard({
   onToggleSelected,
 }: ArticleCardProps) {
   const metaText = createMetaText(article, locale, labels.unknown);
-  const downloadStatus = usePdfDownloadStatus(article.sourceUrl);
+  const downloadStatus = useSyncExternalStore(
+    subscribePdfDownloadStatus,
+    () => getPdfDownloadStatus(article.sourceUrl),
+    () => getPdfDownloadStatus(""),
+  );
   const isDownloading = downloadStatus.isDownloading;
   const hasDownloaded = downloadStatus.hasSucceeded;
   const title = article.title || labels.untitled;

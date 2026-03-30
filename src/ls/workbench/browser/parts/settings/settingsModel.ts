@@ -1,34 +1,33 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
 import { toast } from '../../../../base/browser/ui/toast/toast';
-import type {
-  ElectronInvoke,
-} from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { ElectronInvoke } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
-import { formatLocalized, localizeDesktopInvokeError, parseDesktopInvokeError } from '../../../services/desktop/desktopError';
+import {
+  formatLocalized,
+  localizeDesktopInvokeError,
+  parseDesktopInvokeError,
+} from '../../../services/desktop/desktopError';
 import { type BatchSource } from '../../../services/config/configSchema';
-import { SettingsModel } from '../../../services/settings/settingsModel';
+import {
+  SettingsModel,
+  type SettingsModelSnapshot,
+} from '../../../services/settings/settingsModel';
 
-type UseSettingsModelParams = {
+export type SettingsControllerContext = {
   desktopRuntime: boolean;
   invokeDesktop: ElectronInvoke;
   ui: LocaleMessages;
   locale: Locale;
-  setLocale: Dispatch<SetStateAction<Locale>>;
-  initialBatchSources: BatchSource[];
+  applyLocale: (locale: Locale) => void;
 };
 
 type SettingsModelContext = {
   desktopRuntime: boolean;
   invokeDesktop: ElectronInvoke;
+};
+
+type CreateSettingsControllerParams = SettingsControllerContext & {
+  initialBatchSources: BatchSource[];
 };
 
 const immediateAutoSaveDelayMs = 0;
@@ -38,379 +37,293 @@ function localizeSettingsError(ui: LocaleMessages, error: unknown) {
   return localizeDesktopInvokeError(ui, parseDesktopInvokeError(error));
 }
 
-export function useSettingsModel({
-  desktopRuntime,
-  invokeDesktop,
-  ui,
-  locale,
-  setLocale,
-  initialBatchSources,
-}: UseSettingsModelParams) {
-  const settingsModel = useMemo(
-    () => new SettingsModel(initialBatchSources),
-    [initialBatchSources],
-  );
-  const settingsSnapshot = useSyncExternalStore(
-    settingsModel.subscribe,
-    settingsModel.getSnapshot,
-    settingsModel.getSnapshot,
-  );
+export class SettingsController {
+  private context: SettingsControllerContext;
+  private readonly settingsModel: SettingsModel;
+  private autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private started = false;
+  private disposed = false;
+  private loadSequence = 0;
 
-  const settingsModelContext = useMemo<SettingsModelContext>(
-    () => ({
-      desktopRuntime,
-      invokeDesktop,
-    }),
-    [desktopRuntime, invokeDesktop],
-  );
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  constructor({ initialBatchSources, ...context }: CreateSettingsControllerParams) {
+    this.context = context;
+    this.settingsModel = new SettingsModel(initialBatchSources);
+  }
 
-  const flushAutoSave = useCallback(() => {
-    void settingsModel.saveSettingsDraft({
-      ...settingsModelContext,
-      locale,
-    }).catch((saveError) => {
-      console.error('Failed to auto-save settings draft.', saveError);
-    });
-  }, [locale, settingsModel, settingsModelContext]);
+  readonly subscribe = (listener: () => void) =>
+    this.settingsModel.subscribe(listener);
 
-  const scheduleAutoSave = useCallback(
-    (delayMs: number) => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
+  readonly getSnapshot = (): SettingsModelSnapshot =>
+    this.settingsModel.getSnapshot();
 
-      autoSaveTimerRef.current = setTimeout(() => {
-        autoSaveTimerRef.current = null;
-        flushAutoSave();
-      }, delayMs);
-    },
-    [flushAutoSave],
-  );
+  readonly setContext = (context: SettingsControllerContext) => {
+    this.context = context;
+  };
 
-  const scheduleImmediateAutoSave = useCallback(() => {
-    scheduleAutoSave(immediateAutoSaveDelayMs);
-  }, [scheduleAutoSave]);
+  readonly start = () => {
+    if (this.started || this.disposed) {
+      return;
+    }
 
-  const scheduleDebouncedAutoSave = useCallback(() => {
-    scheduleAutoSave(debouncedAutoSaveDelayMs);
-  }, [scheduleAutoSave]);
+    this.started = true;
+    void this.loadSettings();
+  };
 
-  useEffect(() => {
-    return () => {
-      if (!autoSaveTimerRef.current) {
-        return;
-      }
+  readonly dispose = () => {
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+      this.flushAutoSave();
+    }
 
-      clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-      flushAutoSave();
-    };
-  }, [flushAutoSave]);
+    this.disposed = true;
+  };
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const { locale: loadedLocale } = await settingsModel.loadSettings(settingsModelContext);
-        if (loadedLocale) {
-          setLocale(loadedLocale);
-        }
-      } catch (loadError) {
-        const localizedError = localizeSettingsError(ui, loadError);
-        toast.error(formatLocalized(ui.toastLoadSettingsFailed, { error: localizedError }));
-      }
-    };
-
-    void loadSettings();
-  }, [setLocale, settingsModel, settingsModelContext, ui]);
-
-  const handleChoosePdfDownloadDir = useCallback(async () => {
+  readonly handleChoosePdfDownloadDir = async () => {
     try {
-      const result = await settingsModel.choosePdfDownloadDir(settingsModelContext);
-      if (result.kind !== 'selected') {
-        return;
+      const result = await this.settingsModel.choosePdfDownloadDir(
+        this.getSettingsModelContext(),
+      );
+      if (result.kind === 'selected') {
+        this.scheduleImmediateAutoSave();
       }
-
-      settingsModel.setPdfDownloadDir(result.dir);
-      scheduleImmediateAutoSave();
     } catch (pickError) {
       console.error('Failed to choose PDF download directory.', pickError);
     }
-  }, [scheduleImmediateAutoSave, settingsModel, settingsModelContext]);
+  };
 
-  const handleChooseLibraryDirectory = useCallback(async () => {
+  readonly handleChooseLibraryDirectory = async () => {
     try {
-      const result = await settingsModel.chooseLibraryDirectory(settingsModelContext);
-      if (result.kind !== 'selected') {
-        return;
+      const result = await this.settingsModel.chooseLibraryDirectory(
+        this.getSettingsModelContext(),
+      );
+      if (result.kind === 'selected') {
+        this.scheduleImmediateAutoSave();
       }
-
-      settingsModel.setLibraryDirectory(result.dir);
-      scheduleImmediateAutoSave();
     } catch (pickError) {
       console.error('Failed to choose library directory.', pickError);
     }
-  }, [scheduleImmediateAutoSave, settingsModel, settingsModelContext]);
+  };
 
-  const handleOpenConfigLocation = useCallback(async () => {
+  readonly handleOpenConfigLocation = async () => {
+    const { desktopRuntime, invokeDesktop, ui } = this.context;
     if (!desktopRuntime) {
       toast.info(ui.toastDesktopDirPickerOnly);
       return;
     }
 
     try {
-      await invokeDesktop('open_path', { path: settingsSnapshot.configPath });
+      await invokeDesktop('open_path', {
+        path: this.settingsModel.getSnapshot().configPath,
+      });
     } catch (openError) {
       const localizedError = localizeSettingsError(ui, openError);
-      toast.error(formatLocalized(ui.toastOpenConfigLocationFailed, { error: localizedError }));
+      toast.error(
+        formatLocalized(ui.toastOpenConfigLocationFailed, {
+          error: localizedError,
+        }),
+      );
     }
-  }, [desktopRuntime, invokeDesktop, settingsSnapshot.configPath, ui]);
+  };
 
-  const handleLocaleChange = useCallback(
-    (nextLocale: Locale) => {
-      setLocale(nextLocale);
+  readonly handleLocaleChange = (nextLocale: Locale) => {
+    this.context.applyLocale(nextLocale);
 
-      void settingsModel.saveLocale(settingsModelContext, nextLocale).catch((saveError) => {
+    void this.settingsModel
+      .saveLocale(this.getSettingsModelContext(), nextLocale)
+      .catch((saveError) => {
         console.error('Failed to save locale setting.', saveError);
       });
-    },
-    [setLocale, settingsModel, settingsModelContext],
-  );
+  };
 
-  const handleBatchLimitChange = useCallback(
-    (nextBatchLimit: number) => {
-      settingsModel.setBatchLimit(nextBatchLimit);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setBatchLimit = (nextBatchLimit: number) => {
+    this.settingsModel.setBatchLimit(nextBatchLimit);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleSameDomainOnlyChange = useCallback(
-    (nextSameDomainOnly: boolean) => {
-      settingsModel.setSameDomainOnly(nextSameDomainOnly);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setSameDomainOnly = (nextSameDomainOnly: boolean) => {
+    this.settingsModel.setSameDomainOnly(nextSameDomainOnly);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleUseMicaChange = useCallback(
-    (nextUseMica: boolean) => {
-      settingsModel.setUseMica(nextUseMica);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setUseMica = (nextUseMica: boolean) => {
+    this.settingsModel.setUseMica(nextUseMica);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handlePdfDownloadDirChange = useCallback(
-    (nextPdfDownloadDir: string) => {
-      settingsModel.setPdfDownloadDir(nextPdfDownloadDir);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setPdfDownloadDir = (nextPdfDownloadDir: string) => {
+    this.settingsModel.setPdfDownloadDir(nextPdfDownloadDir);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handlePdfFileNameUseSelectionOrderChange = useCallback(
-    (nextPdfFileNameUseSelectionOrder: boolean) => {
-      settingsModel.setPdfFileNameUseSelectionOrder(nextPdfFileNameUseSelectionOrder);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setPdfFileNameUseSelectionOrder = (
+    nextPdfFileNameUseSelectionOrder: boolean,
+  ) => {
+    this.settingsModel.setPdfFileNameUseSelectionOrder(
+      nextPdfFileNameUseSelectionOrder,
+    );
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleRagEnabledChange = useCallback(
-    (nextRagEnabled: boolean) => {
-      settingsModel.setRagEnabled(nextRagEnabled);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setRagEnabled = (nextRagEnabled: boolean) => {
+    this.settingsModel.setRagEnabled(nextRagEnabled);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleAutoIndexDownloadedPdfChange = useCallback(
-    (nextAutoIndexDownloadedPdf: boolean) => {
-      settingsModel.setAutoIndexDownloadedPdf(nextAutoIndexDownloadedPdf);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setAutoIndexDownloadedPdf = (
+    nextAutoIndexDownloadedPdf: boolean,
+  ) => {
+    this.settingsModel.setAutoIndexDownloadedPdf(nextAutoIndexDownloadedPdf);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleLibraryStorageModeChange = useCallback(
-    (nextLibraryStorageMode: 'linked-original' | 'managed-copy') => {
-      settingsModel.setLibraryStorageMode(nextLibraryStorageMode);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setLibraryStorageMode = (
+    nextLibraryStorageMode: 'linked-original' | 'managed-copy',
+  ) => {
+    this.settingsModel.setLibraryStorageMode(nextLibraryStorageMode);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleLibraryDirectoryChange = useCallback(
-    (nextLibraryDirectory: string) => {
-      settingsModel.setLibraryDirectory(nextLibraryDirectory);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setLibraryDirectory = (nextLibraryDirectory: string) => {
+    this.settingsModel.setLibraryDirectory(nextLibraryDirectory);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleMaxConcurrentIndexJobsChange = useCallback(
-    (nextMaxConcurrentIndexJobs: number) => {
-      settingsModel.setMaxConcurrentIndexJobs(nextMaxConcurrentIndexJobs);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setMaxConcurrentIndexJobs = (nextMaxConcurrentIndexJobs: number) => {
+    this.settingsModel.setMaxConcurrentIndexJobs(nextMaxConcurrentIndexJobs);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleRagProviderApiKeyChange = useCallback(
-    (provider: 'moark', apiKey: string) => {
-      settingsModel.setRagProviderApiKey(provider, apiKey);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setRagProviderApiKey = (provider: 'moark', apiKey: string) => {
+    this.settingsModel.setRagProviderApiKey(provider, apiKey);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleRagProviderBaseUrlChange = useCallback(
-    (provider: 'moark', baseUrl: string) => {
-      settingsModel.setRagProviderBaseUrl(provider, baseUrl);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setRagProviderBaseUrl = (provider: 'moark', baseUrl: string) => {
+    this.settingsModel.setRagProviderBaseUrl(provider, baseUrl);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleRagProviderEmbeddingModelChange = useCallback(
-    (provider: 'moark', embeddingModel: string) => {
-      settingsModel.setRagProviderEmbeddingModel(provider, embeddingModel);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setRagProviderEmbeddingModel = (
+    provider: 'moark',
+    embeddingModel: string,
+  ) => {
+    this.settingsModel.setRagProviderEmbeddingModel(provider, embeddingModel);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleRagProviderRerankerModelChange = useCallback(
-    (provider: 'moark', rerankerModel: string) => {
-      settingsModel.setRagProviderRerankerModel(provider, rerankerModel);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setRagProviderRerankerModel = (
+    provider: 'moark',
+    rerankerModel: string,
+  ) => {
+    this.settingsModel.setRagProviderRerankerModel(provider, rerankerModel);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleRagProviderEmbeddingPathChange = useCallback(
-    (provider: 'moark', embeddingPath: string) => {
-      settingsModel.setRagProviderEmbeddingPath(provider, embeddingPath);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setRagProviderEmbeddingPath = (
+    provider: 'moark',
+    embeddingPath: string,
+  ) => {
+    this.settingsModel.setRagProviderEmbeddingPath(provider, embeddingPath);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleRagProviderRerankPathChange = useCallback(
-    (provider: 'moark', rerankPath: string) => {
-      settingsModel.setRagProviderRerankPath(provider, rerankPath);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setRagProviderRerankPath = (provider: 'moark', rerankPath: string) => {
+    this.settingsModel.setRagProviderRerankPath(provider, rerankPath);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleRetrievalCandidateCountChange = useCallback(
-    (nextRetrievalCandidateCount: number) => {
-      settingsModel.setRetrievalCandidateCount(nextRetrievalCandidateCount);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setRetrievalCandidateCount = (nextRetrievalCandidateCount: number) => {
+    this.settingsModel.setRetrievalCandidateCount(nextRetrievalCandidateCount);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleRetrievalTopKChange = useCallback(
-    (nextRetrievalTopK: number) => {
-      settingsModel.setRetrievalTopK(nextRetrievalTopK);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setRetrievalTopK = (nextRetrievalTopK: number) => {
+    this.settingsModel.setRetrievalTopK(nextRetrievalTopK);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleActiveLlmProviderChange = useCallback(
-    (nextProvider: 'glm' | 'kimi' | 'deepseek') => {
-      settingsModel.setActiveLlmProvider(nextProvider);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setActiveLlmProvider = (nextProvider: 'glm' | 'kimi' | 'deepseek') => {
+    this.settingsModel.setActiveLlmProvider(nextProvider);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleLlmProviderApiKeyChange = useCallback(
-    (provider: 'glm' | 'kimi' | 'deepseek', apiKey: string) => {
-      settingsModel.setLlmProviderApiKey(provider, apiKey);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setLlmProviderApiKey = (
+    provider: 'glm' | 'kimi' | 'deepseek',
+    apiKey: string,
+  ) => {
+    this.settingsModel.setLlmProviderApiKey(provider, apiKey);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleLlmProviderModelChange = useCallback(
-    (provider: 'glm' | 'kimi' | 'deepseek', model: string) => {
-      settingsModel.setLlmProviderModel(provider, model);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setLlmProviderModel = (
+    provider: 'glm' | 'kimi' | 'deepseek',
+    model: string,
+  ) => {
+    this.settingsModel.setLlmProviderModel(provider, model);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleActiveTranslationProviderChange = useCallback(
-    (nextProvider: 'deepl') => {
-      settingsModel.setActiveTranslationProvider(nextProvider);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly setActiveTranslationProvider = (nextProvider: 'deepl') => {
+    this.settingsModel.setActiveTranslationProvider(nextProvider);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleTranslationProviderApiKeyChange = useCallback(
-    (provider: 'deepl', apiKey: string) => {
-      settingsModel.setTranslationProviderApiKey(provider, apiKey);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly setTranslationProviderApiKey = (
+    provider: 'deepl',
+    apiKey: string,
+  ) => {
+    this.settingsModel.setTranslationProviderApiKey(provider, apiKey);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleResetDownloadDir = useCallback(() => {
-    settingsModel.resetDownloadDir();
-    scheduleImmediateAutoSave();
-  }, [scheduleImmediateAutoSave, settingsModel]);
+  readonly handleResetDownloadDir = () => {
+    this.settingsModel.resetDownloadDir();
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleBatchSourceUrlChange = useCallback(
-    (index: number, nextUrl: string) => {
-      settingsModel.handleBatchSourceUrlChange(index, nextUrl);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly handleBatchSourceUrlChange = (index: number, nextUrl: string) => {
+    this.settingsModel.handleBatchSourceUrlChange(index, nextUrl);
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleBatchSourceJournalTitleChange = useCallback(
-    (index: number, nextJournalTitle: string) => {
-      settingsModel.handleBatchSourceJournalTitleChange(index, nextJournalTitle);
-      scheduleDebouncedAutoSave();
-    },
-    [scheduleDebouncedAutoSave, settingsModel],
-  );
+  readonly handleBatchSourceJournalTitleChange = (
+    index: number,
+    nextJournalTitle: string,
+  ) => {
+    this.settingsModel.handleBatchSourceJournalTitleChange(
+      index,
+      nextJournalTitle,
+    );
+    this.scheduleDebouncedAutoSave();
+  };
 
-  const handleAddBatchSource = useCallback(() => {
-    settingsModel.handleAddBatchSource();
-    scheduleImmediateAutoSave();
-  }, [scheduleImmediateAutoSave, settingsModel]);
+  readonly handleAddBatchSource = () => {
+    this.settingsModel.handleAddBatchSource();
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleRemoveBatchSource = useCallback(
-    (index: number) => {
-      settingsModel.handleRemoveBatchSource(index);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly handleRemoveBatchSource = (index: number) => {
+    this.settingsModel.handleRemoveBatchSource(index);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleMoveBatchSource = useCallback(
-    (index: number, direction: 'up' | 'down') => {
-      settingsModel.handleMoveBatchSource(index, direction);
-      scheduleImmediateAutoSave();
-    },
-    [scheduleImmediateAutoSave, settingsModel],
-  );
+  readonly handleMoveBatchSource = (index: number, direction: 'up' | 'down') => {
+    this.settingsModel.handleMoveBatchSource(index, direction);
+    this.scheduleImmediateAutoSave();
+  };
 
-  const handleTestLlmConnection = useCallback(async () => {
+  readonly handleTestLlmConnection = async () => {
+    const { desktopRuntime, ui } = this.context;
     if (!desktopRuntime) {
       toast.info(ui.toastDesktopLlmTestOnly);
       return;
     }
 
     try {
-      const result = await settingsModel.testLlmConnection(settingsModelContext);
+      const result = await this.settingsModel.testLlmConnection(
+        this.getSettingsModelContext(),
+      );
       toast.success(
         formatLocalized(ui.toastLlmConnectionSucceeded, {
           provider: result.provider,
@@ -419,18 +332,25 @@ export function useSettingsModel({
       );
     } catch (testError) {
       const localizedError = localizeSettingsError(ui, testError);
-      toast.error(formatLocalized(ui.toastLlmConnectionFailed, { error: localizedError }));
+      toast.error(
+        formatLocalized(ui.toastLlmConnectionFailed, {
+          error: localizedError,
+        }),
+      );
     }
-  }, [desktopRuntime, settingsModel, settingsModelContext, ui]);
+  };
 
-  const handleTestRagConnection = useCallback(async () => {
+  readonly handleTestRagConnection = async () => {
+    const { desktopRuntime, ui } = this.context;
     if (!desktopRuntime) {
       toast.info(ui.toastDesktopLlmTestOnly);
       return;
     }
 
     try {
-      const result = await settingsModel.testRagConnection(settingsModelContext);
+      const result = await this.settingsModel.testRagConnection(
+        this.getSettingsModelContext(),
+      );
       toast.success(
         formatLocalized(ui.toastRagConnectionSucceeded, {
           provider: result.provider,
@@ -440,18 +360,25 @@ export function useSettingsModel({
       );
     } catch (testError) {
       const localizedError = localizeSettingsError(ui, testError);
-      toast.error(formatLocalized(ui.toastRagConnectionFailed, { error: localizedError }));
+      toast.error(
+        formatLocalized(ui.toastRagConnectionFailed, {
+          error: localizedError,
+        }),
+      );
     }
-  }, [desktopRuntime, settingsModel, settingsModelContext, ui]);
+  };
 
-  const handleTestTranslationConnection = useCallback(async () => {
+  readonly handleTestTranslationConnection = async () => {
+    const { desktopRuntime, ui } = this.context;
     if (!desktopRuntime) {
       toast.info(ui.toastDesktopLlmTestOnly);
       return;
     }
 
     try {
-      const result = await settingsModel.testTranslationConnection(settingsModelContext);
+      const result = await this.settingsModel.testTranslationConnection(
+        this.getSettingsModelContext(),
+      );
       toast.success(
         formatLocalized(ui.toastTranslationConnectionSucceeded, {
           provider: result.provider,
@@ -459,72 +386,83 @@ export function useSettingsModel({
       );
     } catch (testError) {
       const localizedError = localizeSettingsError(ui, testError);
-      toast.error(formatLocalized(ui.toastTranslationConnectionFailed, { error: localizedError }));
+      toast.error(
+        formatLocalized(ui.toastTranslationConnectionFailed, {
+          error: localizedError,
+        }),
+      );
     }
-  }, [desktopRuntime, settingsModel, settingsModelContext, ui]);
-
-  return {
-    batchSources: settingsSnapshot.batchSources,
-    batchLimit: settingsSnapshot.batchLimit,
-    setBatchLimit: handleBatchLimitChange,
-    sameDomainOnly: settingsSnapshot.sameDomainOnly,
-    setSameDomainOnly: handleSameDomainOnlyChange,
-    useMica: settingsSnapshot.useMica,
-    setUseMica: handleUseMicaChange,
-    ragEnabled: settingsSnapshot.ragEnabled,
-    setRagEnabled: handleRagEnabledChange,
-    autoIndexDownloadedPdf: settingsSnapshot.autoIndexDownloadedPdf,
-    setAutoIndexDownloadedPdf: handleAutoIndexDownloadedPdfChange,
-    libraryStorageMode: settingsSnapshot.libraryStorageMode,
-    setLibraryStorageMode: handleLibraryStorageModeChange,
-    libraryDirectory: settingsSnapshot.libraryDirectory,
-    setLibraryDirectory: handleLibraryDirectoryChange,
-    maxConcurrentIndexJobs: settingsSnapshot.maxConcurrentIndexJobs,
-    setMaxConcurrentIndexJobs: handleMaxConcurrentIndexJobsChange,
-    activeRagProvider: settingsSnapshot.activeRagProvider,
-    ragProviders: settingsSnapshot.ragProviders,
-    retrievalCandidateCount: settingsSnapshot.retrievalCandidateCount,
-    retrievalTopK: settingsSnapshot.retrievalTopK,
-    setRagProviderApiKey: handleRagProviderApiKeyChange,
-    setRagProviderBaseUrl: handleRagProviderBaseUrlChange,
-    setRagProviderEmbeddingModel: handleRagProviderEmbeddingModelChange,
-    setRagProviderRerankerModel: handleRagProviderRerankerModelChange,
-    setRagProviderEmbeddingPath: handleRagProviderEmbeddingPathChange,
-    setRagProviderRerankPath: handleRagProviderRerankPathChange,
-    setRetrievalCandidateCount: handleRetrievalCandidateCountChange,
-    setRetrievalTopK: handleRetrievalTopKChange,
-    pdfDownloadDir: settingsSnapshot.pdfDownloadDir,
-    setPdfDownloadDir: handlePdfDownloadDirChange,
-    pdfFileNameUseSelectionOrder: settingsSnapshot.pdfFileNameUseSelectionOrder,
-    setPdfFileNameUseSelectionOrder: handlePdfFileNameUseSelectionOrderChange,
-    activeLlmProvider: settingsSnapshot.activeLlmProvider,
-    setActiveLlmProvider: handleActiveLlmProviderChange,
-    llmProviders: settingsSnapshot.llmProviders,
-    setLlmProviderApiKey: handleLlmProviderApiKeyChange,
-    setLlmProviderModel: handleLlmProviderModelChange,
-    activeTranslationProvider: settingsSnapshot.activeTranslationProvider,
-    setActiveTranslationProvider: handleActiveTranslationProviderChange,
-    translationProviders: settingsSnapshot.translationProviders,
-    setTranslationProviderApiKey: handleTranslationProviderApiKeyChange,
-    configPath: settingsSnapshot.configPath,
-    isSettingsLoading: settingsSnapshot.isSettingsLoading,
-    isSettingsSaving: settingsSnapshot.isSettingsSaving,
-    isTestingRagConnection: settingsSnapshot.isTestingRagConnection,
-    isTestingLlmConnection: settingsSnapshot.isTestingLlmConnection,
-    isTestingTranslationConnection: settingsSnapshot.isTestingTranslationConnection,
-    handleChoosePdfDownloadDir,
-    handleChooseLibraryDirectory,
-    handleOpenConfigLocation,
-    handleLocaleChange,
-    handleUseMicaChange,
-    handleTestRagConnection,
-    handleTestLlmConnection,
-    handleTestTranslationConnection,
-    handleResetDownloadDir,
-    handleBatchSourceUrlChange,
-    handleBatchSourceJournalTitleChange,
-    handleAddBatchSource,
-    handleRemoveBatchSource,
-    handleMoveBatchSource,
   };
+
+  private getSettingsModelContext(): SettingsModelContext {
+    return {
+      desktopRuntime: this.context.desktopRuntime,
+      invokeDesktop: this.context.invokeDesktop,
+    };
+  }
+
+  private loadSettings = async () => {
+    const loadSequence = ++this.loadSequence;
+
+    try {
+      const { locale: loadedLocale } = await this.settingsModel.loadSettings(
+        this.getSettingsModelContext(),
+      );
+      if (this.disposed || loadSequence !== this.loadSequence) {
+        return;
+      }
+
+      if (loadedLocale) {
+        this.context.applyLocale(loadedLocale);
+      }
+    } catch (loadError) {
+      if (this.disposed || loadSequence !== this.loadSequence) {
+        return;
+      }
+
+      const { ui } = this.context;
+      const localizedError = localizeSettingsError(ui, loadError);
+      toast.error(
+        formatLocalized(ui.toastLoadSettingsFailed, { error: localizedError }),
+      );
+    }
+  };
+
+  private flushAutoSave = () => {
+    const { locale } = this.context;
+
+    void this.settingsModel
+      .saveSettingsDraft({
+        ...this.getSettingsModelContext(),
+        locale,
+      })
+      .catch((saveError) => {
+        console.error('Failed to auto-save settings draft.', saveError);
+      });
+  };
+
+  private scheduleAutoSave(delayMs: number) {
+    if (this.autoSaveTimer) {
+      clearTimeout(this.autoSaveTimer);
+    }
+
+    this.autoSaveTimer = setTimeout(() => {
+      this.autoSaveTimer = null;
+      this.flushAutoSave();
+    }, delayMs);
+  }
+
+  private scheduleImmediateAutoSave() {
+    this.scheduleAutoSave(immediateAutoSaveDelayMs);
+  }
+
+  private scheduleDebouncedAutoSave() {
+    this.scheduleAutoSave(debouncedAutoSaveDelayMs);
+  }
+}
+
+export function createSettingsController(
+  params: CreateSettingsControllerParams,
+) {
+  return new SettingsController(params);
 }

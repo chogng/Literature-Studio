@@ -16,6 +16,15 @@
 
 .child-window-shell-heading {
   min-width: 0;
+  flex: 1 1 auto;
+}
+
+.child-window-shell-window-controls-container {
+  width: var(--window-controls-width, 70px);
+  min-width: var(--window-controls-width, 70px);
+  height: 100%;
+  flex: 0 0 var(--window-controls-width, 70px);
+  -webkit-app-region: no-drag;
 }
 
 .child-window-shell-title {

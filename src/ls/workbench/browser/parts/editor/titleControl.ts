@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react';
+import { jsx } from 'react/jsx-runtime';
 import type { EditorGroupModel } from './editorGroupModel';
+
+export type TitleControlView = ReturnType<typeof jsx>;
 
 export type TitleControlCallbacks = {
   onActivateTab: (tabId: string) => void;
@@ -20,5 +22,5 @@ export abstract class TitleControl {
 
   // Mirror upstream structure: the group view selects one concrete title control
   // and delegates title-area rendering to it.
-  abstract render(): ReactNode;
+  abstract render(): TitleControlView;
 }

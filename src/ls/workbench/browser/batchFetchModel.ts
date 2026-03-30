@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { toast } from '../../base/browser/ui/toast/toast';
 import type {
   ElectronInvoke,
@@ -13,6 +12,8 @@ import {
 import {
   INITIAL_BATCH_FETCH_MACHINE_STATE,
   reduceBatchFetchMachineState,
+  type BatchFetchMachineEvent,
+  type BatchFetchMachineState,
 } from '../services/article/batchFetchState';
 import {
   formatLocalized,
@@ -26,6 +27,24 @@ type BatchFetchTitlebarStatus = {
   titlebarFetchStopTitle: string;
 };
 
+export type BatchFetchControllerContext = {
+  desktopRuntime: boolean;
+  addressBarUrl: string;
+  batchSources: BatchSource[];
+  sameDomainOnly: boolean;
+  batchStartDate: string;
+  batchEndDate: string;
+  invokeDesktop: ElectronInvoke;
+  ui: LocaleMessages;
+  onBeforeFetch: () => void;
+  onFetchSuccess: (articles: Article[]) => void;
+};
+
+export type BatchFetchControllerSnapshot = BatchFetchMachineState &
+  BatchFetchTitlebarStatus & {
+    isBatchLoading: boolean;
+  };
+
 const EMPTY_BATCH_FETCH_TITLEBAR_STATUS: BatchFetchTitlebarStatus = {
   titlebarFetchSourceText: '',
   titlebarFetchSourceTitle: '',
@@ -34,7 +53,10 @@ const EMPTY_BATCH_FETCH_TITLEBAR_STATUS: BatchFetchTitlebarStatus = {
 };
 
 function resolveFetchSourceText(fetchStatus: FetchStatus) {
-  if (fetchStatus.fetchChannel === 'preview' && fetchStatus.previewReuseMode === 'live-extract') {
+  if (
+    fetchStatus.fetchChannel === 'preview' &&
+    fetchStatus.previewReuseMode === 'live-extract'
+  ) {
     return 'Source: live preview DOM';
   }
 
@@ -46,7 +68,9 @@ function resolveFetchSourceText(fetchStatus: FetchStatus) {
 }
 
 function resolveFetchSourceTitle(fetchStatus: FetchStatus) {
-  const sourceDetail = fetchStatus.fetchDetail ? ` | ${fetchStatus.fetchDetail}` : '';
+  const sourceDetail = fetchStatus.fetchDetail
+    ? ` | ${fetchStatus.fetchDetail}`
+    : '';
   return `${fetchStatus.sourceId || 'source'} | page ${fetchStatus.pageNumber}${sourceDetail}`;
 }
 
@@ -68,11 +92,14 @@ function resolveFetchStopTitle(fetchStatus: FetchStatus) {
   }
 
   const sourceLabel = fetchStatus.sourceId || 'source';
-  const reasonLabel = fetchStatus.paginationStopReason || 'extractor_policy';
+  const reasonLabel =
+    fetchStatus.paginationStopReason || 'extractor_policy';
   return `${sourceLabel} | page ${fetchStatus.pageNumber} | ${reasonLabel}`;
 }
 
-function resolveBatchFetchTitlebarStatus(fetchStatus: FetchStatus | null): BatchFetchTitlebarStatus {
+function resolveBatchFetchTitlebarStatus(
+  fetchStatus: FetchStatus | null,
+): BatchFetchTitlebarStatus {
   if (!fetchStatus) {
     return EMPTY_BATCH_FETCH_TITLEBAR_STATUS;
   }
@@ -85,88 +112,88 @@ function resolveBatchFetchTitlebarStatus(fetchStatus: FetchStatus | null): Batch
   };
 }
 
-type UseBatchFetchModelParams = {
-  desktopRuntime: boolean;
-  addressBarUrl: string;
-  batchSources: BatchSource[];
-  sameDomainOnly: boolean;
-  batchStartDate: string;
-  batchEndDate: string;
-  invokeDesktop: ElectronInvoke;
-  ui: LocaleMessages;
-  onBeforeFetch: () => void;
-  onFetchSuccess: (articles: Article[]) => void;
-};
+function createBatchFetchSnapshot(
+  machineState: BatchFetchMachineState,
+): BatchFetchControllerSnapshot {
+  return {
+    ...machineState,
+    isBatchLoading: machineState.phase === 'loading',
+    ...resolveBatchFetchTitlebarStatus(machineState.fetchStatus),
+  };
+}
 
-type UseBatchFetchModelControllerParams = {
-  electronRuntime: boolean;
-  desktopRuntime?: boolean;
-  addressBarUrl?: string;
-  batchSources?: BatchSource[];
-  sameDomainOnly?: boolean;
-  batchStartDate?: string;
-  batchEndDate?: string;
-  invokeDesktop?: ElectronInvoke;
-  ui?: LocaleMessages;
-  onBeforeFetch?: () => void;
-  onFetchSuccess?: (articles: Article[]) => void;
-};
+export class BatchFetchController {
+  private context: BatchFetchControllerContext;
+  private machineState = INITIAL_BATCH_FETCH_MACHINE_STATE;
+  private snapshot = createBatchFetchSnapshot(this.machineState);
+  private readonly listeners = new Set<() => void>();
+  private requestId = 0;
+  private started = false;
+  private disposed = false;
+  private disposeFetchStatusListener: (() => void) | null = null;
 
-function useBatchFetchModelController({
-  electronRuntime,
-  desktopRuntime = false,
-  addressBarUrl = '',
-  batchSources = [],
-  sameDomainOnly = false,
-  batchStartDate = '',
-  batchEndDate = '',
-  invokeDesktop,
-  ui,
-  onBeforeFetch,
-  onFetchSuccess,
-}: UseBatchFetchModelControllerParams) {
-  const [machineState, dispatchBatchFetchMachineEvent] = useReducer(
-    reduceBatchFetchMachineState,
-    INITIAL_BATCH_FETCH_MACHINE_STATE,
-  );
-  const requestIdRef = useRef(0);
-  const fetchStatus = machineState.fetchStatus;
-  const isBatchLoading = machineState.phase === 'loading';
+  constructor(context: BatchFetchControllerContext) {
+    this.context = context;
+  }
 
-  useEffect(() => {
-    if (!electronRuntime || !window.electronAPI?.fetch) {
-      dispatchBatchFetchMachineEvent({ type: 'FETCH_STATUS_CLEARED' });
+  readonly subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  readonly getSnapshot = () => this.snapshot;
+
+  readonly setContext = (context: BatchFetchControllerContext) => {
+    const shouldReconnect =
+      this.started && context.desktopRuntime !== this.context.desktopRuntime;
+    this.context = context;
+
+    if (shouldReconnect) {
+      this.connectFetchStatus();
+    }
+  };
+
+  readonly start = () => {
+    if (this.started || this.disposed) {
       return;
     }
 
-    const unsubscribe = window.electronAPI.fetch.onFetchStatus((status) => {
-      dispatchBatchFetchMachineEvent({ type: 'FETCH_STATUS_UPDATED', status });
-    });
+    this.started = true;
+    this.connectFetchStatus();
+  };
 
-    return () => {
-      unsubscribe();
-    };
-  }, [electronRuntime]);
+  readonly dispose = () => {
+    this.disposed = true;
+    this.disposeFetchStatusListener?.();
+    this.disposeFetchStatusListener = null;
+    this.listeners.clear();
+  };
 
-  const titlebarFetchStatus = useMemo(
-    () => resolveBatchFetchTitlebarStatus(fetchStatus),
-    [fetchStatus],
-  );
+  readonly clearFetchStatus = () => {
+    this.dispatch({ type: 'FETCH_STATUS_CLEARED' });
+  };
 
-  const clearFetchStatus = useCallback(() => {
-    dispatchBatchFetchMachineEvent({ type: 'FETCH_STATUS_CLEARED' });
-  }, []);
+  readonly handleFetchLatestBatch = async () => {
+    const {
+      desktopRuntime,
+      addressBarUrl,
+      batchSources,
+      sameDomainOnly,
+      batchStartDate,
+      batchEndDate,
+      invokeDesktop,
+      ui,
+      onBeforeFetch,
+      onFetchSuccess,
+    } = this.context;
 
-  const handleFetchLatestBatch = useCallback(async () => {
-    if (!invokeDesktop || !ui) {
-      throw new Error('Batch fetch requires invokeDesktop and ui');
-    }
+    this.requestId += 1;
+    const requestId = this.requestId;
 
-    requestIdRef.current += 1;
-    const requestId = requestIdRef.current;
-
-    dispatchBatchFetchMachineEvent({ type: 'FETCH_STARTED', requestId });
-    onBeforeFetch?.();
+    this.dispatch({ type: 'FETCH_STARTED', requestId });
+    onBeforeFetch();
 
     try {
       const result = await fetchLatestArticlesBatch({
@@ -179,39 +206,50 @@ function useBatchFetchModelController({
         invokeDesktop,
       });
 
+      if (this.disposed) {
+        return;
+      }
+
       if (!result.ok) {
         if (result.reason === 'desktop_unsupported') {
           toast.info(ui.toastDesktopBatchFetchOnly);
-          dispatchBatchFetchMachineEvent({
+          this.dispatch({
             type: 'FETCH_FAILED',
             requestId,
             errorMessage: 'desktop_unsupported',
           });
           return;
         }
+
         if (result.reason === 'empty_page_url') {
           toast.error(ui.toastEnterPageUrl);
-          dispatchBatchFetchMachineEvent({
+          this.dispatch({
             type: 'FETCH_FAILED',
             requestId,
             errorMessage: 'empty_page_url',
           });
           return;
         }
+
         if (result.reason === 'invalid_date_range') {
           toast.error(ui.toastDateRangeInvalid);
-          dispatchBatchFetchMachineEvent({
+          this.dispatch({
             type: 'FETCH_FAILED',
             requestId,
             errorMessage: 'invalid_date_range',
           });
           return;
         }
+
         const localizedError = result.error
           ? localizeDesktopInvokeError(ui, result.error)
           : ui.errorUnknown;
-        toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: localizedError }));
-        dispatchBatchFetchMachineEvent({
+        toast.error(
+          formatLocalized(ui.toastBatchFetchFailed, {
+            error: localizedError,
+          }),
+        );
+        this.dispatch({
           type: 'FETCH_FAILED',
           requestId,
           errorMessage: localizedError,
@@ -219,43 +257,67 @@ function useBatchFetchModelController({
         return;
       }
 
-      onFetchSuccess?.(result.articles);
-      toast.success(formatLocalized(ui.toastBatchFetchSucceeded, { count: result.articles.length }));
-      dispatchBatchFetchMachineEvent({ type: 'FETCH_SUCCEEDED', requestId });
+      onFetchSuccess(result.articles);
+      toast.success(
+        formatLocalized(ui.toastBatchFetchSucceeded, {
+          count: result.articles.length,
+        }),
+      );
+      this.dispatch({ type: 'FETCH_SUCCEEDED', requestId });
     } catch (error) {
+      if (this.disposed) {
+        return;
+      }
+
       const errorMessage = error instanceof Error ? error.message : String(error);
-      toast.error(formatLocalized(ui.toastBatchFetchFailed, { error: errorMessage || ui.errorUnknown }));
-      dispatchBatchFetchMachineEvent({
+      toast.error(
+        formatLocalized(ui.toastBatchFetchFailed, {
+          error: errorMessage || ui.errorUnknown,
+        }),
+      );
+      this.dispatch({
         type: 'FETCH_FAILED',
         requestId,
         errorMessage: errorMessage || ui.errorUnknown,
       });
     }
-  }, [
-    addressBarUrl,
-    batchEndDate,
-    batchSources,
-    batchStartDate,
-    desktopRuntime,
-    invokeDesktop,
-    onBeforeFetch,
-    onFetchSuccess,
-    sameDomainOnly,
-    ui,
-  ]);
-
-  return {
-    isBatchLoading,
-    handleFetchLatestBatch,
-    fetchStatus,
-    clearFetchStatus,
-    ...titlebarFetchStatus,
   };
+
+  private connectFetchStatus() {
+    this.disposeFetchStatusListener?.();
+    this.disposeFetchStatusListener = null;
+
+    if (!this.context.desktopRuntime || !window.electronAPI?.fetch) {
+      this.dispatch({ type: 'FETCH_STATUS_CLEARED' });
+      return;
+    }
+
+    this.disposeFetchStatusListener =
+      window.electronAPI.fetch.onFetchStatus((status) => {
+        this.dispatch({ type: 'FETCH_STATUS_UPDATED', status });
+      });
+  }
+
+  private dispatch(event: BatchFetchMachineEvent) {
+    const nextMachineState = reduceBatchFetchMachineState(this.machineState, event);
+    if (Object.is(nextMachineState, this.machineState)) {
+      return;
+    }
+
+    this.machineState = nextMachineState;
+    this.snapshot = createBatchFetchSnapshot(this.machineState);
+    this.emitChange();
+  }
+
+  private emitChange() {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
 }
 
-export function useBatchFetchModel(params: UseBatchFetchModelParams) {
-  return useBatchFetchModelController({
-    electronRuntime: params.desktopRuntime,
-    ...params,
-  });
+export function createBatchFetchController(
+  context: BatchFetchControllerContext,
+) {
+  return new BatchFetchController(context);
 }

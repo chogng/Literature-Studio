@@ -1,10 +1,15 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import { useEffect, useMemo, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import type { NativeModalState } from '../../base/parts/sandbox/common/desktopTypes.js';
 import { Button } from '../../base/browser/ui/button/button';
 import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
 import ChildWindowShell from './parts/window/childWindowShell';
-import { useWindowControls } from './window';
+import {
+  connectWorkbenchWindowControls,
+  getWindowStateSnapshot,
+  performWorkbenchWindowControl,
+  subscribeWindowState,
+} from './window';
 import './media/articleDetailsModalContent.css';
 
 type ArticleDetailsModalWindowState = Extract<
@@ -16,6 +21,12 @@ type DetailRow = {
   label: string;
   value: string;
   wide?: boolean;
+};
+
+type ArticleDetailsModalSnapshot = {
+  isLoading: boolean;
+  modalState: ArticleDetailsModalWindowState | null;
+  isWindowMaximized: boolean;
 };
 
 const fallbackUi = getLocaleMessages(detectInitialLocale());
@@ -140,73 +151,142 @@ function renderTextSection({
   });
 }
 
-export default function ArticleDetailsModalWindow() {
-  const electronRuntime =
-    typeof window !== 'undefined' && typeof window.electronAPI?.windowControls?.perform === 'function';
-  const { isWindowMaximized, handleWindowControl } = useWindowControls({ electronRuntime });
-  const [modalState, setModalState] = useState<ArticleDetailsModalWindowState | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+class ArticleDetailsModalController {
+  private readonly listeners = new Set<() => void>();
+  private snapshot: ArticleDetailsModalSnapshot = {
+    isLoading: true,
+    modalState: null,
+    isWindowMaximized: getWindowStateSnapshot().isMaximized,
+  };
+  private disposed = false;
+  private disposeWindowControls = () => {};
+  private disposeWindowStateListener = () => {};
+  private disposeModalStateListener = () => {};
 
-  useEffect(() => {
-    let mounted = true;
-    const modalApi = window.electronAPI?.modal;
-    const applyState = (state: NativeModalState | null) => {
-      if (!mounted) {
-        return;
-      }
+  constructor() {
+    const electronRuntime =
+      typeof window !== 'undefined' &&
+      typeof window.electronAPI?.windowControls?.perform === 'function';
+    this.disposeWindowControls = connectWorkbenchWindowControls(electronRuntime);
+    this.disposeWindowStateListener = subscribeWindowState(() => {
+      this.setSnapshot({
+        isWindowMaximized: getWindowStateSnapshot().isMaximized,
+      });
+    });
+    this.initializeModalState();
+  }
 
-      if (state?.kind === 'article-details') {
-        setModalState(state);
-      }
-
-      setIsLoading(false);
-    };
-
-    if (!modalApi?.getState) {
-      if (mounted) {
-        setIsLoading(false);
-      }
-      return () => {
-        mounted = false;
-      };
-    }
-
-    const loadModalState = async () => {
-      try {
-        const state = await modalApi.getState();
-        applyState(state);
-      } catch {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    const disposeModalStateListener =
-      typeof modalApi.onStateChange === 'function'
-        ? modalApi.onStateChange((state) => applyState(state))
-        : () => {};
-
-    void loadModalState();
-
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
     return () => {
-      mounted = false;
-      disposeModalStateListener();
+      this.listeners.delete(listener);
     };
-  }, []);
+  };
 
-  useEffect(() => {
-    if (!modalState) {
+  getSnapshot = () => this.snapshot;
+
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    this.disposeModalStateListener();
+    this.disposeWindowStateListener();
+    this.disposeWindowControls();
+    this.listeners.clear();
+  }
+
+  private emit() {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  private setSnapshot(partial: Partial<ArticleDetailsModalSnapshot>) {
+    if (this.disposed) {
       return;
     }
 
-    document.documentElement.lang = modalState.locale === 'en' ? 'en' : 'zh-CN';
-    document.title = detailValue(modalState.article.title, modalState.labels.untitled);
-  }, [modalState]);
+    const nextSnapshot = { ...this.snapshot, ...partial };
+    if (
+      nextSnapshot.isLoading === this.snapshot.isLoading &&
+      nextSnapshot.modalState === this.snapshot.modalState &&
+      nextSnapshot.isWindowMaximized === this.snapshot.isWindowMaximized
+    ) {
+      return;
+    }
 
-  const detailRows = useMemo(() => (modalState ? createDetailRows(modalState) : []), [modalState]);
+    this.snapshot = nextSnapshot;
+    this.emit();
+  }
 
-  const handleClose = () => handleWindowControl('close');
+  private applyModalState(state: NativeModalState | null) {
+    if (state?.kind === 'article-details') {
+      this.setSnapshot({
+        modalState: state,
+        isLoading: false,
+      });
+      this.applyDocumentMetadata(state);
+      return;
+    }
+
+    this.setSnapshot({ isLoading: false });
+  }
+
+  private async initializeModalState() {
+    if (typeof window === 'undefined') {
+      this.setSnapshot({ isLoading: false });
+      return;
+    }
+
+    const modalApi = window.electronAPI?.modal;
+    if (!modalApi?.getState) {
+      this.setSnapshot({ isLoading: false });
+      return;
+    }
+
+    this.disposeModalStateListener =
+      typeof modalApi.onStateChange === 'function'
+        ? modalApi.onStateChange((state) => this.applyModalState(state))
+        : () => {};
+
+    try {
+      const state = await modalApi.getState();
+      this.applyModalState(state);
+    } catch {
+      this.setSnapshot({ isLoading: false });
+    }
+  }
+
+  private applyDocumentMetadata(state: ArticleDetailsModalWindowState) {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.documentElement.lang = state.locale === 'en' ? 'en' : 'zh-CN';
+    document.title = detailValue(state.article.title, state.labels.untitled);
+  }
+}
+
+let articleDetailsModalController: ArticleDetailsModalController | null = null;
+
+function getArticleDetailsModalController() {
+  if (!articleDetailsModalController) {
+    articleDetailsModalController = new ArticleDetailsModalController();
+  }
+  return articleDetailsModalController;
+}
+
+export default function ArticleDetailsModalWindow() {
+  const controller = getArticleDetailsModalController();
+  const { isLoading, modalState, isWindowMaximized } = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot,
+  );
+  const detailRows = modalState ? createDetailRows(modalState) : [];
+
+  const handleClose = () => performWorkbenchWindowControl('close');
 
   if (isLoading) {
     return renderPlaceholderShell({ message: fallbackUi.articleDetailsLoading });
@@ -248,7 +328,7 @@ export default function ArticleDetailsModalWindow() {
       },
       controlLabels: windowControlLabels,
       isWindowMaximized,
-      onWindowControl: handleWindowControl,
+      onWindowControl: performWorkbenchWindowControl,
       footer: jsx(Button, {
         type: 'button',
         variant: 'secondary',

@@ -1,11 +1,13 @@
 import { jsx, jsxs } from 'react/jsx-runtime';
-import type { ReactNode } from 'react';
 import {
   WindowControlsGroup,
   type WindowControlsAction,
   type WindowControlsLabels,
 } from '../titlebar/windowControls';
+import { getBrowserWindowChromeLayout } from '../../../../platform/windows/common/windowChrome.js';
 import './media/childWindowShell.css';
+
+const WINDOW_CHROME_LAYOUT = getBrowserWindowChromeLayout();
 
 type ChildWindowShellClassNames = {
   root?: string;
@@ -17,6 +19,23 @@ type ChildWindowShellClassNames = {
   footer?: string;
 };
 
+type ChildWindowShellView = ReturnType<typeof jsx>;
+type ChildWindowShellContent =
+  | ChildWindowShellView
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | readonly (
+      | ChildWindowShellView
+      | string
+      | number
+      | boolean
+      | null
+      | undefined
+    )[];
+
 type ChildWindowShellProps = {
   title: string;
   titleId?: string;
@@ -26,8 +45,8 @@ type ChildWindowShellProps = {
   controlLabels?: WindowControlsLabels;
   isWindowMaximized?: boolean;
   onWindowControl: (action: WindowControlsAction) => void;
-  children: ReactNode;
-  footer?: ReactNode;
+  children: ChildWindowShellContent;
+  footer?: ChildWindowShellContent;
 };
 
 export default function ChildWindowShell({
@@ -51,6 +70,23 @@ export default function ChildWindowShell({
     content: classNames?.content ?? 'child-window-shell-content',
     footer: classNames?.footer ?? 'child-window-shell-footer',
   };
+  const controlsView = WINDOW_CHROME_LAYOUT.renderCustomWindowControls
+    ? jsx(WindowControlsGroup, {
+        className: resolvedClassNames.controls,
+        labels: controlLabels,
+        isWindowMaximized,
+        onWindowControl,
+      })
+    : null;
+  const windowControlsContainerView =
+    WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx > 0
+      ? jsx('div', {
+          className: 'child-window-shell-window-controls-container',
+          style: {
+            '--window-controls-width': `${WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx}px`,
+          },
+        })
+      : null;
 
   return jsxs('section', {
     className: resolvedClassNames.root,
@@ -60,6 +96,7 @@ export default function ChildWindowShell({
       jsxs('header', {
         className: resolvedClassNames.header,
         children: [
+          windowControlsContainerView,
           jsx('div', {
             className: resolvedClassNames.heading,
             children: jsx('h1', {
@@ -68,12 +105,7 @@ export default function ChildWindowShell({
               children: title,
             }),
           }),
-          jsx(WindowControlsGroup, {
-            className: resolvedClassNames.controls,
-            labels: controlLabels,
-            isWindowMaximized,
-            onWindowControl,
-          }),
+          controlsView,
         ],
       }),
       jsx('div', {

@@ -1,5 +1,5 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { useState, type Ref } from "react";
+import { useState, useSyncExternalStore, type Ref } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -328,6 +328,40 @@ type PrimarySidebarProps = {
   onCreateDraftTab?: () => void;
 };
 
+type PrimarySidebarSnapshot = {
+  expandedFolders: ReadonlySet<string>;
+};
+
+class PrimarySidebarController {
+  private snapshot: PrimarySidebarSnapshot = {
+    expandedFolders: new Set(["root"]),
+  };
+  private readonly listeners = new Set<() => void>();
+
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  getSnapshot = () => this.snapshot;
+
+  toggleFolder(id: string) {
+    const nextExpandedFolders = new Set(this.snapshot.expandedFolders);
+    if (nextExpandedFolders.has(id) && id !== "root") {
+      nextExpandedFolders.delete(id);
+    } else {
+      nextExpandedFolders.add(id);
+    }
+
+    this.snapshot = { expandedFolders: nextExpandedFolders };
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+}
+
 export default function PrimarySidebar({
   partRef,
   labels,
@@ -337,22 +371,17 @@ export default function PrimarySidebar({
   onDownloadPdf,
   onCreateDraftTab,
 }: PrimarySidebarProps) {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    () => new Set(["root"])
+  const [controller] = useState(
+    () => new PrimarySidebarController()
+  );
+  const { expandedFolders } = useSyncExternalStore(
+    controller.subscribe,
+    controller.getSnapshot,
+    controller.getSnapshot
   );
   const tree = buildLibraryTree(librarySnapshot, labels);
 
-  const handleToggleFolder = (id: string) => {
-    setExpandedFolders((current) => {
-      const next = new Set(current);
-      if (next.has(id) && id !== "root") {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+  const handleToggleFolder = (id: string) => controller.toggleFolder(id);
 
   return jsx("section", {
     ref: partRef,

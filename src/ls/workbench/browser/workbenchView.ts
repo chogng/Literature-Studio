@@ -14,8 +14,11 @@ import {
   type Locale,
 } from "../../../language/i18n";
 import {
+  connectWorkbenchWindowControls,
+  getWindowStateSnapshot,
   hasWorkbenchWindowControlsProvider,
-  useWindowControls,
+  performWorkbenchWindowControl,
+  subscribeWindowState,
 } from "./window";
 import { ToastContainer } from "../../base/browser/ui/toast/toast";
 import type { Article } from "../services/article/articleFetch";
@@ -26,14 +29,17 @@ import {
 } from "../services/config/configSchema";
 import MenuOverlayWindow from "./menuOverlayWindow";
 import ArticleDetailsModalWindow from "./articleDetailsModalWindow";
-import { useAssistantModel } from "./assistantModel";
+import {
+  createAssistantModel,
+  type AssistantModelSnapshot,
+} from "./assistantModel";
 import {
   createLibraryModel,
   type LibraryModelSnapshot,
 } from "./libraryModel";
 import ToastOverlayWindow from "./toastOverlayWindow";
-import { useBatchFetchModel } from "./batchFetchModel";
-import { useDocumentActionsModel } from "./documentActionsModel";
+import { createBatchFetchController } from "./batchFetchModel";
+import { createDocumentActionsController } from "./documentActionsModel";
 import {
   reduceQuickAccessAction,
   type QuickAccessAction,
@@ -51,7 +57,8 @@ import {
   toggleSidebarVisibility,
   toggleAuxiliarySidebarVisibility,
 } from "./layout";
-import { useEditorPartModel } from "./parts/editor/editorPart";
+import { createEditorPartController } from "./parts/editor/editorPart";
+import type { EditorPartProps } from "./parts/editor/editorPartView";
 import {
   createSettingsPartProps,
   SettingsPartView,
@@ -73,7 +80,7 @@ import {
   subscribeReaderState,
 } from "./readerState";
 import ReaderView from "./readerView";
-import { useSettingsModel } from "./parts/settings/settingsModel";
+import { createSettingsController } from "./parts/settings/settingsModel";
 import {
   getWorkbenchStateSnapshot,
   subscribeWorkbenchState,
@@ -105,36 +112,24 @@ type ActivePageViewConfig = {
     librarySnapshot: LibraryModelSnapshot["librarySnapshot"];
     question: string;
     onQuestionChange: (value: string) => void;
-    messages: ReturnType<typeof useAssistantModel>["messages"];
-    result: ReturnType<typeof useAssistantModel>["result"];
+    messages: AssistantModelSnapshot["messages"];
+    result: AssistantModelSnapshot["result"];
     isAsking: boolean;
     errorMessage: string | null;
     onAsk: () => void;
     availableArticleCount: number;
-    conversations: ReturnType<typeof useAssistantModel>["conversations"];
-    activeConversationId: ReturnType<
-      typeof useAssistantModel
-    >["activeConversationId"];
-    isHistoryOpen: ReturnType<typeof useAssistantModel>["isHistoryOpen"];
-    isMoreMenuOpen: ReturnType<typeof useAssistantModel>["isMoreMenuOpen"];
-    onCreateConversation: ReturnType<
-      typeof useAssistantModel
-    >["handleCreateConversation"];
-    onActivateConversation: ReturnType<
-      typeof useAssistantModel
-    >["handleActivateConversation"];
-    onCloseConversation: ReturnType<
-      typeof useAssistantModel
-    >["handleCloseConversation"];
+    conversations: AssistantModelSnapshot["conversations"];
+    activeConversationId: AssistantModelSnapshot["activeConversationId"];
+    isHistoryOpen: AssistantModelSnapshot["isHistoryOpen"];
+    isMoreMenuOpen: AssistantModelSnapshot["isMoreMenuOpen"];
+    onCreateConversation: () => void;
+    onActivateConversation: (conversationId: string) => void;
+    onCloseConversation: (conversationId: string) => void;
     onCloseAuxiliarySidebar: () => void;
-    onToggleHistory: ReturnType<
-      typeof useAssistantModel
-    >["handleToggleHistory"];
-    onToggleMoreMenu: ReturnType<
-      typeof useAssistantModel
-    >["handleToggleMoreMenu"];
+    onToggleHistory: () => void;
+    onToggleMoreMenu: () => void;
   };
-  editorPartProps: ReturnType<typeof useEditorPartModel>["editorPartProps"];
+  editorPartProps: EditorPartProps;
   settingsPartRef: ReturnType<typeof createWorkbenchPartRef>;
   settingsPartProps: ReturnType<typeof createSettingsPartProps>;
 };
@@ -293,9 +288,17 @@ function WorkbenchContentView() {
   const { electronRuntime, previewRuntime, desktopRuntime } =
     resolveRuntimeState();
   const hasWindowControlsProvider = hasWorkbenchWindowControlsProvider();
-  const { isWindowMaximized, handleWindowControl } = useWindowControls({
-    electronRuntime: electronRuntime && hasWindowControlsProvider,
-  });
+  useEffect(() => {
+    return connectWorkbenchWindowControls(
+      electronRuntime && hasWindowControlsProvider
+    );
+  }, [electronRuntime, hasWindowControlsProvider]);
+  const { isMaximized: isWindowMaximized } = useSyncExternalStore(
+    subscribeWindowState,
+    getWindowStateSnapshot,
+    getWindowStateSnapshot
+  );
+  const handleWindowControl = performWorkbenchWindowControl;
   const ui = useMemo(() => getLocaleMessages(locale), [locale]);
 
   const invokeDesktop = useCallback(
@@ -308,37 +311,71 @@ function WorkbenchContentView() {
     },
     []
   );
-  const libraryModel = useMemo(
-    () =>
-      createLibraryModel({
-        desktopRuntime,
-        invokeDesktop,
-      }),
-    []
+  const [settingsController] = useState(() =>
+    createSettingsController({
+      desktopRuntime,
+      invokeDesktop,
+      ui,
+      locale,
+      applyLocale: setLocale,
+      initialBatchSources: INITIAL_BATCH_SOURCES,
+    })
   );
-
+  useEffect(() => {
+    settingsController.setContext({
+      desktopRuntime,
+      invokeDesktop,
+      ui,
+      locale,
+      applyLocale: setLocale,
+    });
+  }, [desktopRuntime, invokeDesktop, locale, setLocale, settingsController, ui]);
+  useEffect(() => {
+    settingsController.start();
+    return () => {
+      settingsController.dispose();
+    };
+  }, [settingsController]);
   const {
     batchSources,
     batchLimit,
-    setBatchLimit,
     sameDomainOnly,
-    setSameDomainOnly,
     useMica,
-    setUseMica,
     ragEnabled,
-    setRagEnabled,
     autoIndexDownloadedPdf,
-    setAutoIndexDownloadedPdf,
     libraryStorageMode,
-    setLibraryStorageMode,
     libraryDirectory,
-    setLibraryDirectory,
     maxConcurrentIndexJobs,
-    setMaxConcurrentIndexJobs,
     activeRagProvider,
     ragProviders,
     retrievalCandidateCount,
     retrievalTopK,
+    pdfDownloadDir,
+    pdfFileNameUseSelectionOrder,
+    activeLlmProvider,
+    llmProviders,
+    activeTranslationProvider,
+    translationProviders,
+    configPath,
+    isSettingsLoading,
+    isSettingsSaving,
+    isTestingRagConnection,
+    isTestingLlmConnection,
+    isTestingTranslationConnection,
+  } = useSyncExternalStore(
+    settingsController.subscribe,
+    settingsController.getSnapshot,
+    settingsController.getSnapshot
+  );
+  const {
+    setBatchLimit,
+    setSameDomainOnly,
+    setUseMica,
+    setRagEnabled,
+    setAutoIndexDownloadedPdf,
+    setLibraryStorageMode,
+    setLibraryDirectory,
+    setMaxConcurrentIndexJobs,
     setRagProviderApiKey,
     setRagProviderBaseUrl,
     setRagProviderEmbeddingModel,
@@ -347,25 +384,13 @@ function WorkbenchContentView() {
     setRagProviderRerankPath,
     setRetrievalCandidateCount,
     setRetrievalTopK,
-    pdfDownloadDir,
     setPdfDownloadDir,
-    pdfFileNameUseSelectionOrder,
     setPdfFileNameUseSelectionOrder,
-    activeLlmProvider,
     setActiveLlmProvider,
-    llmProviders,
     setLlmProviderApiKey,
     setLlmProviderModel,
-    activeTranslationProvider,
     setActiveTranslationProvider,
-    translationProviders,
     setTranslationProviderApiKey,
-    configPath,
-    isSettingsLoading,
-    isSettingsSaving,
-    isTestingRagConnection,
-    isTestingLlmConnection,
-    isTestingTranslationConnection,
     handleChoosePdfDownloadDir,
     handleChooseLibraryDirectory,
     handleOpenConfigLocation,
@@ -379,14 +404,15 @@ function WorkbenchContentView() {
     handleAddBatchSource,
     handleRemoveBatchSource,
     handleMoveBatchSource,
-  } = useSettingsModel({
-    desktopRuntime,
-    invokeDesktop,
-    ui,
-      locale,
-      setLocale,
-      initialBatchSources: INITIAL_BATCH_SOURCES,
-  });
+  } = settingsController;
+  const libraryModel = useMemo(
+    () =>
+      createLibraryModel({
+        desktopRuntime,
+        invokeDesktop,
+      }),
+    []
+  );
   useEffect(() => {
     libraryModel.setContext({
       desktopRuntime,
@@ -487,6 +513,27 @@ function WorkbenchContentView() {
       },
     };
   }, [browserUrl, electronRuntime, previewRuntime, ui]);
+  const [editorPartController] = useState(() =>
+    createEditorPartController({
+      ui,
+      viewPartProps,
+      browserUrl,
+      webUrl,
+    })
+  );
+  useEffect(() => {
+    editorPartController.setContext({
+      ui,
+      viewPartProps,
+      browserUrl,
+      webUrl,
+    });
+  }, [browserUrl, editorPartController, ui, viewPartProps, webUrl]);
+  useEffect(() => {
+    return () => {
+      editorPartController.dispose();
+    };
+  }, [editorPartController]);
   const {
     tabs: editorTabs,
     activateTab: activateEditorTab,
@@ -497,15 +544,52 @@ function WorkbenchContentView() {
     previewSurfaceSnapshot,
     updateActivePreviewTabUrl,
     editorPartProps,
-  } = useEditorPartModel({
+  } = {
+    ...useSyncExternalStore(
+      editorPartController.subscribe,
+      editorPartController.getSnapshot,
+      editorPartController.getSnapshot
+    ),
+    createDraftTab: editorPartController.createDraftTab,
+    createWebTab: editorPartController.createWebTab,
+    updateActivePreviewTabUrl: editorPartController.updateActivePreviewTabUrl,
+  };
+  const [assistantModel] = useState(() =>
+      createAssistantModel({
+        desktopRuntime,
+        invokeDesktop,
+        ui,
+        isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
+        articles: filteredArticles,
+        llmSettings: currentLlmSettings,
+        ragSettings: currentRagSettings,
+        fallbackWritingContext: draftBody,
+      })
+  );
+  useEffect(() => {
+    assistantModel.setContext({
+      desktopRuntime,
+      invokeDesktop,
+      ui,
+      isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
+      articles: filteredArticles,
+      llmSettings: currentLlmSettings,
+      ragSettings: currentRagSettings,
+      fallbackWritingContext: draftBody,
+    });
+  }, [
+    assistantModel,
+    currentLlmSettings,
+    currentRagSettings,
+    desktopRuntime,
+    draftBody,
+    filteredArticles,
+    invokeDesktop,
+    knowledgeBaseModeEnabled,
     ui,
-    viewPartProps,
-    browserUrl,
-    webUrl,
-  });
+  ]);
   const {
     question: assistantQuestion,
-    setQuestion: setAssistantQuestion,
     messages: assistantMessages,
     result: assistantResult,
     isAsking: isAssistantAsking,
@@ -514,22 +598,21 @@ function WorkbenchContentView() {
     activeConversationId: activeAssistantConversationId,
     isHistoryOpen: isAssistantHistoryOpen,
     isMoreMenuOpen: isAssistantMoreMenuOpen,
-    handleAsk: handleAssistantAsk,
-    handleCreateConversation: handleAssistantCreateConversation,
-    handleActivateConversation: handleAssistantActivateConversation,
-    handleCloseConversation: handleAssistantCloseConversation,
-    handleToggleHistory: handleAssistantToggleHistory,
-    handleToggleMoreMenu: handleAssistantToggleMoreMenu,
-  } = useAssistantModel({
-    desktopRuntime,
-    invokeDesktop,
-    ui,
-    isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
-    articles: filteredArticles,
-    llmSettings: currentLlmSettings,
-    ragSettings: currentRagSettings,
-    fallbackWritingContext: draftBody,
-  });
+  } = useSyncExternalStore(
+    assistantModel.subscribe,
+    assistantModel.getSnapshot,
+    assistantModel.getSnapshot
+  );
+  const setAssistantQuestion = assistantModel.setQuestion;
+  const handleAssistantAsk = assistantModel.handleAsk;
+  const handleAssistantCreateConversation =
+    assistantModel.handleCreateConversation;
+  const handleAssistantActivateConversation =
+    assistantModel.handleActivateConversation;
+  const handleAssistantCloseConversation =
+    assistantModel.handleCloseConversation;
+  const handleAssistantToggleHistory = assistantModel.handleToggleHistory;
+  const handleAssistantToggleMoreMenu = assistantModel.handleToggleMoreMenu;
   const filteredArticleKeysInOrder = useMemo(
     () => filteredArticles.map((article) => getArticleSelectionKey(article)),
     [filteredArticles]
@@ -621,23 +704,62 @@ function WorkbenchContentView() {
     navigateToAddressBarUrl(webUrl, true);
   }, [navigateToAddressBarUrl, webUrl]);
 
-  const {
-    canExportDocx,
-    handleSharedPdfDownload,
-    handleOpenArticleDetails,
-    handleExportArticlesDocx,
-  } = useDocumentActionsModel({
+  const [documentActionsController] = useState(() =>
+    createDocumentActionsController({
+      desktopRuntime,
+      invokeDesktop,
+      locale,
+      ui,
+      pdfDownloadDir,
+      pdfFileNameUseSelectionOrder,
+      isSelectionModeEnabled,
+      selectedArticleOrderLookup,
+      exportableArticles,
+      onLibraryUpdated: refreshLibrary,
+    })
+  );
+  useEffect(() => {
+    documentActionsController.setContext({
+      desktopRuntime,
+      invokeDesktop,
+      locale,
+      ui,
+      pdfDownloadDir,
+      pdfFileNameUseSelectionOrder,
+      isSelectionModeEnabled,
+      selectedArticleOrderLookup,
+      exportableArticles,
+      onLibraryUpdated: refreshLibrary,
+    });
+  }, [
     desktopRuntime,
+    documentActionsController,
+    exportableArticles,
     invokeDesktop,
+    isSelectionModeEnabled,
     locale,
-    ui,
     pdfDownloadDir,
     pdfFileNameUseSelectionOrder,
-    isSelectionModeEnabled,
+    refreshLibrary,
     selectedArticleOrderLookup,
-    exportableArticles,
-    onLibraryUpdated: refreshLibrary,
-  });
+    ui,
+  ]);
+  useEffect(() => {
+    return () => {
+      documentActionsController.dispose();
+    };
+  }, [documentActionsController]);
+  const { canExportDocx } = useSyncExternalStore(
+    documentActionsController.subscribe,
+    documentActionsController.getSnapshot,
+    documentActionsController.getSnapshot
+  );
+  const handleSharedPdfDownload =
+    documentActionsController.handleSharedPdfDownload;
+  const handleOpenArticleDetails =
+    documentActionsController.handleOpenArticleDetails;
+  const handleExportArticlesDocx =
+    documentActionsController.handleExportArticlesDocx;
   const handleSidebarPdfDownload = useCallback(() => {
     const sourceUrl = resolvePreviewSourceUrl(
       previewSurfaceSnapshot,
@@ -785,18 +907,59 @@ function WorkbenchContentView() {
     setArticles(nextArticles);
   }, []);
 
-  const { isBatchLoading, handleFetchLatestBatch } = useBatchFetchModel({
-    desktopRuntime,
-    addressBarUrl: fetchSeedUrl || webUrl,
-    batchSources,
-    sameDomainOnly,
-    batchStartDate,
+  const [batchFetchController] = useState(() =>
+    createBatchFetchController({
+      desktopRuntime,
+      addressBarUrl: fetchSeedUrl || webUrl,
+      batchSources,
+      sameDomainOnly,
+      batchStartDate,
+      batchEndDate,
+      invokeDesktop,
+      ui,
+      onBeforeFetch: handleBatchFetchStart,
+      onFetchSuccess: handleBatchFetchSuccess,
+    })
+  );
+  useEffect(() => {
+    batchFetchController.setContext({
+      desktopRuntime,
+      addressBarUrl: fetchSeedUrl || webUrl,
+      batchSources,
+      sameDomainOnly,
+      batchStartDate,
+      batchEndDate,
+      invokeDesktop,
+      ui,
+      onBeforeFetch: handleBatchFetchStart,
+      onFetchSuccess: handleBatchFetchSuccess,
+    });
+  }, [
     batchEndDate,
+    batchFetchController,
+    batchSources,
+    batchStartDate,
+    desktopRuntime,
+    fetchSeedUrl,
+    handleBatchFetchStart,
+    handleBatchFetchSuccess,
     invokeDesktop,
+    sameDomainOnly,
     ui,
-    onBeforeFetch: handleBatchFetchStart,
-    onFetchSuccess: handleBatchFetchSuccess,
-  });
+    webUrl,
+  ]);
+  useEffect(() => {
+    batchFetchController.start();
+    return () => {
+      batchFetchController.dispose();
+    };
+  }, [batchFetchController]);
+  const { isBatchLoading } = useSyncExternalStore(
+    batchFetchController.subscribe,
+    batchFetchController.getSnapshot,
+    batchFetchController.getSnapshot
+  );
+  const handleFetchLatestBatch = batchFetchController.handleFetchLatestBatch;
 
   const handleToggleSelectionMode = useCallback(() => {
     setSelectionModePhase((previousPhase) => {

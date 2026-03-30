@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type {
   WindowControlAction,
   WindowState,
@@ -6,10 +5,6 @@ import type {
 } from '../../base/parts/sandbox/common/desktopTypes.js';
 
 export type WorkbenchWindowControlAction = 'minimize' | 'toggle-maximize' | 'close';
-
-type UseWindowControlsParams = {
-  electronRuntime: boolean;
-};
 
 type WindowStateSnapshot = {
   isMaximized: boolean;
@@ -66,56 +61,43 @@ export function getWindowStateSnapshot() {
   return windowStateSnapshot;
 }
 
-export function useWindowControls({ electronRuntime }: UseWindowControlsParams) {
-  const windowState = useSyncExternalStore(
-    subscribeWindowState,
-    getWindowStateSnapshot,
-    getWindowStateSnapshot,
-  );
+export function connectWorkbenchWindowControls(electronRuntime: boolean) {
+  const controls = electronRuntime ? getWorkbenchWindowControlsProvider() : null;
+  if (!controls) {
+    setWindowState(DEFAULT_WINDOW_STATE);
+    return () => {};
+  }
 
-  useEffect(() => {
-    const controls = electronRuntime ? getWorkbenchWindowControlsProvider() : null;
-    if (!controls) {
-      setWindowState(DEFAULT_WINDOW_STATE);
-      return;
-    }
+  let mounted = true;
 
-    let mounted = true;
-
-    void controls
-      .getState()
-      .then((state) => {
-        if (mounted) {
-          setWindowState({
-            isMaximized: Boolean(state.isMaximized),
-          });
-        }
-      })
-      .catch(() => {
-        if (mounted) {
-          setWindowState(DEFAULT_WINDOW_STATE);
-        }
-      });
-
-    const unsubscribe = controls.onStateChange((state) => {
-      setWindowState({
-        isMaximized: Boolean(state.isMaximized),
-      });
+  void controls
+    .getState()
+    .then((state) => {
+      if (mounted) {
+        setWindowState({
+          isMaximized: Boolean(state.isMaximized),
+        });
+      }
+    })
+    .catch(() => {
+      if (mounted) {
+        setWindowState(DEFAULT_WINDOW_STATE);
+      }
     });
 
-    return () => {
-      mounted = false;
-      unsubscribe();
-      setWindowState(DEFAULT_WINDOW_STATE);
-    };
-  }, [electronRuntime]);
+  const unsubscribe = controls.onStateChange((state) => {
+    setWindowState({
+      isMaximized: Boolean(state.isMaximized),
+    });
+  });
 
-  const handleWindowControl = useCallback((action: WorkbenchWindowControlAction) => {
-    getWorkbenchWindowControlsProvider()?.perform(action);
-  }, []);
-
-  return {
-    isWindowMaximized: windowState.isMaximized,
-    handleWindowControl,
+  return () => {
+    mounted = false;
+    unsubscribe();
+    setWindowState(DEFAULT_WINDOW_STATE);
   };
+}
+
+export function performWorkbenchWindowControl(action: WorkbenchWindowControlAction) {
+  getWorkbenchWindowControlsProvider()?.perform(action);
 }

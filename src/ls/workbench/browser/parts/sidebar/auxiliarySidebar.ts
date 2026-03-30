@@ -11,8 +11,7 @@ import {
   X,
 } from "lucide-react";
 import {
-  useLayoutEffect,
-  useRef,
+  useState,
   type ChangeEvent,
   type KeyboardEvent,
   type MouseEvent,
@@ -48,6 +47,73 @@ type AuxiliarySidebarProps = {
   onToggleMoreMenu: () => void;
 };
 
+class ConversationTabScroller {
+  private tabStrip: HTMLDivElement | null = null;
+  private activeTab: HTMLButtonElement | null = null;
+  private activeConversationId = "";
+  private activeIndex = -1;
+  private conversationCount = 0;
+  private revealPending = false;
+
+  bindTabStrip = (node: HTMLDivElement | null) => {
+    this.tabStrip = node;
+    this.scheduleReveal();
+  };
+
+  bindActiveTab = (node: HTMLButtonElement | null) => {
+    this.activeTab = node;
+    this.scheduleReveal();
+  };
+
+  updateSelection(
+    conversations: ReadonlyArray<{ id: string }>,
+    activeConversationId: string
+  ) {
+    const nextActiveIndex = conversations.findIndex(
+      (conversation) => conversation.id === activeConversationId
+    );
+    if (
+      this.activeConversationId === activeConversationId &&
+      this.activeIndex === nextActiveIndex &&
+      this.conversationCount === conversations.length
+    ) {
+      return;
+    }
+
+    this.activeConversationId = activeConversationId;
+    this.activeIndex = nextActiveIndex;
+    this.conversationCount = conversations.length;
+    this.scheduleReveal();
+  }
+
+  private scheduleReveal() {
+    if (this.revealPending) {
+      return;
+    }
+
+    this.revealPending = true;
+    queueMicrotask(() => {
+      this.revealPending = false;
+      this.revealActiveTab();
+    });
+  }
+
+  private revealActiveTab() {
+    const tabStrip = this.tabStrip;
+    const activeTab = this.activeTab;
+    if (!tabStrip || !activeTab) {
+      return;
+    }
+
+    const alignToEnd = this.activeIndex === this.conversationCount - 1;
+    activeTab.scrollIntoView({
+      block: "nearest",
+      inline: alignToEnd ? "end" : "nearest",
+      behavior: "auto",
+    });
+  }
+}
+
 export default function AuxiliarySidebar({
   labels,
   isKnowledgeBaseModeEnabled: _isKnowledgeBaseModeEnabled,
@@ -69,26 +135,10 @@ export default function AuxiliarySidebar({
   onToggleHistory,
   onToggleMoreMenu,
 }: AuxiliarySidebarProps) {
-  const tabStripRef = useRef<HTMLDivElement | null>(null);
-  const activeTabRef = useRef<HTMLButtonElement | null>(null);
-
-  useLayoutEffect(() => {
-    const tabStrip = tabStripRef.current;
-    const activeTab = activeTabRef.current;
-    if (!tabStrip || !activeTab) {
-      return;
-    }
-
-    const activeIndex = conversations.findIndex(
-      (conversation) => conversation.id === activeConversationId
-    );
-    const alignToEnd = activeIndex === conversations.length - 1;
-    activeTab.scrollIntoView({
-      block: "nearest",
-      inline: alignToEnd ? "end" : "nearest",
-      behavior: "auto",
-    });
-  }, [activeConversationId, conversations.length]);
+  const [conversationTabScroller] = useState(
+    () => new ConversationTabScroller()
+  );
+  conversationTabScroller.updateSelection(conversations, activeConversationId);
 
   const canSend = !isAsking && question.trim().length > 0;
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -110,7 +160,7 @@ export default function AuxiliarySidebar({
         children: [
           jsx("div", {
             className: "sidebar-chat-tab-strip",
-            ref: tabStripRef,
+            ref: conversationTabScroller.bindTabStrip,
             children: conversations.map((conversation) =>
               jsxs(
                 "div",
@@ -127,7 +177,7 @@ export default function AuxiliarySidebar({
                         .join(" "),
                       ref:
                         conversation.id === activeConversationId
-                          ? activeTabRef
+                          ? conversationTabScroller.bindActiveTab
                           : undefined,
                       onClick: () => onActivateConversation(conversation.id),
                       title: conversation.title,
