@@ -11,5 +11,5 @@ import 'ls/workbench/workbench.desktop.main.css';
 
 //#region --- workbench (desktop main)
 import 'ls/workbench/electron-sandbox/desktop.main';
-import 'ls/workbench/electron-sandbox/desktop.contribution';
+import 'ls/workbench/contrib/desktop/desktop.contribution';
 //#endregion

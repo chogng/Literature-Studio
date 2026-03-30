@@ -19,9 +19,9 @@ function renderPreviewContent({
   electronRuntime,
   previewRuntime,
   labels,
-  onPreviewHostRef,
+  onWebContentViewHostRef,
 }: ViewPartProps & {
-  onPreviewHostRef: (node: HTMLDivElement | null) => void;
+  onWebContentViewHostRef: (node: HTMLDivElement | null) => void;
 }) {
   if (!browserUrl) {
     return jsx('div', { className: 'web-frame', 'aria-hidden': 'true' });
@@ -34,10 +34,10 @@ function renderPreviewContent({
     });
   }
 
-  // This view is only a DOM anchor for the shared Electron webContents preview.
+  // This view is only a DOM anchor for the shared Electron webContents-backed content view.
   // Never render iframe/webview here: preview tabs must reuse the existing native surface.
   return jsx('div', {
-    ref: onPreviewHostRef,
+    ref: onWebContentViewHostRef,
     className: 'web-frame web-frame-placeholder',
     'aria-hidden': 'true',
   });
@@ -50,21 +50,23 @@ export default function ViewPartView({
   labels,
 }: ViewPartProps) {
   const viewPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.view);
-  const previewHostPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.previewHost);
+  const webContentViewHostPartRef = createWorkbenchPartRef(
+    WORKBENCH_PART_IDS.webContentViewHost
+  );
 
   const previewContent = renderPreviewContent({
     browserUrl,
     electronRuntime,
     previewRuntime,
     labels,
-    onPreviewHostRef: previewHostPartRef,
+    onWebContentViewHostRef: webContentViewHostPartRef,
   });
 
   return jsx('div', {
     ref: viewPartRef,
     className: 'web-frame-container',
     children: jsx('div', {
-      className: 'native-preview-host',
+      className: 'native-webcontentview-host',
       children: previewContent,
     }),
   });

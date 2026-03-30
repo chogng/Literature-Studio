@@ -10,7 +10,7 @@
   border-radius: inherit;
 }
 
-.native-preview-host {
+.native-webcontentview-host {
   flex: 1;
   width: 100%;
   min-height: 0;

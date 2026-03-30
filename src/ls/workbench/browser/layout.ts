@@ -49,7 +49,7 @@ export const WORKBENCH_PART_IDS = {
   settings: 'workbench.settings',
   editor: 'workbench.editor',
   view: 'workbench.view',
-  previewHost: 'workbench.view.previewHost',
+  webContentViewHost: 'workbench.view.webContentViewHost',
 } as const;
 
 export type WorkbenchPartId =
@@ -72,7 +72,7 @@ const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement |
   [WORKBENCH_PART_IDS.settings]: null,
   [WORKBENCH_PART_IDS.editor]: null,
   [WORKBENCH_PART_IDS.view]: null,
-  [WORKBENCH_PART_IDS.previewHost]: null,
+  [WORKBENCH_PART_IDS.webContentViewHost]: null,
 };
 
 let workbenchLayoutState = DEFAULT_WORKBENCH_LAYOUT_STATE;
