@@ -98,6 +98,7 @@ function getPreviewNavigationQuickAccessProvider(): PreviewNavigationQuickAccess
 export class PreviewNavigationModel {
   private snapshot: PreviewNavigationSnapshot = DEFAULT_PREVIEW_NAVIGATION_SNAPSHOT;
   private readonly listeners = new Set<() => void>();
+  private activeTargetId: string | null = null;
 
   private emitChange() {
     for (const listener of this.listeners) {
@@ -163,6 +164,40 @@ export class PreviewNavigationModel {
 
   readonly getSnapshot = () => this.snapshot;
 
+  async activateTarget(
+    targetId: string | null,
+    context?: Pick<PreviewStateSyncContext, 'setWebUrl' | 'setFetchSeedUrl'>,
+  ) {
+    this.activeTargetId = targetId;
+
+    if (!window.electronAPI?.preview) {
+      return null;
+    }
+
+    window.electronAPI.preview.activate(targetId);
+
+    if (!context) {
+      return null;
+    }
+
+    try {
+      const state = await window.electronAPI.preview.getState(targetId);
+      this.applyPreviewState(state, context);
+      return state;
+    } catch {
+      // Ignore activation sync failures; the active preview state stream will catch up.
+      return null;
+    }
+  }
+
+  releaseTarget(targetId: string | null) {
+    if (!window.electronAPI?.preview) {
+      return;
+    }
+
+    window.electronAPI.preview.release(targetId);
+  }
+
   connectPreviewState({
     previewRuntime,
     setWebUrl,
@@ -177,7 +212,7 @@ export class PreviewNavigationModel {
     const preview = window.electronAPI.preview;
 
     void preview
-      .getState()
+      .getState(this.activeTargetId)
       .then((state) => {
         if (!mounted) {
           return;
@@ -233,9 +268,11 @@ export class PreviewNavigationModel {
     }
 
     if (previewNavigation.kind === 'webcontents-preview' && window.electronAPI?.preview) {
-      void window.electronAPI.preview.navigate(previewNavigation.normalizedUrl).catch(() => {
-        window.electronAPI?.preview?.setVisible(false);
-      });
+      void window.electronAPI.preview
+        .navigate(previewNavigation.normalizedUrl, this.activeTargetId)
+        .catch(() => {
+          window.electronAPI?.preview?.setVisible(false);
+        });
     }
 
     if (showToast) {
@@ -261,7 +298,7 @@ export class PreviewNavigationModel {
     }
 
     if (previewRefreshMode === 'webcontents-preview' && window.electronAPI?.preview) {
-      window.electronAPI.preview.reload();
+      window.electronAPI.preview.reload(this.activeTargetId);
     }
   }
 
@@ -271,7 +308,7 @@ export class PreviewNavigationModel {
       return;
     }
 
-    window.electronAPI.preview.goBack();
+    window.electronAPI.preview.goBack(this.activeTargetId);
   }
 
   handlePreviewForward({ previewRuntime, ui }: PreviewNavigationButtonParams): void {
@@ -280,7 +317,7 @@ export class PreviewNavigationModel {
       return;
     }
 
-    window.electronAPI.preview.goForward();
+    window.electronAPI.preview.goForward(this.activeTargetId);
   }
 
   createAddressBarSourceOptions(

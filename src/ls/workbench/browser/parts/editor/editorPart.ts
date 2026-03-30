@@ -217,6 +217,8 @@ export function useEditorPartModel({
     activeTab,
     draftBody,
     setDraftDocument,
+    activateTab,
+    closeTab,
     createDraftTab,
     createWebTab,
     previewSurfaceSnapshot,

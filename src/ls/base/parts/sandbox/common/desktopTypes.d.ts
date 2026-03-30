@@ -161,6 +161,14 @@ export interface PreviewState {
   visible: boolean;
 }
 
+export interface PreviewTargetPayload {
+  targetId?: string | null;
+}
+
+export interface PreviewNavigatePayload extends PreviewTargetPayload {
+  url: string;
+}
+
 export type FetchStrategy = 'network-first' | 'preview-first' | 'compare';
 export type FetchChannel = 'network' | 'preview';
 export type PreviewReuseMode = 'snapshot' | 'live-extract';
@@ -538,13 +546,15 @@ export interface ElectronWindowControls {
 }
 
 export interface ElectronPreviewApi {
-  navigate: (url: string) => Promise<PreviewState>;
-  getState: () => Promise<PreviewState>;
+  activate: (targetId?: string | null) => void;
+  release: (targetId?: string | null) => void;
+  navigate: (url: string, targetId?: string | null) => Promise<PreviewState>;
+  getState: (targetId?: string | null) => Promise<PreviewState>;
   setBounds: (bounds: PreviewBounds | null) => void;
   setVisible: (visible: boolean) => void;
-  reload: () => void;
-  goBack: () => void;
-  goForward: () => void;
+  reload: (targetId?: string | null) => void;
+  goBack: (targetId?: string | null) => void;
+  goForward: (targetId?: string | null) => void;
   onStateChange: (listener: (state: PreviewState) => void) => () => void;
 }
 

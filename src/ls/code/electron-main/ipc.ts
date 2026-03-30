@@ -26,9 +26,11 @@ import type {
 import type { StorageService } from '../../platform/storage/common/storage.js';
 import {
   getPreviewState,
+  activatePreviewTarget,
   goBackPreview,
   goForwardPreview,
-  navigatePreview,
+  navigatePreviewTarget,
+  releasePreviewTarget,
   reloadPreview,
   setPreviewBounds,
   setPreviewVisible,
@@ -283,8 +285,8 @@ export function registerAppIpc(storage: StorageService) {
     return getWindowState(resolveWindowFromWebContents(event.sender));
   });
 
-  ipcMain.handle('app:preview-get-state', () => {
-    const state: PreviewState = getPreviewState();
+  ipcMain.handle('app:preview-get-state', (_event, payload?: { targetId?: string | null }) => {
+    const state: PreviewState = getPreviewState(payload?.targetId);
     return state;
   });
 
@@ -329,10 +331,18 @@ export function registerAppIpc(storage: StorageService) {
     selectMenuOption(requestId, value);
   });
 
-  ipcMain.handle('app:preview-navigate', async (_event, url: string) => {
+  ipcMain.on('app:preview-activate', (_event, payload?: { targetId?: string | null }) => {
+    activatePreviewTarget(payload?.targetId);
+  });
+
+  ipcMain.on('app:preview-release', (_event, payload?: { targetId?: string | null }) => {
+    releasePreviewTarget(payload?.targetId);
+  });
+
+  ipcMain.handle('app:preview-navigate', async (_event, payload: { url: string; targetId?: string | null }) => {
     try {
-      await navigatePreview(url);
-      return getPreviewState();
+      await navigatePreviewTarget(payload.url, payload.targetId);
+      return getPreviewState(payload.targetId);
     } catch (error) {
       throw new Error(serializeAppError(error));
     }
@@ -346,16 +356,16 @@ export function registerAppIpc(storage: StorageService) {
     setPreviewVisible(Boolean(visible));
   });
 
-  ipcMain.on('app:preview-reload', () => {
-    reloadPreview();
+  ipcMain.on('app:preview-reload', (_event, payload?: { targetId?: string | null }) => {
+    reloadPreview(payload?.targetId);
   });
 
-  ipcMain.on('app:preview-go-back', () => {
-    goBackPreview();
+  ipcMain.on('app:preview-go-back', (_event, payload?: { targetId?: string | null }) => {
+    goBackPreview(payload?.targetId);
   });
 
-  ipcMain.on('app:preview-go-forward', () => {
-    goForwardPreview();
+  ipcMain.on('app:preview-go-forward', (_event, payload?: { targetId?: string | null }) => {
+    goForwardPreview(payload?.targetId);
   });
 }
 

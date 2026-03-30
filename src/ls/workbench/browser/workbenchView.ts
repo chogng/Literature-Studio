@@ -3,7 +3,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -64,9 +63,8 @@ import { TitlebarView } from "./parts/titlebar/titlebarView";
 import { PreviewNavigationModel } from "./previewNavigationModel";
 import {
   resolvePreviewSourceUrl,
-  shouldNavigateSharedPreviewFromTab,
-  shouldSyncPreviewTabFromSharedPreview,
 } from "./previewSurfaceState";
+import { useEditorPreviewTabsModel } from "./editorPreviewTabsModel";
 import {
   getReaderStateSnapshot,
   selectReaderDerivedState,
@@ -489,8 +487,10 @@ function WorkbenchContentView() {
       },
     };
   }, [browserUrl, electronRuntime, previewRuntime, ui]);
-  const browserUrlRef = useRef(browserUrl);
   const {
+    tabs: editorTabs,
+    activateTab: activateEditorTab,
+    closeTab: closeEditorTab,
     draftBody,
     createDraftTab: handleCreateDraftTab,
     createWebTab: handleCreateWebTab,
@@ -586,10 +586,6 @@ function WorkbenchContentView() {
       .map((key) => filteredArticleMap.get(key))
       .filter((article): article is Article => Boolean(article));
   }, [filteredArticles, selectedArticleKeysInOrder]);
-
-  useEffect(() => {
-    browserUrlRef.current = browserUrl;
-  }, [browserUrl]);
 
   useEffect(() => {
     return previewNavigationModel.connectPreviewState({
@@ -719,13 +715,14 @@ function WorkbenchContentView() {
         return;
       }
 
-      const didNavigate = navigateToAddressBarUrl(normalizedUrl, false);
-      if (!didNavigate) {
+      if (command.openInEditorTab) {
+        handleCreateWebTab(normalizedUrl);
         return;
       }
 
-      if (command.openInEditorTab) {
-        handleCreateWebTab(normalizedUrl);
+      const didNavigate = navigateToAddressBarUrl(normalizedUrl, false);
+      if (!didNavigate) {
+        return;
       }
     },
     [
@@ -757,34 +754,20 @@ function WorkbenchContentView() {
     ]
   );
 
-  useEffect(() => {
-    // When a preview tab is active, it temporarily owns the shared preview surface.
-    if (
-      !shouldNavigateSharedPreviewFromTab(
-        previewSurfaceSnapshot,
-        browserUrlRef.current
-      )
-    ) {
-      return;
-    }
-    navigateToAddressBarUrl(previewSurfaceSnapshot.activePreviewTabUrl, false);
-  }, [
-    navigateToAddressBarUrl,
-    previewSurfaceSnapshot,
-  ]);
-
-  useEffect(() => {
-    if (
-      !shouldSyncPreviewTabFromSharedPreview(previewSurfaceSnapshot, browserUrl)
-    ) {
-      return;
-    }
-    updateActivePreviewTabUrl(browserUrl);
-  }, [
-    browserUrl,
-    previewSurfaceSnapshot,
-    updateActivePreviewTabUrl,
-  ]);
+  const { editorPartProps: previewAwareEditorPartProps } =
+    useEditorPreviewTabsModel({
+      browserUrl,
+      tabs: editorTabs,
+      activateTab: activateEditorTab,
+      closeTab: closeEditorTab,
+      editorPartProps,
+      previewNavigationModel,
+      previewSurfaceSnapshot,
+      navigateToAddressBarUrl,
+      setWebUrl,
+      setFetchSeedUrl,
+      updateActivePreviewTabUrl,
+    });
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1240,7 +1223,7 @@ function WorkbenchContentView() {
     secondarySidebarProps,
     primarySidebarProps,
     auxiliarySidebarProps,
-    editorPartProps,
+    editorPartProps: previewAwareEditorPartProps,
     settingsPartRef,
     settingsPartProps,
   });

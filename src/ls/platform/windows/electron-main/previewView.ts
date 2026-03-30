@@ -13,9 +13,20 @@ import { appError } from '../../../base/common/errors.js';
 const previewPartition = READER_SHARED_WEB_PARTITION;
 const previewCornerRadius = 10;
 const PREVIEW_NETWORK_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const DEFAULT_PREVIEW_TARGET_ID = '__shared__';
+// Inactive preview targets stay hidden immediately, but keep a short warm window
+// before we allow Chromium to background-throttle them.
+const PREVIEW_TARGET_BACKGROUND_GRACE_MS = 2 * 60 * 1000;
+const PREVIEW_TARGET_BACKGROUND_DISPOSE_MS = 15 * 60 * 1000;
+const PREVIEW_TARGET_PRUNE_INTERVAL_MS = 60 * 1000;
 
 let previewWindow: BrowserWindow | null = null;
 let previewView: WebContentsView | null = null;
+const previewViewsByTargetId = new Map<string, WebContentsView>();
+const previewStatesByTargetId = new Map<string, PreviewState>();
+const previewTargetBackgroundedSince = new Map<string, number>();
+let activePreviewTargetId = DEFAULT_PREVIEW_TARGET_ID;
+let previewTargetPruneInterval: ReturnType<typeof setInterval> | null = null;
 let previewBounds: PreviewBounds = { x: 0, y: 0, width: 0, height: 0 };
 let previewState: PreviewState = {
   url: '',
@@ -27,6 +38,147 @@ let previewState: PreviewState = {
 
 function getHiddenBounds(): PreviewBounds {
   return { x: 0, y: 0, width: 0, height: 0 };
+}
+
+function createDefaultPreviewState(): PreviewState {
+  return {
+    url: '',
+    canGoBack: false,
+    canGoForward: false,
+    isLoading: false,
+    visible: false,
+  };
+}
+
+function normalizePreviewTargetId(targetId?: string | null) {
+  const normalized = String(targetId ?? '').trim();
+  return normalized || DEFAULT_PREVIEW_TARGET_ID;
+}
+
+function setPreviewTargetBackgroundThrottling(
+  targetId: string,
+  throttled: boolean,
+) {
+  const targetView = previewViewsByTargetId.get(targetId);
+  if (!targetView || targetView.webContents.isDestroyed()) {
+    return;
+  }
+
+  (
+    targetView.webContents as {
+      setBackgroundThrottling?: (allowed: boolean) => void;
+    }
+  ).setBackgroundThrottling?.(throttled);
+}
+
+function markPreviewTargetBackgrounded(targetId: string, timestamp = Date.now()) {
+  if (targetId === DEFAULT_PREVIEW_TARGET_ID) {
+    return;
+  }
+
+  previewTargetBackgroundedSince.set(targetId, timestamp);
+  setPreviewTargetBackgroundThrottling(targetId, false);
+}
+
+function markPreviewTargetActive(targetId: string) {
+  previewTargetBackgroundedSince.delete(targetId);
+  setPreviewTargetBackgroundThrottling(targetId, false);
+}
+
+function hasManagedPreviewTargets() {
+  for (const targetId of previewViewsByTargetId.keys()) {
+    if (targetId !== DEFAULT_PREVIEW_TARGET_ID) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function stopPreviewTargetPruneInterval() {
+  if (!previewTargetPruneInterval) {
+    return;
+  }
+
+  clearInterval(previewTargetPruneInterval);
+  previewTargetPruneInterval = null;
+}
+
+function syncPreviewTargetPruneInterval() {
+  if (!hasManagedPreviewTargets()) {
+    stopPreviewTargetPruneInterval();
+    return;
+  }
+
+  if (previewTargetPruneInterval) {
+    return;
+  }
+
+  previewTargetPruneInterval = setInterval(() => {
+    reconcileInactivePreviewTargets();
+  }, PREVIEW_TARGET_PRUNE_INTERVAL_MS);
+}
+
+function disposePreviewTarget(targetId: string) {
+  if (targetId === DEFAULT_PREVIEW_TARGET_ID) {
+    return;
+  }
+
+  const targetView = previewViewsByTargetId.get(targetId) ?? null;
+  previewViewsByTargetId.delete(targetId);
+  previewStatesByTargetId.delete(targetId);
+  previewTargetBackgroundedSince.delete(targetId);
+
+  if (targetView) {
+    if (
+      previewWindow &&
+      !previewWindow.isDestroyed() &&
+      !targetView.webContents.isDestroyed()
+    ) {
+      previewWindow.contentView.removeChildView(targetView);
+    }
+
+    if (!targetView.webContents.isDestroyed()) {
+      targetView.webContents.close({ waitForBeforeUnload: false });
+    }
+  }
+
+  if (activePreviewTargetId === targetId) {
+    activePreviewTargetId = DEFAULT_PREVIEW_TARGET_ID;
+    syncActivePreviewReferences();
+    applyPreviewBounds();
+    emitPreviewState();
+  }
+
+  syncPreviewTargetPruneInterval();
+}
+
+function reconcileInactivePreviewTargets(now = Date.now()) {
+  const staleTargetIds: string[] = [];
+
+  for (const targetId of previewViewsByTargetId.keys()) {
+    if (targetId === DEFAULT_PREVIEW_TARGET_ID || targetId === activePreviewTargetId) {
+      continue;
+    }
+
+    const backgroundedSince =
+      previewTargetBackgroundedSince.get(targetId) ?? now;
+    if (!previewTargetBackgroundedSince.has(targetId)) {
+      previewTargetBackgroundedSince.set(targetId, backgroundedSince);
+    }
+
+    const backgroundDurationMs = now - backgroundedSince;
+    const shouldSleep = backgroundDurationMs >= PREVIEW_TARGET_BACKGROUND_GRACE_MS;
+    setPreviewTargetBackgroundThrottling(targetId, shouldSleep);
+
+    if (backgroundDurationMs >= PREVIEW_TARGET_BACKGROUND_DISPOSE_MS) {
+      staleTargetIds.push(targetId);
+    }
+  }
+
+  for (const targetId of staleTargetIds) {
+    disposePreviewTarget(targetId);
+  }
 }
 
 function logPreviewLoadFailure({
@@ -1169,48 +1321,91 @@ function createPreviewListingCandidateExtractionScript(preferredExtractorId?: st
   return `(${PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT})(${JSON.stringify(normalizedPreferredExtractorId)})`;
 }
 
+function syncActivePreviewReferences() {
+  previewView = previewViewsByTargetId.get(activePreviewTargetId) ?? null;
+  previewState =
+    previewStatesByTargetId.get(activePreviewTargetId) ?? createDefaultPreviewState();
+}
+
 function emitPreviewState() {
   if (!previewWindow || previewWindow.isDestroyed()) return;
   previewWindow.webContents.send('app:preview-state', previewState);
 }
 
-function updatePreviewState(partial?: Partial<PreviewState>) {
+function getPreviewStateForTarget(targetId?: string | null): PreviewState {
+  const normalizedTargetId = normalizePreviewTargetId(targetId);
+  return (
+    previewStatesByTargetId.get(normalizedTargetId) ?? createDefaultPreviewState()
+  );
+}
+
+function setPreviewStateForTarget(
+  targetId: string,
+  nextState: PreviewState,
+  emit = true,
+) {
+  previewStatesByTargetId.set(targetId, nextState);
+
+  if (targetId === activePreviewTargetId) {
+    syncActivePreviewReferences();
+    if (emit) {
+      emitPreviewState();
+    }
+  }
+}
+
+function updatePreviewState(targetId?: string | null, partial?: Partial<PreviewState>) {
+  const normalizedTargetId = normalizePreviewTargetId(targetId);
+  const currentState = getPreviewStateForTarget(normalizedTargetId);
+  const targetView = previewViewsByTargetId.get(normalizedTargetId) ?? null;
+
   if (partial) {
-    previewState = {
-      ...previewState,
-      ...partial,
-    };
-  } else if (previewView && !previewView.webContents.isDestroyed()) {
-    const contents = previewView.webContents;
-    previewState = {
-      ...previewState,
-      url: contents.getURL(),
-      canGoBack: contents.navigationHistory.canGoBack(),
-      canGoForward: contents.navigationHistory.canGoForward(),
-      isLoading: contents.isLoading(),
-    };
+    setPreviewStateForTarget(
+      normalizedTargetId,
+      {
+        ...currentState,
+        ...partial,
+      },
+      true,
+    );
+    return;
   }
 
-  emitPreviewState();
+  if (targetView && !targetView.webContents.isDestroyed()) {
+    const contents = targetView.webContents;
+    setPreviewStateForTarget(
+      normalizedTargetId,
+      {
+        ...currentState,
+        url: contents.getURL(),
+        canGoBack: contents.navigationHistory.canGoBack(),
+        canGoForward: contents.navigationHistory.canGoForward(),
+        isLoading: contents.isLoading(),
+      },
+      true,
+    );
+  }
 }
 
 function applyPreviewBounds() {
-  if (!previewView) return;
-
   const visible =
     previewState.visible &&
     previewBounds.width > 0 &&
     previewBounds.height > 0;
 
-  previewView.setVisible(visible);
-  previewView.setBounds(visible ? previewBounds : getHiddenBounds());
+  for (const [targetId, targetView] of previewViewsByTargetId) {
+    const isActive = targetId === activePreviewTargetId;
+    const shouldShow = isActive && visible;
+    targetView.setVisible(shouldShow);
+    targetView.setBounds(shouldShow ? previewBounds : getHiddenBounds());
+  }
 }
 
-function bindPreviewEvents(view: WebContentsView) {
+function bindPreviewEvents(targetId: string, view: WebContentsView) {
   const { webContents } = view;
 
   const syncState = () => {
-    updatePreviewState();
+    updatePreviewState(targetId);
   };
   const handleDidFailLoad = (
     _event: unknown,
@@ -1236,27 +1431,26 @@ function bindPreviewEvents(view: WebContentsView) {
   webContents.on('page-title-updated', syncState);
   webContents.on('did-fail-load', handleDidFailLoad);
   webContents.on('destroyed', () => {
-    if (previewView === view) {
-      previewView = null;
-      previewState = {
-        url: '',
-        canGoBack: false,
-        canGoForward: false,
-        isLoading: false,
-        visible: false,
-      };
+    previewViewsByTargetId.delete(targetId);
+    previewStatesByTargetId.delete(targetId);
+    previewTargetBackgroundedSince.delete(targetId);
+
+    if (activePreviewTargetId === targetId) {
+      activePreviewTargetId = DEFAULT_PREVIEW_TARGET_ID;
+      syncActivePreviewReferences();
       emitPreviewState();
     }
+
+    syncPreviewTargetPruneInterval();
   });
 }
 
-export function ensurePreviewView(window: BrowserWindow) {
-  if (previewWindow === window && previewView && !previewView.webContents.isDestroyed()) {
-    return previewView;
+function createPreviewView(targetId: string) {
+  if (!previewWindow || previewWindow.isDestroyed()) {
+    throw appError('PREVIEW_NOT_READY');
   }
 
-  previewWindow = window;
-  previewView = new WebContentsView({
+  const view = new WebContentsView({
     webPreferences: {
       partition: previewPartition,
       sandbox: true,
@@ -1264,36 +1458,45 @@ export function ensurePreviewView(window: BrowserWindow) {
       nodeIntegration: false,
     },
   });
-  previewView.setBorderRadius(previewCornerRadius);
-
-  window.contentView.addChildView(previewView);
-  bindPreviewEvents(previewView);
+  view.setBorderRadius(previewCornerRadius);
+  previewWindow.contentView.addChildView(view);
+  previewViewsByTargetId.set(targetId, view);
+  previewStatesByTargetId.set(targetId, createDefaultPreviewState());
+  markPreviewTargetActive(targetId);
+  bindPreviewEvents(targetId, view);
   applyPreviewBounds();
-  emitPreviewState();
+  syncPreviewTargetPruneInterval();
+  return view;
+}
 
-  return previewView;
+export function ensurePreviewView(window: BrowserWindow) {
+  previewWindow = window;
+  const activeView =
+    previewViewsByTargetId.get(activePreviewTargetId) ??
+    createPreviewView(activePreviewTargetId);
+  syncActivePreviewReferences();
+  emitPreviewState();
+  return activeView;
 }
 
 export function disposePreviewView(window?: BrowserWindow | null) {
-  if (!previewView) return;
   if (window && previewWindow && previewWindow !== window) return;
 
-  const view = previewView;
-  previewView = null;
-
-  if (previewWindow && !previewWindow.isDestroyed()) {
-    previewWindow.contentView.removeChildView(view);
+  for (const view of previewViewsByTargetId.values()) {
+    if (previewWindow && !previewWindow.isDestroyed()) {
+      previewWindow.contentView.removeChildView(view);
+    }
+    view.webContents.close({ waitForBeforeUnload: false });
   }
 
-  view.webContents.close({ waitForBeforeUnload: false });
+  previewViewsByTargetId.clear();
+  previewStatesByTargetId.clear();
+  previewTargetBackgroundedSince.clear();
+  stopPreviewTargetPruneInterval();
   previewBounds = getHiddenBounds();
-  previewState = {
-    url: '',
-    canGoBack: false,
-    canGoForward: false,
-    isLoading: false,
-    visible: false,
-  };
+  activePreviewTargetId = DEFAULT_PREVIEW_TARGET_ID;
+  previewView = null;
+  previewState = createDefaultPreviewState();
   emitPreviewState();
   previewWindow = null;
 }
@@ -1309,16 +1512,62 @@ export function setPreviewBounds(bounds: PreviewBounds | null) {
 
 export function setPreviewVisible(visible: boolean) {
   previewState.visible = visible;
+  setPreviewStateForTarget(activePreviewTargetId, {
+    ...getPreviewStateForTarget(activePreviewTargetId),
+    visible,
+  }, false);
   applyPreviewBounds();
   emitPreviewState();
 }
 
-export function getPreviewState(): PreviewState {
-  if (previewView && !previewView.webContents.isDestroyed()) {
-    updatePreviewState();
+export function activatePreviewTarget(targetId?: string | null) {
+  const normalizedTargetId = normalizePreviewTargetId(targetId);
+  const previousActivePreviewTargetId = activePreviewTargetId;
+
+  if (previousActivePreviewTargetId !== normalizedTargetId) {
+    markPreviewTargetBackgrounded(previousActivePreviewTargetId);
   }
 
-  return previewState;
+  activePreviewTargetId = normalizedTargetId;
+  markPreviewTargetActive(normalizedTargetId);
+
+  if (!previewViewsByTargetId.has(normalizedTargetId)) {
+    if (!previewWindow || previewWindow.isDestroyed()) {
+      syncActivePreviewReferences();
+      emitPreviewState();
+      return;
+    }
+    createPreviewView(normalizedTargetId);
+  }
+
+  const nextState = {
+    ...getPreviewStateForTarget(normalizedTargetId),
+    visible: previewState.visible,
+  };
+  setPreviewStateForTarget(normalizedTargetId, nextState, false);
+  syncActivePreviewReferences();
+  applyPreviewBounds();
+  reconcileInactivePreviewTargets();
+  emitPreviewState();
+}
+
+export function releasePreviewTarget(targetId?: string | null) {
+  const normalizedTargetId = normalizePreviewTargetId(targetId);
+  if (normalizedTargetId === DEFAULT_PREVIEW_TARGET_ID) {
+    return;
+  }
+
+  disposePreviewTarget(normalizedTargetId);
+}
+
+export function getPreviewState(targetId?: string | null): PreviewState {
+  const normalizedTargetId = normalizePreviewTargetId(targetId);
+  const targetView = previewViewsByTargetId.get(normalizedTargetId);
+  if (targetView && !targetView.webContents.isDestroyed()) {
+    updatePreviewState(normalizedTargetId);
+  }
+
+  return getPreviewStateForTarget(normalizedTargetId);
 }
 
 function normalizePreviewTimeoutMs(value: unknown) {
@@ -1544,6 +1793,11 @@ export async function navigatePreview(url: string) {
   });
 }
 
+export async function navigatePreviewTarget(url: string, targetId?: string | null) {
+  activatePreviewTarget(targetId);
+  return await navigatePreview(url);
+}
+
 export async function navigatePreviewForPrint(url: string, timeoutMs = 12000) {
   if (!previewView || previewView.webContents.isDestroyed()) {
     throw appError('PREVIEW_NOT_READY');
@@ -1688,19 +1942,28 @@ export async function printCurrentPreviewToPdf() {
   });
 }
 
-export function reloadPreview() {
+export function reloadPreview(targetId?: string | null) {
+  if (targetId !== undefined) {
+    activatePreviewTarget(targetId);
+  }
   if (!previewView || previewView.webContents.isDestroyed()) return;
   previewView.webContents.reload();
 }
 
-export function goBackPreview() {
+export function goBackPreview(targetId?: string | null) {
+  if (targetId !== undefined) {
+    activatePreviewTarget(targetId);
+  }
   if (!previewView || previewView.webContents.isDestroyed()) return;
   if (previewView.webContents.navigationHistory.canGoBack()) {
     previewView.webContents.navigationHistory.goBack();
   }
 }
 
-export function goForwardPreview() {
+export function goForwardPreview(targetId?: string | null) {
+  if (targetId !== undefined) {
+    activatePreviewTarget(targetId);
+  }
   if (!previewView || previewView.webContents.isDestroyed()) return;
   if (previewView.webContents.navigationHistory.canGoForward()) {
     previewView.webContents.navigationHistory.goForward();

@@ -119,15 +119,26 @@ const electronAPI = {
     },
   },
   preview: {
-    async navigate(url: string) {
+    activate(targetId?: string | null) {
+      sendIpc('app:preview-activate', { targetId: targetId ?? null });
+    },
+    release(targetId?: string | null) {
+      sendIpc('app:preview-release', { targetId: targetId ?? null });
+    },
+    async navigate(url: string, targetId?: string | null) {
       try {
-        return await invokeIpc<PreviewState>('app:preview-navigate', url);
+        return await invokeIpc<PreviewState>('app:preview-navigate', {
+          url,
+          targetId: targetId ?? null,
+        });
       } catch (error) {
         throw normalizeInvokeError(error);
       }
     },
-    getState() {
-      return invokeIpc<PreviewState>('app:preview-get-state');
+    getState(targetId?: string | null) {
+      return invokeIpc<PreviewState>('app:preview-get-state', {
+        targetId: targetId ?? null,
+      });
     },
     setBounds(bounds: PreviewBounds | null) {
       sendIpc('app:preview-set-bounds', bounds);
@@ -135,14 +146,14 @@ const electronAPI = {
     setVisible(visible: boolean) {
       sendIpc('app:preview-set-visible', visible);
     },
-    reload() {
-      sendIpc('app:preview-reload');
+    reload(targetId?: string | null) {
+      sendIpc('app:preview-reload', { targetId: targetId ?? null });
     },
-    goBack() {
-      sendIpc('app:preview-go-back');
+    goBack(targetId?: string | null) {
+      sendIpc('app:preview-go-back', { targetId: targetId ?? null });
     },
-    goForward() {
-      sendIpc('app:preview-go-forward');
+    goForward(targetId?: string | null) {
+      sendIpc('app:preview-go-forward', { targetId: targetId ?? null });
     },
     onStateChange(listener: (state: PreviewState) => void) {
       return subscribeIpc<PreviewState>('app:preview-state', listener, {

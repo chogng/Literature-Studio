@@ -54,6 +54,23 @@ export function shouldSyncPreviewTabFromSharedPreview(
   );
 }
 
+export function shouldSyncActivePreviewTabFromBrowserUrl(
+  snapshot: PreviewSurfaceSnapshot,
+  browserUrl: string,
+  previousBrowserUrl: string,
+  previousActivePreviewTabId: string | null,
+) {
+  const isSameActivePreviewTab =
+    previousActivePreviewTabId === snapshot.activePreviewTabId;
+
+  return (
+    isSameActivePreviewTab &&
+    Boolean(snapshot.activePreviewTabId) &&
+    snapshot.activePreviewTabUrl === previousBrowserUrl &&
+    shouldSyncPreviewTabFromSharedPreview(snapshot, browserUrl)
+  );
+}
+
 export function resolvePreviewSourceUrl(
   snapshot: PreviewSurfaceSnapshot,
   browserUrl: string,
