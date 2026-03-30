@@ -1,114 +1,241 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import { type ButtonHTMLAttributes, type ForwardedRef, type ReactNode, forwardRef, isValidElement } from 'react';
-import { Loader2 } from 'lucide-react';
 import './button.css';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 export type ButtonMode = 'text' | 'icon';
 export type ButtonContentMode = 'with' | 'without';
+export type ButtonContent = string | number | Node | null | undefined | false;
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps {
+  className?: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
   mode?: ButtonMode;
   iconMode?: ButtonContentMode;
   textMode?: ButtonContentMode;
   isLoading?: boolean;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
+  leftIcon?: ButtonContent;
+  rightIcon?: ButtonContent;
+  content?: ButtonContent;
+  children?: ButtonContent;
+  disabled?: boolean;
+  title?: string;
+  ariaLabel?: string;
+  type?: 'button' | 'submit' | 'reset';
+  onClick?: (event: MouseEvent) => void;
+  onFocus?: (event: FocusEvent) => void;
+  onBlur?: (event: FocusEvent) => void;
 }
 
-function renderButtonContent({
-  children,
-  isLoading,
-  leftIcon,
-  rightIcon,
-  showLeftIcon,
-  showRightIcon,
-  showChildrenAsIcon,
-  showText,
-}: {
-  children: ReactNode;
-  isLoading: boolean;
-  leftIcon?: ReactNode;
-  rightIcon?: ReactNode;
-  showLeftIcon: boolean;
-  showRightIcon: boolean;
-  showChildrenAsIcon: boolean;
-  showText: boolean;
-}) {
-  return [
-    isLoading && jsx(Loader2, { className: 'btn-spinner', size: 16 }),
-    showLeftIcon && jsx('span', { className: 'btn-icon-left', children: leftIcon }),
-    showChildrenAsIcon && jsx('span', { className: 'btn-icon-only', children }),
-    showText && jsx('span', { className: 'btn-content', children }),
-    showRightIcon && jsx('span', { className: 'btn-icon-right', children: rightIcon }),
-  ];
-}
-
-export const Button = forwardRef(function Button(
-  {
-    className = '',
-    variant = 'secondary',
-    size = 'md',
-    mode = 'text',
-    iconMode,
-    textMode,
-    isLoading = false,
-    leftIcon,
-    rightIcon,
-    disabled,
-    children,
-    ...props
-  }: ButtonProps,
-  ref: ForwardedRef<HTMLButtonElement>,
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
 ) {
-  const resolvedIconMode = iconMode ?? 'with';
-  const resolvedTextMode = textMode ?? (mode === 'icon' ? 'without' : 'with');
-  const hasTextContent = children !== undefined && children !== null && children !== false;
-  const showText = resolvedTextMode === 'with' && hasTextContent;
-  const showLeftIcon = !isLoading && resolvedIconMode === 'with' && Boolean(leftIcon);
-  const showRightIcon = !isLoading && resolvedIconMode === 'with' && Boolean(rightIcon);
-  const showChildrenAsIcon =
-    !isLoading &&
-    resolvedIconMode === 'with' &&
-    !leftIcon &&
-    !rightIcon &&
-    !showText &&
-    isValidElement(children);
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
 
-  const combinedClassName = [
-    'btn-base',
-    `btn-${variant}`,
-    `btn-${size}`,
-    `btn-mode-${mode}`,
-    isLoading ? 'btn-loading' : '',
-    className,
-  ]
-    .filter(Boolean)
-    .join(' ');
+function isPresent(value: ButtonContent) {
+  return value !== null && value !== undefined && value !== false;
+}
 
-  const content = renderButtonContent({
-    children,
-    isLoading,
-    leftIcon,
-    rightIcon,
-    showLeftIcon,
-    showRightIcon,
-    showChildrenAsIcon,
-    showText,
-  });
+function isNodeContent(value: ButtonContent): value is Node {
+  return value instanceof Node;
+}
 
-  return jsxs('button', {
-    ref,
-    className: combinedClassName,
-    disabled: isLoading || disabled,
-    ...props,
-    children: content,
-  });
-});
+function appendButtonContent(target: HTMLElement, content: ButtonContent) {
+  if (!isPresent(content)) {
+    return;
+  }
 
-Button.displayName = 'Button';
+  if (isNodeContent(content)) {
+    target.append(content);
+    return;
+  }
 
-export default Button;
+  target.append(document.createTextNode(String(content)));
+}
+
+function createSpinnerIcon() {
+  const spinner = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  spinner.setAttribute('class', 'btn-spinner');
+  spinner.setAttribute('viewBox', '0 0 24 24');
+  spinner.setAttribute('width', '16');
+  spinner.setAttribute('height', '16');
+  spinner.setAttribute('aria-hidden', 'true');
+
+  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  circle.setAttribute('cx', '12');
+  circle.setAttribute('cy', '12');
+  circle.setAttribute('r', '9');
+  circle.setAttribute('fill', 'none');
+  circle.setAttribute('stroke', 'currentColor');
+  circle.setAttribute('stroke-width', '2');
+  circle.setAttribute('stroke-linecap', 'round');
+  circle.setAttribute('stroke-dasharray', '42 18');
+  spinner.append(circle);
+
+  return spinner;
+}
+
+function createContentWrapper(className: string, content: ButtonContent) {
+  const wrapper = createElement('span', className);
+  appendButtonContent(wrapper, content);
+  return wrapper;
+}
+
+function resolveButtonContent(props: ButtonProps) {
+  if (isPresent(props.children)) {
+    return props.children;
+  }
+
+  return props.content;
+}
+
+export class ButtonView {
+  private props: ButtonProps;
+  private readonly element = createElement('button');
+  private disposed = false;
+
+  constructor(props: ButtonProps = {}) {
+    this.props = props;
+    this.element.addEventListener('click', this.handleClick);
+    this.element.addEventListener('focus', this.handleFocus);
+    this.element.addEventListener('blur', this.handleBlur);
+    this.render();
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: ButtonProps = {}) {
+    if (this.disposed) {
+      return;
+    }
+
+    this.props = props;
+    this.render();
+  }
+
+  focus() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.element.focus();
+  }
+
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.element.removeEventListener('click', this.handleClick);
+    this.element.removeEventListener('focus', this.handleFocus);
+    this.element.removeEventListener('blur', this.handleBlur);
+    this.element.replaceChildren();
+  }
+
+  private readonly handleClick = (event: MouseEvent) => {
+    this.props.onClick?.(event);
+  };
+
+  private readonly handleFocus = (event: FocusEvent) => {
+    this.props.onFocus?.(event);
+  };
+
+  private readonly handleBlur = (event: FocusEvent) => {
+    this.props.onBlur?.(event);
+  };
+
+  private render() {
+    const {
+      className = '',
+      variant = 'secondary',
+      size = 'md',
+      mode = 'text',
+      iconMode = 'with',
+      textMode = mode === 'icon' ? 'without' : 'with',
+      isLoading = false,
+      leftIcon,
+      rightIcon,
+      disabled = false,
+      title,
+      ariaLabel,
+      type = 'button',
+    } = this.props;
+
+    const content = resolveButtonContent(this.props);
+    const hasContent = isPresent(content);
+    const showText = textMode === 'with' && hasContent;
+    const hasLeftIcon = isPresent(leftIcon);
+    const hasRightIcon = isPresent(rightIcon);
+    const showLeftIcon = !isLoading && iconMode === 'with' && hasLeftIcon;
+    const showRightIcon = !isLoading && iconMode === 'with' && hasRightIcon;
+    const showChildrenAsIcon =
+      !isLoading &&
+      iconMode === 'with' &&
+      !showText &&
+      !hasLeftIcon &&
+      !hasRightIcon &&
+      hasContent;
+
+    this.element.className = [
+      'btn-base',
+      `btn-${variant}`,
+      `btn-${size}`,
+      `btn-mode-${mode}`,
+      isLoading ? 'btn-loading' : '',
+      className,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    this.element.type = type;
+    this.element.disabled = isLoading || disabled;
+
+    if (title) {
+      this.element.title = title;
+    } else {
+      this.element.removeAttribute('title');
+    }
+
+    if (ariaLabel) {
+      this.element.setAttribute('aria-label', ariaLabel);
+    } else {
+      this.element.removeAttribute('aria-label');
+    }
+
+    const nextChildren: Node[] = [];
+    if (isLoading) {
+      nextChildren.push(createSpinnerIcon());
+    }
+
+    if (showLeftIcon) {
+      nextChildren.push(createContentWrapper('btn-icon-left', leftIcon));
+    }
+
+    if (showChildrenAsIcon) {
+      nextChildren.push(createContentWrapper('btn-icon-only', content));
+    }
+
+    if (showText) {
+      nextChildren.push(createContentWrapper('btn-content', content));
+    }
+
+    if (showRightIcon) {
+      nextChildren.push(createContentWrapper('btn-icon-right', rightIcon));
+    }
+
+    this.element.replaceChildren(...nextChildren);
+  }
+}
+
+export function createButtonView(props: ButtonProps = {}) {
+  return new ButtonView(props);
+}

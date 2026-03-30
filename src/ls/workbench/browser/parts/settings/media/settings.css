@@ -144,6 +144,62 @@
   min-width: 280px;
 }
 
+.settings-native-input,
+.settings-native-select {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #c9d7e6;
+  border-radius: 8px;
+  background: #fff;
+  color: #203040;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.settings-native-input:focus,
+.settings-native-select:focus {
+  outline: 2px solid rgba(10, 95, 191, 0.18);
+  border-color: #0a5fbf;
+}
+
+.settings-native-button {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #c9d7e6;
+  border-radius: 8px;
+  background: #fff;
+  color: #203040;
+  font: inherit;
+  cursor: pointer;
+}
+
+.settings-native-button:hover:not(:disabled) {
+  background: #f6f9fc;
+}
+
+.settings-native-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-native-icon-button {
+  min-width: 34px;
+  padding: 6px 8px;
+}
+
+.settings-native-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.settings-toggle-input {
+  width: 18px;
+  height: 18px;
+}
+
 .settings-journal-control {
   min-width: 240px;
 }

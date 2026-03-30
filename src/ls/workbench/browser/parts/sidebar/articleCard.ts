@@ -1,18 +1,14 @@
-import { jsx, jsxs } from "react/jsx-runtime";
-import { useSyncExternalStore, type KeyboardEvent, type MouseEventHandler } from "react";
-import { ChevronDown, Download } from "lucide-react";
-import type { ArticleDetailsModalLabels } from "../../../../base/parts/sandbox/common/desktopTypes.js";
-import { Button } from "../../../../base/browser/ui/button/button";
-import type { Locale } from "../../../../../language/i18n";
+import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { Locale } from '../../../../../language/i18n';
 import {
   getPdfDownloadStatus,
   subscribePdfDownloadStatus,
-} from "../../../browser/pdfDownloadStatus";
-import type { SidebarArticle } from "./secondarySidebarPart";
+} from '../../../browser/pdfDownloadStatus';
+import type { SidebarArticle } from './secondarySidebarPart';
 
 type ArticleCardLabels = ArticleDetailsModalLabels;
 
-type ArticleCardProps = {
+export type ArticleCardProps = {
   article: SidebarArticle;
   locale: Locale;
   labels: ArticleCardLabels;
@@ -26,31 +22,31 @@ type ArticleCardProps = {
   onToggleSelected: (article: SidebarArticle) => void;
 };
 
-type ToolbarButtonConfig = {
-  className: string;
-  ariaLabel: string;
-  title: string;
-  onClick: MouseEventHandler<HTMLButtonElement>;
-  isLoading?: boolean;
-  ariaHasPopup?: "dialog";
-  icon: ReturnType<typeof jsx>;
-};
+const DOWNLOAD_PDF_LABEL = 'Download PDF';
+const VIEW_DETAILS_LABEL = 'View details';
+const DOWNLOADED_PDF_LABEL = 'PDF downloaded';
 
-const DOWNLOAD_PDF_LABEL = "Download PDF";
-const VIEW_DETAILS_LABEL = "View details";
-const DOWNLOADED_PDF_LABEL = "PDF downloaded";
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
 
 function formatPublishedDate(
   value: string | null,
   locale: Locale,
-  fallback: string
+  fallback: string,
 ) {
-  const normalized = typeof value === "string" ? value.trim() : "";
+  const normalized = typeof value === 'string' ? value.trim() : '';
   if (!normalized) {
     return fallback;
   }
 
-  // Parse YYYY-MM-DD as local date to avoid timezone shifts from Date(string) parsing.
   const dateOnlyMatched = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (dateOnlyMatched) {
     const year = Number.parseInt(dateOnlyMatched[1], 10);
@@ -59,7 +55,7 @@ function formatPublishedDate(
     const localDate = new Date(year, month - 1, day);
 
     if (!Number.isNaN(localDate.getTime())) {
-      return localDate.toLocaleDateString(locale === "en" ? "en-US" : "zh-CN");
+      return localDate.toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN');
     }
   }
 
@@ -68,201 +64,180 @@ function formatPublishedDate(
     return normalized;
   }
 
-  return parsed.toLocaleDateString(locale === "en" ? "en-US" : "zh-CN");
+  return parsed.toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-CN');
 }
 
 function createMetaText(
   article: SidebarArticle,
   locale: Locale,
-  unknownLabel: string
+  unknownLabel: string,
 ) {
   const articleType =
-    typeof article.articleType === "string" ? article.articleType.trim() : "";
+    typeof article.articleType === 'string' ? article.articleType.trim() : '';
   const publishedDate = formatPublishedDate(
     article.publishedAt,
     locale,
-    unknownLabel
+    unknownLabel,
   );
 
   return `${articleType || unknownLabel} | ${publishedDate}`;
 }
 
-function renderToolbarButton({
-  className,
-  ariaLabel,
-  title,
-  onClick,
-  isLoading,
-  ariaHasPopup,
-  icon,
-}: ToolbarButtonConfig) {
-  return jsx(Button, {
-    className,
-    type: "button",
-    variant: "ghost",
-    size: "sm",
-    mode: "icon",
-    iconMode: "with",
-    textMode: "without",
-    isLoading,
-    onClick,
-    "aria-label": ariaLabel,
-    "aria-haspopup": ariaHasPopup,
-    title,
-    children: icon,
-  });
-}
-
-function renderToolbarActions({
-  hasDownloaded,
-  isDownloading,
-  onDownload,
-  onOpenDetails,
-}: {
-  hasDownloaded: boolean;
-  isDownloading: boolean;
-  onDownload: MouseEventHandler<HTMLButtonElement>;
-  onOpenDetails: MouseEventHandler<HTMLButtonElement>;
-}) {
-  // Visual state tracks whether the PDF has already been downloaded for this source URL.
-  const downloadButtonTitle = hasDownloaded
-    ? DOWNLOADED_PDF_LABEL
-    : DOWNLOAD_PDF_LABEL;
-  const downloadButtonClassName = [
-    "secondary-sidebar-article-card-icon-btn",
-    hasDownloaded ? "is-downloaded" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return jsxs("div", {
-    className: "secondary-sidebar-article-card-toolbar-actions",
-    children: [
-      renderToolbarButton({
-        className: downloadButtonClassName,
-        ariaLabel: DOWNLOAD_PDF_LABEL,
-        title: downloadButtonTitle,
-        isLoading: isDownloading,
-        onClick: onDownload,
-        icon: jsx(Download, { size: 14, strokeWidth: 1.7 }),
-      }),
-      renderToolbarButton({
-        className: "secondary-sidebar-article-card-icon-btn",
-        ariaLabel: VIEW_DETAILS_LABEL,
-        title: VIEW_DETAILS_LABEL,
-        onClick: onOpenDetails,
-        ariaHasPopup: "dialog",
-        icon: jsx(ChevronDown, { size: 14, strokeWidth: 1.7 }),
-      }),
-    ],
-  });
-}
-
-export default function ArticleCard({
-  article,
-  locale,
-  labels,
-  onDownloadPdf,
-  onOpenArticleDetails,
-  isSelectionModeEnabled,
-  isSelected,
-  onToggleSelected,
-}: ArticleCardProps) {
-  const metaText = createMetaText(article, locale, labels.unknown);
-  const downloadStatus = useSyncExternalStore(
-    subscribePdfDownloadStatus,
-    () => getPdfDownloadStatus(article.sourceUrl),
-    () => getPdfDownloadStatus(""),
+export class ArticleCard {
+  private props: ArticleCardProps;
+  private readonly element = createElement('li');
+  private readonly mainElement = createElement(
+    'div',
+    'secondary-sidebar-article-card-main',
   );
-  const isDownloading = downloadStatus.isDownloading;
-  const hasDownloaded = downloadStatus.hasSucceeded;
-  const title = article.title || labels.untitled;
+  private readonly titleElement = createElement(
+    'h3',
+    'secondary-sidebar-article-card-title',
+  );
+  private readonly metaElement = createElement(
+    'span',
+    'secondary-sidebar-article-card-meta',
+  );
+  private readonly toolbarElement = createElement(
+    'div',
+    'secondary-sidebar-article-card-toolbar-actions',
+  );
+  private readonly downloadButton = createElement(
+    'button',
+    'secondary-sidebar-article-card-icon-btn',
+  );
+  private readonly detailsButton = createElement(
+    'button',
+    'secondary-sidebar-article-card-icon-btn',
+  );
+  private readonly unsubscribeDownloadStatus: () => void;
 
-  const handleDownload = async () => {
-    if (!article.sourceUrl || isDownloading) {
+  constructor(props: ArticleCardProps) {
+    this.props = props;
+    this.element.append(this.mainElement, this.toolbarElement);
+    this.mainElement.append(this.titleElement, this.metaElement);
+    this.toolbarElement.append(this.downloadButton, this.detailsButton);
+    this.element.addEventListener('click', this.handleCardClick);
+    this.element.addEventListener('keydown', this.handleCardKeyDown);
+    this.downloadButton.addEventListener('click', this.handleDownloadClick);
+    this.detailsButton.addEventListener('click', this.handleDetailsClick);
+    this.unsubscribeDownloadStatus = subscribePdfDownloadStatus(this.render);
+    this.render();
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: ArticleCardProps) {
+    this.props = props;
+    this.render();
+  }
+
+  dispose() {
+    this.unsubscribeDownloadStatus();
+    this.element.removeEventListener('click', this.handleCardClick);
+    this.element.removeEventListener('keydown', this.handleCardKeyDown);
+    this.downloadButton.removeEventListener('click', this.handleDownloadClick);
+    this.detailsButton.removeEventListener('click', this.handleDetailsClick);
+    this.element.replaceChildren();
+  }
+
+  private readonly render = () => {
+    const { article, locale, labels, isSelectionModeEnabled, isSelected } =
+      this.props;
+    const title = article.title || labels.untitled;
+    const metaText = createMetaText(article, locale, labels.unknown);
+    const downloadStatus = getPdfDownloadStatus(article.sourceUrl);
+    const isDownloading = downloadStatus.isDownloading;
+    const hasDownloaded = downloadStatus.hasSucceeded;
+
+    this.element.className = [
+      'secondary-sidebar-article-card',
+      isSelectionModeEnabled ? 'is-selection-mode' : '',
+      isSelected ? 'is-selected' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    if (isSelectionModeEnabled) {
+      this.element.setAttribute('role', 'button');
+      this.element.tabIndex = 0;
+      this.element.setAttribute('aria-pressed', String(isSelected));
+    } else {
+      this.element.removeAttribute('role');
+      this.element.removeAttribute('tabindex');
+      this.element.removeAttribute('aria-pressed');
+    }
+
+    this.titleElement.textContent = title;
+    this.titleElement.title = title;
+    this.metaElement.textContent = metaText;
+
+    this.downloadButton.type = 'button';
+    this.downloadButton.className = [
+      'secondary-sidebar-article-card-icon-btn',
+      hasDownloaded ? 'is-downloaded' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    this.downloadButton.textContent = isDownloading ? '...' : 'PDF';
+    this.downloadButton.disabled = isDownloading;
+    this.downloadButton.setAttribute('aria-label', DOWNLOAD_PDF_LABEL);
+    this.downloadButton.title = hasDownloaded
+      ? DOWNLOADED_PDF_LABEL
+      : DOWNLOAD_PDF_LABEL;
+
+    this.detailsButton.type = 'button';
+    this.detailsButton.textContent = 'v';
+    this.detailsButton.setAttribute('aria-label', VIEW_DETAILS_LABEL);
+    this.detailsButton.title = VIEW_DETAILS_LABEL;
+    this.detailsButton.setAttribute('aria-haspopup', 'dialog');
+  };
+
+  private readonly handleCardClick = () => {
+    if (!this.props.isSelectionModeEnabled) {
+      return;
+    }
+
+    this.props.onToggleSelected(this.props.article);
+  };
+
+  private readonly handleCardKeyDown = (event: Event) => {
+    if (!this.props.isSelectionModeEnabled) {
+      return;
+    }
+
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key !== 'Enter' && keyboardEvent.key !== ' ') {
+      return;
+    }
+
+    keyboardEvent.preventDefault();
+    this.props.onToggleSelected(this.props.article);
+  };
+
+  private readonly handleDownloadClick = async (event: Event) => {
+    event.stopPropagation();
+    if (!this.props.article.sourceUrl) {
       return;
     }
 
     try {
-      await onDownloadPdf(article);
+      await this.props.onDownloadPdf(this.props.article);
     } catch {
-      // The shared download handler is responsible for user-facing error messages.
+      // Shared download handler owns user-facing error feedback.
     }
   };
 
-  const handleOpenDetails = () => {
-    // Details modal is managed upstream; card only emits the open intent.
-    void onOpenArticleDetails(article, labels);
+  private readonly handleDetailsClick = (event: Event) => {
+    event.stopPropagation();
+    void this.props.onOpenArticleDetails(this.props.article, this.props.labels);
   };
-
-  const handleToggleSelected = () => {
-    if (!isSelectionModeEnabled) {
-      return;
-    }
-
-    onToggleSelected(article);
-  };
-
-  const handleCardClick = () => {
-    handleToggleSelected();
-  };
-
-  const handleCardKeyDown = (event: KeyboardEvent<HTMLLIElement>) => {
-    if (!isSelectionModeEnabled) {
-      return;
-    }
-
-    if (event.key !== "Enter" && event.key !== " ") {
-      return;
-    }
-
-    event.preventDefault();
-    handleToggleSelected();
-  };
-
-  const stopCardSelection =
-    (handler: () => void): MouseEventHandler<HTMLButtonElement> =>
-    (event) => {
-      event.stopPropagation();
-      handler();
-    };
-
-  const toolbarActionsView = renderToolbarActions({
-    hasDownloaded,
-    isDownloading,
-    onDownload: stopCardSelection(() => void handleDownload()),
-    onOpenDetails: stopCardSelection(handleOpenDetails),
-  });
-
-  return jsxs("li", {
-    className: [
-      "secondary-sidebar-article-card",
-      isSelectionModeEnabled ? "is-selection-mode" : "",
-      isSelected ? "is-selected" : "",
-    ]
-      .filter(Boolean)
-      .join(" "),
-    onClick: handleCardClick,
-    onKeyDown: handleCardKeyDown,
-    role: isSelectionModeEnabled ? "button" : undefined,
-    tabIndex: isSelectionModeEnabled ? 0 : undefined,
-    "aria-pressed": isSelectionModeEnabled ? isSelected : undefined,
-    children: [
-      jsxs("div", {
-        className: "secondary-sidebar-article-card-main",
-        children: [
-          jsx("h3", {
-            className: "secondary-sidebar-article-card-title",
-            title,
-            children: title,
-          }),
-          jsx("span", {
-            className: "secondary-sidebar-article-card-meta",
-            children: metaText,
-          }),
-        ],
-      }),
-      toolbarActionsView,
-    ],
-  });
 }
+
+export function createArticleCard(props: ArticleCardProps) {
+  return new ArticleCard(props);
+}
+
+export default ArticleCard;

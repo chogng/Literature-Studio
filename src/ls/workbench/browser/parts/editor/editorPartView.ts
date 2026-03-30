@@ -1,12 +1,10 @@
-import { jsx } from 'react/jsx-runtime';
 import type {
   WritingEditorDocument,
   WritingWorkspaceTab,
 } from '../../writingEditorModel';
-import { WORKBENCH_PART_IDS, createWorkbenchPartRef } from '../../layout';
-import type { EditorStatusState } from './editorStatus';
+import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
+import type { EditorStatusState, EditorStatusLabels } from './editorStatus';
 import type { ViewPartProps } from '../views/viewPartView';
-import type { EditorStatusLabels } from './editorStatus';
 import type { WritingEditorSurfaceLabels } from './prosemirror/prosemirrorEditor';
 import { EditorGroupView } from './editorGroupView';
 import './media/editor.css';
@@ -36,12 +34,34 @@ export type EditorPartProps = {
   onStatusChange?: (status: EditorStatusState) => void;
 };
 
-export default function EditorPartView(props: EditorPartProps) {
-  const editorPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.editor);
+export class EditorPartView {
+  private readonly element = document.createElement('section');
+  private readonly groupView: EditorGroupView;
 
-  return jsx('section', {
-    ref: editorPartRef,
-    className: 'panel web-panel',
-    children: jsx(EditorGroupView, { ...props }),
-  });
+  constructor(props: EditorPartProps) {
+    this.element.className = 'panel web-panel';
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.editor, this.element);
+    this.groupView = new EditorGroupView(props);
+    this.element.append(this.groupView.getElement());
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: EditorPartProps) {
+    this.groupView.setProps(props);
+  }
+
+  dispose() {
+    this.groupView.dispose();
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.editor, null);
+    this.element.replaceChildren();
+  }
 }
+
+export function createEditorPartView(props: EditorPartProps) {
+  return new EditorPartView(props);
+}
+
+export default EditorPartView;

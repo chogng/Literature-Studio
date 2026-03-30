@@ -1,15 +1,3 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type MouseEvent as ReactMouseEvent,
-} from 'react';
-import { Check } from 'lucide-react';
-
 import type {
   NativeMenuOption,
   NativeMenuState,
@@ -21,7 +9,24 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function normalizeMenuState(state: NativeMenuState | null | undefined): NativeMenuState | null {
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+  textContent?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (textContent !== undefined) {
+    element.textContent = textContent;
+  }
+  return element;
+}
+
+function normalizeMenuState(
+  state: NativeMenuState | null | undefined,
+): NativeMenuState | null {
   if (!state || !state.requestId) {
     return null;
   }
@@ -33,7 +38,10 @@ function normalizeMenuState(state: NativeMenuState | null | undefined): NativeMe
   };
 }
 
-function resolveMenuLayout(state: NativeMenuState | null, measuredMenuWidth: number | null) {
+function resolveMenuLayout(
+  state: NativeMenuState | null,
+  measuredMenuWidth: number | null,
+) {
   if (!state) {
     return null;
   }
@@ -47,7 +55,8 @@ function resolveMenuLayout(state: NativeMenuState | null, measuredMenuWidth: num
     Math.max(1, state.options.length) * optionHeight + verticalPadding,
     320,
   );
-  const spaceBelow = window.innerHeight - state.triggerRect.y - state.triggerRect.height - viewportPadding;
+  const spaceBelow =
+    window.innerHeight - state.triggerRect.y - state.triggerRect.height - viewportPadding;
   const spaceAbove = state.triggerRect.y - viewportPadding;
   const openUpwards = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
   const availableHeight = openUpwards ? spaceAbove : spaceBelow;
@@ -72,164 +81,172 @@ function resolveMenuLayout(state: NativeMenuState | null, measuredMenuWidth: num
     left,
     maxHeight,
     placement: openUpwards ? 'top' : 'bottom',
-    top: openUpwards ? undefined : state.triggerRect.y + state.triggerRect.height + menuOffset,
-    bottom: openUpwards ? window.innerHeight - state.triggerRect.y + menuOffset : undefined,
+    top: openUpwards
+      ? undefined
+      : state.triggerRect.y + state.triggerRect.height + menuOffset,
+    bottom: openUpwards
+      ? window.innerHeight - state.triggerRect.y + menuOffset
+      : undefined,
   };
 }
 
-function renderMenuItem(
-  item: NativeMenuOption,
-  isSelected: boolean,
-  requestId: string,
-  onClose: (requestId: string) => void,
-) {
-  return jsxs(
-    'div',
-    {
-      className: `dropdown-menu-item ${isSelected ? 'selected' : ''} ${item.disabled ? 'disabled' : ''}`,
-      title: item.title,
-      onClick: () => {
-        if (item.disabled) {
-          return;
-        }
+export class MenuOverlayWindowView {
+  private readonly element = createElement('main', 'native-menu-overlay-page');
+  private readonly menuSurface = createElement('div');
+  private normalizedMenuState: NativeMenuState | null = null;
+  private measuredMenuWidth: number | null = null;
+  private resizeObserver: ResizeObserver | null = null;
+  private readonly menuApi = window.electronAPI?.menu;
+  private readonly handleWindowKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && this.normalizedMenuState) {
+      event.preventDefault();
+      this.menuApi?.close(this.normalizedMenuState.requestId);
+    }
+  };
+  private readonly disposeListener =
+    typeof this.menuApi?.onStateChange === 'function'
+      ? this.menuApi.onStateChange((state) => {
+          this.normalizedMenuState = normalizeMenuState(state);
+          this.measuredMenuWidth = null;
+          this.render();
+        })
+      : () => {};
 
-        window.electronAPI?.menu?.select(requestId, item.value);
-        onClose(requestId);
-      },
-      children: [
-        jsx('div', { className: 'dropdown-menu-item-content', children: item.label }),
-        isSelected
-          ? jsx(Check, {
-              size: 14,
-              strokeWidth: 2,
-              className: 'dropdown-menu-item-check',
-            })
-          : null,
-      ],
-    },
-    item.value,
-  );
+  constructor() {
+    this.element.addEventListener('mousedown', (event) => {
+      if (
+        this.normalizedMenuState &&
+        event.target === this.element
+      ) {
+        this.menuApi?.close(this.normalizedMenuState.requestId);
+      }
+    });
+    this.menuSurface.addEventListener('mousedown', (event) => {
+      event.stopPropagation();
+    });
+    this.element.append(this.menuSurface);
+    window.addEventListener('keydown', this.handleWindowKeydown);
+
+    if (typeof this.menuApi?.getState === 'function') {
+      void this.menuApi
+        .getState()
+        .then((state) => {
+          this.normalizedMenuState = normalizeMenuState(state);
+          this.render();
+        })
+        .catch(() => {
+          this.normalizedMenuState = null;
+          this.render();
+        });
+    }
+
+    this.render();
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  dispose() {
+    this.disposeListener();
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    window.removeEventListener('keydown', this.handleWindowKeydown);
+    this.element.replaceChildren();
+  }
+
+  private measureMenuWidth() {
+    const nextWidth = Math.ceil(this.menuSurface.getBoundingClientRect().width);
+    if (nextWidth > 0 && nextWidth !== this.measuredMenuWidth) {
+      this.measuredMenuWidth = nextWidth;
+      this.render();
+    }
+  }
+
+  private renderMenuItem(
+    item: NativeMenuOption,
+    isSelected: boolean,
+    requestId: string,
+  ) {
+    const itemElement = createElement(
+      'div',
+      `dropdown-menu-item${isSelected ? ' selected' : ''}${
+        item.disabled ? ' disabled' : ''
+      }`,
+    );
+    if (item.title) {
+      itemElement.title = item.title;
+    }
+    itemElement.append(
+      createElement('div', 'dropdown-menu-item-content', item.label),
+    );
+    if (isSelected) {
+      itemElement.append(
+        createElement('span', 'dropdown-menu-item-check', 'v'),
+      );
+    }
+    itemElement.addEventListener('click', () => {
+      if (item.disabled) {
+        return;
+      }
+      this.menuApi?.select(requestId, item.value);
+      this.menuApi?.close(requestId);
+    });
+    return itemElement;
+  }
+
+  private render() {
+    const layout = resolveMenuLayout(
+      this.normalizedMenuState,
+      this.measuredMenuWidth,
+    );
+
+    if (!this.normalizedMenuState || !layout) {
+      this.menuSurface.className = '';
+      this.menuSurface.replaceChildren();
+      this.menuSurface.removeAttribute('style');
+      return;
+    }
+
+    this.menuSurface.className = `dropdown-menu dropdown-menu-${layout.placement} native-menu-overlay-surface`;
+    this.menuSurface.style.left = `${layout.left}px`;
+    this.menuSurface.style.maxHeight = `${layout.maxHeight}px`;
+    this.menuSurface.style.setProperty(
+      '--native-menu-min-width',
+      `${Math.max(120, this.normalizedMenuState.triggerRect.width)}px`,
+    );
+    if (layout.top === undefined) {
+      this.menuSurface.style.removeProperty('top');
+    } else {
+      this.menuSurface.style.top = `${layout.top}px`;
+    }
+    if (layout.bottom === undefined) {
+      this.menuSurface.style.removeProperty('bottom');
+    } else {
+      this.menuSurface.style.bottom = `${layout.bottom}px`;
+    }
+
+    this.menuSurface.replaceChildren(
+      ...this.normalizedMenuState.options.map((option) =>
+        this.renderMenuItem(
+          option,
+          this.normalizedMenuState?.value === option.value,
+          this.normalizedMenuState!.requestId,
+        ),
+      ),
+    );
+
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = new ResizeObserver(() => {
+      this.measureMenuWidth();
+    });
+    this.resizeObserver.observe(this.menuSurface);
+    queueMicrotask(() => {
+      this.measureMenuWidth();
+    });
+  }
 }
 
-export default function MenuOverlayWindow() {
-  const [menuState, setMenuState] = useState<NativeMenuState | null>(null);
-  const [measuredMenuWidth, setMeasuredMenuWidth] = useState<number | null>(null);
-  const menuSurfaceRef = useRef<HTMLDivElement | null>(null);
-  const normalizedMenuState = useMemo(() => normalizeMenuState(menuState), [menuState]);
-  const menuLayout = useMemo(
-    () => resolveMenuLayout(normalizedMenuState, measuredMenuWidth),
-    [measuredMenuWidth, normalizedMenuState],
-  );
-
-  useEffect(() => {
-    setMeasuredMenuWidth(null);
-  }, [normalizedMenuState?.requestId]);
-
-  useEffect(() => {
-    let mounted = true;
-    const menuApi = window.electronAPI?.menu;
-    const applyState = (state: NativeMenuState | null) => {
-      if (!mounted) {
-        return;
-      }
-
-      setMenuState(normalizeMenuState(state));
-    };
-
-    const disposeListener =
-      typeof menuApi?.onStateChange === 'function' ? menuApi.onStateChange(applyState) : () => {};
-
-    if (typeof menuApi?.getState === 'function') {
-      void menuApi.getState().then(applyState).catch(() => {
-        applyState(null);
-      });
-    } else {
-      applyState(null);
-    }
-
-    return () => {
-      mounted = false;
-      disposeListener();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!normalizedMenuState) {
-      return;
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        window.electronAPI?.menu?.close(normalizedMenuState.requestId);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [normalizedMenuState]);
-
-  useLayoutEffect(() => {
-    if (!normalizedMenuState || !menuSurfaceRef.current) {
-      return;
-    }
-
-    const measure = () => {
-      const nextWidth = Math.ceil(menuSurfaceRef.current?.getBoundingClientRect().width ?? 0);
-      if (nextWidth > 0) {
-        setMeasuredMenuWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
-      }
-    };
-
-    measure();
-
-    const observer = new ResizeObserver(() => {
-      measure();
-    });
-    observer.observe(menuSurfaceRef.current);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [normalizedMenuState, menuLayout?.maxHeight, menuLayout?.placement]);
-
-  return jsx('main', {
-    className: 'native-menu-overlay-page',
-    onMouseDown: (event: ReactMouseEvent<HTMLElement>) => {
-      if (!normalizedMenuState) {
-        return;
-      }
-
-      if (event.target === event.currentTarget) {
-        window.electronAPI?.menu?.close(normalizedMenuState.requestId);
-      }
-    },
-    children:
-      normalizedMenuState && menuLayout
-        ? jsxs('div', {
-            ref: menuSurfaceRef,
-            className: `dropdown-menu dropdown-menu-${menuLayout.placement} native-menu-overlay-surface`,
-            style: {
-              left: `${menuLayout.left}px`,
-              maxHeight: `${menuLayout.maxHeight}px`,
-              '--native-menu-min-width': `${Math.max(120, normalizedMenuState.triggerRect.width)}px`,
-              top: menuLayout.top === undefined ? undefined : `${menuLayout.top}px`,
-              bottom: menuLayout.bottom === undefined ? undefined : `${menuLayout.bottom}px`,
-            } as CSSProperties,
-            onMouseDown: (event: ReactMouseEvent<HTMLDivElement>) => {
-              event.stopPropagation();
-            },
-            children: normalizedMenuState.options.map((option) =>
-              renderMenuItem(
-                option,
-                normalizedMenuState.value === option.value,
-                normalizedMenuState.requestId,
-                (requestId) => window.electronAPI?.menu?.close(requestId),
-              ),
-            ),
-          })
-        : null,
-  });
+export function createMenuOverlayWindowView() {
+  return new MenuOverlayWindowView();
 }

@@ -1,38 +1,22 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import {
-  type ChangeEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type Ref,
-} from 'react';
 import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
-import {
-  ArrowLeft,
-  ArrowRight,
-  FileText,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-  Settings,
-} from 'lucide-react';
-import { Button } from '../../../../base/browser/ui/button/button';
-import { Dropdown } from '../../../../base/browser/ui/dropdown/dropdown';
-import { Input } from '../../../../base/browser/ui/input/input';
+import { createButtonView } from '../../../../base/browser/ui/button/button.js';
+import { createDropdownView, type DropdownView } from '../../../../base/browser/ui/dropdown/dropdown.js';
+import { createInputView } from '../../../../base/browser/ui/input/input.js';
 import { getBrowserWindowChromeLayout } from '../../../../platform/windows/common/windowChrome.js';
 import {
-  WindowControlsGroup,
-  type WindowControlsAction,
-} from './windowControls';
-import {
-  requestToggleTitlebarAuxiliarySidebar,
+  requestExportTitlebarDocx,
   requestTitlebarNavigateBack,
   requestTitlebarNavigateForward,
   requestTitlebarNavigateWeb,
-  requestToggleTitlebarSidebar,
-  requestExportTitlebarDocx,
+  requestToggleTitlebarAuxiliarySidebar,
   requestToggleTitlebarSettings,
+  requestToggleTitlebarSidebar,
   subscribeTitlebarUiActions,
 } from './titlebarActions';
+import {
+  createWindowControlsView,
+  type WindowControlsAction,
+} from './windowControls';
 import './media/titlebar.css';
 
 export type TitlebarAction = WindowControlsAction;
@@ -81,8 +65,6 @@ export type TitlebarProps = {
   addressBarSourceAriaLabel?: string;
 };
 
-export type TitlebarInputProps = Partial<TitlebarProps>;
-
 const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   controlsAriaLabel: '',
   settingsLabel: '',
@@ -98,11 +80,12 @@ const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   noExportableArticlesLabel: '',
 };
 
-const FALLBACK_WINDOW_CONTROL: TitlebarProps['onWindowControl'] = (_action) => undefined;
-
-type TitlebarViewProps = TitlebarInputProps & {
-  partRef?: Ref<HTMLElement>;
-};
+const WINDOW_CHROME_LAYOUT = getBrowserWindowChromeLayout();
+const MIN_SOURCE_TRIGGER_WIDTH_PX = 56;
+const MAX_SOURCE_TRIGGER_WIDTH_PX = 520;
+const SOURCE_TRIGGER_HORIZONTAL_PADDING_PX = 22;
+const SOURCE_TRIGGER_FONT = '12px "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
+let sourceTriggerMeasureCanvas: HTMLCanvasElement | null = null;
 
 type SourceOptionView = {
   value: string;
@@ -110,76 +93,16 @@ type SourceOptionView = {
   title?: string;
 };
 
-type TitlebarIconView = ReturnType<typeof jsx>;
-
-type TitlebarIconButtonConfig = {
-  key?: string;
-  className: string;
-  label: string;
-  onClick: () => void;
-  icon: TitlebarIconView;
-  disabled?: boolean;
-  title?: string;
-};
-
-type NavigationGroupConfig = {
-  browserUrl?: string;
-  canGoBack: boolean;
-  canGoForward: boolean;
-  labels: TitlebarLabels;
-  isVisible: boolean;
-};
-
-type DropdownChangeEvent = {
-  target: {
-    value: string;
-  };
-};
-
-const MIN_SOURCE_TRIGGER_WIDTH_PX = 56;
-const MAX_SOURCE_TRIGGER_WIDTH_PX = 520;
-const SOURCE_TRIGGER_HORIZONTAL_PADDING_PX = 22;
-const SOURCE_TRIGGER_FONT = '12px "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
-const WINDOW_CHROME_LAYOUT = getBrowserWindowChromeLayout();
-let sourceTriggerMeasureCanvas: HTMLCanvasElement | null = null;
-
-class TitlebarUiActionBridge {
-  private sourceSelector: HTMLDivElement | null = null;
-  private webUrlInput: HTMLInputElement | null = null;
-
-  constructor() {
-    subscribeTitlebarUiActions((action) => {
-      if (action.type === 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
-        if (!this.sourceSelector) {
-          return;
-        }
-
-        this.sourceSelector.focus();
-        this.sourceSelector.click();
-        return;
-      }
-
-      if (action.type === 'FOCUS_WEB_URL_INPUT') {
-        if (!this.webUrlInput) {
-          return;
-        }
-
-        this.webUrlInput.focus();
-        this.webUrlInput.select();
-      }
-    });
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
   }
-
-  readonly bindSourceSelector: Ref<HTMLDivElement> = (node) => {
-    this.sourceSelector = node;
-  };
-
-  readonly bindWebUrlInput: Ref<HTMLInputElement> = (node) => {
-    this.webUrlInput = node;
-  };
+  return element;
 }
-
-const titlebarUiActionBridge = new TitlebarUiActionBridge();
 
 function measureSourceTriggerWidth(label: string): number {
   const text = label.trim();
@@ -223,368 +146,342 @@ function createSourceOptions(
   ];
 }
 
-function renderIconButton({
-  key,
-  className,
-  label,
-  onClick,
-  icon,
-  disabled = false,
-  title,
-}: TitlebarIconButtonConfig) {
-  return jsx(
-    Button,
-    {
-      className,
-      variant: 'ghost',
-      size: 'sm',
-      mode: 'icon',
-      iconMode: 'with',
-      textMode: 'without',
-      onClick,
-      disabled,
-      'aria-label': label,
-      title: title ?? label,
-      children: icon,
-    },
-    key,
-  );
-}
-
-function renderSidebarToggle({
-  isSidebarOpen,
-  sidebarToggleLabel,
-  isVisible,
-}: {
-  isSidebarOpen: boolean;
-  sidebarToggleLabel?: string;
-  isVisible: boolean;
+function createIconButton(params: {
+  className: string;
+  label: string;
+  text: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
 }) {
-  if (!isVisible || !sidebarToggleLabel) {
-    return null;
-  }
-
-  return renderIconButton({
-    className: 'titlebar-btn titlebar-btn-sidebar',
-    label: sidebarToggleLabel,
-    onClick: requestToggleTitlebarSidebar,
-    icon: isSidebarOpen
-      ? jsx(PanelLeftClose, { size: 16, strokeWidth: 2 })
-      : jsx(PanelLeftOpen, { size: 16, strokeWidth: 2 }),
+  return createButtonView({
+    className: params.className,
+    variant: 'ghost',
+    size: 'md',
+    mode: 'icon',
+    ariaLabel: params.label,
+    title: params.title ?? params.label,
+    content: params.text,
+    disabled: params.disabled,
+    onClick: () => params.onClick(),
   });
 }
 
-function renderAuxiliarySidebarToggle({
-  isAuxiliarySidebarOpen,
-  auxiliarySidebarToggleLabel,
-  isVisible,
-}: {
-  isAuxiliarySidebarOpen: boolean;
-  auxiliarySidebarToggleLabel?: string;
-  isVisible: boolean;
-}) {
-  if (!isVisible || !auxiliarySidebarToggleLabel) {
-    return null;
+export class TitlebarView {
+  private props: TitlebarProps;
+  private readonly element = createElement('header');
+  private readonly leadingWindowControlsContainer = createElement('div');
+  private readonly startElement = createElement('div', 'titlebar-start');
+  private readonly centerElement = createElement('div', 'titlebar-center');
+  private readonly controlsElement = createElement('div', 'titlebar-controls');
+  private readonly renderedViews: Array<{ dispose: () => void }> = [];
+  private sourceSelector: DropdownView | null = null;
+  private webUrlInput: HTMLInputElement | null = null;
+  private readonly unsubscribeUiActions: () => void;
+
+  constructor(props: TitlebarProps) {
+    this.props = props;
+    this.element.append(
+      this.leadingWindowControlsContainer,
+      this.startElement,
+      this.centerElement,
+      this.controlsElement,
+    );
+    this.unsubscribeUiActions = subscribeTitlebarUiActions((action) => {
+      if (action.type === 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
+        this.sourceSelector?.focus();
+        this.sourceSelector?.open();
+        return;
+      }
+
+      if (action.type === 'FOCUS_WEB_URL_INPUT') {
+        this.webUrlInput?.focus();
+        this.webUrlInput?.select();
+      }
+    });
+    this.render();
   }
 
-  return renderIconButton({
-    className: 'titlebar-btn titlebar-btn-auxiliary',
-    label: auxiliarySidebarToggleLabel,
-    onClick: requestToggleTitlebarAuxiliarySidebar,
-    icon: isAuxiliarySidebarOpen
-      ? jsx(PanelRightClose, { size: 16, strokeWidth: 2 })
-      : jsx(PanelRightOpen, { size: 16, strokeWidth: 2 }),
-  });
-}
-
-function renderNavigationGroup({
-  browserUrl,
-  canGoBack,
-  canGoForward,
-  labels,
-  isVisible,
-}: NavigationGroupConfig) {
-  if (!isVisible) {
-    return null;
+  getElement() {
+    return this.element;
   }
 
-  return jsxs('div', {
-    className: 'titlebar-nav-group',
-    children: [
-      renderIconButton({
+  setProps(props: TitlebarProps) {
+    this.props = props;
+    this.render();
+  }
+
+  dispose() {
+    this.unsubscribeUiActions();
+    this.disposeRenderedViews();
+    this.element.replaceChildren();
+    this.sourceSelector = null;
+    this.webUrlInput = null;
+  }
+
+  private render() {
+    const props: TitlebarProps = {
+      ...this.props,
+      labels: {
+        ...DEFAULT_TITLEBAR_LABELS,
+        ...(this.props.labels ?? {}),
+      },
+      isWindowMaximized: this.props.isWindowMaximized ?? false,
+      canGoBack: this.props.canGoBack ?? false,
+      canGoForward: this.props.canGoForward ?? false,
+      canExportDocx: this.props.canExportDocx ?? false,
+      addressBarSourceOptions: this.props.addressBarSourceOptions ?? [],
+      selectedAddressBarSourceId: this.props.selectedAddressBarSourceId ?? '',
+      isSidebarOpen: this.props.isSidebarOpen ?? true,
+      isAuxiliarySidebarOpen: this.props.isAuxiliarySidebarOpen ?? false,
+      onWindowControl: this.props.onWindowControl,
+    };
+
+    this.element.className = [
+      'titlebar',
+      `titlebar-platform-${WINDOW_CHROME_LAYOUT.platform}`,
+      `titlebar-style-${WINDOW_CHROME_LAYOUT.titleBarStyle}`,
+    ].join(' ');
+
+    this.leadingWindowControlsContainer.className = [
+      'titlebar-window-controls-container',
+      WINDOW_CHROME_LAYOUT.windowControlsContainerMode === 'native'
+        ? 'window-controls-container-native'
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    if (WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx > 0) {
+      this.leadingWindowControlsContainer.setAttribute(
+        'style',
+        `--window-controls-width: ${WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx}px`,
+      );
+    } else {
+      this.leadingWindowControlsContainer.removeAttribute('style');
+    }
+
+    this.controlsElement.setAttribute('role', 'group');
+    this.controlsElement.setAttribute('aria-label', props.labels.controlsAriaLabel);
+
+    this.disposeRenderedViews();
+    this.renderStart(props);
+    this.renderCenter(props);
+    this.renderControls(props);
+  }
+
+  private renderStart(props: TitlebarProps) {
+    this.startElement.replaceChildren();
+    if (!props.onToggleSidebar || !props.sidebarToggleLabel) {
+      return;
+    }
+
+    const sidebarButton = this.trackView(
+      createIconButton({
+        className: 'titlebar-btn titlebar-btn-sidebar',
+        label: props.sidebarToggleLabel,
+        text: props.isSidebarOpen ? '<' : '>',
+        onClick: requestToggleTitlebarSidebar,
+      }),
+    );
+
+    this.startElement.append(sidebarButton.getElement());
+  }
+
+  private renderCenter(props: TitlebarProps & { labels: TitlebarLabels }) {
+    this.centerElement.replaceChildren();
+
+    const navGroup = createElement('div', 'titlebar-nav-group');
+    const backButton = this.trackView(
+      createIconButton({
         className: 'titlebar-btn titlebar-btn-nav',
-        label: labels.backLabel,
+        label: props.labels.backLabel,
+        text: '<',
         onClick: requestTitlebarNavigateBack,
-        disabled: !browserUrl || !canGoBack,
-        icon: jsx(ArrowLeft, { size: 16, strokeWidth: 2 }),
+        disabled: !props.browserUrl || !props.canGoBack,
       }),
-      renderIconButton({
+    );
+    const forwardButton = this.trackView(
+      createIconButton({
         className: 'titlebar-btn titlebar-btn-nav',
-        label: labels.forwardLabel,
+        label: props.labels.forwardLabel,
+        text: '>',
         onClick: requestTitlebarNavigateForward,
-        disabled: !browserUrl || !canGoForward,
-        icon: jsx(ArrowRight, { size: 16, strokeWidth: 2 }),
+        disabled: !props.browserUrl || !props.canGoForward,
       }),
-    ],
-  });
-}
+    );
+    navGroup.append(backButton.getElement(), forwardButton.getElement());
+    this.centerElement.append(navGroup);
 
-function renderWebUrlBar({
-  webUrl,
-  articleUrlPlaceholder,
-  onWebUrlChange,
-  onKeyDown,
-  inputRef,
-}: {
-  webUrl?: string;
-  articleUrlPlaceholder?: string;
-  onWebUrlChange?: (url: string) => void;
-  onKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => void;
-  inputRef?: Ref<HTMLInputElement>;
-}) {
-  if (!onWebUrlChange) {
-    return null;
-  }
+    if (props.onWebUrlChange) {
+      const urlBar = createElement('div', 'titlebar-url-bar');
+      const inputView = this.trackView(
+        createInputView({
+          className: 'titlebar-input-field titlebar-field-base',
+          value: props.webUrl ?? '',
+          placeholder: props.articleUrlPlaceholder ?? '',
+          size: 'sm',
+          onInput: (event) => {
+            if (event.target instanceof HTMLInputElement) {
+              props.onWebUrlChange?.(event.target.value);
+            }
+          },
+        }),
+      );
+      const inputElement = inputView.getElement().querySelector('.input-field');
+      if (inputElement instanceof HTMLInputElement) {
+        inputElement.addEventListener('keydown', (event) => {
+          if (props.onCycleAddressBarSource && event.altKey) {
+            if (event.key === 'ArrowUp') {
+              event.preventDefault();
+              props.onCycleAddressBarSource('prev');
+              return;
+            }
 
-  return jsx('div', {
-    className: 'titlebar-url-bar',
-    children: jsx(Input, {
-      ref: inputRef,
-      className: 'titlebar-input-field titlebar-field-base',
-      size: 'sm',
-      appearance: 'flat',
-      hidePlaceholderOnFocus: true,
-      value: webUrl,
-      onChange: (event: ChangeEvent<HTMLInputElement>) => onWebUrlChange(event.target.value),
-      onKeyDown,
-      placeholder: articleUrlPlaceholder,
-    }),
-  });
-}
-
-function renderSourceSelector({
-  sourceOptions,
-  selectedAddressBarSourceId,
-  addressBarSourceAriaLabel,
-  addressBarSourcePlaceholder,
-  onSelectAddressBarSource,
-  onKeyDown,
-  sourceSelectorRef,
-}: {
-  sourceOptions: SourceOptionView[];
-  selectedAddressBarSourceId: string;
-  addressBarSourceAriaLabel?: string;
-  addressBarSourcePlaceholder?: string;
-  onSelectAddressBarSource?: (sourceId: string) => void;
-  onKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
-  sourceSelectorRef?: Ref<HTMLDivElement>;
-}) {
-  if (!onSelectAddressBarSource) {
-    return null;
-  }
-
-  const selectedOption =
-    sourceOptions.find((option) => option.value === selectedAddressBarSourceId) || sourceOptions[0];
-  const selectedLabel = selectedOption?.label?.trim() || addressBarSourcePlaceholder || '';
-  const selectorWidthPx = measureSourceTriggerWidth(selectedLabel);
-
-  return jsx('div', {
-    className: 'titlebar-journal-bar',
-    children: jsx(Dropdown, {
-      ref: sourceSelectorRef,
-      className: `titlebar-source-select ${selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
-      style: { '--titlebar-source-width': `${selectorWidthPx}px` },
-      value: selectedAddressBarSourceId,
-      onChange: (event: DropdownChangeEvent) => onSelectAddressBarSource(event.target.value),
-      'aria-label': addressBarSourceAriaLabel || addressBarSourcePlaceholder,
-      title: addressBarSourceAriaLabel || addressBarSourcePlaceholder,
-      onKeyDown,
-      options: sourceOptions,
-    }),
-  });
-}
-
-export function TitlebarView(inputProps: TitlebarViewProps = {}) {
-  const {
-    partRef,
-    labels = DEFAULT_TITLEBAR_LABELS,
-    isWindowMaximized = false,
-    onWindowControl = FALLBACK_WINDOW_CONTROL,
-    isSidebarOpen = true,
-    sidebarToggleLabel,
-    onToggleSidebar,
-    isAuxiliarySidebarOpen = false,
-    auxiliarySidebarToggleLabel,
-    onToggleAuxiliarySidebar,
-    browserUrl,
-    canGoBack = false,
-    canGoForward = false,
-    canExportDocx = false,
-    onNavigateBack,
-    onNavigateForward,
-    webUrl,
-    onWebUrlChange,
-    articleUrlPlaceholder,
-    addressBarSourceOptions = [],
-    selectedAddressBarSourceId = '',
-    onSelectAddressBarSource,
-    onCycleAddressBarSource,
-    addressBarSourcePlaceholder,
-    addressBarSourceAriaLabel,
-  } = inputProps;
-
-  const sourceOptions = createSourceOptions(addressBarSourcePlaceholder, addressBarSourceOptions);
-  const titlebarClassName = [
-    'titlebar',
-    `titlebar-platform-${WINDOW_CHROME_LAYOUT.platform}`,
-    `titlebar-style-${WINDOW_CHROME_LAYOUT.titleBarStyle}`,
-  ].join(' ');
-  const windowControlsContainerClassName = [
-    'titlebar-window-controls-container',
-    WINDOW_CHROME_LAYOUT.windowControlsContainerMode === 'native'
-      ? 'window-controls-container-native'
-      : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const handleAddressBarKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.altKey && onCycleAddressBarSource) {
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        onCycleAddressBarSource('prev');
-        return;
-      }
-
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        onCycleAddressBarSource('next');
-        return;
-      }
-    }
-
-    if (event.key === 'Enter') {
-      requestTitlebarNavigateWeb();
-    }
-  };
-
-  const handleSourceSelectorKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (!onCycleAddressBarSource || !event.altKey) {
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      onCycleAddressBarSource('prev');
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      onCycleAddressBarSource('next');
-    }
-  };
-
-  const sidebarToggleView = renderSidebarToggle({
-    isSidebarOpen,
-    sidebarToggleLabel,
-    isVisible: Boolean(onToggleSidebar),
-  });
-  const auxiliarySidebarToggleView = renderAuxiliarySidebarToggle({
-    isAuxiliarySidebarOpen,
-    auxiliarySidebarToggleLabel,
-    isVisible: Boolean(onToggleAuxiliarySidebar),
-  });
-  const navigationView = renderNavigationGroup({
-    browserUrl,
-    canGoBack,
-    canGoForward,
-    labels,
-    isVisible: Boolean(onNavigateBack || onNavigateForward),
-  });
-  const webUrlView = renderWebUrlBar({
-    webUrl,
-    articleUrlPlaceholder,
-    onWebUrlChange,
-    onKeyDown: handleAddressBarKeyDown,
-    inputRef: titlebarUiActionBridge.bindWebUrlInput,
-  });
-  const sourceSelectorView = renderSourceSelector({
-    sourceOptions,
-    selectedAddressBarSourceId,
-    addressBarSourceAriaLabel,
-    addressBarSourcePlaceholder,
-    onSelectAddressBarSource,
-    onKeyDown: handleSourceSelectorKeyDown,
-    sourceSelectorRef: titlebarUiActionBridge.bindSourceSelector,
-  });
-  const exportButtonView =
-    renderIconButton({
-      className: 'titlebar-btn titlebar-btn-export',
-      label: labels.exportDocxLabel,
-      title: canExportDocx ? labels.exportDocxLabel : labels.noExportableArticlesLabel,
-      onClick: requestExportTitlebarDocx,
-      disabled: !canExportDocx,
-      icon: jsx(FileText, { size: 16, strokeWidth: 2 }),
-    });
-  const settingsButtonView =
-    renderIconButton({
-      className: 'titlebar-btn titlebar-btn-settings',
-      label: labels.settingsLabel,
-      onClick: requestToggleTitlebarSettings,
-      icon: jsx(Settings, { size: 16, strokeWidth: 2 }),
-    });
-  const windowControls = WINDOW_CHROME_LAYOUT.renderCustomWindowControls
-    ? jsx(WindowControlsGroup, {
-        className: 'titlebar-window-controls',
-        labels: {
-          controlsAriaLabel: labels.controlsAriaLabel,
-          minimizeLabel: labels.minimizeLabel,
-          maximizeLabel: labels.maximizeLabel,
-          restoreLabel: labels.restoreLabel,
-          closeLabel: labels.closeLabel,
-        },
-        isWindowMaximized,
-        onWindowControl,
-      })
-    : null;
-  const leadingWindowControlsContainer = jsx('div', {
-    className: windowControlsContainerClassName,
-    style:
-      WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx > 0
-        ? {
-            '--window-controls-width': `${WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx}px`,
+            if (event.key === 'ArrowDown') {
+              event.preventDefault();
+              props.onCycleAddressBarSource('next');
+              return;
+            }
           }
-        : undefined,
-  });
 
-  return jsxs('header', {
-    ref: partRef,
-    className: titlebarClassName,
-    children: [
-      leadingWindowControlsContainer,
-      jsx('div', {
-        className: 'titlebar-start',
-        children: sidebarToggleView,
+          if (event.key === 'Enter') {
+            requestTitlebarNavigateWeb();
+          }
+        });
+        this.webUrlInput = inputElement;
+      } else {
+        this.webUrlInput = null;
+      }
+      urlBar.append(inputView.getElement());
+      this.centerElement.append(urlBar);
+    } else {
+      this.webUrlInput = null;
+    }
+  }
+
+  private renderControls(props: TitlebarProps & { labels: TitlebarLabels }) {
+    this.controlsElement.replaceChildren();
+
+    if (props.onSelectAddressBarSource) {
+      const sourceOptions = createSourceOptions(
+        props.addressBarSourcePlaceholder,
+        props.addressBarSourceOptions ?? [],
+      );
+      const selectedOption =
+        sourceOptions.find((option) => option.value === props.selectedAddressBarSourceId) ??
+        sourceOptions[0];
+      const selectorWrap = createElement('div', 'titlebar-journal-bar');
+      const selector = this.trackView(
+        createDropdownView({
+          options: sourceOptions,
+          value: props.selectedAddressBarSourceId ?? '',
+          className: `titlebar-source-select ${props.selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
+          title:
+            props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
+          onChange: (event) => props.onSelectAddressBarSource?.(event.target.value),
+        }),
+      );
+      const selectorElement = selector.getElement();
+      selectorElement.setAttribute(
+        'aria-label',
+        props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
+      );
+      selectorElement.style.setProperty(
+        '--titlebar-source-width',
+        `${measureSourceTriggerWidth(selectedOption?.label ?? '')}px`,
+      );
+      selectorElement.addEventListener('keydown', (event) => {
+        if (!props.onCycleAddressBarSource || !event.altKey) {
+          return;
+        }
+
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          props.onCycleAddressBarSource('prev');
+          return;
+        }
+
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          props.onCycleAddressBarSource('next');
+        }
+      });
+      this.sourceSelector = selector;
+      selectorWrap.append(selectorElement);
+      this.controlsElement.append(selectorWrap);
+    } else {
+      this.sourceSelector = null;
+    }
+
+    if (props.onToggleAuxiliarySidebar && props.auxiliarySidebarToggleLabel) {
+      const auxiliaryButton = this.trackView(
+        createIconButton({
+          className: 'titlebar-btn titlebar-btn-auxiliary',
+          label: props.auxiliarySidebarToggleLabel,
+          text: props.isAuxiliarySidebarOpen ? ']' : '[',
+          onClick: requestToggleTitlebarAuxiliarySidebar,
+        }),
+      );
+      this.controlsElement.append(auxiliaryButton.getElement());
+    }
+
+    const exportButton = this.trackView(
+      createIconButton({
+        className: 'titlebar-btn titlebar-btn-export',
+        label: props.labels.exportDocxLabel,
+        text: 'Doc',
+        onClick: requestExportTitlebarDocx,
+        disabled: !props.canExportDocx,
+        title: props.canExportDocx
+          ? props.labels.exportDocxLabel
+          : props.labels.noExportableArticlesLabel,
       }),
-      jsxs('div', {
-        className: 'titlebar-center',
-        children: [navigationView, webUrlView],
+    );
+    const settingsButton = this.trackView(
+      createIconButton({
+        className: 'titlebar-btn titlebar-btn-settings',
+        label: props.labels.settingsLabel,
+        text: 'Set',
+        onClick: requestToggleTitlebarSettings,
       }),
-      jsxs('div', {
-        className: 'titlebar-controls',
-        role: 'group',
-        'aria-label': labels.controlsAriaLabel,
-        children: [
-          sourceSelectorView,
-          auxiliarySidebarToggleView,
-          exportButtonView,
-          settingsButtonView,
-          windowControls,
-        ],
-      }),
-    ],
-  });
+    );
+    this.controlsElement.append(exportButton.getElement(), settingsButton.getElement());
+
+    if (WINDOW_CHROME_LAYOUT.renderCustomWindowControls) {
+      const windowControls = this.trackView(
+        createWindowControlsView({
+          className: 'titlebar-window-controls',
+          labels: {
+            controlsAriaLabel: props.labels.controlsAriaLabel,
+            minimizeLabel: props.labels.minimizeLabel,
+            maximizeLabel: props.labels.maximizeLabel,
+            restoreLabel: props.labels.restoreLabel,
+            closeLabel: props.labels.closeLabel,
+          },
+          isWindowMaximized: props.isWindowMaximized,
+          onWindowControl: props.onWindowControl,
+        }),
+      );
+      this.controlsElement.append(windowControls.getElement());
+    }
+  }
+
+  private trackView<T extends { dispose: () => void }>(view: T) {
+    this.renderedViews.push(view);
+    return view;
+  }
+
+  private disposeRenderedViews() {
+    while (this.renderedViews.length > 0) {
+      this.renderedViews.pop()?.dispose();
+    }
+    this.sourceSelector = null;
+    this.webUrlInput = null;
+  }
+}
+
+export function createTitlebarView(props: TitlebarProps) {
+  return new TitlebarView(props);
 }
 
 export default TitlebarView;

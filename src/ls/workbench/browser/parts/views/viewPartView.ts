@@ -1,5 +1,4 @@
-import { jsx } from 'react/jsx-runtime';
-import { WORKBENCH_PART_IDS, createWorkbenchPartRef } from '../../layout';
+import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
 import './media/view.css';
 
 export type ViewPartLabels = {
@@ -14,60 +13,83 @@ export type ViewPartProps = {
   labels: ViewPartLabels;
 };
 
-function renderPreviewContent({
-  browserUrl,
-  electronRuntime,
-  previewRuntime,
-  labels,
-  onWebContentViewHostRef,
-}: ViewPartProps & {
-  onWebContentViewHostRef: (node: HTMLDivElement | null) => void;
-}) {
-  if (!browserUrl) {
-    return jsx('div', { className: 'web-frame', 'aria-hidden': 'true' });
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
   }
-
-  if (!electronRuntime || !previewRuntime) {
-    return jsx('div', {
-      className: 'empty-state preview-runtime-warning',
-      children: labels.previewUnavailable,
-    });
-  }
-
-  // This view is only a DOM anchor for the shared Electron webContents-backed content view.
-  // Never render iframe/webview here: preview tabs must reuse the existing native surface.
-  return jsx('div', {
-    ref: onWebContentViewHostRef,
-    className: 'web-frame web-frame-placeholder',
-    'aria-hidden': 'true',
-  });
+  return element;
 }
 
-export default function ViewPartView({
-  browserUrl,
-  electronRuntime,
-  previewRuntime,
-  labels,
-}: ViewPartProps) {
-  const viewPartRef = createWorkbenchPartRef(WORKBENCH_PART_IDS.view);
-  const webContentViewHostPartRef = createWorkbenchPartRef(
-    WORKBENCH_PART_IDS.webContentViewHost
+export class ViewPartView {
+  private props: ViewPartProps;
+  private readonly element = createElement('div', 'web-frame-container');
+  private readonly contentElement = createElement(
+    'div',
+    'native-webcontentview-host',
   );
 
-  const previewContent = renderPreviewContent({
-    browserUrl,
-    electronRuntime,
-    previewRuntime,
-    labels,
-    onWebContentViewHostRef: webContentViewHostPartRef,
-  });
+  constructor(props: ViewPartProps) {
+    this.props = props;
+    this.element.append(this.contentElement);
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.view, this.element);
+    this.render();
+  }
 
-  return jsx('div', {
-    ref: viewPartRef,
-    className: 'web-frame-container',
-    children: jsx('div', {
-      className: 'native-webcontentview-host',
-      children: previewContent,
-    }),
-  });
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: ViewPartProps) {
+    this.props = props;
+    this.render();
+  }
+
+  dispose() {
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, null);
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.view, null);
+    this.element.replaceChildren();
+  }
+
+  private render() {
+    this.contentElement.replaceChildren();
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, null);
+
+    if (!this.props.browserUrl) {
+      const emptyFrame = createElement('div', 'web-frame');
+      emptyFrame.setAttribute('aria-hidden', 'true');
+      this.contentElement.append(emptyFrame);
+      return;
+    }
+
+    if (!this.props.electronRuntime || !this.props.previewRuntime) {
+      const warning = createElement(
+        'div',
+        'empty-state preview-runtime-warning',
+      );
+      warning.textContent = this.props.labels.previewUnavailable;
+      this.contentElement.append(warning);
+      return;
+    }
+
+    const webContentHost = createElement(
+      'div',
+      'web-frame web-frame-placeholder',
+    );
+    webContentHost.setAttribute('aria-hidden', 'true');
+    registerWorkbenchPartDomNode(
+      WORKBENCH_PART_IDS.webContentViewHost,
+      webContentHost,
+    );
+    this.contentElement.append(webContentHost);
+  }
 }
+
+export function createViewPartView(props: ViewPartProps) {
+  return new ViewPartView(props);
+}
+
+export default ViewPartView;

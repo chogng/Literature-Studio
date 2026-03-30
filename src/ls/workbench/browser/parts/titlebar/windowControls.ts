@@ -1,8 +1,5 @@
-import { jsx } from 'react/jsx-runtime';
-import { Copy, Minus, Square, X } from 'lucide-react';
 import type { WindowControlAction } from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import { Button } from '../../../../base/browser/ui/button/button';
-import './media/titlebar.css';
+import { createButtonView } from '../../../../base/browser/ui/button/button.js';
 
 export type WindowControlsAction = Extract<
   WindowControlAction,
@@ -19,105 +16,137 @@ export type WindowControlsLabels = {
   closeLabel?: string;
 };
 
-type WindowControlsGroupProps = {
+export type WindowControlsGroupProps = {
   labels?: WindowControlsLabels;
   isWindowMaximized?: boolean;
-  controls?: ReadonlyArray<WindowControlsItem>;
   className?: string;
-  buttonClassName?: string;
-  closeButtonClassName?: string;
   onWindowControl: (action: WindowControlsAction) => void;
 };
 
-const DEFAULT_CONTROLS: ReadonlyArray<WindowControlsItem> = ['minimize', 'toggle-maximize', 'close'];
-const DEFAULT_CONTROL_LABELS: Required<Omit<WindowControlsLabels, 'controlsAriaLabel'>> = {
+const DEFAULT_CONTROL_LABELS: Required<
+  Omit<WindowControlsLabels, 'controlsAriaLabel'>
+> = {
   minimizeLabel: 'Minimize',
   maximizeLabel: 'Maximize',
   restoreLabel: 'Restore',
   closeLabel: 'Close',
 };
 
-function renderWindowControlButton({
-  key,
-  className,
-  label,
-  onClick,
-  icon,
-}: {
-  key: string;
-  className: string;
-  label: string;
-  onClick: () => void;
-  icon: ReturnType<typeof jsx>;
-}) {
-  return jsx(
-    Button,
-    {
-      className,
-      variant: 'ghost',
-      size: 'sm',
-      mode: 'icon',
-      iconMode: 'with',
-      textMode: 'without',
-      onClick,
-      'aria-label': label,
-      title: label,
-      children: icon,
-    },
-    key,
-  );
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
 }
 
-export function WindowControlsGroup({
-  labels,
-  isWindowMaximized = false,
-  controls = DEFAULT_CONTROLS,
-  className = 'titlebar-window-controls',
-  buttonClassName = 'titlebar-btn titlebar-btn-window',
-  closeButtonClassName = 'titlebar-btn titlebar-btn-window titlebar-btn-close',
-  onWindowControl,
-}: WindowControlsGroupProps) {
-  const resolvedLabels = {
-    ...DEFAULT_CONTROL_LABELS,
-    ...labels,
-  };
+export class WindowControlsView {
+  private props: WindowControlsGroupProps;
+  private readonly element = createElement('div');
+  private readonly controlViews: Array<ReturnType<typeof createButtonView>> = [];
 
-  return jsx('div', {
-    className,
-    role: 'group',
-    'aria-label': labels?.controlsAriaLabel ?? resolvedLabels.closeLabel,
-    children: controls.map((control) => {
-      if (control === 'minimize') {
-        return renderWindowControlButton({
-          key: `window-control-${control}`,
-          className: buttonClassName,
-          label: resolvedLabels.minimizeLabel,
-          onClick: () => onWindowControl('minimize'),
-          icon: jsx(Minus, { size: 16, strokeWidth: 1.8 }),
-        });
-      }
+  constructor(props: WindowControlsGroupProps) {
+    this.props = props;
+    this.render();
+  }
 
-      if (control === 'toggle-maximize') {
-        return renderWindowControlButton({
-          key: `window-control-${control}`,
-          className: buttonClassName,
-          label: isWindowMaximized ? resolvedLabels.restoreLabel : resolvedLabels.maximizeLabel,
-          onClick: () => onWindowControl('toggle-maximize'),
-          icon: isWindowMaximized
-            ? jsx(Copy, { size: 16, strokeWidth: 1.8 })
-            : jsx(Square, { size: 14, strokeWidth: 1.8 }),
-        });
-      }
+  getElement() {
+    return this.element;
+  }
 
-      return renderWindowControlButton({
-        key: `window-control-${control}`,
-        className: closeButtonClassName,
-        label: resolvedLabels.closeLabel,
+  setProps(props: WindowControlsGroupProps) {
+    this.props = props;
+    this.render();
+  }
+
+  dispose() {
+    this.disposeControlViews();
+    this.element.replaceChildren();
+  }
+
+  private render() {
+    const {
+      labels,
+      isWindowMaximized = false,
+      className = 'titlebar-window-controls',
+      onWindowControl,
+    } = this.props;
+    const resolvedLabels = {
+      ...DEFAULT_CONTROL_LABELS,
+      ...labels,
+    };
+
+    this.element.className = className;
+    this.element.setAttribute('role', 'group');
+    this.element.setAttribute(
+      'aria-label',
+      labels?.controlsAriaLabel ?? resolvedLabels.closeLabel,
+    );
+    this.disposeControlViews();
+
+    const minimizeButton = this.trackControlView(
+      createButtonView({
+        className: 'titlebar-btn titlebar-btn-window',
+        variant: 'ghost',
+        size: 'md',
+        mode: 'icon',
+        ariaLabel: resolvedLabels.minimizeLabel,
+        title: resolvedLabels.minimizeLabel,
+        content: '-',
+        onClick: () => onWindowControl('minimize'),
+      }),
+    );
+    const maximizeButton = this.trackControlView(
+      createButtonView({
+        className: 'titlebar-btn titlebar-btn-window',
+        variant: 'ghost',
+        size: 'md',
+        mode: 'icon',
+        ariaLabel: isWindowMaximized
+          ? resolvedLabels.restoreLabel
+          : resolvedLabels.maximizeLabel,
+        title: isWindowMaximized
+          ? resolvedLabels.restoreLabel
+          : resolvedLabels.maximizeLabel,
+        content: isWindowMaximized ? 'o' : '[]',
+        onClick: () => onWindowControl('toggle-maximize'),
+      }),
+    );
+    const closeButton = this.trackControlView(
+      createButtonView({
+        className: 'titlebar-btn titlebar-btn-window titlebar-btn-close',
+        variant: 'ghost',
+        size: 'md',
+        mode: 'icon',
+        ariaLabel: resolvedLabels.closeLabel,
+        title: resolvedLabels.closeLabel,
+        content: 'x',
         onClick: () => onWindowControl('close'),
-        icon: jsx(X, { size: 16, strokeWidth: 1.8 }),
-      });
-    }),
-  });
+      }),
+    );
+
+    this.element.replaceChildren(
+      minimizeButton.getElement(),
+      maximizeButton.getElement(),
+      closeButton.getElement(),
+    );
+  }
+
+  private trackControlView(view: ReturnType<typeof createButtonView>) {
+    this.controlViews.push(view);
+    return view;
+  }
+
+  private disposeControlViews() {
+    while (this.controlViews.length > 0) {
+      this.controlViews.pop()?.dispose();
+    }
+  }
 }
 
-export default WindowControlsGroup;
+export function createWindowControlsView(props: WindowControlsGroupProps) {
+  return new WindowControlsView(props);
+}

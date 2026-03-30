@@ -1,7 +1,4 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { formatDateInputValue, isDateRangeValid } from '../../../common/date';
+import { formatDateInputValue, isDateRangeValid } from '../../../common/date.js';
 import './dateRangePicker.css';
 
 export type DateRangePickerLabels = {
@@ -16,7 +13,7 @@ export type DateRangePickerProps = {
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   className?: string;
-  triggerIcon?: ReactNode;
+  triggerIcon?: Node | string | number | null;
 };
 
 type PickerField = 'start' | 'end';
@@ -27,33 +24,44 @@ type CalendarCell = {
   inCurrentMonth: boolean;
 };
 
-type CalendarPopupConfig = {
-  isOpen: boolean;
-  label: string;
-  popupRef: RefObject<HTMLDivElement | null>;
-  monthTitle: string;
-  monthCells: CalendarCell[];
-  onStepMonth: (offset: number) => void;
-  onSelectDate: (value: string) => void;
-  isCellDisabled: (cell: CalendarCell) => boolean;
-  activeField: PickerField;
-  onActivateField: (field: PickerField) => void;
-  startDate: string;
-  endDate: string;
-  startLabel: string;
-  endLabel: string;
-  showRange: boolean;
-  todayValue: string;
-  weekdayLabels: string[];
-};
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
-type TriggerButtonConfig = {
-  label: string;
-  isOpen: boolean;
-  triggerRef: RefObject<HTMLButtonElement | null>;
-  onToggle: () => void;
-  icon?: ReactNode;
-};
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+  textContent?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (textContent !== undefined) {
+    element.textContent = textContent;
+  }
+  return element;
+}
+
+function createChevronIcon(direction: 'left' | 'right') {
+  const icon = document.createElementNS(SVG_NS, 'svg');
+  icon.setAttribute('viewBox', '0 0 16 16');
+  icon.setAttribute('width', '16');
+  icon.setAttribute('height', '16');
+  icon.setAttribute('aria-hidden', 'true');
+
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute(
+    'd',
+    direction === 'left' ? 'M10 3.5L5.5 8 10 12.5' : 'M6 3.5L10.5 8 6 12.5',
+  );
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.8');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  icon.append(path);
+
+  return icon;
+}
 
 function parseDateValue(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -89,7 +97,6 @@ function createMonthCells(visibleMonth: Date): CalendarCell[] {
   for (let index = 0; index < 42; index += 1) {
     const offset = index - startWeekday;
     const cellDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1 + offset);
-
     cells.push({
       date: cellDate,
       value: formatDateInputValue(cellDate),
@@ -98,15 +105,6 @@ function createMonthCells(visibleMonth: Date): CalendarCell[] {
   }
 
   return cells;
-}
-
-function formatMonthTitle(visibleMonth: Date) {
-  const formatter = new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'long',
-  });
-
-  return formatter.format(visibleMonth);
 }
 
 function createWeekdayLabels() {
@@ -120,15 +118,24 @@ function createWeekdayLabels() {
   });
 }
 
+function formatMonthTitle(visibleMonth: Date) {
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'long',
+  });
+  return formatter.format(visibleMonth);
+}
+
 function createTriggerLabel(labels: DateRangePickerLabels) {
+  const chineseDateToken = '\u65e5\u671f';
   if (
-    labels.startDate.includes('\u65e5\u671f') ||
-    labels.endDate.includes('\u65e5\u671f') ||
+    labels.startDate.includes(chineseDateToken) ||
+    labels.endDate.includes(chineseDateToken) ||
     /\bdate\b/i.test(labels.startDate) ||
     /\bdate\b/i.test(labels.endDate)
   ) {
-    return labels.startDate.includes('\u65e5\u671f') || labels.endDate.includes('\u65e5\u671f')
-      ? '\u65e5\u671f'
+    return labels.startDate.includes(chineseDateToken) || labels.endDate.includes(chineseDateToken)
+      ? chineseDateToken
       : 'Date';
   }
 
@@ -148,304 +155,295 @@ function formatSelectedDate(value: string) {
   }).format(parsed);
 }
 
-function renderWeekdayRow(weekdayLabels: string[]) {
-  return jsx('div', {
-    className: 'date-range-weekdays',
-    children: weekdayLabels.map((weekday) =>
-      jsx('span', { className: 'date-range-weekday', children: weekday }, weekday),
-    ),
-  });
-}
-
-function renderCalendarGrid({
-  monthCells,
-  startDate,
-  endDate,
-  showRange,
-  todayValue,
-  onSelectDate,
-  isCellDisabled,
-}: Pick<
-  CalendarPopupConfig,
-  'monthCells' | 'startDate' | 'endDate' | 'showRange' | 'todayValue' | 'onSelectDate' | 'isCellDisabled'
->) {
-  return jsx('div', {
-    className: 'date-range-grid',
-    children: monthCells.map((cell) => {
-      const isStart = cell.value === startDate;
-      const isEnd = cell.value === endDate;
-      const isInRange = showRange && cell.value > startDate && cell.value < endDate;
-      const isToday = cell.value === todayValue;
-      const isDisabled = isCellDisabled(cell);
-      const dayClassName = [
-        'date-range-day',
-        cell.inCurrentMonth ? '' : 'is-outside',
-        isStart ? 'is-start' : '',
-        isEnd ? 'is-end' : '',
-        isInRange ? 'is-in-range' : '',
-        isToday ? 'is-today' : '',
-        isDisabled ? 'is-disabled' : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
-
-      return jsx(
-        'button',
-        {
-          type: 'button',
-          className: dayClassName,
-          disabled: isDisabled,
-          onClick: () => onSelectDate(cell.value),
-          'aria-pressed': isStart || isEnd,
-          children: cell.date.getDate(),
-        },
-        cell.value,
-      );
-    }),
-  });
-}
-
-function renderSummaryButton({
-  label,
-  value,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  return jsxs('button', {
-    type: 'button',
-    className: `date-range-summary-button ${isActive ? 'is-active' : ''}`.trim(),
-    onClick,
-    children: [
-      jsx('span', { className: 'date-range-summary-label', children: label }),
-      jsx('span', { className: 'date-range-summary-value', children: formatSelectedDate(value) }),
-    ],
-  });
-}
-
-function renderCalendarPopup(config: CalendarPopupConfig) {
-  if (!config.isOpen) {
-    return null;
+function appendTriggerIcon(target: HTMLElement, icon: DateRangePickerProps['triggerIcon']) {
+  target.replaceChildren();
+  if (icon === null || icon === undefined) {
+    return;
   }
 
-  return jsxs('div', {
-    ref: config.popupRef,
-    className: 'date-range-popup',
-    role: 'dialog',
-    'aria-modal': 'false',
-    'aria-label': config.label,
-    children: [
-      jsxs('div', {
-        className: 'date-range-popup-summary',
-        children: [
-          renderSummaryButton({
-            label: config.startLabel,
-            value: config.startDate,
-            isActive: config.activeField === 'start',
-            onClick: () => config.onActivateField('start'),
-          }),
-          renderSummaryButton({
-            label: config.endLabel,
-            value: config.endDate,
-            isActive: config.activeField === 'end',
-            onClick: () => config.onActivateField('end'),
-          }),
-        ],
-      }),
-      jsxs('div', {
-        className: 'date-range-popup-header',
-        children: [
-          jsx('button', {
-            type: 'button',
-            className: 'date-range-month-nav',
-            onClick: () => config.onStepMonth(-1),
-            children: jsx(ChevronLeft, { size: 16, strokeWidth: 2 }),
-          }),
-          jsx('div', { className: 'date-range-month-title', children: config.monthTitle }),
-          jsx('button', {
-            type: 'button',
-            className: 'date-range-month-nav',
-            onClick: () => config.onStepMonth(1),
-            children: jsx(ChevronRight, { size: 16, strokeWidth: 2 }),
-          }),
-        ],
-      }),
-      renderWeekdayRow(config.weekdayLabels),
-      renderCalendarGrid(config),
-    ],
-  });
+  if (icon instanceof Node) {
+    target.append(icon.cloneNode(true));
+    return;
+  }
+
+  target.textContent = String(icon);
 }
 
-function renderTriggerButton(config: TriggerButtonConfig) {
-  return jsx('button', {
-    ref: config.triggerRef,
-    type: 'button',
-    className: `date-range-trigger ${config.isOpen ? 'is-active' : ''}`.trim(),
-    'aria-label': config.label,
-    'aria-expanded': config.isOpen,
-    'aria-haspopup': 'dialog',
-    onClick: config.onToggle,
-    children: jsxs('span', {
-      className: 'date-range-trigger-content',
-      children: [
-        config.icon
-          ? jsx('span', { className: 'date-range-trigger-icon', 'aria-hidden': 'true', children: config.icon })
-          : null,
-        jsx('span', { className: 'date-range-trigger-text', children: config.label }),
-      ],
-    }),
-  });
-}
+export class DateRangePickerView {
+  private props: DateRangePickerProps;
+  private isOpen = false;
+  private activeField: PickerField = 'start';
+  private visibleMonth: Date;
+  private readonly weekdayLabels = createWeekdayLabels();
+  private readonly todayValue = formatDateInputValue(new Date());
+  private readonly element = createElement('div', 'date-range-picker');
+  private readonly trigger = createElement('button', 'date-range-trigger');
+  private readonly triggerContent = createElement('span', 'date-range-trigger-content');
+  private readonly triggerIcon = createElement('span', 'date-range-trigger-icon');
+  private readonly triggerText = createElement('span', 'date-range-trigger-text');
+  private popup: HTMLDivElement | null = null;
+  private removeOutsideHandlers = () => {};
+  private disposed = false;
 
-export function DateRangePicker({
-  startDate,
-  endDate,
-  labels,
-  onStartDateChange,
-  onEndDateChange,
-  className = '',
-  triggerIcon,
-}: DateRangePickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeField, setActiveField] = useState<PickerField>('start');
-  const [visibleMonth, setVisibleMonth] = useState(() => {
+  constructor(props: DateRangePickerProps) {
+    this.props = this.normalizeProps(props);
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
+    this.visibleMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const popupRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
+    this.trigger.type = 'button';
+    this.trigger.setAttribute('aria-haspopup', 'dialog');
+    this.trigger.addEventListener('click', this.handleTriggerClick);
+    this.triggerContent.append(this.triggerIcon, this.triggerText);
+    this.trigger.append(this.triggerContent);
+    this.element.append(this.trigger);
 
-  const triggerLabel = createTriggerLabel(labels);
-  const monthCells = useMemo(() => createMonthCells(visibleMonth), [visibleMonth]);
-  const monthTitle = useMemo(() => formatMonthTitle(visibleMonth), [visibleMonth]);
-  const weekdayLabels = useMemo(() => createWeekdayLabels(), []);
-  const todayValue = useMemo(() => formatDateInputValue(new Date()), []);
-  const pickerClassName = ['date-range-picker', className].filter(Boolean).join(' ');
-  const showRange = Boolean(startDate && endDate && isDateRangeValid(startDate, endDate));
-  const startDateLimit = parseDateValue(startDate) ? startDate : '';
-  const endDateLimit = parseDateValue(endDate) ? endDate : '';
+    this.render();
+  }
 
-  useEffect(() => {
-    if (!isOpen) {
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: DateRangePickerProps) {
+    this.props = this.normalizeProps(props);
+    this.render();
+  }
+
+  focus() {
+    this.trigger.focus();
+  }
+
+  dispose() {
+    if (this.disposed) {
       return;
     }
+    this.disposed = true;
+    this.setOpen(false);
+    this.trigger.removeEventListener('click', this.handleTriggerClick);
+    this.element.replaceChildren();
+  }
 
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) {
-        return;
-      }
+  private readonly handleTriggerClick = () => {
+    this.setOpen(!this.isOpen);
+  };
 
-      if (!rootRef.current?.contains(target)) {
-        setIsOpen(false);
-      }
+  private readonly handlePointerDown = (event: MouseEvent) => {
+    if (!(event.target instanceof Node)) {
+      return;
+    }
+    if (!this.element.contains(event.target)) {
+      this.setOpen(false);
+    }
+  };
+
+  private readonly handleEscape = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      this.setOpen(false);
+    }
+  };
+
+  private normalizeProps(props: DateRangePickerProps): DateRangePickerProps {
+    return {
+      ...props,
+      className: props.className ?? '',
+      triggerIcon: props.triggerIcon ?? null,
     };
+  }
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen]);
-
-  const resolveFieldMonth = (field: PickerField): Date => {
-    const value = field === 'start' ? startDate : endDate;
-    const fallback = field === 'start' ? endDate : startDate;
+  private resolveFieldMonth(field: PickerField) {
+    const value = field === 'start' ? this.props.startDate : this.props.endDate;
+    const fallback = field === 'start' ? this.props.endDate : this.props.startDate;
     const parsed = parseDateValue(value) ?? parseDateValue(fallback) ?? new Date();
     return new Date(parsed.getFullYear(), parsed.getMonth(), 1);
-  };
+  }
 
-  const handleToggle = () => {
-    setIsOpen((previous) => {
-      const next = !previous;
-      if (next) {
-        setVisibleMonth(resolveFieldMonth(activeField));
-      }
-      return next;
-    });
-  };
-
-  const handleActivateField = (field: PickerField) => {
-    setActiveField(field);
-    setVisibleMonth(resolveFieldMonth(field));
-  };
-
-  const handleSelectDate = (value: string) => {
-    if (activeField === 'start') {
-      onStartDateChange(value);
-
-      if (endDateLimit && value > endDateLimit) {
-        onEndDateChange(value);
-      }
-
-      handleActivateField('end');
+  private setOpen(nextOpen: boolean) {
+    if (this.isOpen === nextOpen) {
       return;
     }
 
-    onEndDateChange(value);
-
-    if (startDateLimit && value < startDateLimit) {
-      onStartDateChange(value);
+    this.isOpen = nextOpen;
+    if (nextOpen) {
+      this.visibleMonth = this.resolveFieldMonth(this.activeField);
+      document.addEventListener('mousedown', this.handlePointerDown);
+      document.addEventListener('keydown', this.handleEscape);
+      this.removeOutsideHandlers = () => {
+        document.removeEventListener('mousedown', this.handlePointerDown);
+        document.removeEventListener('keydown', this.handleEscape);
+      };
+    } else {
+      this.removeOutsideHandlers();
+      this.removeOutsideHandlers = () => {};
     }
 
-    setIsOpen(false);
-  };
+    this.render();
+  }
 
-  const stepMonth = (offset: number) => {
-    setVisibleMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + offset, 1));
-  };
+  private stepMonth(offset: number) {
+    this.visibleMonth = new Date(
+      this.visibleMonth.getFullYear(),
+      this.visibleMonth.getMonth() + offset,
+      1,
+    );
+    this.renderPopup();
+  }
 
-  const popupView = renderCalendarPopup({
-    isOpen,
-    label: triggerLabel,
-    popupRef,
-    monthTitle,
-    monthCells,
-    onStepMonth: stepMonth,
-    onSelectDate: handleSelectDate,
-    isCellDisabled: (cell) =>
-      activeField === 'start'
-        ? Boolean((endDateLimit && cell.value > endDateLimit) || cell.value > todayValue)
-        : Boolean((startDateLimit && cell.value < startDateLimit) || cell.value > todayValue),
-    activeField,
-    onActivateField: handleActivateField,
-    startDate,
-    endDate,
-    startLabel: labels.startDate,
-    endLabel: labels.endDate,
-    showRange,
-    todayValue,
-    weekdayLabels,
-  });
+  private activateField(field: PickerField) {
+    this.activeField = field;
+    this.visibleMonth = this.resolveFieldMonth(field);
+    this.renderPopup();
+  }
 
-  return jsxs('div', {
-    ref: rootRef,
-    className: pickerClassName,
-    children: [
-      renderTriggerButton({
-        label: triggerLabel,
-        isOpen,
-        triggerRef,
-        onToggle: handleToggle,
-        icon: triggerIcon,
+  private handleSelectDate(value: string) {
+    const startDateLimit = parseDateValue(this.props.startDate) ? this.props.startDate : '';
+    const endDateLimit = parseDateValue(this.props.endDate) ? this.props.endDate : '';
+
+    if (this.activeField === 'start') {
+      this.props.onStartDateChange(value);
+      if (endDateLimit && value > endDateLimit) {
+        this.props.onEndDateChange(value);
+      }
+      this.activeField = 'end';
+      const parsed = parseDateValue(value);
+      if (parsed) {
+        this.visibleMonth = new Date(parsed.getFullYear(), parsed.getMonth(), 1);
+      }
+      this.render();
+      return;
+    }
+
+    this.props.onEndDateChange(value);
+    if (startDateLimit && value < startDateLimit) {
+      this.props.onStartDateChange(value);
+    }
+    this.setOpen(false);
+  }
+
+  private isCellDisabled(cell: CalendarCell) {
+    const startDateLimit = parseDateValue(this.props.startDate) ? this.props.startDate : '';
+    const endDateLimit = parseDateValue(this.props.endDate) ? this.props.endDate : '';
+
+    if (this.activeField === 'start') {
+      return Boolean((endDateLimit && cell.value > endDateLimit) || cell.value > this.todayValue);
+    }
+
+    return Boolean((startDateLimit && cell.value < startDateLimit) || cell.value > this.todayValue);
+  }
+
+  private renderSummaryButton(field: PickerField, label: string, value: string) {
+    const button = createElement(
+      'button',
+      `date-range-summary-button ${this.activeField === field ? 'is-active' : ''}`.trim(),
+    );
+    button.type = 'button';
+    button.append(
+      createElement('span', 'date-range-summary-label', label),
+      createElement('span', 'date-range-summary-value', formatSelectedDate(value)),
+    );
+    button.addEventListener('click', () => this.activateField(field));
+    return button;
+  }
+
+  private renderPopup() {
+    this.popup?.remove();
+    this.popup = null;
+
+    if (!this.isOpen) {
+      return;
+    }
+
+    const popup = createElement('div', 'date-range-popup');
+    popup.setAttribute('role', 'dialog');
+    popup.setAttribute('aria-modal', 'false');
+    popup.setAttribute('aria-label', createTriggerLabel(this.props.labels));
+
+    const summary = createElement('div', 'date-range-popup-summary');
+    summary.append(
+      this.renderSummaryButton('start', this.props.labels.startDate, this.props.startDate),
+      this.renderSummaryButton('end', this.props.labels.endDate, this.props.endDate),
+    );
+
+    const header = createElement('div', 'date-range-popup-header');
+    const prevButton = createElement('button', 'date-range-month-nav');
+    prevButton.type = 'button';
+    prevButton.append(createChevronIcon('left'));
+    prevButton.addEventListener('click', () => this.stepMonth(-1));
+
+    const title = createElement('div', 'date-range-month-title', formatMonthTitle(this.visibleMonth));
+
+    const nextButton = createElement('button', 'date-range-month-nav');
+    nextButton.type = 'button';
+    nextButton.append(createChevronIcon('right'));
+    nextButton.addEventListener('click', () => this.stepMonth(1));
+    header.append(prevButton, title, nextButton);
+
+    const weekdays = createElement('div', 'date-range-weekdays');
+    weekdays.append(
+      ...this.weekdayLabels.map((weekday) => createElement('span', 'date-range-weekday', weekday)),
+    );
+
+    const showRange = Boolean(
+      this.props.startDate &&
+        this.props.endDate &&
+        isDateRangeValid(this.props.startDate, this.props.endDate),
+    );
+    const grid = createElement('div', 'date-range-grid');
+    grid.append(
+      ...createMonthCells(this.visibleMonth).map((cell) => {
+        const isStart = cell.value === this.props.startDate;
+        const isEnd = cell.value === this.props.endDate;
+        const isInRange = showRange && cell.value > this.props.startDate && cell.value < this.props.endDate;
+        const isToday = cell.value === this.todayValue;
+        const disabled = this.isCellDisabled(cell);
+
+        const day = createElement(
+          'button',
+          [
+            'date-range-day',
+            cell.inCurrentMonth ? '' : 'is-outside',
+            isStart ? 'is-start' : '',
+            isEnd ? 'is-end' : '',
+            isInRange ? 'is-in-range' : '',
+            isToday ? 'is-today' : '',
+            disabled ? 'is-disabled' : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+          String(cell.date.getDate()),
+        );
+        day.type = 'button';
+        day.disabled = disabled;
+        day.setAttribute('aria-pressed', String(isStart || isEnd));
+        day.addEventListener('click', () => this.handleSelectDate(cell.value));
+        return day;
       }),
-      popupView,
-    ],
-  });
+    );
+
+    popup.append(summary, header, weekdays, grid);
+    this.popup = popup;
+    this.element.append(popup);
+  }
+
+  private render() {
+    this.element.className = ['date-range-picker', this.props.className].filter(Boolean).join(' ');
+
+    const triggerLabel = createTriggerLabel(this.props.labels);
+    this.trigger.className = `date-range-trigger ${this.isOpen ? 'is-active' : ''}`.trim();
+    this.trigger.setAttribute('aria-label', triggerLabel);
+    this.trigger.setAttribute('aria-expanded', String(this.isOpen));
+
+    if (this.props.triggerIcon === null || this.props.triggerIcon === undefined) {
+      this.triggerIcon.style.display = 'none';
+    } else {
+      this.triggerIcon.style.display = '';
+      appendTriggerIcon(this.triggerIcon, this.props.triggerIcon);
+    }
+    this.triggerText.textContent = triggerLabel;
+
+    this.renderPopup();
+  }
 }
 
-export default DateRangePicker;
+export function createDateRangePickerView(props: DateRangePickerProps) {
+  return new DateRangePickerView(props);
+}

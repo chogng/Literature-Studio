@@ -1,64 +1,71 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
 import type { EditorStatusItem, EditorStatusState } from './editorStatus';
 
-type EditorStatusViewProps = {
-  status: EditorStatusState;
-};
-
-function renderStatusItem(item: EditorStatusItem) {
-  return jsxs(
-    'span',
-    {
-      className: ['editor-statusbar-item', item.tone ? `is-${item.tone}` : '']
-        .filter(Boolean)
-        .join(' '),
-      children: [
-        jsx('span', {
-          className: 'editor-statusbar-item-label',
-          children: item.label,
-        }),
-        jsx('span', {
-          className: 'editor-statusbar-item-value',
-          title: item.value,
-          children: item.value,
-        }),
-      ],
-    },
-    item.id,
-  );
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
 }
 
-export function EditorStatusView({ status }: EditorStatusViewProps) {
-  return jsxs('footer', {
-    className: ['editor-statusbar', `is-kind-${status.kind}`].join(' '),
-    role: 'status',
-    'aria-label': status.ariaLabel,
-    children: [
-      jsxs('div', {
-        className: 'editor-statusbar-group is-primary',
-        children: [
-          status.modeLabel
-            ? jsx('span', {
-                className: 'editor-statusbar-mode-pill',
-                children: status.modeLabel,
-              })
-            : null,
-          status.summary
-            ? jsx('span', {
-                className: 'editor-statusbar-summary',
-                title: status.summary,
-                children: status.summary,
-              })
-            : null,
-          ...status.leftItems.map(renderStatusItem),
-        ],
-      }),
-      jsx('div', {
-        className: 'editor-statusbar-group is-secondary',
-        children: status.rightItems.map(renderStatusItem),
-      }),
-    ],
-  });
+function renderStatusItem(item: EditorStatusItem) {
+  const element = createElement(
+    'span',
+    ['editor-statusbar-item', item.tone ? `is-${item.tone}` : '']
+      .filter(Boolean)
+      .join(' '),
+  );
+  const label = createElement('span', 'editor-statusbar-item-label');
+  label.textContent = item.label;
+  const value = createElement('span', 'editor-statusbar-item-value');
+  value.title = item.value;
+  value.textContent = item.value;
+  element.append(label, value);
+  return element;
+}
+
+export class EditorStatusView {
+  private readonly element = createElement('footer');
+
+  constructor(status: EditorStatusState) {
+    this.setStatus(status);
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setStatus(status: EditorStatusState) {
+    this.element.className = ['editor-statusbar', `is-kind-${status.kind}`].join(' ');
+    this.element.setAttribute('role', 'status');
+    this.element.setAttribute('aria-label', status.ariaLabel);
+
+    const primary = createElement('div', 'editor-statusbar-group is-primary');
+    if (status.modeLabel) {
+      const mode = createElement('span', 'editor-statusbar-mode-pill');
+      mode.textContent = status.modeLabel;
+      primary.append(mode);
+    }
+    if (status.summary) {
+      const summary = createElement('span', 'editor-statusbar-summary');
+      summary.title = status.summary;
+      summary.textContent = status.summary;
+      primary.append(summary);
+    }
+    for (const item of status.leftItems) {
+      primary.append(renderStatusItem(item));
+    }
+
+    const secondary = createElement('div', 'editor-statusbar-group is-secondary');
+    for (const item of status.rightItems) {
+      secondary.append(renderStatusItem(item));
+    }
+
+    this.element.replaceChildren(primary, secondary);
+  }
 }
 
 export default EditorStatusView;

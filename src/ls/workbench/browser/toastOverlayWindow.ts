@@ -1,8 +1,7 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
-
-import type { NativeToastState, NativeToastType } from '../../base/parts/sandbox/common/desktopTypes.js';
+import type {
+  NativeToastState,
+  NativeToastType,
+} from '../../base/parts/sandbox/common/desktopTypes.js';
 import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
 import '../../base/browser/ui/toast/toast.css';
 import './media/toastOverlayWindow.css';
@@ -11,180 +10,199 @@ const fallbackToastState: NativeToastState = {
   items: [],
 };
 
-function normalizeToastState(state: NativeToastState | null | undefined): NativeToastState {
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+  textContent?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (textContent !== undefined) {
+    element.textContent = textContent;
+  }
+  return element;
+}
+
+function normalizeToastState(
+  state: NativeToastState | null | undefined,
+): NativeToastState {
   if (!state || !Array.isArray(state.items)) {
     return fallbackToastState;
   }
 
   return {
     items: state.items
-      .filter((item) => typeof item?.id === 'number' && typeof item?.message === 'string')
+      .filter(
+        (item) =>
+          typeof item?.id === 'number' && typeof item?.message === 'string',
+      )
       .map((item) => ({
         id: item.id,
         message: item.message,
         type:
-          item.type === 'success' || item.type === 'error' || item.type === 'warning'
+          item.type === 'success' ||
+          item.type === 'error' ||
+          item.type === 'warning'
             ? item.type
             : ('info' as const),
       })),
   };
 }
 
-function getToastIcon(type: NativeToastType) {
-  const iconProps = {
-    size: 18,
-    strokeWidth: 2,
-  } as const;
-
+function getToastIconText(type: NativeToastType) {
   switch (type) {
     case 'success':
-      return jsx(CheckCircle2, { ...iconProps, color: '#10b981' });
+      return 'OK';
     case 'error':
-      return jsx(AlertCircle, { ...iconProps, color: '#ef4444' });
+      return '!';
     case 'warning':
-      return jsx(AlertTriangle, { ...iconProps, color: '#f59e0b' });
+      return '!';
     default:
-      return jsx(Info, { ...iconProps, color: '#0a5fbf' });
+      return 'i';
   }
 }
 
-export default function ToastOverlayWindow() {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const [toastState, setToastState] = useState<NativeToastState>(fallbackToastState);
-  const ui = useMemo(() => getLocaleMessages(detectInitialLocale()), []);
-  const toastApi = window.electronAPI?.toast;
+export class ToastOverlayWindowView {
+  private readonly element = createElement('main', 'native-toast-overlay-page');
+  private readonly stackElement = createElement(
+    'div',
+    'native-toast-overlay-stack native-toast-overlay-stack-empty',
+  );
+  private readonly ui = getLocaleMessages(detectInitialLocale());
+  private readonly toastApi = window.electronAPI?.toast;
+  private toastState: NativeToastState = fallbackToastState;
+  private resizeObserver: ResizeObserver | null = null;
+  private readonly handleResize = () => {
+    this.reportLayout();
+  };
+  private readonly disposeListener =
+    typeof this.toastApi?.onStateChange === 'function'
+      ? this.toastApi.onStateChange((state) => {
+          this.toastState = normalizeToastState(state);
+          this.render();
+        })
+      : () => {};
 
-  useEffect(() => {
-    let mounted = true;
-    const applyState = (state: NativeToastState | null | undefined) => {
-      if (!mounted) {
-        return;
-      }
-
-      setToastState(normalizeToastState(state));
-    };
-
-    const disposeListener =
-      typeof toastApi?.onStateChange === 'function' ? toastApi.onStateChange(applyState) : () => {};
-
-    if (typeof toastApi?.getState === 'function') {
-      void toastApi.getState().then(applyState).catch(() => {
-        applyState(fallbackToastState);
-      });
-    } else {
-      applyState(fallbackToastState);
-    }
-
-    return () => {
-      mounted = false;
-      disposeListener();
-    };
-  }, [toastApi]);
-
-  useEffect(() => {
-    const host = rootRef.current;
-    if (!host || typeof toastApi?.reportLayout !== 'function') {
-      return;
-    }
-
-    const reportLayout = () => {
-      const toastItems = Array.from(host.querySelectorAll<HTMLElement>('.native-toast-item'));
-      if (toastItems.length === 0) {
-        toastApi.reportLayout({
-          width: 0,
-          height: 0,
-        });
-        return;
-      }
-
-      let minLeft = Number.POSITIVE_INFINITY;
-      let minTop = Number.POSITIVE_INFINITY;
-      let maxRight = Number.NEGATIVE_INFINITY;
-      let maxBottom = Number.NEGATIVE_INFINITY;
-
-      for (const item of toastItems) {
-        const rect = item.getBoundingClientRect();
-        minLeft = Math.min(minLeft, rect.left);
-        minTop = Math.min(minTop, rect.top);
-        maxRight = Math.max(maxRight, rect.right);
-        maxBottom = Math.max(maxBottom, rect.bottom);
-      }
-
-      toastApi.reportLayout({
-        width: Math.ceil(maxRight - minLeft),
-        height: Math.ceil(maxBottom - minTop),
-      });
-    };
-
-    reportLayout();
-
-    const observer = new ResizeObserver(() => {
-      reportLayout();
+  constructor() {
+    this.stackElement.addEventListener('mouseenter', () => {
+      this.toastApi?.setHovering(true);
     });
-    observer.observe(host);
-    window.addEventListener('resize', reportLayout);
+    this.stackElement.addEventListener('mouseleave', () => {
+      this.toastApi?.setHovering(false);
+    });
+    this.element.append(this.stackElement);
 
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', reportLayout);
-    };
-  }, [toastApi]);
+    if (typeof this.toastApi?.getState === 'function') {
+      void this.toastApi
+        .getState()
+        .then((state) => {
+          this.toastState = normalizeToastState(state);
+          this.render();
+        })
+        .catch(() => {
+          this.toastState = fallbackToastState;
+          this.render();
+        });
+    }
 
-  useEffect(() => {
-    if (toastState.items.length > 0) {
+    this.resizeObserver = new ResizeObserver(() => {
+      this.reportLayout();
+    });
+    this.resizeObserver.observe(this.stackElement);
+    window.addEventListener('resize', this.handleResize);
+    this.render();
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  dispose() {
+    this.disposeListener();
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    window.removeEventListener('resize', this.handleResize);
+    this.toastApi?.setHovering(false);
+    this.element.replaceChildren();
+  }
+
+  private reportLayout() {
+    if (typeof this.toastApi?.reportLayout !== 'function') {
       return;
     }
 
-    toastApi?.setHovering(false);
-  }, [toastApi, toastState.items.length]);
+    const toastItems = Array.from(
+      this.stackElement.querySelectorAll<HTMLElement>('.native-toast-item'),
+    );
+    if (toastItems.length === 0) {
+      this.toastApi.reportLayout({
+        width: 0,
+        height: 0,
+      });
+      return;
+    }
 
-  useEffect(() => {
-    return () => {
-      toastApi?.setHovering(false);
-    };
-  }, [toastApi]);
+    let minLeft = Number.POSITIVE_INFINITY;
+    let minTop = Number.POSITIVE_INFINITY;
+    let maxRight = Number.NEGATIVE_INFINITY;
+    let maxBottom = Number.NEGATIVE_INFINITY;
 
-  return jsx('main', {
-    className: 'native-toast-overlay-page',
-    children: jsx('div', {
-      ref: rootRef,
-      className: `native-toast-overlay-stack${
-        toastState.items.length === 0 ? ' native-toast-overlay-stack-empty' : ''
-      }`,
-      onMouseEnter: () => {
-        toastApi?.setHovering(true);
-      },
-      onMouseLeave: () => {
-        toastApi?.setHovering(false);
-      },
-      children: toastState.items.map((item) =>
-        jsxs(
+    for (const item of toastItems) {
+      const rect = item.getBoundingClientRect();
+      minLeft = Math.min(minLeft, rect.left);
+      minTop = Math.min(minTop, rect.top);
+      maxRight = Math.max(maxRight, rect.right);
+      maxBottom = Math.max(maxBottom, rect.bottom);
+    }
+
+    this.toastApi.reportLayout({
+      width: Math.ceil(maxRight - minLeft),
+      height: Math.ceil(maxBottom - minTop),
+    });
+  }
+
+  private render() {
+    this.stackElement.className = `native-toast-overlay-stack${
+      this.toastState.items.length === 0 ? ' native-toast-overlay-stack-empty' : ''
+    }`;
+
+    if (this.toastState.items.length === 0) {
+      this.toastApi?.setHovering(false);
+    }
+
+    this.stackElement.replaceChildren(
+      ...this.toastState.items.map((item) => {
+        const section = createElement(
           'section',
-          {
-            className: `toast-item toast-${item.type} native-toast-item`,
-            children: [
-              jsx('div', {
-                className: 'toast-icon',
-                children: getToastIcon(item.type),
-              }),
-              jsx('div', {
-                className: 'toast-content',
-                children: item.message,
-              }),
-              jsx('button', {
-                type: 'button',
-                className: 'toast-close native-toast-close',
-                'aria-label': ui.toastClose,
-                onClick: () => {
-                  window.electronAPI?.toast?.dismiss(item.id);
-                },
-                children: jsx(X, { size: 14 }),
-              }),
-            ],
-          },
-          item.id,
-        ),
-      ),
-    }),
-  });
+          `toast-item toast-${item.type} native-toast-item`,
+        );
+        const icon = createElement(
+          'div',
+          'toast-icon',
+          getToastIconText(item.type),
+        );
+        const content = createElement('div', 'toast-content', item.message);
+        const close = createElement(
+          'button',
+          'toast-close native-toast-close',
+          'x',
+        );
+        close.type = 'button';
+        close.setAttribute('aria-label', this.ui.toastClose);
+        close.addEventListener('click', () => {
+          this.toastApi?.dismiss(item.id);
+        });
+        section.append(icon, content, close);
+        return section;
+      }),
+    );
+
+    this.reportLayout();
+  }
+}
+
+export function createToastOverlayWindowView() {
+  return new ToastOverlayWindowView();
 }

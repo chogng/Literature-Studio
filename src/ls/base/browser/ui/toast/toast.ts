@@ -1,7 +1,3 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import { useEffect, useState } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
-import { Button } from '../button/button';
 import './toast.css';
 
 export type ToastType = 'info' | 'success' | 'error' | 'warning';
@@ -19,7 +15,7 @@ interface ToastItem extends ToastOptions {
 
 type ToastObserver = (toasts: ToastItem[]) => void;
 
-type ToastContainerProps = {
+type ToastContainerOptions = {
   closeLabel?: string;
 };
 
@@ -29,7 +25,24 @@ let toasts: ToastItem[] = [];
 const TOAST_EXIT_DURATION = 200;
 
 function notify() {
-  observers.forEach((observer) => observer([...toasts]));
+  for (const observer of observers) {
+    observer([...toasts]);
+  }
+}
+
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+  textContent?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (textContent !== undefined) {
+    element.textContent = textContent;
+  }
+  return element;
 }
 
 function createToastOptions(options: ToastOptions | string): ToastOptions {
@@ -45,28 +58,25 @@ function shouldUseNativeToastOverlay() {
     return false;
   }
 
-  if (new URLSearchParams(window.location.search).get('nativeOverlay') === 'toast') {
+  if (
+    new URLSearchParams(window.location.search).get('nativeOverlay') === 'toast'
+  ) {
     return false;
   }
 
   return typeof window.electronAPI?.toast?.show === 'function';
 }
 
-function getToastIcon(type: ToastType) {
-  const iconProps = {
-    size: 18,
-    strokeWidth: 2,
-  } as const;
-
+function getToastIconText(type: ToastType) {
   switch (type) {
     case 'success':
-      return jsx(CheckCircle2, { ...iconProps, color: '#10b981' });
+      return 'OK';
     case 'error':
-      return jsx(AlertCircle, { ...iconProps, color: '#ef4444' });
+      return '!';
     case 'warning':
-      return jsx(AlertTriangle, { ...iconProps, color: '#f59e0b' });
+      return '!';
     default:
-      return jsx(Info, { ...iconProps, color: '#0a5fbf' });
+      return 'i';
   }
 }
 
@@ -76,7 +86,9 @@ function dismissToast(id: number) {
     return;
   }
 
-  toasts = toasts.map((item) => (item.id === id ? { ...item, isExiting: true } : item));
+  toasts = toasts.map((item) =>
+    item.id === id ? { ...item, isExiting: true } : item,
+  );
   notify();
 
   setTimeout(() => {
@@ -95,7 +107,6 @@ export const toast = {
 
     const id = ++toastId;
     const newToast: ToastItem = { ...defaultOptions, id, isExiting: false };
-
     toasts.push(newToast);
     notify();
 
@@ -119,49 +130,58 @@ export const toast = {
 };
 
 function renderToastItem(item: ToastItem, closeLabel: string) {
-  return jsxs(
+  const toastElement = createElement(
     'div',
-    {
-      className: `toast-item toast-${item.type}${item.isExiting ? ' exit' : ''}`,
-      children: [
-        jsx('div', {
-          className: 'toast-icon',
-          children: getToastIcon(item.type || 'info'),
-        }),
-        jsx('div', { className: 'toast-content', children: item.message }),
-        jsx(Button, {
-          className: 'toast-close',
-          variant: 'ghost',
-          size: 'sm',
-          mode: 'icon',
-          iconMode: 'with',
-          textMode: 'without',
-          onClick: () => dismissToast(item.id),
-          'aria-label': closeLabel,
-          children: jsx(X, { size: 14 }),
-        }),
-      ],
-    },
-    item.id,
+    `toast-item toast-${item.type}${item.isExiting ? ' exit' : ''}`,
   );
+  const icon = createElement('div', 'toast-icon', getToastIconText(item.type || 'info'));
+  const content = createElement('div', 'toast-content', item.message);
+  const closeButton = createElement('button', 'toast-close', 'x');
+  closeButton.type = 'button';
+  closeButton.setAttribute('aria-label', closeLabel);
+  closeButton.addEventListener('click', () => dismissToast(item.id));
+  toastElement.append(icon, content, closeButton);
+  return toastElement;
 }
 
-export function ToastContainer({ closeLabel = 'Close' }: ToastContainerProps) {
-  const [currentToasts, setCurrentToasts] = useState<ToastItem[]>([]);
+export class ToastContainerView {
+  private readonly element = createElement('div', 'toast-container');
+  private closeLabel: string;
+  private readonly observer: ToastObserver;
 
-  useEffect(() => {
-    const observer = (updatedToasts: ToastItem[]) => {
-      setCurrentToasts(updatedToasts);
+  constructor({ closeLabel = 'Close' }: ToastContainerOptions = {}) {
+    this.closeLabel = closeLabel;
+    this.observer = (updatedToasts) => {
+      this.render(updatedToasts);
     };
+    observers.push(this.observer);
+    this.render(toasts);
+  }
 
-    observers.push(observer);
-    return () => {
-      observers = observers.filter((item) => item !== observer);
-    };
-  }, []);
+  getElement() {
+    return this.element;
+  }
 
-  return jsx('div', {
-    className: 'toast-container',
-    children: currentToasts.map((item) => renderToastItem(item, closeLabel)),
-  });
+  setCloseLabel(closeLabel: string) {
+    if (this.closeLabel === closeLabel) {
+      return;
+    }
+    this.closeLabel = closeLabel;
+    this.render(toasts);
+  }
+
+  dispose() {
+    observers = observers.filter((item) => item !== this.observer);
+    this.element.replaceChildren();
+  }
+
+  private render(currentToasts: ToastItem[]) {
+    this.element.replaceChildren(
+      ...currentToasts.map((item) => renderToastItem(item, this.closeLabel)),
+    );
+  }
+}
+
+export function createToastContainerView(options?: ToastContainerOptions) {
+  return new ToastContainerView(options);
 }

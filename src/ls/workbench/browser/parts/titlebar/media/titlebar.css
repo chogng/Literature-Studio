@@ -173,6 +173,7 @@
 }
 
 .titlebar-input-field .input-field {
+  height: var(--titlebar-field-height);
   font-size: 12px;
   padding: 0 10px;
   text-align: center;

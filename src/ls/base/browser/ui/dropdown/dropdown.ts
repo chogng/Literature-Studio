@@ -1,18 +1,7 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import {
-  type FocusEvent,
-  type ForwardedRef,
-  type HTMLAttributes,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
-  forwardRef,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import type {
+  NativeMenuEvent,
+  NativeMenuOpenPayload,
+} from '../../../parts/sandbox/common/desktopTypes.js';
 import './dropdown.css';
 
 export type DropdownSize = 'sm' | 'md' | 'lg';
@@ -24,16 +13,76 @@ export type DropdownOption = {
   disabled?: boolean;
 };
 
-export interface DropdownProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onChange'> {
+export type DropdownProps = {
   options: DropdownOption[];
   size?: DropdownSize;
   value?: string;
   disabled?: boolean;
+  className?: string;
+  title?: string;
   onChange?: (event: { target: { value: string } }) => void;
   onOpenChange?: (isOpen: boolean) => void;
+  onFocus?: (event: FocusEvent) => void;
+  onBlur?: (event: FocusEvent) => void;
+};
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+let dropdownRequestId = 0;
+
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+  textContent?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (textContent !== undefined) {
+    element.textContent = textContent;
+  }
+  return element;
 }
 
-let nativeDropdownRequestId = 0;
+function createChevronIcon() {
+  const icon = document.createElementNS(SVG_NS, 'svg');
+  icon.setAttribute('viewBox', '0 0 16 16');
+  icon.setAttribute('width', '14');
+  icon.setAttribute('height', '14');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.classList.add('dropdown-chevron');
+
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', 'M4 6l4 4 4-4');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.8');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  icon.append(path);
+
+  return icon;
+}
+
+function createCheckIcon() {
+  const icon = document.createElementNS(SVG_NS, 'svg');
+  icon.setAttribute('viewBox', '0 0 16 16');
+  icon.setAttribute('width', '14');
+  icon.setAttribute('height', '14');
+  icon.setAttribute('aria-hidden', 'true');
+  icon.classList.add('dropdown-menu-item-check');
+
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', 'M3.5 8.2l2.4 2.4 6-6');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.8');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  icon.append(path);
+
+  return icon;
+}
 
 function shouldUseNativeMenuOverlay() {
   if (typeof window === 'undefined') {
@@ -48,335 +97,359 @@ function shouldUseNativeMenuOverlay() {
   return typeof window.electronAPI?.menu?.open === 'function';
 }
 
-function resolveNativeMenuAlign(_className: string) {
-  return 'start' as const;
-}
-
 function resolveNativeMenuCoverage(className: string) {
   return className.includes('titlebar-source-select')
-    ? 'trigger-band'
-    : 'full-window';
+    ? ('trigger-band' as const)
+    : ('full-window' as const);
 }
 
-export const Dropdown = forwardRef(function Dropdown(
-  {
-    className = '',
-    options,
-    size = 'md',
-    value,
-    disabled,
-    onChange,
-    onOpenChange,
-    onFocus,
-    onBlur,
-    ...props
-  }: DropdownProps,
-  ref: ForwardedRef<HTMLDivElement>,
-) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const [menuPlacement, setMenuPlacement] = useState<'top' | 'bottom'>('bottom');
-  const [menuMaxHeight, setMenuMaxHeight] = useState<number | undefined>(undefined);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const isOpenRef = useRef(false);
-  const nativeRequestIdRef = useRef(`native-dropdown-${++nativeDropdownRequestId}`);
-  const usesNativeMenuOverlay = shouldUseNativeMenuOverlay();
-  const menuAlign = resolveNativeMenuAlign(className);
+function resolveSelectedOption(props: DropdownProps) {
+  return props.options.find((option) => option.value === props.value) ?? props.options[0] ?? null;
+}
 
-  const setRefs = useCallback(
-    (node: HTMLDivElement | null) => {
-      containerRef.current = node;
+function composeClassName(parts: Array<string | undefined | null | false>) {
+  return parts.filter(Boolean).join(' ');
+}
 
-      if (typeof ref === 'function') {
-        ref(node);
-      } else if (ref) {
-        ref.current = node;
-      }
-    },
-    [ref],
-  );
+export class DropdownView {
+  private props: DropdownProps;
+  private isOpen = false;
+  private isFocused = false;
+  private menuPlacement: 'top' | 'bottom' = 'bottom';
+  private menuMaxHeight: number | undefined;
+  private readonly usesNativeMenuOverlay: boolean;
+  private readonly requestId = `native-dropdown-${++dropdownRequestId}`;
+  private readonly element = createElement('div');
+  private readonly field = createElement('div', 'dropdown-field custom-dropdown-field');
+  private readonly iconWrapper = createElement('div', 'dropdown-icon-wrapper');
+  private readonly chevronIcon = createChevronIcon();
+  private readonly menuApi = window.electronAPI?.menu;
+  private menuView: HTMLDivElement | null = null;
+  private removeDocumentMouseDown = () => {};
+  private removeViewportListeners = () => {};
+  private readonly removeNativeMenuEventListener: () => void;
+  private disposed = false;
 
-  const updateOpenState = useCallback(
-    (nextOpen: boolean) => {
-      if (isOpenRef.current === nextOpen) {
-        return;
-      }
+  constructor(props: DropdownProps) {
+    this.props = this.normalizeProps(props);
+    this.usesNativeMenuOverlay = shouldUseNativeMenuOverlay();
+    this.iconWrapper.append(this.chevronIcon);
+    this.element.append(this.field, this.iconWrapper);
 
-      isOpenRef.current = nextOpen;
-      setIsOpen(nextOpen);
-      onOpenChange?.(nextOpen);
-    },
-    [onOpenChange],
-  );
+    this.element.addEventListener('click', this.handleClick);
+    this.element.addEventListener('keydown', this.handleKeyDown);
+    this.element.addEventListener('focus', this.handleFocus);
+    this.element.addEventListener('blur', this.handleBlur);
 
-  useEffect(() => {
-    if (usesNativeMenuOverlay || !isOpen) {
+    this.removeNativeMenuEventListener =
+      this.usesNativeMenuOverlay && typeof this.menuApi?.onEvent === 'function'
+        ? this.menuApi.onEvent((event) => {
+            const nativeEvent = event as NativeMenuEvent;
+            if (nativeEvent.requestId !== this.requestId) {
+              return;
+            }
+            this.setOpen(false, { closeNativeMenu: false });
+            this.isFocused = false;
+            if (nativeEvent.type === 'select' && typeof nativeEvent.value === 'string') {
+              this.props.onChange?.({ target: { value: nativeEvent.value } });
+            }
+            this.render();
+          })
+        : () => {};
+
+    this.render();
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: DropdownProps) {
+    this.props = this.normalizeProps(props);
+    if (this.props.disabled && this.isOpen) {
+      this.setOpen(false);
+    } else if (this.isOpen && this.usesNativeMenuOverlay) {
+      this.openNativeMenu();
+    }
+    this.render();
+  }
+
+  focus() {
+    this.element.focus();
+  }
+
+  open() {
+    if (this.props.disabled) {
+      return;
+    }
+    this.setOpen(true);
+  }
+
+  close() {
+    this.setOpen(false);
+  }
+
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
+    this.setOpen(false);
+    this.removeNativeMenuEventListener();
+    this.element.removeEventListener('click', this.handleClick);
+    this.element.removeEventListener('keydown', this.handleKeyDown);
+    this.element.removeEventListener('focus', this.handleFocus);
+    this.element.removeEventListener('blur', this.handleBlur);
+    this.element.replaceChildren();
+  }
+
+  private readonly handleClick = (event: MouseEvent) => {
+    event.stopPropagation();
+    if (this.props.disabled) {
+      return;
+    }
+    this.setOpen(!this.isOpen);
+  };
+
+  private readonly handleKeyDown = (event: KeyboardEvent) => {
+    if (this.props.disabled) {
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.setOpen(!this.isOpen);
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.setOpen(false);
+    }
+  };
+
+  private readonly handleFocus = (event: FocusEvent) => {
+    if (!(event.currentTarget instanceof HTMLDivElement)) {
+      return;
+    }
+    this.isFocused = true;
+    this.render();
+    this.props.onFocus?.(event);
+  };
+
+  private readonly handleBlur = (event: FocusEvent) => {
+    if (!(event.currentTarget instanceof HTMLDivElement)) {
       return;
     }
 
-    const handlePointerDown = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        updateOpenState(false);
-        setIsFocused(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-    };
-  }, [isOpen, updateOpenState, usesNativeMenuOverlay]);
-
-  useEffect(() => {
-    if (!isOpen) {
+    if (this.usesNativeMenuOverlay && this.isOpen) {
+      this.props.onBlur?.(event);
       return;
     }
 
-    if (!usesNativeMenuOverlay) {
+    const relatedTarget = event.relatedTarget;
+    if (!(relatedTarget instanceof Node) || !this.element.contains(relatedTarget)) {
+      this.isFocused = false;
+      this.setOpen(false);
+    }
+    this.render();
+    this.props.onBlur?.(event);
+  };
+
+  private readonly handleDocumentMouseDown = (event: MouseEvent) => {
+    if (!(event.target instanceof Node)) {
+      return;
+    }
+    if (!this.element.contains(event.target)) {
+      this.isFocused = false;
+      this.setOpen(false);
+    }
+  };
+
+  private readonly handleViewportChange = () => {
+    if (!this.isOpen) {
+      return;
+    }
+    if (this.usesNativeMenuOverlay) {
+      this.openNativeMenu();
+      return;
+    }
+    this.updateMenuPosition();
+  };
+
+  private setOpen(nextOpen: boolean, options?: { closeNativeMenu?: boolean }) {
+    if (this.isOpen === nextOpen) {
       return;
     }
 
-    const menuApi = window.electronAPI?.menu;
-    const requestId = nativeRequestIdRef.current;
-    const openNativeMenu = () => {
-      const triggerRect = containerRef.current?.getBoundingClientRect();
-      if (!triggerRect) {
-        return;
+    this.isOpen = nextOpen;
+    if (nextOpen) {
+      this.attachOpenListeners();
+      if (this.usesNativeMenuOverlay) {
+        this.openNativeMenu();
       }
-
-      menuApi?.open({
-        requestId,
-        triggerRect: {
-          x: triggerRect.x,
-          y: triggerRect.y,
-          width: triggerRect.width,
-          height: triggerRect.height,
-        },
-        options,
-        value,
-        align: menuAlign,
-        coverage: resolveNativeMenuCoverage(className),
-      });
-    };
-
-    openNativeMenu();
-
-    const handleViewportChange = () => {
-      openNativeMenu();
-    };
-    window.addEventListener('resize', handleViewportChange);
-    window.addEventListener('scroll', handleViewportChange, true);
-
-    return () => {
-      window.removeEventListener('resize', handleViewportChange);
-      window.removeEventListener('scroll', handleViewportChange, true);
-    };
-  }, [isOpen, menuAlign, options, updateOpenState, usesNativeMenuOverlay, value]);
-
-  useEffect(() => {
-    return () => {
-      if (isOpenRef.current) {
-        onOpenChange?.(false);
-        if (usesNativeMenuOverlay) {
-          window.electronAPI?.menu?.close(nativeRequestIdRef.current);
-        }
+    } else {
+      this.detachOpenListeners();
+      const shouldCloseNativeMenu = options?.closeNativeMenu !== false;
+      if (this.usesNativeMenuOverlay && shouldCloseNativeMenu) {
+        this.menuApi?.close(this.requestId);
       }
-    };
-  }, [onOpenChange, usesNativeMenuOverlay]);
+    }
 
-  useEffect(() => {
-    if (!usesNativeMenuOverlay) {
+    this.props.onOpenChange?.(nextOpen);
+    this.render();
+    if (nextOpen && !this.usesNativeMenuOverlay) {
+      this.updateMenuPosition();
+    }
+  }
+
+  private attachOpenListeners() {
+    if (!this.usesNativeMenuOverlay) {
+      document.addEventListener('mousedown', this.handleDocumentMouseDown);
+      this.removeDocumentMouseDown = () => {
+        document.removeEventListener('mousedown', this.handleDocumentMouseDown);
+      };
+    }
+    window.addEventListener('resize', this.handleViewportChange);
+    window.addEventListener('scroll', this.handleViewportChange, true);
+    this.removeViewportListeners = () => {
+      window.removeEventListener('resize', this.handleViewportChange);
+      window.removeEventListener('scroll', this.handleViewportChange, true);
+    };
+  }
+
+  private detachOpenListeners() {
+    this.removeDocumentMouseDown();
+    this.removeViewportListeners();
+    this.removeDocumentMouseDown = () => {};
+    this.removeViewportListeners = () => {};
+  }
+
+  private normalizeProps(props: DropdownProps): DropdownProps {
+    return {
+      ...props,
+      options: Array.isArray(props.options) ? props.options : [],
+      size: props.size ?? 'md',
+      className: props.className ?? '',
+    };
+  }
+
+  private openNativeMenu() {
+    if (!this.usesNativeMenuOverlay || !this.menuApi) {
       return;
     }
 
-    const menuApi = window.electronAPI?.menu;
-    if (!menuApi?.onEvent) {
-      return;
-    }
+    const triggerRect = this.element.getBoundingClientRect();
+    const payload: NativeMenuOpenPayload = {
+      requestId: this.requestId,
+      triggerRect: {
+        x: triggerRect.x,
+        y: triggerRect.y,
+        width: triggerRect.width,
+        height: triggerRect.height,
+      },
+      options: this.props.options,
+      value: this.props.value,
+      align: 'start',
+      coverage: resolveNativeMenuCoverage(this.props.className ?? ''),
+    };
+    this.menuApi.open(payload);
+  }
 
-    return menuApi.onEvent((event) => {
-      if (event.requestId !== nativeRequestIdRef.current) {
-        return;
-      }
-
-      updateOpenState(false);
-      setIsFocused(false);
-      if (event.type === 'select' && typeof event.value === 'string') {
-        onChange?.({ target: { value: event.value } });
-      }
-    });
-  }, [onChange, updateOpenState, usesNativeMenuOverlay]);
-
-  const updateMenuPosition = useCallback(() => {
-    if (!isOpenRef.current || !containerRef.current || !menuRef.current) {
+  private updateMenuPosition() {
+    if (!this.menuView) {
       return;
     }
 
     const viewportPadding = 8;
     const menuOffset = 4;
-    const triggerRect = containerRef.current.getBoundingClientRect();
-    const menuHeight = menuRef.current.offsetHeight;
+    const triggerRect = this.element.getBoundingClientRect();
+    const menuHeight = this.menuView.offsetHeight;
     const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
     const spaceAbove = triggerRect.top - viewportPadding;
     const shouldOpenUpwards = spaceBelow < menuHeight && spaceAbove > spaceBelow;
     const availableSpace = shouldOpenUpwards ? spaceAbove : spaceBelow;
 
-    setMenuPlacement(shouldOpenUpwards ? 'top' : 'bottom');
-    setMenuMaxHeight(Math.max(availableSpace - menuOffset, 120));
-  }, []);
+    this.menuPlacement = shouldOpenUpwards ? 'top' : 'bottom';
+    this.menuMaxHeight = Math.max(availableSpace - menuOffset, 120);
+    this.renderMenu();
+  }
 
-  useLayoutEffect(() => {
-    if (!isOpen) {
+  private renderMenu() {
+    if (this.usesNativeMenuOverlay || !this.isOpen) {
+      this.menuView?.remove();
+      this.menuView = null;
       return;
     }
 
-    updateMenuPosition();
-  }, [isOpen, options.length, updateMenuPosition]);
-
-  useEffect(() => {
-    if (!isOpen || usesNativeMenuOverlay) {
-      return;
+    const selectedValue = this.props.value;
+    const menu = createElement('div', `dropdown-menu dropdown-menu-${this.menuPlacement}`);
+    if (typeof this.menuMaxHeight === 'number') {
+      menu.style.maxHeight = `${this.menuMaxHeight}px`;
     }
 
-    const handleViewportChange = () => {
-      updateMenuPosition();
-    };
-
-    window.addEventListener('resize', handleViewportChange);
-    window.addEventListener('scroll', handleViewportChange, true);
-
-    return () => {
-      window.removeEventListener('resize', handleViewportChange);
-      window.removeEventListener('scroll', handleViewportChange, true);
-    };
-  }, [isOpen, updateMenuPosition]);
-
-  const handleToggle = (event: ReactMouseEvent<HTMLDivElement>) => {
-    event.stopPropagation();
-
-    if (!disabled) {
-      if (usesNativeMenuOverlay && isOpenRef.current) {
-        window.electronAPI?.menu?.close(nativeRequestIdRef.current);
-      }
-      updateOpenState(!isOpenRef.current);
-      setIsFocused(true);
-    }
-  };
-
-  const handleSelect = (optionValue: string, event: ReactMouseEvent<HTMLDivElement>) => {
-    event.stopPropagation();
-
-    if (!disabled) {
-      updateOpenState(false);
-      onChange?.({ target: { value: optionValue } });
-    }
-  };
-
-  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (disabled) {
-      return;
-    }
-
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      updateOpenState(!isOpenRef.current);
-      return;
-    }
-
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      updateOpenState(false);
-    }
-  };
-
-  const wrapperClassName = [
-    'dropdown-wrapper',
-    `dropdown-${size}`,
-    isFocused || isOpen ? 'dropdown-focused' : '',
-    disabled ? 'dropdown-disabled' : '',
-    className,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const selectedOption = options.find((option) => option.value === value) || options[0];
-  const menuView =
-    isOpen && !usesNativeMenuOverlay
-      ? jsx('div', {
-          ref: menuRef,
-          className: `dropdown-menu dropdown-menu-${menuPlacement}`,
-          style: menuMaxHeight ? { maxHeight: `${menuMaxHeight}px` } : undefined,
-          children: options.map((option) =>
-            jsxs(
-              'div',
-              {
-                className: `dropdown-menu-item ${value === option.value ? 'selected' : ''} ${option.disabled ? 'disabled' : ''}`,
-                title: option.title,
-                onClick: (event: ReactMouseEvent<HTMLDivElement>) => {
-                  if (!option.disabled) {
-                    handleSelect(option.value, event);
-                  }
-                },
-                children: [
-                  jsx('div', { className: 'dropdown-menu-item-content', children: option.label }),
-                  value === option.value
-                    ? jsx(Check, {
-                        size: 14,
-                        strokeWidth: 2,
-                        className: 'dropdown-menu-item-check',
-                      })
-                    : null,
-                ],
-              },
-              option.value,
-            ),
-          ),
-        })
-      : null;
-
-  return jsxs('div', {
-    ref: setRefs,
-    className: wrapperClassName,
-    onClick: handleToggle,
-    onKeyDown: handleKeyDown,
-    tabIndex: disabled ? -1 : 0,
-    onFocus: (event: FocusEvent<HTMLDivElement>) => {
-      setIsFocused(true);
-      onFocus?.(event);
-    },
-    onBlur: (event: FocusEvent<HTMLDivElement>) => {
-      if (usesNativeMenuOverlay && isOpenRef.current) {
-        onBlur?.(event);
-        return;
-      }
-
-      if (!containerRef.current?.contains(event.relatedTarget as Node)) {
-        setIsFocused(false);
-        updateOpenState(false);
-      }
-      onBlur?.(event);
-    },
-    ...props,
-    children: [
-      jsx('div', {
-        className: 'dropdown-field custom-dropdown-field',
-        title: selectedOption?.title,
-        children: selectedOption ? selectedOption.label : '',
+    menu.append(
+      ...this.props.options.map((option) => {
+        const item = createElement(
+          'div',
+          composeClassName([
+            'dropdown-menu-item',
+            selectedValue === option.value ? 'selected' : '',
+            option.disabled ? 'disabled' : '',
+          ]),
+        );
+        if (option.title) {
+          item.title = option.title;
+        }
+        const content = createElement('div', 'dropdown-menu-item-content', option.label);
+        item.append(content);
+        if (selectedValue === option.value) {
+          item.append(createCheckIcon());
+        }
+        item.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (option.disabled) {
+            return;
+          }
+          this.props.onChange?.({ target: { value: option.value } });
+          this.setOpen(false);
+        });
+        return item;
       }),
-      jsx('div', {
-        className: 'dropdown-icon-wrapper',
-        children: jsx(ChevronDown, {
-          size: 14,
-          strokeWidth: 1.5,
-          className: `dropdown-chevron ${isOpen ? 'open' : ''}`,
-        }),
-      }),
-      menuView,
-    ],
-  });
-});
+    );
 
-Dropdown.displayName = 'Dropdown';
+    this.menuView?.remove();
+    this.menuView = menu;
+    this.element.append(menu);
+  }
 
-export default Dropdown;
+  private render() {
+    const selectedOption = resolveSelectedOption(this.props);
+    this.element.className = composeClassName([
+      'dropdown-wrapper',
+      `dropdown-${this.props.size ?? 'md'}`,
+      this.isOpen || this.isFocused ? 'dropdown-focused' : '',
+      this.props.disabled ? 'dropdown-disabled' : '',
+      this.props.className,
+    ]);
+    this.element.tabIndex = this.props.disabled ? -1 : 0;
+    this.element.title = this.props.title ?? selectedOption?.title ?? '';
+
+    this.field.textContent = selectedOption?.label ?? '';
+    if (selectedOption?.title) {
+      this.field.title = selectedOption.title;
+    } else {
+      this.field.removeAttribute('title');
+    }
+
+    if (this.isOpen) {
+      this.chevronIcon.classList.add('open');
+    } else {
+      this.chevronIcon.classList.remove('open');
+    }
+
+    this.renderMenu();
+  }
+}
+
+export function createDropdownView(props: DropdownProps) {
+  return new DropdownView(props);
+}

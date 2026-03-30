@@ -1,7 +1,5 @@
-import { jsx } from 'react/jsx-runtime';
 import type { WritingWorkspacePreviewTab } from '../../../writingEditorModel';
-import ViewPartView from '../../views/viewPartView';
-import type { ViewPartProps } from '../../views/viewPartView';
+import { ViewPartView, type ViewPartProps } from '../../views/viewPartView';
 import type { EditorPartLabels } from '../editorPartView';
 
 export type PreviewEditorPaneProps = {
@@ -10,18 +8,35 @@ export type PreviewEditorPaneProps = {
   viewPartProps: ViewPartProps;
 };
 
-export default function PreviewEditorPane({
-  labels: _labels,
-  previewTab: _previewTab,
-  viewPartProps,
-}: PreviewEditorPaneProps) {
-  return jsx('div', {
-    className: 'editor-source-pane',
-    children: jsx('div', {
-      className: 'editor-source-body',
-      // Reuse the shared native preview surface directly here. This pane no longer renders
-      // a separate source header row, so the source pane layout must remain a single body row.
-      children: jsx(ViewPartView, { ...viewPartProps }),
-    }),
-  });
+export class PreviewEditorPane {
+  private readonly element = document.createElement('div');
+  private readonly bodyElement = document.createElement('div');
+  private readonly viewPartView: ViewPartView;
+
+  constructor(props: PreviewEditorPaneProps) {
+    this.element.className = 'editor-source-pane';
+    this.bodyElement.className = 'editor-source-body';
+    this.viewPartView = new ViewPartView(props.viewPartProps);
+    this.bodyElement.append(this.viewPartView.getElement());
+    this.element.append(this.bodyElement);
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: PreviewEditorPaneProps) {
+    this.viewPartView.setProps(props.viewPartProps);
+  }
+
+  dispose() {
+    this.viewPartView.dispose();
+    this.element.replaceChildren();
+  }
 }
+
+export function createPreviewEditorPane(props: PreviewEditorPaneProps) {
+  return new PreviewEditorPane(props);
+}
+
+export default PreviewEditorPane;

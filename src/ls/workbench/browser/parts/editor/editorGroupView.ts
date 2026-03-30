@@ -1,7 +1,3 @@
-import { jsx, jsxs } from 'react/jsx-runtime';
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Plus } from 'lucide-react';
-import { Button } from '../../../../base/browser/ui/button/button';
 import type {
   WritingEditorDocument,
   WritingWorkspaceTab,
@@ -13,13 +9,13 @@ import {
   type DraftEditorRuntimeState,
   type EditorStatusState,
 } from './editorStatus';
-import { resolveEditorPane } from './panes/editorPaneRegistry';
+import { resolveEditorPane, type EditorPaneRenderer } from './panes/editorPaneRegistry';
 import type { EditorPartLabels } from './editorPartView';
 import { createEditorGroupModel, type EditorGroupModel } from './editorGroupModel';
 import { TabsTitleControl } from './tabsTitleControl';
 import type { TitleControl } from './titleControl';
 
-type EditorGroupViewProps = {
+export type EditorGroupViewProps = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
   tabs: WritingWorkspaceTab[];
@@ -37,6 +33,17 @@ type EditorGroupControllerSnapshot = {
   editorStatus: EditorStatusState;
 };
 
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
+
 function renderWorkspaceActionButton({
   label,
   onClick,
@@ -44,34 +51,25 @@ function renderWorkspaceActionButton({
   label: string;
   onClick: () => void;
 }) {
-  return jsx(Button, {
-    type: 'button',
-    className: 'editor-workspace-action-btn',
-    variant: 'secondary',
-    size: 'sm',
-    mode: 'text',
-    textMode: 'with',
-    iconMode: 'with',
-    leftIcon: jsx(Plus, { size: 14, strokeWidth: 1.8 }),
-    onClick,
-    children: label,
-  });
+  const button = createElement('button', 'editor-workspace-action-btn');
+  button.type = 'button';
+  button.textContent = label;
+  button.addEventListener('click', onClick);
+  return button;
 }
 
 function createTitleAreaControl(
   props: Pick<EditorGroupViewProps, 'labels' | 'onActivateTab' | 'onCloseTab'>,
   group: EditorGroupModel,
 ): TitleControl {
-  const titleControlProps = {
+  return new TabsTitleControl({
     group,
     labels: {
       close: props.labels.close,
     },
     onActivateTab: props.onActivateTab,
     onCloseTab: props.onCloseTab,
-  };
-
-  return new TabsTitleControl(titleControlProps);
+  });
 }
 
 function createEditorStatusLabels(labels: EditorPartLabels) {
@@ -144,7 +142,6 @@ class EditorGroupController {
   private draftStatusByTabId: Record<string, DraftEditorRuntimeState> = {};
   private snapshot: EditorGroupControllerSnapshot;
   private snapshotKey: string;
-  private readonly listeners = new Set<() => void>();
 
   constructor(context: EditorGroupViewProps) {
     this.context = context;
@@ -155,26 +152,17 @@ class EditorGroupController {
     this.snapshotKey = createEditorGroupSnapshotKey(this.snapshot);
   }
 
-  readonly subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  };
+  getSnapshot() {
+    return this.snapshot;
+  }
 
-  readonly getSnapshot = () => this.snapshot;
-
-  readonly setContext = (context: EditorGroupViewProps) => {
+  setContext(context: EditorGroupViewProps) {
     this.context = context;
     this.pruneDraftStatuses();
     this.refreshSnapshot();
-  };
+  }
 
-  readonly dispose = () => {
-    this.listeners.clear();
-  };
-
-  readonly updateDraftStatus = (tabId: string, nextStatus: DraftEditorRuntimeState) => {
+  updateDraftStatus = (tabId: string, nextStatus: DraftEditorRuntimeState) => {
     if (areDraftEditorRuntimeStatesEqual(this.draftStatusByTabId[tabId], nextStatus)) {
       return;
     }
@@ -185,12 +173,6 @@ class EditorGroupController {
     };
     this.refreshSnapshot();
   };
-
-  private emitChange() {
-    for (const listener of this.listeners) {
-      listener();
-    }
-  }
 
   private pruneDraftStatuses() {
     const draftTabIds = new Set(
@@ -226,74 +208,96 @@ class EditorGroupController {
 
     this.snapshot = nextSnapshot;
     this.snapshotKey = nextSnapshotKey;
-    this.emitChange();
   }
 }
 
-export function EditorGroupView(props: EditorGroupViewProps) {
-  const [controller] = useState(() => new EditorGroupController(props));
+export class EditorGroupView {
+  private props: EditorGroupViewProps;
+  private readonly controller: EditorGroupController;
+  private readonly element = createElement('div', 'editor-shell');
+  private readonly headerElement = createElement('div', 'editor-tabs-header');
+  private readonly contentElement = createElement('div');
+  private activePaneRenderer: EditorPaneRenderer | null = null;
+  private activePaneKey: string | null = null;
 
-  useEffect(() => {
-    controller.setContext(props);
-  }, [controller, props]);
-
-  useEffect(() => {
-    return () => {
-      controller.dispose();
-    };
-  }, [controller]);
-
-  const { group, editorStatus } = useSyncExternalStore(
-    controller.subscribe,
-    controller.getSnapshot,
-    controller.getSnapshot,
-  );
-
-  useEffect(() => {
-    props.onStatusChange?.(editorStatus);
-  }, [editorStatus, props.onStatusChange]);
-
-  const titleAreaControl = createTitleAreaControl(props, group);
-
-  if (!group.activeTab) {
-    return jsxs('div', {
-      className: 'editor-shell',
-      children: [
-        jsx('div', {
-          className: 'editor-tabs-header',
-          children: titleAreaControl.render(),
-        }),
-        jsx('div', {
-          className: 'editor-empty-workspace',
-          children: renderWorkspaceActionButton({
-            label: props.labels.draftMode,
-            onClick: props.onCreateDraftTab,
-          }),
-        }),
-      ],
-    });
+  constructor(props: EditorGroupViewProps) {
+    this.props = props;
+    this.controller = new EditorGroupController(props);
+    this.element.append(this.headerElement, this.contentElement);
+    this.render();
   }
 
-  const resolvedPane = resolveEditorPane(group.activeTab, {
-    labels: props.labels,
-    viewPartProps: props.viewPartProps,
-    onDraftDocumentChange: props.onDraftDocumentChange,
-    onDraftStatusChange: controller.updateDraftStatus,
-  });
-  const editorContentClassName = ['editor-content', ...resolvedPane.contentClassNames].join(' ');
+  getElement() {
+    return this.element;
+  }
 
-  return jsxs('div', {
-    className: 'editor-shell',
-    children: [
-      jsx('div', {
-        className: 'editor-tabs-header',
-        children: titleAreaControl.render(),
-      }),
-      jsx('div', {
-        className: editorContentClassName,
-        'data-editor-pane': resolvedPane.paneId,
-        children: resolvedPane.view,
-      }),
-    ],
-  });
+  setProps(props: EditorGroupViewProps) {
+    this.props = props;
+    this.controller.setContext(props);
+    this.render();
+  }
+
+  dispose() {
+    this.activePaneRenderer?.dispose();
+    this.activePaneRenderer = null;
+    this.activePaneKey = null;
+    this.element.replaceChildren();
+  }
+
+  private render() {
+    const { group, editorStatus } = this.controller.getSnapshot();
+    this.props.onStatusChange?.(editorStatus);
+
+    const titleAreaControl = createTitleAreaControl(this.props, group);
+    this.headerElement.replaceChildren(titleAreaControl.render());
+
+    this.contentElement.className = '';
+    this.contentElement.removeAttribute('data-editor-pane');
+
+    if (!group.activeTab) {
+      this.activePaneRenderer?.dispose();
+      this.activePaneRenderer = null;
+      this.activePaneKey = null;
+      this.contentElement.replaceChildren();
+      const emptyWorkspace = createElement('div', 'editor-empty-workspace');
+      emptyWorkspace.append(
+        renderWorkspaceActionButton({
+          label: this.props.labels.draftMode,
+          onClick: this.props.onCreateDraftTab,
+        }),
+      );
+      this.contentElement.className = 'editor-content';
+      this.contentElement.append(emptyWorkspace);
+      return;
+    }
+
+    const resolvedPane = resolveEditorPane(group.activeTab, {
+      labels: this.props.labels,
+      viewPartProps: this.props.viewPartProps,
+      onDraftDocumentChange: this.props.onDraftDocumentChange,
+      onDraftStatusChange: this.controller.updateDraftStatus,
+    });
+
+    if (this.activePaneKey !== resolvedPane.paneKey || !this.activePaneRenderer) {
+      this.activePaneRenderer?.dispose();
+      this.activePaneRenderer = resolvedPane.createRenderer();
+      this.activePaneKey = resolvedPane.paneKey;
+      this.contentElement.replaceChildren(this.activePaneRenderer.getElement());
+    } else {
+      resolvedPane.updateRenderer(this.activePaneRenderer);
+      if (this.contentElement.firstChild !== this.activePaneRenderer.getElement()) {
+        this.contentElement.replaceChildren(this.activePaneRenderer.getElement());
+      }
+    }
+
+    this.contentElement.className = [
+      'editor-content',
+      ...resolvedPane.contentClassNames,
+    ].join(' ');
+    this.contentElement.dataset.editorPane = resolvedPane.paneId;
+  }
+}
+
+export function createEditorGroupView(props: EditorGroupViewProps) {
+  return new EditorGroupView(props);
 }
