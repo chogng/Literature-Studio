@@ -6,7 +6,7 @@ import {
   createDropdownView,
   type DropdownProps,
 } from '../../../../base/browser/ui/dropdown/dropdown.js';
-import { nativeHostService } from '../../../../platform/native/browser/nativeHostService.js';
+import { nativeHostService } from '../../../../platform/native/electron-sandbox/nativeHostService.js';
 
 export type TitlebarSourceDropdownView = {
   getElement: () => HTMLElement;

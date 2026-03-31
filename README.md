@@ -171,7 +171,7 @@ npm run check:i18n
   - 只回答当前是不是 `web` / `desktop`，以及平台是不是 `windows` / `macos` / `linux`。
 - 窗口策略：[`window.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/window/common/window.ts)
   - 基于平台事实计算 titlebar / window chrome 策略。
-- 桌面桥接：[`native.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/native/common/native.ts) 与 [`nativeHostService.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/native/browser/nativeHostService.ts)
+- 桌面桥接：[`native.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/native/common/native.ts) 与 [`nativeHostService.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/native/electron-sandbox/nativeHostService.ts)
   - 浏览器侧统一访问 `invoke`、`menu`、`toast`、`webContent`、`windowControls` 等 Electron bridge 能力。
 
 约束：

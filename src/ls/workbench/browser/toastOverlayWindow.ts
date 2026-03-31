@@ -3,7 +3,7 @@ import type {
   NativeToastType,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
 import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
-import { nativeHostService } from '../../platform/native/browser/nativeHostService';
+import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
 import '../../base/browser/ui/toast/toast.css';
 import './media/toastOverlayWindow.css';
 

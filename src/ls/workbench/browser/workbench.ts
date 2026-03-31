@@ -104,7 +104,7 @@ import {
   hasDesktopRuntime,
   hasWebContentRuntime,
 } from '../../base/common/platform';
-import { nativeHostService } from '../../platform/native/browser/nativeHostService';
+import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
 import './media/workbench.css';
 
 export type WorkbenchPage = 'reader' | 'settings';

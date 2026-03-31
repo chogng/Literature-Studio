@@ -19,7 +19,7 @@ import {
   formatLocalized,
   localizeDesktopInvokeError,
 } from '../services/desktop/desktopError';
-import { nativeHostService } from '../../platform/native/browser/nativeHostService';
+import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
 
 type BatchFetchTitlebarStatus = {
   titlebarFetchSourceText: string;

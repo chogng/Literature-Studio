@@ -1,6 +1,6 @@
 import { toast } from '../../base/browser/ui/toast/toast';
 import type { LocaleMessages } from '../../../language/locales';
-import { nativeHostService } from '../../platform/native/browser/nativeHostService';
+import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
 import type { BatchSource } from '../services/config/configSchema';
 import { formatLocalized } from '../services/desktop/desktopError';
 import {

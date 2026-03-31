@@ -6,7 +6,7 @@ import {
   isPdfSelectionEmpty,
   type PdfSelection,
 } from './pdfSelection';
-import { nativeHostService } from '../../../platform/native/browser/nativeHostService.js';
+import { nativeHostService } from '../../../platform/native/electron-sandbox/nativeHostService.js';
 import './media/pdfAnnotationEditor.css';
 
 export type PdfAnnotationEditorLabels = {

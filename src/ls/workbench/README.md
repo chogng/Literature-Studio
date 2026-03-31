@@ -66,5 +66,5 @@ dedicated contribution area:
 
 - Treat [`platform.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/base/common/platform.ts) as the single source of truth for runtime and OS detection.
 - Treat [`window.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/window/common/window.ts) as the place for window chrome policy derived from platform facts.
-- Treat [`nativeHostService.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/native/browser/nativeHostService.ts) as the browser-side entry point for Electron-backed capabilities.
+- Treat [`nativeHostService.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/native/electron-sandbox/nativeHostService.ts) as the Electron-sandbox entry point for Electron-backed capabilities.
 - Do not add new `window.electronAPI` access inside workbench UI, models, or contributions. Route new bridge usage through the native layer first.

@@ -7,7 +7,7 @@ import {
   subscribeWindowState,
 } from './window';
 import { hasWindowControlsRuntime } from '../../base/common/platform';
-import { nativeHostService } from '../../platform/native/browser/nativeHostService';
+import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
 import { createChildWindowShellView } from './parts/window/childWindowShell';
 import './media/articleDetailsModalContent.css';
 

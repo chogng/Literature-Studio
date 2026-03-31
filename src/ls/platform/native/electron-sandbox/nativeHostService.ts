@@ -4,7 +4,7 @@ import type {
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import type { INativeHostService } from '../common/native.js';
 
-class BrowserNativeHostService implements INativeHostService {
+class ElectronSandboxNativeHostService implements INativeHostService {
   private get api(): ElectronAPI | undefined {
     if (typeof window === 'undefined') {
       return undefined;
@@ -50,4 +50,5 @@ class BrowserNativeHostService implements INativeHostService {
   }
 }
 
-export const nativeHostService: INativeHostService = new BrowserNativeHostService();
+export const nativeHostService: INativeHostService =
+  new ElectronSandboxNativeHostService();
