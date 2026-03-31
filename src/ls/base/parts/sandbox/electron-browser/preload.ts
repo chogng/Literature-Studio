@@ -15,6 +15,7 @@ import type {
   NativeToastState,
   WebContentBounds,
   WebContentNavigationMode,
+  WebContentLayoutPhase,
   WebContentSelectionSnapshot,
   WebContentState,
   WindowControlAction,
@@ -154,6 +155,9 @@ const electronAPI: ElectronAPI = {
     setVisible(visible: boolean) {
       sendIpc('app:web-content-set-visible', visible);
     },
+    setLayoutPhase(phase: WebContentLayoutPhase) {
+      sendIpc('app:web-content-set-layout-phase', phase);
+    },
     reload(targetId?: string | null) {
       sendIpc('app:web-content-reload', { targetId: targetId ?? null });
     },
@@ -170,6 +174,10 @@ const electronAPI: ElectronAPI = {
     },
     onStateChange(listener: (state: WebContentState) => void) {
       return subscribeIpc<WebContentState>('app:web-content-state', listener, {
+        targetId: null,
+        activeTargetId: null,
+        ownership: 'inactive',
+        layoutPhase: 'hidden',
         url: '',
         canGoBack: false,
         canGoForward: false,

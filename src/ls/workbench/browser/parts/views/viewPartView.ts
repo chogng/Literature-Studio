@@ -35,11 +35,13 @@ export class ViewPartView {
     'div',
     'web-frame web-frame-placeholder',
   );
+  private readonly overlayElement = createElement('div', 'webcontent-overlay');
   private isWebContentHostRegistered = false;
 
   constructor(props: ViewPartProps) {
     this.props = props;
     this.webContentHost.setAttribute('aria-hidden', 'true');
+    this.contentElement.append(this.webContentHost, this.overlayElement);
     this.element.append(this.contentElement);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.view, this.element);
     this.render();
@@ -61,29 +63,40 @@ export class ViewPartView {
   }
 
   private render() {
-    this.contentElement.replaceChildren();
+    const canHostNativeWebContent =
+      this.props.electronRuntime && this.props.webContentRuntime;
+    const shouldShowNativeWebContent =
+      canHostNativeWebContent && Boolean(this.props.browserUrl);
+    const nextWebContentActive = shouldShowNativeWebContent ? 'true' : 'false';
+
+    if (this.webContentHost.dataset.webcontentActive !== nextWebContentActive) {
+      this.webContentHost.dataset.webcontentActive = nextWebContentActive;
+    }
+    this.overlayElement.replaceChildren();
 
     if (!this.props.browserUrl) {
-      this.setWebContentHostRegistered(false);
+      this.setWebContentHostRegistered(canHostNativeWebContent);
       const emptyFrame = createElement('div', 'web-frame');
       emptyFrame.setAttribute('aria-hidden', 'true');
-      this.contentElement.append(emptyFrame);
+      this.overlayElement.className = 'webcontent-overlay visible';
+      this.overlayElement.append(emptyFrame);
       return;
     }
 
-    if (!this.props.electronRuntime || !this.props.webContentRuntime) {
+    if (!canHostNativeWebContent) {
       this.setWebContentHostRegistered(false);
       const warning = createElement(
         'div',
         'empty-state webcontent-runtime-warning',
       );
       warning.textContent = this.props.labels.contentUnavailable;
-      this.contentElement.append(warning);
+      this.overlayElement.className = 'webcontent-overlay visible';
+      this.overlayElement.append(warning);
       return;
     }
 
     this.setWebContentHostRegistered(true);
-    this.contentElement.append(this.webContentHost);
+    this.overlayElement.className = 'webcontent-overlay';
   }
 
   private setWebContentHostRegistered(registered: boolean) {

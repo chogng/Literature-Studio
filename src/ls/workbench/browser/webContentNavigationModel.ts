@@ -80,8 +80,27 @@ const DEFAULT_WEB_CONTENT_NAVIGATION_SNAPSHOT: WebContentNavigationSnapshot = {
   webContentState: EMPTY_WEB_CONTENT_STATE,
 };
 
+function isSameWebContentTargetId(left: string | null, right: string | null) {
+  return (left ?? null) === (right ?? null);
+}
+
+function isStateForActiveTarget(
+  state: WebContentState,
+  activeTargetId: string | null,
+) {
+  return (
+    state.ownership === 'active' &&
+    isSameWebContentTargetId(state.activeTargetId, activeTargetId) &&
+    isSameWebContentTargetId(state.targetId, activeTargetId)
+  );
+}
+
 function areWebContentStatesEqual(previous: WebContentState, next: WebContentState) {
   return (
+    previous.targetId === next.targetId &&
+    previous.activeTargetId === next.activeTargetId &&
+    previous.ownership === next.ownership &&
+    previous.layoutPhase === next.layoutPhase &&
     previous.url === next.url &&
     previous.canGoBack === next.canGoBack &&
     previous.canGoForward === next.canGoForward &&
@@ -190,6 +209,7 @@ export class WebContentNavigationModel {
     context?: Pick<WebContentStateSyncContext, 'setWebUrl' | 'setFetchSeedUrl'>,
   ) {
     this.activeTargetId = targetId;
+    const requestedTargetId = targetId;
 
     const webContent = nativeHostService.webContent;
     if (!webContent) {
@@ -204,6 +224,12 @@ export class WebContentNavigationModel {
 
     try {
       const state = await webContent.getState(targetId);
+      if (
+        !isSameWebContentTargetId(this.activeTargetId, requestedTargetId) ||
+        !isStateForActiveTarget(state, requestedTargetId)
+      ) {
+        return null;
+      }
       this.applyWebContentState(state, context);
       return state;
     } catch {
@@ -232,11 +258,16 @@ export class WebContentNavigationModel {
     }
 
     let mounted = true;
+    const requestedTargetId = this.activeTargetId;
 
     void webContent
-      .getState(this.activeTargetId)
+      .getState(requestedTargetId)
       .then((state) => {
-        if (!mounted) {
+        if (
+          !mounted ||
+          !isSameWebContentTargetId(this.activeTargetId, requestedTargetId) ||
+          !isStateForActiveTarget(state, requestedTargetId)
+        ) {
           return;
         }
 
@@ -248,6 +279,9 @@ export class WebContentNavigationModel {
       .catch(() => {});
 
     const unsubscribe = webContent.onStateChange((state) => {
+      if (!isStateForActiveTarget(state, this.activeTargetId)) {
+        return;
+      }
       this.applyWebContentState(state, {
         setWebUrl,
         setFetchSeedUrl,

@@ -9,6 +9,7 @@ import { READER_SHARED_WEB_PARTITION } from '../../native/electron-main/sharedWe
 import { shortenForLog } from '../../../code/electron-main/fetchTiming.js';
 import type {
   WebContentBounds,
+  WebContentLayoutPhase,
   WebContentNavigationMode,
   WebContentSelectionSnapshot,
   WebContentState,
@@ -25,34 +26,58 @@ const PREVIEW_TARGET_BACKGROUND_GRACE_MS = 2 * 60 * 1000;
 const PREVIEW_TARGET_BACKGROUND_DISPOSE_MS = 15 * 60 * 1000;
 const PREVIEW_TARGET_PRUNE_INTERVAL_MS = 60 * 1000;
 
+type WebContentTargetState = Pick<
+  WebContentState,
+  'url' | 'canGoBack' | 'canGoForward' | 'isLoading'
+>;
+
+type WebContentSurfaceState = {
+  bounds: WebContentBounds;
+  visible: boolean;
+  layoutPhase: WebContentLayoutPhase;
+};
+
+type WebContentOwnershipState = {
+  activeTargetId: string;
+};
+
 let webContentWindow: BrowserWindow | null = null;
 let webContentView: WebContentsView | null = null;
 const webContentViewsByTargetId = new Map<string, WebContentsView>();
-const webContentStatesByTargetId = new Map<string, WebContentState>();
+const webContentTargetStatesByTargetId = new Map<string, WebContentTargetState>();
 const webContentTargetBackgroundedSince = new Map<string, number>();
-let activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+const webContentOwnershipState: WebContentOwnershipState = {
+  activeTargetId: DEFAULT_WEB_CONTENT_TARGET_ID,
+};
 let webContentTargetPruneInterval: ReturnType<typeof setInterval> | null = null;
-let webContentBounds: WebContentBounds = { x: 0, y: 0, width: 0, height: 0 };
-let webContentState: WebContentState = {
-  url: '',
-  canGoBack: false,
-  canGoForward: false,
-  isLoading: false,
+const webContentSurfaceState: WebContentSurfaceState = {
+  bounds: getHiddenBounds(),
   visible: false,
+  layoutPhase: 'hidden',
 };
 
 function getHiddenBounds(): WebContentBounds {
   return { x: 0, y: 0, width: 0, height: 0 };
 }
 
-function createDefaultWebContentState(): WebContentState {
+function createDefaultWebContentTargetState(): WebContentTargetState {
   return {
     url: '',
     canGoBack: false,
     canGoForward: false,
     isLoading: false,
-    visible: false,
   };
+}
+
+function getActiveWebContentTargetId() {
+  return webContentOwnershipState.activeTargetId;
+}
+
+function getWebContentTargetState(targetId?: string | null): WebContentTargetState {
+  return (
+    webContentTargetStatesByTargetId.get(normalizeWebContentTargetId(targetId)) ??
+    createDefaultWebContentTargetState()
+  );
 }
 
 function normalizeWebContentTargetId(targetId?: string | null) {
@@ -131,7 +156,7 @@ function disposeWebContentTarget(targetId: string) {
 
   const targetView = webContentViewsByTargetId.get(targetId) ?? null;
   webContentViewsByTargetId.delete(targetId);
-  webContentStatesByTargetId.delete(targetId);
+  webContentTargetStatesByTargetId.delete(targetId);
   webContentTargetBackgroundedSince.delete(targetId);
 
   if (targetView) {
@@ -148,8 +173,8 @@ function disposeWebContentTarget(targetId: string) {
     }
   }
 
-  if (activeWebContentTargetId === targetId) {
-    activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+  if (getActiveWebContentTargetId() === targetId) {
+    webContentOwnershipState.activeTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
     syncActiveWebContentReferences();
     applyWebContentBounds();
     emitWebContentState();
@@ -162,7 +187,7 @@ function reconcileInactiveWebContentTargets(now = Date.now()) {
   const staleTargetIds: string[] = [];
 
   for (const targetId of webContentViewsByTargetId.keys()) {
-    if (targetId === DEFAULT_WEB_CONTENT_TARGET_ID || targetId === activeWebContentTargetId) {
+    if (targetId === DEFAULT_WEB_CONTENT_TARGET_ID || targetId === getActiveWebContentTargetId()) {
       continue;
     }
 
@@ -1327,31 +1352,47 @@ function createWebContentListingCandidateExtractionScript(preferredExtractorId?:
 }
 
 function syncActiveWebContentReferences() {
-  webContentView = webContentViewsByTargetId.get(activeWebContentTargetId) ?? null;
-  webContentState =
-    webContentStatesByTargetId.get(activeWebContentTargetId) ?? createDefaultWebContentState();
-}
-
-function emitWebContentState() {
-  if (!webContentWindow || webContentWindow.isDestroyed()) return;
-  webContentWindow.webContents.send('app:web-content-state', webContentState);
+  webContentView = webContentViewsByTargetId.get(getActiveWebContentTargetId()) ?? null;
 }
 
 function getWebContentStateForTarget(targetId?: string | null): WebContentState {
   const normalizedTargetId = normalizeWebContentTargetId(targetId);
-  return (
-    webContentStatesByTargetId.get(normalizedTargetId) ?? createDefaultWebContentState()
+  const currentState = getWebContentTargetState(normalizedTargetId);
+  const activeTargetId = getActiveWebContentTargetId();
+  const isActiveTarget = normalizedTargetId === activeTargetId;
+  return {
+    ...currentState,
+    targetId: normalizedTargetId === DEFAULT_WEB_CONTENT_TARGET_ID ? null : normalizedTargetId,
+    activeTargetId:
+      activeTargetId === DEFAULT_WEB_CONTENT_TARGET_ID
+        ? null
+        : activeTargetId,
+    ownership: isActiveTarget ? 'active' : 'inactive',
+    layoutPhase: isActiveTarget ? webContentSurfaceState.layoutPhase : 'hidden',
+    visible: isActiveTarget ? webContentSurfaceState.visible : false,
+  };
+}
+
+function getActiveWebContentStateSnapshot() {
+  return getWebContentStateForTarget(getActiveWebContentTargetId());
+}
+
+function emitWebContentState() {
+  if (!webContentWindow || webContentWindow.isDestroyed()) return;
+  webContentWindow.webContents.send(
+    'app:web-content-state',
+    getActiveWebContentStateSnapshot(),
   );
 }
 
-function setWebContentStateForTarget(
+function setWebContentTargetState(
   targetId: string,
-  nextState: WebContentState,
+  nextState: WebContentTargetState,
   emit = true,
 ) {
-  webContentStatesByTargetId.set(targetId, nextState);
+  webContentTargetStatesByTargetId.set(targetId, nextState);
 
-  if (targetId === activeWebContentTargetId) {
+  if (targetId === getActiveWebContentTargetId()) {
     syncActiveWebContentReferences();
     if (emit) {
       emitWebContentState();
@@ -1359,13 +1400,16 @@ function setWebContentStateForTarget(
   }
 }
 
-function updateWebContentState(targetId?: string | null, partial?: Partial<WebContentState>) {
+function updateWebContentTargetState(
+  targetId?: string | null,
+  partial?: Partial<WebContentTargetState>,
+) {
   const normalizedTargetId = normalizeWebContentTargetId(targetId);
-  const currentState = getWebContentStateForTarget(normalizedTargetId);
+  const currentState = getWebContentTargetState(normalizedTargetId);
   const targetView = webContentViewsByTargetId.get(normalizedTargetId) ?? null;
 
   if (partial) {
-    setWebContentStateForTarget(
+    setWebContentTargetState(
       normalizedTargetId,
       {
         ...currentState,
@@ -1378,7 +1422,7 @@ function updateWebContentState(targetId?: string | null, partial?: Partial<WebCo
 
   if (targetView && !targetView.webContents.isDestroyed()) {
     const contents = targetView.webContents;
-    setWebContentStateForTarget(
+    setWebContentTargetState(
       normalizedTargetId,
       {
         ...currentState,
@@ -1394,15 +1438,27 @@ function updateWebContentState(targetId?: string | null, partial?: Partial<WebCo
 
 function applyWebContentBounds() {
   const visible =
-    webContentState.visible &&
-    webContentBounds.width > 0 &&
-    webContentBounds.height > 0;
+    webContentSurfaceState.visible &&
+    webContentSurfaceState.layoutPhase === 'visible' &&
+    webContentSurfaceState.bounds.width > 0 &&
+    webContentSurfaceState.bounds.height > 0;
 
   for (const [targetId, targetView] of webContentViewsByTargetId) {
-    const isActive = targetId === activeWebContentTargetId;
+    const isActive = targetId === getActiveWebContentTargetId();
     const shouldShow = isActive && visible;
     targetView.setVisible(shouldShow);
-    targetView.setBounds(shouldShow ? webContentBounds : getHiddenBounds());
+    targetView.setBounds(shouldShow ? webContentSurfaceState.bounds : getHiddenBounds());
+  }
+}
+
+function setWebContentLayoutPhase(
+  phase: WebContentLayoutPhase,
+  emit = true,
+) {
+  webContentSurfaceState.layoutPhase = phase;
+  syncActiveWebContentReferences();
+  if (emit) {
+    emitWebContentState();
   }
 }
 
@@ -1410,7 +1466,7 @@ function bindWebContentEvents(targetId: string, view: WebContentsView) {
   const { webContents } = view;
 
   const syncState = () => {
-    updateWebContentState(targetId);
+    updateWebContentTargetState(targetId);
   };
   const handleDidFailLoad = (
     _event: unknown,
@@ -1437,11 +1493,11 @@ function bindWebContentEvents(targetId: string, view: WebContentsView) {
   webContents.on('did-fail-load', handleDidFailLoad);
   webContents.on('destroyed', () => {
     webContentViewsByTargetId.delete(targetId);
-    webContentStatesByTargetId.delete(targetId);
+    webContentTargetStatesByTargetId.delete(targetId);
     webContentTargetBackgroundedSince.delete(targetId);
 
-    if (activeWebContentTargetId === targetId) {
-      activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+    if (getActiveWebContentTargetId() === targetId) {
+      webContentOwnershipState.activeTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
       syncActiveWebContentReferences();
       emitWebContentState();
     }
@@ -1466,7 +1522,7 @@ function createWebContentView(targetId: string) {
   view.setBorderRadius(webContentCornerRadius);
   webContentWindow.contentView.addChildView(view);
   webContentViewsByTargetId.set(targetId, view);
-  webContentStatesByTargetId.set(targetId, createDefaultWebContentState());
+  webContentTargetStatesByTargetId.set(targetId, createDefaultWebContentTargetState());
   markWebContentTargetActive(targetId);
   bindWebContentEvents(targetId, view);
   applyWebContentBounds();
@@ -1477,8 +1533,8 @@ function createWebContentView(targetId: string) {
 export function ensureWebContentView(window: BrowserWindow) {
   webContentWindow = window;
   const activeView =
-    webContentViewsByTargetId.get(activeWebContentTargetId) ??
-    createWebContentView(activeWebContentTargetId);
+    webContentViewsByTargetId.get(getActiveWebContentTargetId()) ??
+    createWebContentView(getActiveWebContentTargetId());
   syncActiveWebContentReferences();
   emitWebContentState();
   return activeView;
@@ -1495,45 +1551,50 @@ export function disposeWebContentView(window?: BrowserWindow | null) {
   }
 
   webContentViewsByTargetId.clear();
-  webContentStatesByTargetId.clear();
+  webContentTargetStatesByTargetId.clear();
   webContentTargetBackgroundedSince.clear();
   stopWebContentTargetPruneInterval();
-  webContentBounds = getHiddenBounds();
-  activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+  webContentSurfaceState.bounds = getHiddenBounds();
+  webContentSurfaceState.visible = false;
+  webContentSurfaceState.layoutPhase = 'hidden';
+  webContentOwnershipState.activeTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
   webContentView = null;
-  webContentState = createDefaultWebContentState();
   emitWebContentState();
   webContentWindow = null;
 }
 
 export function setWebContentBounds(bounds: WebContentBounds | null) {
-  webContentBounds = bounds ?? getHiddenBounds();
-  if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
-    webContentState.visible = false;
-  }
+  webContentSurfaceState.bounds = bounds ?? getHiddenBounds();
   applyWebContentBounds();
   emitWebContentState();
 }
 
 export function setWebContentVisible(visible: boolean) {
-  webContentState.visible = visible;
-  setWebContentStateForTarget(activeWebContentTargetId, {
-    ...getWebContentStateForTarget(activeWebContentTargetId),
-    visible,
-  }, false);
+  webContentSurfaceState.visible = visible;
+  if (!visible) {
+    setWebContentLayoutPhase('hidden', false);
+  } else {
+    syncActiveWebContentReferences();
+  }
+  applyWebContentBounds();
+  emitWebContentState();
+}
+
+export function setWebContentLayoutPhaseState(phase: WebContentLayoutPhase) {
+  setWebContentLayoutPhase(phase, false);
   applyWebContentBounds();
   emitWebContentState();
 }
 
 export function activateWebContentTarget(targetId?: string | null) {
   const normalizedTargetId = normalizeWebContentTargetId(targetId);
-  const previousActiveWebContentTargetId = activeWebContentTargetId;
+  const previousActiveWebContentTargetId = getActiveWebContentTargetId();
 
   if (previousActiveWebContentTargetId !== normalizedTargetId) {
     markWebContentTargetBackgrounded(previousActiveWebContentTargetId);
   }
 
-  activeWebContentTargetId = normalizedTargetId;
+  webContentOwnershipState.activeTargetId = normalizedTargetId;
   markWebContentTargetActive(normalizedTargetId);
 
   if (!webContentViewsByTargetId.has(normalizedTargetId)) {
@@ -1545,11 +1606,8 @@ export function activateWebContentTarget(targetId?: string | null) {
     createWebContentView(normalizedTargetId);
   }
 
-  const nextState = {
-    ...getWebContentStateForTarget(normalizedTargetId),
-    visible: webContentState.visible,
-  };
-  setWebContentStateForTarget(normalizedTargetId, nextState, false);
+  const nextState = getWebContentTargetState(normalizedTargetId);
+  setWebContentTargetState(normalizedTargetId, nextState, false);
   syncActiveWebContentReferences();
   applyWebContentBounds();
   reconcileInactiveWebContentTargets();
@@ -1569,7 +1627,7 @@ export function getWebContentState(targetId?: string | null): WebContentState {
   const normalizedTargetId = normalizeWebContentTargetId(targetId);
   const targetView = webContentViewsByTargetId.get(normalizedTargetId);
   if (targetView && !targetView.webContents.isDestroyed()) {
-    updateWebContentState(normalizedTargetId);
+    updateWebContentTargetState(normalizedTargetId);
   }
 
   return getWebContentStateForTarget(normalizedTargetId);
@@ -1904,11 +1962,11 @@ export async function navigateWebContent(
     throw appError('PREVIEW_NOT_READY');
   }
 
-  webContentState.visible = true;
+  webContentSurfaceState.visible = true;
   applyWebContentBounds();
 
-  updateWebContentState();
-  const initialUrl = normalizeComparableWebContentUrl(webContentState.url);
+  updateWebContentTargetState();
+  const initialUrl = normalizeComparableWebContentUrl(getActiveWebContentStateSnapshot().url);
 
   let navigationFailure: unknown = null;
   void webContentView.webContents.loadURL(url).catch((error) => {
@@ -1925,8 +1983,9 @@ export async function navigateWebContent(
       throw navigationFailure;
     }
 
-    updateWebContentState();
-    const currentUrl = normalizeComparableWebContentUrl(webContentState.url);
+    updateWebContentTargetState();
+    const currentState = getActiveWebContentStateSnapshot();
+    const currentUrl = normalizeComparableWebContentUrl(currentState.url);
     const targetUrl = normalizeComparableWebContentUrl(url);
     if (
       hasWebContentReachedTarget(
@@ -1934,10 +1993,10 @@ export async function navigateWebContent(
         currentUrl,
         targetUrl,
         initialUrl,
-        webContentState.isLoading,
+        currentState.isLoading,
       )
     ) {
-      updateWebContentState();
+      updateWebContentTargetState();
       return;
     }
 
@@ -1950,7 +2009,7 @@ export async function navigateWebContent(
         ? 'Timed out while waiting for the web content URL to match the target exactly.'
         : 'Timed out while waiting for web content navigation to settle on a destination.',
     targetUrl: url,
-    currentUrl: webContentState.url,
+    currentUrl: getActiveWebContentStateSnapshot().url,
     navigationMode: mode,
   });
 }
@@ -1969,7 +2028,7 @@ export async function navigateWebContentForPrint(url: string, timeoutMs = 12000)
     throw appError('PREVIEW_NOT_READY');
   }
 
-  webContentState.visible = true;
+  webContentSurfaceState.visible = true;
   applyWebContentBounds();
   await navigateWebContent(url, 'strict');
 
@@ -1996,7 +2055,7 @@ export async function navigateWebContentForPrint(url: string, timeoutMs = 12000)
   throw appError('PREVIEW_NOT_READY', {
     message: 'Timed out while waiting for web content main content to become printable.',
     targetUrl: url,
-    currentUrl: webContentState.url,
+    currentUrl: getActiveWebContentStateSnapshot().url,
   });
 }
 

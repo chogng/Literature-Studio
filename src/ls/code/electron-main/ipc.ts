@@ -35,6 +35,7 @@ import {
   releaseWebContentTarget,
   reloadWebContent,
   setWebContentBounds,
+  setWebContentLayoutPhaseState,
   setWebContentVisible,
 } from '../../platform/windows/electron-main/webContentView.js';
 import { getNativeModalState, openArticleDetailsModal } from '../../platform/windows/electron-main/articleDetailsWindow.js';
@@ -360,6 +361,12 @@ export function registerAppIpc(storage: StorageService) {
 
   ipcMain.on('app:web-content-set-visible', (_event, visible: boolean) => {
     setWebContentVisible(Boolean(visible));
+  });
+
+  ipcMain.on('app:web-content-set-layout-phase', (_event, phase) => {
+    if (phase === 'measuring' || phase === 'visible' || phase === 'hidden') {
+      setWebContentLayoutPhaseState(phase);
+    }
   });
 
   ipcMain.on('app:web-content-reload', (_event, payload?: { targetId?: string | null }) => {

@@ -153,7 +153,14 @@ export interface WebContentBounds {
   height: number;
 }
 
+export type WebContentLayoutPhase = 'hidden' | 'measuring' | 'visible';
+export type WebContentOwnership = 'active' | 'inactive';
+
 export interface WebContentState {
+  targetId: string | null;
+  activeTargetId: string | null;
+  ownership: WebContentOwnership;
+  layoutPhase: WebContentLayoutPhase;
   url: string;
   canGoBack: boolean;
   canGoForward: boolean;
@@ -574,6 +581,7 @@ export interface ElectronWebContentApi {
   getState: (targetId?: string | null) => Promise<WebContentState>;
   setBounds: (bounds: WebContentBounds | null) => void;
   setVisible: (visible: boolean) => void;
+  setLayoutPhase: (phase: WebContentLayoutPhase) => void;
   reload: (targetId?: string | null) => void;
   goBack: (targetId?: string | null) => void;
   goForward: (targetId?: string | null) => void;
