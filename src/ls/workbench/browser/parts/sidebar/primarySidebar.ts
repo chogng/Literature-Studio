@@ -194,7 +194,7 @@ export class PrimarySidebar {
   );
   private readonly actionsElement = createElement(
     'div',
-    'sidebar-chat-action-bar',
+    'sidebar-action-bar',
   );
   private readonly treeElement = createElement('div', 'library-tree');
   private expandedFolders = new Set<string>(['root']);
@@ -261,7 +261,7 @@ export class PrimarySidebar {
     const button = createElement(
       'button',
       [
-        'sidebar-chat-topbar-action-btn',
+        'sidebar-action-btn',
         'btn-base',
         'btn-ghost',
         'btn-mode-icon',

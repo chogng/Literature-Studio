@@ -39,7 +39,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 
 export class AuxiliaryBar {
   private props: AuxiliaryBarProps;
-  private readonly element = createElement('div', 'sidebar-auxiliary-content');
+  private readonly element = createElement('div', 'auxiliarybar-content');
 
   constructor(props: AuxiliaryBarProps) {
     this.props = props;
@@ -68,14 +68,14 @@ export class AuxiliaryBar {
   }
 
   private renderTopbar() {
-    const topbar = createElement('div', 'sidebar-chat-topbar');
-    const strip = createElement('div', 'sidebar-chat-tab-strip');
+    const topbar = createElement('div', 'auxiliarybar-topbar');
+    const strip = createElement('div', 'auxiliarybar-tab-strip');
     for (const conversation of this.props.conversations) {
-      const item = createElement('div', 'sidebar-chat-tab-item');
+      const item = createElement('div', 'auxiliarybar-tab-item');
       const button = createElement(
         'button',
         [
-          'sidebar-chat-tab',
+          'auxiliarybar-tab',
           'btn-base',
           'btn-ghost',
           'btn-md',
@@ -93,7 +93,7 @@ export class AuxiliaryBar {
 
       const close = createElement(
         'button',
-        'sidebar-chat-tab-close btn-base btn-ghost btn-mode-icon btn-sm',
+        'auxiliarybar-tab-close btn-base btn-ghost btn-mode-icon btn-sm',
       );
       close.type = 'button';
       close.append(createLxIcon(lxIconSemanticMap.assistant.closeConversation));
@@ -109,7 +109,7 @@ export class AuxiliaryBar {
       strip.append(item);
     }
 
-    const actions = createElement('div', 'sidebar-chat-action-bar');
+    const actions = createElement('div', 'sidebar-action-bar');
     actions.append(
       this.createActionButton(lxIconSemanticMap.assistant.newConversation, this.props.onCreateConversation),
       this.createActionButton(lxIconSemanticMap.assistant.history, this.props.onToggleHistory, this.props.isHistoryOpen),
@@ -120,7 +120,7 @@ export class AuxiliaryBar {
   }
 
   private renderShell(canSend: boolean) {
-    const shell = createElement('div', 'sidebar-chat-shell');
+    const shell = createElement('div', 'auxiliarybar-shell');
     if (this.props.isHistoryOpen) {
       shell.append(this.renderHistoryPopover());
     }
@@ -128,7 +128,7 @@ export class AuxiliaryBar {
       shell.append(this.renderMorePopover());
     }
     if (this.props.errorMessage) {
-      const error = createElement('div', 'sidebar-chat-error');
+      const error = createElement('div', 'auxiliarybar-error');
       error.textContent = this.props.errorMessage;
       shell.append(error);
     }
@@ -137,16 +137,16 @@ export class AuxiliaryBar {
   }
 
   private renderHistoryPopover() {
-    const popover = createElement('div', 'sidebar-chat-popover');
-    const section = createElement('div', 'sidebar-chat-popover-section');
-    const title = createElement('strong', 'sidebar-chat-popover-title');
+    const popover = createElement('div', 'auxiliarybar-popover');
+    const section = createElement('div', 'auxiliarybar-popover-section');
+    const title = createElement('strong', 'auxiliarybar-popover-title');
     title.textContent = 'History';
-    const list = createElement('div', 'sidebar-chat-history-list');
+    const list = createElement('div', 'auxiliarybar-history-list');
     for (const conversation of this.props.conversations) {
       const item = createElement(
         'button',
         [
-          'sidebar-chat-history-item',
+          'auxiliarybar-history-item',
           conversation.id === this.props.activeConversationId ? 'is-active' : '',
         ]
           .filter(Boolean)
@@ -156,9 +156,9 @@ export class AuxiliaryBar {
       item.addEventListener('click', () =>
         this.props.onActivateConversation(conversation.id),
       );
-      const titleNode = createElement('span', 'sidebar-chat-history-item-title');
+      const titleNode = createElement('span', 'auxiliarybar-history-item-title');
       titleNode.textContent = conversation.title;
-      const meta = createElement('span', 'sidebar-chat-history-item-meta');
+      const meta = createElement('span', 'auxiliarybar-history-item-meta');
       meta.textContent = `${conversation.messages.length} messages`;
       item.append(titleNode, meta);
       list.append(item);
@@ -169,16 +169,16 @@ export class AuxiliaryBar {
   }
 
   private renderMorePopover() {
-    const popover = createElement('div', 'sidebar-chat-popover');
-    const section = createElement('div', 'sidebar-chat-popover-section');
-    const title = createElement('strong', 'sidebar-chat-popover-title');
+    const popover = createElement('div', 'auxiliarybar-popover');
+    const section = createElement('div', 'auxiliarybar-popover-section');
+    const title = createElement('strong', 'auxiliarybar-popover-title');
     title.textContent = 'More';
-    const list = createElement('div', 'sidebar-chat-menu-list');
-    const newConversation = createElement('button', 'sidebar-chat-menu-item');
+    const list = createElement('div', 'auxiliarybar-menu-list');
+    const newConversation = createElement('button', 'auxiliarybar-menu-item');
     newConversation.type = 'button';
     newConversation.textContent = 'New Conversation';
     newConversation.addEventListener('click', this.props.onCreateConversation);
-    const history = createElement('button', 'sidebar-chat-menu-item');
+    const history = createElement('button', 'auxiliarybar-menu-item');
     history.type = 'button';
     history.textContent = 'History';
     history.addEventListener('click', this.props.onToggleHistory);
@@ -192,7 +192,7 @@ export class AuxiliaryBar {
     const thread = createElement(
       'div',
       [
-        'sidebar-chat-thread',
+        'auxiliarybar-thread',
         this.props.messages.length === 0 ? 'is-empty' : '',
       ]
         .filter(Boolean)
@@ -202,9 +202,9 @@ export class AuxiliaryBar {
       if (message.role === 'user') {
         const item = createElement(
           'div',
-          'sidebar-chat-message sidebar-chat-message-user',
+          'auxiliarybar-message auxiliarybar-message-user',
         );
-        const text = createElement('p', 'sidebar-chat-message-text');
+        const text = createElement('p', 'auxiliarybar-message-text');
         text.textContent = message.content;
         item.append(text);
         thread.append(item);
@@ -213,38 +213,38 @@ export class AuxiliaryBar {
 
       const item = createElement(
         'div',
-        'sidebar-chat-message sidebar-chat-message-assistant',
+        'auxiliarybar-message auxiliarybar-message-assistant',
       );
-      const body = createElement('div', 'sidebar-chat-message-body');
-      const header = createElement('div', 'sidebar-chat-result-header');
+      const body = createElement('div', 'auxiliarybar-message-body');
+      const header = createElement('div', 'auxiliarybar-result-header');
       const strong = document.createElement('strong');
       strong.textContent = this.props.labels.assistantAnswerTitle;
       const pill = createElement(
         'span',
-        `sidebar-mode-pill ${message.result.rerankApplied ? 'is-enabled' : 'is-disabled'}`,
+        `auxiliarybar-mode-pill ${message.result.rerankApplied ? 'is-enabled' : 'is-disabled'}`,
       );
       pill.textContent = message.result.rerankApplied
         ? this.props.labels.assistantRerankOn
         : this.props.labels.assistantRerankOff;
       header.append(strong, pill);
-      const answer = createElement('p', 'sidebar-chat-answer');
+      const answer = createElement('p', 'auxiliarybar-answer');
       answer.textContent = message.content;
       body.append(header, answer);
 
       if (message.result.evidence.length > 0) {
-        const evidence = createElement('div', 'sidebar-chat-evidence');
+        const evidence = createElement('div', 'auxiliarybar-evidence');
         const title = document.createElement('strong');
         title.textContent = this.props.labels.assistantEvidenceTitle;
-        const list = createElement('ul', 'sidebar-chat-evidence-list');
+        const list = createElement('ul', 'auxiliarybar-evidence-list');
         for (const evidenceItem of message.result.evidence) {
-          const li = createElement('li', 'sidebar-chat-evidence-item');
-          const titleNode = createElement('strong', 'sidebar-chat-evidence-title');
+          const li = createElement('li', 'auxiliarybar-evidence-item');
+          const titleNode = createElement('strong', 'auxiliarybar-evidence-title');
           titleNode.textContent = `[${evidenceItem.rank}] ${evidenceItem.title}`;
-          const meta = createElement('p', 'sidebar-chat-evidence-meta');
+          const meta = createElement('p', 'auxiliarybar-evidence-meta');
           meta.textContent = [evidenceItem.journalTitle, evidenceItem.publishedAt]
             .filter(Boolean)
             .join(' | ');
-          const text = createElement('p', 'sidebar-chat-evidence-text');
+          const text = createElement('p', 'auxiliarybar-evidence-text');
           text.textContent = evidenceItem.excerpt;
           li.append(titleNode, meta, text);
           list.append(li);
@@ -260,8 +260,8 @@ export class AuxiliaryBar {
   }
 
   private renderComposer(canSend: boolean) {
-    const composer = createElement('div', 'sidebar-chat-composer');
-    const textarea = createElement('textarea', 'sidebar-chat-input');
+    const composer = createElement('div', 'auxiliarybar-composer');
+    const textarea = createElement('textarea', 'auxiliarybar-input');
     textarea.rows = 3;
     textarea.value = this.props.question;
     textarea.placeholder = this.props.labels.assistantQuestionPlaceholder;
@@ -280,15 +280,15 @@ export class AuxiliaryBar {
       }
     });
 
-    const toolbar = createElement('div', 'sidebar-chat-composer-toolbar');
-    const tools = createElement('div', 'sidebar-chat-composer-tools');
+    const toolbar = createElement('div', 'auxiliarybar-composer-toolbar');
+    const tools = createElement('div', 'auxiliarybar-composer-tools');
     tools.append(
       this.createComposerButton(this.props.labels.assistantVoice, lxIconSemanticMap.assistant.voice),
       this.createComposerButton(this.props.labels.assistantImage, lxIconSemanticMap.assistant.image),
     );
     const send = createElement(
       'button',
-      'sidebar-chat-send-btn sidebar-chat-send-icon-btn btn-base btn-primary btn-mode-icon btn-md',
+      'auxiliarybar-send-btn auxiliarybar-send-icon-btn btn-base btn-primary btn-mode-icon btn-md',
     );
     send.type = 'button';
     send.replaceChildren(
@@ -310,7 +310,7 @@ export class AuxiliaryBar {
   private createActionButton(icon: LxIconName, onClick: () => void, isActive = false) {
     const button = createElement(
       'button',
-      ['sidebar-chat-topbar-action-btn', 'btn-base', 'btn-ghost', 'btn-mode-icon', 'btn-sm', isActive ? 'is-active' : '']
+      ['sidebar-action-btn', 'btn-base', 'btn-ghost', 'btn-mode-icon', 'btn-sm', isActive ? 'is-active' : '']
         .filter(Boolean)
         .join(' '),
     );
@@ -323,7 +323,7 @@ export class AuxiliaryBar {
   private createComposerButton(label: string, icon: LxIconName) {
     const button = createElement(
       'button',
-      'sidebar-chat-composer-tool-btn btn-base btn-ghost btn-mode-icon btn-sm',
+      'auxiliarybar-composer-tool-btn btn-base btn-ghost btn-mode-icon btn-sm',
     );
     button.type = 'button';
     button.append(createLxIcon(icon));

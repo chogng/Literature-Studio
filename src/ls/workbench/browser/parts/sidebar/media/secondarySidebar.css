@@ -80,7 +80,7 @@
   gap: 0;
 }
 
-.sidebar-auxiliary-content {
+.auxiliarybar-content {
   min-height: 0;
   flex: 1;
   display: flex;
@@ -89,27 +89,6 @@
 
 .sidebar-workbench-header-auxiliary {
   flex-shrink: 0;
-}
-
-.sidebar-mode-pill {
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.sidebar-mode-pill.is-enabled {
-  background: #eaf6ef;
-  color: #1f6a3a;
-  border: 1px solid #b5dfc2;
-}
-
-.sidebar-mode-pill.is-disabled {
-  background: #f4f6f9;
-  color: #66798f;
-  border: 1px solid #dbe3ea;
 }
 
 .sidebar-stats-grid {
