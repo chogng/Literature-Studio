@@ -1,6 +1,7 @@
 import './dropdown.css';
 
 export type DropdownSize = 'sm' | 'md' | 'lg';
+export type DropdownMenuAlign = 'start' | 'center' | 'end';
 
 export type DropdownOption = {
   value: string;
@@ -17,6 +18,7 @@ export type DropdownProps = {
   className?: string;
   title?: string;
   menuMode?: 'dom' | 'external';
+  menuAlign?: DropdownMenuAlign;
   onExternalMenuChange?: (request: DropdownExternalMenuRequest | null) => void;
   onChange?: (event: { target: { value: string } }) => void;
   onOpenChange?: (isOpen: boolean) => void;
@@ -31,6 +33,7 @@ export type DropdownExternalMenuRequest = {
     width: number;
     height: number;
   };
+  align: DropdownMenuAlign;
   options: DropdownOption[];
   value?: string;
 };
@@ -100,12 +103,17 @@ function composeClassName(parts: Array<string | undefined | null | false>) {
   return parts.filter(Boolean).join(' ');
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export class DropdownView {
   private props: DropdownProps;
   private isOpen = false;
   private isFocused = false;
   private menuPlacement: 'top' | 'bottom' = 'bottom';
   private menuMaxHeight: number | undefined;
+  private menuLeft = 0;
   private readonly element = createElement('div');
   private readonly field = createElement('div', 'dropdown-field custom-dropdown-field');
   private readonly iconWrapper = createElement('div', 'dropdown-icon-wrapper');
@@ -294,6 +302,7 @@ export class DropdownView {
       size: props.size ?? 'md',
       className: props.className ?? '',
       menuMode: props.menuMode ?? 'dom',
+      menuAlign: props.menuAlign ?? 'start',
     };
   }
 
@@ -319,6 +328,7 @@ export class DropdownView {
         width: triggerRect.width,
         height: triggerRect.height,
       },
+      align: this.props.menuAlign ?? 'start',
       options: this.props.options,
       value: this.props.value,
     });
@@ -332,14 +342,24 @@ export class DropdownView {
     const viewportPadding = 8;
     const menuOffset = 4;
     const triggerRect = this.element.getBoundingClientRect();
+    const menuWidth = this.menuView.offsetWidth;
     const menuHeight = this.menuView.offsetHeight;
     const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
     const spaceAbove = triggerRect.top - viewportPadding;
     const shouldOpenUpwards = spaceBelow < menuHeight && spaceAbove > spaceBelow;
     const availableSpace = shouldOpenUpwards ? spaceAbove : spaceBelow;
+    const preferredLeft =
+      this.props.menuAlign === 'center'
+        ? (triggerRect.width - menuWidth) / 2
+        : this.props.menuAlign === 'end'
+          ? triggerRect.width - menuWidth
+          : 0;
+    const minLeft = viewportPadding - triggerRect.left;
+    const maxLeft = window.innerWidth - viewportPadding - triggerRect.left - menuWidth;
 
     this.menuPlacement = shouldOpenUpwards ? 'top' : 'bottom';
     this.menuMaxHeight = Math.max(availableSpace - menuOffset, 120);
+    this.menuLeft = clamp(preferredLeft, minLeft, Math.max(minLeft, maxLeft));
     this.renderMenu();
   }
 
@@ -352,6 +372,7 @@ export class DropdownView {
 
     const selectedValue = this.props.value;
     const menu = createElement('div', `dropdown-menu dropdown-menu-${this.menuPlacement}`);
+    menu.style.left = `${this.menuLeft}px`;
     if (typeof this.menuMaxHeight === 'number') {
       menu.style.maxHeight = `${this.menuMaxHeight}px`;
     }

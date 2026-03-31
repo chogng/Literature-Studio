@@ -42,6 +42,7 @@ export function createTitlebarSourceDropdownView(
   const view = createDropdownView({
     ...props,
     menuMode: useNativeMenu ? 'external' : 'dom',
+    menuAlign: 'end',
     onExternalMenuChange: (request) => {
       if (!useNativeMenu || !menuApi) {
         return;
@@ -59,7 +60,7 @@ export function createTitlebarSourceDropdownView(
         triggerRect: request.triggerRect,
         options: request.options,
         value: request.value,
-        align: 'end',
+        align: request.align,
         coverage: 'trigger-band',
       };
       menuApi.open(payload);
