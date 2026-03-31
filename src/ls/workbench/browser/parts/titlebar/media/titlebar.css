@@ -42,13 +42,20 @@
   min-width: var(--window-controls-width, 70px);
 }
 
-.titlebar-start {
+.titlebar-start-viewport {
   grid-column: 2;
   justify-self: start;
   display: flex;
   align-items: stretch;
   height: 100%;
   padding-left: 12px;
+  min-width: 0;
+}
+
+.titlebar-start {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
   min-width: 0;
 }
 
@@ -154,7 +161,6 @@
   width: auto;
   flex: 0 0 auto;
   min-width: auto;
-  margin-right: 6px;
   -webkit-app-region: no-drag;
 }
 
@@ -233,14 +239,31 @@
   color: #8a4d12;
 }
 
-.titlebar-controls {
+.titlebar-controls-viewport {
   grid-column: 4;
   justify-self: end;
   -webkit-app-region: no-drag;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   height: 100%;
+  padding-right: 8px;
+  min-width: 0;
+}
+
+.titlebar-controls {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
   transform: translateY(1px);
+}
+
+.titlebar-controls-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
 }
 
 .titlebar-window-controls {
@@ -288,22 +311,12 @@
   transform: none;
 }
 
-.titlebar-btn-settings.btn-base {
-  margin-right: 4px;
-}
-
-.titlebar-btn-export.btn-base {
-  margin-right: 2px;
-}
-
 .titlebar-btn-sidebar.btn-base {
   -webkit-app-region: no-drag;
-  margin-right: 4px;
 }
 
 .titlebar-btn-auxiliary.btn-base {
   -webkit-app-region: no-drag;
-  margin-right: 4px;
 }
 
 .titlebar-btn-nav.btn-base:disabled {

@@ -138,20 +138,13 @@ function measureSourceTriggerWidth(label: string): number {
 }
 
 function createSourceOptions(
-  addressBarSourcePlaceholder: string | undefined,
   addressBarSourceOptions: QuickAccessSourceOption[],
 ): SourceOptionView[] {
-  return [
-    {
-      value: '',
-      label: addressBarSourcePlaceholder ?? '',
-    },
-    ...addressBarSourceOptions.map((option) => ({
-      value: option.id,
-      label: option.label,
-      title: `${option.journalTitle} | ${option.url}`,
-    })),
-  ];
+  return addressBarSourceOptions.map((option) => ({
+    value: option.id,
+    label: option.label,
+    title: `${option.journalTitle} | ${option.url}`,
+  }));
 }
 
 function createIconButton(params: {
@@ -179,8 +172,10 @@ export class TitlebarView {
   private props: TitlebarProps;
   private readonly element = createElement('header');
   private readonly leadingWindowControlsContainer = createElement('div');
+  private readonly startViewportElement = createElement('div', 'titlebar-start-viewport');
   private readonly startElement = createElement('div', 'titlebar-start');
   private readonly centerElement = createElement('div', 'titlebar-center');
+  private readonly controlsViewportElement = createElement('div', 'titlebar-controls-viewport');
   private readonly controlsElement = createElement('div', 'titlebar-controls');
   private readonly renderedViews: Array<{ dispose: () => void }> = [];
   private sourceSelector: TitlebarSourceDropdownView | null = null;
@@ -189,11 +184,13 @@ export class TitlebarView {
 
   constructor(props: TitlebarProps) {
     this.props = props;
+    this.startViewportElement.append(this.startElement);
+    this.controlsViewportElement.append(this.controlsElement);
     this.element.append(
       this.leadingWindowControlsContainer,
-      this.startElement,
+      this.startViewportElement,
       this.centerElement,
-      this.controlsElement,
+      this.controlsViewportElement,
     );
     this.unsubscribeUiActions = subscribeTitlebarUiActions((action) => {
       if (action.type === 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
@@ -390,20 +387,20 @@ export class TitlebarView {
 
   private renderControls(props: TitlebarProps & { labels: TitlebarLabels }) {
     this.controlsElement.replaceChildren();
+    const actionGroup = createElement('div', 'titlebar-controls-group');
 
     if (props.onSelectAddressBarSource) {
       const sourceOptions = createSourceOptions(
-        props.addressBarSourcePlaceholder,
         props.addressBarSourceOptions ?? [],
       );
       const selectedOption =
-        sourceOptions.find((option) => option.value === props.selectedAddressBarSourceId) ??
-        sourceOptions[0];
+        sourceOptions.find((option) => option.value === props.selectedAddressBarSourceId) ?? null;
       const selectorWrap = createElement('div', 'titlebar-journal-bar');
       const selector = this.trackView(
         createTitlebarSourceDropdownView({
           options: sourceOptions,
           value: props.selectedAddressBarSourceId ?? '',
+          placeholder: props.addressBarSourcePlaceholder ?? '',
           className: `titlebar-source-select ${props.selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
           title:
             props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
@@ -417,7 +414,9 @@ export class TitlebarView {
       );
       selectorElement.style.setProperty(
         '--titlebar-source-width',
-        `${measureSourceTriggerWidth(selectedOption?.label ?? '')}px`,
+        `${measureSourceTriggerWidth(
+          selectedOption?.label ?? props.addressBarSourcePlaceholder ?? '',
+        )}px`,
       );
       selectorElement.addEventListener('keydown', (event) => {
         if (!props.onCycleAddressBarSource || !event.altKey) {
@@ -453,7 +452,7 @@ export class TitlebarView {
           onClick: requestToggleTitlebarAuxiliarySidebar,
         }),
       );
-      this.controlsElement.append(auxiliaryButton.getElement());
+      actionGroup.append(auxiliaryButton.getElement());
     }
 
     const exportButton = this.trackView(
@@ -476,7 +475,9 @@ export class TitlebarView {
         onClick: requestToggleTitlebarSettings,
       }),
     );
-    this.controlsElement.append(exportButton.getElement(), settingsButton.getElement());
+    actionGroup.append(exportButton.getElement(), settingsButton.getElement());
+
+    this.controlsElement.append(actionGroup);
 
     if (WINDOW_CHROME_LAYOUT.renderCustomWindowControls) {
       const windowControls = this.trackView(

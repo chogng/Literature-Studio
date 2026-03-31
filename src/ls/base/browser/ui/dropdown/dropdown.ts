@@ -14,6 +14,7 @@ export type DropdownProps = {
   options: DropdownOption[];
   size?: DropdownSize;
   value?: string;
+  placeholder?: string;
   disabled?: boolean;
   className?: string;
   title?: string;
@@ -78,8 +79,8 @@ function createChevronIcon() {
 function createCheckIcon() {
   const icon = document.createElementNS(SVG_NS, 'svg');
   icon.setAttribute('viewBox', '0 0 16 16');
-  icon.setAttribute('width', '14');
-  icon.setAttribute('height', '14');
+  icon.setAttribute('width', '12');
+  icon.setAttribute('height', '12');
   icon.setAttribute('aria-hidden', 'true');
   icon.classList.add('dropdown-menu-item-check');
 
@@ -95,8 +96,21 @@ function createCheckIcon() {
   return icon;
 }
 
+function createCheckSlot(isSelected: boolean) {
+  const slot = createElement('span', 'dropdown-menu-item-check');
+  slot.setAttribute('aria-hidden', 'true');
+
+  if (isSelected) {
+    slot.append(createCheckIcon());
+  } else {
+    slot.classList.add('placeholder');
+  }
+
+  return slot;
+}
+
 function resolveSelectedOption(props: DropdownProps) {
-  return props.options.find((option) => option.value === props.value) ?? props.options[0] ?? null;
+  return props.options.find((option) => option.value === props.value) ?? null;
 }
 
 function composeClassName(parts: Array<string | undefined | null | false>) {
@@ -154,6 +168,14 @@ export class DropdownView {
     this.element.focus();
   }
 
+  blur() {
+    this.dismissInternal({ preserveMenuState: true });
+  }
+
+  dismiss() {
+    this.dismissInternal();
+  }
+
   open() {
     if (this.props.disabled) {
       return;
@@ -176,6 +198,22 @@ export class DropdownView {
     this.element.removeEventListener('focus', this.handleFocus);
     this.element.removeEventListener('blur', this.handleBlur);
     this.element.replaceChildren();
+  }
+
+  private dismissInternal(options?: { preserveMenuState?: boolean }) {
+    const isActiveElement = document.activeElement === this.element;
+    this.isFocused = false;
+
+    if (!options?.preserveMenuState) {
+      this.setOpen(false);
+    }
+
+    if (isActiveElement) {
+      this.element.blur();
+      return;
+    }
+
+    this.render();
   }
 
   private readonly handleClick = (event: MouseEvent) => {
@@ -392,9 +430,7 @@ export class DropdownView {
         }
         const content = createElement('div', 'dropdown-menu-item-content', option.label);
         item.append(content);
-        if (selectedValue === option.value) {
-          item.append(createCheckIcon());
-        }
+        item.append(createCheckSlot(selectedValue === option.value));
         item.addEventListener('click', (event) => {
           event.stopPropagation();
           if (option.disabled) {
@@ -424,7 +460,7 @@ export class DropdownView {
     this.element.tabIndex = this.props.disabled ? -1 : 0;
     this.element.title = this.props.title ?? selectedOption?.title ?? '';
 
-    this.field.textContent = selectedOption?.label ?? '';
+    this.field.textContent = selectedOption?.label ?? this.props.placeholder ?? '';
     if (selectedOption?.title) {
       this.field.title = selectedOption.title;
     } else {

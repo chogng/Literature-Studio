@@ -185,7 +185,18 @@
 
 .dropdown-menu-item-check {
   flex-shrink: 0;
-  color: #0a5fbf;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+  color: rgba(10, 95, 191, 0.72);
+  opacity: 0.9;
+}
+
+.dropdown-menu-item-check.placeholder {
+  opacity: 0;
 }
 
 .dropdown-chevron {

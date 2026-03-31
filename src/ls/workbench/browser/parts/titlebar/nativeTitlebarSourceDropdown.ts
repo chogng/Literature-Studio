@@ -11,6 +11,7 @@ import { nativeHostService } from '../../../../platform/native/electron-sandbox/
 export type TitlebarSourceDropdownView = {
   getElement: () => HTMLElement;
   focus: () => void;
+  dismiss: () => void;
   open: () => void;
   close: () => void;
   dispose: () => void;
@@ -76,7 +77,7 @@ export function createTitlebarSourceDropdownView(
           }
 
           suppressCloseRequest = true;
-          view.close();
+          view.dismiss();
           suppressCloseRequest = false;
 
           if (nativeEvent.type === 'select' && typeof nativeEvent.value === 'string') {
@@ -88,6 +89,7 @@ export function createTitlebarSourceDropdownView(
   return {
     getElement: () => view.getElement(),
     focus: () => view.focus(),
+    dismiss: () => view.dismiss(),
     open: () => view.open(),
     close: () => view.close(),
     dispose: () => {
