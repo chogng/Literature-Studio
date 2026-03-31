@@ -9,7 +9,7 @@ import {
   type Disposable,
 } from '../workbench/workbench.contribution';
 import { hasDesktopRuntime } from '../../../base/common/platform';
-import { nativeHostService } from '../../../platform/native/browser/nativeHostService';
+import { nativeHostService } from '../../../platform/native/electron-sandbox/nativeHostService';
 
 function createLocaleServiceContext() {
   return {
