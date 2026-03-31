@@ -2,6 +2,7 @@ import './dropdown.css';
 
 export type DropdownSize = 'sm' | 'md' | 'lg';
 export type DropdownMenuAlign = 'start' | 'center' | 'end';
+export type DropdownExternalMenuChangeSource = 'open' | 'props' | 'viewport';
 
 export type DropdownOption = {
   value: string;
@@ -28,6 +29,7 @@ export type DropdownProps = {
 };
 
 export type DropdownExternalMenuRequest = {
+  source: DropdownExternalMenuChangeSource;
   triggerRect: {
     x: number;
     y: number;
@@ -159,7 +161,7 @@ export class DropdownView {
     if (this.props.disabled && this.isOpen) {
       this.setOpen(false);
     } else if (this.isOpen && this.usesExternalMenu()) {
-      this.emitExternalMenuChange();
+      this.emitExternalMenuChange('props');
     }
     this.render();
   }
@@ -282,7 +284,7 @@ export class DropdownView {
       return;
     }
     if (this.usesExternalMenu()) {
-      this.emitExternalMenuChange();
+      this.emitExternalMenuChange('viewport');
       return;
     }
     this.updateMenuPosition();
@@ -297,7 +299,7 @@ export class DropdownView {
     if (nextOpen) {
       this.attachOpenListeners();
       if (this.usesExternalMenu()) {
-        this.emitExternalMenuChange();
+        this.emitExternalMenuChange('open');
       }
     } else {
       this.detachOpenListeners();
@@ -348,7 +350,7 @@ export class DropdownView {
     return this.props.menuMode === 'external';
   }
 
-  private emitExternalMenuChange() {
+  private emitExternalMenuChange(source?: DropdownExternalMenuChangeSource) {
     if (!this.usesExternalMenu()) {
       return;
     }
@@ -360,6 +362,7 @@ export class DropdownView {
 
     const triggerRect = this.element.getBoundingClientRect();
     this.props.onExternalMenuChange?.({
+      source: source ?? 'props',
       triggerRect: {
         x: triggerRect.x,
         y: triggerRect.y,
