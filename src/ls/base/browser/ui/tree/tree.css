@@ -1,0 +1,32 @@
+.simple-tree {
+  min-height: 0;
+  outline: none;
+}
+
+.simple-tree-list,
+.simple-tree-children {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.simple-tree-list > li,
+.simple-tree-children > li {
+  min-width: 0;
+}
+
+.simple-tree-node {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.simple-tree-node.is-selected {
+  background: #e8f1fc;
+}
+
+.simple-tree-node.is-focused {
+  outline: 1px solid #8cb4ea;
+  outline-offset: -1px;
+}

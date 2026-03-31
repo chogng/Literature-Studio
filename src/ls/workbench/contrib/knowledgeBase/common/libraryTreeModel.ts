@@ -55,7 +55,8 @@ export type LibraryTreeDragPayload = {
   documents: LibraryDocumentRef[];
 };
 
-export const LIBRARY_TREE_DRAG_MIME = 'application/vnd.literature-studio.library-documents';
+export const LIBRARY_TREE_DRAG_MIME =
+  'application/vnd.literature-studio.library-documents';
 
 function normalizePathSegment(value: string) {
   return value.trim().replace(/[\\/]+/g, '/');
@@ -226,6 +227,64 @@ export function createLibraryTreeDragPayload(
     documentIds: documents.map((document) => document.documentId),
     documents: documents.map(createLibraryDocumentRef),
   };
+}
+
+export function serializeLibraryTreeDragPayload(
+  payload: LibraryTreeDragPayload,
+): string {
+  return JSON.stringify(payload);
+}
+
+export function parseLibraryTreeDragPayload(
+  value: string,
+): LibraryTreeDragPayload | null {
+  try {
+    const parsed = JSON.parse(value) as Partial<LibraryTreeDragPayload>;
+    if (
+      parsed.type !== 'library-documents' ||
+      !Array.isArray(parsed.documentIds) ||
+      !Array.isArray(parsed.documents)
+    ) {
+      return null;
+    }
+
+    return {
+      type: 'library-documents',
+      documentIds: parsed.documentIds.filter(
+        (documentId): documentId is string => typeof documentId === 'string',
+      ),
+      documents: parsed.documents
+        .map((document) => {
+          if (!document || typeof document !== 'object') {
+            return null;
+          }
+
+          const {
+            documentId,
+            title = null,
+            doi = null,
+            sourceUrl = null,
+            latestFilePath = null,
+          } = document as Partial<LibraryDocumentRef>;
+
+          if (typeof documentId !== 'string') {
+            return null;
+          }
+
+          return {
+            documentId,
+            title: typeof title === 'string' ? title : null,
+            doi: typeof doi === 'string' ? doi : null,
+            sourceUrl: typeof sourceUrl === 'string' ? sourceUrl : null,
+            latestFilePath:
+              typeof latestFilePath === 'string' ? latestFilePath : null,
+          };
+        })
+        .filter((document): document is LibraryDocumentRef => document !== null),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function buildLibraryTreeIndex(
