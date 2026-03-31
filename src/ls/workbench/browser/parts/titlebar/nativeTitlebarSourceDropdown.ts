@@ -21,6 +21,49 @@ export type TitlebarSourceDropdownView = {
 
 let nativeDropdownRequestId = 0;
 
+function areTriggerRectsEqual(
+  left: DropdownExternalMenuRequest['triggerRect'] | null,
+  right: DropdownExternalMenuRequest['triggerRect'] | null,
+) {
+  return (
+    left?.x === right?.x &&
+    left?.y === right?.y &&
+    left?.width === right?.width &&
+    left?.height === right?.height
+  );
+}
+
+function areMenuOptionsEqual(
+  left: DropdownExternalMenuRequest['options'],
+  right: DropdownExternalMenuRequest['options'],
+) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((option, index) => {
+    const nextOption = right[index];
+    return (
+      option.value === nextOption?.value &&
+      option.label === nextOption?.label &&
+      option.title === nextOption?.title &&
+      Boolean(option.disabled) === Boolean(nextOption?.disabled)
+    );
+  });
+}
+
+function shouldRefreshActiveMenu(
+  current: DropdownExternalMenuRequest,
+  next: DropdownExternalMenuRequest,
+) {
+  return (
+    current.align !== next.align ||
+    current.value !== next.value ||
+    !areTriggerRectsEqual(current.triggerRect, next.triggerRect) ||
+    !areMenuOptionsEqual(current.options, next.options)
+  );
+}
+
 function canUseNativeTitlebarMenu() {
   if (typeof window === 'undefined') {
     return false;
@@ -42,6 +85,7 @@ export function createTitlebarSourceDropdownView(
   let suppressCloseRequest = false;
   let activeRequestId: string | null = null;
   let activeTriggerRect: DropdownExternalMenuRequest['triggerRect'] | null = null;
+  let activeMenuRequest: DropdownExternalMenuRequest | null = null;
   let currentProps = props;
 
   const handleExternalMenuChange = (request: DropdownExternalMenuRequest | null) => {
@@ -53,6 +97,7 @@ export function createTitlebarSourceDropdownView(
       const requestIdToClose = activeRequestId;
       activeRequestId = null;
       activeTriggerRect = null;
+      activeMenuRequest = null;
       if (!suppressCloseRequest && requestIdToClose) {
         menuApi.close(requestIdToClose);
       }
@@ -66,12 +111,25 @@ export function createTitlebarSourceDropdownView(
       activeTriggerRect = request.triggerRect;
     }
 
+    const nextRequest: DropdownExternalMenuRequest = {
+      ...request,
+      triggerRect: activeTriggerRect ?? request.triggerRect,
+    };
+    if (
+      request.source === 'props' &&
+      activeMenuRequest &&
+      !shouldRefreshActiveMenu(activeMenuRequest, nextRequest)
+    ) {
+      return;
+    }
+
+    activeMenuRequest = nextRequest;
     const payload: NativeMenuOpenPayload = {
       requestId,
-      triggerRect: activeTriggerRect ?? request.triggerRect,
-      options: request.options,
-      value: request.value,
-      align: request.align,
+      triggerRect: nextRequest.triggerRect,
+      options: nextRequest.options,
+      value: nextRequest.value,
+      align: nextRequest.align,
       coverage: 'trigger-band',
     };
     menuApi.open(payload);
@@ -105,6 +163,7 @@ export function createTitlebarSourceDropdownView(
           suppressCloseRequest = true;
           activeRequestId = null;
           activeTriggerRect = null;
+          activeMenuRequest = null;
           view.dismiss();
           suppressCloseRequest = false;
 
