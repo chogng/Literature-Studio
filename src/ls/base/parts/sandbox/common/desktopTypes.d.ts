@@ -48,6 +48,15 @@ export interface TranslationSettings {
 
 export type LibraryStorageMode = 'linked-original' | 'managed-copy';
 
+export interface KnowledgeBaseSettings {
+  enabled: boolean;
+  autoIndexDownloadedPdf: boolean;
+  downloadDirectory: string | null;
+  libraryStorageMode: LibraryStorageMode;
+  libraryDirectory: string | null;
+  maxConcurrentIndexJobs: number;
+}
+
 export type RagProviderId = 'moark';
 
 export interface RagProviderSettings {
@@ -61,11 +70,6 @@ export interface RagProviderSettings {
 
 export interface RagSettings {
   enabled: boolean;
-  knowledgeBaseModeEnabled?: boolean;
-  autoIndexDownloadedPdf: boolean;
-  libraryStorageMode: LibraryStorageMode;
-  libraryDirectory: string | null;
-  maxConcurrentIndexJobs: number;
   activeProvider: RagProviderId;
   providers: Record<RagProviderId, RagProviderSettings>;
   retrievalCandidateCount: number;
@@ -91,6 +95,7 @@ export interface StoredAppSettings {
   locale: Locale;
   llm: LlmSettings;
   translation: TranslationSettings;
+  knowledgeBase: KnowledgeBaseSettings;
   rag: RagSettings;
 }
 

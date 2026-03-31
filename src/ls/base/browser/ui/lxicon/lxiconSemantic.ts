@@ -39,7 +39,7 @@ export const lxIconSemanticMap = {
   },
   library: {
     refresh: 'library',
-    downloadPdf: 'file-pdf',
+    downloadPdf: 'download-2',
     createDraft: 'add-file',
     folderExpanded: 'chevron-down',
     folderCollapsed: 'chevron-right',

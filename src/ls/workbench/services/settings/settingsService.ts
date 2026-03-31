@@ -1,6 +1,7 @@
 import type {
   AppSettings as DesktopAppSettings,
   ElectronInvoke,
+  KnowledgeBaseSettings,
   LlmSettings,
   RagSettings,
   TranslationSettings,
@@ -15,6 +16,10 @@ import {
   normalizeBatchLimit,
   resolveConfigBatchSources,
 } from '../config/configSchema';
+import {
+  cloneKnowledgeBaseSettings,
+  createDefaultKnowledgeBaseSettings,
+} from '../knowledgeBase/config.js';
 import { cloneLlmSettings, createDefaultLlmSettings } from '../llm/config.js';
 import { cloneRagSettings, createDefaultRagSettings } from '../rag/config.js';
 import { cloneTranslationSettings, createDefaultTranslationSettings } from '../translation/config.js';
@@ -24,6 +29,7 @@ export type AppSettingsPayload = DesktopAppSettings;
 
 export type ResolvedSettingsState = {
   pdfDownloadDir: string;
+  knowledgeBasePdfDownloadDir: string;
   pdfFileNameUseSelectionOrder: boolean;
   batchSources: BatchSource[];
   batchLimit: number;
@@ -33,11 +39,13 @@ export type ResolvedSettingsState = {
   configPath: string;
   llm: LlmSettings;
   translation: TranslationSettings;
+  knowledgeBase: KnowledgeBaseSettings;
   rag: RagSettings;
 };
 
 export type SaveSettingsDraft = {
   pdfDownloadDir: string;
+  knowledgeBasePdfDownloadDir: string;
   pdfFileNameUseSelectionOrder: boolean;
   batchSources: BatchSource[];
   batchLimit: number;
@@ -46,6 +54,7 @@ export type SaveSettingsDraft = {
   locale: Locale;
   llm: LlmSettings;
   translation: TranslationSettings;
+  knowledgeBase: KnowledgeBaseSettings;
   rag: RagSettings;
 };
 
@@ -71,6 +80,10 @@ export function resolveSettingsState(
 
   return {
     pdfDownloadDir: typeof loaded.defaultDownloadDir === 'string' ? loaded.defaultDownloadDir : '',
+    knowledgeBasePdfDownloadDir:
+      typeof loaded.knowledgeBase?.downloadDirectory === 'string'
+        ? loaded.knowledgeBase.downloadDirectory
+        : '',
     pdfFileNameUseSelectionOrder:
       typeof loaded.pdfFileNameUseSelectionOrder === 'boolean'
         ? loaded.pdfFileNameUseSelectionOrder
@@ -86,12 +99,16 @@ export function resolveSettingsState(
     configPath: loadedConfigPath,
     llm: cloneLlmSettings(loaded.llm ?? createDefaultLlmSettings()),
     translation: cloneTranslationSettings(loaded.translation ?? createDefaultTranslationSettings()),
+    knowledgeBase: cloneKnowledgeBaseSettings(
+      loaded.knowledgeBase ?? createDefaultKnowledgeBaseSettings(),
+    ),
     rag: cloneRagSettings(loaded.rag ?? createDefaultRagSettings()),
   };
 }
 
 export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettingsPayloadBuild {
   const nextDir = draft.pdfDownloadDir.trim();
+  const nextKnowledgeBaseDir = draft.knowledgeBasePdfDownloadDir.trim();
   const nextBatchSources = resolveConfigBatchSources(draft.batchSources, configBatchSourceSeed);
   const nextBatchLimit = normalizeBatchLimit(draft.batchLimit, defaultBatchLimit);
 
@@ -109,11 +126,11 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       locale: draft.locale,
       llm: cloneLlmSettings(draft.llm),
       translation: cloneTranslationSettings(draft.translation),
-      rag: cloneRagSettings({
-        ...draft.rag,
-        enabled: draft.rag.knowledgeBaseModeEnabled ?? draft.rag.enabled,
-        knowledgeBaseModeEnabled: draft.rag.knowledgeBaseModeEnabled ?? draft.rag.enabled,
+      knowledgeBase: cloneKnowledgeBaseSettings({
+        ...draft.knowledgeBase,
+        downloadDirectory: nextKnowledgeBaseDir || null,
       }),
+      rag: cloneRagSettings(draft.rag),
     },
   };
 }

@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import type {
   AppSettings,
   BatchSource,
+  KnowledgeBaseSettings,
   RagSettings,
   StoredAppSettings,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
@@ -29,6 +30,10 @@ import {
   defaultTranslationProviderSettings,
 } from '../../../workbench/services/translation/config.js';
 import { isTranslationProviderId } from '../../../workbench/services/translation/registry.js';
+import {
+  cloneKnowledgeBaseSettings,
+  createDefaultKnowledgeBaseSettings,
+} from '../../../workbench/services/knowledgeBase/config.js';
 import {
   createDefaultRagSettings,
   defaultRagProviderSettings,
@@ -224,6 +229,7 @@ function normalizeSettings(
     locale: normalizeLocale(payload.locale, defaultLocale),
     llm: normalizeLlmSettings(payload.llm),
     translation: normalizeTranslationSettings(payload.translation),
+    knowledgeBase: normalizeKnowledgeBaseSettings(payload.knowledgeBase),
     rag: normalizeRagSettings(payload.rag),
   };
 }
@@ -314,22 +320,59 @@ function normalizeTranslationProviderSettings(
   };
 }
 
+function normalizeKnowledgeBaseSettings(payload: unknown): KnowledgeBaseSettings {
+  const defaults = createDefaultKnowledgeBaseSettings();
+  const knowledgeBasePayload =
+    payload && typeof payload === 'object'
+      ? (payload as Partial<KnowledgeBaseSettings>)
+      : {};
+  const parsedConcurrentJobs = Number.parseInt(
+    String(knowledgeBasePayload.maxConcurrentIndexJobs),
+    10,
+  );
+  const normalizedConcurrentJobs = Number.isNaN(parsedConcurrentJobs)
+    ? defaultMaxConcurrentIndexJobs
+    : Math.min(maxConcurrentIndexJobs, Math.max(minConcurrentIndexJobs, parsedConcurrentJobs));
+  const libraryDirectory = cleanText(
+    typeof knowledgeBasePayload.libraryDirectory === 'string'
+      ? knowledgeBasePayload.libraryDirectory
+      : '',
+  );
+  const enabled =
+    typeof knowledgeBasePayload.enabled === 'boolean'
+      ? knowledgeBasePayload.enabled
+      : defaults.enabled;
+  const libraryStorageMode = knowledgeBasePayload.libraryStorageMode;
+
+  if (
+    libraryStorageMode !== 'managed-copy' &&
+    libraryStorageMode !== 'linked-original'
+  ) {
+    throw new Error(
+      'Invalid settings: knowledgeBase.libraryStorageMode is required.',
+    );
+  }
+
+  return {
+    enabled,
+    autoIndexDownloadedPdf:
+      typeof knowledgeBasePayload.autoIndexDownloadedPdf === 'boolean'
+        ? knowledgeBasePayload.autoIndexDownloadedPdf
+        : defaults.autoIndexDownloadedPdf,
+    downloadDirectory:
+      typeof knowledgeBasePayload.downloadDirectory === 'string'
+        ? cleanText(knowledgeBasePayload.downloadDirectory) || null
+        : defaults.downloadDirectory,
+    libraryStorageMode,
+    libraryDirectory: libraryDirectory || null,
+    maxConcurrentIndexJobs: normalizedConcurrentJobs,
+  };
+}
+
 function normalizeRagSettings(payload: unknown): RagSettings {
   const defaults = createDefaultRagSettings();
   const ragPayload =
     payload && typeof payload === 'object' ? (payload as Partial<RagSettings>) : {};
-  const parsedConcurrentJobs = Number.parseInt(String(ragPayload.maxConcurrentIndexJobs), 10);
-  const normalizedConcurrentJobs = Number.isNaN(parsedConcurrentJobs)
-    ? defaultMaxConcurrentIndexJobs
-    : Math.min(maxConcurrentIndexJobs, Math.max(minConcurrentIndexJobs, parsedConcurrentJobs));
-  const libraryDirectory =
-    typeof ragPayload.libraryDirectory === 'string' ? cleanText(ragPayload.libraryDirectory) : '';
-  const knowledgeBaseModeEnabled =
-    typeof ragPayload.knowledgeBaseModeEnabled === 'boolean'
-      ? ragPayload.knowledgeBaseModeEnabled
-      : typeof ragPayload.enabled === 'boolean'
-        ? ragPayload.enabled
-        : true;
   const activeProvider = isRagProviderId(ragPayload.activeProvider)
     ? ragPayload.activeProvider
     : defaults.activeProvider;
@@ -347,16 +390,8 @@ function normalizeRagSettings(payload: unknown): RagSettings {
     : Math.min(8, Math.max(1, parsedTopK));
 
   return {
-    enabled: knowledgeBaseModeEnabled,
-    knowledgeBaseModeEnabled,
-    autoIndexDownloadedPdf:
-      typeof ragPayload.autoIndexDownloadedPdf === 'boolean'
-        ? ragPayload.autoIndexDownloadedPdf
-        : true,
-    libraryStorageMode:
-      ragPayload.libraryStorageMode === 'managed-copy' ? 'managed-copy' : 'linked-original',
-    libraryDirectory: libraryDirectory || null,
-    maxConcurrentIndexJobs: normalizedConcurrentJobs,
+    enabled:
+      typeof ragPayload.enabled === 'boolean' ? ragPayload.enabled : defaults.enabled,
     activeProvider,
     providers: {
       moark: normalizeRagProviderSettings(providersPayload.moark),
@@ -395,6 +430,7 @@ function normalizeRelativeApiPath(value: unknown, fallbackValue: string): string
 function attachConfigPath(settings: StoredAppSettings, configPath: string): AppSettings {
   return {
     ...settings,
+    knowledgeBase: cloneKnowledgeBaseSettings(settings.knowledgeBase),
     configPath,
   };
 }

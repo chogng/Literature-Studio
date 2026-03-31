@@ -56,17 +56,15 @@ export function createStorageService(paths: StoragePaths, options: StorageOption
 
     async registerLibraryDocument(payload) {
       const settings = await configStore.loadSettings();
-      const knowledgeBaseModeEnabled =
-        settings.rag.knowledgeBaseModeEnabled ?? settings.rag.enabled;
-      if (!knowledgeBaseModeEnabled) {
+      if (!settings.knowledgeBase.enabled) {
         throw appError('UNKNOWN_ERROR', {
           message: 'Knowledge base mode is disabled.',
         });
       }
       return libraryStore.registerLibraryDocument({
         ...payload,
-        storageMode: settings.rag.libraryStorageMode,
-        libraryDirectory: settings.rag.libraryDirectory,
+        storageMode: settings.knowledgeBase.libraryStorageMode,
+        libraryDirectory: settings.knowledgeBase.libraryDirectory,
       } as typeof payload);
     },
 

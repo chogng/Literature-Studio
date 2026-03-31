@@ -45,6 +45,7 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
     addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly,
     settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
     settingsKnowledgeBaseModeHint: ui.settingsKnowledgeBaseModeHint, settingsKnowledgeBaseModeDisabledHint: ui.settingsKnowledgeBaseModeDisabledHint, settingsKnowledgeBaseAutoIndex: ui.settingsKnowledgeBaseAutoIndex, settingsKnowledgeBaseAutoIndexHint: ui.settingsKnowledgeBaseAutoIndexHint,
+    settingsKnowledgeBasePdfDownloadDir: ui.settingsKnowledgeBasePdfDownloadDir, settingsKnowledgeBasePdfDownloadDirPlaceholder: ui.settingsKnowledgeBasePdfDownloadDirPlaceholder, settingsKnowledgeBasePdfDownloadDirHint: ui.settingsKnowledgeBasePdfDownloadDirHint,
     settingsLibraryStorageMode: ui.settingsLibraryStorageMode, settingsLibraryStorageModeLinkedOriginal: ui.settingsLibraryStorageModeLinkedOriginal, settingsLibraryStorageModeManagedCopy: ui.settingsLibraryStorageModeManagedCopy, settingsLibraryDirectory: ui.settingsLibraryDirectory,
     settingsLibraryDirectoryPlaceholder: ui.settingsLibraryDirectoryPlaceholder, settingsLibraryDirectoryHint: ui.settingsLibraryDirectoryHint, settingsLibraryDbFile: ui.settingsLibraryDbFile, settingsLibraryFilesDir: ui.settingsLibraryFilesDir, settingsLibraryCacheDir: ui.settingsLibraryCacheDir,
     settingsLibraryStatusDocuments: ui.settingsLibraryStatusDocuments, settingsLibraryStatusFiles: ui.settingsLibraryStatusFiles, settingsLibraryStatusQueuedJobs: ui.settingsLibraryStatusQueuedJobs, settingsLibraryStatusEmpty: ui.settingsLibraryStatusEmpty, settingsLibraryRecentDocuments: ui.settingsLibraryRecentDocuments,
@@ -345,8 +346,9 @@ export class SettingsPartView {
       hint: this.props.labels.settingsKnowledgeBaseHint,
       library: {
         labels: this.props.labels,
-        ragEnabled: this.props.ragEnabled,
+        knowledgeBaseEnabled: this.props.knowledgeBaseEnabled,
         autoIndexDownloadedPdf: this.props.autoIndexDownloadedPdf,
+        knowledgeBasePdfDownloadDir: this.props.knowledgeBasePdfDownloadDir,
         libraryStorageMode: this.props.libraryStorageMode,
         libraryDirectory: this.props.libraryDirectory,
         defaultManagedDirectory: this.props.defaultManagedDirectory,
@@ -360,8 +362,10 @@ export class SettingsPartView {
         libraryDocuments: this.props.libraryDocuments,
         libraryDbFile: this.props.libraryDbFile,
         ragCacheDir: this.props.ragCacheDir,
-        onRagEnabledChange: (checked) => this.props.onRagEnabledChange(checked),
+        onKnowledgeBaseEnabledChange: (checked) => this.props.onKnowledgeBaseEnabledChange(checked),
         onAutoIndexDownloadedPdfChange: (checked) => this.props.onAutoIndexDownloadedPdfChange(checked),
+        onKnowledgeBasePdfDownloadDirChange: (value) => this.props.onKnowledgeBasePdfDownloadDirChange(value),
+        onChooseKnowledgeBasePdfDownloadDir: () => this.props.onChooseKnowledgeBasePdfDownloadDir(),
         onLibraryStorageModeChange: (value) => this.props.onLibraryStorageModeChange(value),
         onLibraryDirectoryChange: (value) => this.props.onLibraryDirectoryChange(value),
         onChooseLibraryDirectory: () => this.props.onChooseLibraryDirectory(),
@@ -535,8 +539,9 @@ export class SettingsPartView {
   private shouldUpdateKnowledgeBaseSection(previousProps?: SettingsPartProps) {
     return (
       !previousProps ||
-      previousProps.ragEnabled !== this.props.ragEnabled ||
+      previousProps.knowledgeBaseEnabled !== this.props.knowledgeBaseEnabled ||
       previousProps.autoIndexDownloadedPdf !== this.props.autoIndexDownloadedPdf ||
+      previousProps.knowledgeBasePdfDownloadDir !== this.props.knowledgeBasePdfDownloadDir ||
       previousProps.libraryStorageMode !== this.props.libraryStorageMode ||
       previousProps.libraryDirectory !== this.props.libraryDirectory ||
       previousProps.defaultManagedDirectory !== this.props.defaultManagedDirectory ||

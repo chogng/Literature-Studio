@@ -6,6 +6,7 @@ import type {
 import type { Locale } from '../../../language/i18n';
 import type { LocaleMessages } from '../../../language/locales';
 import type { Article } from '../services/article/articleFetch';
+import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
 import {
   formatLocalized,
   localizeDesktopInvokeError,
@@ -28,7 +29,9 @@ export type DocumentActionsControllerContext = {
   invokeDesktop: ElectronInvoke;
   locale: Locale;
   ui: LocaleMessages;
+  knowledgeBaseEnabled: boolean;
   pdfDownloadDir: string;
+  knowledgeBasePdfDownloadDir: string;
   pdfFileNameUseSelectionOrder: boolean;
   isSelectionModeEnabled: boolean;
   selectedArticleOrderLookup: ReadonlyMap<string, number>;
@@ -80,6 +83,31 @@ function isScienceValidationWindowClosedCancel(
 
 function openArticleSourceUrl(sourceUrl: string) {
   window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+}
+
+function showAppToast(
+  type: 'info' | 'success' | 'error' | 'warning',
+  message: string,
+) {
+  const toastApi = nativeHostService.toast;
+  if (toastApi) {
+    toastApi.show({ type, message });
+    return;
+  }
+
+  switch (type) {
+    case 'success':
+      toast.success(message);
+      return;
+    case 'error':
+      toast.error(message);
+      return;
+    case 'warning':
+      toast.info(message);
+      return;
+    default:
+      toast.info(message);
+  }
 }
 
 function createSnapshot(
@@ -136,7 +164,9 @@ export class DocumentActionsController {
       desktopRuntime,
       invokeDesktop,
       ui,
+      knowledgeBaseEnabled,
       pdfDownloadDir,
+      knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
       isSelectionModeEnabled,
       selectedArticleOrderLookup,
@@ -145,19 +175,19 @@ export class DocumentActionsController {
 
     const preparedPdfDownload = preparePdfDownload(article.sourceUrl, article.doi);
     if (!preparedPdfDownload) {
-      toast.error(ui.toastEnterArticleUrl);
+      showAppToast('error', ui.toastEnterArticleUrl);
       return;
     }
 
     if (!desktopRuntime) {
-      toast.info(ui.toastDesktopPdfDownloadOnly);
+      showAppToast('info', ui.toastDesktopPdfDownloadOnly);
       return;
     }
 
     markPdfDownloadStarted(preparedPdfDownload.normalizedSourceUrl);
 
     if (preparedPdfDownload.isSciencePdfDownload && this.sciencePdfDownloadCount > 0) {
-      toast.info(resolveSciencePdfQueueMessage(ui));
+      showAppToast('info', resolveSciencePdfQueueMessage(ui));
     }
 
     if (preparedPdfDownload.isSciencePdfDownload) {
@@ -179,11 +209,14 @@ export class DocumentActionsController {
         publishedAt: typeof article.publishedAt === 'string' ? article.publishedAt : null,
         sourceId: typeof article.sourceId === 'string' ? article.sourceId : null,
         journalTitle: typeof article.journalTitle === 'string' ? article.journalTitle : undefined,
-        customDownloadDir: resolvePreferredDirectory(pdfDownloadDir),
+        customDownloadDir: resolvePreferredDirectory(
+          knowledgeBaseEnabled ? knowledgeBasePdfDownloadDir : pdfDownloadDir,
+        ),
       });
       markPdfDownloadSucceeded(preparedPdfDownload.normalizedSourceUrl, result);
       void onLibraryUpdated?.();
-      toast.success(
+      showAppToast(
+        'success',
         formatLocalized(ui.toastPdfDownloaded, {
           filePath: result.filePath,
           sourceUrl: result.sourceUrl,
@@ -198,7 +231,10 @@ export class DocumentActionsController {
 
       const localizedError = localizeDesktopInvokeError(ui, parsedError);
       markPdfDownloadFailed(preparedPdfDownload.normalizedSourceUrl, localizedError);
-      toast.error(formatLocalized(ui.toastPdfDownloadFailed, { error: localizedError }));
+      showAppToast(
+        'error',
+        formatLocalized(ui.toastPdfDownloadFailed, { error: localizedError }),
+      );
     } finally {
       if (preparedPdfDownload.isSciencePdfDownload) {
         this.sciencePdfDownloadCount = Math.max(0, this.sciencePdfDownloadCount - 1);

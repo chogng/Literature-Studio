@@ -13,7 +13,7 @@ import {
   type DocumentActionsControllerContext,
   createDocumentActionsController,
 } from './documentActionsModel';
-import { type LibraryModel, type LibraryModelContext, type LibraryModelSnapshot, createLibraryModel } from './libraryModel';
+import { type LibraryModel, type LibraryModelContext, createLibraryModel } from './libraryModel';
 import { WebContentNavigationModel } from './webContentNavigationModel';
 import {
   getWorkbenchLayoutStateSnapshot,
@@ -246,6 +246,41 @@ function areStringArraysEqual(
     previous.length === next.length &&
     previous.every((value, index) => value === next[index])
   );
+}
+
+function resolveCurrentPdfDownloadArticle(
+  articles: ReadonlyArray<Article>,
+  sourceUrl: string,
+): Pick<
+  Article,
+  | 'title'
+  | 'sourceUrl'
+  | 'fetchedAt'
+  | 'journalTitle'
+  | 'doi'
+  | 'authors'
+  | 'publishedAt'
+  | 'sourceId'
+> | null {
+  const normalizedSourceUrl = normalizeUrl(sourceUrl);
+  if (!normalizedSourceUrl) {
+    return null;
+  }
+
+  const matchedArticle = articles.find(
+    (article) => normalizeUrl(article.sourceUrl) === normalizedSourceUrl,
+  );
+
+  return {
+    title: matchedArticle?.title ?? '',
+    sourceUrl: normalizedSourceUrl,
+    fetchedAt: matchedArticle?.fetchedAt ?? new Date().toISOString(),
+    journalTitle: matchedArticle?.journalTitle ?? null,
+    doi: matchedArticle?.doi ?? null,
+    authors: matchedArticle?.authors ?? [],
+    publishedAt: matchedArticle?.publishedAt ?? null,
+    sourceId: matchedArticle?.sourceId ?? null,
+  };
 }
 
 class WorkbenchHost {
@@ -773,8 +808,9 @@ class WorkbenchHost {
       batchLimit,
       sameDomainOnly,
       useMica,
-      ragEnabled,
+      knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
+      knowledgeBasePdfDownloadDir,
       libraryStorageMode,
       libraryDirectory,
       maxConcurrentIndexJobs,
@@ -795,7 +831,7 @@ class WorkbenchHost {
       isTestingLlmConnection,
       isTestingTranslationConnection,
     } = settingsSnapshot;
-    const knowledgeBaseModeEnabled = ragEnabled;
+    const knowledgeBaseModeEnabled = knowledgeBaseEnabled;
     this.syncKnowledgeBaseLayout(knowledgeBaseModeEnabled);
 
     const libraryModelInstance = getWorkbenchLibraryModel({
@@ -825,11 +861,6 @@ class WorkbenchHost {
     };
     const currentRagSettings = {
       enabled: knowledgeBaseModeEnabled,
-      knowledgeBaseModeEnabled,
-      autoIndexDownloadedPdf,
-      libraryStorageMode,
-      libraryDirectory: libraryDirectory.trim() || null,
-      maxConcurrentIndexJobs,
       activeProvider: activeRagProvider,
       providers: ragProviders,
       retrievalCandidateCount,
@@ -946,7 +977,9 @@ class WorkbenchHost {
         invokeDesktop,
         locale,
         ui,
+        knowledgeBaseEnabled,
         pdfDownloadDir,
+        knowledgeBasePdfDownloadDir,
         pdfFileNameUseSelectionOrder,
         isSelectionModeEnabled: selectionModePhase !== 'off',
         selectedArticleOrderLookup,
@@ -971,20 +1004,15 @@ class WorkbenchHost {
         return;
       }
 
-      const matchedArticle = filteredArticles.find(
-        (article) => normalizeUrl(article.sourceUrl) === normalizeUrl(sourceUrl),
-      );
-
-      void handleSharedPdfDownload({
-        title: matchedArticle?.title ?? '',
+      const downloadArticle = resolveCurrentPdfDownloadArticle(
+        filteredArticles,
         sourceUrl,
-        fetchedAt: matchedArticle?.fetchedAt ?? new Date().toISOString(),
-        journalTitle: matchedArticle?.journalTitle ?? null,
-        doi: matchedArticle?.doi ?? null,
-        authors: matchedArticle?.authors ?? [],
-        publishedAt: matchedArticle?.publishedAt ?? null,
-        sourceId: matchedArticle?.sourceId ?? null,
-      });
+      );
+      if (!downloadArticle) {
+        return;
+      }
+
+      void handleSharedPdfDownload(downloadArticle);
     };
 
     const handleWebContentBack = () => {
@@ -1168,7 +1196,9 @@ class WorkbenchHost {
         invokeDesktop,
         locale,
         ui,
+        knowledgeBaseEnabled,
         pdfDownloadDir,
+        knowledgeBasePdfDownloadDir,
         pdfFileNameUseSelectionOrder,
         isSelectionModeEnabled: selectionModePhase !== 'off',
         selectedArticleOrderLookup,
@@ -1302,8 +1332,9 @@ class WorkbenchHost {
         batchLimit,
         sameDomainOnly,
         useMica,
-        ragEnabled,
+        knowledgeBaseEnabled,
         autoIndexDownloadedPdf,
+        knowledgeBasePdfDownloadDir,
         libraryStorageMode,
         libraryDirectory,
         maxConcurrentIndexJobs,
@@ -1343,9 +1374,13 @@ class WorkbenchHost {
           settingsControllerInstance.setBatchLimit(normalizeBatchLimit(value, 1)),
         onSameDomainOnlyChange: settingsControllerInstance.setSameDomainOnly,
         onUseMicaChange: settingsControllerInstance.setUseMica,
-        onRagEnabledChange: settingsControllerInstance.setRagEnabled,
+        onKnowledgeBaseEnabledChange: settingsControllerInstance.setKnowledgeBaseEnabled,
         onAutoIndexDownloadedPdfChange:
           settingsControllerInstance.setAutoIndexDownloadedPdf,
+        onKnowledgeBasePdfDownloadDirChange:
+          settingsControllerInstance.setKnowledgeBasePdfDownloadDir,
+        onChooseKnowledgeBasePdfDownloadDir:
+          settingsControllerInstance.handleChooseKnowledgeBasePdfDownloadDir,
         onLibraryStorageModeChange:
           settingsControllerInstance.setLibraryStorageMode,
         onLibraryDirectoryChange: settingsControllerInstance.setLibraryDirectory,
