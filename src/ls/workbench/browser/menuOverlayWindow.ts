@@ -139,6 +139,8 @@ export class MenuOverlayWindowView {
   private normalizedMenuState: NativeMenuState | null = null;
   private measuredMenuWidth: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private hoveredValue: string | null = null;
+  private lastPointerPosition: { x: number; y: number } | null = null;
   private readonly menuApi = nativeHostService.menu;
   private readonly handleWindowResize = () => {
     if (!this.normalizedMenuState) {
@@ -146,6 +148,14 @@ export class MenuOverlayWindowView {
     }
 
     this.render();
+  };
+  private readonly handlePointerMove = (event: MouseEvent) => {
+    this.lastPointerPosition = { x: event.clientX, y: event.clientY };
+    this.syncHoveredItemFromPoint();
+  };
+  private readonly handlePointerLeave = () => {
+    this.lastPointerPosition = null;
+    this.updateHoveredValue(null);
   };
   private readonly handleWindowKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && this.normalizedMenuState) {
@@ -174,9 +184,12 @@ export class MenuOverlayWindowView {
     this.menuSurface.addEventListener('mousedown', (event) => {
       event.stopPropagation();
     });
+    this.menuSurface.addEventListener('mousemove', this.handlePointerMove);
+    this.menuSurface.addEventListener('mouseleave', this.handlePointerLeave);
     this.element.append(this.menuSurface);
     window.addEventListener('resize', this.handleWindowResize);
     window.addEventListener('keydown', this.handleWindowKeydown);
+    window.addEventListener('mousemove', this.handlePointerMove);
 
     if (typeof this.menuApi?.getState === 'function') {
       void this.menuApi
@@ -204,6 +217,9 @@ export class MenuOverlayWindowView {
     this.resizeObserver = null;
     window.removeEventListener('resize', this.handleWindowResize);
     window.removeEventListener('keydown', this.handleWindowKeydown);
+    window.removeEventListener('mousemove', this.handlePointerMove);
+    this.menuSurface.removeEventListener('mousemove', this.handlePointerMove);
+    this.menuSurface.removeEventListener('mouseleave', this.handlePointerLeave);
     this.element.replaceChildren();
   }
 
@@ -223,9 +239,12 @@ export class MenuOverlayWindowView {
     const itemElement = createElement(
       'div',
       `dropdown-menu-item${isSelected ? ' selected' : ''}${
+        this.hoveredValue === item.value ? ' hovered' : ''
+      }${
         item.disabled ? ' disabled' : ''
       }`,
     );
+    itemElement.dataset.value = item.value;
     if (item.title) {
       itemElement.title = item.title;
     }
@@ -243,6 +262,41 @@ export class MenuOverlayWindowView {
     return itemElement;
   }
 
+  private updateHoveredValue(nextValue: string | null) {
+    if (this.hoveredValue === nextValue) {
+      return;
+    }
+
+    this.hoveredValue = nextValue;
+    for (const element of this.menuSurface.querySelectorAll<HTMLElement>('.dropdown-menu-item')) {
+      element.classList.toggle('hovered', element.dataset.value === nextValue);
+    }
+  }
+
+  private syncHoveredItemFromPoint() {
+    if (!this.normalizedMenuState) {
+      this.updateHoveredValue(null);
+      return;
+    }
+
+    const point = this.lastPointerPosition;
+    if (!point) {
+      this.updateHoveredValue(null);
+      return;
+    }
+
+    const target = document.elementFromPoint(point.x, point.y);
+    const itemElement = target instanceof HTMLElement
+      ? target.closest<HTMLElement>('.dropdown-menu-item')
+      : null;
+    if (!itemElement || !this.menuSurface.contains(itemElement) || itemElement.classList.contains('disabled')) {
+      this.updateHoveredValue(null);
+      return;
+    }
+
+    this.updateHoveredValue(itemElement.dataset.value ?? null);
+  }
+
   private render() {
     const layout = resolveMenuLayout(
       this.normalizedMenuState,
@@ -250,6 +304,7 @@ export class MenuOverlayWindowView {
     );
 
     if (!this.normalizedMenuState || !layout) {
+      this.hoveredValue = null;
       this.menuSurface.className = '';
       this.menuSurface.replaceChildren();
       this.menuSurface.removeAttribute('style');
@@ -291,6 +346,7 @@ export class MenuOverlayWindowView {
     this.resizeObserver.observe(this.menuSurface);
     queueMicrotask(() => {
       this.measureMenuWidth();
+      this.syncHoveredItemFromPoint();
     });
   }
 }

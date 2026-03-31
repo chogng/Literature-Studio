@@ -164,7 +164,8 @@
   white-space: nowrap;
 }
 
-.dropdown-menu-item:hover {
+.dropdown-menu-item:hover,
+.dropdown-menu-item.hovered {
   background: rgba(10, 95, 191, 0.06);
 }
 

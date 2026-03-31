@@ -125,35 +125,44 @@ function emitEvent(targetWebContentsId: number, event: NativeMenuEvent) {
   target.send(menuEventChannel, event);
 }
 
+function getParentWindowBounds() {
+  const targetWindow = menuParentWindow;
+  if (!targetWindow || targetWindow.isDestroyed()) {
+    return hiddenBounds;
+  }
+
+  const [contentWidth, contentHeight] = targetWindow.getContentSize();
+  if (contentWidth <= 0 || contentHeight <= 0) {
+    return hiddenBounds;
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    width: contentWidth,
+    height: contentHeight,
+  };
+}
+
 function applyMenuOverlayBounds() {
   if (!menuOverlayView) {
     return;
   }
 
-  const targetWindow = menuParentWindow;
-  if (!targetWindow || targetWindow.isDestroyed()) {
+  const bounds = getParentWindowBounds();
+  if (bounds.width <= 0 || bounds.height <= 0) {
     menuOverlayView.setVisible(false);
     menuOverlayView.setBounds(hiddenBounds);
     return;
   }
 
-  const [contentWidth, contentHeight] = targetWindow.getContentSize();
-  if (
-    !menuState ||
-    contentWidth <= 0 ||
-    contentHeight <= 0
-  ) {
+  menuOverlayView.setBounds(bounds);
+
+  if (!menuState) {
     menuOverlayView.setVisible(false);
-    menuOverlayView.setBounds(hiddenBounds);
     return;
   }
 
-  menuOverlayView.setBounds({
-    x: 0,
-    y: 0,
-    width: contentWidth,
-    height: contentHeight,
-  });
   menuOverlayView.setVisible(true);
 }
 
@@ -307,7 +316,7 @@ export function closeMenuOverlay(requestId?: string) {
   if (!menuState) {
     if (menuOverlayView && !menuOverlayView.webContents.isDestroyed()) {
       menuOverlayView.setVisible(false);
-      menuOverlayView.setBounds(hiddenBounds);
+      applyMenuOverlayBounds();
     }
     return;
   }
@@ -321,8 +330,7 @@ export function closeMenuOverlay(requestId?: string) {
   emitState();
 
   if (menuOverlayView && !menuOverlayView.webContents.isDestroyed()) {
-    menuOverlayView.setVisible(false);
-    menuOverlayView.setBounds(hiddenBounds);
+    applyMenuOverlayBounds();
   }
 
   emitEvent(previousState.sourceWebContentsId, {
@@ -345,8 +353,7 @@ export function selectMenuOption(requestId: string, value: string) {
   emitState();
 
   if (menuOverlayView && !menuOverlayView.webContents.isDestroyed()) {
-    menuOverlayView.setVisible(false);
-    menuOverlayView.setBounds(hiddenBounds);
+    applyMenuOverlayBounds();
   }
 
   emitEvent(previousState.sourceWebContentsId, {
