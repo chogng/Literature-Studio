@@ -41,6 +41,46 @@ export type DropdownExternalMenuRequest = {
   value?: string;
 };
 
+function areTriggerRectsEqual(
+  left: DropdownExternalMenuRequest['triggerRect'],
+  right: DropdownExternalMenuRequest['triggerRect'],
+) {
+  return (
+    left.x === right.x &&
+    left.y === right.y &&
+    left.width === right.width &&
+    left.height === right.height
+  );
+}
+
+function areDropdownOptionsEqual(left: DropdownOption[], right: DropdownOption[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((option, index) => {
+    const nextOption = right[index];
+    return (
+      option.value === nextOption?.value &&
+      option.label === nextOption?.label &&
+      option.title === nextOption?.title &&
+      Boolean(option.disabled) === Boolean(nextOption?.disabled)
+    );
+  });
+}
+
+function shouldRefreshExternalMenu(
+  current: DropdownExternalMenuRequest,
+  next: DropdownExternalMenuRequest,
+) {
+  return (
+    current.align !== next.align ||
+    current.value !== next.value ||
+    !areTriggerRectsEqual(current.triggerRect, next.triggerRect) ||
+    !areDropdownOptionsEqual(current.options, next.options)
+  );
+}
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -135,6 +175,7 @@ export class DropdownView {
   private readonly iconWrapper = createElement('div', 'dropdown-icon-wrapper');
   private readonly chevronIcon = createChevronIcon();
   private menuView: HTMLDivElement | null = null;
+  private activeExternalMenuRequest: DropdownExternalMenuRequest | null = null;
   private removeDocumentMouseDown = () => {};
   private removeViewportListeners = () => {};
   private disposed = false;
@@ -356,12 +397,13 @@ export class DropdownView {
     }
 
     if (!this.isOpen) {
+      this.activeExternalMenuRequest = null;
       this.props.onExternalMenuChange?.(null);
       return;
     }
 
     const triggerRect = this.element.getBoundingClientRect();
-    this.props.onExternalMenuChange?.({
+    const nextRequest: DropdownExternalMenuRequest = {
       source: source ?? 'props',
       triggerRect: {
         x: triggerRect.x,
@@ -372,7 +414,18 @@ export class DropdownView {
       align: this.props.menuAlign ?? 'start',
       options: this.props.options,
       value: this.props.value,
-    });
+    };
+
+    if (
+      nextRequest.source === 'props' &&
+      this.activeExternalMenuRequest &&
+      !shouldRefreshExternalMenu(this.activeExternalMenuRequest, nextRequest)
+    ) {
+      return;
+    }
+
+    this.activeExternalMenuRequest = nextRequest;
+    this.props.onExternalMenuChange?.(nextRequest);
   }
 
   private updateMenuPosition() {
