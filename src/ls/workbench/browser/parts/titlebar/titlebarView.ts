@@ -177,6 +177,7 @@ export class TitlebarView {
   private readonly centerElement = createElement('div', 'titlebar-center');
   private readonly controlsViewportElement = createElement('div', 'titlebar-controls-viewport');
   private readonly controlsElement = createElement('div', 'titlebar-controls');
+  private readonly sourceSelectorWrap = createElement('div', 'titlebar-journal-bar');
   private readonly renderedViews: Array<{ dispose: () => void }> = [];
   private sourceSelector: TitlebarSourceDropdownView | null = null;
   private webUrlInput: HTMLInputElement | null = null;
@@ -224,6 +225,7 @@ export class TitlebarView {
   dispose() {
     this.unsubscribeUiActions();
     this.disposeRenderedViews();
+    this.sourceSelector?.dispose();
     this.element.replaceChildren();
     this.sourceSelector = null;
     this.webUrlInput = null;
@@ -395,19 +397,21 @@ export class TitlebarView {
       );
       const selectedOption =
         sourceOptions.find((option) => option.value === props.selectedAddressBarSourceId) ?? null;
-      const selectorWrap = createElement('div', 'titlebar-journal-bar');
-      const selector = this.trackView(
-        createTitlebarSourceDropdownView({
-          options: sourceOptions,
-          value: props.selectedAddressBarSourceId ?? '',
-          placeholder: props.addressBarSourcePlaceholder ?? '',
-          className: `titlebar-source-select ${props.selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
-          title:
-            props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
-          onChange: (event) => props.onSelectAddressBarSource?.(event.target.value),
-        }),
-      );
+      const selectorProps = {
+        options: sourceOptions,
+        value: props.selectedAddressBarSourceId ?? '',
+        placeholder: props.addressBarSourcePlaceholder ?? '',
+        className: `titlebar-source-select ${props.selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
+        title:
+          props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
+        onChange: (event: { target: { value: string } }) =>
+          props.onSelectAddressBarSource?.(event.target.value),
+      };
+      const selector = this.sourceSelector ?? createTitlebarSourceDropdownView(selectorProps);
       const selectorElement = selector.getElement();
+      this.sourceSelectorWrap.replaceChildren(selectorElement);
+      this.controlsElement.append(this.sourceSelectorWrap);
+      selector.setProps(selectorProps);
       selectorElement.setAttribute(
         'aria-label',
         props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
@@ -418,7 +422,7 @@ export class TitlebarView {
           selectedOption?.label ?? props.addressBarSourcePlaceholder ?? '',
         )}px`,
       );
-      selectorElement.addEventListener('keydown', (event) => {
+      selectorElement.onkeydown = (event) => {
         if (!props.onCycleAddressBarSource || !event.altKey) {
           return;
         }
@@ -433,12 +437,12 @@ export class TitlebarView {
           event.preventDefault();
           props.onCycleAddressBarSource('next');
         }
-      });
+      };
       this.sourceSelector = selector;
-      selectorWrap.append(selectorElement);
-      this.controlsElement.append(selectorWrap);
     } else {
+      this.sourceSelector?.dispose();
       this.sourceSelector = null;
+      this.sourceSelectorWrap.replaceChildren();
     }
 
     if (props.onToggleAuxiliarySidebar && props.auxiliarySidebarToggleLabel) {
@@ -507,7 +511,6 @@ export class TitlebarView {
     while (this.renderedViews.length > 0) {
       this.renderedViews.pop()?.dispose();
     }
-    this.sourceSelector = null;
     this.webUrlInput = null;
   }
 }
