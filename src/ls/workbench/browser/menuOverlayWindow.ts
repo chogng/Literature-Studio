@@ -105,6 +105,13 @@ export class MenuOverlayWindowView {
   private measuredMenuWidth: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private readonly menuApi = nativeHostService.menu;
+  private readonly handleWindowResize = () => {
+    if (!this.normalizedMenuState) {
+      return;
+    }
+
+    this.render();
+  };
   private readonly handleWindowKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && this.normalizedMenuState) {
       event.preventDefault();
@@ -133,6 +140,7 @@ export class MenuOverlayWindowView {
       event.stopPropagation();
     });
     this.element.append(this.menuSurface);
+    window.addEventListener('resize', this.handleWindowResize);
     window.addEventListener('keydown', this.handleWindowKeydown);
 
     if (typeof this.menuApi?.getState === 'function') {
@@ -159,6 +167,7 @@ export class MenuOverlayWindowView {
     this.disposeListener();
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    window.removeEventListener('resize', this.handleWindowResize);
     window.removeEventListener('keydown', this.handleWindowKeydown);
     this.element.replaceChildren();
   }
