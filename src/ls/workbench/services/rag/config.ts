@@ -34,11 +34,6 @@ function cloneProviderSettings(settings: RagProviderSettings): RagProviderSettin
 export function createDefaultRagSettings(): RagSettings {
   return {
     enabled: true,
-    knowledgeBaseModeEnabled: true,
-    autoIndexDownloadedPdf: true,
-    libraryStorageMode: 'linked-original',
-    libraryDirectory: null,
-    maxConcurrentIndexJobs: 1,
     activeProvider: defaultRagProviderId,
     providers: {
       moark: cloneProviderSettings(defaultRagProviderSettings.moark),
@@ -51,11 +46,6 @@ export function createDefaultRagSettings(): RagSettings {
 export function cloneRagSettings(settings: RagSettings): RagSettings {
   return {
     enabled: settings.enabled,
-    knowledgeBaseModeEnabled: settings.knowledgeBaseModeEnabled,
-    autoIndexDownloadedPdf: settings.autoIndexDownloadedPdf,
-    libraryStorageMode: settings.libraryStorageMode,
-    libraryDirectory: settings.libraryDirectory,
-    maxConcurrentIndexJobs: settings.maxConcurrentIndexJobs,
     activeProvider: settings.activeProvider,
     providers: {
       moark: cloneProviderSettings(settings.providers.moark),

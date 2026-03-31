@@ -71,6 +71,10 @@ const en = {
   settingsKnowledgeBaseAutoIndex: 'Auto-register downloaded PDFs',
   settingsKnowledgeBaseAutoIndexHint:
     'Only available when knowledge base mode is on. Phase 1 registers metadata, file versions, and lightweight job state after each successful PDF download.',
+  settingsKnowledgeBasePdfDownloadDir: 'Knowledge-base PDF download directory',
+  settingsKnowledgeBasePdfDownloadDirPlaceholder: 'Leave empty to keep using the system Downloads folder',
+  settingsKnowledgeBasePdfDownloadDirHint:
+    'Used only for the initial PDF download when knowledge-base mode is on. In managed-copy mode, the file is still copied into the managed library directory afterward.',
   settingsLibraryStorageMode: 'Storage mode',
   settingsLibraryStorageModeLinkedOriginal: 'Link original file',
   settingsLibraryStorageModeManagedCopy: 'Managed copy',

@@ -22,6 +22,9 @@ import {
   saveAppSettingsPartial,
 } from './settingsService';
 import {
+  createDefaultKnowledgeBaseSettings,
+} from '../knowledgeBase/config.js';
+import {
   addBatchSource,
   moveBatchSource,
   removeBatchSource,
@@ -36,13 +39,13 @@ import { cloneTranslationSettings, createDefaultTranslationSettings } from '../t
 
 export type SettingsModelSnapshot = {
   pdfDownloadDir: string;
+  knowledgeBasePdfDownloadDir: string;
   pdfFileNameUseSelectionOrder: boolean;
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
   useMica: boolean;
-  ragEnabled: boolean;
-  knowledgeBaseModeEnabled: boolean;
+  knowledgeBaseEnabled: boolean;
   autoIndexDownloadedPdf: boolean;
   libraryStorageMode: LibraryStorageMode;
   libraryDirectory: string;
@@ -103,12 +106,12 @@ function areSettingsModelSnapshotsEqual(
 ) {
   return (
     previous.pdfDownloadDir === next.pdfDownloadDir &&
+    previous.knowledgeBasePdfDownloadDir === next.knowledgeBasePdfDownloadDir &&
     previous.pdfFileNameUseSelectionOrder === next.pdfFileNameUseSelectionOrder &&
     previous.batchLimit === next.batchLimit &&
     previous.sameDomainOnly === next.sameDomainOnly &&
     previous.useMica === next.useMica &&
-    previous.ragEnabled === next.ragEnabled &&
-    previous.knowledgeBaseModeEnabled === next.knowledgeBaseModeEnabled &&
+    previous.knowledgeBaseEnabled === next.knowledgeBaseEnabled &&
     previous.autoIndexDownloadedPdf === next.autoIndexDownloadedPdf &&
     previous.libraryStorageMode === next.libraryStorageMode &&
     previous.libraryDirectory === next.libraryDirectory &&
@@ -134,23 +137,24 @@ function areSettingsModelSnapshotsEqual(
 function createInitialSettingsModelSnapshot(
   initialBatchSources: BatchSource[],
 ): SettingsModelSnapshot {
+  const defaultKnowledgeBaseSettings = createDefaultKnowledgeBaseSettings();
   const defaultRagSettings = createDefaultRagSettings();
   const defaultLlmSettings = createDefaultLlmSettings();
   const defaultTranslationSettings = createDefaultTranslationSettings();
 
   return {
     pdfDownloadDir: '',
+    knowledgeBasePdfDownloadDir: '',
     pdfFileNameUseSelectionOrder: false,
     batchSources: initialBatchSources,
     batchLimit: defaultBatchLimit,
     sameDomainOnly: defaultSameDomainOnly,
     useMica: true,
-    ragEnabled: true,
-    knowledgeBaseModeEnabled: true,
-    autoIndexDownloadedPdf: true,
-    libraryStorageMode: 'linked-original',
+    knowledgeBaseEnabled: defaultKnowledgeBaseSettings.enabled,
+    autoIndexDownloadedPdf: defaultKnowledgeBaseSettings.autoIndexDownloadedPdf,
+    libraryStorageMode: defaultKnowledgeBaseSettings.libraryStorageMode,
     libraryDirectory: '',
-    maxConcurrentIndexJobs: 1,
+    maxConcurrentIndexJobs: defaultKnowledgeBaseSettings.maxConcurrentIndexJobs,
     activeRagProvider: defaultRagSettings.activeProvider,
     ragProviders: cloneRagSettings(defaultRagSettings).providers,
     retrievalCandidateCount: defaultRagSettings.retrievalCandidateCount,
@@ -242,30 +246,14 @@ export class SettingsModel {
     }));
   };
 
-  readonly setRagEnabled = (ragEnabled: boolean) => {
-    if (this.snapshot.ragEnabled === ragEnabled && this.snapshot.knowledgeBaseModeEnabled === ragEnabled) {
+  readonly setKnowledgeBaseEnabled = (knowledgeBaseEnabled: boolean) => {
+    if (this.snapshot.knowledgeBaseEnabled === knowledgeBaseEnabled) {
       return;
     }
 
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
-      ragEnabled,
-      knowledgeBaseModeEnabled: ragEnabled,
-    }));
-  };
-
-  readonly setKnowledgeBaseModeEnabled = (knowledgeBaseModeEnabled: boolean) => {
-    if (
-      this.snapshot.ragEnabled === knowledgeBaseModeEnabled &&
-      this.snapshot.knowledgeBaseModeEnabled === knowledgeBaseModeEnabled
-    ) {
-      return;
-    }
-
-    this.updateSnapshot((snapshot) => ({
-      ...snapshot,
-      ragEnabled: knowledgeBaseModeEnabled,
-      knowledgeBaseModeEnabled,
+      knowledgeBaseEnabled,
     }));
   };
 
@@ -436,6 +424,19 @@ export class SettingsModel {
     }));
   };
 
+  readonly setKnowledgeBasePdfDownloadDir = (
+    knowledgeBasePdfDownloadDir: string,
+  ) => {
+    if (this.snapshot.knowledgeBasePdfDownloadDir === knowledgeBasePdfDownloadDir) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      knowledgeBasePdfDownloadDir,
+    }));
+  };
+
   readonly setPdfFileNameUseSelectionOrder = (pdfFileNameUseSelectionOrder: boolean) => {
     if (this.snapshot.pdfFileNameUseSelectionOrder === pdfFileNameUseSelectionOrder) {
       return;
@@ -570,17 +571,17 @@ export class SettingsModel {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         pdfDownloadDir: resolved.pdfDownloadDir,
+        knowledgeBasePdfDownloadDir: resolved.knowledgeBasePdfDownloadDir,
         pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
         useMica: resolved.useMica,
-        ragEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
-        knowledgeBaseModeEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
-        autoIndexDownloadedPdf: resolved.rag.autoIndexDownloadedPdf,
-        libraryStorageMode: resolved.rag.libraryStorageMode,
-        libraryDirectory: resolved.rag.libraryDirectory ?? '',
-        maxConcurrentIndexJobs: resolved.rag.maxConcurrentIndexJobs,
+        knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
+        autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
+        libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
+        libraryDirectory: resolved.knowledgeBase.libraryDirectory ?? '',
+        maxConcurrentIndexJobs: resolved.knowledgeBase.maxConcurrentIndexJobs,
         activeRagProvider: resolved.rag.activeProvider,
         ragProviders: cloneRagSettings(resolved.rag).providers,
         retrievalCandidateCount: resolved.rag.retrievalCandidateCount,
@@ -651,6 +652,30 @@ export class SettingsModel {
     };
   }
 
+  async chooseKnowledgeBasePdfDownloadDir({
+    desktopRuntime,
+    invokeDesktop,
+  }: SettingsModelContext): Promise<ChoosePdfDownloadDirResult> {
+    if (!desktopRuntime) {
+      return {
+        kind: 'desktop-only',
+      };
+    }
+
+    const selected = await invokeDesktop<string | null>('pick_download_directory');
+    if (!selected) {
+      return {
+        kind: 'not-selected',
+      };
+    }
+
+    this.setKnowledgeBasePdfDownloadDir(selected);
+    return {
+      kind: 'selected',
+      dir: selected,
+    };
+  }
+
   async saveLocale(
     { desktopRuntime, invokeDesktop }: SettingsModelContext,
     locale: Locale,
@@ -667,13 +692,13 @@ export class SettingsModel {
   }: SaveSettingsContext): Promise<void> {
     const {
       pdfDownloadDir,
+      knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
       batchSources,
       batchLimit,
       sameDomainOnly,
       useMica,
-      ragEnabled,
-      knowledgeBaseModeEnabled,
+      knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       libraryStorageMode,
       libraryDirectory,
@@ -691,27 +716,26 @@ export class SettingsModel {
       this.snapshot;
     const { payload } = buildSaveSettingsPayload({
       pdfDownloadDir,
+      knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
       batchSources,
       batchLimit,
       sameDomainOnly,
       useMica,
       locale,
-      rag: {
-        enabled: knowledgeBaseModeEnabled ?? ragEnabled,
-        knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
+      knowledgeBase: {
+        enabled: knowledgeBaseEnabled,
         autoIndexDownloadedPdf,
+        downloadDirectory: knowledgeBasePdfDownloadDir.trim() || null,
         libraryStorageMode,
         libraryDirectory: libraryDirectory.trim() || null,
         maxConcurrentIndexJobs,
+      },
+      rag: {
+        enabled: knowledgeBaseEnabled,
         activeProvider: activeRagProvider,
         providers: cloneRagSettings({
-          enabled: knowledgeBaseModeEnabled ?? ragEnabled,
-          knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
-          autoIndexDownloadedPdf,
-          libraryStorageMode,
-          libraryDirectory: libraryDirectory.trim() || null,
-          maxConcurrentIndexJobs,
+          enabled: knowledgeBaseEnabled,
           activeProvider: activeRagProvider,
           providers: ragProviders,
           retrievalCandidateCount,
@@ -743,17 +767,17 @@ export class SettingsModel {
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       pdfDownloadDir: resolved.pdfDownloadDir,
+      knowledgeBasePdfDownloadDir: resolved.knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
       batchSources: resolved.batchSources,
       batchLimit: resolved.batchLimit,
       sameDomainOnly: resolved.sameDomainOnly,
       useMica: resolved.useMica,
-      ragEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
-      knowledgeBaseModeEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
-      autoIndexDownloadedPdf: resolved.rag.autoIndexDownloadedPdf,
-      libraryStorageMode: resolved.rag.libraryStorageMode,
-      libraryDirectory: resolved.rag.libraryDirectory ?? '',
-      maxConcurrentIndexJobs: resolved.rag.maxConcurrentIndexJobs,
+      knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
+      autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
+      libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
+      libraryDirectory: resolved.knowledgeBase.libraryDirectory ?? '',
+      maxConcurrentIndexJobs: resolved.knowledgeBase.maxConcurrentIndexJobs,
       activeRagProvider: resolved.rag.activeProvider,
       ragProviders: cloneRagSettings(resolved.rag).providers,
       retrievalCandidateCount: resolved.rag.retrievalCandidateCount,
@@ -778,13 +802,13 @@ export class SettingsModel {
 
     const {
       pdfDownloadDir,
+      knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
       batchSources,
       batchLimit,
       sameDomainOnly,
       useMica,
-      ragEnabled,
-      knowledgeBaseModeEnabled,
+      knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       libraryStorageMode,
       libraryDirectory,
@@ -802,27 +826,26 @@ export class SettingsModel {
       this.snapshot;
     const { nextDir, payload } = buildSaveSettingsPayload({
       pdfDownloadDir,
+      knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
       batchSources,
       batchLimit,
       sameDomainOnly,
       useMica,
       locale,
-      rag: {
-        enabled: knowledgeBaseModeEnabled ?? ragEnabled,
-        knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
+      knowledgeBase: {
+        enabled: knowledgeBaseEnabled,
         autoIndexDownloadedPdf,
+        downloadDirectory: knowledgeBasePdfDownloadDir.trim() || null,
         libraryStorageMode,
         libraryDirectory: libraryDirectory.trim() || null,
         maxConcurrentIndexJobs,
+      },
+      rag: {
+        enabled: knowledgeBaseEnabled,
         activeProvider: activeRagProvider,
         providers: cloneRagSettings({
-          enabled: knowledgeBaseModeEnabled ?? ragEnabled,
-          knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
-          autoIndexDownloadedPdf,
-          libraryStorageMode,
-          libraryDirectory: libraryDirectory.trim() || null,
-          maxConcurrentIndexJobs,
+          enabled: knowledgeBaseEnabled,
           activeProvider: activeRagProvider,
           providers: ragProviders,
           retrievalCandidateCount,
@@ -856,17 +879,17 @@ export class SettingsModel {
       this.updateSnapshot((snapshot) => ({
         ...snapshot,
         pdfDownloadDir: resolved.pdfDownloadDir,
+        knowledgeBasePdfDownloadDir: resolved.knowledgeBasePdfDownloadDir,
         pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
         useMica: resolved.useMica,
-        ragEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
-        knowledgeBaseModeEnabled: resolved.rag.knowledgeBaseModeEnabled ?? resolved.rag.enabled,
-        autoIndexDownloadedPdf: resolved.rag.autoIndexDownloadedPdf,
-        libraryStorageMode: resolved.rag.libraryStorageMode,
-        libraryDirectory: resolved.rag.libraryDirectory ?? '',
-        maxConcurrentIndexJobs: resolved.rag.maxConcurrentIndexJobs,
+        knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
+        autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
+        libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
+        libraryDirectory: resolved.knowledgeBase.libraryDirectory ?? '',
+        maxConcurrentIndexJobs: resolved.knowledgeBase.maxConcurrentIndexJobs,
         activeRagProvider: resolved.rag.activeProvider,
         ragProviders: cloneRagSettings(resolved.rag).providers,
         retrievalCandidateCount: resolved.rag.retrievalCandidateCount,
@@ -936,20 +959,10 @@ export class SettingsModel {
         ragProviders,
         retrievalCandidateCount,
         retrievalTopK,
-        ragEnabled,
-        knowledgeBaseModeEnabled,
-        autoIndexDownloadedPdf,
-        libraryStorageMode,
-        libraryDirectory,
-        maxConcurrentIndexJobs,
+        knowledgeBaseEnabled,
       } = this.snapshot;
       const route = resolveRagRoute({
-        enabled: knowledgeBaseModeEnabled ?? ragEnabled,
-        knowledgeBaseModeEnabled: knowledgeBaseModeEnabled ?? ragEnabled,
-        autoIndexDownloadedPdf,
-        libraryStorageMode,
-        libraryDirectory: libraryDirectory.trim() || null,
-        maxConcurrentIndexJobs,
+        enabled: knowledgeBaseEnabled,
         activeProvider: activeRagProvider,
         providers: ragProviders,
         retrievalCandidateCount,

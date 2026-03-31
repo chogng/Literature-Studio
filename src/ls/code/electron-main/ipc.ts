@@ -184,9 +184,7 @@ async function invokeCommand<TCommand extends AppCommand>(
 
       try {
         const settings = await storage.loadSettings();
-        const knowledgeBaseModeEnabled =
-          settings.rag.knowledgeBaseModeEnabled ?? settings.rag.enabled;
-        if (knowledgeBaseModeEnabled && settings.rag.autoIndexDownloadedPdf) {
+        if (settings.knowledgeBase.enabled && settings.knowledgeBase.autoIndexDownloadedPdf) {
           const registration = await storage.registerLibraryDocument({
             ...(payload as WebContentPdfDownloadPayload),
             filePath: downloadResult.filePath,

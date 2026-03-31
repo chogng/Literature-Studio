@@ -91,6 +91,19 @@ export class SettingsController {
     }
   };
 
+  readonly handleChooseKnowledgeBasePdfDownloadDir = async () => {
+    try {
+      const result = await this.settingsModel.chooseKnowledgeBasePdfDownloadDir(
+        this.getSettingsModelContext(),
+      );
+      if (result.kind === 'selected') {
+        this.scheduleImmediateAutoSave();
+      }
+    } catch (pickError) {
+      console.error('Failed to choose knowledge-base PDF download directory.', pickError);
+    }
+  };
+
   readonly handleChooseLibraryDirectory = async () => {
     try {
       const result = await this.settingsModel.chooseLibraryDirectory(
@@ -145,6 +158,15 @@ export class SettingsController {
     this.scheduleDebouncedAutoSave();
   };
 
+  readonly setKnowledgeBasePdfDownloadDir = (
+    nextKnowledgeBasePdfDownloadDir: string,
+  ) => {
+    this.settingsModel.setKnowledgeBasePdfDownloadDir(
+      nextKnowledgeBasePdfDownloadDir,
+    );
+    this.scheduleDebouncedAutoSave();
+  };
+
   readonly setPdfFileNameUseSelectionOrder = (
     nextPdfFileNameUseSelectionOrder: boolean,
   ) => {
@@ -154,8 +176,8 @@ export class SettingsController {
     this.scheduleImmediateAutoSave();
   };
 
-  readonly setRagEnabled = (nextRagEnabled: boolean) => {
-    this.settingsModel.setRagEnabled(nextRagEnabled);
+  readonly setKnowledgeBaseEnabled = (nextKnowledgeBaseEnabled: boolean) => {
+    this.settingsModel.setKnowledgeBaseEnabled(nextKnowledgeBaseEnabled);
     this.scheduleImmediateAutoSave();
   };
 

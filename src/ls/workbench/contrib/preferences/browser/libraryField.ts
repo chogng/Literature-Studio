@@ -137,8 +137,9 @@ function resolveLibraryDocumentStatusLabel(labels: SettingsPartLabels, document:
 
 export type LibraryFieldViewProps = {
   labels: SettingsPartLabels;
-  ragEnabled: boolean;
+  knowledgeBaseEnabled: boolean;
   autoIndexDownloadedPdf: boolean;
+  knowledgeBasePdfDownloadDir: string;
   libraryStorageMode: LibraryStorageMode;
   libraryDirectory: string;
   defaultManagedDirectory: string;
@@ -152,8 +153,10 @@ export type LibraryFieldViewProps = {
   libraryDocuments: LibraryDocumentSummary[];
   libraryDbFile: string;
   ragCacheDir: string;
-  onRagEnabledChange: (checked: boolean) => void;
+  onKnowledgeBaseEnabledChange: (checked: boolean) => void;
   onAutoIndexDownloadedPdfChange: (checked: boolean) => void;
+  onKnowledgeBasePdfDownloadDirChange: (value: string) => void;
+  onChooseKnowledgeBasePdfDownloadDir: () => void;
   onLibraryStorageModeChange: (value: LibraryStorageMode) => void;
   onLibraryDirectoryChange: (value: string) => void;
   onChooseLibraryDirectory: () => void;
@@ -185,11 +188,25 @@ export class LibraryFieldView {
     const effectiveManagedDirectory = this.props.libraryDirectory.trim() || this.props.defaultManagedDirectory;
 
     field.append(title);
-    field.append(this.renderToggleRow('settings.library.enabled', this.props.labels.settingsKnowledgeBaseMode, this.props.labels.settingsKnowledgeBaseModeHint, this.props.ragEnabled, this.props.isSettingsSaving, this.props.onRagEnabledChange));
-    if (!this.props.ragEnabled) {
+    field.append(this.renderToggleRow('settings.library.enabled', this.props.labels.settingsKnowledgeBaseMode, this.props.labels.settingsKnowledgeBaseModeHint, this.props.knowledgeBaseEnabled, this.props.isSettingsSaving, this.props.onKnowledgeBaseEnabledChange));
+    if (!this.props.knowledgeBaseEnabled) {
       field.append(buildHint(this.props.labels.settingsKnowledgeBaseModeDisabledHint, 'settings-hint settings-library-mode-note'));
     }
-    field.append(this.renderToggleRow('settings.library.autoIndex', this.props.labels.settingsKnowledgeBaseAutoIndex, this.props.labels.settingsKnowledgeBaseAutoIndexHint, this.props.autoIndexDownloadedPdf, this.props.isSettingsSaving || !this.props.ragEnabled, this.props.onAutoIndexDownloadedPdfChange));
+    field.append(this.renderToggleRow('settings.library.autoIndex', this.props.labels.settingsKnowledgeBaseAutoIndex, this.props.labels.settingsKnowledgeBaseAutoIndexHint, this.props.autoIndexDownloadedPdf, this.props.isSettingsSaving || !this.props.knowledgeBaseEnabled, this.props.onAutoIndexDownloadedPdfChange));
+
+    const downloadDirectoryField = el('label', 'settings-field');
+    const downloadDirectoryRow = el('div', 'settings-input-row');
+    downloadDirectoryRow.append(
+      buildInput({ value: this.props.knowledgeBasePdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.library.downloadDirectory', placeholder: this.props.labels.settingsKnowledgeBasePdfDownloadDirPlaceholder, onInput: this.props.onKnowledgeBasePdfDownloadDirChange }),
+      buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.library.chooseDownloadDirectory', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChooseKnowledgeBasePdfDownloadDir }),
+    );
+    downloadDirectoryField.append(
+      text(this.props.labels.settingsKnowledgeBasePdfDownloadDir),
+      downloadDirectoryRow,
+      buildHint(this.props.labels.settingsKnowledgeBasePdfDownloadDirHint),
+      buildHint(`${this.props.labels.currentDir} ${this.props.knowledgeBasePdfDownloadDir.trim() || this.props.labels.systemDownloads}`),
+    );
+    field.append(downloadDirectoryField);
 
     const grid = el('div', 'settings-llm-grid');
     const storageField = el('label', 'settings-field');

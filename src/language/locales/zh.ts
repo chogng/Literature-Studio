@@ -71,6 +71,10 @@ const zh = {
   settingsKnowledgeBaseAutoIndex: '下载成功后自动入库',
   settingsKnowledgeBaseAutoIndexHint:
     '仅在知识库模式开启时可用。Phase 1 会在每次下载成功后登记文献元数据、文件版本和轻量任务状态。',
+  settingsKnowledgeBasePdfDownloadDir: '知识库模式 PDF 下载目录',
+  settingsKnowledgeBasePdfDownloadDirPlaceholder: '留空则仍使用系统Downloads目录',
+  settingsKnowledgeBasePdfDownloadDirHint:
+    '仅在知识库模式下用于 PDF 初始下载位置。若存储模式为“受管副本”，下载后还会复制到受管知识库目录。',
   settingsLibraryStorageMode: '存储模式',
   settingsLibraryStorageModeLinkedOriginal: '链接原始文件',
   settingsLibraryStorageModeManagedCopy: '受管副本',

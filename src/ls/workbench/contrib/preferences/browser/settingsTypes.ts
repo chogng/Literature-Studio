@@ -21,6 +21,7 @@ export type SettingsPartLabels = {
   addBatchUrl: string; removeBatchUrl: string; moveBatchUrlUp: string; moveBatchUrlDown: string; settingsBatchOptions: string; batchCount: string; sameDomainOnly: string;
   settingsAppearanceTitle: string; settingsUseMica: string; settingsUseMicaHint: string; settingsLibraryTitle: string; settingsKnowledgeBaseMode: string;
   settingsKnowledgeBaseTitle: string; settingsKnowledgeBaseHint: string; settingsKnowledgeBaseModeHint: string; settingsKnowledgeBaseModeDisabledHint: string; settingsKnowledgeBaseAutoIndex: string; settingsKnowledgeBaseAutoIndexHint: string;
+  settingsKnowledgeBasePdfDownloadDir: string; settingsKnowledgeBasePdfDownloadDirPlaceholder: string; settingsKnowledgeBasePdfDownloadDirHint: string;
   settingsLibraryStorageMode: string; settingsLibraryStorageModeLinkedOriginal: string; settingsLibraryStorageModeManagedCopy: string; settingsLibraryDirectory: string;
   settingsLibraryDirectoryPlaceholder: string; settingsLibraryDirectoryHint: string; settingsLibraryDbFile: string; settingsLibraryFilesDir: string; settingsLibraryCacheDir: string;
   settingsLibraryStatusDocuments: string; settingsLibraryStatusFiles: string; settingsLibraryStatusQueuedJobs: string; settingsLibraryStatusEmpty: string; settingsLibraryRecentDocuments: string;
@@ -42,8 +43,8 @@ export type SettingsPartProps = {
   labels: SettingsPartLabels; isSettingsLoading: boolean; locale: Locale; batchSources: BatchSource[];
   onBatchSourceUrlChange: (index: number, url: string) => void; onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void; onAddBatchSource: () => void;
   onRemoveBatchSource: (index: number) => void; onMoveBatchSource: (index: number, direction: 'up' | 'down') => void; batchLimit: number; onBatchLimitChange: (value: string) => void;
-  sameDomainOnly: boolean; onSameDomainOnlyChange: (checked: boolean) => void; useMica: boolean; onUseMicaChange: (checked: boolean) => void; ragEnabled: boolean;
-  onRagEnabledChange: (checked: boolean) => void; autoIndexDownloadedPdf: boolean; onAutoIndexDownloadedPdfChange: (checked: boolean) => void; libraryStorageMode: LibraryStorageMode;
+  sameDomainOnly: boolean; onSameDomainOnlyChange: (checked: boolean) => void; useMica: boolean; onUseMicaChange: (checked: boolean) => void; knowledgeBaseEnabled: boolean;
+  onKnowledgeBaseEnabledChange: (checked: boolean) => void; autoIndexDownloadedPdf: boolean; onAutoIndexDownloadedPdfChange: (checked: boolean) => void; knowledgeBasePdfDownloadDir: string; onKnowledgeBasePdfDownloadDirChange: (value: string) => void; onChooseKnowledgeBasePdfDownloadDir: () => void; libraryStorageMode: LibraryStorageMode;
   onLibraryStorageModeChange: (value: LibraryStorageMode) => void; libraryDirectory: string; onLibraryDirectoryChange: (value: string) => void; onChooseLibraryDirectory: () => void;
   maxConcurrentIndexJobs: number; onMaxConcurrentIndexJobsChange: (value: string) => void; activeRagProvider: RagProviderId; ragProviders: Record<RagProviderId, RagProviderSettings>;
   onRagProviderApiKeyChange: (provider: RagProviderId, apiKey: string) => void; onRagProviderBaseUrlChange: (provider: RagProviderId, baseUrl: string) => void;
@@ -62,7 +63,7 @@ export type SettingsPartProps = {
 
 export type SettingsPartState = {
   ui: LocaleMessages; isSettingsLoading: boolean; locale: Locale; batchSources: BatchSource[]; batchLimit: number; sameDomainOnly: boolean; useMica: boolean;
-  ragEnabled: boolean; autoIndexDownloadedPdf: boolean; libraryStorageMode: LibraryStorageMode; libraryDirectory: string; maxConcurrentIndexJobs: number; activeRagProvider: RagProviderId;
+  knowledgeBaseEnabled: boolean; autoIndexDownloadedPdf: boolean; knowledgeBasePdfDownloadDir: string; libraryStorageMode: LibraryStorageMode; libraryDirectory: string; maxConcurrentIndexJobs: number; activeRagProvider: RagProviderId;
   ragProviders: Record<RagProviderId, RagProviderSettings>; retrievalCandidateCount: number; retrievalTopK: number; pdfDownloadDir: string; pdfFileNameUseSelectionOrder: boolean;
   activeLlmProvider: LlmProviderId; llmProviders: Record<LlmProviderId, LlmProviderSettings>; activeTranslationProvider: TranslationProviderId; translationProviders: Record<TranslationProviderId, TranslationProviderSettings>;
   desktopRuntime: boolean; configPath: string; isLibraryLoading: boolean; libraryDocumentCount: number; libraryFileCount: number; libraryQueuedJobCount: number; libraryDocuments: LibraryDocumentSummary[];
@@ -72,7 +73,7 @@ export type SettingsPartState = {
 export type SettingsPartActions = {
   onBatchSourceUrlChange: (index: number, url: string) => void; onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void;
   onAddBatchSource: () => void; onRemoveBatchSource: (index: number) => void; onMoveBatchSource: (index: number, direction: 'up' | 'down') => void; onBatchLimitChange: (value: string) => void;
-  onSameDomainOnlyChange: (checked: boolean) => void; onUseMicaChange: (checked: boolean) => void; onRagEnabledChange: (checked: boolean) => void; onAutoIndexDownloadedPdfChange: (checked: boolean) => void;
+  onSameDomainOnlyChange: (checked: boolean) => void; onUseMicaChange: (checked: boolean) => void; onKnowledgeBaseEnabledChange: (checked: boolean) => void; onAutoIndexDownloadedPdfChange: (checked: boolean) => void; onKnowledgeBasePdfDownloadDirChange: (value: string) => void; onChooseKnowledgeBasePdfDownloadDir: () => void;
   onLibraryStorageModeChange: (value: LibraryStorageMode) => void; onLibraryDirectoryChange: (value: string) => void; onChooseLibraryDirectory: () => void; onMaxConcurrentIndexJobsChange: (value: string) => void;
   onRagProviderApiKeyChange: (provider: RagProviderId, apiKey: string) => void; onRagProviderBaseUrlChange: (provider: RagProviderId, baseUrl: string) => void; onRagProviderEmbeddingModelChange: (provider: RagProviderId, model: string) => void;
   onRagProviderRerankerModelChange: (provider: RagProviderId, model: string) => void; onRagProviderEmbeddingPathChange: (provider: RagProviderId, path: string) => void; onRagProviderRerankPathChange: (provider: RagProviderId, path: string) => void;

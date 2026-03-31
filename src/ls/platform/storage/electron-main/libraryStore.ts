@@ -7,16 +7,16 @@ import { DatabaseSync } from 'node:sqlite';
 
 import type {
   IndexDownloadedPdfPayload,
+  KnowledgeBaseSettings,
   LibraryDedupeReason,
   LibraryDocumentStatusPayload,
   LibraryDocumentSummary,
   LibraryDocumentsResult,
   LibraryIngestStatus,
-  RagSettings,
   ReindexLibraryDocumentResult,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { cleanText } from '../../../base/common/strings.js';
-import { createDefaultRagSettings } from '../../../workbench/services/rag/config.js';
+import { createDefaultKnowledgeBaseSettings } from '../../../workbench/services/knowledgeBase/config.js';
 import type { StorageService } from '../common/storage.js';
 
 type LibraryStore = Pick<
@@ -24,7 +24,7 @@ type LibraryStore = Pick<
   'registerLibraryDocument' | 'getLibraryDocumentStatus' | 'listLibraryDocuments' | 'reindexLibraryDocument'
 >;
 
-type StorageMode = RagSettings['libraryStorageMode'];
+type StorageMode = KnowledgeBaseSettings['libraryStorageMode'];
 
 type LibraryPaths = {
   libraryDbFile: string;
@@ -168,10 +168,10 @@ function resolveHomePath(input: string, fallbackPath: string) {
 }
 
 function resolveManagedDirectory(
-  ragSettings: Pick<RagSettings, 'libraryDirectory'>,
+  knowledgeBaseSettings: Pick<KnowledgeBaseSettings, 'libraryDirectory'>,
   defaultManagedDirectory: string,
 ) {
-  return resolveHomePath(ragSettings.libraryDirectory ?? '', defaultManagedDirectory);
+  return resolveHomePath(knowledgeBaseSettings.libraryDirectory ?? '', defaultManagedDirectory);
 }
 
 async function computeFileFingerprint(filePath: string): Promise<FileFingerprint> {
@@ -570,9 +570,9 @@ export function createLibraryStore(paths: LibraryPaths): LibraryStore {
     sourceFilePath: string,
     documentId: string,
     sha256: string,
-    ragSettings: Pick<RagSettings, 'libraryDirectory'>,
+    knowledgeBaseSettings: Pick<KnowledgeBaseSettings, 'libraryDirectory'>,
   ) {
-    const managedDirectory = resolveManagedDirectory(ragSettings, paths.libraryFilesDir);
+    const managedDirectory = resolveManagedDirectory(knowledgeBaseSettings, paths.libraryFilesDir);
     const fileExtension = path.extname(sourceFilePath) || '.pdf';
     const targetDirectory = path.join(managedDirectory, documentId);
     const targetFilePath = path.join(targetDirectory, `${sha256}${fileExtension}`);
@@ -607,10 +607,9 @@ export function createLibraryStore(paths: LibraryPaths): LibraryStore {
       const titleKey = normalizeTextKey(normalizedTitle);
       const firstAuthorKey = normalizeTextKey(normalizedAuthors[0] ?? '');
       const publishedYear = extractPublishedYear(normalizedPublishedAt);
-      const ragSettings: RagSettings = {
-        ...createDefaultRagSettings(),
+      const knowledgeBaseSettings: KnowledgeBaseSettings = {
+        ...createDefaultKnowledgeBaseSettings(),
         enabled: true,
-        knowledgeBaseModeEnabled: true,
         autoIndexDownloadedPdf: true,
         libraryStorageMode: normalizeStorageMode((payload as { storageMode?: unknown }).storageMode),
         libraryDirectory: cleanText((payload as { libraryDirectory?: unknown }).libraryDirectory) || null,
@@ -625,10 +624,10 @@ export function createLibraryStore(paths: LibraryPaths): LibraryStore {
         publishedYear,
       );
       const documentId = match.documentId ?? randomUUID();
-      const storageMode = ragSettings.libraryStorageMode;
+      const storageMode = knowledgeBaseSettings.libraryStorageMode;
       const registeredFilePath =
         storageMode === 'managed-copy'
-          ? await persistManagedCopy(absoluteSourcePath, documentId, fingerprint.sha256, ragSettings)
+          ? await persistManagedCopy(absoluteSourcePath, documentId, fingerprint.sha256, knowledgeBaseSettings)
           : absoluteSourcePath;
       const absoluteRegisteredFilePath = path.resolve(registeredFilePath);
 
