@@ -9,7 +9,6 @@ import {
 } from '../titlebar/titlebarActions';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
 import { ArticleCard } from './articleCard';
-import { PrimarySidebar, type PrimarySidebarProps } from './primarySidebar';
 import './media/secondarySidebar.css';
 
 export type SidebarArticle = {
@@ -499,38 +498,6 @@ export class SecondarySidebarPartView {
   }
 }
 
-export class PrimarySidebarPartView {
-  private readonly element = createElement(
-    'section',
-    'panel sidebar-panel sidebar-panel-primary',
-  );
-  private readonly sidebar: PrimarySidebar;
-
-  constructor(props: PrimarySidebarProps) {
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.primarySidebar, this.element);
-    this.sidebar = new PrimarySidebar(props);
-    this.element.append(this.sidebar.getElement());
-  }
-
-  getElement() {
-    return this.element;
-  }
-
-  setProps(props: PrimarySidebarProps) {
-    this.sidebar.setProps(props);
-  }
-
-  dispose() {
-    this.sidebar.dispose();
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.primarySidebar, null);
-    this.element.replaceChildren();
-  }
-}
-
 export function createSecondarySidebarPartView(props: SecondarySidebarProps) {
   return new SecondarySidebarPartView(props);
-}
-
-export function createPrimarySidebarPartView(props: PrimarySidebarProps) {
-  return new PrimarySidebarPartView(props);
 }

@@ -7,35 +7,28 @@ import type { EditorStatusState } from '../../editor/browser/shared/editorStatus
 import { createEditorPartView, type EditorPartProps } from './parts/editor/editorPartView';
 import type { DraftEditorCommandId } from './parts/editor/panes/draftEditorCommands';
 import {
-  createPrimarySidebarPartView,
   createSecondarySidebarPartView,
-  PrimarySidebarPartView,
   SecondarySidebarPartView,
   type SecondarySidebarProps,
 } from './parts/sidebar/secondarySidebarPart';
+import {
+  createPrimaryBarPartView,
+  PrimaryBarPartView,
+  type PrimaryBarProps,
+} from './parts/primarybar/primarybarPart';
 import {
   createAuxiliaryBarPartView,
   AuxiliaryBarPartView,
   type AuxiliaryBarProps,
 } from './parts/auxiliarybar/auxiliarybarPart';
 import { initializeStatusbarState, updateStatusbarState } from './parts/statusbar/statusbarActions';
-import type {
-  LibraryDocumentsResult,
-} from '../../base/parts/sandbox/common/desktopTypes.js';
 
 type ReaderViewProps = {
   isSidebarVisible: boolean;
   activeSidebarKind: WorkbenchSidebarKind;
   isAuxiliarySidebarVisible: boolean;
   secondarySidebarProps: SecondarySidebarProps;
-  primarySidebarProps: {
-    labels: SecondarySidebarProps['labels'];
-    librarySnapshot: LibraryDocumentsResult;
-    isLibraryLoading: boolean;
-    onRefreshLibrary?: () => void;
-    onDownloadPdf?: () => void;
-    onCreateDraftTab?: () => void;
-  };
+  primaryBarProps: PrimaryBarProps;
   auxiliarySidebarProps: AuxiliaryBarProps;
   editorPartProps: EditorPartProps;
 };
@@ -56,7 +49,7 @@ export class ReaderView {
   private readonly element = createElement('section', 'reader-layout');
   private readonly mainElement = createElement('main');
   private sidebarView:
-    | PrimarySidebarPartView
+    | PrimaryBarPartView
     | SecondarySidebarPartView
     | null = null;
   private auxiliarySidebarView: AuxiliaryBarPartView | null = null;
@@ -137,13 +130,13 @@ export class ReaderView {
     }
 
     if (this.props.activeSidebarKind === 'primary') {
-      if (!(this.sidebarView instanceof PrimarySidebarPartView)) {
+      if (!(this.sidebarView instanceof PrimaryBarPartView)) {
         this.sidebarView?.dispose();
-        this.sidebarView = createPrimarySidebarPartView(
-          this.props.primarySidebarProps,
+        this.sidebarView = createPrimaryBarPartView(
+          this.props.primaryBarProps,
         );
       } else {
-        this.sidebarView.setProps(this.props.primarySidebarProps);
+        this.sidebarView.setProps(this.props.primaryBarProps);
       }
       return;
     }
