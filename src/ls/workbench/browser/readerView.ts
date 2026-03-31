@@ -48,7 +48,7 @@ export class ReaderView {
   private props: ReaderViewProps;
   private readonly element = createElement('section', 'reader-layout');
   private readonly mainElement = createElement('main');
-  private sidebarView:
+  private leftPaneView:
     | PrimaryBarPartView
     | SecondarySidebarPartView
     | null = null;
@@ -75,10 +75,10 @@ export class ReaderView {
   }
 
   dispose() {
-    this.sidebarView?.dispose();
+    this.leftPaneView?.dispose();
     this.auxiliarySidebarView?.dispose();
     this.editorView?.dispose();
-    this.sidebarView = null;
+    this.leftPaneView = null;
     this.auxiliarySidebarView = null;
     this.editorView = null;
     this.element.replaceChildren();
@@ -106,13 +106,13 @@ export class ReaderView {
       this.mainElement.style.setProperty(name, value);
     }
 
-    this.renderSidebar();
+    this.renderLeftPane();
     this.renderEditor();
     this.renderAuxiliarySidebar();
 
     this.mainElement.replaceChildren();
-    if (this.sidebarView) {
-      this.mainElement.append(this.sidebarView.getElement());
+    if (this.leftPaneView) {
+      this.mainElement.append(this.leftPaneView.getElement());
     }
     if (this.editorView) {
       this.mainElement.append(this.editorView.getElement());
@@ -122,32 +122,32 @@ export class ReaderView {
     }
   }
 
-  private renderSidebar() {
+  private renderLeftPane() {
     if (!this.props.isSidebarVisible) {
-      this.sidebarView?.dispose();
-      this.sidebarView = null;
+      this.leftPaneView?.dispose();
+      this.leftPaneView = null;
       return;
     }
 
-    if (this.props.activeSidebarKind === 'primary') {
-      if (!(this.sidebarView instanceof PrimaryBarPartView)) {
-        this.sidebarView?.dispose();
-        this.sidebarView = createPrimaryBarPartView(
+    if (this.props.activeSidebarKind === 'primaryBar') {
+      if (!(this.leftPaneView instanceof PrimaryBarPartView)) {
+        this.leftPaneView?.dispose();
+        this.leftPaneView = createPrimaryBarPartView(
           this.props.primaryBarProps,
         );
       } else {
-        this.sidebarView.setProps(this.props.primaryBarProps);
+        this.leftPaneView.setProps(this.props.primaryBarProps);
       }
       return;
     }
 
-    if (!(this.sidebarView instanceof SecondarySidebarPartView)) {
-      this.sidebarView?.dispose();
-      this.sidebarView = createSecondarySidebarPartView(
+    if (!(this.leftPaneView instanceof SecondarySidebarPartView)) {
+      this.leftPaneView?.dispose();
+      this.leftPaneView = createSecondarySidebarPartView(
         this.props.secondarySidebarProps,
       );
     } else {
-      this.sidebarView.setProps(this.props.secondarySidebarProps);
+      this.leftPaneView.setProps(this.props.secondarySidebarProps);
     }
   }
 

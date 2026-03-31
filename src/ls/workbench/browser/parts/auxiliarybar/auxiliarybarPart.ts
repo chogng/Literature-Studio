@@ -93,7 +93,7 @@ export function createAuxiliaryBarPartProps({
 export class AuxiliaryBarPartView {
   private readonly element = createElement(
     'section',
-    'panel sidebar-panel sidebar-panel-auxiliary',
+    'panel sidebar-panel auxiliarybar-panel',
   );
   private readonly sidebar: AuxiliaryBar;
 
