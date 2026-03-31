@@ -1,6 +1,6 @@
 import type { LibraryDocumentsResult } from '../../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { LibraryDocumentSummary } from '../../../../../base/parts/sandbox/common/desktopTypes.js';
-import { SimpleTree } from '../../../../../base/browser/ui/tree/simpleTree.js';
+import { DataTree } from '../../../../../base/browser/ui/tree/dataTree.js';
 import {
   type LibraryTreeLabels,
   type LibraryTreeNode,
@@ -27,19 +27,18 @@ export class LibraryViewer {
   private readonly delegate = new LibraryDelegate();
   private readonly dragAndDrop: LibraryDragAndDrop;
   private readonly renderer: LibraryRenderer;
-  private readonly tree: SimpleTree<LibraryTreeNode>;
+  private readonly tree: DataTree<LibraryDocumentsResult, LibraryTreeNode>;
+  private currentLibrarySnapshot: LibraryDocumentsResult;
   private labels: LibraryViewerLabels;
   private onDocumentSelect?: (document: LibraryDocumentSummary | null) => void;
   private onDocumentOpen?: (document: LibraryDocumentSummary) => void;
 
   constructor(props: LibraryViewerProps) {
+    this.currentLibrarySnapshot = props.librarySnapshot;
     this.labels = props.labels;
     this.onDocumentSelect = props.onDocumentSelect;
     this.onDocumentOpen = props.onDocumentOpen;
-    this.dataSource = new LibraryDataSource({
-      labels: props.labels,
-      librarySnapshot: props.librarySnapshot,
-    });
+    this.dataSource = new LibraryDataSource();
     this.dragAndDrop = new LibraryDragAndDrop({
       onDocumentDragStart: props.onDocumentDragStart,
     });
@@ -47,34 +46,45 @@ export class LibraryViewer {
       labels: props.labels,
       dragAndDrop: this.dragAndDrop,
       delegate: this.delegate,
+      dataSource: this.dataSource,
     });
-    this.tree = new SimpleTree(this.dataSource, {
-      renderElement: (node, context) => this.renderer.renderElement(node, context),
-    }, {
-      getId: (node) => node.id,
-      isRoot: (node) => node.kind === 'folder' && node.id === 'root',
-      getLabel: (node) =>
-        node.kind === 'folder'
-          ? node.name
-          : node.document.title?.trim() || this.labels.untitled,
-      defaultExpandedIds: ['root'],
-      onDidChangeSelection: (node) => {
-        this.handleSelectionChange(node);
+    this.tree = new DataTree<LibraryDocumentsResult, LibraryTreeNode>(
+      {
+        getRoot: (librarySnapshot) =>
+          this.dataSource.getRoot({
+            labels: this.labels,
+            librarySnapshot,
+          }),
+        hasChildren: (node) => this.dataSource.hasChildren(node),
+        getChildren: (node) => this.dataSource.getChildren(node),
       },
-      onDidOpen: (node) => {
-        this.handleOpen(node);
+      {
+        renderElement: (node, context) =>
+          this.renderer.renderElement(node, context),
       },
-    });
+      {
+        getId: (node) => node.id,
+        isRoot: (node) => node.kind === 'folder' && node.id === 'root',
+        getLabel: (node) =>
+          node.kind === 'folder'
+            ? node.name
+            : node.document.title?.trim() || this.labels.untitled,
+        defaultExpandedIds: ['root'],
+        onDidChangeSelection: (node) => {
+          this.handleSelectionChange(node);
+        },
+        onDidOpen: (node) => {
+          this.handleOpen(node);
+        },
+      },
+    );
   }
 
   setProps(props: LibraryViewerProps) {
+    this.currentLibrarySnapshot = props.librarySnapshot;
     this.labels = props.labels;
     this.onDocumentSelect = props.onDocumentSelect;
     this.onDocumentOpen = props.onDocumentOpen;
-    this.dataSource.setInput({
-      labels: props.labels,
-      librarySnapshot: props.librarySnapshot,
-    });
     this.dragAndDrop.setProps({
       onDocumentDragStart: props.onDocumentDragStart,
     });
@@ -82,6 +92,7 @@ export class LibraryViewer {
       labels: props.labels,
       dragAndDrop: this.dragAndDrop,
       delegate: this.delegate,
+      dataSource: this.dataSource,
     });
   }
 
@@ -89,8 +100,8 @@ export class LibraryViewer {
     return this.tree.getElement();
   }
 
-  render(root: LibraryTreeNode = this.dataSource.getRoot()) {
-    this.tree.setInput(root);
+  render() {
+    this.tree.setInput(this.currentLibrarySnapshot);
     return this.tree.getElement();
   }
 

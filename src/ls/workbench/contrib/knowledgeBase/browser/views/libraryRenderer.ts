@@ -5,8 +5,10 @@ import { lxIconSemanticMap } from '../../../../../base/browser/ui/lxicon/lxiconS
 import {
   resolveLibraryDocumentStatusLabel,
   type LibraryTreeLabels,
+  type LibraryTreeFolderNode,
   type LibraryTreeNode,
 } from '../../common/libraryTreeModel.js';
+import { LibraryDataSource } from './libraryDataSource.js';
 import { LibraryDelegate } from './libraryDelegate.js';
 import type { LibraryDragAndDrop } from './libraryDragAndDrop.js';
 
@@ -18,6 +20,7 @@ export type LibraryRendererProps = {
   labels: LibraryRendererLabels;
   dragAndDrop: LibraryDragAndDrop;
   delegate: LibraryDelegate;
+  dataSource: LibraryDataSource;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -77,7 +80,9 @@ export class LibraryRenderer {
     );
     if (node.id === 'root') {
       const count = createElement('span', 'library-tree-folder-count');
-      count.textContent = String(node.documents.length + node.folders.reduce((total, folder) => total + this.countDocuments(folder), 0));
+      count.textContent = String(
+        this.props.dataSource.getDocumentCount(node as LibraryTreeFolderNode),
+      );
       button.append(count);
     }
     return button;
@@ -133,13 +138,5 @@ export class LibraryRenderer {
 
     row.append(main, aside);
     return row;
-  }
-
-  private countDocuments(node: Exclude<LibraryTreeNode, { kind: 'document' }>): number {
-    let total = node.documents.length;
-    for (const folder of node.folders) {
-      total += this.countDocuments(folder);
-    }
-    return total;
   }
 }

@@ -20,6 +20,16 @@ The left-side knowledge base tree is now split into layered modules:
   - Viewer composition layer
 - `src/ls/base/browser/ui/tree/simpleTree.ts`
   - Minimal reusable tree container
+- `src/ls/base/browser/ui/tree/dataTree.ts`
+  - Data-source based tree wrapper
+- `src/ls/base/browser/ui/tree/indexTree.ts`
+  - Location-based tree wrapper with splice-oriented updates
+- `src/ls/base/browser/ui/tree/objectTree.ts`
+  - Object-tree wrapper for in-memory trees
+- `src/ls/base/browser/ui/tree/asyncDataTree.ts`
+  - Async data-source tree wrapper
+- `src/ls/base/browser/ui/tree/treeTypes.ts`
+  - Shared tree contracts
 
 `primarybar` no longer owns tree rendering logic. It only hosts the knowledge base view.
 
@@ -28,6 +38,7 @@ The left-side knowledge base tree is now split into layered modules:
 - Tree model extraction into `common`
 - View / viewer / data source / renderer / drag-and-drop split
 - Minimal reusable tree container
+- `IndexTree / DataTree / ObjectTree / AsyncDataTree` foundation layer
 - Single-selection state
 - Keyboard navigation:
   - `ArrowUp`
@@ -36,17 +47,21 @@ The left-side knowledge base tree is now split into layered modules:
   - `ArrowRight`
   - `Enter`
   - `Space`
+- Typeahead
 - Focus management with roving `tabindex`
+- Selection/focus passthrough on `DataTree` / `AsyncDataTree`
+- Basic `IndexTree.splice(location, ...)` support for future incremental tree updates
 
 ## What Is Not Implemented Yet
 
 - Drop targets in `auxiliarybar`
 - Drop targets in editor area
 - Multi-selection
-- Typeahead
 - Virtualization
 - Rich tree accessibility beyond basic roles/focus/selection
 - Generic tree theming API
+- Async loading/error UI polish beyond state plumbing
+- Upstream-grade `IndexTreeModel` diff/filter/event pipeline
 
 ## Why Drop Target Work Is Deferred
 
