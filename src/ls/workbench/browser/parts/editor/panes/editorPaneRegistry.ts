@@ -5,11 +5,12 @@ import type {
   WritingWorkspaceTab,
   WritingWorkspaceWebTab,
 } from '../../../writingEditorModel';
+import type { DraftEditorRuntimeState } from '../../../../../editor/browser/shared/editorStatus';
 import type { ViewPartProps } from '../../views/viewPartView';
 import type { EditorPartLabels } from '../editorPartView';
-import type { DraftEditorRuntimeState } from '../editorStatus';
 import { ContentEditorPane, type ContentEditorPaneProps } from './contentEditorPane';
 import { DraftEditorPane, type DraftEditorPaneProps } from './draftEditorPane';
+import { PdfEditorPane, type PdfEditorPaneProps } from './pdfEditorPane';
 
 export type EditorPaneRenderer = {
   getElement: () => HTMLElement;
@@ -97,6 +98,17 @@ function createContentPaneProps(
   };
 }
 
+function createPdfPaneProps(
+  input: Extract<EditorPaneInput, { paneId: 'pdf' }>,
+  context: EditorPaneResolverContext,
+): PdfEditorPaneProps {
+  return {
+    labels: context.labels,
+    pdfTab: input.tab,
+    viewPartProps: context.viewPartProps,
+  };
+}
+
 export function resolveEditorPane(
   activeTab: WritingWorkspaceTab,
   context: EditorPaneResolverContext,
@@ -129,12 +141,12 @@ export function resolveEditorPane(
       };
     }
     case 'pdf': {
-      const paneProps = createContentPaneProps(input, context);
+      const paneProps = createPdfPaneProps(input, context);
       return {
         paneId: 'pdf',
         paneKey: `pdf:${input.tab.id}`,
         contentClassNames: input.contentClassNames,
-        createRenderer: () => new ContentEditorPane(paneProps),
+        createRenderer: () => new PdfEditorPane(paneProps),
         updateRenderer: (renderer) => {
           renderer.setProps(paneProps);
         },

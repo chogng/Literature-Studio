@@ -8,8 +8,10 @@ import {
   createEditorStatus,
   type DraftEditorRuntimeState,
   type EditorStatusState,
-} from './editorStatus';
+} from '../../../../editor/browser/shared/editorStatus';
+import { createActiveDraftEditorCommandExecutor } from './activeDraftEditorCommandExecutor';
 import { resolveEditorPane, type EditorPaneRenderer } from './panes/editorPaneRegistry';
+import type { DraftEditorCommandId } from './panes/draftEditorCommands';
 import { EditorEmptyWorkspaceView } from './editorEmptyWorkspaceView';
 import type { EditorPartLabels } from './editorPartView';
 import { createEditorGroupModel, type EditorGroupModel } from './editorGroupModel';
@@ -205,6 +207,9 @@ export class EditorGroupView {
   private readonly headerElement = createElement('div', 'editor-tabs-header');
   private readonly contentElement = createElement('div');
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
+  private readonly draftCommandExecutor = createActiveDraftEditorCommandExecutor(
+    () => this.activePaneRenderer,
+  );
   private activePaneRenderer: EditorPaneRenderer | null = null;
   private activePaneKey: string | null = null;
 
@@ -221,6 +226,10 @@ export class EditorGroupView {
 
   getElement() {
     return this.element;
+  }
+
+  executeActiveDraftCommand(commandId: DraftEditorCommandId) {
+    return this.draftCommandExecutor.execute(commandId);
   }
 
   setProps(props: EditorGroupViewProps) {

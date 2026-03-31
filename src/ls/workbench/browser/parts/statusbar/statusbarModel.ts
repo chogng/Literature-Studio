@@ -1,4 +1,8 @@
-import type { EditorStatusLabels, EditorStatusItem, EditorStatusState } from '../editor/editorStatus';
+import type {
+  EditorStatusLabels,
+  EditorStatusItem,
+  EditorStatusState,
+} from '../../../../editor/browser/shared/editorStatus';
 
 function createEmptyStatusValue(): EditorStatusState {
   return {

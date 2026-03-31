@@ -5,7 +5,7 @@ import {
   type FigureRefNodeAttrs,
   createEditorNodeId,
   writingEditorSchema,
-} from './schema';
+} from '../browser/text/schema';
 
 export type WritingEditorMark = {
   type: string;

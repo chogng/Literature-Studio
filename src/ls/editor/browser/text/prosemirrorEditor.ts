@@ -9,7 +9,7 @@ import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-li
 import {
   createDraftEditorRuntimeState,
   type DraftEditorRuntimeState,
-} from '../editorStatus';
+} from '../shared/editorStatus';
 import {
   type InsertFigurePayload,
   getWritingEditorToolbarState,
@@ -34,13 +34,14 @@ import {
   type WritingEditorDocument,
   normalizeWritingEditorDocument,
   syncWritingEditorDerivedLabels,
-} from './document';
+} from '../../common/writingEditorDocument';
 import {
   createWritingEditorDocumentIdentityPlugin,
   createWritingEditorInputRules,
   createWritingEditorPlaceholderPlugin,
   writingEditorSchema,
 } from './schema';
+import { DraftEditorToolbar } from './draftEditorToolbar';
 import './media/prosemirrorEditor.css';
 
 export type WritingEditorSurfaceLabels = {
@@ -70,6 +71,7 @@ export type WritingEditorSurfaceHandle = {
   insertCitation: (citationIds: string[]) => boolean;
   insertFigure: (payload: InsertFigurePayload) => boolean;
   insertFigureRef: (targetId: string) => boolean;
+  getAvailableFigureIds: () => readonly string[];
 };
 
 type WritingEditorSurfaceStatusLabels = {
@@ -81,6 +83,9 @@ export type WritingEditorSurfaceProps = {
   placeholder: string;
   labels: WritingEditorSurfaceLabels;
   statusLabels: WritingEditorSurfaceStatusLabels;
+  onInsertCitation: () => void;
+  onInsertFigure: () => void;
+  onInsertFigureRef: (availableFigureIds: readonly string[]) => void;
   onDocumentChange: (document: WritingEditorDocument) => void;
   onStatusChange?: (status: DraftEditorRuntimeState) => void;
 };
@@ -147,10 +152,6 @@ function createWritingEditorState(document: WritingEditorDocument, placeholder: 
   });
 }
 
-function normalizePromptValue(value: string | null) {
-  return value?.trim() ?? '';
-}
-
 function createNormalizedDocumentKey(document: WritingEditorDocument) {
   return JSON.stringify(normalizeWritingEditorDocument(document));
 }
@@ -183,9 +184,9 @@ function areToolbarStatesEqual(
 export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   private props: WritingEditorSurfaceProps;
   private readonly element = createElement('div', 'pm-editor-shell');
-  private readonly toolbarElement = createElement('div', 'pm-toolbar');
   private readonly hostWrapperElement = createElement('div', 'pm-editor-host');
   private readonly editorRootElement = createElement('div', 'pm-editor-root');
+  private readonly toolbar: DraftEditorToolbar;
   private view: EditorView | null = null;
   private snapshot: WritingEditorSurfaceSnapshot = {
     toolbarState: EMPTY_TOOLBAR_STATE,
@@ -193,8 +194,9 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
 
   constructor(props: WritingEditorSurfaceProps) {
     this.props = props;
+    this.toolbar = new DraftEditorToolbar(this.createToolbarProps());
     this.hostWrapperElement.append(this.editorRootElement);
-    this.element.append(this.toolbarElement, this.hostWrapperElement);
+    this.element.append(this.toolbar.getElement(), this.hostWrapperElement);
     this.createView();
   }
 
@@ -227,7 +229,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
 
     this.emitStatusChange(this.view.state);
     this.refreshToolbarSnapshot(this.view.state);
-    this.renderToolbar();
+    this.toolbar.setProps(this.createToolbarProps());
   }
 
   dispose() {
@@ -255,6 +257,10 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     return runWritingEditorCommand(this.view, insertFigureRefCommand(targetId));
   }
 
+  getAvailableFigureIds() {
+    return this.snapshot.toolbarState.availableFigureIds;
+  }
+
   setParagraph = () => this.runCommand(setParagraphCommand());
   toggleHeading = (level: number) => this.runCommand(toggleHeadingCommand(level));
   toggleBold = () => this.runCommand(toggleBoldCommand());
@@ -264,49 +270,6 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   toggleBlockquote = () => this.runCommand(toggleBlockquoteCommand());
   undo = () => this.runCommand(undoCommand());
   redo = () => this.runCommand(redoCommand());
-
-  promptInsertCitation = () => {
-    const input = normalizePromptValue(
-      window.prompt(this.props.labels.citationPrompt, 'cite_1'),
-    );
-    if (!input) {
-      return;
-    }
-
-    this.insertCitation(input.split(/[,\s]+/).filter(Boolean));
-  };
-
-  promptInsertFigure = () => {
-    const src = normalizePromptValue(
-      window.prompt(this.props.labels.figureUrlPrompt, 'https://'),
-    );
-    if (!src) {
-      return;
-    }
-
-    const caption = normalizePromptValue(
-      window.prompt(this.props.labels.figureCaptionPrompt, ''),
-    );
-    this.insertFigure({ src, caption });
-  };
-
-  promptInsertFigureRef = () => {
-    const optionsHint =
-      this.snapshot.toolbarState.availableFigureIds.length > 0
-        ? ` (${this.snapshot.toolbarState.availableFigureIds.join(', ')})`
-        : '';
-    const targetId = normalizePromptValue(
-      window.prompt(
-        `${this.props.labels.figureRefPrompt}${optionsHint}`,
-        this.snapshot.toolbarState.availableFigureIds[0] ?? 'figure_1',
-      ),
-    );
-    if (!targetId) {
-      return;
-    }
-
-    this.insertFigureRef(targetId);
-  };
 
   private createView() {
     this.destroyView();
@@ -331,82 +294,26 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.syncEditorViewState(editorView.state, false);
   }
 
-  private renderToolbar() {
-    const { labels } = this.props;
-    const { toolbarState } = this.snapshot;
-    this.toolbarElement.replaceChildren(
-      this.createToolbarGroup([
-        this.createToolbarButton(labels.paragraph, this.setParagraph, {
-          isActive: toolbarState.isParagraphActive,
-        }),
-        this.createToolbarButton(labels.heading1, () => this.toggleHeading(1), {
-          isActive: toolbarState.activeHeadingLevel === 1,
-        }),
-        this.createToolbarButton(labels.heading2, () => this.toggleHeading(2), {
-          isActive: toolbarState.activeHeadingLevel === 2,
-        }),
-        this.createToolbarButton(labels.heading3, () => this.toggleHeading(3), {
-          isActive: toolbarState.activeHeadingLevel === 3,
-        }),
-      ]),
-      this.createToolbarGroup([
-        this.createToolbarButton(labels.bold, this.toggleBold, {
-          isActive: toolbarState.isBoldActive,
-        }),
-        this.createToolbarButton(labels.italic, this.toggleItalic, {
-          isActive: toolbarState.isItalicActive,
-        }),
-        this.createToolbarButton(labels.bulletList, this.toggleBulletList, {
-          isActive: toolbarState.isBulletListActive,
-        }),
-        this.createToolbarButton(labels.orderedList, this.toggleOrderedList, {
-          isActive: toolbarState.isOrderedListActive,
-        }),
-        this.createToolbarButton(labels.blockquote, this.toggleBlockquote, {
-          isActive: toolbarState.isBlockquoteActive,
-        }),
-      ]),
-      this.createToolbarGroup([
-        this.createToolbarButton(labels.undo, this.undo, {
-          disabled: !toolbarState.canUndo,
-        }),
-        this.createToolbarButton(labels.redo, this.redo, {
-          disabled: !toolbarState.canRedo,
-        }),
-      ]),
-      this.createToolbarGroup([
-        this.createToolbarButton(labels.insertCitation, this.promptInsertCitation),
-        this.createToolbarButton(labels.insertFigure, this.promptInsertFigure),
-        this.createToolbarButton(labels.insertFigureRef, this.promptInsertFigureRef),
-      ]),
-    );
-  }
-
-  private createToolbarGroup(children: HTMLButtonElement[]) {
-    const group = createElement('div', 'pm-toolbar-group');
-    group.append(...children);
-    return group;
-  }
-
-  private createToolbarButton(
-    label: string,
-    onClick: () => void,
-    options: {
-      isActive?: boolean;
-      disabled?: boolean;
-    } = {},
-  ) {
-    const button = createElement(
-      'button',
-      ['pm-toolbar-btn', options.isActive ? 'is-active' : '']
-        .filter(Boolean)
-        .join(' '),
-    );
-    button.type = 'button';
-    button.disabled = Boolean(options.disabled);
-    button.textContent = label;
-    button.addEventListener('click', onClick);
-    return button;
+  private createToolbarProps() {
+    return {
+      labels: this.props.labels,
+      toolbarState: this.snapshot.toolbarState,
+      actions: {
+        setParagraph: this.setParagraph,
+        toggleHeading: this.toggleHeading,
+        toggleBold: this.toggleBold,
+        toggleItalic: this.toggleItalic,
+        toggleBulletList: this.toggleBulletList,
+        toggleOrderedList: this.toggleOrderedList,
+        toggleBlockquote: this.toggleBlockquote,
+        undo: this.undo,
+        redo: this.redo,
+        insertCitation: this.props.onInsertCitation,
+        insertFigure: this.props.onInsertFigure,
+        insertFigureRef: () =>
+          this.props.onInsertFigureRef(this.snapshot.toolbarState.availableFigureIds),
+      },
+    };
   }
 
   private runCommand(command: WritingEditorCommand) {
@@ -418,7 +325,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.view = null;
     this.snapshot = { toolbarState: EMPTY_TOOLBAR_STATE };
     this.editorRootElement.replaceChildren();
-    this.renderToolbar();
+    this.toolbar.setProps(this.createToolbarProps());
   }
 
   private emitStatusChange(nextState: EditorState) {
@@ -445,7 +352,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.snapshot = {
       toolbarState: nextToolbarState,
     };
-    this.renderToolbar();
+    this.toolbar.setProps(this.createToolbarProps());
   }
 
   private syncEditorViewState(nextState: EditorState, emitDocumentChange: boolean) {

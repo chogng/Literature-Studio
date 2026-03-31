@@ -1,12 +1,15 @@
 import type { EditorState } from 'prosemirror-state';
 import { redoDepth, undoDepth } from 'prosemirror-history';
-import type { WritingWorkspaceDraftTab, WritingWorkspaceTab } from '../../writingEditorModel';
+import type {
+  WritingWorkspaceDraftTab,
+  WritingWorkspaceTab,
+} from '../../../workbench/browser/writingEditorModel';
 import {
   collectWritingEditorDerivedLabels,
   collectWritingEditorStats,
   getWritingEditorNodeText,
-} from '../../writingEditorDocument';
-import type { WritingEditorSurfaceLabels } from './prosemirror/prosemirrorEditor';
+} from '../../common/writingEditorDocument';
+import type { WritingEditorSurfaceLabels } from '../text/prosemirrorEditor';
 
 export type EditorStatusLabels = {
   statusbarAriaLabel: string;

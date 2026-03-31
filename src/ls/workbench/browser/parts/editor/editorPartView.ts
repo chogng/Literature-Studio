@@ -2,10 +2,14 @@ import type {
   WritingEditorDocument,
   WritingWorkspaceTab,
 } from '../../writingEditorModel';
+import type {
+  EditorStatusLabels,
+  EditorStatusState,
+} from '../../../../editor/browser/shared/editorStatus';
+import type { WritingEditorSurfaceLabels } from '../../../../editor/browser/text/prosemirrorEditor';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
-import type { EditorStatusState, EditorStatusLabels } from './editorStatus';
+import type { DraftEditorCommandId } from './panes/draftEditorCommands';
 import type { ViewPartProps } from '../views/viewPartView';
-import type { WritingEditorSurfaceLabels } from './prosemirror/prosemirrorEditor';
 import { EditorGroupView } from './editorGroupView';
 import './media/editor.css';
 
@@ -16,8 +20,6 @@ export type EditorPartLabels = {
   close: string;
   emptyWorkspaceTitle: string;
   emptyWorkspaceBody: string;
-  draftEmptyTitle: string;
-  draftEmptyBody: string;
   draftBodyPlaceholder: string;
   sourceTitle: string;
   pdfTitle: string;
@@ -51,6 +53,10 @@ export class EditorPartView {
 
   getElement() {
     return this.element;
+  }
+
+  executeActiveDraftCommand(commandId: DraftEditorCommandId) {
+    return this.groupView.executeActiveDraftCommand(commandId);
   }
 
   setProps(props: EditorPartProps) {

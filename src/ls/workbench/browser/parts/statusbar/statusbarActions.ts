@@ -1,4 +1,4 @@
-import type { EditorStatusState } from '../editor/editorStatus';
+import type { EditorStatusState } from '../../../../editor/browser/shared/editorStatus';
 import { resetStatusbarState, setStatusbarState } from './statusbarModel';
 
 export function updateStatusbarState(status: EditorStatusState) {
