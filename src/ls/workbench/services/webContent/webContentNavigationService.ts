@@ -3,6 +3,10 @@ import type { WebContentState } from '../../../base/parts/sandbox/common/desktop
 import { normalizeUrl } from '../../common/url';
 
 export const EMPTY_WEB_CONTENT_STATE: WebContentState = {
+  targetId: null,
+  activeTargetId: null,
+  ownership: 'inactive',
+  layoutPhase: 'hidden',
   url: '',
   canGoBack: false,
   canGoForward: false,

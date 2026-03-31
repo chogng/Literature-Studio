@@ -469,7 +469,14 @@ class WorkbenchHost {
           setFetchSeedUrl: setWorkbenchFetchSeedUrl,
         })
         .then((state) => {
-          if (!targetId || state?.url || !targetUrl) {
+          if (
+            !targetId ||
+            !state ||
+            state.ownership !== 'active' ||
+            state.activeTargetId !== targetId ||
+            state.url ||
+            !targetUrl
+          ) {
             return;
           }
 
