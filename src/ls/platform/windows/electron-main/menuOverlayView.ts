@@ -22,6 +22,20 @@ let menuParentWindow: BrowserWindow | null = null;
 let menuOverlayView: WebContentsView | null = null;
 let menuState: NativeMenuState | null = null;
 
+function bringMenuOverlayToFront() {
+  if (
+    !menuParentWindow ||
+    menuParentWindow.isDestroyed() ||
+    !menuOverlayView ||
+    menuOverlayView.webContents.isDestroyed()
+  ) {
+    return;
+  }
+
+  menuParentWindow.contentView.removeChildView(menuOverlayView);
+  menuParentWindow.contentView.addChildView(menuOverlayView);
+}
+
 function resolveOverlayRendererTarget() {
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
@@ -231,6 +245,7 @@ function showMenuOverlayView() {
     return;
   }
 
+  bringMenuOverlayToFront();
   applyMenuOverlayBounds();
   menuOverlayView.webContents.focus();
 }
