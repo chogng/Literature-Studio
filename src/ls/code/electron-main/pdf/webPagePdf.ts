@@ -6,11 +6,11 @@ import { cleanText } from '../../../base/common/strings.js';
 import { appError } from '../../../base/common/errors.js';
 import { buildPdfFileName } from '../../../platform/download/common/pdfFileName.js';
 import {
-  getPreviewState,
-  navigatePreviewForPrint,
-  printCurrentPreviewToPdf,
-  waitForPreviewPrintLayout,
-} from '../../../platform/windows/electron-main/previewView.js';
+  getWebContentState,
+  navigateWebContentForPrint,
+  printCurrentWebContentToPdf,
+  waitForWebContentPrintLayout,
+} from '../../../platform/windows/electron-main/webContentView.js';
 
 const WEB_PAGE_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
 const WEB_PAGE_PDF_STABILIZE_MS = 1200;
@@ -41,14 +41,14 @@ function normalizeComparableUrl(value: string) {
   }
 }
 
-async function navigatePreviewForPdf(pageUrl: string) {
-  await navigatePreviewForPrint(pageUrl);
-  const currentPreviewUrl = cleanText(getPreviewState().url);
-  if (normalizeComparableUrl(currentPreviewUrl) === normalizeComparableUrl(pageUrl)) {
-    logWebPagePdf('preview_navigate_abort_ignored', {
+async function navigateWebContentForPdf(pageUrl: string) {
+  await navigateWebContentForPrint(pageUrl);
+  const currentWebContentUrl = cleanText(getWebContentState().url);
+  if (normalizeComparableUrl(currentWebContentUrl) === normalizeComparableUrl(pageUrl)) {
+    logWebPagePdf('web_content_navigate_abort_ignored', {
       pageUrl,
-      currentPreviewUrl,
-      message: 'Navigation gate accepted once preview URL and main content were ready.',
+      currentWebContentUrl,
+      message: 'Navigation gate accepted once web content URL and main content were ready.',
     });
   }
 }
@@ -67,45 +67,45 @@ export async function printWebPageToPdf({
     await fs.mkdir(downloadDir, { recursive: true });
 
     const navigateStartedAt = Date.now();
-    logWebPagePdf('preview_navigate_start', {
+    logWebPagePdf('web_content_navigate_start', {
       pageUrl,
-      previousPreviewUrl: cleanText(getPreviewState().url),
+      previousWebContentUrl: cleanText(getWebContentState().url),
       downloadDir,
     });
 
-    if (cleanText(getPreviewState().url) !== pageUrl) {
-      await navigatePreviewForPdf(pageUrl);
+    if (cleanText(getWebContentState().url) !== pageUrl) {
+      await navigateWebContentForPdf(pageUrl);
     }
 
-    logWebPagePdf('preview_navigate_done', {
+    logWebPagePdf('web_content_navigate_done', {
       pageUrl,
-      currentPreviewUrl: cleanText(getPreviewState().url),
+      currentWebContentUrl: cleanText(getWebContentState().url),
       elapsedMs: Date.now() - navigateStartedAt,
     });
 
     const waitStartedAt = Date.now();
-    await waitForPreviewPrintLayout(WEB_PAGE_PDF_STABILIZE_MS);
+    await waitForWebContentPrintLayout(WEB_PAGE_PDF_STABILIZE_MS);
     logWebPagePdf('wait_main_ready_done', {
       pageUrl,
-      currentPreviewUrl: cleanText(getPreviewState().url),
+      currentWebContentUrl: cleanText(getWebContentState().url),
       elapsedMs: Date.now() - waitStartedAt,
     });
 
     const printStartedAt = Date.now();
     logWebPagePdf('before_print_to_pdf', {
       pageUrl,
-      currentPreviewUrl: cleanText(getPreviewState().url),
+      currentWebContentUrl: cleanText(getWebContentState().url),
     });
 
-    const pdfBuffer = await printCurrentPreviewToPdf();
+    const pdfBuffer = await printCurrentWebContentToPdf();
     logWebPagePdf('print_to_pdf_done', {
       pageUrl,
-      currentPreviewUrl: cleanText(getPreviewState().url),
+      currentWebContentUrl: cleanText(getWebContentState().url),
       elapsedMs: Date.now() - printStartedAt,
       pdfBytes: pdfBuffer.byteLength,
     });
 
-    const targetUrl = cleanText(getPreviewState().url) || pageUrl;
+    const targetUrl = cleanText(getWebContentState().url) || pageUrl;
     const fallbackName = (() => {
       try {
         return path.basename(new URL(targetUrl).pathname) || '';
@@ -127,7 +127,7 @@ export async function printWebPageToPdf({
       pageUrl,
       finalUrl: targetUrl,
       filePath,
-      restorePreview: false,
+      restoreWebContent: false,
       totalElapsedMs: Date.now() - startedAt,
     });
 
@@ -138,7 +138,7 @@ export async function printWebPageToPdf({
   } catch (error) {
     logWebPagePdf('print_failed', {
       pageUrl,
-      currentPreviewUrl: cleanText(getPreviewState().url),
+      currentWebContentUrl: cleanText(getWebContentState().url),
       message: error instanceof Error ? error.message : String(error),
     });
     throw appError('PDF_DOWNLOAD_FAILED', {

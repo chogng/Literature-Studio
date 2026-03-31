@@ -4,6 +4,7 @@ import type {
   AppErrorCode,
   AppCommandPayloadMap,
   AppCommandResultMap,
+  ElectronAPI,
   FetchStatus,
   NativeMenuEvent,
   NativeMenuOpenPayload,
@@ -12,9 +13,10 @@ import type {
   NativeToastLayout,
   NativeToastOptions,
   NativeToastState,
-  PreviewBounds,
-  PreviewNavigationMode,
-  PreviewState,
+  WebContentBounds,
+  WebContentNavigationMode,
+  WebContentSelectionSnapshot,
+  WebContentState,
   WindowControlAction,
   WindowState,
 } from '../common/desktopTypes.js';
@@ -90,7 +92,7 @@ type AppInvokeResponse<T> =
   | { ok: true; result: T }
   | { ok: false; error: string };
 
-const electronAPI = {
+const electronAPI: ElectronAPI = {
   async invoke<TCommand extends AppCommand>(command: TCommand, args?: AppCommandPayloadMap[TCommand]) {
     try {
       const response = await invokeIpc<AppInvokeResponse<AppCommandResultMap[TCommand]>>(
@@ -119,20 +121,20 @@ const electronAPI = {
       });
     },
   },
-  preview: {
+  webContent: {
     activate(targetId?: string | null) {
-      sendIpc('app:preview-activate', { targetId: targetId ?? null });
+      sendIpc('app:web-content-activate', { targetId: targetId ?? null });
     },
     release(targetId?: string | null) {
-      sendIpc('app:preview-release', { targetId: targetId ?? null });
+      sendIpc('app:web-content-release', { targetId: targetId ?? null });
     },
     async navigate(
       url: string,
       targetId?: string | null,
-      mode?: PreviewNavigationMode,
+      mode?: WebContentNavigationMode,
     ) {
       try {
-        return await invokeIpc<PreviewState>('app:preview-navigate', {
+        return await invokeIpc<WebContentState>('app:web-content-navigate', {
           url,
           targetId: targetId ?? null,
           mode,
@@ -142,27 +144,32 @@ const electronAPI = {
       }
     },
     getState(targetId?: string | null) {
-      return invokeIpc<PreviewState>('app:preview-get-state', {
+      return invokeIpc<WebContentState>('app:web-content-get-state', {
         targetId: targetId ?? null,
       });
     },
-    setBounds(bounds: PreviewBounds | null) {
-      sendIpc('app:preview-set-bounds', bounds);
+    setBounds(bounds: WebContentBounds | null) {
+      sendIpc('app:web-content-set-bounds', bounds);
     },
     setVisible(visible: boolean) {
-      sendIpc('app:preview-set-visible', visible);
+      sendIpc('app:web-content-set-visible', visible);
     },
     reload(targetId?: string | null) {
-      sendIpc('app:preview-reload', { targetId: targetId ?? null });
+      sendIpc('app:web-content-reload', { targetId: targetId ?? null });
     },
     goBack(targetId?: string | null) {
-      sendIpc('app:preview-go-back', { targetId: targetId ?? null });
+      sendIpc('app:web-content-go-back', { targetId: targetId ?? null });
     },
     goForward(targetId?: string | null) {
-      sendIpc('app:preview-go-forward', { targetId: targetId ?? null });
+      sendIpc('app:web-content-go-forward', { targetId: targetId ?? null });
     },
-    onStateChange(listener: (state: PreviewState) => void) {
-      return subscribeIpc<PreviewState>('app:preview-state', listener, {
+    getSelection(targetId?: string | null) {
+      return invokeIpc<WebContentSelectionSnapshot | null>('app:web-content-get-selection', {
+        targetId: targetId ?? null,
+      });
+    },
+    onStateChange(listener: (state: WebContentState) => void) {
+      return subscribeIpc<WebContentState>('app:web-content-state', listener, {
         url: '',
         canGoBack: false,
         canGoForward: false,
@@ -179,7 +186,7 @@ const electronAPI = {
         pageNumber: 0,
         fetchChannel: 'network',
         fetchDetail: null,
-        previewReuseMode: null,
+        webContentReuseMode: null,
         extractorId: null,
         paginationStopped: false,
         paginationStopReason: null,

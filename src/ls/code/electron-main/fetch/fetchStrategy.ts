@@ -1,41 +1,41 @@
 import type { ListingCandidateExtraction } from './sourceExtractors/index.js';
 
-export type FetchStrategy = 'network-first' | 'preview-first' | 'compare';
+export type FetchStrategy = 'network-first' | 'web-content-first' | 'compare';
 
-export type PreviewSnapshot = {
+export type WebContentSnapshot = {
   html: string;
-  previewUrl: string;
+  webContentUrl: string;
   captureMs: number;
   isLoading: boolean;
 };
 
-export type PreviewExtractionSnapshot = {
+export type WebContentExtractionSnapshot = {
   extraction: ListingCandidateExtraction;
   extractorId: string;
-  previewUrl: string;
+  webContentUrl: string;
   captureMs: number;
   isLoading: boolean;
   nextPageUrl: string | null;
 };
 
-export type PreviewExtractionFetchPlan = {
+export type WebContentExtractionFetchPlan = {
   requestedStrategy: FetchStrategy;
   shouldAttempt: boolean;
-  previewReuseMode: 'live-extract' | null;
+  webContentReuseMode: 'live-extract' | null;
   reason:
     | 'strategy_network_first'
-    | 'preview_extraction_unavailable'
+    | 'web_content_extraction_unavailable'
     | 'extractor_unavailable'
     | 'page_not_first'
     | 'article_detail_page'
-    | 'preview_live_extract';
+    | 'web_content_live_extract';
 };
 
 export type PageHtmlFetchPlan = {
   requestedStrategy: FetchStrategy;
   effectiveStrategy: FetchStrategy;
-  selectedChannel: 'network' | 'preview';
-  previewReuseMode: 'snapshot' | null;
+  selectedChannel: 'network' | 'web-content';
+  webContentReuseMode: 'snapshot' | null;
   shouldStartNetworkBenchmark: boolean;
   networkStage: 'source_page' | 'source_page_network';
 };
@@ -44,47 +44,47 @@ export function normalizeFetchStrategy(input: FetchStrategy | null | undefined):
   switch (input) {
     case 'compare':
       return 'compare';
-    case 'preview-first':
-      return 'preview-first';
+    case 'web-content-first':
+      return 'web-content-first';
     case 'network-first':
     default:
       return 'network-first';
   }
 }
 
-export function shouldPreparePreviewArtifacts(input: FetchStrategy | null | undefined): boolean {
+export function shouldPrepareWebContentArtifacts(input: FetchStrategy | null | undefined): boolean {
   return normalizeFetchStrategy(input) !== 'network-first';
 }
 
-export function buildPreviewExtractionFetchPlan({
+export function buildWebContentExtractionFetchPlan({
   fetchStrategy,
-  hasPreviewExtraction,
+  hasWebContentExtraction,
   hasExtractor,
   pageNumber,
   isLikelyArticleDetailPage,
 }: {
   fetchStrategy: FetchStrategy | null | undefined;
-  hasPreviewExtraction: boolean;
+  hasWebContentExtraction: boolean;
   hasExtractor: boolean;
   pageNumber: number;
   isLikelyArticleDetailPage: boolean;
-}): PreviewExtractionFetchPlan {
+}): WebContentExtractionFetchPlan {
   const requestedStrategy = normalizeFetchStrategy(fetchStrategy);
   if (requestedStrategy === 'network-first') {
     return {
       requestedStrategy,
       shouldAttempt: false,
-      previewReuseMode: null,
+      webContentReuseMode: null,
       reason: 'strategy_network_first',
     };
   }
 
-  if (!hasPreviewExtraction) {
+  if (!hasWebContentExtraction) {
     return {
       requestedStrategy,
       shouldAttempt: false,
-      previewReuseMode: null,
-      reason: 'preview_extraction_unavailable',
+      webContentReuseMode: null,
+      reason: 'web_content_extraction_unavailable',
     };
   }
 
@@ -92,7 +92,7 @@ export function buildPreviewExtractionFetchPlan({
     return {
       requestedStrategy,
       shouldAttempt: false,
-      previewReuseMode: null,
+      webContentReuseMode: null,
       reason: 'extractor_unavailable',
     };
   }
@@ -101,7 +101,7 @@ export function buildPreviewExtractionFetchPlan({
     return {
       requestedStrategy,
       shouldAttempt: false,
-      previewReuseMode: null,
+      webContentReuseMode: null,
       reason: 'page_not_first',
     };
   }
@@ -110,7 +110,7 @@ export function buildPreviewExtractionFetchPlan({
     return {
       requestedStrategy,
       shouldAttempt: false,
-      previewReuseMode: null,
+      webContentReuseMode: null,
       reason: 'article_detail_page',
     };
   }
@@ -118,28 +118,28 @@ export function buildPreviewExtractionFetchPlan({
   return {
     requestedStrategy,
     shouldAttempt: true,
-    previewReuseMode: 'live-extract',
-    reason: 'preview_live_extract',
+    webContentReuseMode: 'live-extract',
+    reason: 'web_content_live_extract',
   };
 }
 
 export function buildPageHtmlFetchPlan({
   fetchStrategy,
-  hasPreviewSnapshot,
+  hasWebContentSnapshot,
 }: {
   fetchStrategy: FetchStrategy | null | undefined;
-  hasPreviewSnapshot: boolean;
+  hasWebContentSnapshot: boolean;
 }): PageHtmlFetchPlan {
   const requestedStrategy = normalizeFetchStrategy(fetchStrategy);
-  const effectiveStrategy = hasPreviewSnapshot ? requestedStrategy : 'network-first';
-  const selectedChannel = effectiveStrategy === 'network-first' ? 'network' : 'preview';
+  const effectiveStrategy = hasWebContentSnapshot ? requestedStrategy : 'network-first';
+  const selectedChannel = effectiveStrategy === 'network-first' ? 'network' : 'web-content';
   const shouldStartNetworkBenchmark = effectiveStrategy === 'compare';
 
   return {
     requestedStrategy,
     effectiveStrategy,
     selectedChannel,
-    previewReuseMode: selectedChannel === 'preview' ? 'snapshot' : null,
+    webContentReuseMode: selectedChannel === 'web-content' ? 'snapshot' : null,
     shouldStartNetworkBenchmark,
     networkStage: shouldStartNetworkBenchmark ? 'source_page_network' : 'source_page',
   };

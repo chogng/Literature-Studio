@@ -1,23 +1,20 @@
 import type {
-  WritingWorkspacePreviewTab,
+  WritingWorkspaceContentTab,
   WritingWorkspaceTab,
 } from './writingEditorModel';
 
 export type WebContentSurfaceOwner = 'shared-content' | 'editor-content-tab';
 
 export type WebContentSurfaceSnapshot = {
-  activeContentTab: WritingWorkspacePreviewTab | null;
+  activeContentTab: WritingWorkspaceContentTab | null;
   activeContentTabId: string | null;
   activeContentTabUrl: string;
-  activePreviewTab: WritingWorkspacePreviewTab | null;
-  activePreviewTabId: string | null;
-  activePreviewTabUrl: string;
   owner: WebContentSurfaceOwner;
 };
 
 export function resolveActiveContentTab(
   activeTab: WritingWorkspaceTab | null,
-): WritingWorkspacePreviewTab | null {
+): WritingWorkspaceContentTab | null {
   return activeTab && activeTab.kind !== 'draft' ? activeTab : null;
 }
 
@@ -31,9 +28,6 @@ export function createWebContentSurfaceSnapshot(
     activeContentTab,
     activeContentTabId: activeContentTab?.id ?? null,
     activeContentTabUrl: activeContentTab?.url ?? '',
-    activePreviewTab: activeContentTab,
-    activePreviewTabId: activeContentTab?.id ?? null,
-    activePreviewTabUrl: activeContentTab?.url ?? '',
     owner: activeContentTab ? 'editor-content-tab' : 'shared-content',
   };
 }
@@ -84,10 +78,3 @@ export function resolveContentSourceUrl(
 ) {
   return snapshot.activeContentTabUrl || browserUrl || webUrl;
 }
-
-// TODO(migration): remove these compatibility aliases after all workbench imports move to
-// the webContent* names.
-export const createPreviewSurfaceSnapshot = createWebContentSurfaceSnapshot;
-export const resolvePreviewSourceUrl = resolveContentSourceUrl;
-export const shouldSyncActivePreviewTabFromBrowserUrl =
-  shouldSyncActiveContentTabFromBrowserUrl;

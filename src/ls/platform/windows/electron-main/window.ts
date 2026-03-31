@@ -4,7 +4,7 @@ import { BrowserWindow, type BrowserWindowConstructorOptions, type WebContents }
 import type { WindowControlAction, WindowState } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { disposeMenuOverlay, prewarmMenuOverlay } from './menuOverlayView.js';
 import { disposeToastOverlay } from './toastOverlayView.js';
-import { disposePreviewView, ensurePreviewView } from './previewView.js';
+import { disposeWebContentView, ensureWebContentView } from './webContentView.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -421,7 +421,7 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
   const window = mainWindow;
   applyMainWindowBackgroundMaterial(useMica, window);
   wireRendererDiagnostics(window);
-  ensurePreviewView(window);
+  ensureWebContentView(window);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
@@ -434,7 +434,7 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
     closeAuxiliaryWindows();
     disposeMenuOverlay(window);
     disposeToastOverlay(window);
-    disposePreviewView(window);
+    disposeWebContentView(window);
     mainWindow = null;
   });
 

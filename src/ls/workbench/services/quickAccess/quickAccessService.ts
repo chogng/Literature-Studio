@@ -32,7 +32,7 @@ export type QuickAccessCommand =
   | {
       type: 'OPEN_SOURCE_URL';
       url: string;
-      // Quick source selections create or activate a preview tab; the shared preview then follows that tab.
+      // Quick source selections create or activate a content tab; the shared web content view then follows that tab.
       openInEditorTab: boolean;
     };
 

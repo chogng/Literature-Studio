@@ -66,7 +66,9 @@ import {
   setWorkbenchWebUrl,
   subscribeWorkbenchSession,
 } from './session';
+import { setWorkbenchEditorCommandHandlers } from './editorCommands';
 import { setWorkbenchTitlebarCommandHandlers } from './titlebarCommands';
+import { handleWorkbenchEditorShortcut } from './workbenchEditorShortcuts';
 import {
   getWindowStateSnapshot,
   performWorkbenchWindowControl,
@@ -268,6 +270,9 @@ class WorkbenchHost {
   private previousContentTargetUrl = '';
   private previousContentTabIds = new Set<string>();
   private appliedKnowledgeBaseModeEnabled: boolean | null = null;
+  private readonly handleWindowKeydown = (event: KeyboardEvent) => {
+    handleWorkbenchEditorShortcut(event);
+  };
 
   constructor(rootElement: HTMLElement) {
     this.rootElement = rootElement;
@@ -289,6 +294,7 @@ class WorkbenchHost {
   }
 
   start() {
+    window.addEventListener('keydown', this.handleWindowKeydown);
     this.globalDisposables.push(
       localeService.subscribe(this.requestRender),
       subscribeWorkbenchSession(this.requestRender),
@@ -309,11 +315,13 @@ class WorkbenchHost {
     this.isDisposed = true;
     this.webContentStateDisposable?.();
     this.webContentStateDisposable = null;
+    window.removeEventListener('keydown', this.handleWindowKeydown);
     while (this.globalDisposables.length > 0) {
       this.globalDisposables.pop()?.();
     }
 
     setWorkbenchTitlebarCommandHandlers(null);
+    setWorkbenchEditorCommandHandlers(null);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.statusbar, null);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.container, null);
 
@@ -383,7 +391,7 @@ class WorkbenchHost {
 
     this.webContentStateDisposable?.();
     this.webContentRuntime = webContentRuntime;
-    this.webContentStateDisposable = webContentNavigationModelInstance.connectPreviewState({
+    this.webContentStateDisposable = webContentNavigationModelInstance.connectWebContentState({
       webContentRuntime,
       setWebUrl: setWorkbenchWebUrl,
       setFetchSeedUrl: setWorkbenchFetchSeedUrl,
@@ -598,12 +606,14 @@ class WorkbenchHost {
   private syncTitlebarCommandHandlers(params: {
     onNavigateBack: () => void;
     onNavigateForward: () => void;
+    onNavigateRefresh: () => void;
     onNavigateWeb: () => void;
     onExportDocx: () => Promise<void>;
   }) {
     const {
       onNavigateBack,
       onNavigateForward,
+      onNavigateRefresh,
       onNavigateWeb,
       onExportDocx,
     } = params;
@@ -613,11 +623,19 @@ class WorkbenchHost {
       onToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
       onNavigateBack,
       onNavigateForward,
+      onNavigateRefresh,
       onNavigateWeb,
       onToggleSettings: toggleWorkbenchSettings,
       onExportDocx: () => {
         void onExportDocx();
       },
+    });
+  }
+
+  private syncEditorCommandHandlers() {
+    setWorkbenchEditorCommandHandlers({
+      executeActiveDraftCommand: (commandId) =>
+        this.readerView?.executeActiveDraftCommand(commandId) ?? false,
     });
   }
 
@@ -695,6 +713,7 @@ class WorkbenchHost {
     } else {
       this.readerView.setProps(props);
     }
+    this.syncEditorCommandHandlers();
 
     const readerElement = this.readerView.getElement();
     if (this.pageMount.firstChild !== readerElement) {
@@ -707,6 +726,7 @@ class WorkbenchHost {
   ) {
     this.readerView?.dispose();
     this.readerView = null;
+    setWorkbenchEditorCommandHandlers(null);
     if (!this.settingsView) {
       this.settingsView = createSettingsPartView(settingsPartProps);
     } else {
@@ -991,6 +1011,14 @@ class WorkbenchHost {
       });
     };
 
+    const handleWebContentRefresh = () => {
+      webContentNavigationModelInstance.handleBrowserRefresh({
+        electronRuntime,
+        webContentRuntime,
+        ui,
+      });
+    };
+
     const addressBarSourceOptions =
       webContentNavigationModelInstance.createAddressBarSourceOptions(batchSources);
     const selectedAddressBarSourceId =
@@ -1185,6 +1213,7 @@ class WorkbenchHost {
     this.syncTitlebarCommandHandlers({
       onNavigateBack: handleWebContentBack,
       onNavigateForward: handleWebContentForward,
+      onNavigateRefresh: handleWebContentRefresh,
       onNavigateWeb: handleNavigateWeb,
       onExportDocx: handleExportArticlesDocx,
     });
@@ -1269,6 +1298,7 @@ class WorkbenchHost {
         handleToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
         handleWebContentBack,
         handleWebContentForward,
+        handleWebContentRefresh,
         dispatchQuickAccessAction,
       },
     });

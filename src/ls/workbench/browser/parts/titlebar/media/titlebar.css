@@ -207,13 +207,13 @@
   color: #8b5a14;
 }
 
-.titlebar-fetch-source[data-mode='preview'] {
+.titlebar-fetch-source[data-mode='web-content'] {
   background: #e9f8ef;
   border-color: #93d2aa;
   color: #1e6b3d;
 }
 
-.titlebar-fetch-source[data-mode='preview'][data-preview-reuse='live-extract'] {
+.titlebar-fetch-source[data-mode='web-content'][data-web-content-reuse='live-extract'] {
   background: #eaf2ff;
   border-color: #a9c2ef;
   color: #244f93;
@@ -318,6 +318,10 @@
   flex: 0 0 auto;
   padding: 0;
   gap: 4px;
+}
+
+.titlebar-btn-refresh.btn-base.btn-mode-icon {
+  --btn-icon-size: 22px;
 }
 
 .titlebar-btn-close.btn-base:hover {

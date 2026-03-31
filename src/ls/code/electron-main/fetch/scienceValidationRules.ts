@@ -24,8 +24,8 @@ export type ScienceValidationResult = {
   sectionCount: number;
   title: string;
   readyMs: number;
-  navigationMode: 'preview-existing' | 'reuse-existing' | 'dom-ready' | 'load-finished' | 'boot-timeout';
-  source: 'preview' | 'window';
+  navigationMode: 'web-content-existing' | 'reuse-existing' | 'dom-ready' | 'load-finished' | 'boot-timeout';
+  source: 'web-content' | 'window';
 };
 
 export type ScienceValidationWindowState = {
@@ -142,7 +142,7 @@ export function shouldUseScienceValidationRenderFallback({
   return challengeSignal.status === '403';
 }
 
-export function shouldAllowSciencePreviewWhileLoading(pageUrl: string) {
+export function shouldAllowScienceWebContentWhileLoading(pageUrl: string) {
   return isScienceSeriesListingPageUrl(pageUrl);
 }
 

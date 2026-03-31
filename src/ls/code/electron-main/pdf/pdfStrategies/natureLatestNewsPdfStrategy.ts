@@ -5,7 +5,7 @@ export const natureLatestNewsPdfStrategy: PdfDownloadStrategy = {
   id: 'nature-latest-news-pdf',
   priority: 'preferred',
   matches(request) {
-    if (typeof request.previewHtmlSnapshot === 'string' && request.previewHtmlSnapshot.trim()) {
+    if (typeof request.webContentHtmlSnapshot === 'string' && request.webContentHtmlSnapshot.trim()) {
       return request.naturePdfCandidateUrls.length > 0;
     }
 

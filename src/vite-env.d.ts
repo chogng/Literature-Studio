@@ -17,10 +17,10 @@ type AppCommand = import('./ls/base/parts/sandbox/common/desktopTypes.js').AppCo
 type WindowControlAction = import('./ls/base/parts/sandbox/common/desktopTypes.js').WindowControlAction;
 type WindowState = import('./ls/base/parts/sandbox/common/desktopTypes.js').WindowState;
 type WindowStateListener = import('./ls/base/parts/sandbox/common/desktopTypes.js').WindowStateListener;
-type DesktopPreviewBounds = import('./ls/base/parts/sandbox/common/desktopTypes.js').PreviewBounds;
-type DesktopPreviewState = import('./ls/base/parts/sandbox/common/desktopTypes.js').PreviewState;
+type DesktopWebContentBounds = import('./ls/base/parts/sandbox/common/desktopTypes.js').WebContentBounds;
+type DesktopWebContentState = import('./ls/base/parts/sandbox/common/desktopTypes.js').WebContentState;
 type DesktopFetchChannel = import('./ls/base/parts/sandbox/common/desktopTypes.js').FetchChannel;
-type DesktopPreviewReuseMode = import('./ls/base/parts/sandbox/common/desktopTypes.js').PreviewReuseMode;
+type DesktopPreviewReuseMode = import('./ls/base/parts/sandbox/common/desktopTypes.js').WebContentReuseMode;
 type DesktopFetchStatus = import('./ls/base/parts/sandbox/common/desktopTypes.js').FetchStatus;
 type ElectronInvoke = import('./ls/base/parts/sandbox/common/desktopTypes.js').ElectronInvoke;
 

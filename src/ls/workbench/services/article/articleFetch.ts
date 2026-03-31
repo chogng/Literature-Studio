@@ -39,7 +39,7 @@ type FetchLatestArticlesBatchParams = {
   sameDomainOnly: boolean;
   startDate?: string | null;
   endDate?: string | null;
-  fetchStrategy?: 'network-first' | 'preview-first' | 'compare';
+  fetchStrategy?: 'network-first' | 'web-content-first' | 'compare';
   invokeDesktop: ElectronInvoke;
 };
 

@@ -146,14 +146,14 @@ export interface WindowState {
   isMaximized: boolean;
 }
 
-export interface PreviewBounds {
+export interface WebContentBounds {
   x: number;
   y: number;
   width: number;
   height: number;
 }
 
-export interface PreviewState {
+export interface WebContentState {
   url: string;
   canGoBack: boolean;
   canGoForward: boolean;
@@ -161,20 +161,32 @@ export interface PreviewState {
   visible: boolean;
 }
 
-export type PreviewNavigationMode = 'browser' | 'strict';
+export interface WebContentSelectionRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
-export interface PreviewTargetPayload {
+export interface WebContentSelectionSnapshot {
+  text: string;
+  rects: WebContentSelectionRect[];
+}
+
+export type WebContentNavigationMode = 'browser' | 'strict';
+
+export interface WebContentTargetPayload {
   targetId?: string | null;
 }
 
-export interface PreviewNavigatePayload extends PreviewTargetPayload {
+export interface WebContentNavigatePayload extends WebContentTargetPayload {
   url: string;
-  mode?: PreviewNavigationMode;
+  mode?: WebContentNavigationMode;
 }
 
-export type FetchStrategy = 'network-first' | 'preview-first' | 'compare';
-export type FetchChannel = 'network' | 'preview';
-export type PreviewReuseMode = 'snapshot' | 'live-extract';
+export type FetchStrategy = 'network-first' | 'web-content-first' | 'compare';
+export type FetchChannel = 'network' | 'web-content';
+export type WebContentReuseMode = 'snapshot' | 'live-extract';
 
 export interface FetchStatus {
   sourceId: string;
@@ -182,7 +194,7 @@ export interface FetchStatus {
   pageNumber: number;
   fetchChannel: FetchChannel;
   fetchDetail?: string | null;
-  previewReuseMode?: PreviewReuseMode | null;
+  webContentReuseMode?: WebContentReuseMode | null;
   extractorId: string | null;
   paginationStopped?: boolean;
   paginationStopReason?: string | null;
@@ -196,7 +208,7 @@ export interface FetchLatestArticlesPayload {
   fetchStrategy?: FetchStrategy;
 }
 
-export interface PreviewDownloadPdfPayload {
+export interface WebContentPdfDownloadPayload {
   pageUrl?: string;
   downloadUrl?: string;
   doi?: string;
@@ -503,7 +515,7 @@ export interface AppCommandPayloadMap {
   test_rag_connection: TestRagConnectionPayload;
   pick_download_directory: undefined;
   open_path: OpenPathPayload;
-  preview_download_pdf: PreviewDownloadPdfPayload;
+  web_content_download_pdf: WebContentPdfDownloadPayload;
   index_downloaded_pdf: IndexDownloadedPdfPayload;
   get_library_document_status: LibraryDocumentStatusPayload;
   list_library_documents: ListLibraryDocumentsPayload;
@@ -523,7 +535,7 @@ export interface AppCommandResultMap {
   test_rag_connection: RagConnectionTestResult;
   pick_download_directory: string | null;
   open_path: boolean;
-  preview_download_pdf: PdfDownloadResult;
+  web_content_download_pdf: PdfDownloadResult;
   index_downloaded_pdf: LibraryRegistrationResult;
   get_library_document_status: LibraryDocumentSummary | null;
   list_library_documents: LibraryDocumentsResult;
@@ -551,21 +563,22 @@ export interface ElectronWindowControls {
   onStateChange: (listener: WindowStateListener) => () => void;
 }
 
-export interface ElectronPreviewApi {
+export interface ElectronWebContentApi {
   activate: (targetId?: string | null) => void;
   release: (targetId?: string | null) => void;
   navigate: (
     url: string,
     targetId?: string | null,
-    mode?: PreviewNavigationMode,
-  ) => Promise<PreviewState>;
-  getState: (targetId?: string | null) => Promise<PreviewState>;
-  setBounds: (bounds: PreviewBounds | null) => void;
+    mode?: WebContentNavigationMode,
+  ) => Promise<WebContentState>;
+  getState: (targetId?: string | null) => Promise<WebContentState>;
+  setBounds: (bounds: WebContentBounds | null) => void;
   setVisible: (visible: boolean) => void;
   reload: (targetId?: string | null) => void;
   goBack: (targetId?: string | null) => void;
   goForward: (targetId?: string | null) => void;
-  onStateChange: (listener: (state: PreviewState) => void) => () => void;
+  getSelection: (targetId?: string | null) => Promise<WebContentSelectionSnapshot | null>;
+  onStateChange: (listener: (state: WebContentState) => void) => () => void;
 }
 
 export interface ElectronFetchApi {
@@ -598,7 +611,7 @@ export interface ElectronMenuApi {
 export interface ElectronAPI {
   invoke: ElectronInvoke;
   windowControls?: ElectronWindowControls;
-  preview?: ElectronPreviewApi;
+  webContent?: ElectronWebContentApi;
   fetch?: ElectronFetchApi;
   modal?: ElectronModalApi;
   toast?: ElectronToastApi;

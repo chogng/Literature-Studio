@@ -9,7 +9,7 @@ export type ViewPartLabels = {
 export type ViewPartProps = {
   browserUrl: string;
   electronRuntime: boolean;
-  previewRuntime: boolean;
+  webContentRuntime: boolean;
   labels: ViewPartLabels;
 };
 
@@ -71,11 +71,11 @@ export class ViewPartView {
       return;
     }
 
-    if (!this.props.electronRuntime || !this.props.previewRuntime) {
+    if (!this.props.electronRuntime || !this.props.webContentRuntime) {
       this.setWebContentHostRegistered(false);
       const warning = createElement(
         'div',
-        'empty-state preview-runtime-warning',
+        'empty-state webcontent-runtime-warning',
       );
       warning.textContent = this.props.labels.contentUnavailable;
       this.contentElement.append(warning);

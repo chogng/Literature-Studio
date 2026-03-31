@@ -7,7 +7,7 @@ export type PdfDownloadContext = {
   articleTitle: string;
   journalTitle: string;
   downloadDir: string;
-  previewHtmlSnapshot: string | null;
+  webContentHtmlSnapshot: string | null;
   sciencePdfCandidateUrls: string[];
   naturePdfCandidateUrls: string[];
 };

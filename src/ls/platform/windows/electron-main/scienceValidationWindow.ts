@@ -1,5 +1,5 @@
 import { BrowserWindow } from 'electron';
-import { getPreviewDocumentSnapshot, getPreviewListingCandidateSnapshot, getPreviewState } from './previewView.js';
+import { getWebContentDocumentSnapshot, getWebContentListingCandidateSnapshot, getWebContentState } from './webContentView.js';
 import { createAuxiliaryWindow } from './window.js';
 import { appError, isAppError } from '../../../base/common/errors.js';
 import { cleanText } from '../../../base/common/strings.js';
@@ -40,7 +40,7 @@ export {
   isScienceChallengeHtml,
   isScienceHostUrl,
   isScienceSeriesListingPageUrl,
-  shouldAllowSciencePreviewWhileLoading,
+  shouldAllowScienceWebContentWhileLoading,
   shouldUseScienceValidationRenderFallback,
 } from '../../../code/electron-main/fetch/scienceValidationRules.js';
 
@@ -63,31 +63,31 @@ const sciencePageValidationPromiseByUrl = new Map<string, Promise<ScienceValidat
 const SCIENCE_VALIDATION_WINDOW_CLOSED_STATUS_TEXT =
   'Science validation window was closed before verification completed.';
 
-async function tryUseExistingSciencePreview(pageUrl: string): Promise<ScienceValidationResult | null> {
-  const previewState = getPreviewState();
-  const previewUrl = cleanText(previewState.url);
-  if (!previewUrl || !matchesScienceComparableUrl(previewUrl, pageUrl)) {
+async function tryUseExistingScienceWebContent(pageUrl: string): Promise<ScienceValidationResult | null> {
+  const webContentState = getWebContentState();
+  const webContentUrl = cleanText(webContentState.url);
+  if (!webContentUrl || !matchesScienceComparableUrl(webContentUrl, pageUrl)) {
     return null;
   }
 
   const startedAt = Date.now();
   while (Date.now() - startedAt < SCIENCE_VALIDATION_TIMEOUT_MS) {
-    const currentState = getPreviewState();
-    const currentPreviewUrl = cleanText(currentState.url);
-    if (!currentPreviewUrl || !matchesScienceComparableUrl(currentPreviewUrl, pageUrl)) {
+    const currentState = getWebContentState();
+    const currentWebContentUrl = cleanText(currentState.url);
+    if (!currentWebContentUrl || !matchesScienceComparableUrl(currentWebContentUrl, pageUrl)) {
       return null;
     }
 
     const [extraction, snapshot] = await Promise.all([
-      getPreviewListingCandidateSnapshot({
+      getWebContentListingCandidateSnapshot({
         timeoutMs: Math.min(1200, SCIENCE_VALIDATION_POLL_MS * 2),
       }),
-      getPreviewDocumentSnapshot({
+      getWebContentDocumentSnapshot({
         timeoutMs: Math.min(1200, SCIENCE_VALIDATION_POLL_MS * 2),
       }),
     ]);
 
-    const extractionUrl = cleanText(extraction?.previewUrl);
+    const extractionUrl = cleanText(extraction?.webContentUrl);
     const snapshotUrl = cleanText(snapshot?.url);
     const matchesExtraction = extractionUrl && matchesScienceComparableUrl(extractionUrl, pageUrl);
     const matchesSnapshot = snapshotUrl && matchesScienceComparableUrl(snapshotUrl, pageUrl);
@@ -112,8 +112,8 @@ async function tryUseExistingSciencePreview(pageUrl: string): Promise<ScienceVal
         sectionCount,
         title,
         readyMs: Date.now() - startedAt,
-        navigationMode: 'preview-existing',
-        source: 'preview',
+        navigationMode: 'web-content-existing',
+        source: 'web-content',
       };
     }
 
@@ -549,9 +549,9 @@ export async function ensureScienceValidationWindow(pageUrl: string): Promise<Sc
   }
 
   const task = (async () => {
-    const previewResult = await tryUseExistingSciencePreview(pageUrl);
-    if (previewResult) {
-      return previewResult;
+    const existingWebContentResult = await tryUseExistingScienceWebContent(pageUrl);
+    if (existingWebContentResult) {
+      return existingWebContentResult;
     }
 
     const window = createScienceValidationWindow();
@@ -946,5 +946,4 @@ export async function withValidatedSciencePageWindow<T>(
     }
   }
 }
-
 

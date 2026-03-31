@@ -11,11 +11,11 @@ import type {
   ListLibraryDocumentsPayload,
   OpenArticleDetailsModalPayload,
   OpenPathPayload,
-  PreviewDownloadPdfPayload,
-  PreviewBounds,
+  WebContentPdfDownloadPayload,
   NativeModalState,
-  PreviewNavigatePayload,
-  PreviewState,
+  WebContentBounds,
+  WebContentNavigatePayload,
+  WebContentState,
   ReindexLibraryDocumentPayload,
   RagAnswerArticlesPayload,
   SaveSettingsPayload,
@@ -26,16 +26,17 @@ import type {
 } from '../../base/parts/sandbox/common/desktopTypes.js';
 import type { StorageService } from '../../platform/storage/common/storage.js';
 import {
-  getPreviewState,
-  activatePreviewTarget,
-  goBackPreview,
-  goForwardPreview,
-  navigatePreviewTarget,
-  releasePreviewTarget,
-  reloadPreview,
-  setPreviewBounds,
-  setPreviewVisible,
-} from '../../platform/windows/electron-main/previewView.js';
+  getWebContentState,
+  getWebContentSelection,
+  activateWebContentTarget,
+  goBackWebContent,
+  goForwardWebContent,
+  navigateWebContentTarget,
+  releaseWebContentTarget,
+  reloadWebContent,
+  setWebContentBounds,
+  setWebContentVisible,
+} from '../../platform/windows/electron-main/webContentView.js';
 import { getNativeModalState, openArticleDetailsModal } from '../../platform/windows/electron-main/articleDetailsWindow.js';
 import {
   dismissToast,
@@ -57,11 +58,11 @@ import {
 import { exportArticlesDocx } from './document/docx.js';
 import {
   normalizeFetchStrategy,
-  shouldPreparePreviewArtifacts,
-  type PreviewExtractionSnapshot,
-  type PreviewSnapshot,
+  shouldPrepareWebContentArtifacts,
+  type WebContentExtractionSnapshot,
+  type WebContentSnapshot,
 } from './fetch/fetchStrategy.js';
-import { resolveBatchPreviewExtractions, resolveBatchPreviewSnapshots, resolvePreviewSnapshotHtml } from './fetch/previewChannel.js';
+import { resolveBatchWebContentExtractions, resolveBatchWebContentSnapshots, resolveWebContentSnapshotHtml } from './fetch/webContentChannel.js';
 import { previewDownloadPdf } from './pdf/pdf.js';
 import { appError, serializeAppError } from '../../base/common/errors.js';
 import { pickDirectoryDialog } from '../../platform/dialogs/electron-main/dialogMainService.js';
@@ -107,16 +108,16 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'fetch_latest_articles':
       {
         const fetchLatestPayload = payload as FetchLatestArticlesPayload;
-        const fetchStrategy = normalizeFetchStrategy(fetchLatestPayload.fetchStrategy ?? 'preview-first');
-        const previewExtractions = shouldPreparePreviewArtifacts(fetchStrategy)
-          ? await resolveBatchPreviewExtractions(fetchLatestPayload)
-          : new Map<string, PreviewExtractionSnapshot>();
+        const fetchStrategy = normalizeFetchStrategy(fetchLatestPayload.fetchStrategy ?? 'web-content-first');
+        const previewExtractions = shouldPrepareWebContentArtifacts(fetchStrategy)
+          ? await resolveBatchWebContentExtractions(fetchLatestPayload)
+          : new Map<string, WebContentExtractionSnapshot>();
         const previewSnapshots =
-          shouldPreparePreviewArtifacts(fetchStrategy)
+          shouldPrepareWebContentArtifacts(fetchStrategy)
             ? (previewExtractions.size > 0
-              ? new Map<string, PreviewSnapshot>()
-              : await resolveBatchPreviewSnapshots(fetchLatestPayload))
-            : new Map<string, PreviewSnapshot>();
+              ? new Map<string, WebContentSnapshot>()
+              : await resolveBatchWebContentSnapshots(fetchLatestPayload))
+            : new Map<string, WebContentSnapshot>();
         return fetchLatestArticles(
           fetchLatestPayload,
           storage,
@@ -172,10 +173,10 @@ async function invokeCommand<TCommand extends AppCommand>(
       shell.showItemInFolder(targetPath);
       return true as AppCommandResultMap[TCommand];
     }
-    case 'preview_download_pdf': {
-      const previewHtml = await resolvePreviewSnapshotHtml(payload as PreviewDownloadPdfPayload);
+    case 'web_content_download_pdf': {
+      const previewHtml = await resolveWebContentSnapshotHtml(payload as WebContentPdfDownloadPayload);
       const downloadResult = await previewDownloadPdf(
-        payload as PreviewDownloadPdfPayload,
+        payload as WebContentPdfDownloadPayload,
         app.getPath('downloads'),
         previewHtml,
       );
@@ -186,7 +187,7 @@ async function invokeCommand<TCommand extends AppCommand>(
           settings.rag.knowledgeBaseModeEnabled ?? settings.rag.enabled;
         if (knowledgeBaseModeEnabled && settings.rag.autoIndexDownloadedPdf) {
           const registration = await storage.registerLibraryDocument({
-            ...(payload as PreviewDownloadPdfPayload),
+            ...(payload as WebContentPdfDownloadPayload),
             filePath: downloadResult.filePath,
             sourceUrl: downloadResult.sourceUrl,
           });
@@ -286,9 +287,13 @@ export function registerAppIpc(storage: StorageService) {
     return getWindowState(resolveWindowFromWebContents(event.sender));
   });
 
-  ipcMain.handle('app:preview-get-state', (_event, payload?: { targetId?: string | null }) => {
-    const state: PreviewState = getPreviewState(payload?.targetId);
+  ipcMain.handle('app:web-content-get-state', (_event, payload?: { targetId?: string | null }) => {
+    const state: WebContentState = getWebContentState(payload?.targetId);
     return state;
+  });
+
+  ipcMain.handle('app:web-content-get-selection', async (_event, payload?: { targetId?: string | null }) => {
+    return await getWebContentSelection(payload?.targetId);
   });
 
   ipcMain.handle('app:modal-get-state', (event) => {
@@ -332,42 +337,40 @@ export function registerAppIpc(storage: StorageService) {
     selectMenuOption(requestId, value);
   });
 
-  ipcMain.on('app:preview-activate', (_event, payload?: { targetId?: string | null }) => {
-    activatePreviewTarget(payload?.targetId);
+  ipcMain.on('app:web-content-activate', (_event, payload?: { targetId?: string | null }) => {
+    activateWebContentTarget(payload?.targetId);
   });
 
-  ipcMain.on('app:preview-release', (_event, payload?: { targetId?: string | null }) => {
-    releasePreviewTarget(payload?.targetId);
+  ipcMain.on('app:web-content-release', (_event, payload?: { targetId?: string | null }) => {
+    releaseWebContentTarget(payload?.targetId);
   });
 
-  ipcMain.handle('app:preview-navigate', async (_event, payload: PreviewNavigatePayload) => {
+  ipcMain.handle('app:web-content-navigate', async (_event, payload: WebContentNavigatePayload) => {
     try {
-      await navigatePreviewTarget(payload.url, payload.targetId, payload.mode);
-      return getPreviewState(payload.targetId);
+      await navigateWebContentTarget(payload.url, payload.targetId, payload.mode);
+      return getWebContentState(payload.targetId);
     } catch (error) {
       throw new Error(serializeAppError(error));
     }
   });
 
-  ipcMain.on('app:preview-set-bounds', (_event, bounds: PreviewBounds | null) => {
-    setPreviewBounds(bounds);
+  ipcMain.on('app:web-content-set-bounds', (_event, bounds: WebContentBounds | null) => {
+    setWebContentBounds(bounds);
   });
 
-  ipcMain.on('app:preview-set-visible', (_event, visible: boolean) => {
-    setPreviewVisible(Boolean(visible));
+  ipcMain.on('app:web-content-set-visible', (_event, visible: boolean) => {
+    setWebContentVisible(Boolean(visible));
   });
 
-  ipcMain.on('app:preview-reload', (_event, payload?: { targetId?: string | null }) => {
-    reloadPreview(payload?.targetId);
+  ipcMain.on('app:web-content-reload', (_event, payload?: { targetId?: string | null }) => {
+    reloadWebContent(payload?.targetId);
   });
 
-  ipcMain.on('app:preview-go-back', (_event, payload?: { targetId?: string | null }) => {
-    goBackPreview(payload?.targetId);
+  ipcMain.on('app:web-content-go-back', (_event, payload?: { targetId?: string | null }) => {
+    goBackWebContent(payload?.targetId);
   });
 
-  ipcMain.on('app:preview-go-forward', (_event, payload?: { targetId?: string | null }) => {
-    goForwardPreview(payload?.targetId);
+  ipcMain.on('app:web-content-go-forward', (_event, payload?: { targetId?: string | null }) => {
+    goForwardWebContent(payload?.targetId);
   });
 }
-
-

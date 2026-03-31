@@ -82,8 +82,8 @@ export function isNatureLatestNewsArticlePage(pageUrl: string, html: string) {
 }
 
 async function resolveNatureLatestNewsHtml(request: PdfDownloadContext) {
-  if (typeof request.previewHtmlSnapshot === 'string' && request.previewHtmlSnapshot.trim()) {
-    return request.previewHtmlSnapshot;
+  if (typeof request.webContentHtmlSnapshot === 'string' && request.webContentHtmlSnapshot.trim()) {
+    return request.webContentHtmlSnapshot;
   }
 
   try {
