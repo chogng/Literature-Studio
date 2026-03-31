@@ -3,6 +3,7 @@ import type {
   NativeToastType,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
 import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
+import { nativeHostService } from '../../platform/native/browser/nativeHostService';
 import '../../base/browser/ui/toast/toast.css';
 import './media/toastOverlayWindow.css';
 
@@ -71,7 +72,7 @@ export class ToastOverlayWindowView {
     'native-toast-overlay-stack native-toast-overlay-stack-empty',
   );
   private readonly ui = getLocaleMessages(detectInitialLocale());
-  private readonly toastApi = window.electronAPI?.toast;
+  private readonly toastApi = nativeHostService.toast;
   private toastState: NativeToastState = fallbackToastState;
   private resizeObserver: ResizeObserver | null = null;
   private readonly handleResize = () => {

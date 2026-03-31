@@ -477,7 +477,7 @@ export interface NativeMenuRect {
   height: number;
 }
 
-export type NativeMenuAlign = 'start' | 'center';
+export type NativeMenuAlign = 'start' | 'center' | 'end';
 export type NativeMenuCoverage = 'full-window' | 'trigger-band';
 
 export interface NativeMenuOpenPayload {

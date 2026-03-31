@@ -100,6 +100,11 @@ import {
   type QuickAccessCommand,
 } from '../services/quickAccess/quickAccessService';
 import type { WritingWorkspaceTab } from './writingEditorModel';
+import {
+  hasDesktopRuntime,
+  hasWebContentRuntime,
+} from '../../base/common/platform';
+import { nativeHostService } from '../../platform/native/browser/nativeHostService';
 import './media/workbench.css';
 
 export type WorkbenchPage = 'reader' | 'settings';
@@ -175,12 +180,8 @@ function buildSelectedArticleOrderLookup(
 }
 
 function resolveRuntimeState() {
-  const electronRuntime =
-    typeof window !== 'undefined' &&
-    typeof window.electronAPI?.invoke === 'function';
-  const webContentRuntime =
-    typeof window !== 'undefined' &&
-    typeof window.electronAPI?.webContent?.navigate === 'function';
+  const electronRuntime = hasDesktopRuntime();
+  const webContentRuntime = hasWebContentRuntime();
 
   return {
     electronRuntime,
@@ -560,26 +561,18 @@ class WorkbenchHost {
   }
 
   private syncTitlebar(
-    electronRuntime: boolean,
     titlebarProps: ReturnType<typeof createTitlebarPartProps>,
   ) {
-    if (electronRuntime) {
-      if (!this.titlebarView) {
-        this.titlebarView = createTitlebarView(titlebarProps);
-        this.containerElement.prepend(this.titlebarView.getElement());
-        registerWorkbenchPartDomNode(
-          WORKBENCH_PART_IDS.titlebar,
-          this.titlebarView.getElement(),
-        );
-      } else {
-        this.titlebarView.setProps(titlebarProps);
-      }
-      return;
+    if (!this.titlebarView) {
+      this.titlebarView = createTitlebarView(titlebarProps);
+      this.containerElement.prepend(this.titlebarView.getElement());
+      registerWorkbenchPartDomNode(
+        WORKBENCH_PART_IDS.titlebar,
+        this.titlebarView.getElement(),
+      );
+    } else {
+      this.titlebarView.setProps(titlebarProps);
     }
-
-    this.titlebarView?.dispose();
-    this.titlebarView = null;
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.titlebar, null);
   }
 
   private syncWorkbenchChrome(params: {
@@ -592,7 +585,7 @@ class WorkbenchHost {
 
     this.containerElement.className = [
       'app-window',
-      electronRuntime ? 'has-titlebar' : '',
+      'has-titlebar',
       electronRuntime && useMica ? 'is-mica-enabled' : '',
       activePage === 'reader' ? 'has-statusbar' : '',
     ]
@@ -600,7 +593,7 @@ class WorkbenchHost {
       .join(' ');
     this.shellElement.className = getWorkbenchShellClassName({ activePage });
     this.syncStatusbarVisibility(activePage === 'reader');
-    this.syncTitlebar(electronRuntime, titlebarProps);
+    this.syncTitlebar(titlebarProps);
   }
 
   private syncTitlebarCommandHandlers(params: {
@@ -763,11 +756,7 @@ class WorkbenchHost {
       command: string,
       args?: DesktopInvokeArgs,
     ): Promise<T> => {
-      if (window.electronAPI?.invoke) {
-        return window.electronAPI.invoke<T>(command, args);
-      }
-
-      throw new Error('Desktop invoke bridge is unavailable.');
+      return nativeHostService.invoke(command as never, args as never) as Promise<T>;
     };
 
     const settingsControllerInstance = getWorkbenchSettingsController({

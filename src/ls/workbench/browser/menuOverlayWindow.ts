@@ -2,6 +2,7 @@ import type {
   NativeMenuOption,
   NativeMenuState,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
+import { nativeHostService } from '../../platform/native/browser/nativeHostService';
 import '../../base/browser/ui/dropdown/dropdown.css';
 import './media/menuOverlayWindow.css';
 
@@ -34,7 +35,12 @@ function normalizeMenuState(
   return {
     ...state,
     options: Array.isArray(state.options) ? state.options : [],
-    align: state.align === 'center' ? 'center' : 'start',
+    align:
+      state.align === 'center'
+        ? 'center'
+        : state.align === 'end'
+          ? 'end'
+          : 'start',
   };
 }
 
@@ -69,7 +75,9 @@ function resolveMenuLayout(
   const preferredLeft =
     state.align === 'center'
       ? state.triggerRect.x + (state.triggerRect.width - width) / 2
-      : state.triggerRect.x;
+      : state.align === 'end'
+        ? state.triggerRect.x + state.triggerRect.width - width
+        : state.triggerRect.x;
   const left = clamp(
     preferredLeft,
     viewportPadding,
@@ -96,7 +104,7 @@ export class MenuOverlayWindowView {
   private normalizedMenuState: NativeMenuState | null = null;
   private measuredMenuWidth: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  private readonly menuApi = window.electronAPI?.menu;
+  private readonly menuApi = nativeHostService.menu;
   private readonly handleWindowKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && this.normalizedMenuState) {
       event.preventDefault();

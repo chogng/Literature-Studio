@@ -1,4 +1,5 @@
 import { registerToastBridge } from '../../../base/browser/ui/toast/toast';
+import { nativeHostService } from '../../../platform/native/browser/nativeHostService';
 
 function canUseNativeToastOverlay() {
   if (typeof window === 'undefined') {
@@ -9,16 +10,16 @@ function canUseNativeToastOverlay() {
     return false;
   }
 
-  return typeof window.electronAPI?.toast?.show === 'function';
+  return typeof nativeHostService.toast?.show === 'function';
 }
 
 registerToastBridge({
   canHandle: canUseNativeToastOverlay,
   show: (options) => {
-    window.electronAPI?.toast?.show(options);
+    nativeHostService.toast?.show(options);
     return -1;
   },
   dismiss: (id) => {
-    window.electronAPI?.toast?.dismiss(id);
+    nativeHostService.toast?.dismiss(id);
   },
 });

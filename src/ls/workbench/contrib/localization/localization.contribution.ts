@@ -8,19 +8,17 @@ import {
   registerWorkbenchContribution,
   type Disposable,
 } from '../workbench/workbench.contribution';
+import { hasDesktopRuntime } from '../../../base/common/platform';
+import { nativeHostService } from '../../../platform/native/browser/nativeHostService';
 
 function createLocaleServiceContext() {
   return {
-    desktopRuntime: typeof window.electronAPI?.invoke === 'function',
+    desktopRuntime: hasDesktopRuntime(),
     invokeDesktop: async <T>(
       command: string,
       args?: Record<string, unknown>,
     ): Promise<T> => {
-      if (!window.electronAPI?.invoke) {
-        throw new Error('Desktop invoke bridge is unavailable.');
-      }
-
-      return window.electronAPI.invoke<T>(command, args);
+      return nativeHostService.invoke(command as never, args as never) as Promise<T>;
     },
   };
 }

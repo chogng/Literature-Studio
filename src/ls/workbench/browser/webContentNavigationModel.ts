@@ -1,5 +1,6 @@
 import { toast } from '../../base/browser/ui/toast/toast';
 import type { LocaleMessages } from '../../../language/locales';
+import { nativeHostService } from '../../platform/native/browser/nativeHostService';
 import type { BatchSource } from '../services/config/configSchema';
 import { formatLocalized } from '../services/desktop/desktopError';
 import {
@@ -190,18 +191,19 @@ export class WebContentNavigationModel {
   ) {
     this.activeTargetId = targetId;
 
-    if (!window.electronAPI?.webContent) {
+    const webContent = nativeHostService.webContent;
+    if (!webContent) {
       return null;
     }
 
-    window.electronAPI.webContent.activate(targetId);
+    webContent.activate(targetId);
 
     if (!context) {
       return null;
     }
 
     try {
-      const state = await window.electronAPI.webContent.getState(targetId);
+      const state = await webContent.getState(targetId);
       this.applyWebContentState(state, context);
       return state;
     } catch {
@@ -210,11 +212,12 @@ export class WebContentNavigationModel {
   }
 
   releaseTarget(targetId: string | null) {
-    if (!window.electronAPI?.webContent) {
+    const webContent = nativeHostService.webContent;
+    if (!webContent) {
       return;
     }
 
-    window.electronAPI.webContent.release(targetId);
+    webContent.release(targetId);
   }
 
   connectWebContentState({
@@ -222,13 +225,13 @@ export class WebContentNavigationModel {
     setWebUrl,
     setFetchSeedUrl,
   }: WebContentStateSyncContext): () => void {
-    if (!webContentRuntime || !window.electronAPI?.webContent) {
+    const webContent = nativeHostService.webContent;
+    if (!webContentRuntime || !webContent) {
       this.setWebContentState(EMPTY_WEB_CONTENT_STATE);
       return () => {};
     }
 
     let mounted = true;
-    const webContent = window.electronAPI.webContent;
 
     void webContent
       .getState(this.activeTargetId)
@@ -286,8 +289,9 @@ export class WebContentNavigationModel {
       return false;
     }
 
-    if (webContentNavigation.kind === 'webcontents-content' && window.electronAPI?.webContent) {
-      void window.electronAPI.webContent
+    const webContent = nativeHostService.webContent;
+    if (webContentNavigation.kind === 'webcontents-content' && webContent) {
+      void webContent
         .navigate(webContentNavigation.normalizedUrl, this.activeTargetId, 'browser')
         .catch(() => {
           toast.error(ui.toastWebContentRuntimeUnavailable);
@@ -325,27 +329,30 @@ export class WebContentNavigationModel {
       return;
     }
 
-    if (webContentRefreshMode === 'webcontents-content' && window.electronAPI?.webContent) {
-      window.electronAPI.webContent.reload(this.activeTargetId);
+    const webContent = nativeHostService.webContent;
+    if (webContentRefreshMode === 'webcontents-content' && webContent) {
+      webContent.reload(this.activeTargetId);
     }
   }
 
   handleWebContentBack({ webContentRuntime, ui }: WebContentNavigationButtonParams): void {
-    if (!webContentRuntime || !window.electronAPI?.webContent) {
+    const webContent = nativeHostService.webContent;
+    if (!webContentRuntime || !webContent) {
       toast.info(ui.toastWebContentBackUnsupported);
       return;
     }
 
-    window.electronAPI.webContent.goBack(this.activeTargetId);
+    webContent.goBack(this.activeTargetId);
   }
 
   handleWebContentForward({ webContentRuntime, ui }: WebContentNavigationButtonParams): void {
-    if (!webContentRuntime || !window.electronAPI?.webContent) {
+    const webContent = nativeHostService.webContent;
+    if (!webContentRuntime || !webContent) {
       toast.info(ui.toastWebContentForwardUnsupported);
       return;
     }
 
-    window.electronAPI.webContent.goForward(this.activeTargetId);
+    webContent.goForward(this.activeTargetId);
   }
 
   createAddressBarSourceOptions(batchSources: ReadonlyArray<BatchSource>) {

@@ -6,6 +6,8 @@ import {
   performWorkbenchWindowControl,
   subscribeWindowState,
 } from './window';
+import { hasWindowControlsRuntime } from '../../base/common/platform';
+import { nativeHostService } from '../../platform/native/browser/nativeHostService';
 import { createChildWindowShellView } from './parts/window/childWindowShell';
 import './media/articleDetailsModalContent.css';
 
@@ -124,10 +126,9 @@ class ArticleDetailsModalController {
   private disposeModalStateListener = () => {};
 
   constructor() {
-    const electronRuntime =
-      typeof window !== 'undefined' &&
-      typeof window.electronAPI?.windowControls?.perform === 'function';
-    this.disposeWindowControls = connectWorkbenchWindowControls(electronRuntime);
+    this.disposeWindowControls = connectWorkbenchWindowControls(
+      hasWindowControlsRuntime(),
+    );
     this.disposeWindowStateListener = subscribeWindowState(() => {
       this.setSnapshot({
         isWindowMaximized: getWindowStateSnapshot().isMaximized,
@@ -199,7 +200,7 @@ class ArticleDetailsModalController {
       return;
     }
 
-    const modalApi = window.electronAPI?.modal;
+    const modalApi = nativeHostService.modal;
     if (!modalApi?.getState) {
       this.setSnapshot({ isLoading: false });
       return;
