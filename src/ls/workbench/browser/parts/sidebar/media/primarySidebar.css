@@ -13,14 +13,14 @@
   padding: 4px 12px;
 }
 
-.sidebar-chat-action-bar {
+.sidebar-action-bar {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-.sidebar-chat-topbar-action-btn.btn-base {
+.sidebar-action-btn.btn-base {
   --btn-icon-size: 26px;
   min-width: 26px;
   width: 26px;
@@ -29,22 +29,22 @@
   border-radius: 6px;
 }
 
-.sidebar-chat-topbar-action-btn.btn-base:hover:not(:disabled) {
+.sidebar-action-btn.btn-base:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.05);
 }
 
-.sidebar-chat-topbar-action-btn.btn-base:active:not(:disabled) {
+.sidebar-action-btn.btn-base:active:not(:disabled) {
   background: rgba(0, 0, 0, 0.1);
 }
 
-.sidebar-chat-topbar-action-btn.btn-base.is-active {
+.sidebar-action-btn.btn-base.is-active {
   background: #e8f1fc;
   border-color: #bfd7f4;
   color: #0a5fbf;
 }
 
-.sidebar-chat-topbar-action-btn.btn-base.is-active:hover:not(:disabled),
-.sidebar-chat-topbar-action-btn.btn-base.is-active:active:not(:disabled) {
+.sidebar-action-btn.btn-base.is-active:hover:not(:disabled),
+.sidebar-action-btn.btn-base.is-active:active:not(:disabled) {
   background: #e8f1fc;
 }
 
