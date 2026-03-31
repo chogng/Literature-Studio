@@ -29,7 +29,8 @@ import {
 } from '../../localization/browser/localizationsActions';
 import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
 import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from '../../../browser/layout';
-import './media/settings.css';
+import './media/settingsEditor.css';
+import './media/settingsWidgets.css';
 
 type SelectOption = { value: string; label: string };
 
