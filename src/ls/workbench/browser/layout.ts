@@ -1,6 +1,6 @@
 import type { WorkbenchPage } from './workbench';
 
-export type WorkbenchSidebarKind = 'secondary' | 'primary';
+export type WorkbenchSidebarKind = 'secondarySidebar' | 'primaryBar';
 
 export type WorkbenchLayoutStateSnapshot = {
   isSidebarVisible: boolean;
@@ -58,7 +58,7 @@ export type WorkbenchPartRefCallback = (element: HTMLElement | null) => void;
 
 const DEFAULT_WORKBENCH_LAYOUT_STATE: WorkbenchLayoutStateSnapshot = {
   isSidebarVisible: true,
-  activeSidebarKind: 'secondary',
+  activeSidebarKind: 'secondarySidebar',
   isAuxiliarySidebarVisible: false,
 };
 

@@ -409,7 +409,7 @@ class WorkbenchHost {
 
     this.appliedKnowledgeBaseModeEnabled = isKnowledgeBaseModeEnabled;
     setWorkbenchSidebarKind(
-      isKnowledgeBaseModeEnabled ? 'primary' : 'secondary',
+      isKnowledgeBaseModeEnabled ? 'primaryBar' : 'secondarySidebar',
     );
     setSidebarVisible(true);
     setAuxiliarySidebarVisible(isKnowledgeBaseModeEnabled);

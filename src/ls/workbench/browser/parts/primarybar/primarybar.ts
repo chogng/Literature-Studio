@@ -194,7 +194,7 @@ export class PrimaryBar {
   private props: PrimaryBarProps;
   private readonly element = createElement(
     'section',
-    'panel sidebar-panel sidebar-panel-primary',
+    'panel sidebar-panel primarybar-panel',
   );
   private readonly contentElement = createElement(
     'div',

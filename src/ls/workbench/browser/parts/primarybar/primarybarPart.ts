@@ -17,7 +17,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 export class PrimaryBarPartView {
   private readonly element = createElement(
     'section',
-    'panel sidebar-panel sidebar-panel-primary',
+    'panel sidebar-panel primarybar-panel',
   );
   private readonly bar: PrimaryBar;
 
