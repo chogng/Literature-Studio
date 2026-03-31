@@ -29,6 +29,7 @@ export type SimpleTreeRenderer<T> = {
 export type SimpleTreeOptions<T> = {
   getId: (node: T) => string;
   isRoot: (node: T) => boolean;
+  hideRoot?: boolean;
   getLabel?: (node: T) => string;
   getNodeState?: (node: T) => SimpleTreeNodeState;
   defaultExpandedIds?: Iterable<string>;
@@ -178,7 +179,13 @@ export class SimpleTree<T> {
 
     const list = document.createElement('ul');
     list.className = 'simple-tree-list';
-    list.append(this.renderNode(this.input, 0));
+    if (this.options.hideRoot && this.options.isRoot(this.input)) {
+      for (const child of this.dataSource.getChildren(this.input)) {
+        list.append(this.renderNode(child, 0));
+      }
+    } else {
+      list.append(this.renderNode(this.input, 0));
+    }
     this.element.replaceChildren(list);
     this.focusRenderedNode();
   }
@@ -410,19 +417,25 @@ export class SimpleTree<T> {
       hasChildren: boolean;
       isExpanded: boolean;
     }> = [];
-    const visit = (node: T, depth: number) => {
+    const visit = (node: T, depth: number, includeNode: boolean = true) => {
       const nodeId = this.options.getId(node);
       const hasChildren = this.dataSource.hasChildren(node);
       const isRoot = this.options.isRoot(node);
       const isExpanded = isRoot || (hasChildren && this.expandedIds.has(nodeId));
-      nodes.push({ node, depth, hasChildren, isExpanded });
+      if (includeNode) {
+        nodes.push({ node, depth, hasChildren, isExpanded });
+      }
       if (hasChildren && isExpanded) {
         for (const child of this.dataSource.getChildren(node)) {
-          visit(child, depth + 1);
+          visit(child, includeNode ? depth + 1 : depth);
         }
       }
     };
-    visit(input, 0);
+    visit(
+      input,
+      0,
+      !(this.options.hideRoot && this.options.isRoot(input)),
+    );
     return nodes;
   }
 
