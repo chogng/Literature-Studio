@@ -4,11 +4,23 @@ import type {
 } from '../../../../base/parts/sandbox/common/desktopTypes.js';
 import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
 import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
-import type { SidebarLabels } from './secondarySidebarPart';
-import './media/primarySidebar.css';
+import './media/primarybar.css';
 
-export type PrimarySidebarProps = {
-  labels: SidebarLabels;
+export type PrimaryBarLabels = {
+  untitled: string;
+  unknown: string;
+  libraryTitle: string;
+  libraryAction: string;
+  pdfDownloadAction: string;
+  writingAction: string;
+  libraryStatusRegistered: string;
+  libraryStatusQueued: string;
+  libraryStatusRunning: string;
+  libraryStatusFailed: string;
+};
+
+export type PrimaryBarProps = {
+  labels: PrimaryBarLabels;
   librarySnapshot: LibraryDocumentsResult;
   isLibraryLoading: boolean;
   onRefreshLibrary?: () => void;
@@ -45,7 +57,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 
 function resolveLibraryDocumentStatusLabel(
   labels: Pick<
-    SidebarLabels,
+    PrimaryBarLabels,
     | 'libraryStatusRegistered'
     | 'libraryStatusQueued'
     | 'libraryStatusRunning'
@@ -118,7 +130,7 @@ function getDocumentPathSegments(
 
 function buildLibraryTree(
   librarySnapshot: LibraryDocumentsResult,
-  labels: SidebarLabels,
+  labels: PrimaryBarLabels,
 ) {
   const root: LibraryTreeFolderNode = {
     kind: 'folder',
@@ -178,15 +190,15 @@ function librarySnapshotCount(node: LibraryTreeFolderNode): number {
   return count;
 }
 
-export class PrimarySidebar {
-  private props: PrimarySidebarProps;
+export class PrimaryBar {
+  private props: PrimaryBarProps;
   private readonly element = createElement(
     'section',
     'panel sidebar-panel sidebar-panel-primary',
   );
   private readonly contentElement = createElement(
     'div',
-    'sidebar-primary-content',
+    'primarybar-content',
   );
   private readonly headerElement = createElement(
     'div',
@@ -199,7 +211,7 @@ export class PrimarySidebar {
   private readonly treeElement = createElement('div', 'library-tree');
   private expandedFolders = new Set<string>(['root']);
 
-  constructor(props: PrimarySidebarProps) {
+  constructor(props: PrimaryBarProps) {
     this.props = props;
     this.treeElement.setAttribute('role', 'tree');
     this.contentElement.append(this.headerElement, this.treeElement);
@@ -212,7 +224,7 @@ export class PrimarySidebar {
     return this.element;
   }
 
-  setProps(props: PrimarySidebarProps) {
+  setProps(props: PrimaryBarProps) {
     this.props = props;
     this.render();
   }
@@ -381,8 +393,8 @@ export class PrimarySidebar {
   }
 }
 
-export function createPrimarySidebar(props: PrimarySidebarProps) {
-  return new PrimarySidebar(props);
+export function createPrimaryBar(props: PrimaryBarProps) {
+  return new PrimaryBar(props);
 }
 
-export default PrimarySidebar;
+export default PrimaryBar;

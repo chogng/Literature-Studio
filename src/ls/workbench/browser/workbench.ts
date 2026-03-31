@@ -46,6 +46,7 @@ import {
   createAuxiliaryBarPartProps,
   type AuxiliaryBarProps,
 } from './parts/auxiliarybar/auxiliarybarPart';
+import type { PrimaryBarProps } from './parts/primarybar/primarybarPart';
 import { createSecondarySidebarPartProps } from './parts/sidebar/secondarySidebarPart';
 import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
 import { createTitlebarView, type TitlebarView } from './parts/titlebar/titlebarView';
@@ -695,14 +696,7 @@ class WorkbenchHost {
     >['activeSidebarKind'];
     isAuxiliarySidebarVisible: boolean;
     secondarySidebarProps: ReturnType<typeof createSecondarySidebarPartProps>;
-    primarySidebarProps: {
-      labels: ReturnType<typeof createSecondarySidebarPartProps>['labels'];
-      librarySnapshot: LibraryModelSnapshot['librarySnapshot'];
-      isLibraryLoading: boolean;
-      onRefreshLibrary: () => void;
-      onDownloadPdf: () => void;
-      onCreateDraftTab: () => void;
-    };
+    primaryBarProps: PrimaryBarProps;
     auxiliarySidebarProps: AuxiliaryBarProps;
     editorPartProps: EditorPartProps;
   }) {
@@ -1238,7 +1232,7 @@ class WorkbenchHost {
       },
     });
 
-    const primarySidebarProps = {
+    const primaryBarProps = {
       labels: secondarySidebarProps.labels,
       librarySnapshot,
       isLibraryLoading,
@@ -1423,7 +1417,7 @@ class WorkbenchHost {
         activeSidebarKind,
         isAuxiliarySidebarVisible,
         secondarySidebarProps,
-        primarySidebarProps,
+        primaryBarProps,
         auxiliarySidebarProps,
         editorPartProps: contentAwareEditorPartProps,
       });
