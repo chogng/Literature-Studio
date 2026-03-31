@@ -3,8 +3,9 @@ import {
   getWorkbenchContentStyle,
   type WorkbenchSidebarKind,
 } from './layout';
+import type { EditorStatusState } from '../../editor/browser/shared/editorStatus';
 import { createEditorPartView, type EditorPartProps } from './parts/editor/editorPartView';
-import type { EditorStatusState } from './parts/editor/editorStatus';
+import type { DraftEditorCommandId } from './parts/editor/panes/draftEditorCommands';
 import {
   createPrimarySidebarPartView,
   createSecondarySidebarPartView,
@@ -69,6 +70,10 @@ export class ReaderView {
 
   getElement() {
     return this.element;
+  }
+
+  executeActiveDraftCommand(commandId: DraftEditorCommandId) {
+    return this.editorView?.executeActiveDraftCommand(commandId) ?? false;
   }
 
   setProps(props: ReaderViewProps) {

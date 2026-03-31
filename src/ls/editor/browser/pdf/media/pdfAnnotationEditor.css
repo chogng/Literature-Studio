@@ -1,0 +1,110 @@
+.pdf-annotation-editor {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  height: 100%;
+  background: rgba(248, 250, 253, 0.72);
+}
+
+.pdf-annotation-surface {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pdf-annotation-overlay {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  gap: 6px;
+  max-width: min(320px, calc(100% - 28px));
+  padding: 10px 12px;
+  border: 1px solid rgba(183, 198, 214, 0.95);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(23, 39, 58, 0.08);
+  pointer-events: none;
+}
+
+.pdf-annotation-badge {
+  color: #1d3145;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pdf-annotation-hint {
+  color: #5b7187;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pdf-annotation-draft,
+.pdf-annotation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pdf-annotation-meta,
+.pdf-annotation-list-empty,
+.pdf-annotation-item-body {
+  color: #5b7187;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pdf-annotation-textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #d6e0ea;
+  border-radius: 10px;
+  background: rgba(250, 252, 254, 0.98);
+  color: #203040;
+  font: inherit;
+}
+
+.pdf-annotation-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pdf-annotation-btn {
+  appearance: none;
+  border: 1px solid #d6e0ea;
+  border-radius: 999px;
+  background: rgba(250, 252, 254, 0.98);
+  color: #304253;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pdf-annotation-btn.is-primary {
+  border-color: #a9c8e7;
+  background: rgba(214, 232, 250, 0.96);
+  color: #163a5a;
+}
+
+.pdf-annotation-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.pdf-annotation-item {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(221, 229, 238, 0.92);
+}
+
+.pdf-annotation-item-title {
+  color: #1d3145;
+  font-size: 12px;
+  font-weight: 600;
+}

@@ -2,11 +2,16 @@ import {
   type WritingEditorDocument,
   type WritingWorkspaceDraftTab,
 } from '../../../writingEditorModel';
-import { writingEditorDocumentToPlainText } from '../../../writingEditorDocument';
-import type { DraftEditorRuntimeState } from '../editorStatus';
+import { getLocaleMessages } from '../../../../../../language/i18n';
+import type { DraftEditorRuntimeState } from '../../../../../editor/browser/shared/editorStatus';
+import { ProseMirrorEditor } from '../../../../../editor/browser/text/prosemirrorEditor';
+import { localeService } from '../../../../contrib/localization/browser/localeService';
 import type { EditorPartLabels } from '../editorPartView';
-import { ProseMirrorEditor } from '../prosemirror/prosemirrorEditor';
-import { DraftEmptyStateView } from './draftEmptyStateView';
+import {
+  createDraftEditorCommandAction,
+  type DraftEditorCommandId,
+} from './draftEditorCommands';
+import { showWorkbenchTextInputModal } from '../../../workbenchEditorModals';
 
 export type DraftEditorPaneProps = {
   labels: EditorPartLabels;
@@ -16,30 +21,76 @@ export type DraftEditorPaneProps = {
 };
 
 export class DraftEditorPane {
+  private props: DraftEditorPaneProps;
   private readonly element = document.createElement('div');
-  private readonly emptyStateView: DraftEmptyStateView;
   private readonly editor: ProseMirrorEditor;
 
   constructor(props: DraftEditorPaneProps) {
+    this.props = props;
     this.element.className = 'editor-draft-pane';
-    this.emptyStateView = new DraftEmptyStateView(this.toEmptyStateProps(props));
     this.editor = new ProseMirrorEditor(this.toEditorProps(props));
-    this.element.append(this.emptyStateView.getElement(), this.editor.getElement());
+    this.element.append(this.editor.getElement());
   }
 
   getElement() {
     return this.element;
   }
 
+  executeCommand(commandId: DraftEditorCommandId) {
+    switch (commandId) {
+      case 'insertCitation':
+        this.handleInsertCitation();
+        return;
+      case 'insertFigure':
+        this.handleInsertFigure();
+        return;
+      case 'insertFigureRef':
+        this.handleInsertFigureRef();
+        return;
+    }
+  }
+
   setProps(props: DraftEditorPaneProps) {
+    this.props = props;
     this.editor.setProps(this.toEditorProps(props));
-    this.emptyStateView.setProps(this.toEmptyStateProps(props));
   }
 
   dispose() {
     this.editor.dispose();
     this.element.replaceChildren();
   }
+
+  private createCommandContext = () => ({
+    editor: this.editor,
+    labels: {
+      citationPrompt: this.props.labels.citationPrompt,
+      figureUrlPrompt: this.props.labels.figureUrlPrompt,
+      figureCaptionPrompt: this.props.labels.figureCaptionPrompt,
+      figureRefPrompt: this.props.labels.figureRefPrompt,
+    },
+    prompt: (message: string, defaultValue: string) =>
+      showWorkbenchTextInputModal({
+        title: this.props.labels.draftMode,
+        label: message,
+        defaultValue,
+        ui: getLocaleMessages(localeService.getLocale()),
+      }),
+  });
+
+  private readonly handleInsertCitation = createDraftEditorCommandAction(
+    'insertCitation',
+    this.createCommandContext,
+  );
+
+  private readonly handleInsertFigure = createDraftEditorCommandAction(
+    'insertFigure',
+    this.createCommandContext,
+  );
+
+  private readonly handleInsertFigureRef = createDraftEditorCommandAction(
+    'insertFigureRef',
+    this.createCommandContext,
+  );
 
   private toEditorProps(props: DraftEditorPaneProps) {
     return {
@@ -68,18 +119,11 @@ export class DraftEditorPane {
         figureCaptionPrompt: props.labels.figureCaptionPrompt,
         figureRefPrompt: props.labels.figureRefPrompt,
       },
+      onInsertCitation: this.handleInsertCitation,
+      onInsertFigure: this.handleInsertFigure,
+      onInsertFigureRef: this.handleInsertFigureRef,
       onDocumentChange: props.onDraftDocumentChange,
       onStatusChange: props.onStatusChange,
-    };
-  }
-
-  private toEmptyStateProps(props: DraftEditorPaneProps) {
-    return {
-      labels: {
-        draftEmptyTitle: props.labels.draftEmptyTitle,
-        draftEmptyBody: props.labels.draftEmptyBody,
-      },
-      visible: writingEditorDocumentToPlainText(props.draftTab.document).length === 0,
     };
   }
 }

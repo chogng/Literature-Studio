@@ -1,4 +1,11 @@
-import { inputRules, smartQuotes, emDash, ellipsis, wrappingInputRule, textblockTypeInputRule } from 'prosemirror-inputrules';
+import {
+  inputRules,
+  smartQuotes,
+  emDash,
+  ellipsis,
+  wrappingInputRule,
+  textblockTypeInputRule,
+} from 'prosemirror-inputrules';
 import { Schema, type Node as ProseMirrorNode, type NodeSpec } from 'prosemirror-model';
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { schema as basicSchema } from 'prosemirror-schema-basic';
@@ -237,7 +244,6 @@ export function createWritingEditorPlaceholderPlugin(placeholder: string) {
 export function createWritingEditorDocumentIdentityPlugin() {
   return new Plugin({
     key: new PluginKey('writing-editor-document-identity'),
-    // Keep structural ids stable so future patch/citation/export work can target nodes safely.
     appendTransaction(_transactions, oldState, newState) {
       if (oldState.doc.eq(newState.doc)) {
         return null;

@@ -1,4 +1,4 @@
-import type { EditorStatusState } from '../editor/editorStatus';
+import type { EditorStatusState } from '../../../../editor/browser/shared/editorStatus';
 import { createStatusbarItemElement } from './statusbarItem';
 import './media/statusbar.css';
 

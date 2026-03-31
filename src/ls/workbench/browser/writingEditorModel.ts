@@ -4,9 +4,9 @@ import {
   normalizeWritingEditorDocument,
   type WritingEditorDocument,
   writingEditorDocumentToPlainText,
-} from './writingEditorDocument';
+} from '../../editor/common/writingEditorDocument';
 
-export type { WritingEditorDocument } from './writingEditorDocument';
+export type { WritingEditorDocument } from '../../editor/common/writingEditorDocument';
 
 export type WritingEditorViewMode = 'draft';
 
@@ -37,10 +37,6 @@ export type WritingWorkspacePdfTab = {
 export type WritingWorkspaceContentTab =
   | WritingWorkspaceWebTab
   | WritingWorkspacePdfTab;
-
-// TODO(migration): remove this alias after all editor/view code stops importing the legacy
-// preview-tab name.
-export type WritingWorkspacePreviewTab = WritingWorkspaceContentTab;
 
 export type WritingWorkspaceTab =
   | WritingWorkspaceDraftTab
@@ -448,7 +444,7 @@ export class WritingEditorModel {
     }
 
     this.updateWorkspaceState((state) => {
-      // Mirror upstream open-editor behavior: the same preview resource re-activates its tab
+      // Mirror upstream open-editor behavior: the same web content resource re-activates its tab
       // instead of creating duplicate entries in the strip.
       const existingTab = state.tabs.find(
         (tab) => tab.kind === 'web' && tab.url === normalizedUrl,
@@ -517,7 +513,7 @@ export class WritingEditorModel {
     this.updateWorkspaceState((state) => ({
       ...state,
       tabs: state.tabs.map((tab) =>
-        // When the shared preview navigates while a preview tab owns it, update that tab's
+        // When the shared web content view navigates while a content tab owns it, update that tab's
         // input so the tab title/url stay consistent with the visible editor content.
         tab.id === state.activeTabId && tab.kind !== 'draft'
           ? {
@@ -529,10 +525,6 @@ export class WritingEditorModel {
       ),
     }));
   };
-
-  // TODO(migration): remove this alias after all controller/workbench call sites use
-  // `updateActiveContentTabUrl`.
-  readonly updateActivePreviewTabUrl = this.updateActiveContentTabUrl;
 
   readonly dispose = () => {
     this.listeners.clear();

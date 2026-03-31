@@ -184,42 +184,8 @@
 
 .editor-draft-pane {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 12px;
+  grid-template-rows: minmax(0, 1fr);
   padding: 14px;
-}
-
-.editor-draft-empty-state {
-  display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  border: 1px solid #d9e4ef;
-  border-radius: 16px;
-  background:
-    linear-gradient(135deg, rgba(243, 248, 255, 0.96), rgba(252, 253, 255, 0.96));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
-}
-
-.editor-draft-empty-state.is-hidden {
-  display: none;
-}
-
-.editor-draft-empty-state-title,
-.editor-draft-empty-state-body {
-  margin: 0;
-}
-
-.editor-draft-empty-state-title {
-  color: #1d3145;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.editor-draft-empty-state-body {
-  color: #597086;
-  font-size: 12px;
-  line-height: 1.6;
 }
 
 .editor-source-pane {

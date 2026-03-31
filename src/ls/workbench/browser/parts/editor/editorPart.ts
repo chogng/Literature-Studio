@@ -12,6 +12,7 @@ import {
   type WritingEditorModelSnapshot,
   type WritingWorkspaceTab,
 } from '../../writingEditorModel';
+import { showWorkbenchTextInputModal } from '../../workbenchEditorModals';
 import type { ViewPartProps } from '../views/viewPartView';
 import type { EditorPartProps } from './editorPartView';
 
@@ -42,7 +43,6 @@ export type EditorPartControllerSnapshot = Pick<
   WritingEditorModelSnapshot,
   'tabs' | 'activeTabId' | 'activeTab' | 'draftBody'
 > & {
-  previewSurfaceSnapshot: WebContentSurfaceSnapshot;
   webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
   editorPartProps: EditorPartProps;
 };
@@ -78,8 +78,6 @@ export function createEditorPartProps({
       close: ui.toastClose,
       emptyWorkspaceTitle: ui.editorEmptyWorkspaceTitle,
       emptyWorkspaceBody: ui.editorEmptyWorkspaceBody,
-      draftEmptyTitle: ui.editorDraftEmptyTitle,
-      draftEmptyBody: ui.editorDraftEmptyBody,
       draftBodyPlaceholder: ui.editorDraftBodyPlaceholder,
       sourceTitle: ui.editorSourceTitle,
       pdfTitle: ui.editorPdfTitle,
@@ -151,7 +149,6 @@ function createEditorPartControllerSnapshot(
     activeTabId,
     activeTab,
     draftBody,
-    previewSurfaceSnapshot: webContentSurfaceSnapshot,
     webContentSurfaceSnapshot,
     editorPartProps: createEditorPartProps({
       state: {
@@ -176,7 +173,7 @@ function areEditorPartControllerContextsEqual(
     previous.webUrl === next.webUrl &&
     previous.viewPartProps.browserUrl === next.viewPartProps.browserUrl &&
     previous.viewPartProps.electronRuntime === next.viewPartProps.electronRuntime &&
-    previous.viewPartProps.previewRuntime === next.viewPartProps.previewRuntime &&
+    previous.viewPartProps.webContentRuntime === next.viewPartProps.webContentRuntime &&
     previous.viewPartProps.labels.emptyState === next.viewPartProps.labels.emptyState &&
     previous.viewPartProps.labels.contentUnavailable ===
       next.viewPartProps.labels.contentUnavailable
@@ -246,10 +243,6 @@ export class EditorPartController {
     this.writingEditorModel.updateActiveContentTabUrl(url);
   };
 
-  // TODO(migration): remove this alias after workbench/editor integrations stop using the
-  // preview-era method name.
-  readonly updateActivePreviewTabUrl = this.updateActiveContentTabUrl;
-
   private readonly setDraftDocument = (value: WritingEditorDocument) => {
     this.writingEditorModel.setDraftDocument(value);
   };
@@ -262,7 +255,7 @@ export class EditorPartController {
     this.writingEditorModel.closeTab(tabId);
   };
 
-  private readonly handleCreatePdfTab = () => {
+  private readonly handleCreatePdfTab = async () => {
     const { browserUrl, webUrl, ui } = this.context;
     const { webContentSurfaceSnapshot } = this.snapshot;
     const seedUrl = resolveContentSourceUrl(
@@ -277,7 +270,12 @@ export class EditorPartController {
       (preparedPdfDownload?.normalizedSourceUrl === defaultPdfUrl &&
         !looksLikePdfUrl(defaultPdfUrl));
     const nextInput = shouldPromptForUrl
-      ? window.prompt(ui.editorPdfUrlPrompt, defaultPdfUrl || 'https://') ?? ''
+      ? (await showWorkbenchTextInputModal({
+          title: ui.editorPdfTitle,
+          label: ui.editorPdfUrlPrompt,
+          defaultValue: defaultPdfUrl || 'https://',
+          ui,
+        })) ?? ''
       : defaultPdfUrl;
     const normalizedPdfUrl = normalizeUrl(nextInput);
     if (!normalizedPdfUrl) {

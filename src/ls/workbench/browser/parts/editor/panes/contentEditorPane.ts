@@ -1,10 +1,10 @@
-import type { WritingWorkspacePreviewTab } from '../../../writingEditorModel';
+import type { WritingWorkspaceContentTab } from '../../../writingEditorModel';
 import { ViewPartView, type ViewPartProps } from '../../views/viewPartView';
 import type { EditorPartLabels } from '../editorPartView';
 
 export type ContentEditorPaneProps = {
   labels: EditorPartLabels;
-  contentTab: WritingWorkspacePreviewTab;
+  contentTab: WritingWorkspaceContentTab;
   viewPartProps: ViewPartProps;
 };
 
