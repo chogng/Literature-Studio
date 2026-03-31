@@ -163,6 +163,22 @@ npm run check:i18n
 
 如果你改到了主进程、预加载桥、IPC 或预览视图相关代码，通常需要完整重启一次 `npm run dev` 对应的 Electron 进程，单纯热更新往往不够。
 
+## 平台分层约定
+
+运行时与窗口相关逻辑现在按下面三层组织：
+
+- 平台事实：[`platform.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/base/common/platform.ts)
+  - 只回答当前是不是 `web` / `desktop`，以及平台是不是 `windows` / `macos` / `linux`。
+- 窗口策略：[`window.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/window/common/window.ts)
+  - 基于平台事实计算 titlebar / window chrome 策略。
+- 桌面桥接：[`native.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/native/common/native.ts) 与 [`nativeHostService.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/native/browser/nativeHostService.ts)
+  - 浏览器侧统一访问 `invoke`、`menu`、`toast`、`webContent`、`windowControls` 等 Electron bridge 能力。
+
+约束：
+
+- 业务与 UI 层不要直接访问 `window.electronAPI`。
+- 新增 Electron 能力时，优先扩展 `native` 层，而不是在 `workbench/browser/*` 或 `workbench/contrib/*` 里临时探测 bridge。
+
 ## 当前已知限制
 
 - `npm run dev:web` 无法绕过站点自身的 iframe 安全策略

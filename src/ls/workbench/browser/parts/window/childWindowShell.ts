@@ -3,10 +3,10 @@ import {
   type WindowControlsAction,
   type WindowControlsLabels,
 } from '../titlebar/windowControls';
-import { getBrowserWindowChromeLayout } from '../../../../platform/windows/common/windowChrome.js';
+import { getWindowChromeLayout } from '../../../../platform/window/common/window.js';
 import './media/childWindowShell.css';
 
-const WINDOW_CHROME_LAYOUT = getBrowserWindowChromeLayout();
+const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
 
 export type ChildWindowShellClassNames = {
   root?: string;

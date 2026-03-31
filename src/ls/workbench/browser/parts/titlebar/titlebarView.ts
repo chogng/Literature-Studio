@@ -3,7 +3,7 @@ import { createButtonView } from '../../../../base/browser/ui/button/button.js';
 import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
 import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
 import { createInputView } from '../../../../base/browser/ui/input/input.js';
-import { getBrowserWindowChromeLayout } from '../../../../platform/windows/common/windowChrome.js';
+import { getWindowChromeLayout } from '../../../../platform/window/common/window.js';
 import {
   createTitlebarSourceDropdownView,
   type TitlebarSourceDropdownView,
@@ -88,7 +88,7 @@ const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   noExportableArticlesLabel: '',
 };
 
-const WINDOW_CHROME_LAYOUT = getBrowserWindowChromeLayout();
+const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
 const MIN_SOURCE_TRIGGER_WIDTH_PX = 56;
 const MAX_SOURCE_TRIGGER_WIDTH_PX = 520;
 const SOURCE_TRIGGER_HORIZONTAL_PADDING_PX = 22;

@@ -6,6 +6,7 @@ import {
   createDropdownView,
   type DropdownProps,
 } from '../../../../base/browser/ui/dropdown/dropdown.js';
+import { nativeHostService } from '../../../../platform/native/browser/nativeHostService.js';
 
 export type TitlebarSourceDropdownView = {
   getElement: () => HTMLElement;
@@ -27,7 +28,7 @@ function canUseNativeTitlebarMenu() {
     return false;
   }
 
-  return typeof window.electronAPI?.menu?.open === 'function';
+  return typeof nativeHostService.menu?.open === 'function';
 }
 
 export function createTitlebarSourceDropdownView(
@@ -35,7 +36,7 @@ export function createTitlebarSourceDropdownView(
 ): TitlebarSourceDropdownView {
   const useNativeMenu = canUseNativeTitlebarMenu();
   const requestId = `native-titlebar-dropdown-${++nativeDropdownRequestId}`;
-  const menuApi = window.electronAPI?.menu;
+  const menuApi = nativeHostService.menu;
   let suppressCloseRequest = false;
 
   const view = createDropdownView({
@@ -58,7 +59,7 @@ export function createTitlebarSourceDropdownView(
         triggerRect: request.triggerRect,
         options: request.options,
         value: request.value,
-        align: 'start',
+        align: 'end',
         coverage: 'trigger-band',
       };
       menuApi.open(payload);

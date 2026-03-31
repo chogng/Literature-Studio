@@ -6,6 +6,7 @@ import {
   isPdfSelectionEmpty,
   type PdfSelection,
 } from './pdfSelection';
+import { nativeHostService } from '../../../platform/native/browser/nativeHostService.js';
 import './media/pdfAnnotationEditor.css';
 
 export type PdfAnnotationEditorLabels = {
@@ -159,7 +160,7 @@ export class PdfAnnotationEditor {
   };
 
   private readonly handleCaptureSelection = async () => {
-    const selectionSnapshot = await window.electronAPI?.webContent?.getSelection?.(
+    const selectionSnapshot = await nativeHostService.webContent?.getSelection?.(
       this.props.targetId,
     );
     if (!selectionSnapshot || !selectionSnapshot.text.trim()) {

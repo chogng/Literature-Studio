@@ -293,7 +293,12 @@ export function openMenuOverlay(
     triggerRect: normalizeMenuRect(payload.triggerRect),
     options,
     value: typeof payload.value === 'string' ? payload.value : '',
-    align: payload.align === 'center' ? 'center' : 'start',
+    align:
+      payload.align === 'center'
+        ? 'center'
+        : payload.align === 'end'
+          ? 'end'
+          : 'start',
     coverage: payload.coverage === 'trigger-band' ? 'trigger-band' : 'full-window',
     sourceWebContentsId: senderId,
   };

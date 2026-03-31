@@ -3,10 +3,11 @@ import {
   subscribeWorkbenchPartDom,
   WORKBENCH_PART_IDS,
 } from '../../browser/layout';
+import { nativeHostService } from '../../../platform/native/browser/nativeHostService';
 import type { Disposable } from '../workbench/workbench.contribution';
 
 function syncWebContentViewBounds(webContentViewHostElement: HTMLElement | null) {
-  const webContent = window.electronAPI?.webContent;
+  const webContent = nativeHostService.webContent;
   if (!webContent) {
     return;
   }
@@ -39,8 +40,8 @@ function syncWebContentViewBounds(webContentViewHostElement: HTMLElement | null)
 export function createWorkbenchWebContentViewContribution(): Disposable | void {
   if (
     typeof window === 'undefined' ||
-    typeof window.electronAPI?.webContent?.setBounds !== 'function' ||
-    typeof window.electronAPI?.webContent?.setVisible !== 'function'
+    typeof nativeHostService.webContent?.setBounds !== 'function' ||
+    typeof nativeHostService.webContent?.setVisible !== 'function'
   ) {
     return;
   }

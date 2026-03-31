@@ -19,6 +19,7 @@ import {
   formatLocalized,
   localizeDesktopInvokeError,
 } from '../services/desktop/desktopError';
+import { nativeHostService } from '../../platform/native/browser/nativeHostService';
 
 type BatchFetchTitlebarStatus = {
   titlebarFetchSourceText: string;
@@ -287,13 +288,13 @@ export class BatchFetchController {
     this.disposeFetchStatusListener?.();
     this.disposeFetchStatusListener = null;
 
-    if (!this.context.desktopRuntime || !window.electronAPI?.fetch) {
+    if (!this.context.desktopRuntime || !nativeHostService.fetch) {
       this.dispatch({ type: 'FETCH_STATUS_CLEARED' });
       return;
     }
 
     this.disposeFetchStatusListener =
-      window.electronAPI.fetch.onFetchStatus((status) => {
+      nativeHostService.fetch.onFetchStatus((status) => {
         this.dispatch({ type: 'FETCH_STATUS_UPDATED', status });
       });
   }
