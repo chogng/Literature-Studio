@@ -37,6 +37,13 @@ const en = {
   emptyAllInputLinkSuffix: 'to fetch',
   settingsTitle: 'Settings',
   settingsLoading: 'Loading settings...',
+  settingsNavigationGeneral: 'General',
+  settingsNavigationTextEditor: 'Text editor',
+  settingsNavigationChat: 'Chat',
+  settingsNavigationKnowledgeBase: 'Knowledge base',
+  settingsNavigationLiterature: 'Literature',
+  settingsTextEditorTitle: 'Text editor',
+  settingsTextEditorHint: 'This area is reserved for upcoming text-editor settings and currently acts as a navigation placeholder.',
   settingsPageUrl: 'Default batch fetch URLs',
   settingsPageUrlHint: 'Add multiple source pages here. Batch fetch will visit each URL in this list.',
   addBatchUrl: 'Add URL',
@@ -53,6 +60,9 @@ const en = {
   settingsUseMicaHint:
     'Available in the desktop app. The titlebar and app shell will pick up the system Mica material when Windows supports it.',
   settingsLibraryTitle: 'Knowledge base and library',
+  settingsKnowledgeBaseTitle: 'Knowledge base',
+  settingsKnowledgeBaseHint:
+    'This group brings together registration, library file management, and RAG retrieval settings. Future knowledge-base planning will continue to land here.',
   settingsKnowledgeBaseMode: 'Knowledge base mode',
   settingsKnowledgeBaseModeHint:
     'When enabled, successful PDF downloads can be registered into the knowledge base for indexing and retrieval.',

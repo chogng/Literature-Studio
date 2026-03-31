@@ -31,7 +31,7 @@ import {
   type SettingsController,
   type SettingsControllerContext,
   createSettingsController,
-} from './parts/settings/settingsModel';
+} from '../contrib/preferences/browser/settingsController';
 import {
   type EditorPartControllerContext,
   type EditorPartModel,
@@ -41,7 +41,7 @@ import type { EditorPartProps } from './parts/editor/editorPartView';
 import {
   createSettingsPartView,
   createSettingsPartProps,
-} from './parts/settings/settingsPart';
+} from '../contrib/preferences/browser/settingsEditor';
 import {
   createAuxiliaryBarPartProps,
   type AuxiliaryBarProps,

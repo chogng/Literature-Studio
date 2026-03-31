@@ -1,0 +1,766 @@
+import type { Locale } from '../../../../../language/i18n';
+import type { LocaleMessages } from '../../../../../language/locales';
+import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
+import { createSwitchView } from '../../../../base/browser/ui/switch/switch.js';
+import { BatchSourcesFieldView } from './batchSourcesField.js';
+import {
+  KnowledgeBaseFieldView,
+  type KnowledgeBaseFieldViewProps,
+} from './knowledgeBaseField.js';
+import { LlmFieldView } from './llmField.js';
+import {
+  createSettingsSectionMap,
+  getSettingsNavigationItems,
+  getSettingsPageSectionIds,
+  type SettingsPageId,
+  type SettingsSectionId,
+} from './settingsLayout.js';
+import type {
+  SettingsPartActions,
+  SettingsPartLabels,
+  SettingsPartProps,
+  SettingsPartState,
+} from './settingsTypes.js';
+import { TranslationFieldView } from './translationField.js';
+import {
+  createDisplayLanguageOptions,
+  requestSetDisplayLanguage,
+} from '../../localization/browser/localizationsActions';
+import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
+import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from '../../../browser/layout';
+import './media/settings.css';
+
+type SelectOption = { value: string; label: string };
+
+type CreateSettingsPartLabelsParams = { ui: LocaleMessages };
+type CreateSettingsPartPropsParams = { state: SettingsPartState; actions: SettingsPartActions };
+
+export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams): SettingsPartLabels {
+  return {
+    settingsTitle: ui.settingsTitle, settingsLoading: ui.settingsLoading, settingsLanguage: ui.settingsLanguage, languageChinese: ui.languageChinese, languageEnglish: ui.languageEnglish, settingsLanguageHint: ui.settingsLanguageHint,
+    settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
+    settingsPageUrl: ui.settingsPageUrl, settingsPageUrlHint: ui.settingsPageUrlHint, pageUrlPlaceholder: ui.pageUrlPlaceholder, settingsBatchJournalTitle: ui.settingsBatchJournalTitle, batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
+    addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly,
+    settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
+    settingsKnowledgeBaseModeHint: ui.settingsKnowledgeBaseModeHint, settingsKnowledgeBaseModeDisabledHint: ui.settingsKnowledgeBaseModeDisabledHint, settingsKnowledgeBaseAutoIndex: ui.settingsKnowledgeBaseAutoIndex, settingsKnowledgeBaseAutoIndexHint: ui.settingsKnowledgeBaseAutoIndexHint,
+    settingsLibraryStorageMode: ui.settingsLibraryStorageMode, settingsLibraryStorageModeLinkedOriginal: ui.settingsLibraryStorageModeLinkedOriginal, settingsLibraryStorageModeManagedCopy: ui.settingsLibraryStorageModeManagedCopy, settingsLibraryDirectory: ui.settingsLibraryDirectory,
+    settingsLibraryDirectoryPlaceholder: ui.settingsLibraryDirectoryPlaceholder, settingsLibraryDirectoryHint: ui.settingsLibraryDirectoryHint, settingsLibraryDbFile: ui.settingsLibraryDbFile, settingsLibraryFilesDir: ui.settingsLibraryFilesDir, settingsLibraryCacheDir: ui.settingsLibraryCacheDir,
+    settingsLibraryStatusDocuments: ui.settingsLibraryStatusDocuments, settingsLibraryStatusFiles: ui.settingsLibraryStatusFiles, settingsLibraryStatusQueuedJobs: ui.settingsLibraryStatusQueuedJobs, settingsLibraryStatusEmpty: ui.settingsLibraryStatusEmpty, settingsLibraryRecentDocuments: ui.settingsLibraryRecentDocuments,
+    settingsLibraryDocumentRegistered: ui.settingsLibraryDocumentRegistered, settingsLibraryDocumentQueued: ui.settingsLibraryDocumentQueued, settingsLibraryDocumentRunning: ui.settingsLibraryDocumentRunning, settingsLibraryDocumentFailed: ui.settingsLibraryDocumentFailed,
+    settingsLibraryMaxConcurrentJobs: ui.settingsLibraryMaxConcurrentJobs, settingsLibraryMaxConcurrentJobsHint: ui.settingsLibraryMaxConcurrentJobsHint, settingsRagTitle: ui.settingsRagTitle, settingsRagProvider: ui.settingsRagProvider, settingsRagProviderHint: ui.settingsRagProviderHint,
+    settingsRagProviderMoark: ui.settingsRagProviderMoark, settingsRagApiKey: ui.settingsRagApiKey, settingsRagApiKeyPlaceholder: ui.settingsRagApiKeyPlaceholder, settingsRagBaseUrl: ui.settingsRagBaseUrl, settingsRagEmbeddingModel: ui.settingsRagEmbeddingModel,
+    settingsRagRerankerModel: ui.settingsRagRerankerModel, settingsRagEmbeddingPath: ui.settingsRagEmbeddingPath, settingsRagRerankPath: ui.settingsRagRerankPath, settingsRagCandidateCount: ui.settingsRagCandidateCount, settingsRagTopK: ui.settingsRagTopK,
+    settingsRagTestConnection: ui.settingsRagTestConnection, settingsRagShowApiKey: ui.settingsRagShowApiKey, settingsRagHideApiKey: ui.settingsRagHideApiKey, settingsRagHint: ui.settingsRagHint, settingsBatchHint: ui.settingsBatchHint, defaultPdfDir: ui.defaultPdfDir,
+    pdfFileNameUseSelectionOrder: ui.pdfFileNameUseSelectionOrder, pdfFileNameUseSelectionOrderHint: ui.pdfFileNameUseSelectionOrderHint, downloadDirPlaceholder: ui.downloadDirPlaceholder, chooseDirectory: ui.chooseDirectory, openConfigLocation: ui.openConfigLocation,
+    resetDefault: ui.resetDefault, settingsHintPath: ui.settingsHintPath, settingsConfigPath: ui.settingsConfigPath, currentDir: ui.currentDir, systemDownloads: ui.systemDownloads, settingsLlmTitle: ui.settingsLlmTitle, settingsLlmProvider: ui.settingsLlmProvider,
+    settingsLlmProviderHint: ui.settingsLlmProviderHint, settingsLlmProviderGlm: ui.settingsLlmProviderGlm, settingsLlmProviderKimi: ui.settingsLlmProviderKimi, settingsLlmProviderDeepSeek: ui.settingsLlmProviderDeepSeek, settingsLlmApiKey: ui.settingsLlmApiKey,
+    settingsLlmApiKeyPlaceholder: ui.settingsLlmApiKeyPlaceholder, settingsLlmModel: ui.settingsLlmModel, settingsLlmTestConnection: ui.settingsLlmTestConnection, settingsLlmShowApiKey: ui.settingsLlmShowApiKey, settingsLlmHideApiKey: ui.settingsLlmHideApiKey,
+    settingsLlmHint: ui.settingsLlmHint, settingsTranslationTitle: ui.settingsTranslationTitle, settingsTranslationProvider: ui.settingsTranslationProvider, settingsTranslationProviderHint: ui.settingsTranslationProviderHint, settingsTranslationProviderDeepL: ui.settingsTranslationProviderDeepL,
+    settingsTranslationApiKey: ui.settingsTranslationApiKey, settingsTranslationApiKeyPlaceholder: ui.settingsTranslationApiKeyPlaceholder, settingsTranslationTestConnection: ui.settingsTranslationTestConnection, settingsTranslationShowApiKey: ui.settingsTranslationShowApiKey,
+    settingsTranslationHideApiKey: ui.settingsTranslationHideApiKey, settingsTranslationHint: ui.settingsTranslationHint,
+  };
+}
+
+export function createSettingsPartProps({ state, actions }: CreateSettingsPartPropsParams): SettingsPartProps {
+  return { labels: createSettingsPartLabels({ ui: state.ui }), ...state, ...actions };
+}
+
+type FocusSnapshot = {
+  key: string;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+} | null;
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
+  const node = document.createElement(tag);
+  if (className) {
+    node.className = className;
+  }
+  return node;
+}
+
+function text(value: string | number) {
+  return document.createTextNode(String(value));
+}
+
+function setFocusKey<T extends HTMLElement>(node: T, key: string) {
+  node.dataset.focusKey = key;
+  return node;
+}
+
+function buildSelect(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
+  const select = setFocusKey(el('select', `settings-native-select ${className}`.trim()), focusKey);
+  for (const option of options) {
+    const optionElement = document.createElement('option');
+    optionElement.value = option.value;
+    optionElement.text = option.label;
+    select.append(optionElement);
+  }
+  select.value = value;
+  select.addEventListener('change', () => onChange(select.value));
+  return select;
+}
+
+function buildInput(config: {
+  type?: string;
+  value: string | number;
+  className: string;
+  focusKey: string;
+  placeholder?: string;
+  readOnly?: boolean;
+  min?: string;
+  max?: string;
+  inputMode?: HTMLInputElement['inputMode'];
+  onInput?: (value: string) => void;
+}) {
+  const input = setFocusKey(el('input', `settings-native-input ${config.className}`.trim()), config.focusKey);
+  input.type = config.type ?? 'text';
+  input.value = String(config.value);
+  input.placeholder = config.placeholder ?? '';
+  input.readOnly = Boolean(config.readOnly);
+  if (config.min !== undefined) { input.min = config.min; }
+  if (config.max !== undefined) { input.max = config.max; }
+  if (config.inputMode) { input.inputMode = config.inputMode; }
+  if (config.onInput) {
+    input.addEventListener('input', () => config.onInput?.(input.value));
+  }
+  return input;
+}
+
+function buildCheckbox(config: {
+  checked: boolean;
+  className: string;
+  focusKey: string;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const input = setFocusKey(el('input', config.className), config.focusKey);
+  input.type = 'checkbox';
+  input.checked = config.checked;
+  input.disabled = Boolean(config.disabled);
+  input.addEventListener('change', () => config.onChange(input.checked));
+  return input;
+}
+
+function buildSwitch(config: {
+  checked: boolean;
+  focusKey: string;
+  disabled?: boolean;
+  title?: string;
+  onChange: (checked: boolean) => void;
+}) {
+  const view = createSwitchView({
+    checked: config.checked,
+    disabled: config.disabled,
+    className: 'settings-toggle-switch',
+    title: config.title,
+    onChange: config.onChange,
+  });
+  const element = view.getElement();
+  const input = element.querySelector<HTMLInputElement>('.switch-input');
+  if (input) {
+    setFocusKey(input, config.focusKey);
+  } else {
+    setFocusKey(element, config.focusKey);
+  }
+  return element;
+}
+
+function buildButton(config: {
+  label: string;
+  icon?: LxIconName;
+  className?: string;
+  focusKey: string;
+  title?: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const extraClasses = (config.className ?? '').trim();
+  const isIconButton = extraClasses.includes('settings-native-icon-button');
+  const buttonClassName = [
+    'settings-native-button',
+    'btn-base',
+    'btn-secondary',
+    isIconButton ? 'btn-mode-icon btn-sm' : 'btn-md',
+    extraClasses,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const button = setFocusKey(el('button', buttonClassName), config.focusKey);
+  button.type = 'button';
+  if (config.icon) {
+    button.append(createLxIcon(config.icon));
+  } else {
+    button.textContent = config.label;
+  }
+  button.title = config.title ?? config.label;
+  button.ariaLabel = config.title ?? config.label;
+  button.disabled = Boolean(config.disabled);
+  button.addEventListener('click', () => config.onClick());
+  return button;
+}
+
+function buildHint(value: string, className = 'settings-hint') {
+  const hint = el('p', className);
+  hint.textContent = value;
+  return hint;
+}
+
+export class SettingsPartView {
+  private props: SettingsPartProps;
+  private readonly element = el('main', 'settings-page');
+  private readonly root = el('section', 'panel settings-card');
+  private readonly header = el('div', 'panel-title settings-header');
+  private readonly headerTitle = el('span');
+  private readonly body = el('div', 'settings-body');
+  private readonly navigation = el('aside', 'settings-navigation');
+  private readonly content = el('div', 'settings-content');
+  private readonly loadingHint = buildHint('');
+  // Keep section containers stable so updates can replace only local content
+  // without recreating the whole settings page.
+  private readonly sections = createSettingsSectionMap(() => el('section', 'settings-section'));
+  private readonly batchSourcesField: BatchSourcesFieldView;
+  private readonly knowledgeBaseField: KnowledgeBaseFieldView;
+  private readonly llmField: LlmFieldView;
+  private readonly translationField: TranslationFieldView;
+  private showRagApiKey = false;
+  private showLlmApiKey = false;
+  private showTranslationApiKey = false;
+  private activePageId: SettingsPageId = 'general';
+
+  constructor(props: SettingsPartProps) {
+    this.props = props;
+    this.batchSourcesField = new BatchSourcesFieldView({
+      labels: this.props.labels,
+      batchSources: this.props.batchSources,
+      isSettingsSaving: this.props.isSettingsSaving,
+      onBatchSourceUrlChange: (index, url) => this.props.onBatchSourceUrlChange(index, url),
+      onBatchSourceJournalTitleChange: (index, journalTitle) => this.props.onBatchSourceJournalTitleChange(index, journalTitle),
+      onAddBatchSource: () => this.props.onAddBatchSource(),
+      onRemoveBatchSource: (index) => this.props.onRemoveBatchSource(index),
+      onMoveBatchSource: (index, direction) => this.props.onMoveBatchSource(index, direction),
+    });
+    this.knowledgeBaseField = new KnowledgeBaseFieldView(this.getKnowledgeBaseFieldProps());
+    this.llmField = new LlmFieldView({
+      labels: this.props.labels,
+      activeLlmProvider: this.props.activeLlmProvider,
+      llmProviders: this.props.llmProviders,
+      isSettingsSaving: this.props.isSettingsSaving,
+      isTestingLlmConnection: this.props.isTestingLlmConnection,
+      showApiKey: this.showLlmApiKey,
+      onToggleShowApiKey: () => { this.showLlmApiKey = !this.showLlmApiKey; this.updateLlmField(); },
+      onActiveLlmProviderChange: (provider) => this.props.onActiveLlmProviderChange(provider),
+      onLlmProviderApiKeyChange: (provider, apiKey) => this.props.onLlmProviderApiKeyChange(provider, apiKey),
+      onLlmProviderModelChange: (provider, model) => this.props.onLlmProviderModelChange(provider, model),
+      onTestLlmConnection: () => this.props.onTestLlmConnection(),
+    });
+    this.translationField = new TranslationFieldView({
+      labels: this.props.labels,
+      activeTranslationProvider: this.props.activeTranslationProvider,
+      translationProviders: this.props.translationProviders,
+      isSettingsSaving: this.props.isSettingsSaving,
+      isTestingTranslationConnection: this.props.isTestingTranslationConnection,
+      showApiKey: this.showTranslationApiKey,
+      onToggleShowApiKey: () => { this.showTranslationApiKey = !this.showTranslationApiKey; this.updateTranslationField(); },
+      onActiveTranslationProviderChange: (provider) => this.props.onActiveTranslationProviderChange(provider),
+      onTranslationProviderApiKeyChange: (provider, apiKey) => this.props.onTranslationProviderApiKeyChange(provider, apiKey),
+      onTestTranslationConnection: () => this.props.onTestTranslationConnection(),
+    });
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, this.element);
+    this.header.append(this.headerTitle);
+    this.body.append(this.navigation, this.content);
+    this.root.append(this.header, this.body);
+    this.element.append(this.root);
+    this.initializeSectionContainers();
+    this.updateView(undefined, true);
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: SettingsPartProps) {
+    const previousProps = this.props;
+    this.props = props;
+    this.updateView(previousProps);
+  }
+
+  dispose() {
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, null);
+    this.element.replaceChildren();
+  }
+
+  private captureFocus(): FocusSnapshot {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement) || !this.element.contains(active)) {
+      return null;
+    }
+    const focusNode = active.closest<HTMLElement>('[data-focus-key]');
+    const key = focusNode?.dataset.focusKey;
+    if (!key) {
+      return null;
+    }
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+      return { key, selectionStart: active.selectionStart, selectionEnd: active.selectionEnd };
+    }
+    return { key, selectionStart: null, selectionEnd: null };
+  }
+
+  private restoreFocus(snapshot: FocusSnapshot) {
+    if (!snapshot) {
+      return;
+    }
+    const target = this.element.querySelector<HTMLElement>(`[data-focus-key="${snapshot.key}"]`);
+    if (!target) {
+      return;
+    }
+    target.focus({ preventScroll: true });
+    if ((target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) && snapshot.selectionStart !== null) {
+      target.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd ?? snapshot.selectionStart);
+    }
+  }
+
+  private updateSection(container: HTMLElement, content: Node) {
+    container.replaceChildren(content);
+  }
+
+  private updateBatchSourcesField() {
+    this.batchSourcesField.setProps({
+      labels: this.props.labels,
+      batchSources: this.props.batchSources,
+      isSettingsSaving: this.props.isSettingsSaving,
+      onBatchSourceUrlChange: (index, url) => this.props.onBatchSourceUrlChange(index, url),
+      onBatchSourceJournalTitleChange: (index, journalTitle) => this.props.onBatchSourceJournalTitleChange(index, journalTitle),
+      onAddBatchSource: () => this.props.onAddBatchSource(),
+      onRemoveBatchSource: (index) => this.props.onRemoveBatchSource(index),
+      onMoveBatchSource: (index, direction) => this.props.onMoveBatchSource(index, direction),
+    });
+  }
+
+  private getKnowledgeBaseFieldProps(): KnowledgeBaseFieldViewProps {
+    return {
+      title: this.props.labels.settingsKnowledgeBaseTitle,
+      hint: this.props.labels.settingsKnowledgeBaseHint,
+      library: {
+        labels: this.props.labels,
+        ragEnabled: this.props.ragEnabled,
+        autoIndexDownloadedPdf: this.props.autoIndexDownloadedPdf,
+        libraryStorageMode: this.props.libraryStorageMode,
+        libraryDirectory: this.props.libraryDirectory,
+        defaultManagedDirectory: this.props.defaultManagedDirectory,
+        maxConcurrentIndexJobs: this.props.maxConcurrentIndexJobs,
+        desktopRuntime: this.props.desktopRuntime,
+        isSettingsSaving: this.props.isSettingsSaving,
+        isLibraryLoading: this.props.isLibraryLoading,
+        libraryDocumentCount: this.props.libraryDocumentCount,
+        libraryFileCount: this.props.libraryFileCount,
+        libraryQueuedJobCount: this.props.libraryQueuedJobCount,
+        libraryDocuments: this.props.libraryDocuments,
+        libraryDbFile: this.props.libraryDbFile,
+        ragCacheDir: this.props.ragCacheDir,
+        onRagEnabledChange: (checked) => this.props.onRagEnabledChange(checked),
+        onAutoIndexDownloadedPdfChange: (checked) => this.props.onAutoIndexDownloadedPdfChange(checked),
+        onLibraryStorageModeChange: (value) => this.props.onLibraryStorageModeChange(value),
+        onLibraryDirectoryChange: (value) => this.props.onLibraryDirectoryChange(value),
+        onChooseLibraryDirectory: () => this.props.onChooseLibraryDirectory(),
+        onMaxConcurrentIndexJobsChange: (value) => this.props.onMaxConcurrentIndexJobsChange(value),
+      },
+      rag: {
+        labels: this.props.labels,
+        activeRagProvider: this.props.activeRagProvider,
+        ragProviders: this.props.ragProviders,
+        retrievalCandidateCount: this.props.retrievalCandidateCount,
+        retrievalTopK: this.props.retrievalTopK,
+        isSettingsSaving: this.props.isSettingsSaving,
+        isTestingRagConnection: this.props.isTestingRagConnection,
+        showApiKey: this.showRagApiKey,
+        onToggleShowApiKey: () => { this.showRagApiKey = !this.showRagApiKey; this.updateKnowledgeBaseField(); },
+        onRagProviderApiKeyChange: (provider, apiKey) => this.props.onRagProviderApiKeyChange(provider, apiKey),
+        onRagProviderBaseUrlChange: (provider, baseUrl) => this.props.onRagProviderBaseUrlChange(provider, baseUrl),
+        onRagProviderEmbeddingModelChange: (provider, model) => this.props.onRagProviderEmbeddingModelChange(provider, model),
+        onRagProviderRerankerModelChange: (provider, model) => this.props.onRagProviderRerankerModelChange(provider, model),
+        onRagProviderEmbeddingPathChange: (provider, path) => this.props.onRagProviderEmbeddingPathChange(provider, path),
+        onRagProviderRerankPathChange: (provider, path) => this.props.onRagProviderRerankPathChange(provider, path),
+        onRetrievalCandidateCountChange: (value) => this.props.onRetrievalCandidateCountChange(value),
+        onRetrievalTopKChange: (value) => this.props.onRetrievalTopKChange(value),
+        onTestRagConnection: () => this.props.onTestRagConnection(),
+      },
+    };
+  }
+
+  private updateKnowledgeBaseField() {
+    this.knowledgeBaseField.setProps(this.getKnowledgeBaseFieldProps());
+  }
+
+  private updateLlmField() {
+    this.llmField.setProps({
+      labels: this.props.labels,
+      activeLlmProvider: this.props.activeLlmProvider,
+      llmProviders: this.props.llmProviders,
+      isSettingsSaving: this.props.isSettingsSaving,
+      isTestingLlmConnection: this.props.isTestingLlmConnection,
+      showApiKey: this.showLlmApiKey,
+      onToggleShowApiKey: () => { this.showLlmApiKey = !this.showLlmApiKey; this.updateLlmField(); },
+      onActiveLlmProviderChange: (provider) => this.props.onActiveLlmProviderChange(provider),
+      onLlmProviderApiKeyChange: (provider, apiKey) => this.props.onLlmProviderApiKeyChange(provider, apiKey),
+      onLlmProviderModelChange: (provider, model) => this.props.onLlmProviderModelChange(provider, model),
+      onTestLlmConnection: () => this.props.onTestLlmConnection(),
+    });
+  }
+
+  private updateTranslationField() {
+    this.translationField.setProps({
+      labels: this.props.labels,
+      activeTranslationProvider: this.props.activeTranslationProvider,
+      translationProviders: this.props.translationProviders,
+      isSettingsSaving: this.props.isSettingsSaving,
+      isTestingTranslationConnection: this.props.isTestingTranslationConnection,
+      showApiKey: this.showTranslationApiKey,
+      onToggleShowApiKey: () => { this.showTranslationApiKey = !this.showTranslationApiKey; this.updateTranslationField(); },
+      onActiveTranslationProviderChange: (provider) => this.props.onActiveTranslationProviderChange(provider),
+      onTranslationProviderApiKeyChange: (provider, apiKey) => this.props.onTranslationProviderApiKeyChange(provider, apiKey),
+      onTestTranslationConnection: () => this.props.onTestTranslationConnection(),
+    });
+  }
+
+  private initializeSectionContainers() {
+    for (const [id, section] of Object.entries(this.sections) as Array<[SettingsSectionId, HTMLElement]>) {
+      section.dataset.sectionId = id;
+      section.id = `settings-section-${id}`;
+    }
+  }
+
+  private renderNavigation() {
+    const items = getSettingsNavigationItems(this.props.labels);
+    this.navigation.replaceChildren(
+      ...items.map((item) => {
+        const button = el('button', 'settings-navigation-item');
+        button.type = 'button';
+        button.textContent = item.label;
+        button.dataset.pageTarget = item.id;
+        button.classList.toggle('active', item.id === this.activePageId);
+        button.addEventListener('click', () => this.focusPage(item.id));
+        return button;
+      }),
+    );
+  }
+
+  private focusPage(pageId: SettingsPageId) {
+    this.activePageId = pageId;
+    this.renderActivePage();
+    this.renderNavigation();
+  }
+
+  private renderActivePage() {
+    const pageSectionIds = getSettingsPageSectionIds(this.activePageId);
+    this.content.replaceChildren(...pageSectionIds.map((sectionId) => this.sections[sectionId]));
+    for (const [sectionId, section] of Object.entries(this.sections) as Array<[SettingsSectionId, HTMLElement]>) {
+      section.classList.toggle('active', pageSectionIds.includes(sectionId));
+    }
+  }
+
+  private syncLoadingState() {
+    const shouldShowLoading = this.props.isSettingsLoading;
+    const isMounted = this.loadingHint.parentElement === this.content;
+    if (shouldShowLoading && !isMounted) {
+      this.content.prepend(this.loadingHint);
+      return;
+    }
+    if (!shouldShowLoading && isMounted) {
+      this.loadingHint.remove();
+    }
+  }
+
+  private shouldUpdateLocaleSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.locale !== this.props.locale ||
+      previousProps.labels.settingsLanguage !== this.props.labels.settingsLanguage ||
+      previousProps.labels.languageChinese !== this.props.labels.languageChinese ||
+      previousProps.labels.languageEnglish !== this.props.labels.languageEnglish ||
+      previousProps.labels.settingsLanguageHint !== this.props.labels.settingsLanguageHint
+    );
+  }
+
+  private shouldUpdateBatchSourcesSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.batchSources !== this.props.batchSources ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.labels.settingsPageUrl !== this.props.labels.settingsPageUrl ||
+      previousProps.labels.pageUrlPlaceholder !== this.props.labels.pageUrlPlaceholder ||
+      previousProps.labels.batchJournalTitlePlaceholder !== this.props.labels.batchJournalTitlePlaceholder ||
+      previousProps.labels.addBatchUrl !== this.props.labels.addBatchUrl ||
+      previousProps.labels.removeBatchUrl !== this.props.labels.removeBatchUrl ||
+      previousProps.labels.moveBatchUrlUp !== this.props.labels.moveBatchUrlUp ||
+      previousProps.labels.moveBatchUrlDown !== this.props.labels.moveBatchUrlDown ||
+      previousProps.labels.settingsPageUrlHint !== this.props.labels.settingsPageUrlHint
+    );
+  }
+
+  private shouldUpdateBatchOptionsSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.batchLimit !== this.props.batchLimit ||
+      previousProps.sameDomainOnly !== this.props.sameDomainOnly ||
+      previousProps.labels.settingsBatchOptions !== this.props.labels.settingsBatchOptions ||
+      previousProps.labels.batchCount !== this.props.labels.batchCount ||
+      previousProps.labels.sameDomainOnly !== this.props.labels.sameDomainOnly ||
+      previousProps.labels.settingsBatchHint !== this.props.labels.settingsBatchHint
+    );
+  }
+
+  private shouldUpdateAppearanceSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.useMica !== this.props.useMica ||
+      previousProps.desktopRuntime !== this.props.desktopRuntime ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.labels.settingsAppearanceTitle !== this.props.labels.settingsAppearanceTitle ||
+      previousProps.labels.settingsUseMica !== this.props.labels.settingsUseMica ||
+      previousProps.labels.settingsUseMicaHint !== this.props.labels.settingsUseMicaHint
+    );
+  }
+
+  private shouldUpdateTextEditorSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.labels.settingsTextEditorTitle !== this.props.labels.settingsTextEditorTitle ||
+      previousProps.labels.settingsTextEditorHint !== this.props.labels.settingsTextEditorHint
+    );
+  }
+
+  private shouldUpdateKnowledgeBaseSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.ragEnabled !== this.props.ragEnabled ||
+      previousProps.autoIndexDownloadedPdf !== this.props.autoIndexDownloadedPdf ||
+      previousProps.libraryStorageMode !== this.props.libraryStorageMode ||
+      previousProps.libraryDirectory !== this.props.libraryDirectory ||
+      previousProps.defaultManagedDirectory !== this.props.defaultManagedDirectory ||
+      previousProps.maxConcurrentIndexJobs !== this.props.maxConcurrentIndexJobs ||
+      previousProps.desktopRuntime !== this.props.desktopRuntime ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.isLibraryLoading !== this.props.isLibraryLoading ||
+      previousProps.libraryDocumentCount !== this.props.libraryDocumentCount ||
+      previousProps.libraryFileCount !== this.props.libraryFileCount ||
+      previousProps.libraryQueuedJobCount !== this.props.libraryQueuedJobCount ||
+      previousProps.libraryDocuments !== this.props.libraryDocuments ||
+      previousProps.libraryDbFile !== this.props.libraryDbFile ||
+      previousProps.activeRagProvider !== this.props.activeRagProvider ||
+      previousProps.ragProviders !== this.props.ragProviders ||
+      previousProps.retrievalCandidateCount !== this.props.retrievalCandidateCount ||
+      previousProps.retrievalTopK !== this.props.retrievalTopK ||
+      previousProps.ragCacheDir !== this.props.ragCacheDir ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.isTestingRagConnection !== this.props.isTestingRagConnection ||
+      previousProps.labels !== this.props.labels
+    );
+  }
+
+  private shouldUpdateDownloadDirectorySection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.pdfDownloadDir !== this.props.pdfDownloadDir ||
+      previousProps.pdfFileNameUseSelectionOrder !== this.props.pdfFileNameUseSelectionOrder ||
+      previousProps.desktopRuntime !== this.props.desktopRuntime ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.labels.defaultPdfDir !== this.props.labels.defaultPdfDir ||
+      previousProps.labels.downloadDirPlaceholder !== this.props.labels.downloadDirPlaceholder ||
+      previousProps.labels.chooseDirectory !== this.props.labels.chooseDirectory ||
+      previousProps.labels.pdfFileNameUseSelectionOrder !== this.props.labels.pdfFileNameUseSelectionOrder ||
+      previousProps.labels.pdfFileNameUseSelectionOrderHint !== this.props.labels.pdfFileNameUseSelectionOrderHint
+    );
+  }
+
+  private shouldUpdateLlmSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.activeLlmProvider !== this.props.activeLlmProvider ||
+      previousProps.llmProviders !== this.props.llmProviders ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.isTestingLlmConnection !== this.props.isTestingLlmConnection ||
+      previousProps.labels !== this.props.labels
+    );
+  }
+
+  private shouldUpdateTranslationSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.activeTranslationProvider !== this.props.activeTranslationProvider ||
+      previousProps.translationProviders !== this.props.translationProviders ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.isTestingTranslationConnection !== this.props.isTestingTranslationConnection ||
+      previousProps.labels !== this.props.labels
+    );
+  }
+
+  private shouldUpdateConfigPathSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.configPath !== this.props.configPath ||
+      previousProps.desktopRuntime !== this.props.desktopRuntime ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.labels.settingsConfigPath !== this.props.labels.settingsConfigPath ||
+      previousProps.labels.openConfigLocation !== this.props.labels.openConfigLocation
+    );
+  }
+
+  private updateView(previousProps?: SettingsPartProps, forceAll = false) {
+    const focusSnapshot = this.captureFocus();
+    this.headerTitle.textContent = this.props.labels.settingsTitle;
+    this.loadingHint.textContent = this.props.labels.settingsLoading;
+    this.syncLoadingState();
+    this.renderNavigation();
+
+    if (forceAll || this.shouldUpdateLocaleSection(previousProps)) {
+      this.updateSection(this.sections.locale, this.renderLocaleField());
+    }
+    if (forceAll || this.shouldUpdateBatchSourcesSection(previousProps)) {
+      this.updateBatchSourcesField();
+      this.updateSection(this.sections.batchSources, this.batchSourcesField.getElement());
+    }
+    if (forceAll || this.shouldUpdateBatchOptionsSection(previousProps)) {
+      this.updateSection(this.sections.batchOptions, this.renderBatchOptionsField());
+    }
+    if (forceAll || this.shouldUpdateAppearanceSection(previousProps)) {
+      this.updateSection(this.sections.appearance, this.renderAppearanceField());
+    }
+    if (forceAll || this.shouldUpdateTextEditorSection(previousProps)) {
+      this.updateSection(this.sections.textEditor, this.renderTextEditorField());
+    }
+    if (forceAll || this.shouldUpdateKnowledgeBaseSection(previousProps)) {
+      this.updateKnowledgeBaseField();
+      this.updateSection(this.sections.knowledgeBase, this.knowledgeBaseField.getElement());
+    }
+    if (forceAll || this.shouldUpdateDownloadDirectorySection(previousProps)) {
+      this.updateSection(this.sections.downloadDirectory, this.renderDownloadDirectoryField());
+    }
+    if (forceAll || this.shouldUpdateLlmSection(previousProps)) {
+      this.updateLlmField();
+      this.updateSection(this.sections.llm, this.llmField.getElement());
+    }
+    if (forceAll || this.shouldUpdateTranslationSection(previousProps)) {
+      this.updateTranslationField();
+      this.updateSection(this.sections.translation, this.translationField.getElement());
+    }
+    if (forceAll || this.shouldUpdateConfigPathSection(previousProps)) {
+      this.updateSection(this.sections.configPath, this.renderConfigPathField());
+    }
+
+    this.renderActivePage();
+    this.restoreFocus(focusSnapshot);
+  }
+
+  private renderLocaleField() {
+    const field = el('div', 'settings-field settings-language-field');
+    const row = el('div', 'settings-language-row');
+    const label = el('span');
+    label.textContent = this.props.labels.settingsLanguage;
+    const select = buildSelect(
+      createDisplayLanguageOptions(this.props.labels),
+      this.props.locale,
+      'settings.locale',
+      (value) => requestSetDisplayLanguage(value as Locale),
+      'settings-language-toggle',
+    );
+    row.append(label, select);
+    field.append(row, buildHint(this.props.labels.settingsLanguageHint));
+    return field;
+  }
+
+  private renderBatchOptionsField() {
+    const field = el('div', 'settings-field');
+    const title = el('span'); title.textContent = this.props.labels.settingsBatchOptions;
+    const row = el('div', 'settings-batch-options');
+    const limitLabel = el('label', 'inline-field');
+    const wrap = el('div', 'settings-limit-input-wrap');
+    wrap.append(buildInput({
+      type: 'number', value: this.props.batchLimit, className: 'settings-limit-input', focusKey: 'settings.batch.limit', min: String(batchLimitMin), max: String(batchLimitMax), onInput: this.props.onBatchLimitChange,
+    }));
+    limitLabel.append(text(this.props.labels.batchCount), wrap);
+    const checkboxLabel = el('label', 'inline-field checkbox-field');
+    checkboxLabel.append(
+      buildCheckbox({ checked: this.props.sameDomainOnly, className: 'radix-checkbox', focusKey: 'settings.batch.sameDomain', onChange: this.props.onSameDomainOnlyChange }),
+      text(this.props.labels.sameDomainOnly),
+    );
+    row.append(limitLabel, checkboxLabel);
+    field.append(title, row, buildHint(this.props.labels.settingsBatchHint));
+    return field;
+  }
+
+  private renderAppearanceField() {
+    const field = el('div', 'settings-field');
+    const title = el('span'); title.textContent = this.props.labels.settingsAppearanceTitle;
+    field.append(
+      title,
+      this.renderToggleRow(
+        'settings.appearance.useMica',
+        this.props.labels.settingsUseMica,
+        this.props.labels.settingsUseMicaHint,
+        this.props.useMica,
+        this.props.isSettingsSaving || !this.props.desktopRuntime,
+        this.props.onUseMicaChange,
+      ),
+    );
+    return field;
+  }
+
+  private renderDownloadDirectoryField() {
+    const field = el('label', 'settings-field');
+    const row = el('div', 'settings-input-row');
+    row.append(
+      buildInput({ value: this.props.pdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.download.dir', placeholder: this.props.labels.downloadDirPlaceholder, onInput: this.props.onPdfDownloadDirChange }),
+      buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.download.choose', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChoosePdfDownloadDir }),
+    );
+    const toggleRow = el('div', 'settings-toggle-row');
+    const textBlock = el('div');
+    const title = el('span', 'settings-hint'); title.textContent = this.props.labels.pdfFileNameUseSelectionOrder;
+    textBlock.append(title, buildHint(this.props.labels.pdfFileNameUseSelectionOrderHint, 'settings-hint settings-toggle-subtitle'));
+    toggleRow.append(textBlock, buildSwitch({
+      checked: this.props.pdfFileNameUseSelectionOrder,
+      focusKey: 'settings.download.selectionOrder',
+      disabled: this.props.isSettingsSaving,
+      title: this.props.labels.pdfFileNameUseSelectionOrder,
+      onChange: this.props.onPdfFileNameUseSelectionOrderChange,
+    }));
+    field.append(text(this.props.labels.defaultPdfDir), row, toggleRow);
+    return field;
+  }
+
+  private renderConfigPathField() {
+    const field = el('label', 'settings-field');
+    const row = el('div', 'settings-input-row');
+    row.append(
+      buildInput({ value: this.props.configPath, className: 'settings-input-control', focusKey: 'settings.config.path', readOnly: true }),
+      buildButton({ label: '...', icon: lxIconSemanticMap.settings.openConfigLocation, className: 'settings-native-icon-button', focusKey: 'settings.config.open', title: this.props.labels.openConfigLocation, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving || !this.props.configPath.trim(), onClick: this.props.onOpenConfigLocation }),
+    );
+    field.append(text(this.props.labels.settingsConfigPath), row);
+    return field;
+  }
+
+  private renderTextEditorField() {
+    const field = el('div', 'settings-field settings-placeholder-field');
+    const title = el('span', 'settings-section-title');
+    title.textContent = this.props.labels.settingsTextEditorTitle;
+    field.append(title, buildHint(this.props.labels.settingsTextEditorHint));
+    return field;
+  }
+
+  private renderToggleRow(focusKey: string, title: string, hint: string, checked: boolean, disabled: boolean, onChange: (checked: boolean) => void) {
+    const row = el('div', 'settings-toggle-row');
+    const textBlock = el('div');
+    const label = el('span', 'settings-hint'); label.textContent = title;
+    textBlock.append(label, buildHint(hint, 'settings-hint settings-toggle-subtitle'));
+    row.append(textBlock, buildSwitch({ checked, focusKey, disabled, title, onChange }));
+    return row;
+  }
+
+}
+
+export function createSettingsPartView(props: SettingsPartProps) {
+  return new SettingsPartView(props);
+}
+
+export default SettingsPartView;
