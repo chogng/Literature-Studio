@@ -65,6 +65,7 @@ export class LibraryViewer {
       {
         getId: (node) => node.id,
         isRoot: (node) => node.kind === 'folder' && node.id === 'root',
+        hideRoot: true,
         getLabel: (node) =>
           node.kind === 'folder'
             ? node.name
