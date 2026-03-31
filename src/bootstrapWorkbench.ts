@@ -118,16 +118,16 @@ const workbenchDependencyModules = [
     load: () => import('./ls/workbench/browser/layout'),
   },
   {
-    label: 'ls/workbench/browser/parts/settings/settingsModel',
-    load: () => import('./ls/workbench/browser/parts/settings/settingsModel'),
+    label: 'ls/workbench/contrib/preferences/browser/settingsController',
+    load: () => import('./ls/workbench/contrib/preferences/browser/settingsController'),
   },
   {
     label: 'ls/workbench/browser/parts/editor/editorPart',
     load: () => import('./ls/workbench/browser/parts/editor/editorPart'),
   },
   {
-    label: 'ls/workbench/browser/parts/settings/settingsPart',
-    load: () => import('./ls/workbench/browser/parts/settings/settingsPart'),
+    label: 'ls/workbench/contrib/preferences/browser/settingsEditor',
+    load: () => import('./ls/workbench/contrib/preferences/browser/settingsEditor'),
   },
   {
     label: 'ls/workbench/browser/parts/sidebar/secondarySidebarPart',

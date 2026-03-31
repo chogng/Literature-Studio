@@ -419,7 +419,7 @@ export class SettingsController {
         ...this.getSettingsModelContext(),
         locale,
       })
-      .catch((saveError) => {
+      .catch((saveError: unknown) => {
         console.error('Failed to auto-save settings draft.', saveError);
       });
   };
@@ -444,6 +444,9 @@ export class SettingsController {
   }
 }
 
+// The controller stays feature-local: it coordinates UI actions, autosave, and
+// desktop side effects for the preferences editor, while the pure data model
+// remains under services/settings.
 export function createSettingsController(
   params: CreateSettingsControllerParams,
 ) {

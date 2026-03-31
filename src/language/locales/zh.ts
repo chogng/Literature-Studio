@@ -37,6 +37,13 @@ const zh = {
   emptyAllInputLinkSuffix: '以抓取',
   settingsTitle: '设置',
   settingsLoading: '设置加载中...',
+  settingsNavigationGeneral: '通用设置',
+  settingsNavigationTextEditor: '文本编辑器',
+  settingsNavigationChat: '聊天',
+  settingsNavigationKnowledgeBase: '知识库',
+  settingsNavigationLiterature: '文献',
+  settingsTextEditorTitle: '文本编辑器',
+  settingsTextEditorHint: '这里会承接后续的文本编辑器设置规划，当前先保留为导航入口。',
   settingsPageUrl: '默认批量抓取 URL',
   settingsPageUrlHint: '可在这里维护多个抓取来源。批量抓取时会依次访问这些 URL。',
   addBatchUrl: '添加 URL',
@@ -53,6 +60,9 @@ const zh = {
   settingsUseMicaHint:
     '\u4ec5\u5728\u684c\u9762\u7aef\u751f\u6548\u3002Windows \u652f\u6301\u65f6\uff0c\u6807\u9898\u680f\u548c\u4e3b\u754c\u9762\u5e95\u5c42\u4f1a\u8ddf\u968f Mica \u6750\u8d28\u3002',
   settingsLibraryTitle: '知识库与文献管理',
+  settingsKnowledgeBaseTitle: '知识库',
+  settingsKnowledgeBaseHint:
+    '这里集中管理知识库登记、文献文件与 RAG 检索配置。后续知识库相关规划也会继续收敛到这一组设置。',
   settingsKnowledgeBaseMode: '知识库模式',
   settingsKnowledgeBaseModeHint:
     '开启后，下载成功的 PDF 才会登记进知识库数据库，用于后续索引和检索。',
