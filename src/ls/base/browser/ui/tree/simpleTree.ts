@@ -1,4 +1,4 @@
-import './tree.css';
+import './media/tree.css';
 
 export type SimpleTreeDataSource<T> = {
   hasChildren(node: T): boolean;
@@ -17,6 +17,11 @@ export type SimpleTreeRenderContext = {
   open: () => void;
 };
 
+export type SimpleTreeNodeState = {
+  loading?: boolean;
+  error?: boolean;
+};
+
 export type SimpleTreeRenderer<T> = {
   renderElement(node: T, context: SimpleTreeRenderContext): HTMLElement;
 };
@@ -25,6 +30,7 @@ export type SimpleTreeOptions<T> = {
   getId: (node: T) => string;
   isRoot: (node: T) => boolean;
   getLabel?: (node: T) => string;
+  getNodeState?: (node: T) => SimpleTreeNodeState;
   defaultExpandedIds?: Iterable<string>;
   ariaLabel?: string;
   onDidChangeSelection?: (node: T | null) => void;
@@ -76,8 +82,68 @@ export class SimpleTree<T> {
     this.element.setAttribute('aria-label', label);
   }
 
-  setInput(input: T) {
+  focus() {
+    this.element.focus();
+  }
+
+  getSelection() {
+    if (!this.input || !this.selectedId) {
+      return null;
+    }
+
+    return (
+      this.getVisibleNodes().find(
+        ({ node }) => this.options.getId(node) === this.selectedId,
+      )?.node ?? null
+    );
+  }
+
+  setSelection(node: T | null) {
+    const nextSelectedId = node ? this.options.getId(node) : null;
+    if (nextSelectedId && !this.hasVisibleNode(nextSelectedId)) {
+      return;
+    }
+
+    this.selectedId = nextSelectedId;
+    this.options.onDidChangeSelection?.(node);
+    this.rerender();
+  }
+
+  getFocus() {
+    if (!this.input || !this.focusedId) {
+      return null;
+    }
+
+    return (
+      this.getVisibleNodes().find(
+        ({ node }) => this.options.getId(node) === this.focusedId,
+      )?.node ?? null
+    );
+  }
+
+  setFocus(node: T | null) {
+    const nextFocusedId = node ? this.options.getId(node) : null;
+    if (nextFocusedId && !this.hasVisibleNode(nextFocusedId)) {
+      return;
+    }
+
+    this.focusedId = nextFocusedId;
+    this.rerender();
+  }
+
+  setInput(input: T | null) {
     this.input = input;
+    if (!input) {
+      const hadSelection = this.selectedId !== null;
+      this.selectedId = null;
+      this.focusedId = null;
+      if (hadSelection) {
+        this.options.onDidChangeSelection?.(null);
+      }
+      this.render();
+      return;
+    }
+
     const visibleNodes = this.getVisibleNodes(input);
     if (!this.focusedId && visibleNodes[0]) {
       this.focusedId = this.options.getId(visibleNodes[0].node);
@@ -123,6 +189,7 @@ export class SimpleTree<T> {
     const isRoot = this.options.isRoot(node);
     const hasChildren = this.dataSource.hasChildren(node);
     const isExpanded = isRoot || (hasChildren && this.expandedIds.has(nodeId));
+    const nodeState = this.options.getNodeState?.(node) ?? {};
     const isSelected = this.selectedId === nodeId;
     const isFocused = this.focusedId === nodeId;
     const rendered = this.renderer.renderElement(node, {
@@ -160,6 +227,12 @@ export class SimpleTree<T> {
     rendered.classList.add('simple-tree-node');
     rendered.setAttribute('aria-selected', String(isSelected));
     rendered.setAttribute('aria-level', String(depth + 1));
+    rendered.toggleAttribute('aria-busy', Boolean(nodeState.loading));
+    rendered.dataset['treeState'] = nodeState.error
+      ? 'error'
+      : nodeState.loading
+        ? 'loading'
+        : 'idle';
     if (hasChildren) {
       rendered.setAttribute('aria-expanded', String(isExpanded));
     } else {
@@ -167,6 +240,8 @@ export class SimpleTree<T> {
     }
     rendered.classList.toggle('is-selected', isSelected);
     rendered.classList.toggle('is-focused', isFocused);
+    rendered.classList.toggle('is-loading', Boolean(nodeState.loading));
+    rendered.classList.toggle('has-error', Boolean(nodeState.error));
     rendered.addEventListener('mousedown', () => {
       this.focusedId = nodeId;
     });
@@ -424,5 +499,11 @@ export class SimpleTree<T> {
       this.typeaheadBuffer = '';
       this.typeaheadResetHandle = null;
     }, 700);
+  }
+
+  private hasVisibleNode(nodeId: string) {
+    return this.getVisibleNodes().some(
+      ({ node }) => this.options.getId(node) === nodeId,
+    );
   }
 }

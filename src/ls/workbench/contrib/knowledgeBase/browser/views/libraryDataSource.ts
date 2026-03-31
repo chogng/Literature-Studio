@@ -4,6 +4,7 @@ import type {
 } from '../../../../../base/parts/sandbox/common/desktopTypes.js';
 import {
   buildLibraryTree,
+  type LibraryTreeFolderNode,
   type LibraryTreeLabels,
   type LibraryTreeNode,
 } from '../../common/libraryTreeModel.js';
@@ -16,18 +17,8 @@ export type LibraryDataSourceInput = {
 };
 
 export class LibraryDataSource {
-  private root: LibraryTreeNode;
-
-  constructor(input: LibraryDataSourceInput) {
-    this.root = buildLibraryTree(input.librarySnapshot, input.labels);
-  }
-
-  setInput(input: LibraryDataSourceInput) {
-    this.root = buildLibraryTree(input.librarySnapshot, input.labels);
-  }
-
-  getRoot() {
-    return this.root;
+  getRoot(input: LibraryDataSourceInput) {
+    return buildLibraryTree(input.librarySnapshot, input.labels);
   }
 
   hasChildren(node: LibraryTreeNode) {
@@ -51,5 +42,13 @@ export class LibraryDataSource {
       id: document.documentId,
       document,
     };
+  }
+
+  getDocumentCount(node: LibraryTreeFolderNode): number {
+    let total = node.documents.length;
+    for (const folder of node.folders) {
+      total += this.getDocumentCount(folder);
+    }
+    return total;
   }
 }
