@@ -8,6 +8,12 @@ export interface ToastOptions {
   duration?: number;
 }
 
+export type ToastBridge = {
+  canHandle: () => boolean;
+  show: (options: ToastOptions) => number | void;
+  dismiss?: (id: number) => void;
+};
+
 interface ToastItem extends ToastOptions {
   id: number;
   isExiting?: boolean;
@@ -23,6 +29,7 @@ let toastId = 0;
 let observers: ToastObserver[] = [];
 let toasts: ToastItem[] = [];
 const TOAST_EXIT_DURATION = 200;
+let toastBridge: ToastBridge | null = null;
 
 function notify() {
   for (const observer of observers) {
@@ -53,18 +60,8 @@ function createToastOptions(options: ToastOptions | string): ToastOptions {
   };
 }
 
-function shouldUseNativeToastOverlay() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  if (
-    new URLSearchParams(window.location.search).get('nativeOverlay') === 'toast'
-  ) {
-    return false;
-  }
-
-  return typeof window.electronAPI?.toast?.show === 'function';
+export function registerToastBridge(bridge: ToastBridge | null) {
+  toastBridge = bridge;
 }
 
 function getToastIconText(type: ToastType) {
@@ -100,9 +97,8 @@ function dismissToast(id: number) {
 export const toast = {
   show: (options: ToastOptions | string) => {
     const defaultOptions = createToastOptions(options);
-    if (shouldUseNativeToastOverlay()) {
-      window.electronAPI?.toast?.show(defaultOptions);
-      return -1;
+    if (toastBridge?.canHandle()) {
+      return toastBridge.show(defaultOptions) ?? -1;
     }
 
     const id = ++toastId;
@@ -118,7 +114,13 @@ export const toast = {
 
     return id;
   },
-  dismiss: dismissToast,
+  dismiss: (id: number) => {
+    if (toastBridge?.canHandle()) {
+      toastBridge.dismiss?.(id);
+      return;
+    }
+    dismissToast(id);
+  },
   success: (message: string, duration?: number) =>
     toast.show({ message, type: 'success', duration }),
   error: (message: string, duration?: number) =>

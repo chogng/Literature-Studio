@@ -201,6 +201,9 @@ function createMenuOverlayWindow(parentWindow: BrowserWindow) {
   overlayWindow.webContents.on('did-finish-load', () => {
     syncMenuOverlayBounds();
     emitState();
+    if (menuState) {
+      showMenuOverlayWindow();
+    }
   });
 
   overlayWindow.on('closed', () => {
@@ -231,6 +234,14 @@ function ensureMenuOverlayWindow(parentWindow: BrowserWindow) {
     // Best effort only.
   });
   return menuOverlayWindow;
+}
+
+function isMenuOverlayRendererReady() {
+  if (!menuOverlayWindow || menuOverlayWindow.isDestroyed()) {
+    return false;
+  }
+
+  return hasOverlayQuery(menuOverlayWindow.webContents.getURL());
 }
 
 function showMenuOverlayWindow() {
@@ -286,6 +297,11 @@ export function openMenuOverlay(
     coverage: payload.coverage === 'trigger-band' ? 'trigger-band' : 'full-window',
     sourceWebContentsId: senderId,
   };
+
+  if (!isMenuOverlayRendererReady()) {
+    return;
+  }
+
   emitState();
   showMenuOverlayWindow();
 }

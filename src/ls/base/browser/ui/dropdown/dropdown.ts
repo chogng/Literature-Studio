@@ -1,7 +1,3 @@
-import type {
-  NativeMenuEvent,
-  NativeMenuOpenPayload,
-} from '../../../parts/sandbox/common/desktopTypes.js';
 import './dropdown.css';
 
 export type DropdownSize = 'sm' | 'md' | 'lg';
@@ -20,14 +16,26 @@ export type DropdownProps = {
   disabled?: boolean;
   className?: string;
   title?: string;
+  menuMode?: 'dom' | 'external';
+  onExternalMenuChange?: (request: DropdownExternalMenuRequest | null) => void;
   onChange?: (event: { target: { value: string } }) => void;
   onOpenChange?: (isOpen: boolean) => void;
   onFocus?: (event: FocusEvent) => void;
   onBlur?: (event: FocusEvent) => void;
 };
 
+export type DropdownExternalMenuRequest = {
+  triggerRect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  options: DropdownOption[];
+  value?: string;
+};
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
-let dropdownRequestId = 0;
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -84,25 +92,6 @@ function createCheckIcon() {
   return icon;
 }
 
-function shouldUseNativeMenuOverlay() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const nativeOverlayKind = new URLSearchParams(window.location.search).get('nativeOverlay');
-  if (nativeOverlayKind === 'menu' || nativeOverlayKind === 'toast') {
-    return false;
-  }
-
-  return typeof window.electronAPI?.menu?.open === 'function';
-}
-
-function resolveNativeMenuCoverage(className: string) {
-  return className.includes('titlebar-source-select')
-    ? ('trigger-band' as const)
-    : ('full-window' as const);
-}
-
 function resolveSelectedOption(props: DropdownProps) {
   return props.options.find((option) => option.value === props.value) ?? props.options[0] ?? null;
 }
@@ -117,22 +106,17 @@ export class DropdownView {
   private isFocused = false;
   private menuPlacement: 'top' | 'bottom' = 'bottom';
   private menuMaxHeight: number | undefined;
-  private readonly usesNativeMenuOverlay: boolean;
-  private readonly requestId = `native-dropdown-${++dropdownRequestId}`;
   private readonly element = createElement('div');
   private readonly field = createElement('div', 'dropdown-field custom-dropdown-field');
   private readonly iconWrapper = createElement('div', 'dropdown-icon-wrapper');
   private readonly chevronIcon = createChevronIcon();
-  private readonly menuApi = window.electronAPI?.menu;
   private menuView: HTMLDivElement | null = null;
   private removeDocumentMouseDown = () => {};
   private removeViewportListeners = () => {};
-  private readonly removeNativeMenuEventListener: () => void;
   private disposed = false;
 
   constructor(props: DropdownProps) {
     this.props = this.normalizeProps(props);
-    this.usesNativeMenuOverlay = shouldUseNativeMenuOverlay();
     this.iconWrapper.append(this.chevronIcon);
     this.element.append(this.field, this.iconWrapper);
 
@@ -140,22 +124,6 @@ export class DropdownView {
     this.element.addEventListener('keydown', this.handleKeyDown);
     this.element.addEventListener('focus', this.handleFocus);
     this.element.addEventListener('blur', this.handleBlur);
-
-    this.removeNativeMenuEventListener =
-      this.usesNativeMenuOverlay && typeof this.menuApi?.onEvent === 'function'
-        ? this.menuApi.onEvent((event) => {
-            const nativeEvent = event as NativeMenuEvent;
-            if (nativeEvent.requestId !== this.requestId) {
-              return;
-            }
-            this.setOpen(false, { closeNativeMenu: false });
-            this.isFocused = false;
-            if (nativeEvent.type === 'select' && typeof nativeEvent.value === 'string') {
-              this.props.onChange?.({ target: { value: nativeEvent.value } });
-            }
-            this.render();
-          })
-        : () => {};
 
     this.render();
   }
@@ -168,8 +136,8 @@ export class DropdownView {
     this.props = this.normalizeProps(props);
     if (this.props.disabled && this.isOpen) {
       this.setOpen(false);
-    } else if (this.isOpen && this.usesNativeMenuOverlay) {
-      this.openNativeMenu();
+    } else if (this.isOpen && this.usesExternalMenu()) {
+      this.emitExternalMenuChange();
     }
     this.render();
   }
@@ -195,7 +163,6 @@ export class DropdownView {
     }
     this.disposed = true;
     this.setOpen(false);
-    this.removeNativeMenuEventListener();
     this.element.removeEventListener('click', this.handleClick);
     this.element.removeEventListener('keydown', this.handleKeyDown);
     this.element.removeEventListener('focus', this.handleFocus);
@@ -240,7 +207,7 @@ export class DropdownView {
       return;
     }
 
-    if (this.usesNativeMenuOverlay && this.isOpen) {
+    if (this.usesExternalMenu() && this.isOpen) {
       this.props.onBlur?.(event);
       return;
     }
@@ -268,14 +235,14 @@ export class DropdownView {
     if (!this.isOpen) {
       return;
     }
-    if (this.usesNativeMenuOverlay) {
-      this.openNativeMenu();
+    if (this.usesExternalMenu()) {
+      this.emitExternalMenuChange();
       return;
     }
     this.updateMenuPosition();
   };
 
-  private setOpen(nextOpen: boolean, options?: { closeNativeMenu?: boolean }) {
+  private setOpen(nextOpen: boolean) {
     if (this.isOpen === nextOpen) {
       return;
     }
@@ -283,26 +250,23 @@ export class DropdownView {
     this.isOpen = nextOpen;
     if (nextOpen) {
       this.attachOpenListeners();
-      if (this.usesNativeMenuOverlay) {
-        this.openNativeMenu();
+      if (this.usesExternalMenu()) {
+        this.emitExternalMenuChange();
       }
     } else {
       this.detachOpenListeners();
-      const shouldCloseNativeMenu = options?.closeNativeMenu !== false;
-      if (this.usesNativeMenuOverlay && shouldCloseNativeMenu) {
-        this.menuApi?.close(this.requestId);
-      }
+      this.emitExternalMenuChange();
     }
 
     this.props.onOpenChange?.(nextOpen);
     this.render();
-    if (nextOpen && !this.usesNativeMenuOverlay) {
+    if (nextOpen && !this.usesExternalMenu()) {
       this.updateMenuPosition();
     }
   }
 
   private attachOpenListeners() {
-    if (!this.usesNativeMenuOverlay) {
+    if (!this.usesExternalMenu()) {
       document.addEventListener('mousedown', this.handleDocumentMouseDown);
       this.removeDocumentMouseDown = () => {
         document.removeEventListener('mousedown', this.handleDocumentMouseDown);
@@ -329,17 +293,26 @@ export class DropdownView {
       options: Array.isArray(props.options) ? props.options : [],
       size: props.size ?? 'md',
       className: props.className ?? '',
+      menuMode: props.menuMode ?? 'dom',
     };
   }
 
-  private openNativeMenu() {
-    if (!this.usesNativeMenuOverlay || !this.menuApi) {
+  private usesExternalMenu() {
+    return this.props.menuMode === 'external';
+  }
+
+  private emitExternalMenuChange() {
+    if (!this.usesExternalMenu()) {
+      return;
+    }
+
+    if (!this.isOpen) {
+      this.props.onExternalMenuChange?.(null);
       return;
     }
 
     const triggerRect = this.element.getBoundingClientRect();
-    const payload: NativeMenuOpenPayload = {
-      requestId: this.requestId,
+    this.props.onExternalMenuChange?.({
       triggerRect: {
         x: triggerRect.x,
         y: triggerRect.y,
@@ -348,10 +321,7 @@ export class DropdownView {
       },
       options: this.props.options,
       value: this.props.value,
-      align: 'start',
-      coverage: resolveNativeMenuCoverage(this.props.className ?? ''),
-    };
-    this.menuApi.open(payload);
+    });
   }
 
   private updateMenuPosition() {
@@ -374,7 +344,7 @@ export class DropdownView {
   }
 
   private renderMenu() {
-    if (this.usesNativeMenuOverlay || !this.isOpen) {
+    if (this.usesExternalMenu() || !this.isOpen) {
       this.menuView?.remove();
       this.menuView = null;
       return;

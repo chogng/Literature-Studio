@@ -2,9 +2,12 @@ import type { QuickAccessSourceOption } from '../../../services/quickAccess/quic
 import { createButtonView } from '../../../../base/browser/ui/button/button.js';
 import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
 import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
-import { createDropdownView, type DropdownView } from '../../../../base/browser/ui/dropdown/dropdown.js';
 import { createInputView } from '../../../../base/browser/ui/input/input.js';
 import { getBrowserWindowChromeLayout } from '../../../../platform/windows/common/windowChrome.js';
+import {
+  createTitlebarSourceDropdownView,
+  type TitlebarSourceDropdownView,
+} from './nativeTitlebarSourceDropdown';
 import {
   requestExportTitlebarDocx,
   requestTitlebarNavigateBack,
@@ -180,7 +183,7 @@ export class TitlebarView {
   private readonly centerElement = createElement('div', 'titlebar-center');
   private readonly controlsElement = createElement('div', 'titlebar-controls');
   private readonly renderedViews: Array<{ dispose: () => void }> = [];
-  private sourceSelector: DropdownView | null = null;
+  private sourceSelector: TitlebarSourceDropdownView | null = null;
   private webUrlInput: HTMLInputElement | null = null;
   private readonly unsubscribeUiActions: () => void;
 
@@ -398,7 +401,7 @@ export class TitlebarView {
         sourceOptions[0];
       const selectorWrap = createElement('div', 'titlebar-journal-bar');
       const selector = this.trackView(
-        createDropdownView({
+        createTitlebarSourceDropdownView({
           options: sourceOptions,
           value: props.selectedAddressBarSourceId ?? '',
           className: `titlebar-source-select ${props.selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
