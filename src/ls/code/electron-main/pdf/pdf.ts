@@ -2,7 +2,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { load } from 'cheerio';
 
-import type { PreviewDownloadPdfPayload } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { WebContentPdfDownloadPayload } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { buildPdfDirectoryName } from '../../../platform/download/common/pdfFileName.js';
 import { cleanText } from '../../../base/common/strings.js';
 import { normalizeUrl } from '../../../base/common/url.js';
@@ -254,8 +254,8 @@ async function previewDownloadPdfWithResolvedRequest(request: PdfDownloadContext
 
   if (!downloaded) {
     let html =
-      typeof request.previewHtmlSnapshot === 'string' && request.previewHtmlSnapshot.trim()
-        ? request.previewHtmlSnapshot
+      typeof request.webContentHtmlSnapshot === 'string' && request.webContentHtmlSnapshot.trim()
+        ? request.webContentHtmlSnapshot
         : '';
     if (!html) {
       try {
@@ -338,9 +338,9 @@ async function previewDownloadPdfWithResolvedRequest(request: PdfDownloadContext
 }
 
 function createPdfDownloadContext(
-  payload: PreviewDownloadPdfPayload,
+  payload: WebContentPdfDownloadPayload,
   defaultDownloadDir: string,
-  previewHtmlSnapshot: string | null,
+  webContentHtmlSnapshot: string | null,
 ): PdfDownloadContext {
   const pageUrl = normalizeUrl(payload.pageUrl ?? '');
   const requestedDownloadUrl =
@@ -367,7 +367,7 @@ function createPdfDownloadContext(
     articleTitle,
     journalTitle,
     downloadDir,
-    previewHtmlSnapshot,
+    webContentHtmlSnapshot,
     sciencePdfCandidateUrls: [
       ...new Set([
         ...buildScienceDirectPdfDownloadCandidates(pageUrl, doi),
@@ -378,7 +378,7 @@ function createPdfDownloadContext(
     ],
     naturePdfCandidateUrls: [
       ...new Set([
-        ...extractNatureResearchPdfDownloadCandidatesFromHtml(pageUrl, previewHtmlSnapshot ?? ''),
+        ...extractNatureResearchPdfDownloadCandidatesFromHtml(pageUrl, webContentHtmlSnapshot ?? ''),
         ...buildNatureResearchPdfDownloadCandidates(pageUrl),
         ...(requestedDownloadUrl ? buildNatureResearchPdfDownloadCandidates(requestedDownloadUrl) : []),
       ]),
@@ -387,11 +387,11 @@ function createPdfDownloadContext(
 }
 
 export async function previewDownloadPdf(
-  payload: PreviewDownloadPdfPayload = {},
+  payload: WebContentPdfDownloadPayload = {},
   defaultDownloadDir: string,
-  previewHtmlSnapshot: string | null = null,
+  webContentHtmlSnapshot: string | null = null,
 ) {
-  const request = createPdfDownloadContext(payload, defaultDownloadDir, previewHtmlSnapshot);
+  const request = createPdfDownloadContext(payload, defaultDownloadDir, webContentHtmlSnapshot);
   await fs.mkdir(request.downloadDir, { recursive: true });
 
   logPdfStrategy('request_built', {

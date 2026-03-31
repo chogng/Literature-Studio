@@ -54,14 +54,14 @@ const EMPTY_BATCH_FETCH_TITLEBAR_STATUS: BatchFetchTitlebarStatus = {
 
 function resolveFetchSourceText(fetchStatus: FetchStatus) {
   if (
-    fetchStatus.fetchChannel === 'preview' &&
-    fetchStatus.previewReuseMode === 'live-extract'
+    fetchStatus.fetchChannel === 'web-content' &&
+    fetchStatus.webContentReuseMode === 'live-extract'
   ) {
-    return 'Source: live preview DOM';
+    return 'Source: live web content DOM';
   }
 
-  if (fetchStatus.fetchChannel === 'preview') {
-    return 'Source: preview DOM';
+  if (fetchStatus.fetchChannel === 'web-content') {
+    return 'Source: web content DOM';
   }
 
   return 'Source: network';

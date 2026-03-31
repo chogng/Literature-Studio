@@ -1,9 +1,6 @@
-import type { PreviewState } from '../../../base/parts/sandbox/common/desktopTypes.js';
+export type { WebContentState } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { WebContentState } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { normalizeUrl } from '../../common/url';
-
-// TODO(migration): rename the shared desktop bridge type in desktopTypes/preload once
-// the Electron-side `preview` protocol is migrated. Keep this alias until then.
-export type WebContentState = PreviewState;
 
 export const EMPTY_WEB_CONTENT_STATE: WebContentState = {
   url: '',
@@ -31,14 +28,14 @@ export type WebContentStateUrlUpdate = {
 export function resolveWebContentNavigation(
   nextUrl: string,
   electronRuntime: boolean,
-  previewRuntime: boolean,
+  webContentRuntime: boolean,
 ): WebContentNavigationResult {
   const normalizedUrl = normalizeUrl(nextUrl);
   if (!normalizedUrl) {
     return { kind: 'invalid-url' };
   }
 
-  if (!electronRuntime || !previewRuntime) {
+  if (!electronRuntime || !webContentRuntime) {
     return {
       kind: 'content-runtime-unavailable',
       normalizedUrl,
@@ -53,9 +50,9 @@ export function resolveWebContentNavigation(
 
 export function resolveWebContentRefreshMode(
   electronRuntime: boolean,
-  previewRuntime: boolean,
+  webContentRuntime: boolean,
 ): WebContentRefreshMode {
-  if (!electronRuntime || !previewRuntime) {
+  if (!electronRuntime || !webContentRuntime) {
     return 'content-runtime-unavailable';
   }
 

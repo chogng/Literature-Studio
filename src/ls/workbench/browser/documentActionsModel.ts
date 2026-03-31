@@ -165,7 +165,7 @@ export class DocumentActionsController {
     }
 
     try {
-      const result = await invokeDesktop('preview_download_pdf', {
+      const result = await invokeDesktop('web_content_download_pdf', {
         pageUrl: preparedPdfDownload.normalizedSourceUrl,
         downloadUrl: preparedPdfDownload.preferredPdfUrl,
         doi: typeof article.doi === 'string' ? article.doi : undefined,

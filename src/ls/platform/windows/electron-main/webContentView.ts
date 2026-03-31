@@ -8,31 +8,32 @@ import { normalizeListingCandidateSeed } from '../../../code/electron-main/fetch
 import { READER_SHARED_WEB_PARTITION } from '../../native/electron-main/sharedWebSession.js';
 import { shortenForLog } from '../../../code/electron-main/fetchTiming.js';
 import type {
-  PreviewBounds,
-  PreviewNavigationMode,
-  PreviewState,
+  WebContentBounds,
+  WebContentNavigationMode,
+  WebContentSelectionSnapshot,
+  WebContentState,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { appError } from '../../../base/common/errors.js';
 
-const previewPartition = READER_SHARED_WEB_PARTITION;
-const previewCornerRadius = 10;
+const webContentPartition = READER_SHARED_WEB_PARTITION;
+const webContentCornerRadius = 10;
 const PREVIEW_NETWORK_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
-const DEFAULT_PREVIEW_TARGET_ID = '__shared__';
-// Inactive preview targets stay hidden immediately, but keep a short warm window
+const DEFAULT_WEB_CONTENT_TARGET_ID = '__shared__';
+// Inactive web content targets stay hidden immediately, but keep a short warm window
 // before we allow Chromium to background-throttle them.
 const PREVIEW_TARGET_BACKGROUND_GRACE_MS = 2 * 60 * 1000;
 const PREVIEW_TARGET_BACKGROUND_DISPOSE_MS = 15 * 60 * 1000;
 const PREVIEW_TARGET_PRUNE_INTERVAL_MS = 60 * 1000;
 
-let previewWindow: BrowserWindow | null = null;
-let previewView: WebContentsView | null = null;
-const previewViewsByTargetId = new Map<string, WebContentsView>();
-const previewStatesByTargetId = new Map<string, PreviewState>();
-const previewTargetBackgroundedSince = new Map<string, number>();
-let activePreviewTargetId = DEFAULT_PREVIEW_TARGET_ID;
-let previewTargetPruneInterval: ReturnType<typeof setInterval> | null = null;
-let previewBounds: PreviewBounds = { x: 0, y: 0, width: 0, height: 0 };
-let previewState: PreviewState = {
+let webContentWindow: BrowserWindow | null = null;
+let webContentView: WebContentsView | null = null;
+const webContentViewsByTargetId = new Map<string, WebContentsView>();
+const webContentStatesByTargetId = new Map<string, WebContentState>();
+const webContentTargetBackgroundedSince = new Map<string, number>();
+let activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+let webContentTargetPruneInterval: ReturnType<typeof setInterval> | null = null;
+let webContentBounds: WebContentBounds = { x: 0, y: 0, width: 0, height: 0 };
+let webContentState: WebContentState = {
   url: '',
   canGoBack: false,
   canGoForward: false,
@@ -40,11 +41,11 @@ let previewState: PreviewState = {
   visible: false,
 };
 
-function getHiddenBounds(): PreviewBounds {
+function getHiddenBounds(): WebContentBounds {
   return { x: 0, y: 0, width: 0, height: 0 };
 }
 
-function createDefaultPreviewState(): PreviewState {
+function createDefaultWebContentState(): WebContentState {
   return {
     url: '',
     canGoBack: false,
@@ -54,16 +55,16 @@ function createDefaultPreviewState(): PreviewState {
   };
 }
 
-function normalizePreviewTargetId(targetId?: string | null) {
+function normalizeWebContentTargetId(targetId?: string | null) {
   const normalized = String(targetId ?? '').trim();
-  return normalized || DEFAULT_PREVIEW_TARGET_ID;
+  return normalized || DEFAULT_WEB_CONTENT_TARGET_ID;
 }
 
-function setPreviewTargetBackgroundThrottling(
+function setWebContentTargetBackgroundThrottling(
   targetId: string,
   throttled: boolean,
 ) {
-  const targetView = previewViewsByTargetId.get(targetId);
+  const targetView = webContentViewsByTargetId.get(targetId);
   if (!targetView || targetView.webContents.isDestroyed()) {
     return;
   }
@@ -75,23 +76,23 @@ function setPreviewTargetBackgroundThrottling(
   ).setBackgroundThrottling?.(throttled);
 }
 
-function markPreviewTargetBackgrounded(targetId: string, timestamp = Date.now()) {
-  if (targetId === DEFAULT_PREVIEW_TARGET_ID) {
+function markWebContentTargetBackgrounded(targetId: string, timestamp = Date.now()) {
+  if (targetId === DEFAULT_WEB_CONTENT_TARGET_ID) {
     return;
   }
 
-  previewTargetBackgroundedSince.set(targetId, timestamp);
-  setPreviewTargetBackgroundThrottling(targetId, false);
+  webContentTargetBackgroundedSince.set(targetId, timestamp);
+  setWebContentTargetBackgroundThrottling(targetId, false);
 }
 
-function markPreviewTargetActive(targetId: string) {
-  previewTargetBackgroundedSince.delete(targetId);
-  setPreviewTargetBackgroundThrottling(targetId, false);
+function markWebContentTargetActive(targetId: string) {
+  webContentTargetBackgroundedSince.delete(targetId);
+  setWebContentTargetBackgroundThrottling(targetId, false);
 }
 
-function hasManagedPreviewTargets() {
-  for (const targetId of previewViewsByTargetId.keys()) {
-    if (targetId !== DEFAULT_PREVIEW_TARGET_ID) {
+function hasManagedWebContentTargets() {
+  for (const targetId of webContentViewsByTargetId.keys()) {
+    if (targetId !== DEFAULT_WEB_CONTENT_TARGET_ID) {
       return true;
     }
   }
@@ -99,47 +100,47 @@ function hasManagedPreviewTargets() {
   return false;
 }
 
-function stopPreviewTargetPruneInterval() {
-  if (!previewTargetPruneInterval) {
+function stopWebContentTargetPruneInterval() {
+  if (!webContentTargetPruneInterval) {
     return;
   }
 
-  clearInterval(previewTargetPruneInterval);
-  previewTargetPruneInterval = null;
+  clearInterval(webContentTargetPruneInterval);
+  webContentTargetPruneInterval = null;
 }
 
-function syncPreviewTargetPruneInterval() {
-  if (!hasManagedPreviewTargets()) {
-    stopPreviewTargetPruneInterval();
+function syncWebContentTargetPruneInterval() {
+  if (!hasManagedWebContentTargets()) {
+    stopWebContentTargetPruneInterval();
     return;
   }
 
-  if (previewTargetPruneInterval) {
+  if (webContentTargetPruneInterval) {
     return;
   }
 
-  previewTargetPruneInterval = setInterval(() => {
-    reconcileInactivePreviewTargets();
+  webContentTargetPruneInterval = setInterval(() => {
+    reconcileInactiveWebContentTargets();
   }, PREVIEW_TARGET_PRUNE_INTERVAL_MS);
 }
 
-function disposePreviewTarget(targetId: string) {
-  if (targetId === DEFAULT_PREVIEW_TARGET_ID) {
+function disposeWebContentTarget(targetId: string) {
+  if (targetId === DEFAULT_WEB_CONTENT_TARGET_ID) {
     return;
   }
 
-  const targetView = previewViewsByTargetId.get(targetId) ?? null;
-  previewViewsByTargetId.delete(targetId);
-  previewStatesByTargetId.delete(targetId);
-  previewTargetBackgroundedSince.delete(targetId);
+  const targetView = webContentViewsByTargetId.get(targetId) ?? null;
+  webContentViewsByTargetId.delete(targetId);
+  webContentStatesByTargetId.delete(targetId);
+  webContentTargetBackgroundedSince.delete(targetId);
 
   if (targetView) {
     if (
-      previewWindow &&
-      !previewWindow.isDestroyed() &&
+      webContentWindow &&
+      !webContentWindow.isDestroyed() &&
       !targetView.webContents.isDestroyed()
     ) {
-      previewWindow.contentView.removeChildView(targetView);
+      webContentWindow.contentView.removeChildView(targetView);
     }
 
     if (!targetView.webContents.isDestroyed()) {
@@ -147,33 +148,33 @@ function disposePreviewTarget(targetId: string) {
     }
   }
 
-  if (activePreviewTargetId === targetId) {
-    activePreviewTargetId = DEFAULT_PREVIEW_TARGET_ID;
-    syncActivePreviewReferences();
-    applyPreviewBounds();
-    emitPreviewState();
+  if (activeWebContentTargetId === targetId) {
+    activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+    syncActiveWebContentReferences();
+    applyWebContentBounds();
+    emitWebContentState();
   }
 
-  syncPreviewTargetPruneInterval();
+  syncWebContentTargetPruneInterval();
 }
 
-function reconcileInactivePreviewTargets(now = Date.now()) {
+function reconcileInactiveWebContentTargets(now = Date.now()) {
   const staleTargetIds: string[] = [];
 
-  for (const targetId of previewViewsByTargetId.keys()) {
-    if (targetId === DEFAULT_PREVIEW_TARGET_ID || targetId === activePreviewTargetId) {
+  for (const targetId of webContentViewsByTargetId.keys()) {
+    if (targetId === DEFAULT_WEB_CONTENT_TARGET_ID || targetId === activeWebContentTargetId) {
       continue;
     }
 
     const backgroundedSince =
-      previewTargetBackgroundedSince.get(targetId) ?? now;
-    if (!previewTargetBackgroundedSince.has(targetId)) {
-      previewTargetBackgroundedSince.set(targetId, backgroundedSince);
+      webContentTargetBackgroundedSince.get(targetId) ?? now;
+    if (!webContentTargetBackgroundedSince.has(targetId)) {
+      webContentTargetBackgroundedSince.set(targetId, backgroundedSince);
     }
 
     const backgroundDurationMs = now - backgroundedSince;
     const shouldSleep = backgroundDurationMs >= PREVIEW_TARGET_BACKGROUND_GRACE_MS;
-    setPreviewTargetBackgroundThrottling(targetId, shouldSleep);
+    setWebContentTargetBackgroundThrottling(targetId, shouldSleep);
 
     if (backgroundDurationMs >= PREVIEW_TARGET_BACKGROUND_DISPOSE_MS) {
       staleTargetIds.push(targetId);
@@ -181,11 +182,11 @@ function reconcileInactivePreviewTargets(now = Date.now()) {
   }
 
   for (const targetId of staleTargetIds) {
-    disposePreviewTarget(targetId);
+    disposeWebContentTarget(targetId);
   }
 }
 
-function logPreviewLoadFailure({
+function logWebContentLoadFailure({
   currentUrl,
   failedUrl,
   errorCode,
@@ -210,7 +211,7 @@ function logPreviewLoadFailure({
   let encodedDetails = '';
   try {
     encodedDetails = JSON.stringify({
-      partition: previewPartition,
+      partition: webContentPartition,
       currentUrl: shortenForLog(currentUrl),
       failedUrl: shortenForLog(failedUrl),
       errorCode,
@@ -221,18 +222,18 @@ function logPreviewLoadFailure({
     encodedDetails = '{"error":"unserializable_log_details"}';
   }
 
-  console.info(`[preview-network] did_fail_load ${encodedDetails}`);
+  console.info(`[web-content-network] did_fail_load ${encodedDetails}`);
 }
 
-export type PreviewDocumentSnapshot = {
+export type WebContentDocumentSnapshot = {
   url: string;
   html: string;
   captureMs: number;
   isLoading: boolean;
 };
 
-export type PreviewListingCandidateSnapshot = {
-  previewUrl: string;
+export type WebContentListingCandidateSnapshot = {
+  webContentUrl: string;
   extractorId: string;
   extraction: ListingCandidateExtraction;
   nextPageUrl: string | null;
@@ -240,15 +241,15 @@ export type PreviewListingCandidateSnapshot = {
   isLoading: boolean;
 };
 
-type PreviewDocumentSnapshotOptions = {
+type WebContentDocumentSnapshotOptions = {
   timeoutMs?: number;
 };
 
-type PreviewListingCandidateSnapshotOptions = PreviewDocumentSnapshotOptions & {
+type WebContentListingCandidateSnapshotOptions = WebContentDocumentSnapshotOptions & {
   preferredExtractorId?: string | null;
 };
 
-const previewDocumentSnapshotTimedOut = Symbol('previewDocumentSnapshotTimedOut');
+const webContentDocumentSnapshotTimedOut = Symbol('webContentDocumentSnapshotTimedOut');
 const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtractorId) => {
   const cleanText = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
   const normalizePathname = (value) => {
@@ -493,7 +494,7 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
     }).filter(Boolean);
     if (candidates.length === 0) return null;
     return {
-      previewUrl: location.href,
+      webContentUrl: location.href,
       extractorId: 'nature-latest-news',
       extraction: {
         candidates,
@@ -754,7 +755,7 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
     }).filter(Boolean);
     if (candidates.length === 0) return null;
     return {
-      previewUrl: location.href,
+      webContentUrl: location.href,
       extractorId,
       extraction: {
         candidates,
@@ -870,7 +871,7 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
     }).filter(Boolean);
     if (candidates.length === 0) return null;
     return {
-      previewUrl: location.href,
+      webContentUrl: location.href,
       extractorId,
       extraction: {
         candidates,
@@ -1022,7 +1023,7 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
     if (candidates.length === 0) return null;
 
     return {
-      previewUrl: location.href,
+      webContentUrl: location.href,
       extractorId: 'science-sciadv-current-physical-materials',
       extraction: {
         candidates,
@@ -1176,7 +1177,7 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
       .filter((value) => Number.isInteger(value));
 
     return {
-      previewUrl: location.href,
+      webContentUrl: location.href,
       extractorId: 'science-current-news-in-depth-research-articles',
       extraction: {
         candidates,
@@ -1320,51 +1321,51 @@ const PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT = String.raw`((preferredExtrac
   return null;
 })`;
 
-function createPreviewListingCandidateExtractionScript(preferredExtractorId?: string | null) {
+function createWebContentListingCandidateExtractionScript(preferredExtractorId?: string | null) {
   const normalizedPreferredExtractorId = String(preferredExtractorId ?? '').trim();
   return `(${PREVIEW_LISTING_CANDIDATE_EXTRACTION_SCRIPT})(${JSON.stringify(normalizedPreferredExtractorId)})`;
 }
 
-function syncActivePreviewReferences() {
-  previewView = previewViewsByTargetId.get(activePreviewTargetId) ?? null;
-  previewState =
-    previewStatesByTargetId.get(activePreviewTargetId) ?? createDefaultPreviewState();
+function syncActiveWebContentReferences() {
+  webContentView = webContentViewsByTargetId.get(activeWebContentTargetId) ?? null;
+  webContentState =
+    webContentStatesByTargetId.get(activeWebContentTargetId) ?? createDefaultWebContentState();
 }
 
-function emitPreviewState() {
-  if (!previewWindow || previewWindow.isDestroyed()) return;
-  previewWindow.webContents.send('app:preview-state', previewState);
+function emitWebContentState() {
+  if (!webContentWindow || webContentWindow.isDestroyed()) return;
+  webContentWindow.webContents.send('app:web-content-state', webContentState);
 }
 
-function getPreviewStateForTarget(targetId?: string | null): PreviewState {
-  const normalizedTargetId = normalizePreviewTargetId(targetId);
+function getWebContentStateForTarget(targetId?: string | null): WebContentState {
+  const normalizedTargetId = normalizeWebContentTargetId(targetId);
   return (
-    previewStatesByTargetId.get(normalizedTargetId) ?? createDefaultPreviewState()
+    webContentStatesByTargetId.get(normalizedTargetId) ?? createDefaultWebContentState()
   );
 }
 
-function setPreviewStateForTarget(
+function setWebContentStateForTarget(
   targetId: string,
-  nextState: PreviewState,
+  nextState: WebContentState,
   emit = true,
 ) {
-  previewStatesByTargetId.set(targetId, nextState);
+  webContentStatesByTargetId.set(targetId, nextState);
 
-  if (targetId === activePreviewTargetId) {
-    syncActivePreviewReferences();
+  if (targetId === activeWebContentTargetId) {
+    syncActiveWebContentReferences();
     if (emit) {
-      emitPreviewState();
+      emitWebContentState();
     }
   }
 }
 
-function updatePreviewState(targetId?: string | null, partial?: Partial<PreviewState>) {
-  const normalizedTargetId = normalizePreviewTargetId(targetId);
-  const currentState = getPreviewStateForTarget(normalizedTargetId);
-  const targetView = previewViewsByTargetId.get(normalizedTargetId) ?? null;
+function updateWebContentState(targetId?: string | null, partial?: Partial<WebContentState>) {
+  const normalizedTargetId = normalizeWebContentTargetId(targetId);
+  const currentState = getWebContentStateForTarget(normalizedTargetId);
+  const targetView = webContentViewsByTargetId.get(normalizedTargetId) ?? null;
 
   if (partial) {
-    setPreviewStateForTarget(
+    setWebContentStateForTarget(
       normalizedTargetId,
       {
         ...currentState,
@@ -1377,7 +1378,7 @@ function updatePreviewState(targetId?: string | null, partial?: Partial<PreviewS
 
   if (targetView && !targetView.webContents.isDestroyed()) {
     const contents = targetView.webContents;
-    setPreviewStateForTarget(
+    setWebContentStateForTarget(
       normalizedTargetId,
       {
         ...currentState,
@@ -1391,25 +1392,25 @@ function updatePreviewState(targetId?: string | null, partial?: Partial<PreviewS
   }
 }
 
-function applyPreviewBounds() {
+function applyWebContentBounds() {
   const visible =
-    previewState.visible &&
-    previewBounds.width > 0 &&
-    previewBounds.height > 0;
+    webContentState.visible &&
+    webContentBounds.width > 0 &&
+    webContentBounds.height > 0;
 
-  for (const [targetId, targetView] of previewViewsByTargetId) {
-    const isActive = targetId === activePreviewTargetId;
+  for (const [targetId, targetView] of webContentViewsByTargetId) {
+    const isActive = targetId === activeWebContentTargetId;
     const shouldShow = isActive && visible;
     targetView.setVisible(shouldShow);
-    targetView.setBounds(shouldShow ? previewBounds : getHiddenBounds());
+    targetView.setBounds(shouldShow ? webContentBounds : getHiddenBounds());
   }
 }
 
-function bindPreviewEvents(targetId: string, view: WebContentsView) {
+function bindWebContentEvents(targetId: string, view: WebContentsView) {
   const { webContents } = view;
 
   const syncState = () => {
-    updatePreviewState(targetId);
+    updateWebContentState(targetId);
   };
   const handleDidFailLoad = (
     _event: unknown,
@@ -1418,7 +1419,7 @@ function bindPreviewEvents(targetId: string, view: WebContentsView) {
     validatedURL: string,
     isMainFrame = false,
   ) => {
-    logPreviewLoadFailure({
+    logWebContentLoadFailure({
       currentUrl: webContents.getURL(),
       failedUrl: validatedURL,
       errorCode,
@@ -1435,161 +1436,161 @@ function bindPreviewEvents(targetId: string, view: WebContentsView) {
   webContents.on('page-title-updated', syncState);
   webContents.on('did-fail-load', handleDidFailLoad);
   webContents.on('destroyed', () => {
-    previewViewsByTargetId.delete(targetId);
-    previewStatesByTargetId.delete(targetId);
-    previewTargetBackgroundedSince.delete(targetId);
+    webContentViewsByTargetId.delete(targetId);
+    webContentStatesByTargetId.delete(targetId);
+    webContentTargetBackgroundedSince.delete(targetId);
 
-    if (activePreviewTargetId === targetId) {
-      activePreviewTargetId = DEFAULT_PREVIEW_TARGET_ID;
-      syncActivePreviewReferences();
-      emitPreviewState();
+    if (activeWebContentTargetId === targetId) {
+      activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+      syncActiveWebContentReferences();
+      emitWebContentState();
     }
 
-    syncPreviewTargetPruneInterval();
+    syncWebContentTargetPruneInterval();
   });
 }
 
-function createPreviewView(targetId: string) {
-  if (!previewWindow || previewWindow.isDestroyed()) {
+function createWebContentView(targetId: string) {
+  if (!webContentWindow || webContentWindow.isDestroyed()) {
     throw appError('PREVIEW_NOT_READY');
   }
 
   const view = new WebContentsView({
     webPreferences: {
-      partition: previewPartition,
+      partition: webContentPartition,
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
-  view.setBorderRadius(previewCornerRadius);
-  previewWindow.contentView.addChildView(view);
-  previewViewsByTargetId.set(targetId, view);
-  previewStatesByTargetId.set(targetId, createDefaultPreviewState());
-  markPreviewTargetActive(targetId);
-  bindPreviewEvents(targetId, view);
-  applyPreviewBounds();
-  syncPreviewTargetPruneInterval();
+  view.setBorderRadius(webContentCornerRadius);
+  webContentWindow.contentView.addChildView(view);
+  webContentViewsByTargetId.set(targetId, view);
+  webContentStatesByTargetId.set(targetId, createDefaultWebContentState());
+  markWebContentTargetActive(targetId);
+  bindWebContentEvents(targetId, view);
+  applyWebContentBounds();
+  syncWebContentTargetPruneInterval();
   return view;
 }
 
-export function ensurePreviewView(window: BrowserWindow) {
-  previewWindow = window;
+export function ensureWebContentView(window: BrowserWindow) {
+  webContentWindow = window;
   const activeView =
-    previewViewsByTargetId.get(activePreviewTargetId) ??
-    createPreviewView(activePreviewTargetId);
-  syncActivePreviewReferences();
-  emitPreviewState();
+    webContentViewsByTargetId.get(activeWebContentTargetId) ??
+    createWebContentView(activeWebContentTargetId);
+  syncActiveWebContentReferences();
+  emitWebContentState();
   return activeView;
 }
 
-export function disposePreviewView(window?: BrowserWindow | null) {
-  if (window && previewWindow && previewWindow !== window) return;
+export function disposeWebContentView(window?: BrowserWindow | null) {
+  if (window && webContentWindow && webContentWindow !== window) return;
 
-  for (const view of previewViewsByTargetId.values()) {
-    if (previewWindow && !previewWindow.isDestroyed()) {
-      previewWindow.contentView.removeChildView(view);
+  for (const view of webContentViewsByTargetId.values()) {
+    if (webContentWindow && !webContentWindow.isDestroyed()) {
+      webContentWindow.contentView.removeChildView(view);
     }
     view.webContents.close({ waitForBeforeUnload: false });
   }
 
-  previewViewsByTargetId.clear();
-  previewStatesByTargetId.clear();
-  previewTargetBackgroundedSince.clear();
-  stopPreviewTargetPruneInterval();
-  previewBounds = getHiddenBounds();
-  activePreviewTargetId = DEFAULT_PREVIEW_TARGET_ID;
-  previewView = null;
-  previewState = createDefaultPreviewState();
-  emitPreviewState();
-  previewWindow = null;
+  webContentViewsByTargetId.clear();
+  webContentStatesByTargetId.clear();
+  webContentTargetBackgroundedSince.clear();
+  stopWebContentTargetPruneInterval();
+  webContentBounds = getHiddenBounds();
+  activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+  webContentView = null;
+  webContentState = createDefaultWebContentState();
+  emitWebContentState();
+  webContentWindow = null;
 }
 
-export function setPreviewBounds(bounds: PreviewBounds | null) {
-  previewBounds = bounds ?? getHiddenBounds();
+export function setWebContentBounds(bounds: WebContentBounds | null) {
+  webContentBounds = bounds ?? getHiddenBounds();
   if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
-    previewState.visible = false;
+    webContentState.visible = false;
   }
-  applyPreviewBounds();
-  emitPreviewState();
+  applyWebContentBounds();
+  emitWebContentState();
 }
 
-export function setPreviewVisible(visible: boolean) {
-  previewState.visible = visible;
-  setPreviewStateForTarget(activePreviewTargetId, {
-    ...getPreviewStateForTarget(activePreviewTargetId),
+export function setWebContentVisible(visible: boolean) {
+  webContentState.visible = visible;
+  setWebContentStateForTarget(activeWebContentTargetId, {
+    ...getWebContentStateForTarget(activeWebContentTargetId),
     visible,
   }, false);
-  applyPreviewBounds();
-  emitPreviewState();
+  applyWebContentBounds();
+  emitWebContentState();
 }
 
-export function activatePreviewTarget(targetId?: string | null) {
-  const normalizedTargetId = normalizePreviewTargetId(targetId);
-  const previousActivePreviewTargetId = activePreviewTargetId;
+export function activateWebContentTarget(targetId?: string | null) {
+  const normalizedTargetId = normalizeWebContentTargetId(targetId);
+  const previousActiveWebContentTargetId = activeWebContentTargetId;
 
-  if (previousActivePreviewTargetId !== normalizedTargetId) {
-    markPreviewTargetBackgrounded(previousActivePreviewTargetId);
+  if (previousActiveWebContentTargetId !== normalizedTargetId) {
+    markWebContentTargetBackgrounded(previousActiveWebContentTargetId);
   }
 
-  activePreviewTargetId = normalizedTargetId;
-  markPreviewTargetActive(normalizedTargetId);
+  activeWebContentTargetId = normalizedTargetId;
+  markWebContentTargetActive(normalizedTargetId);
 
-  if (!previewViewsByTargetId.has(normalizedTargetId)) {
-    if (!previewWindow || previewWindow.isDestroyed()) {
-      syncActivePreviewReferences();
-      emitPreviewState();
+  if (!webContentViewsByTargetId.has(normalizedTargetId)) {
+    if (!webContentWindow || webContentWindow.isDestroyed()) {
+      syncActiveWebContentReferences();
+      emitWebContentState();
       return;
     }
-    createPreviewView(normalizedTargetId);
+    createWebContentView(normalizedTargetId);
   }
 
   const nextState = {
-    ...getPreviewStateForTarget(normalizedTargetId),
-    visible: previewState.visible,
+    ...getWebContentStateForTarget(normalizedTargetId),
+    visible: webContentState.visible,
   };
-  setPreviewStateForTarget(normalizedTargetId, nextState, false);
-  syncActivePreviewReferences();
-  applyPreviewBounds();
-  reconcileInactivePreviewTargets();
-  emitPreviewState();
+  setWebContentStateForTarget(normalizedTargetId, nextState, false);
+  syncActiveWebContentReferences();
+  applyWebContentBounds();
+  reconcileInactiveWebContentTargets();
+  emitWebContentState();
 }
 
-export function releasePreviewTarget(targetId?: string | null) {
-  const normalizedTargetId = normalizePreviewTargetId(targetId);
-  if (normalizedTargetId === DEFAULT_PREVIEW_TARGET_ID) {
+export function releaseWebContentTarget(targetId?: string | null) {
+  const normalizedTargetId = normalizeWebContentTargetId(targetId);
+  if (normalizedTargetId === DEFAULT_WEB_CONTENT_TARGET_ID) {
     return;
   }
 
-  disposePreviewTarget(normalizedTargetId);
+  disposeWebContentTarget(normalizedTargetId);
 }
 
-export function getPreviewState(targetId?: string | null): PreviewState {
-  const normalizedTargetId = normalizePreviewTargetId(targetId);
-  const targetView = previewViewsByTargetId.get(normalizedTargetId);
+export function getWebContentState(targetId?: string | null): WebContentState {
+  const normalizedTargetId = normalizeWebContentTargetId(targetId);
+  const targetView = webContentViewsByTargetId.get(normalizedTargetId);
   if (targetView && !targetView.webContents.isDestroyed()) {
-    updatePreviewState(normalizedTargetId);
+    updateWebContentState(normalizedTargetId);
   }
 
-  return getPreviewStateForTarget(normalizedTargetId);
+  return getWebContentStateForTarget(normalizedTargetId);
 }
 
-function normalizePreviewTimeoutMs(value: unknown) {
+function normalizeWebContentTimeoutMs(value: unknown) {
   return Number.isFinite(value) ? Math.max(0, Math.trunc(Number(value) || 0)) : 0;
 }
 
-async function executePreviewScript<T>(
+async function executeWebContentScript<T>(
   script: string,
-  options: PreviewDocumentSnapshotOptions = {},
-): Promise<T | typeof previewDocumentSnapshotTimedOut> {
-  if (!previewView || previewView.webContents.isDestroyed()) {
-    return previewDocumentSnapshotTimedOut;
+  options: WebContentDocumentSnapshotOptions = {},
+): Promise<T | typeof webContentDocumentSnapshotTimedOut> {
+  if (!webContentView || webContentView.webContents.isDestroyed()) {
+    return webContentDocumentSnapshotTimedOut;
   }
 
-  const timeoutMs = normalizePreviewTimeoutMs(options.timeoutMs);
-  const executionTarget = previewView.webContents.mainFrame;
+  const timeoutMs = normalizeWebContentTimeoutMs(options.timeoutMs);
+  const executionTarget = webContentView.webContents.mainFrame;
   if (!executionTarget || executionTarget.isDestroyed()) {
-    return previewDocumentSnapshotTimedOut;
+    return webContentDocumentSnapshotTimedOut;
   }
 
   const execution = executionTarget.executeJavaScript(script, true);
@@ -1601,11 +1602,11 @@ async function executePreviewScript<T>(
   try {
     const result = await Promise.race([
       execution,
-      new Promise<typeof previewDocumentSnapshotTimedOut>((resolve) => {
-        timeoutId = setTimeout(() => resolve(previewDocumentSnapshotTimedOut), timeoutMs);
+      new Promise<typeof webContentDocumentSnapshotTimedOut>((resolve) => {
+        timeoutId = setTimeout(() => resolve(webContentDocumentSnapshotTimedOut), timeoutMs);
       }),
     ]);
-    return result as T | typeof previewDocumentSnapshotTimedOut;
+    return result as T | typeof webContentDocumentSnapshotTimedOut;
   } finally {
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -1617,7 +1618,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function normalizePreviewListingCandidateSeeds(value: unknown): ListingCandidateSeed[] {
+function normalizeWebContentListingCandidateSeeds(value: unknown): ListingCandidateSeed[] {
   if (!Array.isArray(value)) return [];
 
   return value
@@ -1641,18 +1642,18 @@ function normalizePreviewListingCandidateSeeds(value: unknown): ListingCandidate
     .filter((candidate): candidate is ListingCandidateSeed => Boolean(candidate));
 }
 
-export async function getPreviewDocumentSnapshot(
-  options: PreviewDocumentSnapshotOptions = {},
-): Promise<PreviewDocumentSnapshot | null> {
-  if (!previewView || previewView.webContents.isDestroyed()) {
+export async function getWebContentDocumentSnapshot(
+  options: WebContentDocumentSnapshotOptions = {},
+): Promise<WebContentDocumentSnapshot | null> {
+  if (!webContentView || webContentView.webContents.isDestroyed()) {
     return null;
   }
 
   const startedAt = Date.now();
-  const state = getPreviewState();
+  const state = getWebContentState();
 
   try {
-    const html = await executePreviewScript<string>(
+    const html = await executeWebContentScript<string>(
       `(() => {
         try {
           return document.documentElement ? document.documentElement.outerHTML : '';
@@ -1663,7 +1664,7 @@ export async function getPreviewDocumentSnapshot(
       options,
     );
 
-    if (html === previewDocumentSnapshotTimedOut) {
+    if (html === webContentDocumentSnapshotTimedOut) {
       return null;
     }
 
@@ -1682,45 +1683,135 @@ export async function getPreviewDocumentSnapshot(
   }
 }
 
-export async function getPreviewDocumentHtml() {
-  const snapshot = await getPreviewDocumentSnapshot();
+export async function getWebContentSelection(
+  _targetId?: string | null,
+): Promise<WebContentSelectionSnapshot | null> {
+  const selection = await executeWebContentScript<{
+    text?: unknown;
+    rects?: unknown;
+  }>(
+    `(() => {
+      try {
+        const toRect = (rect) => ({
+          x: Number(rect.left) || 0,
+          y: Number(rect.top) || 0,
+          width: Number(rect.width) || 0,
+          height: Number(rect.height) || 0,
+        });
+
+        const readSelection = (doc) => {
+          try {
+            const selection = doc.getSelection?.();
+            if (!selection || selection.rangeCount === 0) {
+              return null;
+            }
+
+            const text = String(selection.toString() || '').trim();
+            if (!text) {
+              return null;
+            }
+
+            const range = selection.getRangeAt(0);
+            const rects = Array.from(range.getClientRects?.() || []).map(toRect);
+            return { text, rects };
+          } catch {
+            return null;
+          }
+        };
+
+        const direct = readSelection(document);
+        if (direct) {
+          return direct;
+        }
+
+        const frames = Array.from(document.querySelectorAll('iframe'));
+        for (const frame of frames) {
+          try {
+            const frameDocument = frame.contentDocument;
+            if (!frameDocument) {
+              continue;
+            }
+            const nested = readSelection(frameDocument);
+            if (nested) {
+              return nested;
+            }
+          } catch {
+            // Ignore cross-origin or inaccessible frames.
+          }
+        }
+
+        return null;
+      } catch {
+        return null;
+      }
+    })()`,
+    { timeoutMs: 3000 },
+  );
+
+  if (
+    selection === webContentDocumentSnapshotTimedOut ||
+    !selection ||
+    !isRecord(selection) ||
+    typeof selection.text !== 'string' ||
+    !Array.isArray(selection.rects)
+  ) {
+    return null;
+  }
+
+  const rects = selection.rects
+    .filter((rect) => isRecord(rect))
+    .map((rect) => ({
+      x: typeof rect.x === 'number' ? rect.x : 0,
+      y: typeof rect.y === 'number' ? rect.y : 0,
+      width: typeof rect.width === 'number' ? rect.width : 0,
+      height: typeof rect.height === 'number' ? rect.height : 0,
+    }));
+
+  return {
+    text: selection.text,
+    rects,
+  };
+}
+
+export async function getWebContentDocumentHtml() {
+  const snapshot = await getWebContentDocumentSnapshot();
   return snapshot?.html ?? null;
 }
 
-export async function getPreviewListingCandidateSnapshot(
-  options: PreviewListingCandidateSnapshotOptions = {},
-): Promise<PreviewListingCandidateSnapshot | null> {
-  if (!previewView || previewView.webContents.isDestroyed()) {
+export async function getWebContentListingCandidateSnapshot(
+  options: WebContentListingCandidateSnapshotOptions = {},
+): Promise<WebContentListingCandidateSnapshot | null> {
+  if (!webContentView || webContentView.webContents.isDestroyed()) {
     return null;
   }
 
   const startedAt = Date.now();
-  const state = getPreviewState();
+  const state = getWebContentState();
 
   try {
-    const result = await executePreviewScript<{
-      previewUrl?: unknown;
+    const result = await executeWebContentScript<{
+      webContentUrl?: unknown;
       extractorId?: unknown;
       extraction?: {
         candidates?: unknown;
         diagnostics?: unknown;
       };
       nextPageUrl?: unknown;
-    }>(createPreviewListingCandidateExtractionScript(options.preferredExtractorId), options);
+    }>(createWebContentListingCandidateExtractionScript(options.preferredExtractorId), options);
 
-    if (result === previewDocumentSnapshotTimedOut || !isRecord(result)) {
+    if (result === webContentDocumentSnapshotTimedOut || !isRecord(result)) {
       return null;
     }
 
-    const previewUrl = String(result.previewUrl ?? '').trim();
+    const webContentUrl = String(result.webContentUrl ?? '').trim();
     const extractorId = String(result.extractorId ?? '').trim();
-    const candidates = normalizePreviewListingCandidateSeeds(result.extraction?.candidates);
-    if (!previewUrl || !extractorId || candidates.length === 0) {
+    const candidates = normalizeWebContentListingCandidateSeeds(result.extraction?.candidates);
+    if (!webContentUrl || !extractorId || candidates.length === 0) {
       return null;
     }
 
     return {
-      previewUrl,
+      webContentUrl,
       extractorId,
       extraction: {
         candidates,
@@ -1735,7 +1826,7 @@ export async function getPreviewListingCandidateSnapshot(
   }
 }
 
-function normalizeComparablePreviewUrl(value: string) {
+function normalizeComparableWebContentUrl(value: string) {
   const normalized = String(value ?? '').trim();
   if (!normalized) return '';
 
@@ -1751,22 +1842,22 @@ function normalizeComparablePreviewUrl(value: string) {
   }
 }
 
-function isAbortLikePreviewNavigationError(error: unknown) {
+function isAbortLikeWebContentNavigationError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return /\bERR_ABORTED\b/i.test(message) || /\(-3\)\s+loading\b/i.test(message);
 }
 
-function isPreviewFailureUrl(url: string) {
+function isWebContentFailureUrl(url: string) {
   return /^about:blank$/i.test(url) || /^chrome-error:\/\//i.test(url);
 }
 
-function hasPreviewReachedStableDestination(
+function hasWebContentReachedStableDestination(
   currentUrl: string,
   targetUrl: string,
   initialUrl: string,
   isLoading: boolean,
 ) {
-  if (!currentUrl || isPreviewFailureUrl(currentUrl)) {
+  if (!currentUrl || isWebContentFailureUrl(currentUrl)) {
     return false;
   }
 
@@ -1780,12 +1871,12 @@ function hasPreviewReachedStableDestination(
 
   // Some journal landing pages immediately redirect or normalize the URL.
   // Once the destination has stabilized on a different non-error page, treat it
-  // as a successful navigation instead of timing out and blanking the preview.
+  // as a successful navigation instead of timing out and blanking the web content view.
   return currentUrl !== initialUrl;
 }
 
-function hasPreviewReachedTarget(
-  mode: PreviewNavigationMode,
+function hasWebContentReachedTarget(
+  mode: WebContentNavigationMode,
   currentUrl: string,
   targetUrl: string,
   initialUrl: string,
@@ -1796,7 +1887,7 @@ function hasPreviewReachedTarget(
       return currentUrl === targetUrl;
     case 'browser':
     default:
-      return hasPreviewReachedStableDestination(
+      return hasWebContentReachedStableDestination(
         currentUrl,
         targetUrl,
         initialUrl,
@@ -1805,23 +1896,23 @@ function hasPreviewReachedTarget(
   }
 }
 
-export async function navigatePreview(
+export async function navigateWebContent(
   url: string,
-  mode: PreviewNavigationMode = 'browser',
+  mode: WebContentNavigationMode = 'browser',
 ) {
-  if (!previewView || previewView.webContents.isDestroyed()) {
+  if (!webContentView || webContentView.webContents.isDestroyed()) {
     throw appError('PREVIEW_NOT_READY');
   }
 
-  previewState.visible = true;
-  applyPreviewBounds();
+  webContentState.visible = true;
+  applyWebContentBounds();
 
-  updatePreviewState();
-  const initialUrl = normalizeComparablePreviewUrl(previewState.url);
+  updateWebContentState();
+  const initialUrl = normalizeComparableWebContentUrl(webContentState.url);
 
   let navigationFailure: unknown = null;
-  void previewView.webContents.loadURL(url).catch((error) => {
-    if (isAbortLikePreviewNavigationError(error)) {
+  void webContentView.webContents.loadURL(url).catch((error) => {
+    if (isAbortLikeWebContentNavigationError(error)) {
       return;
     }
     navigationFailure = error;
@@ -1834,19 +1925,19 @@ export async function navigatePreview(
       throw navigationFailure;
     }
 
-    updatePreviewState();
-    const currentUrl = normalizeComparablePreviewUrl(previewState.url);
-    const targetUrl = normalizeComparablePreviewUrl(url);
+    updateWebContentState();
+    const currentUrl = normalizeComparableWebContentUrl(webContentState.url);
+    const targetUrl = normalizeComparableWebContentUrl(url);
     if (
-      hasPreviewReachedTarget(
+      hasWebContentReachedTarget(
         mode,
         currentUrl,
         targetUrl,
         initialUrl,
-        previewState.isLoading,
+        webContentState.isLoading,
       )
     ) {
-      updatePreviewState();
+      updateWebContentState();
       return;
     }
 
@@ -1856,35 +1947,35 @@ export async function navigatePreview(
   throw appError('PREVIEW_NOT_READY', {
     message:
       mode === 'strict'
-        ? 'Timed out while waiting for preview URL to match target exactly.'
-        : 'Timed out while waiting for preview navigation to settle on a destination.',
+        ? 'Timed out while waiting for the web content URL to match the target exactly.'
+        : 'Timed out while waiting for web content navigation to settle on a destination.',
     targetUrl: url,
-    currentUrl: previewState.url,
+    currentUrl: webContentState.url,
     navigationMode: mode,
   });
 }
 
-export async function navigatePreviewTarget(
+export async function navigateWebContentTarget(
   url: string,
   targetId?: string | null,
-  mode: PreviewNavigationMode = 'browser',
+  mode: WebContentNavigationMode = 'browser',
 ) {
-  activatePreviewTarget(targetId);
-  return await navigatePreview(url, mode);
+  activateWebContentTarget(targetId);
+  return await navigateWebContent(url, mode);
 }
 
-export async function navigatePreviewForPrint(url: string, timeoutMs = 12000) {
-  if (!previewView || previewView.webContents.isDestroyed()) {
+export async function navigateWebContentForPrint(url: string, timeoutMs = 12000) {
+  if (!webContentView || webContentView.webContents.isDestroyed()) {
     throw appError('PREVIEW_NOT_READY');
   }
 
-  previewState.visible = true;
-  applyPreviewBounds();
-  await navigatePreview(url, 'strict');
+  webContentState.visible = true;
+  applyWebContentBounds();
+  await navigateWebContent(url, 'strict');
 
   const startedAt = Date.now();
   while (Date.now() - startedAt < Math.max(1000, timeoutMs)) {
-    const mainReady = await executePreviewScript<boolean>(
+    const mainReady = await executeWebContentScript<boolean>(
       `(() => {
         const main = document.querySelector('main#content');
         if (!main) return false;
@@ -1903,19 +1994,19 @@ export async function navigatePreviewForPrint(url: string, timeoutMs = 12000) {
   }
 
   throw appError('PREVIEW_NOT_READY', {
-    message: 'Timed out while waiting for preview main content to become printable.',
+    message: 'Timed out while waiting for web content main content to become printable.',
     targetUrl: url,
-    currentUrl: previewState.url,
+    currentUrl: webContentState.url,
   });
 }
 
-export async function waitForPreviewPrintLayout(stabilizeMs = 1200) {
-  if (!previewView || previewView.webContents.isDestroyed()) {
+export async function waitForWebContentPrintLayout(stabilizeMs = 1200) {
+  if (!webContentView || webContentView.webContents.isDestroyed()) {
     throw appError('PREVIEW_NOT_READY');
   }
 
   try {
-    await previewView.webContents.executeJavaScript(
+    await webContentView.webContents.executeJavaScript(
       `(() => {
         const maxWaitMs = Math.max(1800, ${Math.max(0, Math.trunc(stabilizeMs))} + 1800);
         const settleMs = Math.max(250, Math.min(600, ${Math.max(0, Math.trunc(stabilizeMs))}));
@@ -1999,12 +2090,12 @@ export async function waitForPreviewPrintLayout(stabilizeMs = 1200) {
   }
 }
 
-export async function printCurrentPreviewToPdf() {
-  if (!previewView || previewView.webContents.isDestroyed()) {
+export async function printCurrentWebContentToPdf() {
+  if (!webContentView || webContentView.webContents.isDestroyed()) {
     throw appError('PREVIEW_NOT_READY');
   }
 
-  return await previewView.webContents.printToPDF({
+  return await webContentView.webContents.printToPDF({
     printBackground: true,
     preferCSSPageSize: true,
     displayHeaderFooter: false,
@@ -2017,31 +2108,30 @@ export async function printCurrentPreviewToPdf() {
   });
 }
 
-export function reloadPreview(targetId?: string | null) {
+export function reloadWebContent(targetId?: string | null) {
   if (targetId !== undefined) {
-    activatePreviewTarget(targetId);
+    activateWebContentTarget(targetId);
   }
-  if (!previewView || previewView.webContents.isDestroyed()) return;
-  previewView.webContents.reload();
+  if (!webContentView || webContentView.webContents.isDestroyed()) return;
+  webContentView.webContents.reload();
 }
 
-export function goBackPreview(targetId?: string | null) {
+export function goBackWebContent(targetId?: string | null) {
   if (targetId !== undefined) {
-    activatePreviewTarget(targetId);
+    activateWebContentTarget(targetId);
   }
-  if (!previewView || previewView.webContents.isDestroyed()) return;
-  if (previewView.webContents.navigationHistory.canGoBack()) {
-    previewView.webContents.navigationHistory.goBack();
-  }
-}
-
-export function goForwardPreview(targetId?: string | null) {
-  if (targetId !== undefined) {
-    activatePreviewTarget(targetId);
-  }
-  if (!previewView || previewView.webContents.isDestroyed()) return;
-  if (previewView.webContents.navigationHistory.canGoForward()) {
-    previewView.webContents.navigationHistory.goForward();
+  if (!webContentView || webContentView.webContents.isDestroyed()) return;
+  if (webContentView.webContents.navigationHistory.canGoBack()) {
+    webContentView.webContents.navigationHistory.goBack();
   }
 }
 
+export function goForwardWebContent(targetId?: string | null) {
+  if (targetId !== undefined) {
+    activateWebContentTarget(targetId);
+  }
+  if (!webContentView || webContentView.webContents.isDestroyed()) return;
+  if (webContentView.webContents.navigationHistory.canGoForward()) {
+    webContentView.webContents.navigationHistory.goForward();
+  }
+}

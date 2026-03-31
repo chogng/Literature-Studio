@@ -23,7 +23,7 @@ export type WebContentNavigationSnapshot = {
 };
 
 type WebContentStateSyncContext = {
-  previewRuntime: boolean;
+  webContentRuntime: boolean;
   setWebUrl: StringSetter;
   setFetchSeedUrl: StringStateSetter;
 };
@@ -32,7 +32,7 @@ type NavigateToAddressBarUrlParams = {
   nextUrl: string;
   showToast?: boolean;
   electronRuntime: boolean;
-  previewRuntime: boolean;
+  webContentRuntime: boolean;
   ui: LocaleMessages;
   setWebUrl: StringSetter;
   setFetchSeedUrl: StringSetter;
@@ -40,12 +40,12 @@ type NavigateToAddressBarUrlParams = {
 
 type BrowserRefreshParams = {
   electronRuntime: boolean;
-  previewRuntime: boolean;
+  webContentRuntime: boolean;
   ui: LocaleMessages;
 };
 
 type WebContentNavigationButtonParams = {
-  previewRuntime: boolean;
+  webContentRuntime: boolean;
   ui: LocaleMessages;
 };
 
@@ -190,20 +190,18 @@ export class WebContentNavigationModel {
   ) {
     this.activeTargetId = targetId;
 
-    // TODO(migration): `window.electronAPI.preview` is still the preload/main-process contract.
-    // Rename the Electron bridge only after the desktop side is migrated together.
-    if (!window.electronAPI?.preview) {
+    if (!window.electronAPI?.webContent) {
       return null;
     }
 
-    window.electronAPI.preview.activate(targetId);
+    window.electronAPI.webContent.activate(targetId);
 
     if (!context) {
       return null;
     }
 
     try {
-      const state = await window.electronAPI.preview.getState(targetId);
+      const state = await window.electronAPI.webContent.getState(targetId);
       this.applyWebContentState(state, context);
       return state;
     } catch {
@@ -212,27 +210,27 @@ export class WebContentNavigationModel {
   }
 
   releaseTarget(targetId: string | null) {
-    if (!window.electronAPI?.preview) {
+    if (!window.electronAPI?.webContent) {
       return;
     }
 
-    window.electronAPI.preview.release(targetId);
+    window.electronAPI.webContent.release(targetId);
   }
 
-  connectPreviewState({
-    previewRuntime,
+  connectWebContentState({
+    webContentRuntime,
     setWebUrl,
     setFetchSeedUrl,
   }: WebContentStateSyncContext): () => void {
-    if (!previewRuntime || !window.electronAPI?.preview) {
+    if (!webContentRuntime || !window.electronAPI?.webContent) {
       this.setWebContentState(EMPTY_WEB_CONTENT_STATE);
       return () => {};
     }
 
     let mounted = true;
-    const preview = window.electronAPI.preview;
+    const webContent = window.electronAPI.webContent;
 
-    void preview
+    void webContent
       .getState(this.activeTargetId)
       .then((state) => {
         if (!mounted) {
@@ -246,7 +244,7 @@ export class WebContentNavigationModel {
       })
       .catch(() => {});
 
-    const unsubscribe = preview.onStateChange((state) => {
+    const unsubscribe = webContent.onStateChange((state) => {
       this.applyWebContentState(state, {
         setWebUrl,
         setFetchSeedUrl,
@@ -263,40 +261,40 @@ export class WebContentNavigationModel {
     nextUrl,
     showToast,
     electronRuntime,
-    previewRuntime,
+    webContentRuntime,
     ui,
     setWebUrl,
     setFetchSeedUrl,
   }: NavigateToAddressBarUrlParams): boolean {
-    const previewNavigation = resolveWebContentNavigation(
+    const webContentNavigation = resolveWebContentNavigation(
       nextUrl,
       electronRuntime,
-      previewRuntime,
+      webContentRuntime,
     );
 
-    if (previewNavigation.kind === 'invalid-url') {
+    if (webContentNavigation.kind === 'invalid-url') {
       toast.error(ui.toastEnterArticleUrl);
       return false;
     }
 
-    setWebUrl(previewNavigation.normalizedUrl);
-    this.setBrowserUrl(previewNavigation.normalizedUrl);
-    setFetchSeedUrl(previewNavigation.normalizedUrl);
+    setWebUrl(webContentNavigation.normalizedUrl);
+    this.setBrowserUrl(webContentNavigation.normalizedUrl);
+    setFetchSeedUrl(webContentNavigation.normalizedUrl);
 
-    if (previewNavigation.kind === 'content-runtime-unavailable') {
-      toast.error(ui.toastPreviewRuntimeUnavailable);
+    if (webContentNavigation.kind === 'content-runtime-unavailable') {
+      toast.error(ui.toastWebContentRuntimeUnavailable);
       return false;
     }
 
-    if (previewNavigation.kind === 'webcontents-content' && window.electronAPI?.preview) {
-      void window.electronAPI.preview
-        .navigate(previewNavigation.normalizedUrl, this.activeTargetId, 'browser')
+    if (webContentNavigation.kind === 'webcontents-content' && window.electronAPI?.webContent) {
+      void window.electronAPI.webContent
+        .navigate(webContentNavigation.normalizedUrl, this.activeTargetId, 'browser')
         .catch(() => {
-          toast.error(ui.toastPreviewRuntimeUnavailable);
+          toast.error(ui.toastWebContentRuntimeUnavailable);
         });
 
       if (showToast) {
-        toast.success(formatLocalized(ui.toastNavigatingTo, { url: previewNavigation.normalizedUrl }));
+        toast.success(formatLocalized(ui.toastNavigatingTo, { url: webContentNavigation.normalizedUrl }));
       }
     }
 
@@ -314,40 +312,40 @@ export class WebContentNavigationModel {
 
   handleBrowserRefresh({
     electronRuntime,
-    previewRuntime,
+    webContentRuntime,
     ui,
   }: BrowserRefreshParams): void {
-    const previewRefreshMode = resolveWebContentRefreshMode(
+    const webContentRefreshMode = resolveWebContentRefreshMode(
       electronRuntime,
-      previewRuntime,
+      webContentRuntime,
     );
 
-    if (previewRefreshMode === 'content-runtime-unavailable') {
-      toast.error(ui.toastPreviewRuntimeUnavailable);
+    if (webContentRefreshMode === 'content-runtime-unavailable') {
+      toast.error(ui.toastWebContentRuntimeUnavailable);
       return;
     }
 
-    if (previewRefreshMode === 'webcontents-content' && window.electronAPI?.preview) {
-      window.electronAPI.preview.reload(this.activeTargetId);
+    if (webContentRefreshMode === 'webcontents-content' && window.electronAPI?.webContent) {
+      window.electronAPI.webContent.reload(this.activeTargetId);
     }
   }
 
-  handlePreviewBack({ previewRuntime, ui }: WebContentNavigationButtonParams): void {
-    if (!previewRuntime || !window.electronAPI?.preview) {
-      toast.info(ui.toastPreviewBackUnsupported);
+  handleWebContentBack({ webContentRuntime, ui }: WebContentNavigationButtonParams): void {
+    if (!webContentRuntime || !window.electronAPI?.webContent) {
+      toast.info(ui.toastWebContentBackUnsupported);
       return;
     }
 
-    window.electronAPI.preview.goBack(this.activeTargetId);
+    window.electronAPI.webContent.goBack(this.activeTargetId);
   }
 
-  handlePreviewForward({ previewRuntime, ui }: WebContentNavigationButtonParams): void {
-    if (!previewRuntime || !window.electronAPI?.preview) {
-      toast.info(ui.toastPreviewForwardUnsupported);
+  handleWebContentForward({ webContentRuntime, ui }: WebContentNavigationButtonParams): void {
+    if (!webContentRuntime || !window.electronAPI?.webContent) {
+      toast.info(ui.toastWebContentForwardUnsupported);
       return;
     }
 
-    window.electronAPI.preview.goForward(this.activeTargetId);
+    window.electronAPI.webContent.goForward(this.activeTargetId);
   }
 
   createAddressBarSourceOptions(batchSources: ReadonlyArray<BatchSource>) {
@@ -382,9 +380,3 @@ export class WebContentNavigationModel {
     provider.applyUrlInput(nextUrl, setWebUrl, setFetchSeedUrl);
   }
 }
-
-export const registerPreviewNavigationQuickAccess =
-  registerWebContentNavigationQuickAccess;
-// TODO(migration): remove this compatibility export after quick access and any lazy imports
-// stop requesting the old symbol name.
-export const PreviewNavigationModel = WebContentNavigationModel;

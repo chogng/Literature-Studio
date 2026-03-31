@@ -26,6 +26,7 @@ import moreSvg from './svg/more.svg?raw';
 import micSvg from './svg/mic.svg?raw';
 import settingsSvg from './svg/settings.svg?raw';
 import syncSvg from './svg/sync.svg?raw';
+import refreshSvg from './svg/refresh.svg?raw';
 
 export type LxIconName =
   | 'add'
@@ -54,7 +55,8 @@ export type LxIconName =
   | 'more'
   | 'mic'
   | 'settings'
-  | 'sync';
+  | 'sync'
+  | 'refresh';
 
 const SVG_BY_NAME: Record<LxIconName, string> = {
   add: addSvg,
@@ -84,6 +86,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   mic: micSvg,
   settings: settingsSvg,
   sync: syncSvg,
+  refresh: refreshSvg,
 };
 
 function createSvgElement(markup: string) {

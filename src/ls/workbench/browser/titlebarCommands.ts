@@ -3,6 +3,7 @@ export type WorkbenchTitlebarCommandHandlers = {
   onToggleAuxiliarySidebar: () => void;
   onNavigateBack: () => void;
   onNavigateForward: () => void;
+  onNavigateRefresh: () => void;
   onNavigateWeb: () => void;
   onToggleSettings: () => void;
   onExportDocx: () => void;

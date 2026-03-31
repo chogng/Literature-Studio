@@ -5,7 +5,7 @@ import type {
   FetchChannel,
   FetchLatestArticlesPayload,
   FetchStatus,
-  PreviewReuseMode,
+  WebContentReuseMode,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import type { DateRange } from '../../../base/common/date.js';
 import type { StorageService } from '../../../platform/storage/common/storage.js';
@@ -29,11 +29,11 @@ import {
 import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from '../fetchTiming.js';
 import {
   buildPageHtmlFetchPlan,
-  buildPreviewExtractionFetchPlan,
+  buildWebContentExtractionFetchPlan,
   normalizeFetchStrategy,
   type FetchStrategy,
-  type PreviewExtractionSnapshot,
-  type PreviewSnapshot,
+  type WebContentExtractionSnapshot,
+  type WebContentSnapshot,
 } from './fetchStrategy.js';
 import {
   attemptNetworkHtml,
@@ -105,15 +105,15 @@ type PageSource = {
 };
 
 export type FetchLatestArticlesOptions = {
-  previewExtractions?: ReadonlyMap<string, PreviewExtractionSnapshot>;
-  previewSnapshots?: ReadonlyMap<string, PreviewSnapshot>;
+  previewExtractions?: ReadonlyMap<string, WebContentExtractionSnapshot>;
+  previewSnapshots?: ReadonlyMap<string, WebContentSnapshot>;
   fetchStrategy?: FetchStrategy;
   onFetchStatus?: (status: FetchStatus) => void;
 };
 
 type PageHtmlResult = {
   html: string;
-  source: 'network' | 'preview';
+  source: 'network' | 'web-content';
   usedRenderFallback?: boolean;
 };
 
@@ -150,7 +150,7 @@ type CandidateCollectionResult = {
 
 type PageFetchResult = {
   fetchChannel: FetchChannel;
-  previewReuseMode: PreviewReuseMode | null;
+  webContentReuseMode: WebContentReuseMode | null;
   articles: Article[];
   candidateAttempted: number;
   candidateResolved: number;
@@ -160,9 +160,9 @@ type PageFetchResult = {
   stoppedByDateHint: boolean;
 };
 
-function describeFetchDetail(fetchChannel: FetchChannel, previewReuseMode: PreviewReuseMode | null) {
-  if (fetchChannel === 'preview') {
-    return previewReuseMode === 'live-extract' ? 'live-preview-dom' : 'preview-dom-snapshot';
+function describeFetchDetail(fetchChannel: FetchChannel, webContentReuseMode: WebContentReuseMode | null) {
+  if (fetchChannel === 'web-content') {
+    return webContentReuseMode === 'live-extract' ? 'live-web-content-dom' : 'web-content-dom-snapshot';
   }
 
   return 'network-fetch';
@@ -235,7 +235,7 @@ function describeError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function hasUsablePreviewPageHtml(html: string) {
+function hasUsableWebContentPageHtml(html: string) {
   const trimmed = typeof html === 'string' ? html.trim() : '';
   if (!trimmed) return false;
   return /<(?:html|body|a)\b/i.test(trimmed);
@@ -787,7 +787,7 @@ async function collectListingCandidateDescriptors(
   );
 }
 
-async function collectListingCandidateDescriptorsFromPreviewExtraction({
+async function collectListingCandidateDescriptorsFromWebContentExtraction({
   page,
   pageUrl,
   extractor,
@@ -804,7 +804,7 @@ async function collectListingCandidateDescriptorsFromPreviewExtraction({
   dateRange: DateRange;
   traceId: string;
   pageNumber: number;
-  previewExtraction: PreviewExtractionSnapshot;
+  previewExtraction: WebContentExtractionSnapshot;
 }): Promise<CandidateCollectionResult | null> {
   if (previewExtraction.extractorId !== extractor.id) {
     return null;
@@ -854,9 +854,9 @@ async function collectListingCandidateDescriptorsFromPreviewExtraction({
       ...(extracted.diagnostics ?? {}),
       previewCaptureMs: previewExtraction.captureMs,
       previewNextPageUrl: previewExtraction.nextPageUrl,
-      previewUrl: previewExtraction.previewUrl,
-      source: 'preview',
-      previewReuseMode: 'live-extract',
+      webContentUrl: previewExtraction.webContentUrl,
+      source: 'web-content',
+      webContentReuseMode: 'live-extract',
     },
     paginationStopEvaluation,
   };
@@ -896,10 +896,10 @@ async function fetchLatestArticlesFromPageOnce({
   const isLikelyArticleDetailSource = isLikelyArticleDetailPagePath(pagePathname);
   const hasArticlePath = hasArticlePathSignal(pagePathname);
   let fetchChannel: FetchChannel = 'network';
-  let previewReuseMode: PreviewReuseMode | null = null;
+  let webContentReuseMode: WebContentReuseMode | null = null;
   let candidateCollection: CandidateCollectionResult | null = null;
   let $: ReturnType<typeof load> | null = null;
-  let previewNextPageUrl: string | null = null;
+  let webContentNextPageUrl: string | null = null;
   let fetchStatusReported = false;
   const emitFetchStatus = (overrides: Partial<FetchStatus> = {}) => {
     const reporter = options.onFetchStatus;
@@ -910,8 +910,8 @@ async function fetchLatestArticlesFromPageOnce({
       pageUrl,
       pageNumber,
       fetchChannel,
-      fetchDetail: describeFetchDetail(fetchChannel, previewReuseMode),
-      previewReuseMode,
+      fetchDetail: describeFetchDetail(fetchChannel, webContentReuseMode),
+      webContentReuseMode,
       extractorId: extractor?.id ?? null,
       ...overrides,
     });
@@ -922,27 +922,27 @@ async function fetchLatestArticlesFromPageOnce({
     fetchStatusReported = true;
   };
 
-  const previewExtraction = options.previewExtractions?.get(pageUrl) ?? null;
-  const previewExtractionPlan = buildPreviewExtractionFetchPlan({
+  const webContentExtraction = options.previewExtractions?.get(pageUrl) ?? null;
+  const webContentExtractionPlan = buildWebContentExtractionFetchPlan({
     fetchStrategy: options.fetchStrategy,
-    hasPreviewExtraction: Boolean(previewExtraction),
+    hasWebContentExtraction: Boolean(webContentExtraction),
     hasExtractor: Boolean(extractor),
     pageNumber,
     isLikelyArticleDetailPage: isLikelyArticleDetailSource || hasArticlePath,
   });
 
-  if (previewExtraction && !previewExtractionPlan.shouldAttempt) {
-    timingLog(traceId, 'source:page_preview_extract_skipped', {
+  if (webContentExtraction && !webContentExtractionPlan.shouldAttempt) {
+    timingLog(traceId, 'source:page_web_content_extract_skipped', {
       pageNumber,
-      reason: previewExtractionPlan.reason,
-      requestedStrategy: previewExtractionPlan.requestedStrategy,
-      previewUrl: shortenForLog(previewExtraction.previewUrl),
+      reason: webContentExtractionPlan.reason,
+      requestedStrategy: webContentExtractionPlan.requestedStrategy,
+      webContentUrl: shortenForLog(webContentExtraction.webContentUrl),
       extractorId: extractor?.id ?? null,
     });
   }
 
-  if (previewExtractionPlan.shouldAttempt && previewExtraction && extractor) {
-    candidateCollection = await collectListingCandidateDescriptorsFromPreviewExtraction({
+  if (webContentExtractionPlan.shouldAttempt && webContentExtraction && extractor) {
+    candidateCollection = await collectListingCandidateDescriptorsFromWebContentExtraction({
       page,
       pageUrl,
       extractor,
@@ -950,21 +950,21 @@ async function fetchLatestArticlesFromPageOnce({
       dateRange,
       traceId,
       pageNumber,
-      previewExtraction,
+      previewExtraction: webContentExtraction,
     });
     if (candidateCollection && candidateCollection.candidates.length > 0) {
-      fetchChannel = 'preview';
-      previewReuseMode = previewExtractionPlan.previewReuseMode;
-      previewNextPageUrl = previewExtraction.nextPageUrl;
-      timingLog(traceId, 'source:page_preview_extract_applied', {
+      fetchChannel = 'web-content';
+      webContentReuseMode = webContentExtractionPlan.webContentReuseMode;
+      webContentNextPageUrl = webContentExtraction.nextPageUrl;
+      timingLog(traceId, 'source:page_web_content_extract_applied', {
         pageNumber,
-        extractorId: previewExtraction.extractorId,
-        requestedStrategy: previewExtractionPlan.requestedStrategy,
+        extractorId: webContentExtraction.extractorId,
+        requestedStrategy: webContentExtractionPlan.requestedStrategy,
         candidateCount: candidateCollection.candidates.length,
-        captureMs: previewExtraction.captureMs,
-        nextPageUrl: shortenForLog(previewNextPageUrl ?? ''),
-        previewUrl: shortenForLog(previewExtraction.previewUrl),
-        reuseMode: 'live-preview-dom',
+        captureMs: webContentExtraction.captureMs,
+        nextPageUrl: shortenForLog(webContentNextPageUrl ?? ''),
+        webContentUrl: shortenForLog(webContentExtraction.webContentUrl),
+        reuseMode: 'live-web-content-dom',
         historicalCache: false,
       });
     }
@@ -973,7 +973,7 @@ async function fetchLatestArticlesFromPageOnce({
   if (!candidateCollection) {
     const pageResult = await resolvePageHtml(pageUrl, traceId, options);
     fetchChannel = pageResult.source;
-    previewReuseMode = pageResult.source === 'preview' ? 'snapshot' : null;
+    webContentReuseMode = pageResult.source === 'web-content' ? 'snapshot' : null;
     reportFetchStatus();
     let html = pageResult.html;
     const pageParseStartedAt = Date.now();
@@ -983,7 +983,7 @@ async function fetchLatestArticlesFromPageOnce({
       pageNumber,
       ms: elapsedMs(pageParseStartedAt),
       fetchChannel: pageResult.source,
-      previewReuseMode,
+      webContentReuseMode,
       hasTitle: Boolean(pageArticle.title),
       hasDoi: Boolean(pageArticle.doi),
       hasAbstract: Boolean(pageArticle.abstractText),
@@ -1009,7 +1009,7 @@ async function fetchLatestArticlesFromPageOnce({
       if (fetched.length >= remainingLimit) {
         return {
           fetchChannel,
-          previewReuseMode,
+          webContentReuseMode,
           articles: fetched,
           candidateAttempted: 0,
           candidateResolved: 0,
@@ -1029,7 +1029,7 @@ async function fetchLatestArticlesFromPageOnce({
       });
       return {
         fetchChannel,
-        previewReuseMode,
+        webContentReuseMode,
         articles: fetched,
         candidateAttempted: 0,
         candidateResolved: 0,
@@ -1474,8 +1474,8 @@ async function fetchLatestArticlesFromPageOnce({
 
   const nextPageUrl =
     fetched.length < remainingLimit && !stoppedByDateHint && !stoppedByPaginationPolicy
-      ? previewNextPageUrl && !seenPageUrls.has(previewNextPageUrl)
-        ? previewNextPageUrl
+      ? webContentNextPageUrl && !seenPageUrls.has(webContentNextPageUrl)
+        ? webContentNextPageUrl
         : extractor?.findNextPageUrl && $
           ? extractor.findNextPageUrl({
               page,
@@ -1488,7 +1488,7 @@ async function fetchLatestArticlesFromPageOnce({
 
   return {
     fetchChannel,
-    previewReuseMode,
+    webContentReuseMode,
     articles: fetched,
     candidateAttempted,
     candidateResolved,
@@ -1571,10 +1571,10 @@ async function resolvePageHtml(
   traceId: string,
   options: FetchLatestArticlesOptions,
 ): Promise<PageHtmlResult> {
-  const previewSnapshot = options.previewSnapshots?.get(pageUrl) ?? null;
+  const webContentSnapshot = options.previewSnapshots?.get(pageUrl) ?? null;
   const pageHtmlFetchPlan = buildPageHtmlFetchPlan({
     fetchStrategy: options.fetchStrategy,
-    hasPreviewSnapshot: Boolean(previewSnapshot),
+    hasWebContentSnapshot: Boolean(webContentSnapshot),
   });
   let networkAttemptPromise: Promise<NetworkAttemptResult> | null = null;
 
@@ -1621,13 +1621,13 @@ async function resolvePageHtml(
   timingLog(traceId, 'source:page_strategy', {
     requestedStrategy: pageHtmlFetchPlan.requestedStrategy,
     effectiveStrategy: pageHtmlFetchPlan.effectiveStrategy,
-    hasPreviewSnapshot: Boolean(previewSnapshot),
-    previewCaptureMs: previewSnapshot?.captureMs ?? null,
-    previewSize: previewSnapshot?.html.length ?? null,
-    previewIsLoading: previewSnapshot?.isLoading ?? null,
+    hasWebContentSnapshot: Boolean(webContentSnapshot),
+    webContentCaptureMs: webContentSnapshot?.captureMs ?? null,
+    webContentSize: webContentSnapshot?.html.length ?? null,
+    webContentIsLoading: webContentSnapshot?.isLoading ?? null,
   });
 
-  if (pageHtmlFetchPlan.selectedChannel === 'network' || !previewSnapshot) {
+  if (pageHtmlFetchPlan.selectedChannel === 'network' || !webContentSnapshot) {
     return useNetwork('network_only');
   }
 
@@ -1639,41 +1639,41 @@ async function resolvePageHtml(
     void startNetworkAttempt();
   }
 
-  if (!hasUsablePreviewPageHtml(previewSnapshot.html)) {
-    timingLog(traceId, 'source:page_preview_skipped', {
-      reason: 'preview_html_invalid',
-      previewUrl: shortenForLog(previewSnapshot.previewUrl),
-      captureMs: previewSnapshot.captureMs,
-      size: previewSnapshot.html.length,
+  if (!hasUsableWebContentPageHtml(webContentSnapshot.html)) {
+    timingLog(traceId, 'source:page_web_content_skipped', {
+      reason: 'web_content_html_invalid',
+      webContentUrl: shortenForLog(webContentSnapshot.webContentUrl),
+      captureMs: webContentSnapshot.captureMs,
+      size: webContentSnapshot.html.length,
     });
-    return useNetwork('preview_html_invalid');
+    return useNetwork('web_content_html_invalid');
   }
 
-  if (previewSnapshot.isLoading) {
-    timingLog(traceId, 'source:page_preview_loading', {
-      previewUrl: shortenForLog(previewSnapshot.previewUrl),
-      captureMs: previewSnapshot.captureMs,
-      size: previewSnapshot.html.length,
+  if (webContentSnapshot.isLoading) {
+    timingLog(traceId, 'source:page_web_content_loading', {
+      webContentUrl: shortenForLog(webContentSnapshot.webContentUrl),
+      captureMs: webContentSnapshot.captureMs,
+      size: webContentSnapshot.html.length,
     });
   }
 
-  timingLog(traceId, 'source_page_preview:ok', {
-    ms: previewSnapshot.captureMs,
-    size: previewSnapshot.html.length,
+  timingLog(traceId, 'source_page_web_content:ok', {
+    ms: webContentSnapshot.captureMs,
+    size: webContentSnapshot.html.length,
     url: shortenForLog(pageUrl),
-    previewUrl: shortenForLog(previewSnapshot.previewUrl),
+    webContentUrl: shortenForLog(webContentSnapshot.webContentUrl),
   });
   timingLog(traceId, 'source:page_selected', {
-    selected: 'preview',
+    selected: 'web-content',
     reason: pageHtmlFetchPlan.effectiveStrategy,
-    size: previewSnapshot.html.length,
-    captureMs: previewSnapshot.captureMs,
+    size: webContentSnapshot.html.length,
+    captureMs: webContentSnapshot.captureMs,
     url: shortenForLog(pageUrl),
   });
 
   return {
-    html: previewSnapshot.html,
-    source: 'preview',
+    html: webContentSnapshot.html,
+    source: 'web-content',
   };
 }
 
@@ -1939,7 +1939,7 @@ async function fetchLatestArticlesFromPage(
     let totalCandidateAccepted = 0;
     let usedPageOnly = false;
     let lastFetchChannel: FetchChannel = 'network';
-    let lastPreviewReuseMode: PreviewReuseMode | null = null;
+    let lastPreviewReuseMode: WebContentReuseMode | null = null;
     let currentPageUrl: string | null = pageUrl;
 
     while (currentPageUrl && fetched.length < perSourceLimit && pageCount < MAX_PAGINATED_PAGE_COUNT) {
@@ -1971,7 +1971,7 @@ async function fetchLatestArticlesFromPage(
       });
 
       lastFetchChannel = pageResult.fetchChannel;
-      lastPreviewReuseMode = pageResult.previewReuseMode;
+      lastPreviewReuseMode = pageResult.webContentReuseMode;
       totalCandidateAttempted += pageResult.candidateAttempted;
       totalCandidateResolved += pageResult.candidateResolved;
       totalCandidateAccepted += pageResult.candidateAccepted;
@@ -2009,7 +2009,7 @@ async function fetchLatestArticlesFromPage(
     timingLog(traceId, 'source:done', {
       totalMs: elapsedMs(sourceStartedAt),
       fetchChannel: lastFetchChannel,
-      previewReuseMode: lastPreviewReuseMode,
+      webContentReuseMode: lastPreviewReuseMode,
       pageCount,
       fetchedCount: fetched.length,
       candidateAttempted: totalCandidateAttempted,
@@ -2187,4 +2187,3 @@ export async function fetchLatestArticles(
   });
   return fetched;
 }
-

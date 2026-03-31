@@ -95,7 +95,7 @@ export function localizeDesktopInvokeError(
         error: detailValue(details, 'message', error.message || ui.errorUnknown),
       });
     case 'PREVIEW_NOT_READY':
-      return ui.errorPreviewNotReady;
+      return ui.errorWebContentNotReady;
     case 'LLM_PROVIDER_UNSUPPORTED':
       return formatLocalized(ui.errorLlmProviderUnsupported, {
         provider: detailValue(details, 'provider', '?'),

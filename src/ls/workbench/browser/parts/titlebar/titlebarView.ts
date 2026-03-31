@@ -32,6 +32,7 @@ export type TitlebarLabels = {
   closeLabel: string;
   backLabel: string;
   forwardLabel: string;
+  refreshLabel: string;
   showAssistantLabel: string;
   hideAssistantLabel: string;
   exportDocxLabel: string;
@@ -56,6 +57,7 @@ export type TitlebarProps = {
   canExportDocx?: boolean;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
+   onNavigateRefresh?: () => void;
   webUrl?: string;
   onWebUrlChange?: (url: string) => void;
   articleUrlPlaceholder?: string;
@@ -76,6 +78,7 @@ const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   closeLabel: '',
   backLabel: '',
   forwardLabel: '',
+  refreshLabel: '',
   showAssistantLabel: '',
   hideAssistantLabel: '',
   exportDocxLabel: '',
@@ -199,6 +202,11 @@ export class TitlebarView {
       if (action.type === 'FOCUS_WEB_URL_INPUT') {
         this.webUrlInput?.focus();
         this.webUrlInput?.select();
+        return;
+      }
+
+      if (action.type === 'NAVIGATE_REFRESH') {
+        this.props.onNavigateRefresh?.();
       }
     });
     this.render();
@@ -314,6 +322,20 @@ export class TitlebarView {
         }),
     );
     navGroup.append(backButton.getElement(), forwardButton.getElement());
+
+    if (props.onNavigateRefresh) {
+      const refreshButton = this.trackView(
+        createIconButton({
+          className: 'titlebar-btn titlebar-btn-nav titlebar-btn-refresh',
+          label: props.labels.refreshLabel,
+          icon: lxIconSemanticMap.titlebar.refresh,
+          onClick: () => props.onNavigateRefresh?.(),
+          disabled: !props.browserUrl,
+        }),
+      );
+      navGroup.append(refreshButton.getElement());
+    }
+
     this.centerElement.append(navGroup);
 
     if (props.onWebUrlChange) {

@@ -8,6 +8,7 @@ export const lxIconSemanticMap = {
     auxiliaryClosed: 'layout-sidebar-right-off',
     navigateBack: 'arrow-left',
     navigateForward: 'arrow-right',
+    refresh: 'refresh',
     exportDocx: 'export',
     settings: 'gear',
   },

@@ -6,14 +6,14 @@ import {
 import type { Disposable } from '../workbench/workbench.contribution';
 
 function syncWebContentViewBounds(webContentViewHostElement: HTMLElement | null) {
-  const preview = window.electronAPI?.preview;
-  if (!preview) {
+  const webContent = window.electronAPI?.webContent;
+  if (!webContent) {
     return;
   }
 
   if (!webContentViewHostElement) {
-    preview.setVisible(false);
-    preview.setBounds(null);
+    webContent.setVisible(false);
+    webContent.setBounds(null);
     return;
   }
 
@@ -22,13 +22,13 @@ function syncWebContentViewBounds(webContentViewHostElement: HTMLElement | null)
   const height = Math.round(rect.height);
 
   if (width <= 0 || height <= 0) {
-    preview.setVisible(false);
-    preview.setBounds(null);
+    webContent.setVisible(false);
+    webContent.setBounds(null);
     return;
   }
 
-  preview.setVisible(true);
-  preview.setBounds({
+  webContent.setVisible(true);
+  webContent.setBounds({
     x: Math.round(rect.x),
     y: Math.round(rect.y),
     width,
@@ -39,8 +39,8 @@ function syncWebContentViewBounds(webContentViewHostElement: HTMLElement | null)
 export function createWorkbenchWebContentViewContribution(): Disposable | void {
   if (
     typeof window === 'undefined' ||
-    typeof window.electronAPI?.preview?.setBounds !== 'function' ||
-    typeof window.electronAPI?.preview?.setVisible !== 'function'
+    typeof window.electronAPI?.webContent?.setBounds !== 'function' ||
+    typeof window.electronAPI?.webContent?.setVisible !== 'function'
   ) {
     return;
   }

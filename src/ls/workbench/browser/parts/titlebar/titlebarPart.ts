@@ -27,8 +27,9 @@ export type TitlebarPartActions = {
   handleWindowControl: (action: TitlebarAction) => void;
   handleToggleSidebar: () => void;
   handleToggleAuxiliarySidebar: () => void;
-  handlePreviewBack: () => void;
-  handlePreviewForward: () => void;
+  handleWebContentBack: () => void;
+  handleWebContentForward: () => void;
+  handleWebContentRefresh: () => void;
   dispatchQuickAccessAction: (action: QuickAccessAction) => void;
 };
 
@@ -57,8 +58,9 @@ export function createTitlebarPartProps({
     handleWindowControl,
     handleToggleSidebar,
     handleToggleAuxiliarySidebar,
-    handlePreviewBack,
-    handlePreviewForward,
+    handleWebContentBack,
+    handleWebContentForward,
+    handleWebContentRefresh,
     dispatchQuickAccessAction,
   },
 }: CreateTitlebarPartPropsParams): TitlebarProps {
@@ -73,6 +75,7 @@ export function createTitlebarPartProps({
       closeLabel: ui.titlebarClose,
       backLabel: ui.titlebarBack,
       forwardLabel: ui.titlebarForward,
+      refreshLabel: ui.titlebarRefresh,
       showAssistantLabel: ui.titlebarShowAssistant,
       hideAssistantLabel: ui.titlebarHideAssistant,
       exportDocxLabel: ui.titlebarExportDocx,
@@ -95,8 +98,9 @@ export function createTitlebarPartProps({
     canGoBack: webContentState.canGoBack,
     canGoForward: webContentState.canGoForward,
     canExportDocx,
-    onNavigateBack: handlePreviewBack,
-    onNavigateForward: handlePreviewForward,
+    onNavigateBack: handleWebContentBack,
+    onNavigateForward: handleWebContentForward,
+    onNavigateRefresh: handleWebContentRefresh,
     ...createTitlebarQuickAccessProps({
       state: {
         ui,
