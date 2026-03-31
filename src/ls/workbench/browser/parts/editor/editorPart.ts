@@ -239,6 +239,10 @@ export class EditorPartController {
     this.writingEditorModel.createWebTab(url);
   };
 
+  readonly createPdfTab = (url: string) => {
+    this.writingEditorModel.createPdfTab(url);
+  };
+
   readonly updateActiveContentTabUrl = (url: string) => {
     this.writingEditorModel.updateActiveContentTabUrl(url);
   };

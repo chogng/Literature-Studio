@@ -90,6 +90,7 @@ import {
 import { getLocaleMessages } from '../../../language/i18n';
 import type { Article } from '../services/article/articleFetch';
 import { normalizeUrl } from '../common/url';
+import type { LibraryDocumentSummary } from '../../base/parts/sandbox/common/desktopTypes.js';
 import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
@@ -170,6 +171,34 @@ function emitWorkbenchStateChange() {
 
 function getArticleSelectionKey(article: Pick<Article, 'sourceUrl' | 'fetchedAt'>) {
   return `${article.sourceUrl}::${article.fetchedAt}`;
+}
+
+function toFileUrl(filePath: string) {
+  const normalized = filePath.trim().replace(/\\/g, '/');
+  if (!normalized) {
+    return '';
+  }
+
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    return encodeURI(`file:///${normalized}`);
+  }
+
+  return encodeURI(`file://${normalized.startsWith('/') ? normalized : `/${normalized}`}`);
+}
+
+function looksLikePdfResource(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    normalized.endsWith('.pdf') ||
+    normalized.includes('.pdf?') ||
+    normalized.includes('/pdf') ||
+    normalized.includes('format=pdf') ||
+    normalized.includes('download=pdf')
+  );
 }
 
 function buildSelectedArticleOrderLookup(
@@ -892,6 +921,7 @@ class WorkbenchHost {
       draftBody,
       createDraftTab: handleCreateDraftTab,
       createWebTab: handleCreateWebTab,
+      createPdfTab: handleCreatePdfTab,
       webContentSurfaceSnapshot,
       updateActiveContentTabUrl,
       editorPartProps,
@@ -899,6 +929,7 @@ class WorkbenchHost {
       ...editorPartSnapshot,
       createDraftTab: editorPartControllerInstance.createDraftTab,
       createWebTab: editorPartControllerInstance.createWebTab,
+      createPdfTab: editorPartControllerInstance.createPdfTab,
       updateActiveContentTabUrl:
         editorPartControllerInstance.updateActiveContentTabUrl,
     };
@@ -1013,6 +1044,23 @@ class WorkbenchHost {
       }
 
       void handleSharedPdfDownload(downloadArticle);
+    };
+
+    const handleLibraryDocumentOpen = (document: LibraryDocumentSummary) => {
+      const localFilePath = String(document.latestFilePath ?? '').trim();
+      if (localFilePath && looksLikePdfResource(localFilePath)) {
+        handleCreatePdfTab(toFileUrl(localFilePath));
+        return;
+      }
+
+      const sourceUrl = String(document.sourceUrl ?? '').trim();
+      if (sourceUrl) {
+        if (looksLikePdfResource(sourceUrl)) {
+          handleCreatePdfTab(sourceUrl);
+          return;
+        }
+        handleCreateWebTab(sourceUrl);
+      }
     };
 
     const handleWebContentBack = () => {
@@ -1269,6 +1317,7 @@ class WorkbenchHost {
       onRefreshLibrary: () => void refreshLibrary(),
       onDownloadPdf: handleSidebarPdfDownload,
       onCreateDraftTab: handleCreateDraftTab,
+      onDocumentOpen: handleLibraryDocumentOpen,
     };
 
     const auxiliarySidebarProps = createAuxiliaryBarPartProps({
