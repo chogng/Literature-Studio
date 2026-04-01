@@ -1,4 +1,5 @@
 import './prosemirrorDocument.test';
+import '../../src/ls/base/browser/ui/dropdown/tests/dropdown.test';
 import '../../src/ls/base/browser/ui/hover/tests/hover.test';
 import '../../src/ls/editor/browser/text/tests/input.test';
 import '../../src/ls/editor/browser/text/tests/editorDom.test';

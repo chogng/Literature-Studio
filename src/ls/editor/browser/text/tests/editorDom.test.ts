@@ -7,6 +7,7 @@ import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocume
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 
 let ProseMirrorEditor: typeof import('ls/editor/browser/text/editor').ProseMirrorEditor;
+let DraftEditorToolbar: typeof import('ls/editor/browser/text/toolbar').DraftEditorToolbar;
 let TextSelection: typeof import('prosemirror-state').TextSelection;
 let cleanupDomEnvironment: (() => void) | null = null;
 
@@ -45,6 +46,7 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ ProseMirrorEditor } = await import('ls/editor/browser/text/editor'));
+  ({ DraftEditorToolbar } = await import('ls/editor/browser/text/toolbar'));
   ({ TextSelection } = await import('prosemirror-state'));
 });
 
@@ -213,6 +215,128 @@ test('ProseMirrorEditor updates placeholder text without emitting a document cha
     assert.equal(placeholderAfter.getAttribute('data-placeholder'), 'Continue writing');
     assert.equal(changes.length, 0);
   }, initialDocument);
+});
+
+test('DraftEditorToolbar shows preset font labels for normalized browser font-family values', () => {
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      fontFamily: 'Times New Roman, Times, serif',
+      fontSize: null,
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: false,
+      canRedo: false,
+      availableFigureIds: [],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      clearInlineStyles: () => {},
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {},
+      undo: () => {},
+      redo: () => {},
+      insertCitation: () => {},
+      insertFigure: () => {},
+      insertFigureRef: () => {},
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const dropdownFields = toolbar.getElement().querySelectorAll('.dropdown-field');
+    const fontFamilyField = dropdownFields.item(0);
+    assert(fontFamilyField instanceof HTMLElement);
+    assert.equal(fontFamilyField.textContent, 'Times New Roman');
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('DraftEditorToolbar marks unavailable preset fonts in the dropdown', () => {
+  const originalFonts = (
+    document as Document & {
+      fonts?: {
+        check?: (font: string, text?: string) => boolean;
+      };
+    }
+  ).fonts;
+
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    value: {
+      check: (font: string) => !font.includes('"宋体"'),
+    },
+  });
+
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      fontFamily: null,
+      fontSize: null,
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: false,
+      canRedo: false,
+      availableFigureIds: [],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      clearInlineStyles: () => {},
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {},
+      undo: () => {},
+      redo: () => {},
+      insertCitation: () => {},
+      insertFigure: () => {},
+      insertFigureRef: () => {},
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const fontFamilyDropdown = toolbar.getElement().querySelector('.dropdown-wrapper');
+    assert(fontFamilyDropdown instanceof HTMLElement);
+    fontFamilyDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const menuItems = Array.from(document.body.querySelectorAll('.dropdown-menu-item'));
+    const unavailableSongti = menuItems.find((item) => item.textContent?.includes('宋体 (未安装)'));
+
+    assert(unavailableSongti instanceof HTMLElement);
+    assert.equal(unavailableSongti.classList.contains('disabled'), true);
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: originalFonts,
+    });
+  }
 });
 
 test('ProseMirrorEditor refreshes placeholder text during an external document replacement', async () => {

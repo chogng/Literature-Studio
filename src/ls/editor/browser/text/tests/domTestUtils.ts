@@ -9,7 +9,10 @@ type GlobalKey =
   | 'document'
   | 'navigator'
   | 'HTMLElement'
+  | 'HTMLDivElement'
   | 'HTMLButtonElement'
+  | 'HTMLInputElement'
+  | 'HTMLTextAreaElement'
   | 'Element'
   | 'Node'
   | 'Text'
@@ -33,7 +36,10 @@ const GLOBAL_KEYS: readonly GlobalKey[] = [
   'document',
   'navigator',
   'HTMLElement',
+  'HTMLDivElement',
   'HTMLButtonElement',
+  'HTMLInputElement',
+  'HTMLTextAreaElement',
   'Element',
   'Node',
   'Text',

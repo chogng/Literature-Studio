@@ -7,6 +7,7 @@ import {
 
 export type DropdownSize = 'sm' | 'md' | 'lg';
 export type DropdownMenuAlign = 'start' | 'center' | 'end';
+export type DropdownDomMenuLayer = 'inline' | 'portal';
 export type DropdownExternalMenuChangeSource = 'open' | 'props' | 'viewport';
 
 export type DropdownOption = {
@@ -26,6 +27,7 @@ export type DropdownProps = {
   title?: string;
   hover?: HoverInput;
   menuMode?: 'dom' | 'external';
+  domMenuLayer?: DropdownDomMenuLayer;
   menuAlign?: DropdownMenuAlign;
   onExternalMenuChange?: (request: DropdownExternalMenuRequest | null) => void;
   onChange?: (event: { target: { value: string } }) => void;
@@ -169,13 +171,18 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+let dropdownViewIdSequence = 0;
+
 export class DropdownView {
   private props: DropdownProps;
   private isOpen = false;
   private isFocused = false;
+  private activeOptionIndex = -1;
   private menuPlacement: 'top' | 'bottom' = 'bottom';
   private menuMaxHeight: number | undefined;
   private menuLeft = 0;
+  private readonly instanceId = ++dropdownViewIdSequence;
+  private readonly menuId = `dropdown-menu-${this.instanceId}`;
   private readonly element = createElement('div');
   private readonly field = createElement('div', 'dropdown-field custom-dropdown-field');
   private readonly iconWrapper = createElement('div', 'dropdown-icon-wrapper');
@@ -184,6 +191,7 @@ export class DropdownView {
   private menuView: HTMLDivElement | null = null;
   private activeExternalMenuRequest: DropdownExternalMenuRequest | null = null;
   private removeDocumentMouseDown = () => {};
+  private removeDocumentFocusIn = () => {};
   private removeViewportListeners = () => {};
   private disposed = false;
 
@@ -211,6 +219,15 @@ export class DropdownView {
       this.setOpen(false);
     } else if (this.isOpen && this.usesExternalMenu()) {
       this.emitExternalMenuChange('props');
+    } else if (
+      this.isOpen &&
+      (
+        this.activeOptionIndex < 0 ||
+        !this.props.options[this.activeOptionIndex] ||
+        this.props.options[this.activeOptionIndex]?.disabled
+      )
+    ) {
+      this.activeOptionIndex = this.getDefaultActiveOptionIndex();
     }
     this.render();
   }
@@ -280,14 +297,53 @@ export class DropdownView {
     if (this.props.disabled) {
       return;
     }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!this.isOpen) {
+        this.setOpen(true);
+        if (!this.usesExternalMenu()) {
+          this.activeOptionIndex =
+            event.key === 'ArrowUp'
+              ? this.findNextEnabledOptionIndex(this.props.options.length, -1)
+              : this.findNextEnabledOptionIndex(-1, 1);
+          this.render();
+        }
+        return;
+      }
+      if (!this.usesExternalMenu()) {
+        this.activeOptionIndex = this.findNextEnabledOptionIndex(
+          this.activeOptionIndex,
+          event.key === 'ArrowUp' ? -1 : 1,
+        );
+        this.render();
+      }
+      return;
+    }
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
+      if (this.isOpen && !this.usesExternalMenu()) {
+        this.selectActiveOption();
+        return;
+      }
       this.setOpen(!this.isOpen);
       return;
     }
     if (event.key === 'Escape') {
       event.preventDefault();
       this.setOpen(false);
+      this.element.focus();
+      return;
+    }
+    if (event.key === 'Home' && this.isOpen && !this.usesExternalMenu()) {
+      event.preventDefault();
+      this.activeOptionIndex = this.findNextEnabledOptionIndex(-1, 1);
+      this.render();
+      return;
+    }
+    if (event.key === 'End' && this.isOpen && !this.usesExternalMenu()) {
+      event.preventDefault();
+      this.activeOptionIndex = this.findNextEnabledOptionIndex(this.props.options.length, -1);
+      this.render();
     }
   };
 
@@ -305,7 +361,7 @@ export class DropdownView {
       return;
     }
 
-    if (this.usesExternalMenu() && this.isOpen) {
+    if (this.usesDetachedMenu() && this.isOpen) {
       this.props.onBlur?.(event);
       return;
     }
@@ -323,7 +379,17 @@ export class DropdownView {
     if (!(event.target instanceof Node)) {
       return;
     }
-    if (!this.element.contains(event.target)) {
+    if (!this.element.contains(event.target) && !this.menuView?.contains(event.target)) {
+      this.isFocused = false;
+      this.setOpen(false);
+    }
+  };
+
+  private readonly handleDocumentFocusIn = (event: FocusEvent) => {
+    if (!(event.target instanceof Node)) {
+      return;
+    }
+    if (!this.element.contains(event.target) && !this.menuView?.contains(event.target)) {
       this.isFocused = false;
       this.setOpen(false);
     }
@@ -346,6 +412,7 @@ export class DropdownView {
     }
 
     this.isOpen = nextOpen;
+    this.activeOptionIndex = nextOpen ? this.getDefaultActiveOptionIndex() : -1;
     if (nextOpen) {
       this.attachOpenListeners();
       if (this.usesExternalMenu()) {
@@ -353,7 +420,9 @@ export class DropdownView {
       }
     } else {
       this.detachOpenListeners();
-      this.emitExternalMenuChange();
+      if (this.usesExternalMenu()) {
+        this.emitExternalMenuChange();
+      }
     }
 
     this.props.onOpenChange?.(nextOpen);
@@ -364,12 +433,14 @@ export class DropdownView {
   }
 
   private attachOpenListeners() {
-    if (!this.usesExternalMenu()) {
-      document.addEventListener('mousedown', this.handleDocumentMouseDown);
-      this.removeDocumentMouseDown = () => {
-        document.removeEventListener('mousedown', this.handleDocumentMouseDown);
-      };
-    }
+    document.addEventListener('mousedown', this.handleDocumentMouseDown);
+    this.removeDocumentMouseDown = () => {
+      document.removeEventListener('mousedown', this.handleDocumentMouseDown);
+    };
+    document.addEventListener('focusin', this.handleDocumentFocusIn);
+    this.removeDocumentFocusIn = () => {
+      document.removeEventListener('focusin', this.handleDocumentFocusIn);
+    };
     window.addEventListener('resize', this.handleViewportChange);
     window.addEventListener('scroll', this.handleViewportChange, true);
     this.removeViewportListeners = () => {
@@ -380,8 +451,10 @@ export class DropdownView {
 
   private detachOpenListeners() {
     this.removeDocumentMouseDown();
+    this.removeDocumentFocusIn();
     this.removeViewportListeners();
     this.removeDocumentMouseDown = () => {};
+    this.removeDocumentFocusIn = () => {};
     this.removeViewportListeners = () => {};
   }
 
@@ -392,12 +465,66 @@ export class DropdownView {
       size: props.size ?? 'md',
       className: props.className ?? '',
       menuMode: props.menuMode ?? 'dom',
+      domMenuLayer: props.domMenuLayer ?? 'inline',
       menuAlign: props.menuAlign ?? 'start',
     };
   }
 
   private usesExternalMenu() {
-    return this.props.menuMode === 'external';
+    return (
+      this.props.menuMode === 'external' &&
+      typeof this.props.onExternalMenuChange === 'function'
+    );
+  }
+
+  private usesPortalDomMenu() {
+    return this.props.menuMode === 'dom' && this.props.domMenuLayer === 'portal';
+  }
+
+  private usesDetachedMenu() {
+    return this.usesPortalDomMenu() || this.usesExternalMenu();
+  }
+
+  private getMenuItemId(index: number) {
+    return `${this.menuId}-option-${index}`;
+  }
+
+  private getDefaultActiveOptionIndex() {
+    const selectedIndex = this.props.options.findIndex(
+      (option) => option.value === this.props.value && !option.disabled,
+    );
+    if (selectedIndex >= 0) {
+      return selectedIndex;
+    }
+
+    return this.findNextEnabledOptionIndex(-1, 1);
+  }
+
+  private findNextEnabledOptionIndex(startIndex: number, step: 1 | -1) {
+    const { options } = this.props;
+    if (options.length === 0) {
+      return -1;
+    }
+
+    let index = startIndex;
+    for (let attempt = 0; attempt < options.length; attempt += 1) {
+      index = (index + step + options.length) % options.length;
+      if (!options[index]?.disabled) {
+        return index;
+      }
+    }
+
+    return -1;
+  }
+
+  private selectActiveOption() {
+    const option = this.props.options[this.activeOptionIndex];
+    if (!option || option.disabled) {
+      return;
+    }
+
+    this.props.onChange?.({ target: { value: option.value } });
+    this.setOpen(false);
   }
 
   private emitExternalMenuChange(source?: DropdownExternalMenuChangeSource) {
@@ -445,6 +572,12 @@ export class DropdownView {
     const viewportPadding = 8;
     const menuOffset = 4;
     const triggerRect = this.element.getBoundingClientRect();
+    if (this.usesPortalDomMenu()) {
+      this.menuView.style.minWidth = `${triggerRect.width}px`;
+      this.menuView.style.top = '0px';
+      this.menuView.style.bottom = 'auto';
+      this.menuView.style.left = '0px';
+    }
     const menuWidth = this.menuView.offsetWidth;
     const menuHeight = this.menuView.offsetHeight;
     const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
@@ -463,33 +596,86 @@ export class DropdownView {
     this.menuPlacement = shouldOpenUpwards ? 'top' : 'bottom';
     this.menuMaxHeight = Math.max(availableSpace - menuOffset, 120);
     this.menuLeft = clamp(preferredLeft, minLeft, Math.max(minLeft, maxLeft));
-    this.renderMenu();
+    this.applyMenuLayout();
+  }
+
+  private applyMenuLayout() {
+    if (!this.menuView) {
+      return;
+    }
+
+    this.menuView.classList.toggle('dropdown-menu-top', this.menuPlacement === 'top');
+    this.menuView.classList.toggle('dropdown-menu-bottom', this.menuPlacement === 'bottom');
+
+    if (typeof this.menuMaxHeight === 'number') {
+      this.menuView.style.maxHeight = `${this.menuMaxHeight}px`;
+    } else {
+      this.menuView.style.removeProperty('max-height');
+    }
+
+    if (this.usesPortalDomMenu()) {
+      const triggerRect = this.element.getBoundingClientRect();
+      const menuOffset = 4;
+      const top =
+        this.menuPlacement === 'top'
+          ? triggerRect.top - this.menuView.offsetHeight - menuOffset
+          : triggerRect.bottom + menuOffset;
+      this.menuView.style.left = `${triggerRect.left + this.menuLeft}px`;
+      this.menuView.style.top = `${top}px`;
+      this.menuView.style.bottom = 'auto';
+      this.menuView.style.minWidth = `${triggerRect.width}px`;
+      return;
+    }
+
+    this.menuView.style.left = `${this.menuLeft}px`;
+    this.menuView.style.removeProperty('top');
+    this.menuView.style.removeProperty('bottom');
+    this.menuView.style.removeProperty('min-width');
   }
 
   private renderMenu() {
-    if (this.usesExternalMenu() || !this.isOpen) {
+    if (!this.isOpen) {
+      this.menuView?.remove();
+      this.menuView = null;
+      return;
+    }
+
+    if (this.usesExternalMenu()) {
       this.menuView?.remove();
       this.menuView = null;
       return;
     }
 
     const selectedValue = this.props.value;
-    const menu = createElement('div', `dropdown-menu dropdown-menu-${this.menuPlacement}`);
-    menu.style.left = `${this.menuLeft}px`;
-    if (typeof this.menuMaxHeight === 'number') {
-      menu.style.maxHeight = `${this.menuMaxHeight}px`;
+    const menu = createElement(
+      'div',
+      composeClassName([
+        'dropdown-menu',
+        `dropdown-menu-${this.menuPlacement}`,
+        this.usesPortalDomMenu() ? 'dropdown-menu-portal' : '',
+      ]),
+    );
+    menu.id = this.menuId;
+    menu.setAttribute('role', 'listbox');
+    if (this.usesPortalDomMenu()) {
+      menu.style.position = 'fixed';
     }
 
     menu.append(
-      ...this.props.options.map((option) => {
+      ...this.props.options.map((option, index) => {
         const item = createElement(
           'div',
           composeClassName([
             'dropdown-menu-item',
             selectedValue === option.value ? 'selected' : '',
+            this.activeOptionIndex === index ? 'hovered' : '',
             option.disabled ? 'disabled' : '',
           ]),
         );
+        item.id = this.getMenuItemId(index);
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', String(selectedValue === option.value));
+        item.setAttribute('aria-disabled', option.disabled ? 'true' : 'false');
         if (option.title) {
           item.title = option.title;
         }
@@ -510,7 +696,14 @@ export class DropdownView {
 
     this.menuView?.remove();
     this.menuView = menu;
+    if (this.usesPortalDomMenu()) {
+      document.body.append(menu);
+      this.updateMenuPosition();
+      return;
+    }
+
     this.element.append(menu);
+    this.applyMenuLayout();
   }
 
   private render() {
@@ -522,7 +715,21 @@ export class DropdownView {
       this.props.disabled ? 'dropdown-disabled' : '',
       this.props.className,
     ]);
+    this.element.setAttribute('role', 'combobox');
+    this.element.setAttribute('aria-haspopup', 'listbox');
+    this.element.setAttribute('aria-expanded', String(this.isOpen));
+    this.element.setAttribute('aria-disabled', String(Boolean(this.props.disabled)));
     this.element.tabIndex = this.props.disabled ? -1 : 0;
+    if (this.isOpen && !this.usesExternalMenu()) {
+      this.element.setAttribute('aria-controls', this.menuId);
+    } else {
+      this.element.removeAttribute('aria-controls');
+    }
+    if (this.isOpen && !this.usesExternalMenu() && this.activeOptionIndex >= 0) {
+      this.element.setAttribute('aria-activedescendant', this.getMenuItemId(this.activeOptionIndex));
+    } else {
+      this.element.removeAttribute('aria-activedescendant');
+    }
     const resolvedHover =
       this.props.hover === undefined
         ? this.props.title ?? selectedOption?.title ?? null
