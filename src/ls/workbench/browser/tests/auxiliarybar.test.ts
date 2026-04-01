@@ -106,6 +106,44 @@ test('auxiliary bar action buttons expose labels and shared hover', async () => 
   }
 });
 
+test('composer toolbar uses actionbar icon controls', () => {
+  let askCount = 0;
+  const auxiliaryBar = createAuxiliaryBar({
+    ...createProps(),
+    question: 'Explain this selection',
+    onAsk: () => {
+      askCount += 1;
+    },
+  });
+  const element = auxiliaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const toolButtons = Array.from(
+      element.querySelectorAll(
+        '.auxiliarybar-composer-actions .auxiliarybar-composer-tool-action',
+      ),
+    );
+    assert.equal(toolButtons.length, 1);
+    assert.deepEqual(
+      toolButtons.map((button) => button.getAttribute('aria-label')),
+      ['Image'],
+    );
+
+    const sendButton = element.querySelector(
+      '.auxiliarybar-composer-actions .auxiliarybar-composer-send-action',
+    );
+    assert(sendButton instanceof HTMLButtonElement);
+    assert.equal(sendButton.getAttribute('aria-label'), 'Send');
+    assert.equal(sendButton.disabled, false);
+
+    sendButton.click();
+    assert.equal(askCount, 1);
+  } finally {
+    auxiliaryBar.dispose();
+  }
+});
+
 test('horizontal scrollbar handles wheel events from the strip content', async () => {
   const host = document.createElement('div');
   const strip = document.createElement('div');

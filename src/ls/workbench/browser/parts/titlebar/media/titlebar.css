@@ -300,9 +300,6 @@
 }
 
 .titlebar-controls-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
   height: 100%;
   min-width: 0;
 }
@@ -314,7 +311,22 @@
   -webkit-app-region: no-drag;
 }
 
-.titlebar-btn.btn-base {
+.titlebar-actionbar.ls-actionbar {
+  --ls-actionbar-item-size: 26px;
+  --ls-actionbar-icon-size: 16px;
+  --ls-actionbar-gap: 4px;
+  --ls-actionbar-radius: 6px;
+  --ls-actionbar-foreground: #1f2d3a;
+  --ls-actionbar-hover-foreground: #1f2d3a;
+  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
+  --ls-actionbar-active-background: rgba(0, 0, 0, 0.1);
+  --ls-actionbar-active-foreground: #1f2d3a;
+  --ls-actionbar-focus-outline: #0a5fbf;
+  height: 100%;
+}
+
+.titlebar-btn.btn-base,
+.titlebar-btn.ls-actionbar-action {
   border: none;
   background: transparent;
   color: #1f2d3a;
@@ -327,9 +339,9 @@
   gap: 0;
 }
 
-.titlebar-btn.btn-base.btn-mode-icon {
-  --btn-icon-size: 26px;
+.titlebar-btn.ls-actionbar-action {
   align-self: center;
+  transition: none;
 }
 
 .titlebar-btn-window.btn-base.btn-mode-icon {
@@ -343,44 +355,37 @@
   transform: translateY(-1px);
 }
 
-.titlebar-btn.btn-base:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.titlebar-btn.btn-base:active {
-  background: rgba(0, 0, 0, 0.1);
-  transform: none;
-}
-
-.titlebar-btn-fetch.btn-base {
+.titlebar-btn-fetch.btn-base,
+.titlebar-btn-fetch.ls-actionbar-action {
   -webkit-app-region: no-drag;
 }
 
-.titlebar-btn-primary.btn-base {
+.titlebar-btn-primary.btn-base,
+.titlebar-btn-primary.ls-actionbar-action {
   -webkit-app-region: no-drag;
 }
 
-.titlebar-btn-auxiliary.btn-base {
+.titlebar-btn-auxiliary.btn-base,
+.titlebar-btn-auxiliary.ls-actionbar-action {
   -webkit-app-region: no-drag;
 }
 
+.titlebar-btn-nav.ls-actionbar-action:disabled,
 .titlebar-btn-nav.btn-base:disabled {
   opacity: 0.38;
+  filter: none;
 }
 
 .titlebar-nav-group {
   -webkit-app-region: no-drag;
-  display: inline-flex;
-  align-items: center;
   height: var(--titlebar-field-height);
   flex: 0 0 auto;
   align-self: center;
   padding: 0;
-  gap: 4px;
 }
 
-.titlebar-btn-refresh.btn-base.btn-mode-icon {
-  --btn-icon-size: 22px;
+.titlebar-btn-refresh.ls-actionbar-action {
+  --ls-actionbar-icon-size: 22px;
 }
 
 .titlebar-btn-close.btn-base:hover {

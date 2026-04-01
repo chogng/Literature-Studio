@@ -2,9 +2,8 @@ import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
-import { createHoverController } from 'ls/base/browser/ui/hover/hover';
+import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { LibraryView } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryView';
@@ -58,10 +57,10 @@ export class PrimaryBar {
     'div',
     'sidebar-workbench-header',
   );
-  private readonly actionsElement = createElement(
-    'div',
-    'sidebar-action-bar',
-  );
+  private readonly actionsView = createActionBarView({
+    className: 'sidebar-action-bar',
+    ariaRole: 'group',
+  });
   private readonly libraryView: LibraryView;
 
   constructor(props: PrimaryBarProps) {
@@ -77,7 +76,7 @@ export class PrimaryBar {
       onDocumentDelete: props.onDocumentDelete,
     });
     this.contentElement.append(this.headerElement, this.libraryView.getElement());
-    this.headerElement.append(this.actionsElement);
+    this.headerElement.append(this.actionsView.getElement());
     this.element.append(this.contentElement);
     this.render();
   }
@@ -102,53 +101,40 @@ export class PrimaryBar {
   }
 
   dispose() {
+    this.actionsView.dispose();
     this.libraryView.dispose();
     this.element.replaceChildren();
   }
 
   private render() {
     const { labels, isLibraryLoading } = this.props;
-    this.actionsElement.replaceChildren(
-      this.createActionButton(
-        labels.libraryAction,
-        lxIconSemanticMap.library.refresh,
-        this.props.onRefreshLibrary,
-        isLibraryLoading || !this.props.onRefreshLibrary,
-      ),
-      this.createActionButton(
-        labels.pdfDownloadAction,
-        lxIconSemanticMap.library.downloadPdf,
-        this.props.onDownloadPdf,
-        !this.props.onDownloadPdf,
-      ),
-      this.createActionButton(
-        labels.writingAction,
-        lxIconSemanticMap.library.createDraft,
-        this.props.onCreateDraftTab,
-        !this.props.onCreateDraftTab,
-      ),
-    );
-  }
-
-  private createActionButton(
-    label: string,
-    icon: LxIconName,
-    onClick: (() => void) | undefined,
-    disabled: boolean,
-  ) {
-    const button = createElement(
-      'button',
-      ['sidebar-action-btn', 'btn-base', 'btn-ghost', 'btn-mode-icon', 'btn-sm'].join(' '),
-    );
-    button.type = 'button';
-    button.append(createLxIcon(icon));
-    button.setAttribute('aria-label', label);
-    createHoverController(button, label);
-    button.disabled = disabled;
-    if (onClick) {
-      button.addEventListener('click', onClick);
-    }
-    return button;
+    this.actionsView.setProps({
+      className: 'sidebar-action-bar',
+      ariaRole: 'group',
+      items: [
+        {
+          label: labels.libraryAction,
+          content: createLxIcon(lxIconSemanticMap.library.refresh),
+          disabled: isLibraryLoading || !this.props.onRefreshLibrary,
+          buttonClassName: 'sidebar-action-btn',
+          onClick: () => this.props.onRefreshLibrary?.(),
+        },
+        {
+          label: labels.pdfDownloadAction,
+          content: createLxIcon(lxIconSemanticMap.library.downloadPdf),
+          disabled: !this.props.onDownloadPdf,
+          buttonClassName: 'sidebar-action-btn',
+          onClick: () => this.props.onDownloadPdf?.(),
+        },
+        {
+          label: labels.writingAction,
+          content: createLxIcon(lxIconSemanticMap.library.createDraft),
+          disabled: !this.props.onCreateDraftTab,
+          buttonClassName: 'sidebar-action-btn',
+          onClick: () => this.props.onCreateDraftTab?.(),
+        },
+      ],
+    });
   }
 }
 

@@ -345,38 +345,31 @@
 }
 
 .secondary-sidebar-article-card-toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
   flex-shrink: 0;
 }
 
-.secondary-sidebar-article-card-icon-btn.btn-base.btn-mode-icon {
-  --btn-icon-size: 24px;
+.secondary-sidebar-article-card-toolbar-actions.ls-actionbar {
+  --ls-actionbar-item-size: 24px;
+  --ls-actionbar-gap: 2px;
+  --ls-actionbar-radius: 2px;
+  --ls-actionbar-foreground: #4a4a4a;
+  --ls-actionbar-hover-foreground: #1f1f1f;
+  --ls-actionbar-hover-background: #e9e9e9;
+  --ls-actionbar-active-background: #dfdfdf;
+  --ls-actionbar-active-foreground: #1f1f1f;
+}
+
+.secondary-sidebar-article-card-icon-btn.ls-actionbar-action {
   border-radius: 2px;
-  color: #4a4a4a;
 }
 
-.secondary-sidebar-article-card-icon-btn.btn-base.btn-ghost:hover:not(
-    :disabled
-  ) {
-  background: #e9e9e9;
-  color: #1f1f1f;
-}
-
-.secondary-sidebar-article-card-icon-btn.btn-base.btn-ghost:active:not(
-    :disabled
-  ) {
-  background: #dfdfdf;
-}
-
-.secondary-sidebar-article-card-icon-btn.is-downloaded.btn-base {
+.secondary-sidebar-article-card-icon-btn.is-downloaded.ls-actionbar-action {
   color: #0e639c;
   background: transparent;
   border-color: transparent;
 }
 
-.secondary-sidebar-article-card-icon-btn.is-downloaded.btn-base:hover:not(
+.secondary-sidebar-article-card-icon-btn.is-downloaded.ls-actionbar-action:hover:not(
     :disabled
   ) {
   color: #1177bb;
@@ -448,16 +441,16 @@ html[lang="en"] .secondary-sidebar-empty-state {
   border-radius: 4px;
 }
 
-.secondary-sidebar-select-action.ls-actionbar-action .lx-icon {
-  width: 16px;
-  height: 16px;
-}
-
 .secondary-sidebar-action-bar {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px;
+}
+
+.secondary-sidebar-select-action.ls-actionbar-action .lx-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .secondary-sidebar-date-picker {
