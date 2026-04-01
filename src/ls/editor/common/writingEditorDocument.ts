@@ -612,7 +612,16 @@ function updateWritableTextUnitNode(
 function resolveEditedText(
   textModel: WritingEditorTextModel,
   edit: WritingEditorStableEditTarget,
-) {
+):
+  | {
+      ok: true;
+      text: string;
+    }
+  | {
+      ok: false;
+      reason: WritingEditorApplyEditFailureReason;
+      message: string;
+    } {
   const currentText = textModel.getValue();
   if (edit.expectedText !== undefined && edit.expectedText !== currentText) {
     return {
@@ -723,11 +732,13 @@ export function applyWritingEditorEdit(
     };
   }
 
+  const nextText = resolvedEdit.text;
+
   return {
     ok: true,
     blockId: edit.blockId,
-    text: resolvedEdit.text,
-    document: updateWritableTextUnitNode(normalizedDocument, edit.blockId, resolvedEdit.text),
+    text: nextText,
+    document: updateWritableTextUnitNode(normalizedDocument, edit.blockId, nextText),
   };
 }
 
@@ -767,18 +778,6 @@ export function getWritingEditorTextUnitByBlockId(
   return createWritingEditorDocumentModel(document)
     .getTextModel(blockId)
     ?.toJSON() ?? null;
-}
-
-function requireWritingEditorTextUnit(
-  document: WritingEditorDocument,
-  blockId: string,
-) {
-  const textUnit = getWritingEditorTextUnitByBlockId(document, blockId);
-  if (!textUnit) {
-    throw new Error(`Unknown writing editor blockId "${blockId}".`);
-  }
-
-  return textUnit;
 }
 
 function getLineMaxColumn(line: WritingEditorLogicalLine) {

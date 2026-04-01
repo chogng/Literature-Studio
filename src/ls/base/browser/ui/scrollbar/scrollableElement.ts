@@ -1,7 +1,8 @@
 import { ScrollbarVisibility, resolveScrollableElementOptions } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
 import type { ScrollableElementChangeOptions, ScrollableElementCreationOptions, ScrollableElementResolvedOptions } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
+import { HorizontalScrollbarState, VerticalScrollbarState } from 'ls/base/browser/ui/scrollbar/scrollbarState';
 
-import 'ls/base/browser/ui/scrollbar/media/scrollbars.css';
+import 'ls/base/browser/ui/scrollbar/media/verticalScrollbar.css';
 
 export interface IScrollDimensions {
   width: number;
@@ -65,6 +66,8 @@ export class AbstractScrollableElement {
   private readonly onWillScrollEmitter = new Emitter<ScrollEvent>();
   private readonly resizeObserver?: ResizeObserver;
   private readonly mutationObserver?: MutationObserver;
+  private readonly horizontalScrollbarState: HorizontalScrollbarState;
+  private readonly verticalScrollbarState: VerticalScrollbarState;
   private scrollDimensions: IScrollDimensions;
   private scrollPosition: IScrollPosition;
 
@@ -92,6 +95,31 @@ export class AbstractScrollableElement {
       scrollLeft: this.element.scrollLeft,
       scrollTop: this.element.scrollTop,
     };
+    this.horizontalScrollbarState = new HorizontalScrollbarState({
+      arrowSize: 0,
+      scrollbarSize:
+        this.options.horizontal === ScrollbarVisibility.Hidden
+          ? 0
+          : this.options.horizontalScrollbarSize,
+      oppositeScrollbarSize:
+        this.options.vertical === ScrollbarVisibility.Hidden
+          ? 0
+          : this.options.verticalScrollbarSize,
+      visibleSize: this.scrollDimensions.width,
+      scrollSize: this.scrollDimensions.scrollWidth,
+      scrollPosition: this.scrollPosition.scrollLeft,
+    });
+    this.verticalScrollbarState = new VerticalScrollbarState({
+      arrowSize: 0,
+      scrollbarSize:
+        this.options.vertical === ScrollbarVisibility.Hidden
+          ? 0
+          : this.options.verticalScrollbarSize,
+      oppositeScrollbarSize: 0,
+      visibleSize: this.scrollDimensions.height,
+      scrollSize: this.scrollDimensions.scrollHeight,
+      scrollPosition: this.scrollPosition.scrollTop,
+    });
 
     this.applyOptions();
 
@@ -150,6 +178,14 @@ export class AbstractScrollableElement {
     return { ...this.scrollDimensions };
   }
 
+  getHorizontalScrollbarState() {
+    return this.horizontalScrollbarState;
+  }
+
+  getVerticalScrollbarState() {
+    return this.verticalScrollbarState;
+  }
+
   setScrollDimensions(update: INewScrollDimensions) {
     this.scrollDimensions = {
       width: update.width ?? this.element.clientWidth,
@@ -157,6 +193,14 @@ export class AbstractScrollableElement {
       scrollWidth: update.scrollWidth ?? this.element.scrollWidth,
       scrollHeight: update.scrollHeight ?? this.element.scrollHeight,
     };
+    this.horizontalScrollbarState.setDimensions(
+      this.scrollDimensions.width,
+      this.scrollDimensions.scrollWidth,
+    );
+    this.verticalScrollbarState.setDimensions(
+      this.scrollDimensions.height,
+      this.scrollDimensions.scrollHeight,
+    );
     this.refreshDomState();
   }
 
@@ -253,6 +297,22 @@ export class AbstractScrollableElement {
       '--scrollbar-size-horizontal',
       `${this.options.horizontalScrollbarSize}px`,
     );
+    this.horizontalScrollbarState.setScrollbarSize(
+      this.options.horizontal === ScrollbarVisibility.Hidden
+        ? 0
+        : this.options.horizontalScrollbarSize,
+    );
+    this.horizontalScrollbarState.setOppositeScrollbarSize(
+      this.options.vertical === ScrollbarVisibility.Hidden
+        ? 0
+        : this.options.verticalScrollbarSize,
+    );
+    this.verticalScrollbarState.setScrollbarSize(
+      this.options.vertical === ScrollbarVisibility.Hidden
+        ? 0
+        : this.options.verticalScrollbarSize,
+    );
+    this.verticalScrollbarState.setOppositeScrollbarSize(0);
   }
 
   private captureState() {
@@ -266,16 +326,22 @@ export class AbstractScrollableElement {
       scrollWidth: this.element.scrollWidth,
       scrollHeight: this.element.scrollHeight,
     };
+    this.horizontalScrollbarState.setDimensions(
+      this.scrollDimensions.width,
+      this.scrollDimensions.scrollWidth,
+    );
+    this.horizontalScrollbarState.setScrollLeft(this.scrollPosition.scrollLeft);
+    this.verticalScrollbarState.setDimensions(
+      this.scrollDimensions.height,
+      this.scrollDimensions.scrollHeight,
+    );
+    this.verticalScrollbarState.setScrollTop(this.scrollPosition.scrollTop);
     this.refreshDomState();
   }
 
   private refreshDomState() {
-    const needsVertical =
-      this.options.vertical !== ScrollbarVisibility.Hidden &&
-      this.scrollDimensions.scrollHeight > this.scrollDimensions.height + 1;
-    const needsHorizontal =
-      this.options.horizontal !== ScrollbarVisibility.Hidden &&
-      this.scrollDimensions.scrollWidth > this.scrollDimensions.width + 1;
+    const needsVertical = this.verticalScrollbarState.isNeeded();
+    const needsHorizontal = this.horizontalScrollbarState.isNeeded();
 
     this.domNode.classList.toggle(
       'is-scrollbar-needed',

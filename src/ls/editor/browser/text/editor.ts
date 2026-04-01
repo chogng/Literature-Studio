@@ -9,7 +9,7 @@ import { dropCursor } from 'prosemirror-dropcursor';
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
 import { createDraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
 import type { DraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
-import { getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setParagraphCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, undoCommand } from 'ls/editor/browser/text/commands';
+import { clearFontFamilyCommand, clearFontSizeCommand, clearInlineStylesCommand, getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setFontFamilyCommand, setFontSizeCommand, setParagraphCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, undoCommand } from 'ls/editor/browser/text/commands';
 import type { InsertFigurePayload, WritingEditorCommand, WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
 import { collectWritingEditorDerivedLabels, createWritingEditorDocumentModel, findWritingEditorNodeByBlockId, getWritingEditorNodeText, getWritingEditorTextUnitKind, isWritingEditorPlainTextEditableNode, normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument, WritingEditorStableSelectionTarget, WritingEditorTextUnitKind } from 'ls/editor/common/writingEditorDocument';
@@ -39,6 +39,10 @@ export type WritingEditorSurfaceLabels = {
   heading3: string;
   bold: string;
   italic: string;
+  fontFamily: string;
+  fontSize: string;
+  defaultTextStyle: string;
+  clearInlineStyles: string;
   bulletList: string;
   orderedList: string;
   blockquote: string;
@@ -51,6 +55,8 @@ export type WritingEditorSurfaceLabels = {
   figureUrlPrompt: string;
   figureCaptionPrompt: string;
   figureRefPrompt: string;
+  fontFamilyPrompt: string;
+  fontSizePrompt: string;
 };
 
 export type WritingEditorSurfaceHandle = {
@@ -95,6 +101,8 @@ const EMPTY_TOOLBAR_STATE: WritingEditorToolbarState = {
   activeHeadingLevel: null,
   isBoldActive: false,
   isItalicActive: false,
+  fontFamily: null,
+  fontSize: null,
   isBulletListActive: false,
   isOrderedListActive: false,
   isBlockquoteActive: false,
@@ -210,6 +218,10 @@ function areSurfaceLabelsEqual(
     previous.heading3 === next.heading3 &&
     previous.bold === next.bold &&
     previous.italic === next.italic &&
+    previous.fontFamily === next.fontFamily &&
+    previous.fontSize === next.fontSize &&
+    previous.defaultTextStyle === next.defaultTextStyle &&
+    previous.clearInlineStyles === next.clearInlineStyles &&
     previous.bulletList === next.bulletList &&
     previous.orderedList === next.orderedList &&
     previous.blockquote === next.blockquote &&
@@ -221,7 +233,9 @@ function areSurfaceLabelsEqual(
     previous.citationPrompt === next.citationPrompt &&
     previous.figureUrlPrompt === next.figureUrlPrompt &&
     previous.figureCaptionPrompt === next.figureCaptionPrompt &&
-    previous.figureRefPrompt === next.figureRefPrompt
+    previous.figureRefPrompt === next.figureRefPrompt &&
+    previous.fontFamilyPrompt === next.fontFamilyPrompt &&
+    previous.fontSizePrompt === next.fontSizePrompt
   );
 }
 
@@ -299,6 +313,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   dispose() {
     this.inputSession.dispose();
     this.destroyView();
+    this.toolbar.dispose();
     this.scrollableElement.dispose();
     this.element.replaceChildren();
   }
@@ -397,6 +412,11 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   toggleHeading = (level: number) => this.runCommand(toggleHeadingCommand(level));
   toggleBold = () => this.runCommand(toggleBoldCommand());
   toggleItalic = () => this.runCommand(toggleItalicCommand());
+  setFontFamily = (fontFamily: string | null) =>
+    this.runCommand(fontFamily ? setFontFamilyCommand(fontFamily) : clearFontFamilyCommand());
+  setFontSize = (fontSize: string | null) =>
+    this.runCommand(fontSize ? setFontSizeCommand(fontSize) : clearFontSizeCommand());
+  clearInlineStyles = () => this.runCommand(clearInlineStylesCommand());
   toggleBulletList = () => this.runCommand(toggleBulletListCommand());
   toggleOrderedList = () => this.runCommand(toggleOrderedListCommand());
   toggleBlockquote = () => this.runCommand(toggleBlockquoteCommand());
@@ -441,6 +461,9 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
         toggleHeading: this.toggleHeading,
         toggleBold: this.toggleBold,
         toggleItalic: this.toggleItalic,
+        setFontFamily: this.setFontFamily,
+        setFontSize: this.setFontSize,
+        clearInlineStyles: this.clearInlineStyles,
         toggleBulletList: this.toggleBulletList,
         toggleOrderedList: this.toggleOrderedList,
         toggleBlockquote: this.toggleBlockquote,

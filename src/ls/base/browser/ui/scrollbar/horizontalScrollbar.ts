@@ -1,13 +1,17 @@
+import 'ls/base/browser/ui/scrollbar/media/horizontalScrollbar.css';
+import { HorizontalScrollbarState } from 'ls/base/browser/ui/scrollbar/scrollbarState';
+
 const MIN_THUMB_SIZE = 24;
 const ACTIVE_CLASS_TIMEOUT = 900;
+const WHEEL_LINE_SIZE = 16;
 
-type AuxiliaryBarTabStripScrollbarOptions = {
+export type HorizontalScrollbarOptions = {
   activeItem?: HTMLElement | null;
   initialScrollLeft?: number;
   onScrollLeftChange?: (scrollLeft: number) => void;
 };
 
-export class AuxiliaryBarTabStripScrollbar {
+export class HorizontalScrollbar {
   private readonly host: HTMLElement;
   private readonly strip: HTMLElement;
   private readonly track: HTMLElement;
@@ -15,20 +19,19 @@ export class AuxiliaryBarTabStripScrollbar {
   private readonly activeItem: HTMLElement | null;
   private readonly onScrollLeftChange?: (scrollLeft: number) => void;
   private readonly resizeObserver?: ResizeObserver;
+  private readonly scrollbarState: HorizontalScrollbarState;
   private activeClassTimeout: number | null = null;
   private animationFrame: number | null = null;
   private dragPointerId: number | null = null;
   private dragStartClientX = 0;
   private dragStartScrollLeft = 0;
-  private thumbSize = MIN_THUMB_SIZE;
-  private maxThumbOffset = 0;
 
   constructor(
     host: HTMLElement,
     strip: HTMLElement,
     track: HTMLElement,
     thumb: HTMLElement,
-    options: AuxiliaryBarTabStripScrollbarOptions = {},
+    options: HorizontalScrollbarOptions = {},
   ) {
     this.host = host;
     this.strip = strip;
@@ -36,14 +39,33 @@ export class AuxiliaryBarTabStripScrollbar {
     this.thumb = thumb;
     this.activeItem = options.activeItem ?? null;
     this.onScrollLeftChange = options.onScrollLeftChange;
+    this.scrollbarState = new HorizontalScrollbarState({
+      arrowSize: 0,
+      scrollbarSize: this.track.clientHeight,
+      oppositeScrollbarSize: 0,
+      visibleSize: this.strip.clientWidth,
+      scrollSize: this.strip.scrollWidth,
+      scrollPosition: this.strip.scrollLeft,
+    });
 
-    if (typeof options.initialScrollLeft === 'number' && options.initialScrollLeft > 0) {
+    if (
+      typeof options.initialScrollLeft === 'number' &&
+      options.initialScrollLeft > 0
+    ) {
       this.strip.scrollLeft = options.initialScrollLeft;
     }
 
     this.track.addEventListener('pointerdown', this.handleTrackPointerDown);
     this.thumb.addEventListener('pointerdown', this.handleThumbPointerDown);
-    this.strip.addEventListener('scroll', this.handleStripScroll, { passive: true });
+    this.track.addEventListener('wheel', this.handleScrollbarWheel, {
+      passive: false,
+    });
+    this.thumb.addEventListener('wheel', this.handleScrollbarWheel, {
+      passive: false,
+    });
+    this.strip.addEventListener('scroll', this.handleStripScroll, {
+      passive: true,
+    });
 
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => {
@@ -74,7 +96,17 @@ export class AuxiliaryBarTabStripScrollbar {
 
     this.track.removeEventListener('pointerdown', this.handleTrackPointerDown);
     this.thumb.removeEventListener('pointerdown', this.handleThumbPointerDown);
+    this.track.removeEventListener('wheel', this.handleScrollbarWheel);
+    this.thumb.removeEventListener('wheel', this.handleScrollbarWheel);
     this.strip.removeEventListener('scroll', this.handleStripScroll);
+  }
+
+  renderNow() {
+    if (this.animationFrame !== null) {
+      window.cancelAnimationFrame(this.animationFrame);
+      this.animationFrame = null;
+    }
+    this.render();
   }
 
   private readonly scheduleInitialLayout = () => {
@@ -101,7 +133,11 @@ export class AuxiliaryBarTabStripScrollbar {
     const maxScrollLeft = Math.max(0, scrollWidth - visibleWidth);
     const trackWidth = this.track.clientWidth;
     const isScrollable = visibleWidth > 0 && trackWidth > 0 && maxScrollLeft > 0;
+    this.scrollbarState.setScrollbarSize(this.track.clientHeight);
+    this.scrollbarState.setDimensions(trackWidth, scrollWidth);
+    this.scrollbarState.setScrollLeft(this.strip.scrollLeft);
 
+    this.host.classList.toggle('horizontal-scrollbar-host', true);
     this.host.classList.toggle('is-scrollable', isScrollable);
     if (!isScrollable) {
       this.thumb.style.width = '0px';
@@ -112,18 +148,10 @@ export class AuxiliaryBarTabStripScrollbar {
       return;
     }
 
-    this.thumbSize = Math.max(
-      MIN_THUMB_SIZE,
-      Math.round((visibleWidth / scrollWidth) * trackWidth),
-    );
-    this.maxThumbOffset = Math.max(0, trackWidth - this.thumbSize);
+    const thumbSize = Math.max(MIN_THUMB_SIZE, this.scrollbarState.getSliderSize());
+    const thumbOffset = this.scrollbarState.getSliderPosition();
 
-    const thumbOffset =
-      maxScrollLeft === 0
-        ? 0
-        : Math.round((this.strip.scrollLeft / maxScrollLeft) * this.maxThumbOffset);
-
-    this.thumb.style.width = `${this.thumbSize}px`;
+    this.thumb.style.width = `${thumbSize}px`;
     this.thumb.style.transform = `translate3d(${thumbOffset}px, 0, 0)`;
     this.emitScrollLeft();
   }
@@ -148,14 +176,20 @@ export class AuxiliaryBarTabStripScrollbar {
   };
 
   private readonly handleTrackPointerDown = (event: PointerEvent) => {
-    if (event.button !== 0 || event.target !== this.track || !this.host.classList.contains('is-scrollable')) {
+    if (
+      event.button !== 0 ||
+      event.target !== this.track ||
+      !this.host.classList.contains('is-scrollable')
+    ) {
       return;
     }
 
     event.preventDefault();
     const trackRect = this.track.getBoundingClientRect();
-    const targetOffset = event.clientX - trackRect.left - this.thumbSize / 2;
-    this.setScrollLeftFromThumbOffset(targetOffset);
+    const targetOffset = event.clientX - trackRect.left;
+    this.strip.scrollLeft =
+      this.scrollbarState.getDesiredScrollPositionFromOffset(targetOffset);
+    this.scheduleRender();
     this.showScrollbarTemporarily();
   };
 
@@ -182,16 +216,15 @@ export class AuxiliaryBarTabStripScrollbar {
       return;
     }
 
-    const maxScrollLeft = Math.max(0, this.strip.scrollWidth - this.strip.clientWidth);
-    if (maxScrollLeft <= 0 || this.maxThumbOffset <= 0) {
+    if (!this.scrollbarState.isNeeded()) {
       return;
     }
 
     const deltaX = event.clientX - this.dragStartClientX;
-    const nextScrollLeft =
-      this.dragStartScrollLeft + (deltaX / this.maxThumbOffset) * maxScrollLeft;
-
-    this.strip.scrollLeft = nextScrollLeft;
+    this.strip.scrollLeft = this.dragStartScrollLeft;
+    this.scrollbarState.setScrollLeft(this.dragStartScrollLeft);
+    this.strip.scrollLeft =
+      this.scrollbarState.getDesiredScrollPositionFromDelta(deltaX);
     this.scheduleRender();
   };
 
@@ -215,15 +248,38 @@ export class AuxiliaryBarTabStripScrollbar {
     this.host.classList.remove('is-scrollbar-dragging');
   }
 
-  private setScrollLeftFromThumbOffset(offset: number) {
-    const maxScrollLeft = Math.max(0, this.strip.scrollWidth - this.strip.clientWidth);
-    if (maxScrollLeft <= 0 || this.maxThumbOffset <= 0) {
+  private readonly handleScrollbarWheel = (event: WheelEvent) => {
+    if (!this.host.classList.contains('is-scrollable')) {
       return;
     }
 
-    const clampedOffset = Math.min(Math.max(0, offset), this.maxThumbOffset);
-    this.strip.scrollLeft = (clampedOffset / this.maxThumbOffset) * maxScrollLeft;
+    const wheelDelta = this.getHorizontalWheelDelta(event);
+    if (wheelDelta === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    this.strip.scrollLeft += wheelDelta;
     this.scheduleRender();
+    this.showScrollbarTemporarily();
+  };
+
+  private getHorizontalWheelDelta(event: WheelEvent) {
+    const rawDelta =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (rawDelta === 0) {
+      return 0;
+    }
+
+    if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+      return rawDelta * WHEEL_LINE_SIZE;
+    }
+
+    if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+      return rawDelta * this.strip.clientWidth;
+    }
+
+    return rawDelta;
   }
 
   private showScrollbarTemporarily() {
@@ -251,4 +307,4 @@ export class AuxiliaryBarTabStripScrollbar {
   }
 }
 
-export default AuxiliaryBarTabStripScrollbar;
+export default HorizontalScrollbar;

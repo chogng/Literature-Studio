@@ -117,6 +117,21 @@
   letter-spacing: 0.02em;
 }
 
+.pm-toolbar-dropdown.dropdown-wrapper {
+  min-width: 88px;
+  max-width: 140px;
+}
+
+.pm-toolbar-dropdown .dropdown-field {
+  overflow: hidden;
+  font:
+    500 11px/1.2 "IBM Plex Sans",
+    "Noto Sans SC",
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pm-editor-host {
   display: flex;
   flex-direction: column;

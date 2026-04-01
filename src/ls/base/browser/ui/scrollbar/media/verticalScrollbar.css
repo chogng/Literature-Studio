@@ -30,6 +30,9 @@
 
 .monaco-scrollable-element.scrollbar-visibility-hidden .scrollable-content::-webkit-scrollbar {
   width: 0;
+}
+
+.monaco-scrollable-element.scrollbar-visibility-hidden .scrollable-content::-webkit-scrollbar:horizontal {
   height: 0;
 }
 
@@ -41,31 +44,30 @@
     transparent;
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar {
+.monaco-scrollable-element .scrollable-content::-webkit-scrollbar:vertical {
   width: var(--scrollbar-size-vertical, 10px);
-  height: var(--scrollbar-size-horizontal, 10px);
 }
 
 .monaco-scrollable-element .scrollable-content::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-track {
+.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-track:vertical {
   background: transparent;
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb {
+.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb:vertical {
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
   background: var(--vscode-scrollbarSlider-background, rgba(96, 125, 139, 0.55));
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb:hover {
+.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb:vertical:hover {
   background: var(--vscode-scrollbarSlider-hoverBackground, rgba(76, 107, 122, 0.72));
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb:active {
+.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb:vertical:active {
   background: var(--vscode-scrollbarSlider-activeBackground, rgba(58, 87, 102, 0.88));
 }
 

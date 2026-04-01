@@ -8,7 +8,7 @@ import { lift, setBlockType, toggleMark, wrapIn } from 'prosemirror-commands';
 import { liftListItem, wrapInList } from 'prosemirror-schema-list';
 import type { EditorView } from 'prosemirror-view';
 import { createEditorNodeId, writingEditorSchema } from 'ls/editor/browser/text/schema';
-import type { CitationNodeAttrs } from 'ls/editor/browser/text/schema';
+import type { CitationNodeAttrs, TextStyleMarkAttrs } from 'ls/editor/browser/text/schema';
 
 export type WritingEditorCommand = Command;
 
@@ -17,6 +17,8 @@ export type WritingEditorToolbarState = {
   activeHeadingLevel: number | null;
   isBoldActive: boolean;
   isItalicActive: boolean;
+  fontFamily: string | null;
+  fontSize: string | null;
   isBulletListActive: boolean;
   isOrderedListActive: boolean;
   isBlockquoteActive: boolean;
@@ -71,6 +73,94 @@ function isMarkActive(state: EditorState, markName: 'strong' | 'em') {
   }
 
   return state.doc.rangeHasMark(from, to, markType);
+}
+
+function normalizeTextStyleValue(value: string | null | undefined) {
+  const normalized = value?.trim() ?? '';
+  return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeTextStyleAttrs(
+  attrs: Partial<TextStyleMarkAttrs>,
+): TextStyleMarkAttrs {
+  return {
+    fontFamily: normalizeTextStyleValue(attrs.fontFamily),
+    fontSize: normalizeTextStyleValue(attrs.fontSize),
+  };
+}
+
+function isTextStyleEmpty(attrs: TextStyleMarkAttrs) {
+  return !attrs.fontFamily && !attrs.fontSize;
+}
+
+function readTextStyleFromMarks(
+  marks: readonly { type: { name: string }; attrs: Record<string, unknown> }[],
+) {
+  const textStyleMark = marks.find((mark) => mark.type.name === 'text_style');
+  if (!textStyleMark) {
+    return null;
+  }
+
+  return normalizeTextStyleAttrs({
+    fontFamily: typeof textStyleMark.attrs.fontFamily === 'string'
+      ? textStyleMark.attrs.fontFamily
+      : null,
+    fontSize: typeof textStyleMark.attrs.fontSize === 'string'
+      ? textStyleMark.attrs.fontSize
+      : null,
+  });
+}
+
+function getStoredTextStyle(state: EditorState) {
+  return readTextStyleFromMarks(state.storedMarks ?? state.selection.$from.marks());
+}
+
+function getSelectionTextStyle(state: EditorState) {
+  if (state.selection.empty) {
+    return getStoredTextStyle(state);
+  }
+
+  let resolvedStyle: TextStyleMarkAttrs | null = null;
+  let sawText = false;
+
+  state.doc.nodesBetween(state.selection.from, state.selection.to, (node) => {
+    if (!node.isText) {
+      return;
+    }
+
+    sawText = true;
+    const currentStyle = readTextStyleFromMarks(node.marks) ?? {
+      fontFamily: null,
+      fontSize: null,
+    };
+    if (!resolvedStyle) {
+      resolvedStyle = currentStyle;
+      return;
+    }
+
+    resolvedStyle = {
+      fontFamily:
+        resolvedStyle.fontFamily === currentStyle.fontFamily ? resolvedStyle.fontFamily : null,
+      fontSize:
+        resolvedStyle.fontSize === currentStyle.fontSize ? resolvedStyle.fontSize : null,
+    };
+  });
+
+  if (!sawText) {
+    return getStoredTextStyle(state);
+  }
+
+  return resolvedStyle;
+}
+
+function getMergedTextStyleAttrs(
+  state: EditorState,
+  attrs: Partial<TextStyleMarkAttrs>,
+) {
+  return normalizeTextStyleAttrs({
+    ...getSelectionTextStyle(state),
+    ...attrs,
+  });
 }
 
 function createInlineNodesFromText(text: string) {
@@ -132,6 +222,10 @@ export function getAvailableFigureIds(state: EditorState) {
 
 export function getWritingEditorToolbarState(state: EditorState): WritingEditorToolbarState {
   const activeTextblock = getActiveTextblock(state);
+  const textStyle = getSelectionTextStyle(state) ?? {
+    fontFamily: null,
+    fontSize: null,
+  };
 
   return {
     isParagraphActive: activeTextblock.type.name === 'paragraph',
@@ -139,6 +233,8 @@ export function getWritingEditorToolbarState(state: EditorState): WritingEditorT
       activeTextblock.type.name === 'heading' ? Number(activeTextblock.attrs.level) || 1 : null,
     isBoldActive: isMarkActive(state, 'strong'),
     isItalicActive: isMarkActive(state, 'em'),
+    fontFamily: textStyle.fontFamily,
+    fontSize: textStyle.fontSize,
     isBulletListActive: isAncestorActive(state, 'bullet_list'),
     isOrderedListActive: isAncestorActive(state, 'ordered_list'),
     isBlockquoteActive: isAncestorActive(state, 'blockquote'),
@@ -200,6 +296,100 @@ export function toggleBoldCommand(): WritingEditorCommand {
 
 export function toggleItalicCommand(): WritingEditorCommand {
   return toggleMark(writingEditorSchema.marks.em);
+}
+
+export function setTextStyleCommand(
+  attrs: Partial<TextStyleMarkAttrs>,
+): WritingEditorCommand {
+  return (state, dispatch) => {
+    const markType = writingEditorSchema.marks.text_style;
+    const nextAttrs = getMergedTextStyleAttrs(state, attrs);
+    if (!dispatch) {
+      return true;
+    }
+
+    let transaction = state.tr;
+
+    if (state.selection.empty) {
+      transaction = transaction.removeStoredMark(markType);
+      if (!isTextStyleEmpty(nextAttrs)) {
+        transaction = transaction.addStoredMark(markType.create(nextAttrs));
+      }
+
+      dispatch(transaction);
+      return true;
+    }
+
+    for (const range of state.selection.ranges) {
+      transaction = transaction.removeMark(range.$from.pos, range.$to.pos, markType);
+      if (!isTextStyleEmpty(nextAttrs)) {
+        transaction = transaction.addMark(
+          range.$from.pos,
+          range.$to.pos,
+          markType.create(nextAttrs),
+        );
+      }
+    }
+
+    dispatch(transaction.scrollIntoView());
+    return true;
+  };
+}
+
+export function setFontFamilyCommand(fontFamily: string): WritingEditorCommand {
+  return setTextStyleCommand({
+    fontFamily,
+  });
+}
+
+export function clearFontFamilyCommand(): WritingEditorCommand {
+  return setTextStyleCommand({
+    fontFamily: null,
+  });
+}
+
+export function setFontSizeCommand(fontSize: string): WritingEditorCommand {
+  return setTextStyleCommand({
+    fontSize,
+  });
+}
+
+export function clearFontSizeCommand(): WritingEditorCommand {
+  return setTextStyleCommand({
+    fontSize: null,
+  });
+}
+
+export function clearInlineStylesCommand(): WritingEditorCommand {
+  return (state, dispatch) => {
+    if (!dispatch) {
+      return true;
+    }
+
+    const strongMark = writingEditorSchema.marks.strong;
+    const emMark = writingEditorSchema.marks.em;
+    const textStyleMark = writingEditorSchema.marks.text_style;
+    let transaction = state.tr;
+
+    if (state.selection.empty) {
+      transaction = transaction
+        .removeStoredMark(strongMark)
+        .removeStoredMark(emMark)
+        .removeStoredMark(textStyleMark);
+      dispatch(transaction);
+      return true;
+    }
+
+    for (const range of state.selection.ranges) {
+      transaction = transaction
+        .removeMark(range.$from.pos, range.$to.pos, strongMark)
+        .removeMark(range.$from.pos, range.$to.pos, emMark)
+        .removeMark(range.$from.pos, range.$to.pos, textStyleMark);
+    }
+
+    dispatch(transaction.scrollIntoView());
+    return true;
+  };
 }
 
 export function undoCommand(): WritingEditorCommand {
