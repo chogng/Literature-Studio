@@ -17,8 +17,10 @@ export type WritingEditorToolbarState = {
   activeHeadingLevel: number | null;
   isBoldActive: boolean;
   isItalicActive: boolean;
+  isUnderlineActive: boolean;
   fontFamily: string | null;
   fontSize: string | null;
+  textAlign: 'left' | 'center' | 'right';
   isBulletListActive: boolean;
   isOrderedListActive: boolean;
   isBlockquoteActive: boolean;
@@ -61,7 +63,7 @@ function getActiveTextblock(state: EditorState) {
   return $from.parent;
 }
 
-function isMarkActive(state: EditorState, markName: 'strong' | 'em') {
+function isMarkActive(state: EditorState, markName: 'strong' | 'em' | 'underline') {
   const markType = writingEditorSchema.marks[markName];
   if (!markType) {
     return false;
@@ -233,8 +235,13 @@ export function getWritingEditorToolbarState(state: EditorState): WritingEditorT
       activeTextblock.type.name === 'heading' ? Number(activeTextblock.attrs.level) || 1 : null,
     isBoldActive: isMarkActive(state, 'strong'),
     isItalicActive: isMarkActive(state, 'em'),
+    isUnderlineActive: isMarkActive(state, 'underline'),
     fontFamily: textStyle.fontFamily,
     fontSize: textStyle.fontSize,
+    textAlign:
+      activeTextblock.attrs.textAlign === 'center' || activeTextblock.attrs.textAlign === 'right'
+        ? activeTextblock.attrs.textAlign
+        : 'left',
     isBulletListActive: isAncestorActive(state, 'bullet_list'),
     isOrderedListActive: isAncestorActive(state, 'ordered_list'),
     isBlockquoteActive: isAncestorActive(state, 'blockquote'),
@@ -296,6 +303,56 @@ export function toggleBoldCommand(): WritingEditorCommand {
 
 export function toggleItalicCommand(): WritingEditorCommand {
   return toggleMark(writingEditorSchema.marks.em);
+}
+
+export function toggleUnderlineCommand(): WritingEditorCommand {
+  return toggleMark(writingEditorSchema.marks.underline);
+}
+
+export function setTextAlignCommand(
+  textAlign: 'left' | 'center' | 'right',
+): WritingEditorCommand {
+  return (state, dispatch) => {
+    const textblockPositions = new Map<number, ProseMirrorNode>();
+
+    for (const range of state.selection.ranges) {
+      state.doc.nodesBetween(range.$from.pos, range.$to.pos, (node, pos) => {
+        if (node.isTextblock && (node.type.name === 'paragraph' || node.type.name === 'heading')) {
+          textblockPositions.set(pos, node);
+        }
+      });
+    }
+
+    if (textblockPositions.size === 0) {
+      const { $from } = state.selection;
+      for (let depth = $from.depth; depth >= 0; depth -= 1) {
+        const node = $from.node(depth);
+        if (node.isTextblock && (node.type.name === 'paragraph' || node.type.name === 'heading')) {
+          textblockPositions.set($from.before(depth), node);
+          break;
+        }
+      }
+    }
+
+    if (textblockPositions.size === 0) {
+      return false;
+    }
+
+    if (!dispatch) {
+      return true;
+    }
+
+    let transaction = state.tr;
+    for (const [pos, node] of textblockPositions.entries()) {
+      transaction = transaction.setNodeMarkup(pos, node.type, {
+        ...node.attrs,
+        textAlign: textAlign === 'left' ? null : textAlign,
+      });
+    }
+
+    dispatch(transaction.scrollIntoView());
+    return true;
+  };
 }
 
 export function setTextStyleCommand(
@@ -369,12 +426,14 @@ export function clearInlineStylesCommand(): WritingEditorCommand {
     const strongMark = writingEditorSchema.marks.strong;
     const emMark = writingEditorSchema.marks.em;
     const textStyleMark = writingEditorSchema.marks.text_style;
+    const underlineMark = writingEditorSchema.marks.underline;
     let transaction = state.tr;
 
     if (state.selection.empty) {
       transaction = transaction
         .removeStoredMark(strongMark)
         .removeStoredMark(emMark)
+        .removeStoredMark(underlineMark)
         .removeStoredMark(textStyleMark);
       dispatch(transaction);
       return true;
@@ -384,6 +443,7 @@ export function clearInlineStylesCommand(): WritingEditorCommand {
       transaction = transaction
         .removeMark(range.$from.pos, range.$to.pos, strongMark)
         .removeMark(range.$from.pos, range.$to.pos, emMark)
+        .removeMark(range.$from.pos, range.$to.pos, underlineMark)
         .removeMark(range.$from.pos, range.$to.pos, textStyleMark);
     }
 

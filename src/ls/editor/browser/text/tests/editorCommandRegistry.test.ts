@@ -18,7 +18,11 @@ test('createWritingEditorKeymapBindings exposes the registered ProseMirror short
   assert.equal(typeof bindings['Shift-Mod-z'], 'function');
   assert.equal(typeof bindings['Mod-y'], 'function');
   assert.equal(typeof bindings['Mod-b'], 'function');
+  assert.equal(typeof bindings['Mod-u'], 'function');
   assert.equal(typeof bindings['Mod-Alt-1'], 'function');
+  assert.equal(typeof bindings['Mod-Shift-l'], 'function');
+  assert.equal(typeof bindings['Mod-Shift-e'], 'function');
+  assert.equal(typeof bindings['Mod-Shift-r'], 'function');
   assert.equal(typeof bindings['Mod-Shift-8'], 'function');
   assert.equal(typeof bindings.Enter, 'function');
   assert.equal(typeof bindings.Tab, 'function');

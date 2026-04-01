@@ -23,8 +23,10 @@ import {
   insertFigureCommand,
   setFontFamilyCommand,
   setFontSizeCommand,
+  setTextAlignCommand,
   toggleBoldCommand,
   toggleItalicCommand,
+  toggleUnderlineCommand,
 } from 'ls/editor/browser/text/commands';
 import { writingEditorSchema } from 'ls/editor/browser/text/schema';
 
@@ -263,6 +265,9 @@ test('clearInlineStylesCommand removes text_style and basic inline marks', () =>
   toggleItalicCommand()(nextState, (transaction) => {
     nextState = nextState.apply(transaction);
   });
+  toggleUnderlineCommand()(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
   setFontFamilyCommand('"IBM Plex Serif", serif')(nextState, (transaction) => {
     nextState = nextState.apply(transaction);
   });
@@ -281,8 +286,90 @@ test('clearInlineStylesCommand removes text_style and basic inline marks', () =>
   const toolbarState = getWritingEditorToolbarState(nextState);
   assert.equal(toolbarState.isBoldActive, false);
   assert.equal(toolbarState.isItalicActive, false);
+  assert.equal(toolbarState.isUnderlineActive, false);
   assert.equal(toolbarState.fontFamily, null);
   assert.equal(toolbarState.fontSize, null);
+});
+
+test('toggleUnderlineCommand updates inline marks and toolbar state', () => {
+  let nextState = EditorState.create({
+    schema: writingEditorSchema,
+    doc: writingEditorSchema.nodeFromJSON({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          attrs: { blockId: 'block_1' },
+          content: [{ type: 'text', text: 'alpha' }],
+        },
+      ],
+    }),
+  });
+
+  nextState = nextState.apply(
+    nextState.tr.setSelection(TextSelection.create(nextState.doc, 1, 6)),
+  );
+
+  toggleUnderlineCommand()(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+
+  const document = nextState.doc.toJSON() as {
+    content?: Array<{ content?: Array<{ marks?: Array<{ type: string }> }> }>;
+  };
+  const marks = document.content?.[0]?.content?.[0]?.marks ?? [];
+
+  assert.equal(marks.some((mark) => mark.type === 'underline'), true);
+  assert.equal(getWritingEditorToolbarState(nextState).isUnderlineActive, true);
+});
+
+test('setTextAlignCommand stores alignment on textblocks and reports it in toolbar state', () => {
+  let nextState = EditorState.create({
+    schema: writingEditorSchema,
+    doc: writingEditorSchema.nodeFromJSON({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          attrs: { blockId: 'block_1' },
+          content: [{ type: 'text', text: 'alpha' }],
+        },
+        {
+          type: 'paragraph',
+          attrs: { blockId: 'block_2' },
+          content: [{ type: 'text', text: 'beta' }],
+        },
+      ],
+    }),
+  });
+
+  nextState = nextState.apply(
+    nextState.tr.setSelection(TextSelection.create(nextState.doc, 1, nextState.doc.content.size - 1)),
+  );
+
+  setTextAlignCommand('center')(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+
+  const document = nextState.doc.toJSON() as {
+    content?: Array<{ attrs?: Record<string, unknown> }>;
+  };
+
+  assert.equal(document.content?.[0]?.attrs?.textAlign, 'center');
+  assert.equal(document.content?.[1]?.attrs?.textAlign, 'center');
+  assert.equal(getWritingEditorToolbarState(nextState).textAlign, 'center');
+
+  setTextAlignCommand('left')(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+
+  const resetDocument = nextState.doc.toJSON() as {
+    content?: Array<{ attrs?: Record<string, unknown> }>;
+  };
+
+  assert.equal(resetDocument.content?.[0]?.attrs?.textAlign, null);
+  assert.equal(resetDocument.content?.[1]?.attrs?.textAlign, null);
+  assert.equal(getWritingEditorToolbarState(nextState).textAlign, 'left');
 });
 
 test('collectWritingEditorTextUnits exports stable text units with logical line offsets', () => {
