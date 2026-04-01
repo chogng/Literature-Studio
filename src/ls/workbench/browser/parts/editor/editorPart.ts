@@ -290,8 +290,8 @@ export class EditorPartController {
   };
 
   readonly getDraftBody = () => this.writingEditorModel.getDraftBody();
-
-  private readonly setDraftDocument = (value: WritingEditorDocument) => {
+  readonly getDraftDocument = () => this.writingEditorModel.getDraftDocument();
+  readonly setDraftDocument = (value: WritingEditorDocument) => {
     this.writingEditorModel.setDraftDocument(value);
   };
 

@@ -24,6 +24,7 @@ type CreateAuxiliaryBarPartPropsParams = {
   actions: {
     onQuestionChange: (value: string) => void;
     onAsk: () => void;
+    onApplyPatch: (messageId: string) => void;
     onCreateConversation: () => void;
     onActivateConversation: (conversationId: string) => void;
     onCloseConversation: (conversationId: string) => void;
@@ -61,6 +62,7 @@ export function createAuxiliaryBarPartProps({
   actions: {
     onQuestionChange,
     onAsk,
+    onApplyPatch,
     onCreateConversation,
     onActivateConversation,
     onCloseConversation,
@@ -78,6 +80,7 @@ export function createAuxiliaryBarPartProps({
     isAsking,
     errorMessage,
     onAsk,
+    onApplyPatch,
     availableArticleCount,
     conversations,
     activeConversationId,

@@ -17,6 +17,7 @@ export type AuxiliaryBarProps = {
   isAsking: boolean;
   errorMessage: string | null;
   onAsk: () => void;
+  onApplyPatch: (messageId: string) => void;
   availableArticleCount: number;
   conversations: AssistantConversation[];
   activeConversationId: string;
@@ -317,10 +318,77 @@ export class AuxiliaryBar {
         body.append(evidence);
       }
 
+      const patchProposal = this.renderPatchProposal(message);
+      if (patchProposal) {
+        body.append(patchProposal);
+      }
+
       item.append(body);
       thread.append(item);
     }
     return thread;
+  }
+
+  private renderPatchProposal(
+    message: Extract<AssistantChatMessage, { role: 'assistant' }>,
+  ) {
+    const patchProposal = message.patchProposal ?? null;
+    if (!patchProposal) {
+      return null;
+    }
+
+    const card = createElement('div', 'auxiliarybar-patch-card');
+    const header = createElement('div', 'auxiliarybar-patch-header');
+    const label = createElement('strong', 'auxiliarybar-patch-label');
+    label.textContent = patchProposal.patch.label;
+    header.append(label);
+
+    if (patchProposal.isApplied) {
+      const status = createElement('span', 'auxiliarybar-mode-pill is-enabled');
+      status.textContent = this.props.labels.assistantPatchApplied;
+      header.append(status);
+    } else if (patchProposal.requiresCustomExecutor) {
+      const status = createElement('span', 'auxiliarybar-mode-pill is-disabled');
+      status.textContent = this.props.labels.assistantPatchRequiresExecutor;
+      header.append(status);
+    }
+
+    card.append(header);
+
+    if (patchProposal.patch.summary) {
+      const summary = createElement('p', 'auxiliarybar-patch-summary');
+      summary.textContent = patchProposal.patch.summary;
+      card.append(summary);
+    }
+
+    const errorText = patchProposal.validationError || patchProposal.applyError;
+    if (errorText) {
+      const error = createElement('p', 'auxiliarybar-patch-error');
+      error.textContent = errorText;
+      card.append(error);
+    }
+
+    if (
+      patchProposal.accepted &&
+      !patchProposal.requiresCustomExecutor &&
+      !patchProposal.validationError &&
+      !patchProposal.isApplied
+    ) {
+      const footer = createElement('div', 'auxiliarybar-patch-footer');
+      const applyButton = createElement(
+        'button',
+        'auxiliarybar-patch-btn btn-base btn-secondary btn-sm',
+      );
+      applyButton.type = 'button';
+      applyButton.textContent = this.props.labels.assistantPatchApply;
+      applyButton.addEventListener('click', () =>
+        this.props.onApplyPatch(message.id),
+      );
+      footer.append(applyButton);
+      card.append(footer);
+    }
+
+    return card;
   }
 
   private renderComposer(canSend: boolean) {

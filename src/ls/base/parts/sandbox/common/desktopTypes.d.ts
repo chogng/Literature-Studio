@@ -498,6 +498,61 @@ export interface RagAnswerResult {
   rerankApplied: boolean;
 }
 
+export type AgentMessagePayload = import('ls/agent/common/protocol').AgentMessage;
+export type AgentStopReasonPayload = import('ls/agent/common/protocol').AgentStopReason;
+export type AgentEditorPatchPayload =
+  import('ls/agent/common/editorTools').AgentEditorPatch;
+export type MainAgentAvailableToolId =
+  Extract<
+    import('ls/agent/common/editorTools').AgentEditorToolId,
+    | 'get_selection_context'
+    | 'list_text_units'
+    | 'apply_editor_patch'
+    | 'retrieve_evidence'
+  >;
+
+export interface MainAgentPatchProposal {
+  patch: AgentEditorPatchPayload;
+  accepted: boolean;
+  operationsValidated: number;
+  failedOperationIndex: number | null;
+  requiresCustomExecutor: boolean;
+  validationError: string | null;
+}
+
+export interface RunMainAgentTurnPayload {
+  question?: string;
+  systemPrompt?: string;
+  messages?: AgentMessagePayload[];
+  writingContext?: string | null;
+  draftBody?: string | null;
+  editorSelection?: WritingEditorStableSelectionTargetPayload | null;
+  editorDocument?: WritingEditorDocumentPayload | null;
+  editorTextUnits?: WritingEditorTextUnitPayload[];
+  articles?: Article[];
+  llm?: LlmSettings;
+  rag?: RagSettings;
+  availableTools?: MainAgentAvailableToolId[];
+  maxSteps?: number;
+}
+
+export interface MainAgentToolTrace {
+  step: number;
+  toolName: string;
+  isError: boolean;
+}
+
+export interface RunMainAgentTurnResult {
+  messages: AgentMessagePayload[];
+  stopReason: AgentStopReasonPayload;
+  finalText: string;
+  llmProvider: LlmProviderId;
+  llmModel: string;
+  lastEvidenceResult: RagAnswerResult | null;
+  lastPatchProposal: MainAgentPatchProposal | null;
+  toolTrace: MainAgentToolTrace[];
+}
+
 export interface ArticleDetailsModalState {
   kind: 'article-details';
   article: Article;
@@ -590,6 +645,7 @@ export interface AppCommandPayloadMap {
   list_library_documents: ListLibraryDocumentsPayload;
   reindex_library_document: ReindexLibraryDocumentPayload;
   rag_answer_articles: RagAnswerArticlesPayload;
+  run_main_agent_turn: RunMainAgentTurnPayload;
   export_articles_docx: ExportArticlesDocxPayload;
   export_editor_docx: ExportEditorDocxPayload;
   open_article_details_modal: OpenArticleDetailsModalPayload;
@@ -613,6 +669,7 @@ export interface AppCommandResultMap {
   list_library_documents: LibraryDocumentsResult;
   reindex_library_document: ReindexLibraryDocumentResult;
   rag_answer_articles: RagAnswerResult;
+  run_main_agent_turn: RunMainAgentTurnResult;
   export_articles_docx: DocxExportResult | null;
   export_editor_docx: EditorDocxExportResult | null;
   open_article_details_modal: boolean;

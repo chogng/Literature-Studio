@@ -14,6 +14,9 @@ function createProps(): AuxiliaryBarProps {
     labels: {
       assistantAnswerTitle: 'Answer',
       assistantEvidenceTitle: 'Evidence',
+      assistantPatchApply: 'Apply patch',
+      assistantPatchApplied: 'Applied',
+      assistantPatchRequiresExecutor: 'Custom executor required',
       assistantNewConversation: 'New chat',
       assistantHistory: 'History',
       assistantMore: 'More',
@@ -33,6 +36,7 @@ function createProps(): AuxiliaryBarProps {
     isAsking: false,
     errorMessage: null,
     onAsk: () => {},
+    onApplyPatch: () => {},
     availableArticleCount: 1,
     conversations: [
       {

@@ -970,6 +970,8 @@ class WorkbenchHost {
       ragSettings: currentRagSettings,
       fallbackWritingContext: draftBody,
       getFallbackWritingContext: editorPartControllerInstance.getDraftBody,
+      getDraftDocument: editorPartControllerInstance.getDraftDocument,
+      setDraftDocument: editorPartControllerInstance.setDraftDocument,
     });
     const assistantSnapshot = assistantModelInstance.getSnapshot();
     const {
@@ -994,6 +996,8 @@ class WorkbenchHost {
       assistantModelInstance.handleToggleHistory;
     const handleAssistantToggleMoreMenu =
       assistantModelInstance.handleToggleMoreMenu;
+    const handleAssistantApplyPatch =
+      assistantModelInstance.handleApplyPatch;
 
     const filteredArticleKeysInOrder = filteredArticles.map((article) =>
       getArticleSelectionKey(article),
@@ -1362,6 +1366,12 @@ class WorkbenchHost {
             this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null,
             editorPartControllerInstance.getDraftBody(),
           ),
+        getDraftBody: () => editorPartControllerInstance.getDraftBody(),
+        getDraftDocument: () => editorPartControllerInstance.getDraftDocument(),
+        setDraftDocument: (value) =>
+          editorPartControllerInstance.setDraftDocument(value),
+        getActiveDraftStableSelectionTarget: () =>
+          this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null,
       },
       documentActionsController: documentActionsControllerInstance,
       documentActionsContext: {
@@ -1472,6 +1482,7 @@ class WorkbenchHost {
       actions: {
         onQuestionChange: setAssistantQuestion,
         onAsk: () => void handleAssistantAsk(),
+        onApplyPatch: handleAssistantApplyPatch,
         onCreateConversation: handleAssistantCreateConversation,
         onActivateConversation: handleAssistantActivateConversation,
         onCloseConversation: handleAssistantCloseConversation,

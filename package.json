@@ -19,6 +19,7 @@
     "check:i18n": "node scripts/check-i18n-keys.mjs",
     "test:writing-editor": "node scripts/run-writing-editor-tests.mjs",
     "test:library-store": "node scripts/run-library-store-tests.mjs",
+    "test:agent": "node scripts/run-agent-tests.mjs",
     "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
     "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never",
     "dist:mac": "npm run build && electron-builder --mac dmg zip --x64 --publish never",

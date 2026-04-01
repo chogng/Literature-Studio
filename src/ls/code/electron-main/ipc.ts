@@ -71,6 +71,7 @@ import { previewDownloadPdf } from 'ls/code/electron-main/pdf/pdf';
 import { appError, serializeAppError } from 'ls/base/common/errors';
 import { pickDirectoryDialog } from 'ls/platform/dialogs/electron-main/dialogMainService';
 import { testLlmConnection } from 'ls/code/electron-main/llm/llm';
+import { runMainAgentTurn } from 'ls/code/electron-main/agent/agent';
 import { answerQuestionFromArticles, testRagConnection } from 'ls/code/electron-main/rag/rag';
 import { testTranslationConnection } from 'ls/code/electron-main/translation/translation';
 import {
@@ -233,6 +234,11 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'rag_answer_articles':
       return answerQuestionFromArticles(
         payload as RagAnswerArticlesPayload,
+        await storage.loadSettings(),
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'run_main_agent_turn':
+      return runMainAgentTurn(
+        payload as AppCommandPayloadMap['run_main_agent_turn'],
         await storage.loadSettings(),
       ) as Promise<AppCommandResultMap[TCommand]>;
     case 'export_articles_docx':

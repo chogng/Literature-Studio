@@ -1,11 +1,22 @@
 import { toast } from "ls/base/browser/ui/toast/toast";
 import type {
+  AgentMessagePayload,
   Article,
   ElectronInvoke,
   LlmSettings,
+  MainAgentPatchProposal,
   RagAnswerResult,
   RagSettings,
+  RunMainAgentTurnResult,
 } from "ls/base/parts/sandbox/common/desktopTypes";
+import {
+  applyWritingEditorEdits,
+  collectWritingEditorTextUnits,
+} from "ls/editor/common/writingEditorDocument";
+import type {
+  WritingEditorDocument,
+  WritingEditorStableSelectionTarget,
+} from "ls/editor/common/writingEditorDocument";
 import type { LocaleMessages } from "language/locales";
 import {
   formatLocalized,
@@ -23,6 +34,15 @@ export type AssistantModelContext = {
   ragSettings: RagSettings;
   fallbackWritingContext?: string;
   getFallbackWritingContext?: () => string;
+  getDraftBody?: () => string;
+  getDraftDocument?: () => WritingEditorDocument | null;
+  setDraftDocument?: (value: WritingEditorDocument) => void;
+  getActiveDraftStableSelectionTarget?: () => WritingEditorStableSelectionTarget | null;
+};
+
+export type AssistantPatchProposal = MainAgentPatchProposal & {
+  isApplied: boolean;
+  applyError: string | null;
 };
 
 export type AssistantChatMessage =
@@ -36,6 +56,7 @@ export type AssistantChatMessage =
       role: "assistant";
       content: string;
       result: RagAnswerResult;
+      patchProposal?: AssistantPatchProposal | null;
     };
 
 export type AssistantConversation = {
@@ -64,6 +85,67 @@ export type AssistantModelSnapshot = AssistantModelState & {
   isAsking: boolean;
   errorMessage: string | null;
 };
+
+function toAgentMessage(
+  message: AssistantChatMessage,
+): AgentMessagePayload {
+  return {
+    role: message.role,
+    parts: [
+      {
+        type: "text",
+        text: message.content,
+      },
+    ],
+  };
+}
+
+function createAssistantResultFromAgentTurn(
+  result: RunMainAgentTurnResult,
+  context: AssistantModelContext,
+): RagAnswerResult {
+  const evidenceResult = result.lastEvidenceResult;
+  const ragProvider = evidenceResult?.provider ?? context.ragSettings.activeProvider;
+  const ragProviderSettings = context.ragSettings.providers[ragProvider];
+
+  return {
+    answer: result.finalText || evidenceResult?.answer || "",
+    evidence: evidenceResult?.evidence ?? [],
+    provider: ragProvider,
+    llmProvider: evidenceResult?.llmProvider ?? result.llmProvider,
+    llmModel: evidenceResult?.llmModel ?? result.llmModel,
+    embeddingModel:
+      evidenceResult?.embeddingModel ?? ragProviderSettings.embeddingModel,
+    rerankerModel:
+      evidenceResult?.rerankerModel ?? ragProviderSettings.rerankerModel,
+    rerankApplied: evidenceResult?.rerankApplied ?? false,
+  };
+}
+
+function createAssistantPatchProposal(
+  patchProposal: MainAgentPatchProposal | null,
+): AssistantPatchProposal | null {
+  if (!patchProposal) {
+    return null;
+  }
+
+  return {
+    ...patchProposal,
+    isApplied: false,
+    applyError: null,
+  };
+}
+
+function canApplyAssistantPatch(
+  patchProposal: AssistantPatchProposal,
+) {
+  return (
+    patchProposal.accepted &&
+    !patchProposal.requiresCustomExecutor &&
+    !patchProposal.validationError &&
+    !patchProposal.isApplied
+  );
+}
 
 function createMessageId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -288,6 +370,117 @@ export class AssistantModel {
     }));
   };
 
+  readonly handleApplyPatch = (messageId: string) => {
+    const activeConversation = this.snapshot.activeConversation;
+    if (!activeConversation) {
+      return;
+    }
+
+    const assistantMessage = activeConversation.messages.find(
+      (message): message is Extract<AssistantChatMessage, { role: "assistant" }> =>
+        message.id === messageId && message.role === "assistant",
+    );
+    const patchProposal = assistantMessage?.patchProposal ?? null;
+    if (!patchProposal || !canApplyAssistantPatch(patchProposal)) {
+      return;
+    }
+
+    const unavailableMessage = this.context.ui.assistantSidebarPatchUnavailable;
+    const currentDocument = this.context.getDraftDocument?.() ?? null;
+    const setDraftDocument = this.context.setDraftDocument;
+    if (!currentDocument || !setDraftDocument) {
+      this.updateConversationMessageById(
+        activeConversation.id,
+        messageId,
+        (message) =>
+          message.role !== "assistant" || !message.patchProposal
+            ? message
+            : {
+                ...message,
+                patchProposal: {
+                  ...message.patchProposal,
+                  applyError: unavailableMessage,
+                },
+              },
+      );
+      toast.error(
+        formatLocalized(this.context.ui.toastAssistantPatchApplyFailed, {
+          error: unavailableMessage,
+        }),
+      );
+      return;
+    }
+
+    const textEdits = patchProposal.patch.operations.flatMap((operation) =>
+      operation.kind === "text-edit" ? [operation.edit] : [],
+    );
+    if (textEdits.length !== patchProposal.patch.operations.length) {
+      const applyError = this.context.ui.assistantSidebarPatchRequiresExecutor;
+      this.updateConversationMessageById(
+        activeConversation.id,
+        messageId,
+        (message) =>
+          message.role !== "assistant" || !message.patchProposal
+            ? message
+            : {
+                ...message,
+                patchProposal: {
+                  ...message.patchProposal,
+                  applyError,
+                },
+              },
+      );
+      toast.error(
+        formatLocalized(this.context.ui.toastAssistantPatchApplyFailed, {
+          error: applyError,
+        }),
+      );
+      return;
+    }
+
+    const applyResult = applyWritingEditorEdits(currentDocument, textEdits);
+    if (!applyResult.ok) {
+      this.updateConversationMessageById(
+        activeConversation.id,
+        messageId,
+        (message) =>
+          message.role !== "assistant" || !message.patchProposal
+            ? message
+            : {
+                ...message,
+                patchProposal: {
+                  ...message.patchProposal,
+                  applyError: applyResult.message,
+                },
+              },
+      );
+      toast.error(
+        formatLocalized(this.context.ui.toastAssistantPatchApplyFailed, {
+          error: applyResult.message,
+        }),
+      );
+      return;
+    }
+
+    setDraftDocument(applyResult.document);
+    this.updateConversationMessageById(
+      activeConversation.id,
+      messageId,
+      (message) =>
+        message.role !== "assistant" || !message.patchProposal
+          ? message
+          : {
+              ...message,
+              patchProposal: {
+                ...message.patchProposal,
+                isApplied: true,
+                applyError: null,
+              },
+            },
+    );
+    toast.success(this.context.ui.toastAssistantPatchApplied);
+  };
+
   readonly handleAsk = async () => {
     const activeConversation = this.snapshot.activeConversation;
     if (!activeConversation) {
@@ -338,24 +531,51 @@ export class AssistantModel {
         : [];
       const fallbackWritingContext =
         context.getFallbackWritingContext?.() ?? context.fallbackWritingContext ?? '';
-      const nextResult = await context.invokeDesktop("rag_answer_articles", {
-        question: normalizedQuestion,
+      const draftBody = context.getDraftBody?.() ?? '';
+      const draftDocument = context.getDraftDocument?.() ?? null;
+      const activeDraftStableSelectionTarget =
+        context.getActiveDraftStableSelectionTarget?.() ?? null;
+      const nextResult = await context.invokeDesktop("run_main_agent_turn", {
+        messages: [...activeConversation.messages, userMessage].map((message) =>
+          toAgentMessage(message),
+        ),
         writingContext: fallbackWritingContext.trim() || null,
+        draftBody: draftBody.trim() || null,
+        editorSelection: activeDraftStableSelectionTarget,
+        editorDocument: draftDocument,
+        editorTextUnits: draftDocument
+          ? collectWritingEditorTextUnits(draftDocument)
+          : [],
         articles: retrievalArticles,
         llm: context.llmSettings,
         rag: context.ragSettings,
+        availableTools: [
+          "get_selection_context",
+          "list_text_units",
+          ...(draftDocument ? ["apply_editor_patch" as const] : []),
+          ...(retrievalArticles.length > 0 ? ["retrieve_evidence" as const] : []),
+        ],
       });
+      const assistantResult = createAssistantResultFromAgentTurn(
+        nextResult,
+        context,
+      );
+      const assistantContent =
+        nextResult.finalText.trim() || assistantResult.answer || "No answer returned.";
 
       this.updateConversationById(activeConversation.id, (conversation) => ({
         ...conversation,
-        result: nextResult,
+        result: assistantResult,
         messages: [
           ...conversation.messages,
           {
             id: createMessageId(),
             role: "assistant",
-            content: nextResult.answer,
-            result: nextResult,
+            content: assistantContent,
+            result: assistantResult,
+            patchProposal: createAssistantPatchProposal(
+              nextResult.lastPatchProposal,
+            ),
           },
         ],
       }));
@@ -446,6 +666,36 @@ export class AssistantModel {
       return {
         ...state,
         conversations: nextConversations,
+      };
+    });
+  }
+
+  private updateConversationMessageById(
+    conversationId: string,
+    messageId: string,
+    updater: (message: AssistantChatMessage) => AssistantChatMessage,
+  ) {
+    this.updateConversationById(conversationId, (conversation) => {
+      let changed = false;
+      const nextMessages = conversation.messages.map((message) => {
+        if (message.id !== messageId) {
+          return message;
+        }
+
+        const nextMessage = updater(message);
+        if (!Object.is(nextMessage, message)) {
+          changed = true;
+        }
+        return nextMessage;
+      });
+
+      if (!changed) {
+        return conversation;
+      }
+
+      return {
+        ...conversation,
+        messages: nextMessages,
       };
     });
   }

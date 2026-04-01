@@ -9,19 +9,84 @@ import { defaultLlmProviderId } from 'ls/workbench/services/llm/config';
 import { isLlmProviderId } from 'ls/workbench/services/llm/registry';
 
 const llmTestTimeoutMs = 15000;
-type ChatCompletionMessage = {
+export type OpenAiCompatibleMessageRole =
+  | 'system'
+  | 'user'
+  | 'assistant'
+  | 'tool';
+
+export type OpenAiCompatibleChatCompletionContentPart = {
+  type: 'text';
+  text: string;
+};
+
+export type OpenAiCompatibleChatCompletionToolCall = {
+  id?: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+};
+
+export type OpenAiCompatibleChatCompletionMessage = {
+  role: OpenAiCompatibleMessageRole;
+  content: string | OpenAiCompatibleChatCompletionContentPart[] | null;
+  tool_call_id?: string;
+  tool_calls?: OpenAiCompatibleChatCompletionToolCall[];
+};
+
+export type OpenAiCompatibleChatCompletionTool = {
+  type: 'function';
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+};
+
+export type OpenAiCompatibleToolChoice =
+  | 'auto'
+  | 'none'
+  | {
+      type: 'function';
+      function: {
+        name: string;
+      };
+    };
+
+export type OpenAiCompatibleChatCompletionRequest = {
+  model: string;
+  messages: OpenAiCompatibleChatCompletionMessage[];
+  max_tokens?: number;
+  temperature?: number;
+  tools?: OpenAiCompatibleChatCompletionTool[];
+  tool_choice?: OpenAiCompatibleToolChoice;
+};
+
+export type OpenAiCompatibleChatCompletionResponse = {
+  id?: string;
+  choices?: Array<{
+    index?: number;
+    message?: OpenAiCompatibleChatCompletionMessage;
+    finish_reason?: string | null;
+  }>;
+  usage?: Record<string, unknown>;
+};
+
+export type ChatCompletionMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
 };
 
-type ChatCompletionRequest = {
+export type ChatCompletionRequest = {
   model: string;
   messages: ChatCompletionMessage[];
   max_tokens: number;
   temperature: number;
 };
 
-type ResolvedLlmRequest = {
+export type ResolvedLlmRequest = {
   provider: LlmProviderId;
   apiKey: string;
   baseUrl: string;
@@ -90,11 +155,13 @@ function resolveLlmRequest(payload: TestLlmConnectionPayload = {}): ResolvedLlmR
   };
 }
 
-export async function requestChatCompletion(
+export async function requestOpenAiCompatibleChatCompletion<
+  TResponse = OpenAiCompatibleChatCompletionResponse,
+>(
   request: ResolvedLlmRequest,
-  payload: ChatCompletionRequest,
+  payload: OpenAiCompatibleChatCompletionRequest,
   timeoutMs: number,
-): Promise<unknown> {
+): Promise<TResponse> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
@@ -120,7 +187,7 @@ export async function requestChatCompletion(
       });
     }
 
-    return (await response.json()) as unknown;
+    return (await response.json()) as TResponse;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw appError('LLM_CONNECTION_FAILED', {
@@ -144,6 +211,14 @@ export async function requestChatCompletion(
   }
 }
 
+export async function requestChatCompletion(
+  request: ResolvedLlmRequest,
+  payload: ChatCompletionRequest,
+  timeoutMs: number,
+): Promise<unknown> {
+  return requestOpenAiCompatibleChatCompletion(request, payload, timeoutMs);
+}
+
 function extractResponsePreview(payload: unknown): string {
   const content = extractResponseContent(payload);
   if (!content) {
@@ -154,6 +229,30 @@ function extractResponsePreview(payload: unknown): string {
   return cleaned || 'Connected';
 }
 
+export function extractTextContent(value: unknown): string {
+  if (typeof value === 'string') {
+    return cleanText(value);
+  }
+
+  if (!Array.isArray(value)) {
+    return '';
+  }
+
+  return cleanText(
+    value
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return '';
+        }
+
+        return typeof (item as { text?: unknown }).text === 'string'
+          ? (item as { text: string }).text
+          : '';
+      })
+      .join('\n'),
+  );
+}
+
 export function extractResponseContent(payload: unknown): string {
   if (!payload || typeof payload !== 'object') {
     return '';
@@ -161,25 +260,7 @@ export function extractResponseContent(payload: unknown): string {
 
   const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
   const content = choices?.[0]?.message?.content;
-  if (typeof content === 'string') {
-    return cleanText(content);
-  }
-
-  if (Array.isArray(content)) {
-    return cleanText(
-      content
-        .map((item) => {
-          if (!item || typeof item !== 'object') {
-            return '';
-          }
-
-          return typeof (item as { text?: unknown }).text === 'string' ? (item as { text: string }).text : '';
-        })
-        .join('\n'),
-    );
-  }
-
-  return '';
+  return extractTextContent(content);
 }
 
 export async function testLlmConnection(
