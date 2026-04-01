@@ -46,7 +46,7 @@ test('new conversations use the active locale title', () => {
   assistantModel.handleCreateConversation();
 
   const nextSnapshot = assistantModel.getSnapshot();
-  assert.equal(nextSnapshot.conversations[1]?.title, 'New chat 2');
+  assert.equal(nextSnapshot.conversations[1]?.title, 'New chat');
 });
 
 test('locale switches update only auto-generated conversation titles', async () => {
@@ -68,5 +68,5 @@ test('locale switches update only auto-generated conversation titles', async () 
   const snapshot = assistantModel.getSnapshot();
   assert.equal(snapshot.conversations[0]?.title, 'New chat');
   assert.equal(snapshot.conversations[1]?.title, 'A custom title fro');
-  assert.equal(snapshot.conversations[2]?.title, 'New chat 3');
+  assert.equal(snapshot.conversations[2]?.title, 'New chat');
 });
