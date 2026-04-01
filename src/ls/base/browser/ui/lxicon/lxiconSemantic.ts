@@ -1,4 +1,4 @@
-import type { LxIconName } from './lxicon.js';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
 
 export const lxIconSemanticMap = {
   titlebar: {

@@ -57,7 +57,7 @@ import {
 import {
   fetchArticle,
   fetchLatestArticles,
-} from './fetch/articleFetcher.js';
+} from './fetch/dispatch.js';
 import { exportArticlesDocx } from './document/docx.js';
 import {
   normalizeFetchStrategy,

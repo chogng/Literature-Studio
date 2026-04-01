@@ -1,22 +1,22 @@
 import type {
   WritingEditorDocument,
   WritingWorkspaceTab,
-} from '../../writingEditorModel';
-import type { ViewPartProps } from '../views/viewPartView';
+} from 'ls/workbench/browser/writingEditorModel';
+import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import {
   areDraftEditorRuntimeStatesEqual,
   createEditorStatus,
   type DraftEditorRuntimeState,
   type EditorStatusState,
-} from '../../../../editor/browser/shared/editorStatus';
-import { createActiveDraftEditorCommandExecutor } from './activeDraftEditorCommandExecutor';
-import { resolveEditorPane, type EditorPaneRenderer } from './panes/editorPaneRegistry';
-import type { DraftEditorCommandId } from './panes/draftEditorCommands';
-import { EditorEmptyWorkspaceView } from './editorEmptyWorkspaceView';
-import type { EditorPartLabels } from './editorPartView';
-import { createEditorGroupModel, type EditorGroupModel } from './editorGroupModel';
-import { TabsTitleControl } from './tabsTitleControl';
-import type { TitleControl } from './titleControl';
+} from 'ls/editor/browser/shared/editorStatus';
+import { createActiveDraftEditorCommandExecutor } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
+import { resolveEditorPane, type EditorPaneRenderer } from 'ls/workbench/browser/parts/editor/panes/editorPaneRegistry';
+import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+import { EditorEmptyWorkspaceView } from 'ls/workbench/browser/parts/editor/editorEmptyWorkspaceView';
+import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+import { createEditorGroupModel, type EditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
+import { TabsTitleControl } from 'ls/workbench/browser/parts/editor/tabsTitleControl';
+import type { TitleControl } from 'ls/workbench/browser/parts/editor/titleControl';
 
 export type EditorGroupViewProps = {
   labels: EditorPartLabels;

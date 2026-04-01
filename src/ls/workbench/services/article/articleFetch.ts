@@ -1,16 +1,16 @@
 import type {
   Article as DesktopArticle,
   ElectronInvoke,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { isDateRangeValid } from '../../common/dateRange';
-import { normalizeUrl } from '../../common/url';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import { isDateRangeValid } from 'ls/workbench/common/dateRange';
+import { normalizeUrl } from 'ls/workbench/common/url';
 import {
   ensureBatchSourceId,
   type BatchSource,
   resolveSourceTableMetadata,
   sanitizeBatchSources,
-} from '../config/configSchema';
-import { parseDesktopInvokeError, type DesktopInvokeErrorData } from '../desktop/desktopError';
+} from 'ls/workbench/services/config/configSchema';
+import { parseDesktopInvokeError, type DesktopInvokeErrorData } from 'ls/workbench/services/desktop/desktopError';
 
 export type Article = DesktopArticle;
 

@@ -1,6 +1,6 @@
-import type { DraftEditorCommandId } from './panes/draftEditorCommands';
-import { DraftEditorPane } from './panes/draftEditorPane';
-import type { EditorPaneRenderer } from './panes/editorPaneRegistry';
+import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+import { DraftEditorPane } from 'ls/workbench/browser/parts/editor/panes/draftEditorPane';
+import type { EditorPaneRenderer } from 'ls/workbench/browser/parts/editor/panes/editorPaneRegistry';
 
 export type ActiveDraftEditorCommandExecutor = {
   execute: (commandId: DraftEditorCommandId) => boolean;

@@ -1,16 +1,16 @@
 import type {
   WritingEditorDocument,
   WritingWorkspaceTab,
-} from '../../writingEditorModel';
+} from 'ls/workbench/browser/writingEditorModel';
 import type {
   EditorStatusLabels,
   EditorStatusState,
-} from '../../../../editor/browser/shared/editorStatus';
-import type { WritingEditorSurfaceLabels } from '../../../../editor/browser/text/editor';
-import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
-import type { DraftEditorCommandId } from './panes/draftEditorCommands';
-import type { ViewPartProps } from '../views/viewPartView';
-import { EditorGroupView } from './editorGroupView';
+} from 'ls/editor/browser/shared/editorStatus';
+import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
+import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
+import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
+import { EditorGroupView } from 'ls/workbench/browser/parts/editor/editorGroupView';
 import './media/editor.css';
 import './media/tabsTitleControl.css';
 

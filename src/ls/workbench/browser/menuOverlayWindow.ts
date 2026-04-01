@@ -1,8 +1,8 @@
 import type {
   NativeMenuOption,
   NativeMenuState,
-} from '../../base/parts/sandbox/common/desktopTypes.js';
-import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import '../../base/browser/ui/dropdown/dropdown.css';
 import './media/menuOverlayWindow.css';
 

@@ -1,4 +1,4 @@
-import type { Article } from "../services/article/articleFetch";
+import type { Article } from "ls/workbench/services/article/articleFetch";
 
 export type SelectionModePhase = "off" | "multi" | "all";
 

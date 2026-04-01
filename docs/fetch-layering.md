@@ -1,61 +1,68 @@
 # Fetch Layering
 
-This document records the current fetch-layer split and the intended direction.
+This document records the current fetch split.
 
 ## Current Split
 
-The fetch pipeline is now being separated into two major layers.
+The fetch pipeline is now split into five roles.
 
-### Listing Layer
+### 1. Detect
 
-Files under `src/ls/code/electron-main/fetch/listing/` are responsible for list-page concerns:
+`detect.ts` decides whether the incoming source page is:
 
-- finding candidate article URLs
-- scoring and prioritizing candidates
-- list-page metadata as lightweight candidate hints
-- pagination and date-hint stopping logic
+- `detail`
+- `listing`
 
-Current listing modules:
+It does not fetch content and does not dispatch.
+
+### 2. Dispatch
+
+`dispatch.ts` is the batch entry coordinator.
+
+It:
+
+- calls `detect.ts`
+- routes `detail` pages to `fetchDetail.ts`
+- routes `listing` pages to `fetchListing.ts`
+- keeps shared fetch helpers such as raw HTML loading
+
+### 3. Detail Fetch
+
+`fetchDetail.ts` handles single-article-page fetching.
+
+It is responsible for:
+
+- loading the page
+- parsing the article
+- validating article signals
+- returning page-only results
+
+### 4. Listing Fetch
+
+`fetchListing.ts` handles list-page fetching.
+
+It is responsible for:
+
+- choosing and applying source extractors
+- collecting candidate descriptors
+- pagination and pagination stop decisions
+- candidate fetch budgeting and concurrency
+- fetching candidate detail pages
+- merging list-page hints into parsed article results
+
+### 5. Listing Support
+
+Files under `src/ls/code/electron-main/fetch/listing/` are responsible for reusable list-page mechanics:
 
 - `listing/scoring.ts`
 - `listing/candidates.ts`
 - `listing/planning.ts`
 
-### Article Detail Layer
-
-Files directly under `src/ls/code/electron-main/fetch/` are responsible for article-detail-page concerns:
-
-- parsing article HTML into final `Article`
-- metadata extraction
-- article acceptance heuristics
-- merging list-page candidate hints into parsed article results
-
-Current article modules:
-
-- `parser.ts`
-- `metadata.ts`
-- `acceptance.ts`
-- `merge.ts`
-- `rawMetadata.ts`
-- `normalize.ts`
-- `sites/nature.ts`
-
-## Intended Next Step
-
-The next extraction step should move more list-page responsibilities out of `articleFetcher.ts`, especially:
-
-- pagination policy helpers
-- date-hint early-stop helpers
-
-The target shape is:
-
-1. listing layer produces candidate descriptors
-2. article layer produces parsed `Article`
-3. merge layer decides when list-page hints can safely short-circuit article-page parsing
+Files under `src/ls/code/electron-main/fetch/sourceExtractors/` provide page-specific extractor logic for listing pages only.
 
 ## Design Rule
 
-List-page metadata is a hint, not the canonical final article record, unless the merge layer explicitly decides the candidate is complete enough to skip article-page parsing.
+List-page metadata is still only a hint, not the canonical final article record, unless the merge step explicitly decides the candidate is complete enough to skip article-page parsing.
 
 ## Single-Page Parser Debug Entry
 

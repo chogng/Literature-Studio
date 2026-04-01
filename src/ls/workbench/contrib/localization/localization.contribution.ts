@@ -1,15 +1,15 @@
 import {
   localeService,
-} from './browser/localeService';
+} from 'ls/workbench/contrib/localization/browser/localeService';
 import {
   subscribeLocalizationUiActions,
-} from './browser/localizationsActions';
+} from 'ls/workbench/contrib/localization/browser/localizationsActions';
 import {
   registerWorkbenchContribution,
   type Disposable,
-} from '../workbench/workbench.contribution';
-import { hasDesktopRuntime } from '../../../base/common/platform';
-import { nativeHostService } from '../../../platform/native/electron-sandbox/nativeHostService';
+} from 'ls/workbench/contrib/workbench/workbench.contribution';
+import { hasDesktopRuntime } from 'ls/base/common/platform';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 
 function createLocaleServiceContext() {
   return {

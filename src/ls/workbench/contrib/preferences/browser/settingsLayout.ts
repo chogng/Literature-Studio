@@ -1,4 +1,4 @@
-import type { SettingsPartLabels } from './settingsTypes.js';
+import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes.js';
 
 export type SettingsSectionId =
   | 'locale'

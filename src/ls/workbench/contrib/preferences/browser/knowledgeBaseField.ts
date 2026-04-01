@@ -1,5 +1,5 @@
-import { LibraryFieldView, type LibraryFieldViewProps } from './libraryField.js';
-import { RagFieldView, type RagFieldViewProps } from './ragField.js';
+import { LibraryFieldView, type LibraryFieldViewProps } from 'ls/workbench/contrib/preferences/browser/libraryField.js';
+import { RagFieldView, type RagFieldViewProps } from 'ls/workbench/contrib/preferences/browser/ragField.js';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);

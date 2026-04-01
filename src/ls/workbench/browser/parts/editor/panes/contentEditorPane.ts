@@ -1,6 +1,6 @@
-import type { WritingWorkspaceContentTab } from '../../../writingEditorModel';
-import { ViewPartView, type ViewPartProps } from '../../views/viewPartView';
-import type { EditorPartLabels } from '../editorPartView';
+import type { WritingWorkspaceContentTab } from 'ls/workbench/browser/writingEditorModel';
+import { ViewPartView, type ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
+import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 
 export type ContentEditorPaneProps = {
   labels: EditorPartLabels;

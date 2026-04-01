@@ -1,7 +1,7 @@
 import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
-} from '../../../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
 
 export type LibraryTreeLabels = {
   untitled: string;

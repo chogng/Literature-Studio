@@ -1,12 +1,12 @@
-import { DataTree } from './dataTree.js';
+import { DataTree } from 'ls/base/browser/ui/tree/dataTree.js';
 import type {
   SimpleTreeOptions,
   SimpleTreeRenderer,
-} from './simpleTree.js';
+} from 'ls/base/browser/ui/tree/simpleTree.js';
 import type {
   DataTreeDataSource,
   ObjectTreeElement,
-} from './treeTypes.js';
+} from 'ls/base/browser/ui/tree/treeTypes.js';
 
 type ObjectTreeNode<T> =
   | {

@@ -2,8 +2,8 @@ import {
   SimpleTree,
   type SimpleTreeOptions,
   type SimpleTreeRenderer,
-} from './simpleTree.js';
-import type { AsyncDataTreeDataSource } from './treeTypes.js';
+} from 'ls/base/browser/ui/tree/simpleTree.js';
+import type { AsyncDataTreeDataSource } from 'ls/base/browser/ui/tree/treeTypes.js';
 
 export class AsyncDataTree<TInput, TNode> {
   private input: TInput | null = null;

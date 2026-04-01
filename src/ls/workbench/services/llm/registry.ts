@@ -1,4 +1,4 @@
-import type { LlmProviderId } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { LlmProviderId } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 
 export type LlmApiStyle = 'openai-compatible';
 export type LlmTask = 'chat' | 'summary' | 'reasoning';

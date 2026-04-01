@@ -3,13 +3,13 @@ import { redoDepth, undoDepth } from 'prosemirror-history';
 import type {
   WritingWorkspaceDraftTab,
   WritingWorkspaceTab,
-} from '../../../workbench/browser/writingEditorModel';
+} from 'ls/workbench/browser/writingEditorModel';
 import {
   collectWritingEditorDerivedLabels,
   collectWritingEditorStats,
   getWritingEditorNodeText,
-} from '../../common/writingEditorDocument';
-import type { WritingEditorSurfaceLabels } from '../text/editor';
+} from 'ls/editor/common/writingEditorDocument';
+import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 
 export type EditorStatusLabels = {
   statusbarAriaLabel: string;

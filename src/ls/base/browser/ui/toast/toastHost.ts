@@ -1,7 +1,7 @@
 import {
   createToastContainerView,
   type ToastContainerView,
-} from './toast';
+} from 'ls/base/browser/ui/toast/toast';
 
 export type ToastHost = {
   render: (closeLabel: string) => void;

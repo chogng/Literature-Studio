@@ -1,4 +1,4 @@
-import { normalizeUrl } from '../../common/url';
+import { normalizeUrl } from 'ls/workbench/common/url';
 
 export type PdfDownloadMonitorStatus = {
   pageUrl: string;

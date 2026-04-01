@@ -1,14 +1,14 @@
-import type { NativeModalState } from '../../base/parts/sandbox/common/desktopTypes.js';
+import type { NativeModalState } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
 import {
   connectWorkbenchWindowControls,
   getWindowStateSnapshot,
   performWorkbenchWindowControl,
   subscribeWindowState,
-} from './window';
-import { hasWindowControlsRuntime } from '../../base/common/platform';
-import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
-import { createChildWindowShellView } from './parts/window/childWindowShell';
+} from 'ls/workbench/browser/window';
+import { hasWindowControlsRuntime } from 'ls/base/common/platform';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
+import { createChildWindowShellView } from 'ls/workbench/browser/parts/window/childWindowShell';
 import './media/articleDetailsModalContent.css';
 
 type ArticleDetailsModalWindowState = Extract<

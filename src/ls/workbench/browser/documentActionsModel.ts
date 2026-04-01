@@ -1,29 +1,30 @@
-import { toast } from '../../base/browser/ui/toast/toast';
+import { toast } from 'ls/base/browser/ui/toast/toast';
 import type {
   ArticleDetailsModalLabels,
   ElectronInvoke,
   LibraryDocumentSummary,
-} from '../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../language/i18n';
 import type { LocaleMessages } from '../../../language/locales';
-import type { Article } from '../services/article/articleFetch';
-import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
+import type { Article } from 'ls/workbench/services/article/articleFetch';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import {
   formatLocalized,
   localizeDesktopInvokeError,
   parseDesktopInvokeError,
-} from '../services/desktop/desktopError';
+} from 'ls/workbench/services/desktop/desktopError';
 import {
   markPdfDownloadCancelled,
   markPdfDownloadFailed,
   markPdfDownloadStarted,
   markPdfDownloadSucceeded,
-} from '../services/document/pdfDownloadStatus';
+} from 'ls/workbench/services/document/pdfDownloadStatus';
 import {
   canExportArticlesDocx,
   preparePdfDownload,
   resolvePreferredDirectory,
-} from '../services/document/documentActionService';
+} from 'ls/workbench/services/document/documentActionService';
+import { syncLibraryMetadataFromArticle } from 'ls/workbench/services/knowledgeBase/libraryMetadataService';
 
 export type DocumentActionsControllerContext = {
   desktopRuntime: boolean;
@@ -189,23 +190,15 @@ export class DocumentActionsController {
 
     if (knowledgeBaseEnabled) {
       try {
-        const document = await invokeDesktop<LibraryDocumentSummary>(
-          'upsert_library_document_metadata',
-          {
-            articleTitle: article.title,
-            doi: typeof article.doi === 'string' ? article.doi : null,
-            authors: article.authors,
-            journalTitle:
-              typeof article.journalTitle === 'string'
-                ? article.journalTitle
-                : null,
-            publishedAt:
-              typeof article.publishedAt === 'string' ? article.publishedAt : null,
+        await syncLibraryMetadataFromArticle({
+          enabled: knowledgeBaseEnabled,
+          invokeDesktop,
+          article: {
+            ...article,
             sourceUrl: preparedPdfDownload.normalizedSourceUrl,
-            sourceId: typeof article.sourceId === 'string' ? article.sourceId : null,
           },
-        );
-        onLibraryDocumentUpserted?.(document);
+          onDocumentUpserted: onLibraryDocumentUpserted,
+        });
       } catch (metadataError) {
         console.error('Failed to upsert library document metadata.', metadataError);
       }

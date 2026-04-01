@@ -1,5 +1,5 @@
 import type { LocaleMessages } from '../../../language/locales';
-import type { DraftEditorCommandId } from './parts/editor/panes/draftEditorCommands';
+import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 
 export type WorkbenchEditorCommandHandlers = {
   executeActiveDraftCommand: (commandId: DraftEditorCommandId) => boolean;

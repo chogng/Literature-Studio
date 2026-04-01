@@ -1,7 +1,7 @@
 import type {
   WritingWorkspaceContentTab,
   WritingWorkspaceTab,
-} from './writingEditorModel';
+} from 'ls/workbench/browser/writingEditorModel';
 
 export type WebContentSurfaceOwner = 'shared-content' | 'editor-content-tab';
 

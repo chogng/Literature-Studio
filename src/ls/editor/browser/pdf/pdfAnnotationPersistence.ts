@@ -1,4 +1,4 @@
-import type { Annotation } from '../../common/annotation';
+import type { Annotation } from 'ls/editor/common/annotation';
 
 const PDF_ANNOTATION_STORAGE_PREFIX = 'ls.pdfAnnotations';
 

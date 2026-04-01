@@ -9,8 +9,8 @@ import type {
   RagProviderSettings,
   TranslationProviderId,
   TranslationProviderSettings,
-} from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import type { BatchSource } from '../../../services/config/configSchema.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema.js';
 
 // Keep preferences types separate from the editor implementation so field views
 // can depend on stable contracts without importing the editor host module.

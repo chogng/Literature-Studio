@@ -6,7 +6,7 @@ import type {
   RagSettings,
   TranslationSettings,
   StoredAppSettings as DesktopStoredAppSettings,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../language/i18n';
 import {
   type BatchSource,
@@ -15,14 +15,14 @@ import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
   resolveConfigBatchSources,
-} from '../config/configSchema';
+} from 'ls/workbench/services/config/configSchema';
 import {
   cloneKnowledgeBaseSettings,
   createDefaultKnowledgeBaseSettings,
-} from '../knowledgeBase/config.js';
-import { cloneLlmSettings, createDefaultLlmSettings } from '../llm/config.js';
-import { cloneRagSettings, createDefaultRagSettings } from '../rag/config.js';
-import { cloneTranslationSettings, createDefaultTranslationSettings } from '../translation/config.js';
+} from 'ls/workbench/services/knowledgeBase/config.js';
+import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config.js';
+import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config.js';
+import { cloneTranslationSettings, createDefaultTranslationSettings } from 'ls/workbench/services/translation/config.js';
 
 export type StoredAppSettingsPayload = DesktopStoredAppSettings;
 export type AppSettingsPayload = DesktopAppSettings;

@@ -1,4 +1,4 @@
-import type { WorkbenchPage } from './workbench';
+import type { WorkbenchPage } from 'ls/workbench/browser/workbench';
 
 export type WorkbenchSidebarKind = 'secondarySidebar' | 'primaryBar';
 

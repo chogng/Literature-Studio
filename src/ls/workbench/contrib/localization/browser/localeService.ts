@@ -6,11 +6,11 @@ import {
 import {
   loadAppSettings,
   saveAppSettingsPartial,
-} from '../../../services/settings/settingsService';
+} from 'ls/workbench/services/settings/settingsService';
 import type {
   ILocaleService,
   LocaleServiceContext,
-} from '../common/locale';
+} from 'ls/workbench/contrib/localization/common/locale';
 
 const LOCALE_STORAGE_KEY = 'ls.workbench.locale';
 

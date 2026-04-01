@@ -1,14 +1,14 @@
-import type { LibraryDocumentsResult } from '../../../../../base/parts/sandbox/common/desktopTypes.js';
-import type { LibraryDocumentSummary } from '../../../../../base/parts/sandbox/common/desktopTypes.js';
-import { DataTree } from '../../../../../base/browser/ui/tree/dataTree.js';
+import type { LibraryDocumentsResult } from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type { LibraryDocumentSummary } from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import { DataTree } from 'ls/base/browser/ui/tree/dataTree.js';
 import {
   type LibraryTreeLabels,
   type LibraryTreeNode,
-} from '../../common/libraryTreeModel.js';
-import { LibraryDataSource } from './libraryDataSource.js';
-import { LibraryDelegate } from './libraryDelegate.js';
-import { LibraryDragAndDrop } from './libraryDragAndDrop.js';
-import { LibraryRenderer } from './libraryRenderer.js';
+} from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel.js';
+import { LibraryDataSource } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDataSource.js';
+import { LibraryDelegate } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDelegate.js';
+import { LibraryDragAndDrop } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDragAndDrop.js';
+import { LibraryRenderer } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryRenderer.js';
 
 export type LibraryViewerLabels = LibraryTreeLabels & {
   unknown: string;

@@ -1,10 +1,10 @@
-import type { ElectronInvoke } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../language/i18n';
 import {
   type BatchSource,
   defaultBatchLimit,
   defaultSameDomainOnly,
-} from '../config/configSchema';
+} from 'ls/workbench/services/config/configSchema';
 import {
   type LibraryStorageMode,
   type LlmProviderId,
@@ -13,29 +13,29 @@ import {
   type RagProviderSettings,
   type TranslationProviderId,
   type TranslationProviderSettings,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import {
   buildSaveSettingsPayload,
   loadAppSettings,
   resolveSettingsState,
   saveAppSettings,
   saveAppSettingsPartial,
-} from './settingsService';
+} from 'ls/workbench/services/settings/settingsService';
 import {
   createDefaultKnowledgeBaseSettings,
-} from '../knowledgeBase/config.js';
+} from 'ls/workbench/services/knowledgeBase/config.js';
 import {
   addBatchSource,
   moveBatchSource,
   removeBatchSource,
   updateBatchSourceJournalTitle,
   updateBatchSourceUrl,
-} from './settingsEditing';
-import { cloneLlmSettings, createDefaultLlmSettings } from '../llm/config.js';
-import { resolveLlmRoute } from '../llm/routing.js';
-import { cloneRagSettings, createDefaultRagSettings } from '../rag/config.js';
-import { resolveRagRoute } from '../rag/routing.js';
-import { cloneTranslationSettings, createDefaultTranslationSettings } from '../translation/config.js';
+} from 'ls/workbench/services/settings/settingsEditing';
+import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config.js';
+import { resolveLlmRoute } from 'ls/workbench/services/llm/routing.js';
+import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config.js';
+import { resolveRagRoute } from 'ls/workbench/services/rag/routing.js';
+import { cloneTranslationSettings, createDefaultTranslationSettings } from 'ls/workbench/services/translation/config.js';
 
 export type SettingsModelSnapshot = {
   pdfDownloadDir: string;

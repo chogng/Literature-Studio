@@ -2,9 +2,9 @@ import '../../../base/browser/ui/button/button.css';
 import {
   createLxIcon,
   type LxIconName,
-} from '../../../base/browser/ui/lxicon/lxicon.js';
-import type { WritingEditorToolbarState } from './commands';
-import type { WritingEditorSurfaceLabels } from './editor';
+} from 'ls/base/browser/ui/lxicon/lxicon.js';
+import type { WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
+import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 
 export type DraftEditorToolbarActions = {
   setParagraph: () => void;
@@ -217,13 +217,15 @@ export class DraftEditorToolbar {
       [
         'pm-toolbar-btn',
         'btn-base',
+        'btn-ghost',
+        'btn-mode-icon',
+        'btn-sm',
         buttonConfig.isActive ? 'is-active' : '',
       ]
         .filter(Boolean)
         .join(' '),
     );
     const iconSlot = createElement('span', 'pm-toolbar-btn-icon');
-    const label = createElement('span', 'pm-toolbar-btn-label');
 
     button.type = 'button';
     button.disabled = Boolean(buttonConfig.disabled);
@@ -246,8 +248,7 @@ export class DraftEditorToolbar {
       iconSlot.append(glyph);
     }
 
-    label.textContent = buttonConfig.label;
-    button.append(iconSlot, label);
+    button.append(iconSlot);
     return button;
   }
 }

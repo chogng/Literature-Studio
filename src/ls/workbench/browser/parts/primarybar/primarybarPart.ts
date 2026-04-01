@@ -1,7 +1,7 @@
-import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
-import { PrimaryBar, type PrimaryBarProps } from './primarybar';
+import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
+import { PrimaryBar, type PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybar';
 
-export type { PrimaryBarLabels, PrimaryBarProps } from './primarybar';
+export type { PrimaryBarLabels, PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybar';
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,

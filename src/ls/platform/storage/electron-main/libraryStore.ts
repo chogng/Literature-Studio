@@ -69,6 +69,10 @@ type FileRow = {
   document_id: string;
 };
 
+type DocumentFilePathRow = {
+  file_path: string;
+};
+
 type DocumentSummaryRow = {
   document_id: string;
   title: string | null;
@@ -214,6 +218,23 @@ function runTransaction<T>(db: DatabaseSync, callback: () => T) {
       // Ignore rollback cleanup failures.
     }
     throw error;
+  }
+}
+
+async function deleteDocumentFiles(filePaths: readonly string[]) {
+  for (const filePath of filePaths) {
+    try {
+      await fs.rm(filePath, { force: false });
+    } catch (error) {
+      const errorCode =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? String((error as { code?: unknown }).code)
+          : '';
+      if (errorCode === 'ENOENT') {
+        continue;
+      }
+      throw error;
+    }
   }
 }
 
@@ -399,6 +420,11 @@ export function createLibraryStore(paths: LibraryPaths): LibraryStore {
   const selectFileBySha = db.prepare(
     'SELECT file_id, document_id FROM document_files WHERE file_sha256 = ? LIMIT 1',
   );
+  const selectFilePathsByDocumentId = db.prepare(`
+    SELECT file_path
+    FROM document_files
+    WHERE document_id = ?
+  `);
   const selectLatestFileForDocument = db.prepare(`
     SELECT file_id
     FROM document_files
@@ -721,14 +747,17 @@ export function createLibraryStore(paths: LibraryPaths): LibraryStore {
         throw new Error('A document id is required to delete a library document.');
       }
 
-      return runTransaction(db, () => {
-        const existingDocument = selectDocumentById.get(documentId) as
-          | DocumentRow
-          | undefined;
-        if (!existingDocument) {
-          return false;
-        }
+      const existingDocument = selectDocumentById.get(documentId) as
+        | DocumentRow
+        | undefined;
+      if (!existingDocument) {
+        return false;
+      }
 
+      const fileRows = selectFilePathsByDocumentId.all(documentId) as DocumentFilePathRow[];
+      await deleteDocumentFiles(fileRows.map((row) => row.file_path));
+
+      return runTransaction(db, () => {
         deleteDocumentById.run(documentId);
         return true;
       });

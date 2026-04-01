@@ -2,19 +2,19 @@ import {
   type AssistantModel,
   type AssistantModelContext,
   createAssistantModel,
-} from './assistantModel';
+} from 'ls/workbench/browser/assistantModel';
 import {
   type BatchFetchController,
   type BatchFetchControllerContext,
   createBatchFetchController,
-} from './batchFetchModel';
+} from 'ls/workbench/browser/batchFetchModel';
 import {
   type DocumentActionsController,
   type DocumentActionsControllerContext,
   createDocumentActionsController,
-} from './documentActionsModel';
-import { type LibraryModel, type LibraryModelContext, createLibraryModel } from './libraryModel';
-import { WebContentNavigationModel } from './webContentNavigationModel';
+} from 'ls/workbench/browser/documentActionsModel';
+import { type LibraryModel, type LibraryModelContext, createLibraryModel } from 'ls/workbench/browser/libraryModel';
+import { WebContentNavigationModel } from 'ls/workbench/browser/webContentNavigationModel';
 import {
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchShellClassName,
@@ -26,40 +26,40 @@ import {
   toggleAuxiliarySidebarVisibility,
   toggleSidebarVisibility,
   WORKBENCH_PART_IDS,
-} from './layout';
+} from 'ls/workbench/browser/layout';
 import {
   type SettingsController,
   type SettingsControllerContext,
   createSettingsController,
-} from '../contrib/preferences/browser/settingsController';
+} from 'ls/workbench/contrib/preferences/browser/settingsController';
 import {
   type EditorPartChangeReason,
   type EditorPartControllerContext,
   type EditorPartModel,
   createEditorPartController,
-} from './parts/editor/editorPart';
-import type { EditorPartProps } from './parts/editor/editorPartView';
+} from 'ls/workbench/browser/parts/editor/editorPart';
+import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
 import {
   createSettingsPartView,
   createSettingsPartProps,
-} from '../contrib/preferences/browser/settingsEditor';
+} from 'ls/workbench/contrib/preferences/browser/settingsEditor';
 import {
   createAuxiliaryBarPartProps,
   type AuxiliaryBarProps,
-} from './parts/auxiliarybar/auxiliarybarPart';
-import type { PrimaryBarProps } from './parts/primarybar/primarybarPart';
-import { createSecondarySidebarPartProps } from './parts/sidebar/secondarySidebarPart';
-import { createTitlebarPartProps } from './parts/titlebar/titlebarPart';
-import { createTitlebarView, type TitlebarView } from './parts/titlebar/titlebarView';
-import { createToastOverlayWindowView } from './toastOverlayWindow';
-import { createMenuOverlayWindowView } from './menuOverlayWindow';
-import { createArticleDetailsModalWindowView } from './articleDetailsModalWindow';
-import { createReaderPageView } from './readerPageView';
-import { showWorkbenchTextInputModal } from './workbenchEditorModals';
-import { createToastHost, type ToastHost } from '../../base/browser/ui/toast/toastHost';
+} from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
+import { createSecondarySidebarPartProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+import { createTitlebarPartProps } from 'ls/workbench/browser/parts/titlebar/titlebarPart';
+import { createTitlebarView, type TitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
+import { createToastOverlayWindowView } from 'ls/workbench/browser/toastOverlayWindow';
+import { createMenuOverlayWindowView } from 'ls/workbench/browser/menuOverlayWindow';
+import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
+import { createReaderPageView } from 'ls/workbench/browser/readerPageView';
+import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
+import { createToastHost, type ToastHost } from 'ls/base/browser/ui/toast/toastHost';
 import {
   localeService,
-} from '../contrib/localization/browser/localeService';
+} from 'ls/workbench/contrib/localization/browser/localeService';
 import {
   getWorkbenchSessionSnapshot,
   setWorkbenchArticles,
@@ -68,47 +68,47 @@ import {
   setWorkbenchSelectionModePhase,
   setWorkbenchWebUrl,
   subscribeWorkbenchSession,
-} from './session';
-import { setWorkbenchEditorCommandHandlers } from './editorCommands';
-import { setWorkbenchTitlebarCommandHandlers } from './titlebarCommands';
-import { handleWorkbenchEditorShortcut } from './workbenchEditorShortcuts';
+} from 'ls/workbench/browser/session';
+import { setWorkbenchEditorCommandHandlers } from 'ls/workbench/browser/editorCommands';
+import { setWorkbenchTitlebarCommandHandlers } from 'ls/workbench/browser/titlebarCommands';
+import { handleWorkbenchEditorShortcut } from 'ls/workbench/browser/workbenchEditorShortcuts';
 import {
   getWindowStateSnapshot,
   performWorkbenchWindowControl,
   subscribeWindowState,
-} from './window';
+} from 'ls/workbench/browser/window';
 import {
   getReaderStateSnapshot,
   selectReaderDerivedState,
   setBatchEndDate,
   setBatchStartDate,
   subscribeReaderState,
-} from './readerState';
+} from 'ls/workbench/browser/readerState';
 import {
   resolveContentSourceUrl,
   shouldSyncActiveContentTabFromBrowserUrl,
   type WebContentSurfaceSnapshot,
-} from './webContentSurfaceState';
+} from 'ls/workbench/browser/webContentSurfaceState';
 import { getLocaleMessages } from '../../../language/i18n';
-import type { Article } from '../services/article/articleFetch';
-import { normalizeUrl } from '../common/url';
-import type { LibraryDocumentSummary } from '../../base/parts/sandbox/common/desktopTypes.js';
+import type { Article } from 'ls/workbench/services/article/articleFetch';
+import { normalizeUrl } from 'ls/workbench/common/url';
+import type { LibraryDocumentSummary } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import {
   getConfigBatchSourceSeed,
   normalizeBatchLimit,
   type BatchSource,
-} from '../services/config/configSchema';
+} from 'ls/workbench/services/config/configSchema';
 import {
   reduceQuickAccessAction,
   type QuickAccessAction,
   type QuickAccessCommand,
-} from '../services/quickAccess/quickAccessService';
-import type { WritingWorkspaceTab } from './writingEditorModel';
+} from 'ls/workbench/services/quickAccess/quickAccessService';
+import type { WritingWorkspaceTab } from 'ls/workbench/browser/writingEditorModel';
 import {
   hasDesktopRuntime,
   hasWebContentRuntime,
-} from '../../base/common/platform';
-import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
+} from 'ls/base/common/platform';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import './media/workbench.css';
 
 export type WorkbenchPage = 'reader' | 'settings';
@@ -148,7 +148,6 @@ const DEFAULT_WORKBENCH_STATE: WorkbenchStateSnapshot = {
 };
 
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
-const DRAFT_CONTENT_RENDER_DEBOUNCE_MS = 120;
 
 let workbenchState = DEFAULT_WORKBENCH_STATE;
 const workbenchStateListeners = new Set<() => void>();
@@ -332,7 +331,6 @@ class WorkbenchHost {
   private isDisposed = false;
   private isRendering = false;
   private renderPending = false;
-  private draftContentRenderTimer: number | null = null;
   private webContentRuntime = false;
   private previousBrowserUrl = '';
   private previousActiveContentTabId: string | null = null;
@@ -385,7 +383,6 @@ class WorkbenchHost {
     this.isDisposed = true;
     this.webContentStateDisposable?.();
     this.webContentStateDisposable = null;
-    this.clearDraftContentRenderTimer();
     window.removeEventListener('keydown', this.handleWindowKeydown);
     while (this.globalDisposables.length > 0) {
       this.globalDisposables.pop()?.();
@@ -453,36 +450,10 @@ class WorkbenchHost {
   }
 
   private readonly handleEditorPartChange = (
-    reason: EditorPartChangeReason,
+    _reason: EditorPartChangeReason,
   ) => {
-    if (reason === 'draftContent') {
-      this.scheduleDraftContentRender();
-      return;
-    }
-
-    this.clearDraftContentRenderTimer();
     this.requestRender();
   };
-
-  private scheduleDraftContentRender() {
-    if (this.draftContentRenderTimer !== null) {
-      window.clearTimeout(this.draftContentRenderTimer);
-    }
-
-    this.draftContentRenderTimer = window.setTimeout(() => {
-      this.draftContentRenderTimer = null;
-      this.requestRender();
-    }, DRAFT_CONTENT_RENDER_DEBOUNCE_MS);
-  }
-
-  private clearDraftContentRenderTimer() {
-    if (this.draftContentRenderTimer === null) {
-      return;
-    }
-
-    window.clearTimeout(this.draftContentRenderTimer);
-    this.draftContentRenderTimer = null;
-  }
 
   private syncWebContentRuntime(
     webContentNavigationModelInstance: WebContentNavigationModel,
@@ -980,6 +951,7 @@ class WorkbenchHost {
       llmSettings: currentLlmSettings,
       ragSettings: currentRagSettings,
       fallbackWritingContext: draftBody,
+      getFallbackWritingContext: editorPartControllerInstance.getDraftBody,
     });
     const assistantSnapshot = assistantModelInstance.getSnapshot();
     const {
@@ -1352,6 +1324,7 @@ class WorkbenchHost {
         llmSettings: currentLlmSettings,
         ragSettings: currentRagSettings,
         fallbackWritingContext: draftBody,
+        getFallbackWritingContext: editorPartControllerInstance.getDraftBody,
       },
       documentActionsController: documentActionsControllerInstance,
       documentActionsContext: {
