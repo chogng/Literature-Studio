@@ -88,6 +88,9 @@ test('auxiliary bar action buttons expose labels and shared hover', async () => 
     assert(historyButton instanceof HTMLButtonElement);
     assert.equal(historyButton.getAttribute('aria-pressed'), 'true');
 
+    document.dispatchEvent(
+      new window.KeyboardEvent('keydown', { bubbles: true, key: 'Tab' }),
+    );
     historyButton.dispatchEvent(new Event('focus', { bubbles: true }));
     await delay(0);
 

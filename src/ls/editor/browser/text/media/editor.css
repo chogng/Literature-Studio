@@ -92,6 +92,7 @@
   border-radius: 0;
   background: transparent;
   color: inherit;
+  pointer-events: none;
 }
 
 .pm-toolbar-btn.btn-base.is-active .pm-toolbar-btn-icon {
@@ -102,11 +103,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .pm-toolbar-btn-icon .lx-icon svg {
   width: 14px;
   height: 14px;
+  pointer-events: none;
 }
 
 .pm-toolbar-btn-glyph {
@@ -115,6 +118,7 @@
     "Noto Sans SC",
     sans-serif;
   letter-spacing: 0.02em;
+  pointer-events: none;
 }
 
 .pm-toolbar-dropdown.dropdown-wrapper {
