@@ -247,6 +247,32 @@ export interface ExportArticlesDocxPayload {
   locale?: Locale;
 }
 
+export interface WritingEditorMarkPayload {
+  type: string;
+  attrs?: Record<string, unknown>;
+}
+
+export interface WritingEditorNodePayload {
+  type: string;
+  attrs?: Record<string, unknown>;
+  content?: WritingEditorNodePayload[];
+  marks?: WritingEditorMarkPayload[];
+  text?: string;
+}
+
+export type WritingEditorDocumentPayload = WritingEditorNodePayload;
+export type WritingEditorStableSelectionTargetPayload =
+  import('ls/editor/common/writingEditorDocument').WritingEditorStableSelectionTarget;
+export type WritingEditorTextUnitPayload =
+  import('ls/editor/common/writingEditorDocument').WritingEditorTextUnit;
+
+export interface ExportEditorDocxPayload {
+  document?: WritingEditorDocumentPayload;
+  title?: string | null;
+  preferredDirectory?: string | null;
+  locale?: Locale;
+}
+
 export interface ArticleDetailsModalLabels {
   untitled: string;
   unknown: string;
@@ -336,6 +362,11 @@ export interface PdfDownloadResult {
 export interface DocxExportResult {
   filePath: string;
   articleCount: number;
+}
+
+export interface EditorDocxExportResult {
+  filePath: string;
+  title: string;
 }
 
 export type LibraryIngestStatus = 'registered' | 'queued' | 'indexing' | 'ready' | 'failed';
@@ -560,6 +591,7 @@ export interface AppCommandPayloadMap {
   reindex_library_document: ReindexLibraryDocumentPayload;
   rag_answer_articles: RagAnswerArticlesPayload;
   export_articles_docx: ExportArticlesDocxPayload;
+  export_editor_docx: ExportEditorDocxPayload;
   open_article_details_modal: OpenArticleDetailsModalPayload;
 }
 
@@ -582,6 +614,7 @@ export interface AppCommandResultMap {
   reindex_library_document: ReindexLibraryDocumentResult;
   rag_answer_articles: RagAnswerResult;
   export_articles_docx: DocxExportResult | null;
+  export_editor_docx: EditorDocxExportResult | null;
   open_article_details_modal: boolean;
 }
 

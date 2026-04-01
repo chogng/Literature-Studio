@@ -943,6 +943,7 @@ class WorkbenchHost {
     const editorPartSnapshot = editorPartControllerInstance.getSnapshot();
     const {
       tabs: editorTabs,
+      activeTab: activeEditorTab,
       draftBody,
       createDraftTab: handleCreateDraftTab,
       createWebTab: handleCreateWebTab,
@@ -1013,6 +1014,13 @@ class WorkbenchHost {
         : selectedArticleKeysInOrder
             .map((key) => filteredArticleMap.get(key))
             .filter((article): article is Article => Boolean(article));
+    const activeDraftExport =
+      activeEditorTab?.kind === 'draft'
+        ? {
+            title: activeEditorTab.title,
+            document: activeEditorTab.document,
+          }
+        : null;
 
     const navigateToAddressBarUrl = (
       nextUrl: string,
@@ -1041,6 +1049,7 @@ class WorkbenchHost {
         isSelectionModeEnabled: selectionModePhase !== 'off',
         selectedArticleOrderLookup,
         exportableArticles,
+        activeDraftExport,
         onLibraryDocumentUpserted:
           libraryModelInstance.upsertDocumentSummary,
         onLibraryUpdated: refreshLibrary,
@@ -1050,8 +1059,8 @@ class WorkbenchHost {
       documentActionsControllerInstance.handleSharedPdfDownload;
     const handleOpenArticleDetails =
       documentActionsControllerInstance.handleOpenArticleDetails;
-    const handleExportArticlesDocx =
-      documentActionsControllerInstance.handleExportArticlesDocx;
+    const handleExportDocx =
+      documentActionsControllerInstance.handleExportDocx;
 
     const handleSidebarPdfDownload = () => {
       const sourceUrl = resolveContentSourceUrl(
@@ -1367,6 +1376,7 @@ class WorkbenchHost {
         isSelectionModeEnabled: selectionModePhase !== 'off',
         selectedArticleOrderLookup,
         exportableArticles,
+        activeDraftExport,
         onLibraryUpdated: refreshLibrary,
       },
       batchFetchController: batchFetchControllerInstance,
@@ -1399,7 +1409,7 @@ class WorkbenchHost {
       onNavigateForward: handleWebContentForward,
       onNavigateRefresh: handleWebContentRefresh,
       onNavigateWeb: handleNavigateWeb,
-      onExportDocx: handleExportArticlesDocx,
+      onExportDocx: handleExportDocx,
     });
 
     const secondarySidebarProps = createSecondarySidebarPartProps({

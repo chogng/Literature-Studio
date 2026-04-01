@@ -2,6 +2,7 @@ import 'ls/base/browser/ui/button/button.css';
 import { createDropdownView, type DropdownOption, type DropdownView } from 'ls/base/browser/ui/dropdown/dropdown';
 import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { EDITOR_NAMED_FONT_SIZE_PRESETS } from 'ls/base/common/editorFormat';
 
 import type { WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
 import {
@@ -120,6 +121,14 @@ function withFontAvailability(option: DropdownOption) {
     disabled: true,
   } satisfies DropdownOption;
 }
+
+const FONT_SIZE_PRESETS: readonly DropdownOption[] = [
+  ...EDITOR_NAMED_FONT_SIZE_PRESETS.map((preset) => ({
+    value: `${preset.cssPx}px`,
+    label: preset.name,
+    title: `${preset.name} / ${preset.pointSize}pt / ${preset.cssPx}px`,
+  })),
+];
 
 export class DraftEditorToolbar {
   private props: DraftEditorToolbarProps;
@@ -299,14 +308,7 @@ export class DraftEditorToolbar {
     );
     const fontSizeOptions = this.createTextStyleOptions(
       toolbarState.fontSize,
-      [
-        { value: '13px', label: '13px' },
-        { value: '15px', label: '15px' },
-        { value: '16px', label: '16px' },
-        { value: '18px', label: '18px' },
-        { value: '20px', label: '20px' },
-        { value: '24px', label: '24px' },
-      ],
+      FONT_SIZE_PRESETS,
       labels.defaultTextStyle,
     );
 

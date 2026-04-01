@@ -12,36 +12,14 @@ import { defaultDocxExportConfig } from 'ls/code/electron-main/document/docxConf
 import { appError } from 'ls/base/common/errors';
 import { resolveDocxExportCopy, resolveDocxExportDialogCopy, resolveSupportedLocale } from 'ls/code/electron-main/document/docxCopy';
 import type { SupportedLocale } from 'ls/code/electron-main/document/docxCopy';
+import { buildDocxBuffer as buildDocxArchiveBuffer, escapeXml, normalizeDocxPath } from 'ls/code/electron-main/document/docxPackage';
 
 import { cleanText } from 'ls/base/common/strings';
 import { showSaveDialog } from 'ls/platform/dialogs/electron-main/dialogMainService';
 import { buildPdfDirectoryName } from 'ls/platform/download/common/pdfFileName';
 import { translateArticlesToChinese } from 'ls/code/electron-main/translation/articleTranslation';
 
-type ZipEntry = {
-  name: string;
-  data: Buffer;
-};
-
-const crcTable = new Uint32Array(256);
-for (let index = 0; index < crcTable.length; index += 1) {
-  let value = index;
-  for (let bit = 0; bit < 8; bit += 1) {
-    value = (value & 1) === 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-  }
-  crcTable[index] = value >>> 0;
-}
-
 const docxConfig = defaultDocxExportConfig;
-
-function escapeXml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 function normalizeLines(value: string | null | undefined) {
   return String(value ?? '')
@@ -257,168 +235,12 @@ function buildDocumentXml(articles: Article[], locale: SupportedLocale) {
   ].join('');
 }
 
-function buildContentTypesXml() {
-  return [
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
-    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
-    '<Default Extension="xml" ContentType="application/xml"/>',
-    '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>',
-    '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>',
-    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>',
-    '</Types>',
-  ].join('');
-}
-
-function buildRootRelationshipsXml() {
-  return [
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
-    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>',
-    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>',
-    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>',
-    '</Relationships>',
-  ].join('');
-}
-
-function buildAppPropertiesXml() {
-  return [
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-    '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">',
-    '<Application>Literature Studio</Application>',
-    '</Properties>',
-  ].join('');
-}
-
-function buildCorePropertiesXml(exportedAt: Date) {
-  const timestamp = escapeXml(exportedAt.toISOString());
-  return [
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-    '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">',
-    '<dc:title>Literature Studio Batch Export</dc:title>',
-    '<dc:creator>Literature Studio</dc:creator>',
-    '<cp:lastModifiedBy>Literature Studio</cp:lastModifiedBy>',
-    `<dcterms:created xsi:type="dcterms:W3CDTF">${timestamp}</dcterms:created>`,
-    `<dcterms:modified xsi:type="dcterms:W3CDTF">${timestamp}</dcterms:modified>`,
-    '</cp:coreProperties>',
-  ].join('');
-}
-
-function crc32(buffer: Buffer) {
-  let crc = 0xffffffff;
-  for (const byte of buffer) {
-    crc = (crc >>> 8) ^ crcTable[(crc ^ byte) & 0xff];
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function toDosDateTime(date: Date) {
-  const year = Math.max(1980, date.getFullYear());
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const seconds = Math.floor(date.getSeconds() / 2);
-
-  return {
-    date: ((year - 1980) << 9) | (month << 5) | day,
-    time: (hours << 11) | (minutes << 5) | seconds,
-  };
-}
-
-function buildZip(entries: ZipEntry[]) {
-  const localParts: Buffer[] = [];
-  const centralParts: Buffer[] = [];
-  const timestamp = toDosDateTime(new Date());
-  let offset = 0;
-
-  for (const entry of entries) {
-    const nameBuffer = Buffer.from(entry.name.replace(/\\/g, '/'));
-    const dataBuffer = entry.data;
-    const entryCrc = crc32(dataBuffer);
-
-    const localHeader = Buffer.alloc(30);
-    localHeader.writeUInt32LE(0x04034b50, 0);
-    localHeader.writeUInt16LE(20, 4);
-    localHeader.writeUInt16LE(0, 6);
-    localHeader.writeUInt16LE(0, 8);
-    localHeader.writeUInt16LE(timestamp.time, 10);
-    localHeader.writeUInt16LE(timestamp.date, 12);
-    localHeader.writeUInt32LE(entryCrc, 14);
-    localHeader.writeUInt32LE(dataBuffer.length, 18);
-    localHeader.writeUInt32LE(dataBuffer.length, 22);
-    localHeader.writeUInt16LE(nameBuffer.length, 26);
-    localHeader.writeUInt16LE(0, 28);
-
-    localParts.push(localHeader, nameBuffer, dataBuffer);
-
-    const centralHeader = Buffer.alloc(46);
-    centralHeader.writeUInt32LE(0x02014b50, 0);
-    centralHeader.writeUInt16LE(20, 4);
-    centralHeader.writeUInt16LE(20, 6);
-    centralHeader.writeUInt16LE(0, 8);
-    centralHeader.writeUInt16LE(0, 10);
-    centralHeader.writeUInt16LE(timestamp.time, 12);
-    centralHeader.writeUInt16LE(timestamp.date, 14);
-    centralHeader.writeUInt32LE(entryCrc, 16);
-    centralHeader.writeUInt32LE(dataBuffer.length, 20);
-    centralHeader.writeUInt32LE(dataBuffer.length, 24);
-    centralHeader.writeUInt16LE(nameBuffer.length, 28);
-    centralHeader.writeUInt16LE(0, 30);
-    centralHeader.writeUInt16LE(0, 32);
-    centralHeader.writeUInt16LE(0, 34);
-    centralHeader.writeUInt16LE(0, 36);
-    centralHeader.writeUInt32LE(0, 38);
-    centralHeader.writeUInt32LE(offset, 42);
-
-    centralParts.push(centralHeader, nameBuffer);
-    offset += localHeader.length + nameBuffer.length + dataBuffer.length;
-  }
-
-  const centralDirectorySize = centralParts.reduce((sum, part) => sum + part.length, 0);
-  const endOfCentralDirectory = Buffer.alloc(22);
-  endOfCentralDirectory.writeUInt32LE(0x06054b50, 0);
-  endOfCentralDirectory.writeUInt16LE(0, 4);
-  endOfCentralDirectory.writeUInt16LE(0, 6);
-  endOfCentralDirectory.writeUInt16LE(entries.length, 8);
-  endOfCentralDirectory.writeUInt16LE(entries.length, 10);
-  endOfCentralDirectory.writeUInt32LE(centralDirectorySize, 12);
-  endOfCentralDirectory.writeUInt32LE(offset, 16);
-  endOfCentralDirectory.writeUInt16LE(0, 20);
-
-  return Buffer.concat([...localParts, ...centralParts, endOfCentralDirectory]);
-}
 
 function buildDocxBuffer(articles: Article[], locale: SupportedLocale) {
-  const exportedAt = new Date();
-  const entries: ZipEntry[] = [
-    {
-      name: '[Content_Types].xml',
-      data: Buffer.from(buildContentTypesXml(), 'utf8'),
-    },
-    {
-      name: '_rels/.rels',
-      data: Buffer.from(buildRootRelationshipsXml(), 'utf8'),
-    },
-    {
-      name: 'docProps/app.xml',
-      data: Buffer.from(buildAppPropertiesXml(), 'utf8'),
-    },
-    {
-      name: 'docProps/core.xml',
-      data: Buffer.from(buildCorePropertiesXml(exportedAt), 'utf8'),
-    },
-    {
-      name: 'word/document.xml',
-      data: Buffer.from(buildDocumentXml(articles, locale), 'utf8'),
-    },
-  ];
-
-  return buildZip(entries);
-}
-
-function normalizeDocxPath(filePath: string) {
-  return filePath.toLowerCase().endsWith('.docx') ? filePath : `${filePath}.docx`;
+  return buildDocxArchiveBuffer({
+    documentXml: buildDocumentXml(articles, locale),
+    coreTitle: 'Literature Studio Batch Export',
+  });
 }
 
 function pad(value: number) {
@@ -554,4 +376,3 @@ export async function exportArticlesToDocxFile({
     articleCount: articles.length,
   };
 }
-

@@ -277,6 +277,120 @@ test('DraftEditorToolbar shows preset font labels for normalized browser font-fa
   }
 });
 
+test('DraftEditorToolbar shows Chinese named font-size presets for matching px values', () => {
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      isUnderlineActive: false,
+      fontFamily: null,
+      fontSize: '16px',
+      textAlign: 'left',
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: false,
+      canRedo: false,
+      availableFigureIds: [],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      toggleUnderline: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      setTextAlign: () => {},
+      clearInlineStyles: () => {},
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {},
+      undo: () => {},
+      redo: () => {},
+      insertCitation: () => {},
+      insertFigure: () => {},
+      insertFigureRef: () => {},
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const dropdownFields = toolbar.getElement().querySelectorAll('.dropdown-field');
+    const fontSizeField = dropdownFields.item(1);
+    assert(fontSizeField instanceof HTMLElement);
+    assert.equal(fontSizeField.textContent, '小四');
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('DraftEditorToolbar orders Chinese named font-size presets from large to small', () => {
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      isUnderlineActive: false,
+      fontFamily: null,
+      fontSize: null,
+      textAlign: 'left',
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: false,
+      canRedo: false,
+      availableFigureIds: [],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      toggleUnderline: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      setTextAlign: () => {},
+      clearInlineStyles: () => {},
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {},
+      undo: () => {},
+      redo: () => {},
+      insertCitation: () => {},
+      insertFigure: () => {},
+      insertFigureRef: () => {},
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const dropdowns = toolbar.getElement().querySelectorAll('.dropdown-wrapper');
+    const fontSizeDropdown = dropdowns.item(1);
+    assert(fontSizeDropdown instanceof HTMLElement);
+    fontSizeDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const menuItems = Array.from(document.body.querySelectorAll('.dropdown-menu-item'));
+    const labels = menuItems
+      .map((item) => item.textContent?.trim())
+      .filter((value): value is string => Boolean(value));
+
+    assert.deepEqual(labels.slice(0, 5), ['Default', '初号', '小初', '一号', '小一']);
+    assert.deepEqual(labels.slice(-4), ['五号', '小五', '六号', '小六']);
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
+  }
+});
+
 test('DraftEditorToolbar marks unavailable preset fonts in the dropdown', () => {
   const originalFonts = (
     document as Document & {

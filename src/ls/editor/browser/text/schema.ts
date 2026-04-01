@@ -43,6 +43,17 @@ export type TextStyleMarkAttrs = {
   fontSize: string | null;
 };
 
+type ElementLike = {
+  getAttribute: (name: string) => string | null;
+  querySelector: (selectors: string) => ElementLike | null;
+  textContent?: string | null;
+  style?: {
+    textAlign?: string;
+    fontFamily?: string;
+    fontSize?: string;
+  };
+};
+
 const trackedBlockNodeNames = new Set([
   'paragraph',
   'heading',
@@ -83,6 +94,17 @@ function normalizeTextAlignValue(value: string | null | undefined) {
   return null;
 }
 
+function asElementLike(value: unknown): ElementLike | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as Partial<ElementLike>;
+  return typeof candidate.getAttribute === 'function'
+    ? candidate as ElementLike
+    : null;
+}
+
 function withTextAlign(spec: NodeSpec): NodeSpec {
   const parseDOM = spec.parseDOM?.map((rule) => {
     const nextRule = { ...rule };
@@ -93,8 +115,8 @@ function withTextAlign(spec: NodeSpec): NodeSpec {
         return false;
       }
 
-      const element = node instanceof HTMLElement ? node : null;
-      const rawTextAlign = element?.style.textAlign || element?.getAttribute('data-text-align') || null;
+      const element = asElementLike(node);
+      const rawTextAlign = element?.style?.textAlign || element?.getAttribute('data-text-align') || null;
       return {
         ...(baseAttrs && typeof baseAttrs === 'object' ? baseAttrs : {}),
         textAlign: normalizeTextAlignValue(rawTextAlign),
@@ -177,9 +199,11 @@ function createFigureSpec(): NodeSpec {
     parseDOM: [
       {
         tag: 'figure[data-editor-figure]',
-        contentElement: (element) =>
-          element.querySelector('figcaption') ?? element,
-        getAttrs: (element) => {
+        contentElement: (element: unknown) => {
+          const nextElement = asElementLike(element);
+          return (nextElement?.querySelector('figcaption') ?? element) as never;
+        },
+        getAttrs: (element: ElementLike) => {
           const image = element.querySelector('img');
           return {
             blockId: element.getAttribute('data-block-id') || null,
@@ -252,7 +276,7 @@ function createCitationSpec(): NodeSpec {
     parseDOM: [
       {
         tag: 'span.pm-inline-chip-citation[data-citation-ids]',
-        getAttrs: (element) => ({
+        getAttrs: (element: ElementLike) => ({
           citationIds: (element.getAttribute('data-citation-ids') ?? '')
             .split(',')
             .map((segment) => segment.trim())
@@ -322,12 +346,13 @@ function createTextStyleMarkSpec(): MarkSpec {
       {
         tag: 'span',
         getAttrs: (element) => {
-          if (!(element instanceof HTMLElement)) {
+          const nextElement = asElementLike(element);
+          if (!nextElement) {
             return false;
           }
 
-          const fontFamily = normalizeTextStyleValue(element.style.fontFamily);
-          const fontSize = normalizeTextStyleValue(element.style.fontSize);
+          const fontFamily = normalizeTextStyleValue(nextElement.style?.fontFamily);
+          const fontSize = normalizeTextStyleValue(nextElement.style?.fontSize);
           if (!fontFamily && !fontSize) {
             return false;
           }
