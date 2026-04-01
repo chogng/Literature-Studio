@@ -1,3 +1,4 @@
+import type { ResolvedPos } from 'prosemirror-model';
 import { EditorState } from 'prosemirror-state';
 import { baseKeymap } from 'prosemirror-commands';
 import { history } from 'prosemirror-history';
@@ -10,8 +11,8 @@ import { createDraftEditorRuntimeState } from 'ls/editor/browser/shared/editorSt
 import type { DraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
 import { getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setParagraphCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, undoCommand } from 'ls/editor/browser/text/commands';
 import type { InsertFigurePayload, WritingEditorCommand, WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
-import { normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
-import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
+import { collectWritingEditorDerivedLabels, createWritingEditorDocumentModel, findWritingEditorNodeByBlockId, getWritingEditorNodeText, getWritingEditorTextUnitKind, isWritingEditorPlainTextEditableNode, normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
+import type { WritingEditorDocument, WritingEditorStableSelectionTarget, WritingEditorTextUnitKind } from 'ls/editor/common/writingEditorDocument';
 
 import {
   createWritingEditorDocumentIdentityPlugin,
@@ -59,6 +60,7 @@ export type WritingEditorSurfaceHandle = {
   insertFigure: (payload: InsertFigurePayload) => boolean;
   insertFigureRef: (targetId: string) => boolean;
   getAvailableFigureIds: () => readonly string[];
+  getStableSelectionTarget: () => WritingEditorStableSelectionTarget | null;
 };
 
 type WritingEditorSurfaceStatusLabels = {
@@ -79,6 +81,13 @@ export type WritingEditorSurfaceProps = {
 
 type WritingEditorSurfaceSnapshot = {
   toolbarState: WritingEditorToolbarState;
+};
+
+type ResolvedSelectionTextUnit = {
+  blockId: string;
+  kind: WritingEditorTextUnitKind;
+  node: EditorState['selection']['$from']['parent'];
+  depth: number;
 };
 
 const EMPTY_TOOLBAR_STATE: WritingEditorToolbarState = {
@@ -137,6 +146,24 @@ function createWritingEditorState(document: WritingEditorDocument, placeholder: 
       createWritingEditorPlaceholderPlugin(placeholder),
     ],
   });
+}
+
+function resolveSelectionTextUnit($pos: ResolvedPos): ResolvedSelectionTextUnit | null {
+  for (let depth = $pos.depth; depth >= 0; depth -= 1) {
+    const node = $pos.node(depth);
+    const kind = getWritingEditorTextUnitKind(node);
+    const blockId = (node.attrs as { blockId?: unknown } | null | undefined)?.blockId;
+    if (kind && typeof blockId === 'string' && blockId.trim()) {
+      return {
+        blockId,
+        kind,
+        node,
+        depth,
+      };
+    }
+  }
+
+  return null;
 }
 
 function createNormalizedDocumentKey(document: WritingEditorDocument) {
@@ -298,6 +325,72 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
 
   getAvailableFigureIds() {
     return this.snapshot.toolbarState.availableFigureIds;
+  }
+
+  getStableSelectionTarget() {
+    if (!this.view) {
+      return null;
+    }
+
+    const { state } = this.view;
+    if (state.selection.ranges.length !== 1) {
+      return null;
+    }
+
+    const fromUnit = resolveSelectionTextUnit(state.selection.$from);
+    const toUnit = resolveSelectionTextUnit(state.selection.$to);
+    if (!fromUnit || !toUnit || fromUnit.blockId !== toUnit.blockId) {
+      return null;
+    }
+
+    const documentValue = state.doc.toJSON() as WritingEditorDocument;
+    const documentModel = createWritingEditorDocumentModel(documentValue);
+    const textModel = documentModel.getTextModel(fromUnit.blockId);
+    if (!textModel) {
+      return null;
+    }
+
+    const targetNode = findWritingEditorNodeByBlockId(documentValue, fromUnit.blockId);
+    if (!targetNode) {
+      return null;
+    }
+
+    const derivedLabels = collectWritingEditorDerivedLabels(state.doc);
+
+    const selectionStartOffset = getWritingEditorNodeText(
+      fromUnit.node,
+      derivedLabels,
+      0,
+      state.selection.from - state.selection.$from.start(fromUnit.depth),
+    ).length;
+    const selectionEndOffset = getWritingEditorNodeText(
+      toUnit.node,
+      derivedLabels,
+      0,
+      state.selection.to - state.selection.$to.start(toUnit.depth),
+    ).length;
+
+    const startPosition = textModel.getPositionAt(selectionStartOffset);
+    const endPosition = textModel.getPositionAt(selectionEndOffset);
+    const range = textModel.validateRange({
+      startLineNumber: startPosition.lineNumber,
+      startColumn: startPosition.column,
+      endLineNumber: endPosition.lineNumber,
+      endColumn: endPosition.column,
+    });
+    const offsets = textModel.getOffsetsForRange(range);
+
+    return {
+      blockId: fromUnit.blockId,
+      kind: fromUnit.kind,
+      range,
+      startOffset: offsets.startOffset,
+      endOffset: offsets.endOffset,
+      selectedText: textModel.getValue().slice(offsets.startOffset, offsets.endOffset),
+      blockText: textModel.getValue(),
+      isCollapsed: state.selection.empty,
+      isPlainTextEditable: isWritingEditorPlainTextEditableNode(targetNode),
+    };
   }
 
   setParagraph = () => this.runCommand(setParagraphCommand());

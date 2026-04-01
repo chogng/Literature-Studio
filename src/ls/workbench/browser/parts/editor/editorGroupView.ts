@@ -7,6 +7,7 @@ import { areDraftEditorRuntimeStatesEqual, createEditorStatus } from 'ls/editor/
 import type { DraftEditorRuntimeState, EditorStatusState } from 'ls/editor/browser/shared/editorStatus';
 
 import { createActiveDraftEditorCommandExecutor } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
+import type { DraftEditorSurfaceActionId } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
 import { resolveEditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPaneRegistry';
 import type { EditorPaneRenderer } from 'ls/workbench/browser/parts/editor/panes/editorPaneRegistry';
 
@@ -51,15 +52,22 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 function createTitleAreaControl(
   props: Pick<EditorGroupViewProps, 'labels' | 'onActivateTab' | 'onCloseTab'>,
   group: EditorGroupModel,
-): TitleControl {
-  return new TabsTitleControl({
+){
+  return {
     group,
     labels: {
       close: props.labels.close,
     },
     onActivateTab: props.onActivateTab,
     onCloseTab: props.onCloseTab,
-  });
+  };
+}
+
+function createTitleControl(
+  props: Pick<EditorGroupViewProps, 'labels' | 'onActivateTab' | 'onCloseTab'>,
+  group: EditorGroupModel,
+): TitleControl {
+  return new TabsTitleControl(createTitleAreaControl(props, group));
 }
 
 function createEditorStatusLabels(labels: EditorPartLabels) {
@@ -206,6 +214,7 @@ export class EditorGroupView {
   private readonly controller: EditorGroupController;
   private readonly element = createElement('div', 'editor-shell');
   private readonly headerElement = createElement('div', 'editor-tabs-header');
+  private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div');
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
   private readonly draftCommandExecutor = createActiveDraftEditorCommandExecutor(
@@ -217,10 +226,15 @@ export class EditorGroupView {
   constructor(props: EditorGroupViewProps) {
     this.props = props;
     this.controller = new EditorGroupController(props);
+    this.titleAreaControl = createTitleControl(
+      props,
+      this.controller.getSnapshot().group,
+    );
     this.emptyWorkspaceView = new EditorEmptyWorkspaceView({
       labels: props.labels,
       onCreateDraftTab: props.onCreateDraftTab,
     });
+    this.headerElement.append(this.titleAreaControl.getElement());
     this.element.append(this.headerElement, this.contentElement);
     this.render();
   }
@@ -233,6 +247,14 @@ export class EditorGroupView {
     return this.draftCommandExecutor.execute(commandId);
   }
 
+  runActiveDraftEditorAction(actionId: DraftEditorSurfaceActionId) {
+    return this.draftCommandExecutor.runAction(actionId);
+  }
+
+  getActiveDraftStableSelectionTarget() {
+    return this.draftCommandExecutor.getStableSelectionTarget();
+  }
+
   setProps(props: EditorGroupViewProps) {
     this.props = props;
     this.controller.setContext(props);
@@ -240,18 +262,25 @@ export class EditorGroupView {
   }
 
   dispose() {
+    this.titleAreaControl.dispose();
     this.activePaneRenderer?.dispose();
     this.activePaneRenderer = null;
     this.activePaneKey = null;
     this.element.replaceChildren();
   }
 
+  private handleDraftStatusChange = (
+    tabId: string,
+    status: DraftEditorRuntimeState,
+  ) => {
+    this.controller.updateDraftStatus(tabId, status);
+    this.props.onStatusChange?.(this.controller.getSnapshot().editorStatus);
+  };
+
   private render() {
     const { group, editorStatus } = this.controller.getSnapshot();
     this.props.onStatusChange?.(editorStatus);
-
-    const titleAreaControl = createTitleAreaControl(this.props, group);
-    this.headerElement.replaceChildren(titleAreaControl.render());
+    this.titleAreaControl.setProps(createTitleAreaControl(this.props, group));
 
     this.contentElement.className = '';
     this.contentElement.removeAttribute('data-editor-pane');
@@ -273,7 +302,7 @@ export class EditorGroupView {
       labels: this.props.labels,
       viewPartProps: this.props.viewPartProps,
       onDraftDocumentChange: this.props.onDraftDocumentChange,
-      onDraftStatusChange: this.controller.updateDraftStatus,
+      onDraftStatusChange: this.handleDraftStatusChange,
     });
 
     if (this.activePaneKey !== resolvedPane.paneKey || !this.activePaneRenderer) {

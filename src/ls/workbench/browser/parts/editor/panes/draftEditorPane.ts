@@ -9,6 +9,7 @@ import { localeService } from 'ls/workbench/contrib/localization/browser/localeS
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { createDraftEditorCommandAction } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+import type { DraftEditorSurfaceActionId } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
 
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 
@@ -35,6 +36,10 @@ export class DraftEditorPane {
     return this.element;
   }
 
+  getStableSelectionTarget() {
+    return this.editor.getStableSelectionTarget();
+  }
+
   executeCommand(commandId: DraftEditorCommandId) {
     switch (commandId) {
       case 'insertCitation':
@@ -46,6 +51,15 @@ export class DraftEditorPane {
       case 'insertFigureRef':
         this.handleInsertFigureRef();
         return;
+    }
+  }
+
+  executeEditorAction(actionId: DraftEditorSurfaceActionId) {
+    switch (actionId) {
+      case 'undo':
+        return this.editor.undo();
+      case 'redo':
+        return this.editor.redo();
     }
   }
 

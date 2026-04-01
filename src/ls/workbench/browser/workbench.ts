@@ -87,6 +87,7 @@ import { reduceQuickAccessAction } from 'ls/workbench/services/quickAccess/quick
 import type { QuickAccessAction, QuickAccessCommand } from 'ls/workbench/services/quickAccess/quickAccessService';
 
 import type { WritingWorkspaceTab } from 'ls/workbench/browser/writingEditorModel';
+import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import {
   hasDesktopRuntime,
   hasWebContentRuntime,
@@ -260,6 +261,39 @@ function areStringArraysEqual(
     previous.length === next.length &&
     previous.every((value, index) => value === next[index])
   );
+}
+
+function formatStableSelectionWritingContext(
+  target: WritingEditorStableSelectionTarget | null,
+  fallbackDraftBody: string,
+) {
+  if (!target) {
+    return fallbackDraftBody;
+  }
+
+  const selectedText = target.selectedText.trim();
+  const blockText = target.blockText.trim();
+  if (!blockText) {
+    return fallbackDraftBody;
+  }
+
+  return [
+    '[selection]',
+    `blockId: ${target.blockId}`,
+    `kind: ${target.kind}`,
+    `range: ${target.range.startLineNumber}:${target.range.startColumn}-${target.range.endLineNumber}:${target.range.endColumn}`,
+    `offsets: ${target.startOffset}-${target.endOffset}`,
+    `collapsed: ${target.isCollapsed ? 'true' : 'false'}`,
+    '',
+    '[selectedText]',
+    selectedText || '(empty selection)',
+    '',
+    '[blockText]',
+    blockText,
+    '',
+    '[draftFallback]',
+    fallbackDraftBody.trim() || '(empty draft)',
+  ].join('\n');
 }
 
 function resolveCurrentPdfDownloadArticle(
@@ -692,6 +726,8 @@ class WorkbenchHost {
     setWorkbenchEditorCommandHandlers({
       executeActiveDraftCommand: (commandId) =>
         this.readerPageView?.executeActiveDraftCommand(commandId) ?? false,
+      getActiveDraftStableSelectionTarget: () =>
+        this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null,
     });
   }
 
@@ -1277,6 +1313,13 @@ class WorkbenchHost {
       setAuxiliarySidebarVisible(false);
     };
 
+    const activeDraftStableSelectionTarget =
+      this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null;
+    const assistantWritingContext = formatStableSelectionWritingContext(
+      activeDraftStableSelectionTarget,
+      draftBody,
+    );
+
     syncWorkbenchServicesContext({
       settingsController: settingsControllerInstance,
       settingsContext: {
@@ -1306,8 +1349,12 @@ class WorkbenchHost {
         articles: filteredArticles,
         llmSettings: currentLlmSettings,
         ragSettings: currentRagSettings,
-        fallbackWritingContext: draftBody,
-        getFallbackWritingContext: editorPartControllerInstance.getDraftBody,
+        fallbackWritingContext: assistantWritingContext,
+        getFallbackWritingContext: () =>
+          formatStableSelectionWritingContext(
+            this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null,
+            editorPartControllerInstance.getDraftBody(),
+          ),
       },
       documentActionsController: documentActionsControllerInstance,
       documentActionsContext: {

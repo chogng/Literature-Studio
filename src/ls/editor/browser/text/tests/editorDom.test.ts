@@ -7,6 +7,7 @@ import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocume
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 
 let ProseMirrorEditor: typeof import('ls/editor/browser/text/editor').ProseMirrorEditor;
+let TextSelection: typeof import('prosemirror-state').TextSelection;
 let cleanupDomEnvironment: (() => void) | null = null;
 
 const labels = {
@@ -38,6 +39,7 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ ProseMirrorEditor } = await import('ls/editor/browser/text/editor'));
+  ({ TextSelection } = await import('prosemirror-state'));
 });
 
 after(() => {
@@ -250,6 +252,54 @@ test('ProseMirrorEditor applies external document changes without echoing them b
 
     assert.equal(getEditorText(editor), 'beta');
     assert.equal(changes.length, 1);
+  });
+});
+
+test('ProseMirrorEditor exports a stable selection target for a single text unit', async () => {
+  await withEditor(({ editor }) => {
+    const initialDocument = createWritingEditorDocumentFromPlainText('alpha beta');
+    editor.setProps(createProps(initialDocument, () => {}));
+
+    const editorView = (editor as unknown as { view: import('prosemirror-view').EditorView | null }).view;
+    assert(editorView);
+
+    const selection = TextSelection.create(editorView.state.doc, 1, 6);
+    editorView.dispatch(editorView.state.tr.setSelection(selection));
+
+    const target = editor.getStableSelectionTarget();
+    assert(target);
+    assert.deepEqual(target, {
+      blockId: target.blockId,
+      kind: 'paragraph',
+      range: {
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 1,
+        endColumn: 6,
+      },
+      startOffset: 0,
+      endOffset: 5,
+      selectedText: 'alpha',
+      blockText: 'alpha beta',
+      isCollapsed: false,
+      isPlainTextEditable: true,
+    });
+    assert.match(target.blockId, /^block_/);
+  });
+});
+
+test('ProseMirrorEditor returns null for multi-block selections', async () => {
+  await withEditor(({ editor }) => {
+    const initialDocument = createWritingEditorDocumentFromPlainText('alpha\n\nbeta');
+    editor.setProps(createProps(initialDocument, () => {}));
+
+    const editorView = (editor as unknown as { view: import('prosemirror-view').EditorView | null }).view;
+    assert(editorView);
+
+    const selection = TextSelection.create(editorView.state.doc, 2, 11);
+    editorView.dispatch(editorView.state.tr.setSelection(selection));
+
+    assert.equal(editor.getStableSelectionTarget(), null);
   });
 });
 

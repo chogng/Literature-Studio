@@ -28,9 +28,26 @@ The lightweight runner bundles the test entry with `esbuild` and executes it thr
 - Citation numbers are derived from first appearance order, not from the raw `citationIds` text.
 - Figure references render against figure order and fall back to `?` when the target figure is missing.
 - Figure insertion keeps a structured figure node, generates stable ids, and leaves a trailing paragraph so editing can continue naturally.
+- Stable editing anchors are `blockId`-based text units, not visual line numbers.
+- Logical line coordinates are computed inside each exported text unit and only track explicit line breaks.
 - `input.ts` is covered as a standalone state machine for composition, pending sync, focus restore, and timer cleanup.
 - `sync.ts` is covered as a standalone decision layer for stale props, placeholder-only updates, and model echo handling.
 - `editor.ts` is covered in `jsdom` for DOM-level regressions around stale props during local edits, composition flush timing, placeholder refresh, and external document replacement semantics.
+
+## Stable edit coordinates
+
+- The long-term edit anchor is `blockId`.
+- Exportable text units live in `src/ls/editor/common/writingEditorDocument.ts` via `collectWritingEditorTextUnits`.
+- Model wrappers are available via `createWritingEditorDocumentModel` and `createWritingEditorTextModel`.
+- A text unit maps one editable text-bearing node with a stable `blockId` to:
+  - `kind`
+  - normalized plain text
+  - logical line offsets derived only from explicit `hard_break` content
+- Monaco-style helpers are exposed per text unit: `validatePosition`, `validateRange`, `getOffsetAt`, and `getPositionAt`.
+- Safe edit executors are exposed via `applyWritingEditorEdit` and `applyWritingEditorEdits`.
+- The current executor only rewrites plain-text text units (`text` + `hard_break`). Structured inline nodes such as `citation` and `figure_ref` are rejected instead of being flattened.
+- Visual line numbers are intentionally excluded because they change with viewport width, font metrics, and layout chrome.
+- `figure` remains a structural block, but the editable caption surface is exposed through its `figcaption` text unit.
 
 ## Sync policy
 
