@@ -12,7 +12,16 @@ const rootDir =
     ? scriptFilePath.slice(0, scriptsMarkerIndex)
     : path.dirname(scriptFilePath);
 const outputDir = path.join(rootDir, '.tmp', 'library-store-tests');
-const entryPoint = path.join(rootDir, 'tests', 'library-store', 'index.test.ts');
+const entryPoint = path.join(
+  rootDir,
+  'src',
+  'ls',
+  'platform',
+  'storage',
+  'electron-main',
+  'tests',
+  'index.test.ts',
+);
 const outputFile = path.join(outputDir, 'index.test.mjs');
 
 await rm(outputDir, { recursive: true, force: true });

@@ -1,27 +1,12 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "baseUrl": ".",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "allowImportingTsExtensions": false,
     "lib": ["ES2022"],
-    "paths": {
-      "app/*": ["src/*"],
-      "language/*": ["src/language/*"],
-      "ls/*": ["src/ls/*"]
-    },
     "types": ["node"],
     "rootDir": "src/ls",
     "outDir": "dist-electron",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "skipLibCheck": true,
     "sourceMap": true
   },
   "include": [

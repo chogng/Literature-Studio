@@ -12,7 +12,16 @@ const rootDir =
     ? scriptFilePath.slice(0, scriptsMarkerIndex)
     : path.dirname(scriptFilePath);
 const outputDir = path.join(rootDir, '.tmp', 'writing-editor-tests');
-const entryPoint = path.join(rootDir, 'tests', 'writing-editor', 'index.test.ts');
+const entryPoint = path.join(
+  rootDir,
+  'src',
+  'ls',
+  'editor',
+  'browser',
+  'text',
+  'tests',
+  'writingEditor.index.test.ts',
+);
 const outputFile = path.join(outputDir, 'index.test.mjs');
 
 await rm(outputDir, { recursive: true, force: true });
