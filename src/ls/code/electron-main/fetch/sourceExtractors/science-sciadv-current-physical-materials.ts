@@ -1,75 +1,48 @@
-import { parseDateHintFromText } from '../../../../base/common/date.js';
-import { cleanText, uniq } from '../../../../base/common/strings.js';
-import {
-  extractScienceDoiFromPathLike,
-  isScienceSciadvCurrentTocUrl,
-} from '../../../../base/common/url.js';
+import { cleanText } from '../../../../base/common/strings.js';
+import { isScienceSciadvCurrentTocUrl } from '../../../../base/common/url.js';
 
 import type {
   ListingCandidateExtraction,
   ListingCandidateExtractor,
   ListingCandidateExtractorContext,
 } from './types.js';
-import { normalizeListingCandidateSeed } from './types.js';
+import {
+  ABSTRACT_SELECTOR,
+  AUTHORS_SELECTOR,
+  CARD_SELECTOR,
+  DATE_SELECTOR,
+  LINK_SELECTOR,
+  normalizeScienceHeading,
+  parseScienceCard,
+  resolveTocRoot,
+  SECTION_HEADING_SELECTOR,
+  SECTION_SELECTOR,
+  TITLE_SELECTOR,
+  TOC_BODY_SELECTORS,
+} from './science-common.js';
 
-const SCIENCE_SCIADV_TOC_BODY_SELECTORS = [
-  'div.toc > div.toc__body > div.toc__body',
-  'div.toc__body > div.toc__body',
-  'div.toc__body',
-] as const;
-const SCIENCE_SCIADV_SECTION_SELECTOR = 'section.toc__section';
-const SCIENCE_SCIADV_SECTION_HEADING_SELECTOR = 'h4';
 const SCIENCE_SCIADV_TARGET_HEADING = 'physical and materials sciences';
 const SCIENCE_SCIADV_FIXED_SECTION_INDEX = 3;
-const SCIENCE_SCIADV_CARD_SELECTOR = 'div.card';
-const SCIENCE_SCIADV_LINK_SELECTOR =
-  'h3.article-title a[href*="/doi/"], h3.article-title a[href], a[href*="/doi/"]';
-const SCIENCE_SCIADV_TITLE_SELECTOR = 'h3.article-title';
-const SCIENCE_SCIADV_DATE_SELECTOR = '.card-meta time, time[datetime], [datetime]';
-const SCIENCE_SCIADV_ABSTRACT_SELECTOR = '.accordion__content, div.card-body';
-const SCIENCE_SCIADV_AUTHORS_SELECTOR = 'ul[title="list of authors"] li span';
 const SCIENCE_SCIADV_ARTICLE_TYPE = 'Physical and Materials Sciences';
 
-function normalizeHeading(value: unknown) {
-  return cleanText(value).toLowerCase();
-}
-
 function matchesTargetHeading(value: unknown) {
-  const normalized = normalizeHeading(value);
+  const normalized = normalizeScienceHeading(value);
   if (!normalized) return false;
   return normalized === SCIENCE_SCIADV_TARGET_HEADING || normalized.includes(SCIENCE_SCIADV_TARGET_HEADING);
-}
-
-function resolveScienceSciadvTocBodyRoot({
-  $,
-}: Pick<ListingCandidateExtractorContext, '$'>) {
-  for (const selector of SCIENCE_SCIADV_TOC_BODY_SELECTORS) {
-    const roots = $(selector).toArray();
-    const matchedRoot = roots.find((root) => $(root).children(SCIENCE_SCIADV_SECTION_SELECTOR).length > 0);
-    if (!matchedRoot) continue;
-
-    return {
-      root: matchedRoot,
-      selector,
-      matchedRootCount: roots.length,
-    };
-  }
-
-  return null;
 }
 
 function resolveScienceSciadvTargetSection({
   $,
 }: Pick<ListingCandidateExtractorContext, '$'>) {
-  const tocBody = resolveScienceSciadvTocBodyRoot({ $ });
+  const tocBody = resolveTocRoot({ $ });
   if (!tocBody) return null;
 
-  const sections = $(tocBody.root).children(SCIENCE_SCIADV_SECTION_SELECTOR).toArray();
+  const sections = $(tocBody.root).children(SECTION_SELECTOR).toArray();
   if (sections.length === 0) return null;
 
   const fixedSection = sections[SCIENCE_SCIADV_FIXED_SECTION_INDEX] ?? null;
   const fixedSectionHeading = fixedSection
-    ? $(fixedSection).find(SCIENCE_SCIADV_SECTION_HEADING_SELECTOR).first().text()
+    ? $(fixedSection).find(SECTION_HEADING_SELECTOR).first().text()
     : '';
   if (fixedSection && matchesTargetHeading(fixedSectionHeading)) {
     return {
@@ -83,7 +56,7 @@ function resolveScienceSciadvTargetSection({
   }
 
   const headingMatchedIndex = sections.findIndex((section) =>
-    matchesTargetHeading($(section).find(SCIENCE_SCIADV_SECTION_HEADING_SELECTOR).first().text()),
+    matchesTargetHeading($(section).find(SECTION_HEADING_SELECTOR).first().text()),
   );
   if (headingMatchedIndex >= 0) {
     return {
@@ -99,79 +72,6 @@ function resolveScienceSciadvTargetSection({
   return null;
 }
 
-function extractScienceSciadvCardLink({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  return $(root).find(SCIENCE_SCIADV_LINK_SELECTOR).first();
-}
-
-function extractScienceSciadvCardHref({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  return cleanText(extractScienceSciadvCardLink({ $, root }).attr('href'));
-}
-
-function extractScienceSciadvCardTitle({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  const title = cleanText($(root).find(SCIENCE_SCIADV_TITLE_SELECTOR).first().text());
-  if (title) return title;
-  return cleanText(extractScienceSciadvCardLink({ $, root }).text());
-}
-
-function extractScienceSciadvCardDateHint({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  const dateNodes = $(root).find(SCIENCE_SCIADV_DATE_SELECTOR).toArray();
-  for (const node of dateNodes) {
-    const current = $(node);
-    const values = [
-      current.attr('datetime'),
-      current.attr('content'),
-      current.attr('aria-label'),
-      current.attr('title'),
-      current.text(),
-    ];
-    for (const value of values) {
-      const parsed = parseDateHintFromText(value);
-      if (parsed) return parsed;
-    }
-  }
-
-  return parseDateHintFromText($(root).text());
-}
-
-function extractScienceSciadvCardDoi(href: string) {
-  return extractScienceDoiFromPathLike(href);
-}
-
-function extractScienceSciadvCardAuthors({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  const authors = $(root)
-    .find(SCIENCE_SCIADV_AUTHORS_SELECTOR)
-    .map((_, node) => cleanText($(node).text()))
-    .get()
-    .filter(Boolean);
-
-  return uniq(authors);
-}
-
 function extractScienceSciadvPhysicalMaterialsCards(
   context: ListingCandidateExtractorContext,
 ): ListingCandidateExtraction | null {
@@ -180,76 +80,55 @@ function extractScienceSciadvPhysicalMaterialsCards(
   if (!resolvedSection) return null;
 
   const sectionHeading = cleanText(
-    $(resolvedSection.section).find(SCIENCE_SCIADV_SECTION_HEADING_SELECTOR).first().text(),
+    $(resolvedSection.section).find(SECTION_HEADING_SELECTOR).first().text(),
   );
-  const cards = $(resolvedSection.section).find(SCIENCE_SCIADV_CARD_SELECTOR).toArray();
+  const cards = $(resolvedSection.section).find(CARD_SELECTOR).toArray();
   if (cards.length === 0) return null;
 
   let datedCandidateCount = 0;
   let summarizedCandidateCount = 0;
   const seen = new Set<string>();
 
-  const candidates = cards
-    .map((card, index) => {
-      const href = extractScienceSciadvCardHref({ $, root: card });
-      const title = extractScienceSciadvCardTitle({ $, root: card });
-      if (!href || !title) return null;
+  const candidates: ListingCandidateExtraction['candidates'] = [];
+  for (const [index, card] of cards.entries()) {
+    const parsedCard = parseScienceCard({
+      $,
+      root: card,
+      pageUrl,
+      order: index,
+      articleType: SCIENCE_SCIADV_ARTICLE_TYPE,
+      scoreBoost: 180,
+    });
+    if (!parsedCard || seen.has(parsedCard.normalizedUrl)) continue;
 
-      let normalized = '';
-      try {
-        normalized = new URL(href, pageUrl).toString();
-      } catch {
-        return null;
-      }
-
-      if (seen.has(normalized)) return null;
-      seen.add(normalized);
-
-      const dateHint = extractScienceSciadvCardDateHint({ $, root: card });
-      const abstractText = cleanText($(card).find(SCIENCE_SCIADV_ABSTRACT_SELECTOR).first().text()) || null;
-      const authors = extractScienceSciadvCardAuthors({ $, root: card });
-      const doi = extractScienceSciadvCardDoi(href);
-
-      if (dateHint) datedCandidateCount += 1;
-      if (abstractText) summarizedCandidateCount += 1;
-
-      return normalizeListingCandidateSeed({
-        href,
-        order: index,
-        dateHint,
-        articleType: SCIENCE_SCIADV_ARTICLE_TYPE,
-        title,
-        doi,
-        authors,
-        abstractText,
-        publishedAt: dateHint ?? null,
-        scoreBoost: 180,
-      });
-    })
-    .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
+    seen.add(parsedCard.normalizedUrl);
+    if (parsedCard.hasDateHint) datedCandidateCount += 1;
+    if (parsedCard.hasAbstractText) summarizedCandidateCount += 1;
+    candidates.push(parsedCard.seed);
+  }
 
   if (candidates.length === 0) return null;
 
   return {
     candidates,
     diagnostics: {
-      tocBodySelectors: SCIENCE_SCIADV_TOC_BODY_SELECTORS,
+      tocBodySelectors: TOC_BODY_SELECTORS,
       tocBodySelector: resolvedSection.tocBodySelector,
       tocBodyMatchedRootCount: resolvedSection.tocBodyMatchedRootCount,
-      sectionSelector: SCIENCE_SCIADV_SECTION_SELECTOR,
-      sectionHeadingSelector: SCIENCE_SCIADV_SECTION_HEADING_SELECTOR,
+      sectionSelector: SECTION_SELECTOR,
+      sectionHeadingSelector: SECTION_HEADING_SELECTOR,
       targetHeading: SCIENCE_SCIADV_TARGET_HEADING,
       fixedSectionIndex: SCIENCE_SCIADV_FIXED_SECTION_INDEX,
       selectedSectionIndex: resolvedSection.sectionIndex,
       selectedBy: resolvedSection.selectedBy,
       sectionCount: resolvedSection.sectionCount,
       selectedSectionHeading: sectionHeading || null,
-      cardSelector: SCIENCE_SCIADV_CARD_SELECTOR,
-      linkSelector: SCIENCE_SCIADV_LINK_SELECTOR,
-      titleSelector: SCIENCE_SCIADV_TITLE_SELECTOR,
-      dateSelector: SCIENCE_SCIADV_DATE_SELECTOR,
-      abstractSelector: SCIENCE_SCIADV_ABSTRACT_SELECTOR,
-      authorsSelector: SCIENCE_SCIADV_AUTHORS_SELECTOR,
+      cardSelector: CARD_SELECTOR,
+      linkSelector: LINK_SELECTOR,
+      titleSelector: TITLE_SELECTOR,
+      dateSelector: DATE_SELECTOR,
+      abstractSelector: ABSTRACT_SELECTOR,
+      authorsSelector: AUTHORS_SELECTOR,
       cardCount: cards.length,
       candidateCount: candidates.length,
       datedCandidateCount,
