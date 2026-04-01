@@ -76,8 +76,8 @@ function createConversationId() {
 }
 
 function createDefaultConversationTitle(ui: LocaleMessages, index: number) {
-  const baseTitle = ui.assistantSidebarNewConversation;
-  return index === 0 ? baseTitle : `${baseTitle} ${index + 1}`;
+  void index;
+  return ui.assistantSidebarNewConversation;
 }
 
 function createConversation(
