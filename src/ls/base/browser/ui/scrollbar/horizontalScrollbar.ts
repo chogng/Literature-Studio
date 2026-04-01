@@ -4,11 +4,22 @@ import { HorizontalScrollbarState } from 'ls/base/browser/ui/scrollbar/scrollbar
 const MIN_THUMB_SIZE = 24;
 const ACTIVE_CLASS_TIMEOUT = 900;
 const WHEEL_LINE_SIZE = 16;
+const DOM_DELTA_LINE = 1;
+const DOM_DELTA_PAGE = 2;
 
 export type HorizontalScrollbarOptions = {
   activeItem?: HTMLElement | null;
   initialScrollLeft?: number;
   onScrollLeftChange?: (scrollLeft: number) => void;
+  handleMouseWheel?: boolean;
+  mouseWheelSmoothScroll?: boolean;
+  flipAxes?: boolean;
+  scrollYToX?: boolean;
+  consumeMouseWheelIfScrollbarIsNeeded?: boolean;
+  alwaysConsumeMouseWheel?: boolean;
+  mouseWheelScrollSensitivity?: number;
+  fastScrollSensitivity?: number;
+  scrollPredominantAxis?: boolean;
 };
 
 export class HorizontalScrollbar {
@@ -18,6 +29,15 @@ export class HorizontalScrollbar {
   private readonly thumb: HTMLElement;
   private readonly activeItem: HTMLElement | null;
   private readonly onScrollLeftChange?: (scrollLeft: number) => void;
+  private readonly handleMouseWheel: boolean;
+  private readonly mouseWheelSmoothScroll: boolean;
+  private readonly flipAxes: boolean;
+  private readonly scrollYToX: boolean;
+  private readonly consumeMouseWheelIfScrollbarIsNeeded: boolean;
+  private readonly alwaysConsumeMouseWheel: boolean;
+  private readonly mouseWheelScrollSensitivity: number;
+  private readonly fastScrollSensitivity: number;
+  private readonly scrollPredominantAxis: boolean;
   private readonly resizeObserver?: ResizeObserver;
   private readonly scrollbarState: HorizontalScrollbarState;
   private activeClassTimeout: number | null = null;
@@ -39,6 +59,16 @@ export class HorizontalScrollbar {
     this.thumb = thumb;
     this.activeItem = options.activeItem ?? null;
     this.onScrollLeftChange = options.onScrollLeftChange;
+    this.handleMouseWheel = options.handleMouseWheel ?? true;
+    this.mouseWheelSmoothScroll = options.mouseWheelSmoothScroll ?? true;
+    this.flipAxes = options.flipAxes ?? false;
+    this.scrollYToX = options.scrollYToX ?? false;
+    this.consumeMouseWheelIfScrollbarIsNeeded =
+      options.consumeMouseWheelIfScrollbarIsNeeded ?? false;
+    this.alwaysConsumeMouseWheel = options.alwaysConsumeMouseWheel ?? false;
+    this.mouseWheelScrollSensitivity = options.mouseWheelScrollSensitivity ?? 1;
+    this.fastScrollSensitivity = options.fastScrollSensitivity ?? 5;
+    this.scrollPredominantAxis = options.scrollPredominantAxis ?? true;
     this.scrollbarState = new HorizontalScrollbarState({
       arrowSize: 0,
       scrollbarSize: this.track.clientHeight,
@@ -57,6 +87,9 @@ export class HorizontalScrollbar {
 
     this.track.addEventListener('pointerdown', this.handleTrackPointerDown);
     this.thumb.addEventListener('pointerdown', this.handleThumbPointerDown);
+    this.strip.addEventListener('wheel', this.handleScrollbarWheel, {
+      passive: false,
+    });
     this.track.addEventListener('wheel', this.handleScrollbarWheel, {
       passive: false,
     });
@@ -96,6 +129,7 @@ export class HorizontalScrollbar {
 
     this.track.removeEventListener('pointerdown', this.handleTrackPointerDown);
     this.thumb.removeEventListener('pointerdown', this.handleThumbPointerDown);
+    this.strip.removeEventListener('wheel', this.handleScrollbarWheel);
     this.track.removeEventListener('wheel', this.handleScrollbarWheel);
     this.thumb.removeEventListener('wheel', this.handleScrollbarWheel);
     this.strip.removeEventListener('scroll', this.handleStripScroll);
@@ -249,37 +283,98 @@ export class HorizontalScrollbar {
   }
 
   private readonly handleScrollbarWheel = (event: WheelEvent) => {
-    if (!this.host.classList.contains('is-scrollable')) {
+    if (!this.handleMouseWheel) {
+      return;
+    }
+
+    const isScrollable = this.host.classList.contains('is-scrollable');
+    if (!isScrollable) {
+      if (this.alwaysConsumeMouseWheel) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       return;
     }
 
     const wheelDelta = this.getHorizontalWheelDelta(event);
-    if (wheelDelta === 0) {
+    const currentScrollLeft = this.strip.scrollLeft;
+    const maxScrollLeft = Math.max(0, this.strip.scrollWidth - this.strip.clientWidth);
+    const nextScrollLeft = Math.min(
+      maxScrollLeft,
+      Math.max(0, currentScrollLeft + wheelDelta),
+    );
+    const didScroll = nextScrollLeft !== currentScrollLeft;
+
+    if (
+      this.alwaysConsumeMouseWheel ||
+      (this.consumeMouseWheelIfScrollbarIsNeeded && wheelDelta !== 0) ||
+      didScroll
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (!didScroll) {
       return;
     }
 
-    event.preventDefault();
-    this.strip.scrollLeft += wheelDelta;
+    this.setScrollLeft(nextScrollLeft);
     this.scheduleRender();
     this.showScrollbarTemporarily();
   };
 
   private getHorizontalWheelDelta(event: WheelEvent) {
-    const rawDelta =
-      Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    let deltaX = event.deltaX * this.mouseWheelScrollSensitivity;
+    let deltaY = event.deltaY * this.mouseWheelScrollSensitivity;
+
+    if (this.scrollPredominantAxis) {
+      if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+        deltaX = 0;
+      } else {
+        deltaY = 0;
+      }
+    }
+
+    if (this.flipAxes) {
+      [deltaY, deltaX] = [deltaX, deltaY];
+    }
+
+    if ((this.scrollYToX || event.shiftKey) && deltaX === 0) {
+      deltaX = deltaY;
+      deltaY = 0;
+    }
+
+    if (event.altKey) {
+      deltaX *= this.fastScrollSensitivity;
+      deltaY *= this.fastScrollSensitivity;
+    }
+
+    const rawDelta = deltaX !== 0 ? deltaX : deltaY;
     if (rawDelta === 0) {
       return 0;
     }
 
-    if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    if (event.deltaMode === DOM_DELTA_LINE) {
       return rawDelta * WHEEL_LINE_SIZE;
     }
 
-    if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    if (event.deltaMode === DOM_DELTA_PAGE) {
       return rawDelta * this.strip.clientWidth;
     }
 
     return rawDelta;
+  }
+
+  private setScrollLeft(scrollLeft: number) {
+    if (this.mouseWheelSmoothScroll && typeof this.strip.scrollTo === 'function') {
+      this.strip.scrollTo({
+        left: scrollLeft,
+        behavior: 'smooth',
+      });
+      return;
+    }
+
+    this.strip.scrollLeft = scrollLeft;
   }
 
   private showScrollbarTemporarily() {
