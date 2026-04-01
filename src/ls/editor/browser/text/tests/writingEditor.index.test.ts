@@ -1,0 +1,10 @@
+import './prosemirrorDocument.test';
+import 'ls/base/browser/ui/dropdown/tests/dropdown.test';
+import 'ls/base/browser/ui/hover/tests/hover.test';
+import 'ls/editor/browser/text/tests/input.test';
+import 'ls/editor/browser/text/tests/editorDom.test';
+import 'ls/editor/browser/text/tests/sync.test';
+import 'ls/workbench/browser/tests/auxiliarybar.test';
+import 'ls/workbench/browser/tests/writingEditorLiveState.test';
+import 'ls/workbench/browser/tests/writingEditorStorage.test';
+import 'ls/workbench/browser/tests/tabsTitleControl.test';

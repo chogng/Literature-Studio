@@ -197,6 +197,7 @@ npm run check:i18n
 - `npm run preview:web`：预览 `dist-web/` 的 Web 构建结果
 - `npm run check:i18n`：检查中英文文案键是否一致
 - `npm run test:writing-editor`：verify ProseMirror writing-editor invariants around `citation`, `figure`, and `figure_ref`
+- `npm run test:library-store`：verify library document deletion and managed-copy cleanup behavior
 
 ## Writing Editor Notes
 

@@ -19,7 +19,7 @@ Run the targeted regression check with:
 npm run test:writing-editor
 ```
 
-The test entry point is `tests/writing-editor/index.test.ts`.
+The test entry point is `src/ls/editor/browser/text/tests/writingEditor.index.test.ts`.
 
 The lightweight runner bundles the test entry with `esbuild` and executes it through Node's built-in `node:test` runner. DOM integration coverage uses `jsdom`, so we still avoid introducing a full browser test stack.
 
