@@ -31,10 +31,111 @@ export type HoverHandle = {
   dispose: () => void;
 };
 
-const DEFAULT_DELAY_MS = 420;
+const DEFAULT_PLAIN_HOVER_DELAY_MS = 600;
+const DEFAULT_ACTION_HOVER_DELAY_MS = 350;
+const PLAIN_HOVER_HIDE_DELAY_MS = 120;
+const ACTION_HOVER_HIDE_DELAY_MS = 90;
+const HOVER_REENTRY_COOLDOWN_MS = 300;
 const POINTER_OFFSET_PX = 10;
 const POINTER_SAFE_MARGIN_PX = 18;
 const VIEWPORT_MARGIN_PX = 8;
+
+type HoverRect = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
+
+function isPointInsideRect(rect: HoverRect, clientX: number, clientY: number) {
+  return (
+    clientX >= rect.left &&
+    clientX <= rect.right &&
+    clientY >= rect.top &&
+    clientY <= rect.bottom
+  );
+}
+
+function toHoverRect(rect: DOMRect | DOMRectReadOnly): HoverRect {
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+  };
+}
+
+class HoverInteractionPolicy {
+  private inputModality: 'keyboard' | 'pointer' = 'pointer';
+  private pointerSuppressedArea: HoverRect | null = null;
+  private globalListenersInstalled = false;
+
+  installGlobalListeners() {
+    if (this.globalListenersInstalled || typeof document === 'undefined') {
+      return;
+    }
+
+    this.globalListenersInstalled = true;
+    document.addEventListener('keydown', this.handleDocumentKeyDown, true);
+    document.addEventListener('pointerdown', this.handleDocumentPointerDown, true);
+    document.addEventListener('pointermove', this.handleDocumentPointerMove, true);
+    document.addEventListener('mousedown', this.handleDocumentMouseDown, true);
+    document.addEventListener('mousemove', this.handleDocumentMouseMove, true);
+  }
+
+  notePointerHover() {
+    this.inputModality = 'pointer';
+  }
+
+  suppressPointerHoverFromTarget(target: HTMLElement) {
+    this.inputModality = 'pointer';
+    this.pointerSuppressedArea = toHoverRect(target.getBoundingClientRect());
+  }
+
+  canSchedulePointerHover() {
+    return this.pointerSuppressedArea === null;
+  }
+
+  shouldShowHoverOnFocus() {
+    return this.inputModality === 'keyboard';
+  }
+
+  private clearPointerSuppression() {
+    this.pointerSuppressedArea = null;
+  }
+
+  private updatePointerSuppressionFromPoint(clientX: number, clientY: number) {
+    if (
+      this.pointerSuppressedArea &&
+      !isPointInsideRect(this.pointerSuppressedArea, clientX, clientY)
+    ) {
+      this.clearPointerSuppression();
+    }
+  }
+
+  private readonly handleDocumentKeyDown = () => {
+    this.inputModality = 'keyboard';
+    this.clearPointerSuppression();
+  };
+
+  private readonly handleDocumentPointerDown = () => {
+    this.inputModality = 'pointer';
+  };
+
+  private readonly handleDocumentPointerMove = (event: PointerEvent) => {
+    this.updatePointerSuppressionFromPoint(event.clientX, event.clientY);
+  };
+
+  private readonly handleDocumentMouseDown = () => {
+    this.inputModality = 'pointer';
+  };
+
+  private readonly handleDocumentMouseMove = (event: MouseEvent) => {
+    this.updatePointerSuppressionFromPoint(event.clientX, event.clientY);
+  };
+}
+
+const hoverInteractionPolicy = new HoverInteractionPolicy();
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -75,7 +176,7 @@ export function normalizeHoverInput(input: HoverInput): HoverOptions | null {
 
     return {
       content: input,
-      delay: DEFAULT_DELAY_MS,
+      delay: DEFAULT_PLAIN_HOVER_DELAY_MS,
       hideOnHover: true,
       position: 'auto',
       showPointer: true,
@@ -91,7 +192,11 @@ export function normalizeHoverInput(input: HoverInput): HoverOptions | null {
   const normalized: HoverOptions = {
     ...input,
     actions: input.actions ? [...input.actions] : [],
-    delay: input.delay ?? DEFAULT_DELAY_MS,
+    delay:
+      input.delay ??
+      ((input.actions?.length ?? 0) > 0
+        ? DEFAULT_ACTION_HOVER_DELAY_MS
+        : DEFAULT_PLAIN_HOVER_DELAY_MS),
     hideOnHover:
       input.actions && input.actions.length > 0
         ? false
@@ -377,6 +482,7 @@ class SharedHoverOverlay {
 
 const sharedHoverOverlay = new SharedHoverOverlay();
 let activeController: HoverController | null = null;
+let lastHoverHideAt = 0;
 
 class HoverController implements HoverHandle {
   private options: HoverOptions | null;
@@ -388,9 +494,11 @@ class HoverController implements HoverHandle {
     private readonly target: HTMLElement,
     input: HoverInput,
   ) {
+    hoverInteractionPolicy.installGlobalListeners();
     this.options = normalizeHoverInput(input);
     this.target.addEventListener('mouseenter', this.handleMouseEnter);
     this.target.addEventListener('mouseleave', this.handleMouseLeave);
+    this.target.addEventListener('pointerdown', this.handlePointerDown, true);
     this.target.addEventListener('focus', this.handleFocus, true);
     this.target.addEventListener('blur', this.handleBlur, true);
   }
@@ -445,6 +553,7 @@ class HoverController implements HoverHandle {
     this.hide();
     this.target.removeEventListener('mouseenter', this.handleMouseEnter);
     this.target.removeEventListener('mouseleave', this.handleMouseLeave);
+    this.target.removeEventListener('pointerdown', this.handlePointerDown, true);
     this.target.removeEventListener('focus', this.handleFocus, true);
     this.target.removeEventListener('blur', this.handleBlur, true);
   };
@@ -457,7 +566,7 @@ class HoverController implements HoverHandle {
   }
 
   handleOverlayLeave() {
-    this.scheduleHide(this.shouldHideOnHover() ? 0 : this.hasActions() ? 90 : 0);
+    this.scheduleHide(this.shouldHideOnHover() ? 0 : this.getHideDelay());
   }
 
   handleOverlayInteraction() {
@@ -468,13 +577,26 @@ class HoverController implements HoverHandle {
     return (this.options?.actions?.length ?? 0) > 0;
   }
 
+  private getHideDelay() {
+    return this.hasActions() ? ACTION_HOVER_HIDE_DELAY_MS : PLAIN_HOVER_HIDE_DELAY_MS;
+  }
+
   private shouldHideOnHover() {
     return Boolean(this.options?.hideOnHover) && !this.hasActions();
   }
 
-  private scheduleShow(delay = this.options?.delay ?? DEFAULT_DELAY_MS) {
+  private scheduleShow(
+    delay = this.options?.delay ??
+      (this.hasActions()
+        ? DEFAULT_ACTION_HOVER_DELAY_MS
+        : DEFAULT_PLAIN_HOVER_DELAY_MS),
+  ) {
     this.clearShowTimer();
     if (!this.options) {
+      return;
+    }
+
+    if (!hoverInteractionPolicy.canSchedulePointerHover()) {
       return;
     }
 
@@ -483,9 +605,15 @@ class HoverController implements HoverHandle {
       return;
     }
 
+    const remainingCooldown = Math.max(
+      0,
+      HOVER_REENTRY_COOLDOWN_MS - (Date.now() - lastHoverHideAt),
+    );
+    const nextDelay = Math.max(delay, remainingCooldown);
+
     this.showTimer = window.setTimeout(() => {
       this.show();
-    }, delay);
+    }, nextDelay);
   }
 
   private scheduleHide(delay = 0) {
@@ -494,6 +622,7 @@ class HoverController implements HoverHandle {
       if (!this.shouldHideOnHover() && sharedHoverOverlay.isPointerInside()) {
         return;
       }
+      lastHoverHideAt = Date.now();
       this.hide();
     }, delay);
   }
@@ -517,6 +646,7 @@ class HoverController implements HoverHandle {
   }
 
   private readonly handleMouseEnter = () => {
+    hoverInteractionPolicy.notePointerHover();
     this.clearHideTimer();
     if (activeController === this) {
       this.show();
@@ -531,12 +661,23 @@ class HoverController implements HoverHandle {
       return;
     }
 
-    this.scheduleHide(this.shouldHideOnHover() ? 0 : this.hasActions() ? 90 : 0);
+    this.scheduleHide(this.getHideDelay());
   };
 
   private readonly handleFocus = () => {
+    if (!hoverInteractionPolicy.shouldShowHoverOnFocus()) {
+      return;
+    }
     this.clearHideTimer();
     this.show();
+  };
+
+  private readonly handlePointerDown = () => {
+    hoverInteractionPolicy.suppressPointerHoverFromTarget(this.target);
+    this.clearShowTimer();
+    if (activeController === this) {
+      this.hide();
+    }
   };
 
   private readonly handleBlur = () => {
