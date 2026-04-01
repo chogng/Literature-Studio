@@ -125,6 +125,9 @@ import codeReviewSvg from 'ls/base/browser/ui/lxicon/svg/code-review.svg?raw';
 import cloudSvg from 'ls/base/browser/ui/lxicon/svg/cloud.svg?raw';
 import closeSvg from 'ls/base/browser/ui/lxicon/svg/close.svg?raw';
 import circleSlashSvg from 'ls/base/browser/ui/lxicon/svg/circle-slash.svg?raw';
+import alignRightSvg from 'ls/base/browser/ui/lxicon/svg/align-right.svg?raw';
+import alignJustifiedSvg from 'ls/base/browser/ui/lxicon/svg/align-justified.svg?raw';
+import alignCenterSvg from 'ls/base/browser/ui/lxicon/svg/align-center.svg?raw';
 import chevronUpSvg from 'ls/base/browser/ui/lxicon/svg/chevron-up.svg?raw';
 import chevronRightSvg from 'ls/base/browser/ui/lxicon/svg/chevron-right.svg?raw';
 import chevronLeftSvg from 'ls/base/browser/ui/lxicon/svg/chevron-left.svg?raw';
@@ -150,6 +153,7 @@ import arrowCircleDownSvg from 'ls/base/browser/ui/lxicon/svg/arrow-circle-down.
 import addSvg from 'ls/base/browser/ui/lxicon/svg/add.svg?raw';
 import addFileSvg from 'ls/base/browser/ui/lxicon/svg/add-file.svg?raw';
 import accountSvg from 'ls/base/browser/ui/lxicon/svg/account.svg?raw';
+import underlineSvg from 'ls/base/browser/ui/lxicon/svg/underline.svg?raw';
 
 export type LxIconName =
   | 'zoom-out'
@@ -278,6 +282,9 @@ export type LxIconName =
   | 'cloud'
   | 'close'
   | 'circle-slash'
+  | 'align-right'
+  | 'align-justified'
+  | 'align-center'
   | 'chevron-up'
   | 'chevron-right'
   | 'chevron-left'
@@ -302,7 +309,8 @@ export type LxIconName =
   | 'arrow-circle-down'
   | 'add'
   | 'add-file'
-  | 'account';
+  | 'account'
+  | 'underline';
 
 const SVG_BY_NAME: Record<LxIconName, string> = {
   'zoom-out': zoomOutSvg,
@@ -431,6 +439,9 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'cloud': cloudSvg,
   'close': closeSvg,
   'circle-slash': circleSlashSvg,
+  'align-right': alignRightSvg,
+  'align-justified': alignJustifiedSvg,
+  'align-center': alignCenterSvg,
   'chevron-up': chevronUpSvg,
   'chevron-right': chevronRightSvg,
   'chevron-left': chevronLeftSvg,
@@ -456,6 +467,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'add': addSvg,
   'add-file': addFileSvg,
   'account': accountSvg,
+  'underline': underlineSvg,
 };
 
 function createSvgElement(markup: string) {
