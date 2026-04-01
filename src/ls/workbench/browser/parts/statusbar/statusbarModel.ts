@@ -2,7 +2,7 @@ import type {
   EditorStatusLabels,
   EditorStatusItem,
   EditorStatusState,
-} from 'ls/editor/browser/shared/editorStatus';
+} from 'ls/workbench/browser/parts/editor/editorStatus';
 
 function createEmptyStatusValue(): EditorStatusState {
   return {

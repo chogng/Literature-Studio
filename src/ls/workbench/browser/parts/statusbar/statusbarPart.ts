@@ -1,4 +1,4 @@
-import type { EditorStatusState } from 'ls/editor/browser/shared/editorStatus';
+import type { EditorStatusState } from 'ls/workbench/browser/parts/editor/editorStatus';
 import { createStatusbarItemElement } from 'ls/workbench/browser/parts/statusbar/statusbarItem';
 import 'ls/workbench/browser/parts/statusbar/media/statusbar.css';
 

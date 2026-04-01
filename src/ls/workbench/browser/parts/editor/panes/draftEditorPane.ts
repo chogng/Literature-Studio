@@ -3,7 +3,7 @@ import type {
   WritingWorkspaceDraftTab,
 } from 'ls/workbench/browser/writingEditorModel';
 import { getLocaleMessages } from 'language/i18n';
-import type { DraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
+import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import { ProseMirrorEditor } from 'ls/editor/browser/text/editor';
 import { localeService } from 'ls/workbench/contrib/localization/browser/localeService';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
@@ -17,7 +17,7 @@ export type DraftEditorPaneProps = {
   labels: EditorPartLabels;
   draftTab: WritingWorkspaceDraftTab;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
-  onStatusChange?: (status: DraftEditorRuntimeState) => void;
+  onStatusChange?: (status: DraftEditorStatusState) => void;
 };
 
 export class DraftEditorPane {

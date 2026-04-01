@@ -1,4 +1,4 @@
-import type { EditorStatusItem } from 'ls/editor/browser/shared/editorStatus';
+import type { EditorStatusItem } from 'ls/workbench/browser/parts/editor/editorStatus';
 import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import {
   canRunStatusbarCommand,

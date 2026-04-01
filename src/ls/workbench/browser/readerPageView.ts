@@ -1,7 +1,7 @@
 import { getWorkbenchContentClassName, getWorkbenchContentStyle } from 'ls/workbench/browser/layout';
 import type { WorkbenchSidebarKind } from 'ls/workbench/browser/layout';
 
-import type { EditorStatusState } from 'ls/editor/browser/shared/editorStatus';
+import type { EditorStatusState } from 'ls/workbench/browser/parts/editor/editorStatus';
 import { createEditorPartView } from 'ls/workbench/browser/parts/editor/editorPartView';
 import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
 
