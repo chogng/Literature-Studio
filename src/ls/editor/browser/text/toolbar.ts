@@ -4,7 +4,7 @@ import {
   type LxIconName,
 } from '../../../base/browser/ui/lxicon/lxicon.js';
 import type { WritingEditorToolbarState } from './commands';
-import type { WritingEditorSurfaceLabels } from './prosemirrorEditor';
+import type { WritingEditorSurfaceLabels } from './editor';
 
 export type DraftEditorToolbarActions = {
   setParagraph: () => void;

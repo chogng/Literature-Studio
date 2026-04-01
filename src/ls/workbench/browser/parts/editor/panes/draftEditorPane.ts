@@ -4,7 +4,7 @@ import {
 } from '../../../writingEditorModel';
 import { getLocaleMessages } from '../../../../../../language/i18n';
 import type { DraftEditorRuntimeState } from '../../../../../editor/browser/shared/editorStatus';
-import { ProseMirrorEditor } from '../../../../../editor/browser/text/prosemirrorEditor';
+import { ProseMirrorEditor } from '../../../../../editor/browser/text/editor';
 import { localeService } from '../../../../contrib/localization/browser/localeService';
 import type { EditorPartLabels } from '../editorPartView';
 import {

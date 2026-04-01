@@ -3,12 +3,13 @@ import test, { after, before } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
   createEmptyWritingEditorDocument,
+  createWritingEditorDocumentFromPlainText,
   writingEditorDocumentToPlainText,
   type WritingEditorDocument,
 } from '../../../common/writingEditorDocument';
 import { installDomTestEnvironment } from './domTestUtils';
 
-let ProseMirrorEditor: typeof import('../prosemirrorEditor').ProseMirrorEditor;
+let ProseMirrorEditor: typeof import('../editor').ProseMirrorEditor;
 let cleanupDomEnvironment: (() => void) | null = null;
 
 const labels = {
@@ -39,7 +40,7 @@ const labels = {
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
-  ({ ProseMirrorEditor } = await import('../prosemirrorEditor'));
+  ({ ProseMirrorEditor } = await import('../editor'));
 });
 
 after(() => {
@@ -50,7 +51,7 @@ after(() => {
 function createProps(
   document: WritingEditorDocument,
   onDocumentChange: (nextDocument: WritingEditorDocument) => void,
-): import('../prosemirrorEditor').WritingEditorSurfaceProps {
+): import('../editor').WritingEditorSurfaceProps {
   return {
     document,
     placeholder: 'Write here',
@@ -75,6 +76,20 @@ function getEditorText(editor: InstanceType<typeof ProseMirrorEditor>) {
   return (getEditableRoot(editor).textContent ?? '').replace(/\u200b/g, '').trim();
 }
 
+function getPlaceholderNode(editor: InstanceType<typeof ProseMirrorEditor>) {
+  const element = editor.getElement().querySelector('.pm-empty-paragraph');
+  assert(element instanceof HTMLElement, 'Placeholder node was not rendered.');
+  return element;
+}
+
+function getToolbarButton(editor: InstanceType<typeof ProseMirrorEditor>, label: string) {
+  const button = Array.from(editor.getElement().querySelectorAll('button')).find(
+    (candidate) => candidate.getAttribute('aria-label') === label,
+  );
+  assert(button instanceof HTMLButtonElement, `Toolbar button "${label}" was not found.`);
+  return button;
+}
+
 function createCompositionEvent(type: 'compositionstart' | 'compositionend', data = '') {
   if (typeof CompositionEvent === 'function') {
     return new CompositionEvent(type, {
@@ -95,10 +110,11 @@ async function withEditor(
     editor: InstanceType<typeof ProseMirrorEditor>;
     changes: WritingEditorDocument[];
   }) => Promise<void> | void,
+  initialDocument = createEmptyWritingEditorDocument(),
 ) {
   const changes: WritingEditorDocument[] = [];
   const editor = new ProseMirrorEditor(
-    createProps(createEmptyWritingEditorDocument(), (nextDocument) => {
+    createProps(initialDocument, (nextDocument) => {
       changes.push(nextDocument);
     }),
   );
@@ -166,5 +182,81 @@ test('ProseMirrorEditor keeps composed text when stale props land during composi
 
     assert.equal(changes.length, 1);
     assert.equal(writingEditorDocumentToPlainText(changes[0]), '你好');
+  });
+});
+
+test('ProseMirrorEditor updates placeholder text without emitting a document change', async () => {
+  const initialDocument = createEmptyWritingEditorDocument();
+
+  await withEditor(({ editor, changes }) => {
+    const placeholderBefore = getPlaceholderNode(editor);
+    assert.equal(placeholderBefore.getAttribute('data-placeholder'), 'Write here');
+
+    const nextProps = createProps(initialDocument, (nextDocument) => {
+      changes.push(nextDocument);
+    });
+    nextProps.placeholder = 'Continue writing';
+    editor.setProps(nextProps);
+
+    const placeholderAfter = getPlaceholderNode(editor);
+    assert.equal(placeholderAfter.getAttribute('data-placeholder'), 'Continue writing');
+    assert.equal(changes.length, 0);
+  }, initialDocument);
+});
+
+test('ProseMirrorEditor refreshes placeholder text during an external document replacement', async () => {
+  const initialDocument = createWritingEditorDocumentFromPlainText('alpha');
+
+  await withEditor(({ editor, changes }) => {
+    const nextProps = createProps(createEmptyWritingEditorDocument(), (nextDocument) => {
+      changes.push(nextDocument);
+    });
+    nextProps.placeholder = 'Continue writing';
+    editor.setProps(nextProps);
+
+    const placeholderAfter = getPlaceholderNode(editor);
+    assert.equal(placeholderAfter.getAttribute('data-placeholder'), 'Continue writing');
+    assert.equal(changes.length, 0);
+  }, initialDocument);
+});
+
+test('ProseMirrorEditor applies external document changes without echoing them back through onDocumentChange', async () => {
+  await withEditor(({ editor, changes }) => {
+    assert.equal(editor.insertPlainText('alpha'), true);
+    assert.equal(changes.length, 1);
+
+    const echoedLocalDocument = changes[0];
+    editor.setProps(createProps(echoedLocalDocument, (nextDocument) => {
+      changes.push(nextDocument);
+    }));
+
+    const externalDocument = createWritingEditorDocumentFromPlainText('beta');
+    editor.setProps(createProps(externalDocument, (nextDocument) => {
+      changes.push(nextDocument);
+    }));
+
+    assert.equal(getEditorText(editor), 'beta');
+    assert.equal(changes.length, 1);
+  });
+});
+
+test('ProseMirrorEditor clears undo history after an external document replacement', async () => {
+  await withEditor(({ editor, changes }) => {
+    assert.equal(editor.insertPlainText('alpha'), true);
+    assert.equal(changes.length, 1);
+
+    const echoedLocalDocument = changes[0];
+    editor.setProps(createProps(echoedLocalDocument, (nextDocument) => {
+      changes.push(nextDocument);
+    }));
+
+    editor.setProps(
+      createProps(createWritingEditorDocumentFromPlainText('beta'), (nextDocument) => {
+        changes.push(nextDocument);
+      }),
+    );
+
+    const undoButton = getToolbarButton(editor, 'Undo');
+    assert.equal(undoButton.disabled, true);
   });
 });

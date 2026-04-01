@@ -39,12 +39,13 @@ import {
   createWritingEditorDocumentIdentityPlugin,
   createWritingEditorInputRules,
   createWritingEditorPlaceholderPlugin,
+  updateWritingEditorPlaceholder,
   writingEditorSchema,
 } from './schema';
-import { DraftEditorToolbar } from './draftEditorToolbar';
-import { WritingEditorInputSession } from './inputSession';
-import { resolveWritingEditorSurfaceSyncPlan } from './surfaceSync';
-import './media/prosemirrorEditor.css';
+import { DraftEditorToolbar } from './toolbar';
+import { WritingEditorInputSession } from './input';
+import { resolveWritingEditorSurfaceSyncPlan } from './sync';
+import './media/editor.css';
 
 export type WritingEditorSurfaceLabels = {
   textGroup: string;
@@ -460,16 +461,17 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
         }
         return;
       case 'preserve-local-state':
-        if (syncPlan.shouldReplaceStateFromCurrent) {
-          this.view.updateState(
-            createWritingEditorState(
-              this.view.state.doc.toJSON() as WritingEditorDocument,
-              props.placeholder,
-            ),
+        if (syncPlan.shouldRefreshPlaceholder) {
+          const updatedPlaceholder = updateWritingEditorPlaceholder(
+            this.view,
+            props.placeholder,
           );
-          this.syncEditorViewState(this.view.state, false);
-          this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
-          return;
+          if (syncPlan.shouldRefreshToolbarChrome) {
+            this.toolbar.setProps(this.createToolbarProps());
+          }
+          if (updatedPlaceholder) {
+            return;
+          }
         }
 
         this.emitStatusChange(this.view.state);
@@ -479,17 +481,26 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
         }
         this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
         return;
+      case 'refresh-placeholder':
+        const updatedPlaceholder = updateWritingEditorPlaceholder(
+          this.view,
+          props.placeholder,
+        );
+        if (syncPlan.shouldRefreshToolbarChrome) {
+          this.toolbar.setProps(this.createToolbarProps());
+        }
+        if (!updatedPlaceholder) {
+          this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+        }
+        return;
       case 'replace-state':
         this.view.updateState(
-          createWritingEditorState(
-            syncPlan.documentSource === 'current'
-              ? (this.view.state.doc.toJSON() as WritingEditorDocument)
-              : props.document,
-            props.placeholder,
-          ),
+          createWritingEditorState(props.document, props.placeholder),
         );
         this.syncEditorViewState(this.view.state, false);
-        this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+        if (syncPlan.shouldRefreshToolbarChrome) {
+          this.toolbar.setProps(this.createToolbarProps());
+        }
         return;
       case 'sync-current-state':
         this.emitStatusChange(this.view.state);

@@ -1,5 +1,5 @@
 import type { InsertFigurePayload } from '../../../../../editor/browser/text/commands';
-import type { WritingEditorSurfaceHandle } from '../../../../../editor/browser/text/prosemirrorEditor';
+import type { WritingEditorSurfaceHandle } from '../../../../../editor/browser/text/editor';
 
 export type DraftEditorCommandId =
   | 'insertCitation'

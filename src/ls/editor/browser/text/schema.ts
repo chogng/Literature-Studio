@@ -10,7 +10,7 @@ import { Schema, type Node as ProseMirrorNode, type NodeSpec } from 'prosemirror
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { schema as basicSchema } from 'prosemirror-schema-basic';
 import { addListNodes } from 'prosemirror-schema-list';
-import { Decoration, DecorationSet } from 'prosemirror-view';
+import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
 
 export type BlockNodeAttrs = {
   blockId: string | null;
@@ -260,6 +260,13 @@ export const writingEditorSchema = new Schema({
   marks: basicSchema.spec.marks,
 });
 
+type WritingEditorPlaceholderState = {
+  placeholder: string;
+};
+
+export const writingEditorPlaceholderPluginKey =
+  new PluginKey<WritingEditorPlaceholderState>('writing-editor-placeholder');
+
 export function createEditorNodeId(prefix: string) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
@@ -274,9 +281,25 @@ export function isTrackedBlockNode(node: ProseMirrorNode) {
 
 export function createWritingEditorPlaceholderPlugin(placeholder: string) {
   return new Plugin({
-    key: new PluginKey(`writing-editor-placeholder:${placeholder}`),
+    key: writingEditorPlaceholderPluginKey,
+    state: {
+      init: () => ({
+        placeholder,
+      }),
+      apply(transaction, previousState) {
+        const nextPlaceholder = transaction.getMeta(writingEditorPlaceholderPluginKey);
+        if (typeof nextPlaceholder !== 'string' || nextPlaceholder === previousState.placeholder) {
+          return previousState;
+        }
+
+        return {
+          placeholder: nextPlaceholder,
+        };
+      },
+    },
     props: {
       decorations(state) {
+        const placeholderState = writingEditorPlaceholderPluginKey.getState(state);
         const firstChild = state.doc.firstChild;
         if (
           !firstChild ||
@@ -290,12 +313,25 @@ export function createWritingEditorPlaceholderPlugin(placeholder: string) {
         return DecorationSet.create(state.doc, [
           Decoration.node(0, firstChild.nodeSize, {
             class: 'pm-empty-paragraph',
-            'data-placeholder': placeholder,
+            'data-placeholder': placeholderState?.placeholder ?? '',
           }),
         ]);
       },
     },
   });
+}
+
+export function updateWritingEditorPlaceholder(
+  view: EditorView,
+  placeholder: string,
+) {
+  const placeholderState = writingEditorPlaceholderPluginKey.getState(view.state);
+  if (placeholderState?.placeholder === placeholder) {
+    return false;
+  }
+
+  view.dispatch(view.state.tr.setMeta(writingEditorPlaceholderPluginKey, placeholder));
+  return true;
 }
 
 export function createWritingEditorDocumentIdentityPlugin() {

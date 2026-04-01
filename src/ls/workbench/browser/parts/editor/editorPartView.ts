@@ -6,12 +6,13 @@ import type {
   EditorStatusLabels,
   EditorStatusState,
 } from '../../../../editor/browser/shared/editorStatus';
-import type { WritingEditorSurfaceLabels } from '../../../../editor/browser/text/prosemirrorEditor';
+import type { WritingEditorSurfaceLabels } from '../../../../editor/browser/text/editor';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
 import type { DraftEditorCommandId } from './panes/draftEditorCommands';
 import type { ViewPartProps } from '../views/viewPartView';
 import { EditorGroupView } from './editorGroupView';
 import './media/editor.css';
+import './media/tabsTitleControl.css';
 
 export type EditorPartLabels = {
   draftMode: string;
