@@ -478,6 +478,53 @@
   gap: 8px;
 }
 
+.auxiliarybar-patch-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fbfe;
+  border: 1px solid #dfe8f1;
+}
+
+.auxiliarybar-patch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.auxiliarybar-patch-label {
+  color: #203040;
+  font-size: 12px;
+}
+
+.auxiliarybar-patch-summary,
+.auxiliarybar-patch-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.auxiliarybar-patch-summary {
+  color: #5e7186;
+}
+
+.auxiliarybar-patch-error {
+  color: #a12424;
+}
+
+.auxiliarybar-patch-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.auxiliarybar-patch-btn.btn-base {
+  min-height: 28px;
+  border-radius: 8px;
+}
+
 .auxiliarybar-evidence-list {
   margin: 0;
   padding: 0;
