@@ -11,8 +11,8 @@ export type TitlebarPartState = {
   ui: LocaleMessages;
   webUrl: string;
   isWindowMaximized: boolean;
-  isSidebarVisible: boolean;
-  isKnowledgeBaseModeEnabled: boolean;
+  isFetchSidebarVisible: boolean;
+  isPrimarySidebarVisible: boolean;
   isAuxiliarySidebarVisible: boolean;
   browserUrl: string;
   webContentState: Pick<WebContentState, 'canGoBack' | 'canGoForward'>;
@@ -23,7 +23,8 @@ export type TitlebarPartState = {
 
 export type TitlebarPartActions = {
   handleWindowControl: (action: TitlebarAction) => void;
-  handleToggleSidebar: () => void;
+  handleToggleFetchSidebar: () => void;
+  handleTogglePrimarySidebar: () => void;
   handleToggleAuxiliarySidebar: () => void;
   handleWebContentBack: () => void;
   handleWebContentForward: () => void;
@@ -43,8 +44,8 @@ export function createTitlebarPartProps({
     ui,
     webUrl,
     isWindowMaximized,
-    isSidebarVisible,
-    isKnowledgeBaseModeEnabled,
+    isFetchSidebarVisible,
+    isPrimarySidebarVisible,
     isAuxiliarySidebarVisible,
     browserUrl,
     webContentState,
@@ -54,7 +55,8 @@ export function createTitlebarPartProps({
   },
   actions: {
     handleWindowControl,
-    handleToggleSidebar,
+    handleToggleFetchSidebar,
+    handleTogglePrimarySidebar,
     handleToggleAuxiliarySidebar,
     handleWebContentBack,
     handleWebContentForward,
@@ -74,6 +76,10 @@ export function createTitlebarPartProps({
       backLabel: ui.titlebarBack,
       forwardLabel: ui.titlebarForward,
       refreshLabel: ui.titlebarRefresh,
+      showFetchSidebarLabel: ui.titlebarShowFetchSidebar,
+      hideFetchSidebarLabel: ui.titlebarHideFetchSidebar,
+      showPrimarySidebarLabel: ui.titlebarShowPrimarySidebar,
+      hidePrimarySidebarLabel: ui.titlebarHidePrimarySidebar,
       showAssistantLabel: ui.titlebarShowAssistant,
       hideAssistantLabel: ui.titlebarHideAssistant,
       exportDocxLabel: ui.titlebarExportDocx,
@@ -81,17 +87,24 @@ export function createTitlebarPartProps({
     },
     isWindowMaximized,
     onWindowControl: handleWindowControl,
-    isSidebarOpen: isSidebarVisible,
-    sidebarToggleLabel: isSidebarVisible ? ui.sidebarCollapse : ui.sidebarExpand,
-    onToggleSidebar: activePage === 'reader' ? handleToggleSidebar : undefined,
+    isFetchSidebarOpen: isFetchSidebarVisible,
+    fetchSidebarToggleLabel: isFetchSidebarVisible
+      ? ui.titlebarHideFetchSidebar
+      : ui.titlebarShowFetchSidebar,
+    onToggleFetchSidebar:
+      activePage === 'reader' ? handleToggleFetchSidebar : undefined,
+    isPrimarySidebarOpen: isPrimarySidebarVisible,
+    primarySidebarToggleLabel: isPrimarySidebarVisible
+      ? ui.titlebarHidePrimarySidebar
+      : ui.titlebarShowPrimarySidebar,
+    onTogglePrimarySidebar:
+      activePage === 'reader' ? handleTogglePrimarySidebar : undefined,
     isAuxiliarySidebarOpen: isAuxiliarySidebarVisible,
     auxiliarySidebarToggleLabel: isAuxiliarySidebarVisible
       ? ui.titlebarHideAssistant
       : ui.titlebarShowAssistant,
     onToggleAuxiliarySidebar:
-      activePage === 'reader' && isKnowledgeBaseModeEnabled
-        ? handleToggleAuxiliarySidebar
-        : undefined,
+      activePage === 'reader' ? handleToggleAuxiliarySidebar : undefined,
     browserUrl,
     canGoBack: webContentState.canGoBack,
     canGoForward: webContentState.canGoForward,

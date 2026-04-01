@@ -13,11 +13,11 @@ import {
   getWorkbenchShellClassName,
   registerWorkbenchPartDomNode,
   setAuxiliarySidebarVisible,
-  setSidebarVisible,
-  setWorkbenchSidebarKind,
+  setPrimarySidebarVisible,
   subscribeWorkbenchLayoutState,
   toggleAuxiliarySidebarVisibility,
-  toggleSidebarVisibility,
+  toggleFetchSidebarVisibility,
+  togglePrimarySidebarVisibility,
   WORKBENCH_PART_IDS,
 } from 'ls/workbench/browser/layout';
 import { createSettingsController } from 'ls/workbench/contrib/preferences/browser/settingsController';
@@ -497,10 +497,7 @@ class WorkbenchHost {
     }
 
     this.appliedKnowledgeBaseModeEnabled = isKnowledgeBaseModeEnabled;
-    setWorkbenchSidebarKind(
-      isKnowledgeBaseModeEnabled ? 'primaryBar' : 'secondarySidebar',
-    );
-    setSidebarVisible(true);
+    setPrimarySidebarVisible(isKnowledgeBaseModeEnabled);
     setAuxiliarySidebarVisible(isKnowledgeBaseModeEnabled);
   }
 
@@ -709,7 +706,8 @@ class WorkbenchHost {
     } = params;
 
     setWorkbenchTitlebarCommandHandlers({
-      onToggleSidebar: toggleSidebarVisibility,
+      onToggleFetchSidebar: toggleFetchSidebarVisibility,
+      onTogglePrimarySidebar: togglePrimarySidebarVisibility,
       onToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
       onNavigateBack,
       onNavigateForward,
@@ -783,10 +781,8 @@ class WorkbenchHost {
   }
 
   private renderReaderPage(props: {
-    isSidebarVisible: boolean;
-    activeSidebarKind: ReturnType<
-      typeof getWorkbenchLayoutStateSnapshot
-    >['activeSidebarKind'];
+    isFetchSidebarVisible: boolean;
+    isPrimarySidebarVisible: boolean;
     isAuxiliarySidebarVisible: boolean;
     secondarySidebarProps: ReturnType<typeof createSecondarySidebarPartProps>;
     primaryBarProps: PrimaryBarProps;
@@ -837,8 +833,8 @@ class WorkbenchHost {
     } = getWorkbenchSessionSnapshot();
     const { activePage } = getWorkbenchStateSnapshot();
     const {
-      isSidebarVisible,
-      activeSidebarKind,
+      isFetchSidebarVisible,
+      isPrimarySidebarVisible,
       isAuxiliarySidebarVisible,
     } = getWorkbenchLayoutStateSnapshot();
     const { electronRuntime, webContentRuntime, desktopRuntime } =
@@ -1481,8 +1477,8 @@ class WorkbenchHost {
         ui,
         webUrl,
         isWindowMaximized,
-        isSidebarVisible,
-        isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
+        isFetchSidebarVisible,
+        isPrimarySidebarVisible,
         isAuxiliarySidebarVisible,
         browserUrl,
         webContentState,
@@ -1492,7 +1488,8 @@ class WorkbenchHost {
       },
       actions: {
         handleWindowControl,
-        handleToggleSidebar: toggleSidebarVisibility,
+        handleToggleFetchSidebar: toggleFetchSidebarVisibility,
+        handleTogglePrimarySidebar: togglePrimarySidebarVisibility,
         handleToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
         handleWebContentBack,
         handleWebContentForward,
@@ -1626,8 +1623,8 @@ class WorkbenchHost {
 
     if (activePage === 'reader') {
       this.renderReaderPage({
-        isSidebarVisible,
-        activeSidebarKind,
+        isFetchSidebarVisible,
+        isPrimarySidebarVisible,
         isAuxiliarySidebarVisible,
         secondarySidebarProps,
         primaryBarProps,

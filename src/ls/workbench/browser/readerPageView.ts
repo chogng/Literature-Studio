@@ -1,5 +1,4 @@
 import { getWorkbenchContentClassName, getWorkbenchContentStyle } from 'ls/workbench/browser/layout';
-import type { WorkbenchSidebarKind } from 'ls/workbench/browser/layout';
 
 import type { EditorStatusState } from 'ls/workbench/browser/parts/editor/editorStatus';
 import { createEditorPartView } from 'ls/workbench/browser/parts/editor/editorPartView';
@@ -21,8 +20,8 @@ import {
 } from 'ls/workbench/browser/parts/statusbar/statusbarActions';
 
 type ReaderPageViewProps = {
-  isSidebarVisible: boolean;
-  activeSidebarKind: WorkbenchSidebarKind;
+  isFetchSidebarVisible: boolean;
+  isPrimarySidebarVisible: boolean;
   isAuxiliarySidebarVisible: boolean;
   secondarySidebarProps: SecondarySidebarProps;
   primaryBarProps: PrimaryBarProps;
@@ -45,10 +44,8 @@ export class ReaderPageView {
   private props: ReaderPageViewProps;
   private readonly element = createElement('section', 'reader-layout');
   private readonly mainElement = createElement('main');
-  private leftPaneView:
-    | PrimaryBarPartView
-    | SecondarySidebarPartView
-    | null = null;
+  private fetchSidebarView: SecondarySidebarPartView | null = null;
+  private primaryBarView: PrimaryBarPartView | null = null;
   private auxiliarySidebarView: AuxiliaryBarPartView | null = null;
   private editorView: ReturnType<typeof createEditorPartView> | null = null;
 
@@ -81,10 +78,12 @@ export class ReaderPageView {
 
   dispose() {
     clearStatusbarCommandHandlers();
-    this.leftPaneView?.dispose();
+    this.fetchSidebarView?.dispose();
+    this.primaryBarView?.dispose();
     this.auxiliarySidebarView?.dispose();
     this.editorView?.dispose();
-    this.leftPaneView = null;
+    this.fetchSidebarView = null;
+    this.primaryBarView = null;
     this.auxiliarySidebarView = null;
     this.editorView = null;
     this.element.replaceChildren();
@@ -98,28 +97,30 @@ export class ReaderPageView {
     initializeStatusbarState(this.props.editorPartProps.labels.status);
 
     this.mainElement.className = getWorkbenchContentClassName({
-      isSidebarVisible: this.props.isSidebarVisible,
+      isFetchSidebarVisible: this.props.isFetchSidebarVisible,
+      isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
       isAuxiliarySidebarVisible: this.props.isAuxiliarySidebarVisible,
-      activeSidebarKind: this.props.activeSidebarKind,
     });
 
     const contentStyle = getWorkbenchContentStyle({
-      isSidebarVisible: this.props.isSidebarVisible,
+      isFetchSidebarVisible: this.props.isFetchSidebarVisible,
+      isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
       isAuxiliarySidebarVisible: this.props.isAuxiliarySidebarVisible,
-      activeSidebarKind: this.props.activeSidebarKind,
     });
     for (const [name, value] of Object.entries(contentStyle)) {
       this.mainElement.style.setProperty(name, value);
     }
 
-    this.renderLeftPane();
+    this.renderFetchSidebar();
+    this.renderPrimarySidebar();
     this.renderEditor();
     this.renderAuxiliarySidebar();
 
     // Keep the editor DOM attached while outer workbench props change. Detaching and
     // re-attaching the focused contenteditable breaks IME sessions in Electron/macOS.
     this.syncMainChildren([
-      this.leftPaneView?.getElement(),
+      this.fetchSidebarView?.getElement(),
+      this.primaryBarView?.getElement(),
       this.editorView?.getElement(),
       this.auxiliarySidebarView?.getElement(),
     ].filter((element): element is HTMLElement => Boolean(element)));
@@ -144,33 +145,36 @@ export class ReaderPageView {
     }
   }
 
-  private renderLeftPane() {
-    if (!this.props.isSidebarVisible) {
-      this.leftPaneView?.dispose();
-      this.leftPaneView = null;
+  private renderFetchSidebar() {
+    if (!this.props.isFetchSidebarVisible) {
+      this.fetchSidebarView?.dispose();
+      this.fetchSidebarView = null;
       return;
     }
 
-    if (this.props.activeSidebarKind === 'primaryBar') {
-      if (!(this.leftPaneView instanceof PrimaryBarPartView)) {
-        this.leftPaneView?.dispose();
-        this.leftPaneView = createPrimaryBarPartView(
-          this.props.primaryBarProps,
-        );
-      } else {
-        this.leftPaneView.setProps(this.props.primaryBarProps);
-      }
-      return;
-    }
-
-    if (!(this.leftPaneView instanceof SecondarySidebarPartView)) {
-      this.leftPaneView?.dispose();
-      this.leftPaneView = createSecondarySidebarPartView(
+    if (!this.fetchSidebarView) {
+      this.fetchSidebarView = createSecondarySidebarPartView(
         this.props.secondarySidebarProps,
       );
-    } else {
-      this.leftPaneView.setProps(this.props.secondarySidebarProps);
+      return;
     }
+
+    this.fetchSidebarView.setProps(this.props.secondarySidebarProps);
+  }
+
+  private renderPrimarySidebar() {
+    if (!this.props.isPrimarySidebarVisible) {
+      this.primaryBarView?.dispose();
+      this.primaryBarView = null;
+      return;
+    }
+
+    if (!this.primaryBarView) {
+      this.primaryBarView = createPrimaryBarPartView(this.props.primaryBarProps);
+      return;
+    }
+
+    this.primaryBarView.setProps(this.props.primaryBarProps);
   }
 
   private renderEditor() {

@@ -14,9 +14,10 @@ import {
   requestTitlebarNavigateBack,
   requestTitlebarNavigateForward,
   requestTitlebarNavigateWeb,
+  requestToggleTitlebarFetchSidebar,
+  requestToggleTitlebarPrimarySidebar,
   requestToggleTitlebarAuxiliarySidebar,
   requestToggleTitlebarSettings,
-  requestToggleTitlebarSidebar,
   subscribeTitlebarUiActions,
 } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 import { createWindowControlsView } from 'ls/workbench/browser/parts/titlebar/windowControls';
@@ -36,6 +37,10 @@ export type TitlebarLabels = {
   backLabel: string;
   forwardLabel: string;
   refreshLabel: string;
+  showFetchSidebarLabel: string;
+  hideFetchSidebarLabel: string;
+  showPrimarySidebarLabel: string;
+  hidePrimarySidebarLabel: string;
   showAssistantLabel: string;
   hideAssistantLabel: string;
   exportDocxLabel: string;
@@ -47,9 +52,12 @@ export type TitlebarProps = {
   labels: TitlebarLabels;
   isWindowMaximized: boolean;
   onWindowControl: (action: TitlebarAction) => void;
-  isSidebarOpen?: boolean;
-  sidebarToggleLabel?: string;
-  onToggleSidebar?: () => void;
+  isFetchSidebarOpen?: boolean;
+  fetchSidebarToggleLabel?: string;
+  onToggleFetchSidebar?: () => void;
+  isPrimarySidebarOpen?: boolean;
+  primarySidebarToggleLabel?: string;
+  onTogglePrimarySidebar?: () => void;
   isAuxiliarySidebarOpen?: boolean;
   auxiliarySidebarToggleLabel?: string;
   onToggleAuxiliarySidebar?: () => void;
@@ -82,6 +90,10 @@ const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   backLabel: '',
   forwardLabel: '',
   refreshLabel: '',
+  showFetchSidebarLabel: '',
+  hideFetchSidebarLabel: '',
+  showPrimarySidebarLabel: '',
+  hidePrimarySidebarLabel: '',
   showAssistantLabel: '',
   hideAssistantLabel: '',
   exportDocxLabel: '',
@@ -244,7 +256,8 @@ export class TitlebarView {
       canExportDocx: this.props.canExportDocx ?? false,
       addressBarSourceOptions: this.props.addressBarSourceOptions ?? [],
       selectedAddressBarSourceId: this.props.selectedAddressBarSourceId ?? '',
-      isSidebarOpen: this.props.isSidebarOpen ?? true,
+      isFetchSidebarOpen: this.props.isFetchSidebarOpen ?? true,
+      isPrimarySidebarOpen: this.props.isPrimarySidebarOpen ?? false,
       isAuxiliarySidebarOpen: this.props.isAuxiliarySidebarOpen ?? false,
       onWindowControl: this.props.onWindowControl,
     };
@@ -283,22 +296,22 @@ export class TitlebarView {
 
   private renderStart(props: TitlebarProps) {
     this.startElement.replaceChildren();
-    if (!props.onToggleSidebar || !props.sidebarToggleLabel) {
+    if (!props.onToggleFetchSidebar || !props.fetchSidebarToggleLabel) {
       return;
     }
 
-    const sidebarButton = this.trackView(
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-sidebar',
-          label: props.sidebarToggleLabel,
-          icon: props.isSidebarOpen
-            ? lxIconSemanticMap.titlebar.sidebarOpen
-            : lxIconSemanticMap.titlebar.sidebarClosed,
-          onClick: requestToggleTitlebarSidebar,
-        }),
+    const fetchSidebarButton = this.trackView(
+      createIconButton({
+        className: 'titlebar-btn titlebar-btn-fetch',
+        label: props.fetchSidebarToggleLabel,
+        icon: props.isFetchSidebarOpen
+          ? lxIconSemanticMap.titlebar.fetchSidebarOpen
+          : lxIconSemanticMap.titlebar.fetchSidebarClosed,
+        onClick: requestToggleTitlebarFetchSidebar,
+      }),
     );
 
-    this.startElement.append(sidebarButton.getElement());
+    this.startElement.append(fetchSidebarButton.getElement());
   }
 
   private renderCenter(props: TitlebarProps & { labels: TitlebarLabels }) {
@@ -443,6 +456,20 @@ export class TitlebarView {
       this.sourceSelector?.dispose();
       this.sourceSelector = null;
       this.sourceSelectorWrap.replaceChildren();
+    }
+
+    if (props.onTogglePrimarySidebar && props.primarySidebarToggleLabel) {
+      const primarySidebarButton = this.trackView(
+        createIconButton({
+          className: 'titlebar-btn titlebar-btn-primary',
+          label: props.primarySidebarToggleLabel,
+          icon: props.isPrimarySidebarOpen
+            ? lxIconSemanticMap.titlebar.primarySidebarOpen
+            : lxIconSemanticMap.titlebar.primarySidebarClosed,
+          onClick: requestToggleTitlebarPrimarySidebar,
+        }),
+      );
+      actionGroup.append(primarySidebarButton.getElement());
     }
 
     if (props.onToggleAuxiliarySidebar && props.auxiliarySidebarToggleLabel) {

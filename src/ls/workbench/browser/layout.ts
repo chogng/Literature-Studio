@@ -1,24 +1,25 @@
 import type { WorkbenchPage } from 'ls/workbench/browser/workbench';
 
-export type WorkbenchSidebarKind = 'secondarySidebar' | 'primaryBar';
-
 export type WorkbenchLayoutStateSnapshot = {
-  isSidebarVisible: boolean;
-  activeSidebarKind: WorkbenchSidebarKind;
+  isFetchSidebarVisible: boolean;
+  isPrimarySidebarVisible: boolean;
   isAuxiliarySidebarVisible: boolean;
 };
 
 type WorkbenchLayoutEvent =
   | {
-      type: 'SET_SIDEBAR_VISIBLE';
+      type: 'SET_FETCH_SIDEBAR_VISIBLE';
       visible: boolean;
     }
   | {
-      type: 'TOGGLE_SIDEBAR_VISIBILITY';
+      type: 'TOGGLE_FETCH_SIDEBAR_VISIBILITY';
     }
   | {
-      type: 'SET_ACTIVE_SIDEBAR_KIND';
-      kind: WorkbenchSidebarKind;
+      type: 'SET_PRIMARY_SIDEBAR_VISIBLE';
+      visible: boolean;
+    }
+  | {
+      type: 'TOGGLE_PRIMARY_SIDEBAR_VISIBILITY';
     }
   | {
       type: 'SET_AUXILIARY_SIDEBAR_VISIBLE';
@@ -33,16 +34,16 @@ type WorkbenchShellLayoutParams = {
 };
 
 type WorkbenchContentLayoutParams = {
-  isSidebarVisible: boolean;
+  isFetchSidebarVisible: boolean;
+  isPrimarySidebarVisible: boolean;
   isAuxiliarySidebarVisible: boolean;
-  activeSidebarKind: WorkbenchSidebarKind;
 };
 
 export const WORKBENCH_PART_IDS = {
   container: 'workbench.container',
   titlebar: 'workbench.titlebar',
-  sidebar: 'workbench.secondarySidebar',
-  secondarySidebar: 'workbench.secondarySidebar',
+  fetchSidebar: 'workbench.fetchSidebar',
+  secondarySidebar: 'workbench.fetchSidebar',
   primaryBar: 'workbench.primaryBar',
   auxiliarySidebar: 'workbench.auxiliarySidebar',
   statusbar: 'workbench.statusbar',
@@ -57,15 +58,15 @@ export type WorkbenchPartId =
 export type WorkbenchPartRefCallback = (element: HTMLElement | null) => void;
 
 const DEFAULT_WORKBENCH_LAYOUT_STATE: WorkbenchLayoutStateSnapshot = {
-  isSidebarVisible: true,
-  activeSidebarKind: 'secondarySidebar',
+  isFetchSidebarVisible: true,
+  isPrimarySidebarVisible: false,
   isAuxiliarySidebarVisible: false,
 };
 
 const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement | null> = {
   [WORKBENCH_PART_IDS.container]: null,
   [WORKBENCH_PART_IDS.titlebar]: null,
-  [WORKBENCH_PART_IDS.sidebar]: null,
+  [WORKBENCH_PART_IDS.fetchSidebar]: null,
   [WORKBENCH_PART_IDS.primaryBar]: null,
   [WORKBENCH_PART_IDS.auxiliarySidebar]: null,
   [WORKBENCH_PART_IDS.statusbar]: null,
@@ -96,26 +97,31 @@ function reduceWorkbenchLayoutState(
   event: WorkbenchLayoutEvent,
 ): WorkbenchLayoutStateSnapshot {
   switch (event.type) {
-    case 'SET_SIDEBAR_VISIBLE':
-      if (state.isSidebarVisible === event.visible) {
+    case 'SET_FETCH_SIDEBAR_VISIBLE':
+      if (state.isFetchSidebarVisible === event.visible) {
         return state;
       }
       return {
         ...state,
-        isSidebarVisible: event.visible,
+        isFetchSidebarVisible: event.visible,
       };
-    case 'TOGGLE_SIDEBAR_VISIBILITY':
+    case 'TOGGLE_FETCH_SIDEBAR_VISIBILITY':
       return {
         ...state,
-        isSidebarVisible: !state.isSidebarVisible,
+        isFetchSidebarVisible: !state.isFetchSidebarVisible,
       };
-    case 'SET_ACTIVE_SIDEBAR_KIND':
-      if (state.activeSidebarKind === event.kind) {
+    case 'SET_PRIMARY_SIDEBAR_VISIBLE':
+      if (state.isPrimarySidebarVisible === event.visible) {
         return state;
       }
       return {
         ...state,
-        activeSidebarKind: event.kind,
+        isPrimarySidebarVisible: event.visible,
+      };
+    case 'TOGGLE_PRIMARY_SIDEBAR_VISIBILITY':
+      return {
+        ...state,
+        isPrimarySidebarVisible: !state.isPrimarySidebarVisible,
       };
     case 'SET_AUXILIARY_SIDEBAR_VISIBLE':
       if (state.isAuxiliarySidebarVisible === event.visible) {
@@ -167,23 +173,29 @@ export function dispatchWorkbenchLayoutEvent(event: WorkbenchLayoutEvent) {
   emitListeners(workbenchLayoutListeners);
 }
 
-export function setSidebarVisible(visible: boolean) {
+export function setFetchSidebarVisible(visible: boolean) {
   dispatchWorkbenchLayoutEvent({
-    type: 'SET_SIDEBAR_VISIBLE',
+    type: 'SET_FETCH_SIDEBAR_VISIBLE',
     visible,
   });
 }
 
-export function toggleSidebarVisibility() {
+export function toggleFetchSidebarVisibility() {
   dispatchWorkbenchLayoutEvent({
-    type: 'TOGGLE_SIDEBAR_VISIBILITY',
+    type: 'TOGGLE_FETCH_SIDEBAR_VISIBILITY',
   });
 }
 
-export function setWorkbenchSidebarKind(kind: WorkbenchSidebarKind) {
+export function setPrimarySidebarVisible(visible: boolean) {
   dispatchWorkbenchLayoutEvent({
-    type: 'SET_ACTIVE_SIDEBAR_KIND',
-    kind,
+    type: 'SET_PRIMARY_SIDEBAR_VISIBLE',
+    visible,
+  });
+}
+
+export function togglePrimarySidebarVisibility() {
+  dispatchWorkbenchLayoutEvent({
+    type: 'TOGGLE_PRIMARY_SIDEBAR_VISIBILITY',
   });
 }
 
@@ -241,41 +253,42 @@ export function getWorkbenchShellClassName({
 }
 
 export function getWorkbenchContentClassName({
-  isSidebarVisible,
+  isFetchSidebarVisible,
+  isPrimarySidebarVisible,
   isAuxiliarySidebarVisible,
-  activeSidebarKind,
 }: WorkbenchContentLayoutParams) {
   return [
     'content-grid',
-    isSidebarVisible ? '' : 'is-sidebar-collapsed',
+    isFetchSidebarVisible ? 'is-fetch-sidebar-visible' : '',
+    isPrimarySidebarVisible ? 'is-primary-sidebar-visible' : '',
     isAuxiliarySidebarVisible ? 'is-auxiliary-sidebar-visible' : '',
-    `is-active-sidebar-${activeSidebarKind}`,
   ]
     .filter(Boolean)
     .join(' ');
 }
 
 export function getWorkbenchContentStyle({
-  isSidebarVisible,
+  isFetchSidebarVisible,
+  isPrimarySidebarVisible,
   isAuxiliarySidebarVisible,
 }: WorkbenchContentLayoutParams) {
-  const desktopColumns =
-    isSidebarVisible && isAuxiliarySidebarVisible
-      ? 'minmax(288px, 332px) minmax(0, 1fr) minmax(332px, 380px)'
-      : isSidebarVisible
-        ? 'minmax(288px, 332px) minmax(0, 1fr)'
-        : isAuxiliarySidebarVisible
-          ? 'minmax(0, 1fr) minmax(332px, 380px)'
-          : 'minmax(0, 1fr)';
+  const desktopColumns = [
+    isFetchSidebarVisible ? 'minmax(248px, 280px)' : null,
+    isPrimarySidebarVisible ? 'minmax(280px, 320px)' : null,
+    'minmax(0, 1fr)',
+    isAuxiliarySidebarVisible ? 'minmax(332px, 380px)' : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(' ');
 
-  const mobileRows =
-    isSidebarVisible && isAuxiliarySidebarVisible
-      ? 'minmax(208px, 28%) minmax(0, 1fr) minmax(208px, 30%)'
-      : isSidebarVisible
-        ? 'minmax(220px, 36%) minmax(0, 1fr)'
-        : isAuxiliarySidebarVisible
-          ? 'minmax(0, 1fr) minmax(220px, 30%)'
-          : 'minmax(0, 1fr)';
+  const mobileRows = [
+    isFetchSidebarVisible ? 'minmax(208px, 22%)' : null,
+    isPrimarySidebarVisible ? 'minmax(220px, 28%)' : null,
+    'minmax(0, 1fr)',
+    isAuxiliarySidebarVisible ? 'minmax(208px, 30%)' : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(' ');
 
   return {
     '--workbench-content-columns': desktopColumns,
