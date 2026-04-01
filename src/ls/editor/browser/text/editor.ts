@@ -21,7 +21,7 @@ import {
   updateWritingEditorPlaceholder,
   writingEditorSchema,
 } from 'ls/editor/browser/text/schema';
-import { DraftEditorToolbar } from 'ls/editor/browser/text/editortoolbar';
+import { DraftEditorToolbar } from 'ls/editor/browser/text/editorToolbar';
 import { WritingEditorInputSession } from 'ls/editor/browser/text/input';
 import { resolveWritingEditorSurfaceSyncPlan } from 'ls/editor/browser/text/sync';
 import { DomScrollableElement } from 'ls/base/browser/ui/scrollbar/scrollableElement';

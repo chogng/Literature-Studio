@@ -8,7 +8,7 @@ import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocume
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 
 let ProseMirrorEditor: typeof import('ls/editor/browser/text/editor').ProseMirrorEditor;
-let DraftEditorToolbar: typeof import('ls/editor/browser/text/editortoolbar').DraftEditorToolbar;
+let DraftEditorToolbar: typeof import('ls/editor/browser/text/editorToolbar').DraftEditorToolbar;
 let TextSelection: typeof import('prosemirror-state').TextSelection;
 let DomScrollableElement: typeof import('ls/base/browser/ui/scrollbar/scrollableElement').DomScrollableElement;
 let cleanupDomEnvironment: (() => void) | null = null;
@@ -52,7 +52,7 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ ProseMirrorEditor } = await import('ls/editor/browser/text/editor'));
-  ({ DraftEditorToolbar } = await import('ls/editor/browser/text/editortoolbar'));
+  ({ DraftEditorToolbar } = await import('ls/editor/browser/text/editorToolbar'));
   ({ TextSelection } = await import('prosemirror-state'));
   ({ DomScrollableElement } = await import('ls/base/browser/ui/scrollbar/scrollableElement'));
 });
