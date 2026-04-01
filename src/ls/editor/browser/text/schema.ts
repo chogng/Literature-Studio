@@ -7,7 +7,7 @@ import {
   textblockTypeInputRule,
 } from 'prosemirror-inputrules';
 import { Schema } from 'prosemirror-model';
-import type { Node as ProseMirrorNode, NodeSpec } from 'prosemirror-model';
+import type { MarkSpec, Node as ProseMirrorNode, NodeSpec } from 'prosemirror-model';
 
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { schema as basicSchema } from 'prosemirror-schema-basic';
@@ -35,6 +35,11 @@ export type CitationNodeAttrs = {
 export type FigureRefNodeAttrs = {
   targetId: string | null;
   label: string;
+};
+
+export type TextStyleMarkAttrs = {
+  fontFamily: string | null;
+  fontSize: string | null;
 };
 
 const trackedBlockNodeNames = new Set([
@@ -240,6 +245,58 @@ function createFigureRefSpec(): NodeSpec {
   };
 }
 
+function normalizeTextStyleValue(value: string | null | undefined) {
+  const normalized = value?.trim() ?? '';
+  return normalized.length > 0 ? normalized : null;
+}
+
+function createTextStyleMarkSpec(): MarkSpec {
+  return {
+    attrs: {
+      fontFamily: { default: null },
+      fontSize: { default: null },
+    },
+    parseDOM: [
+      {
+        tag: 'span',
+        getAttrs: (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+
+          const fontFamily = normalizeTextStyleValue(element.style.fontFamily);
+          const fontSize = normalizeTextStyleValue(element.style.fontSize);
+          if (!fontFamily && !fontSize) {
+            return false;
+          }
+
+          return {
+            fontFamily,
+            fontSize,
+          } satisfies TextStyleMarkAttrs;
+        },
+      },
+    ],
+    toDOM(mark) {
+      const attrs = mark.attrs as TextStyleMarkAttrs;
+      const styleParts = [
+        attrs.fontFamily ? `font-family: ${attrs.fontFamily}` : '',
+        attrs.fontSize ? `font-size: ${attrs.fontSize}` : '',
+      ].filter(Boolean);
+
+      return [
+        'span',
+        styleParts.length > 0
+          ? {
+              style: styleParts.join('; '),
+            }
+          : {},
+        0,
+      ];
+    },
+  };
+}
+
 const baseNodes = basicSchema.spec.nodes
   .remove('image')
   .update('paragraph', withTrackedBlockId(requireNodeSpec(basicSchema.spec.nodes, 'paragraph')))
@@ -260,7 +317,7 @@ const writingEditorNodes = listNodes
 
 export const writingEditorSchema = new Schema({
   nodes: writingEditorNodes,
-  marks: basicSchema.spec.marks,
+  marks: basicSchema.spec.marks.addToEnd('text_style', createTextStyleMarkSpec()),
 });
 
 type WritingEditorPlaceholderState = {

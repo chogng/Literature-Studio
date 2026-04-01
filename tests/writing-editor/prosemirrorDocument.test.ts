@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EditorState } from 'prosemirror-state';
+import { EditorState, TextSelection } from 'prosemirror-state';
 import {
   applyWritingEditorEdit,
   applyWritingEditorEdits,
@@ -16,7 +16,16 @@ import {
   validateWritingEditorRange,
   writingEditorDocumentToPlainText,
 } from 'ls/editor/common/writingEditorDocument';
-import { insertFigureCommand } from 'ls/editor/browser/text/commands';
+import {
+  clearInlineStylesCommand,
+  clearFontFamilyCommand,
+  getWritingEditorToolbarState,
+  insertFigureCommand,
+  setFontFamilyCommand,
+  setFontSizeCommand,
+  toggleBoldCommand,
+  toggleItalicCommand,
+} from 'ls/editor/browser/text/commands';
 import { writingEditorSchema } from 'ls/editor/browser/text/schema';
 
 test('citations are numbered by first appearance order', () => {
@@ -143,6 +152,137 @@ test('insertFigureCommand keeps a figure node and trailing paragraph', () => {
   assert.equal(typeof document.content?.[0]?.attrs?.figureId, 'string');
   assert.match(String(document.content?.[0]?.attrs?.figureId), /^figure_/);
   assert.equal(document.content?.[1]?.content?.length ?? 0, 0);
+});
+
+test('text_style mark stores font family and font size on selected text', () => {
+  let nextState = EditorState.create({
+    schema: writingEditorSchema,
+    doc: writingEditorSchema.nodeFromJSON({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          attrs: { blockId: 'block_1' },
+          content: [{ type: 'text', text: 'alpha' }],
+        },
+      ],
+    }),
+  });
+
+  nextState = nextState.apply(
+    nextState.tr.setSelection(TextSelection.create(nextState.doc, 1, 6)),
+  );
+
+  setFontFamilyCommand('IBM Plex Serif')(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+  setFontSizeCommand('18px')(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+
+  const document = nextState.doc.toJSON() as {
+    content?: Array<{ content?: Array<{ marks?: Array<{ type: string; attrs?: Record<string, unknown> }> }> }>;
+  };
+  const marks = document.content?.[0]?.content?.[0]?.marks ?? [];
+
+  assert.equal(marks.length, 1);
+  assert.equal(marks[0]?.type, 'text_style');
+  assert.equal(marks[0]?.attrs?.fontFamily, 'IBM Plex Serif');
+  assert.equal(marks[0]?.attrs?.fontSize, '18px');
+
+  assert.deepEqual(getWritingEditorToolbarState(nextState).fontFamily, 'IBM Plex Serif');
+  assert.deepEqual(getWritingEditorToolbarState(nextState).fontSize, '18px');
+});
+
+test('clearing font family keeps the remaining text_style attrs intact', () => {
+  let nextState = EditorState.create({
+    schema: writingEditorSchema,
+    doc: writingEditorSchema.nodeFromJSON({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          attrs: { blockId: 'block_1' },
+          content: [{ type: 'text', text: 'alpha' }],
+        },
+      ],
+    }),
+  });
+
+  nextState = nextState.apply(
+    nextState.tr.setSelection(TextSelection.create(nextState.doc, 1, 6)),
+  );
+
+  setFontFamilyCommand('IBM Plex Serif')(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+  setFontSizeCommand('18px')(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+  clearFontFamilyCommand()(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+
+  const document = nextState.doc.toJSON() as {
+    content?: Array<{ content?: Array<{ marks?: Array<{ type: string; attrs?: Record<string, unknown> }> }> }>;
+  };
+  const marks = document.content?.[0]?.content?.[0]?.marks ?? [];
+
+  assert.equal(marks.length, 1);
+  assert.equal(marks[0]?.type, 'text_style');
+  assert.equal(marks[0]?.attrs?.fontFamily, null);
+  assert.equal(marks[0]?.attrs?.fontSize, '18px');
+
+  const toolbarState = getWritingEditorToolbarState(nextState);
+  assert.equal(toolbarState.fontFamily, null);
+  assert.equal(toolbarState.fontSize, '18px');
+});
+
+test('clearInlineStylesCommand removes text_style and basic inline marks', () => {
+  let nextState = EditorState.create({
+    schema: writingEditorSchema,
+    doc: writingEditorSchema.nodeFromJSON({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          attrs: { blockId: 'block_1' },
+          content: [{ type: 'text', text: 'alpha' }],
+        },
+      ],
+    }),
+  });
+
+  nextState = nextState.apply(
+    nextState.tr.setSelection(TextSelection.create(nextState.doc, 1, 6)),
+  );
+
+  toggleBoldCommand()(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+  toggleItalicCommand()(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+  setFontFamilyCommand('"IBM Plex Serif", serif')(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+
+  clearInlineStylesCommand()(nextState, (transaction) => {
+    nextState = nextState.apply(transaction);
+  });
+
+  const document = nextState.doc.toJSON() as {
+    content?: Array<{ content?: Array<{ marks?: Array<{ type: string }> }> }>;
+  };
+  const marks = document.content?.[0]?.content?.[0]?.marks ?? [];
+
+  assert.equal(marks.length, 0);
+
+  const toolbarState = getWritingEditorToolbarState(nextState);
+  assert.equal(toolbarState.isBoldActive, false);
+  assert.equal(toolbarState.isItalicActive, false);
+  assert.equal(toolbarState.fontFamily, null);
+  assert.equal(toolbarState.fontSize, null);
 });
 
 test('collectWritingEditorTextUnits exports stable text units with logical line offsets', () => {

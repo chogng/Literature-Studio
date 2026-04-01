@@ -1,11 +1,11 @@
 import type { AssistantChatMessage, AssistantConversation } from 'ls/workbench/browser/assistantModel';
 import { createHoverController } from 'ls/base/browser/ui/hover/hover';
+import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { AuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
-import { AuxiliaryBarTabStripScrollbar } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarTabStripScrollbar';
 import 'ls/workbench/browser/parts/auxiliarybar/media/auxiliarybar.css';
 
 export type AuxiliaryBarProps = {
@@ -77,8 +77,14 @@ export class AuxiliaryBar {
 
   private renderTopbar() {
     const topbar = createElement('div', 'auxiliarybar-topbar');
-    const stripHost = createElement('div', 'auxiliarybar-tab-scroll-host');
-    const strip = createElement('div', 'auxiliarybar-tab-strip');
+    const stripHost = createElement(
+      'div',
+      'auxiliarybar-tab-scroll-host horizontal-scrollbar-host',
+    );
+    const strip = createElement(
+      'div',
+      'auxiliarybar-tab-strip horizontal-scrollbar-strip',
+    );
     let activeTabButton: HTMLButtonElement | null = null;
     for (const conversation of this.props.conversations) {
       const item = createElement('div', 'auxiliarybar-tab-item');
@@ -86,9 +92,6 @@ export class AuxiliaryBar {
         'button',
         [
           'auxiliarybar-tab',
-          'btn-base',
-          'btn-ghost',
-          'btn-md',
           conversation.id === this.props.activeConversationId ? 'is-active' : '',
         ]
           .filter(Boolean)
@@ -106,7 +109,7 @@ export class AuxiliaryBar {
 
       const close = createElement(
         'button',
-        'auxiliarybar-tab-close btn-base btn-ghost btn-mode-icon btn-sm',
+        'auxiliarybar-tab-close btn-base btn-ghost btn-mode-icon',
       );
       close.type = 'button';
       close.append(createLxIcon(lxIconSemanticMap.assistant.closeConversation));
@@ -122,14 +125,20 @@ export class AuxiliaryBar {
       strip.append(item);
     }
 
-    const scrollbarTrack = createElement('div', 'auxiliarybar-tab-scrollbar');
+    const scrollbarTrack = createElement(
+      'div',
+      'auxiliarybar-tab-scrollbar horizontal-scrollbar-track',
+    );
     scrollbarTrack.setAttribute('aria-hidden', 'true');
-    const scrollbarThumb = createElement('div', 'auxiliarybar-tab-scrollbar-thumb');
+    const scrollbarThumb = createElement(
+      'div',
+      'auxiliarybar-tab-scrollbar-thumb horizontal-scrollbar-thumb',
+    );
     scrollbarThumb.setAttribute('aria-hidden', 'true');
     scrollbarTrack.append(scrollbarThumb);
     stripHost.append(strip, scrollbarTrack);
 
-    const tabStripScrollbar = new AuxiliaryBarTabStripScrollbar(
+    const tabStripScrollbar = new HorizontalScrollbar(
       stripHost,
       strip,
       scrollbarTrack,

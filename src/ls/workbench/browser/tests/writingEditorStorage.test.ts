@@ -15,7 +15,7 @@ type MockStorage = {
 
 type MockWindow = Pick<Window, 'localStorage' | 'setTimeout' | 'clearTimeout'>;
 
-const globalWindow = globalThis as typeof globalThis & {
+const globalWindow = globalThis as {
   window?: MockWindow;
 };
 

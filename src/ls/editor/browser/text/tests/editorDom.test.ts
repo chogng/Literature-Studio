@@ -21,6 +21,10 @@ const labels = {
   heading3: 'H3',
   bold: 'Bold',
   italic: 'Italic',
+  fontFamily: 'Font',
+  fontSize: 'Size',
+  defaultTextStyle: 'Default',
+  clearInlineStyles: 'Clear styles',
   bulletList: 'Bullets',
   orderedList: 'Numbers',
   blockquote: 'Quote',
@@ -33,6 +37,8 @@ const labels = {
   figureUrlPrompt: 'Figure URL',
   figureCaptionPrompt: 'Figure caption',
   figureRefPrompt: 'Figure ref',
+  fontFamilyPrompt: 'Font family',
+  fontSizePrompt: 'Font size',
 };
 
 before(async () => {
