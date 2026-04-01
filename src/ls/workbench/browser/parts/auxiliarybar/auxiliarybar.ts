@@ -4,6 +4,7 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { AuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
+import { AuxiliaryBarTabStripScrollbar } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarTabStripScrollbar';
 import 'ls/workbench/browser/parts/auxiliarybar/media/auxiliarybar.css';
 
 export type AuxiliaryBarProps = {
@@ -42,6 +43,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 export class AuxiliaryBar {
   private props: AuxiliaryBarProps;
   private readonly element = createElement('div', 'auxiliarybar-content');
+  private readonly renderDisposables = new Set<() => void>();
+  private tabStripScrollLeft = 0;
 
   constructor(props: AuxiliaryBarProps) {
     this.props = props;
@@ -58,10 +61,12 @@ export class AuxiliaryBar {
   }
 
   dispose() {
+    this.disposeRenderDisposables();
     this.element.replaceChildren();
   }
 
   private render() {
+    this.disposeRenderDisposables();
     const canSend = !this.props.isAsking && this.props.question.trim().length > 0;
     this.element.replaceChildren(
       this.renderTopbar(),
@@ -71,7 +76,9 @@ export class AuxiliaryBar {
 
   private renderTopbar() {
     const topbar = createElement('div', 'auxiliarybar-topbar');
+    const stripHost = createElement('div', 'auxiliarybar-tab-scroll-host');
     const strip = createElement('div', 'auxiliarybar-tab-strip');
+    let activeTabButton: HTMLButtonElement | null = null;
     for (const conversation of this.props.conversations) {
       const item = createElement('div', 'auxiliarybar-tab-item');
       const button = createElement(
@@ -89,6 +96,9 @@ export class AuxiliaryBar {
       button.type = 'button';
       button.textContent = conversation.title;
       button.title = conversation.title;
+      if (conversation.id === this.props.activeConversationId) {
+        activeTabButton = button;
+      }
       button.addEventListener('click', () =>
         this.props.onActivateConversation(conversation.id),
       );
@@ -111,13 +121,37 @@ export class AuxiliaryBar {
       strip.append(item);
     }
 
+    const scrollbarTrack = createElement('div', 'auxiliarybar-tab-scrollbar');
+    scrollbarTrack.setAttribute('aria-hidden', 'true');
+    const scrollbarThumb = createElement('div', 'auxiliarybar-tab-scrollbar-thumb');
+    scrollbarThumb.setAttribute('aria-hidden', 'true');
+    scrollbarTrack.append(scrollbarThumb);
+    stripHost.append(strip, scrollbarTrack);
+
+    const tabStripScrollbar = new AuxiliaryBarTabStripScrollbar(
+      stripHost,
+      strip,
+      scrollbarTrack,
+      scrollbarThumb,
+      {
+        activeItem: activeTabButton,
+        initialScrollLeft: this.tabStripScrollLeft,
+        onScrollLeftChange: (scrollLeft) => {
+          this.tabStripScrollLeft = scrollLeft;
+        },
+      },
+    );
+    this.renderDisposables.add(() => {
+      tabStripScrollbar.dispose();
+    });
+
     const actions = createElement('div', 'sidebar-action-bar');
     actions.append(
       this.createActionButton(lxIconSemanticMap.assistant.newConversation, this.props.onCreateConversation),
       this.createActionButton(lxIconSemanticMap.assistant.history, this.props.onToggleHistory, this.props.isHistoryOpen),
       this.createActionButton(lxIconSemanticMap.assistant.more, this.props.onToggleMoreMenu, this.props.isMoreMenuOpen),
     );
-    topbar.append(strip, actions);
+    topbar.append(stripHost, actions);
     return topbar;
   }
 
@@ -332,6 +366,13 @@ export class AuxiliaryBar {
     button.title = label;
     button.setAttribute('aria-label', label);
     return button;
+  }
+
+  private disposeRenderDisposables() {
+    for (const dispose of this.renderDisposables) {
+      dispose();
+    }
+    this.renderDisposables.clear();
   }
 }
 
