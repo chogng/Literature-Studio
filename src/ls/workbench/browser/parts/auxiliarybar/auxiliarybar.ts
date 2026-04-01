@@ -146,6 +146,8 @@ export class AuxiliaryBar {
       {
         activeItem: activeTabButton,
         initialScrollLeft: this.tabStripScrollLeft,
+        mouseWheelSmoothScroll: false,
+        consumeMouseWheelIfScrollbarIsNeeded: true,
         onScrollLeftChange: (scrollLeft) => {
           this.tabStripScrollLeft = scrollLeft;
         },
