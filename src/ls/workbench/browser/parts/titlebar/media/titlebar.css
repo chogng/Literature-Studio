@@ -352,7 +352,11 @@
   transform: none;
 }
 
-.titlebar-btn-sidebar.btn-base {
+.titlebar-btn-fetch.btn-base {
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-btn-primary.btn-base {
   -webkit-app-region: no-drag;
 }
 

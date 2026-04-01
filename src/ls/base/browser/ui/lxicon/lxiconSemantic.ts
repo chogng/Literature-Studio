@@ -2,8 +2,10 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 export const lxIconSemanticMap = {
   titlebar: {
-    sidebarOpen: 'layout-sidebar-left',
-    sidebarClosed: 'layout-sidebar-left-off',
+    fetchSidebarOpen: 'layout-sidebar-left',
+    fetchSidebarClosed: 'layout-sidebar-left-off',
+    primarySidebarOpen: 'layout-panel',
+    primarySidebarClosed: 'layout-panel-off',
     auxiliaryOpen: 'layout-sidebar-right',
     auxiliaryClosed: 'layout-sidebar-right-off',
     navigateBack: 'arrow-left',

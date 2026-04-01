@@ -130,10 +130,6 @@ button:disabled {
   height: 100%;
 }
 
-.content-grid.is-sidebar-collapsed {
-  grid-template-columns: var(--workbench-content-columns, minmax(0, 1fr));
-}
-
 @media (max-width: 980px) {
   .app-shell {
     height: 100%;
@@ -151,9 +147,5 @@ button:disabled {
       --workbench-content-mobile-rows,
       minmax(220px, 40%) minmax(0, 1fr)
     );
-  }
-
-  .content-grid.is-sidebar-collapsed:not(.is-auxiliary-sidebar-visible) {
-    grid-template-rows: minmax(0, 1fr);
   }
 }

@@ -78,9 +78,9 @@ export function createWorkbenchContainerStateContribution(): Disposable {
     }
 
     delete container.dataset.workbenchPage;
-    delete container.dataset.sidebarVisible;
+    delete container.dataset.fetchSidebarVisible;
+    delete container.dataset.primarySidebarVisible;
     delete container.dataset.auxiliarySidebarVisible;
-    delete container.dataset.activeSidebarKind;
     delete container.dataset.workbenchParts;
   };
 
@@ -102,14 +102,15 @@ export function createWorkbenchContainerStateContribution(): Disposable {
       .join(' ');
 
     lastContainer.dataset.workbenchPage = getWorkbenchStateSnapshot().activePage;
-    lastContainer.dataset.sidebarVisible = String(
-      getWorkbenchLayoutStateSnapshot().isSidebarVisible,
+    lastContainer.dataset.fetchSidebarVisible = String(
+      getWorkbenchLayoutStateSnapshot().isFetchSidebarVisible,
+    );
+    lastContainer.dataset.primarySidebarVisible = String(
+      getWorkbenchLayoutStateSnapshot().isPrimarySidebarVisible,
     );
     lastContainer.dataset.auxiliarySidebarVisible = String(
       getWorkbenchLayoutStateSnapshot().isAuxiliarySidebarVisible,
     );
-    lastContainer.dataset.activeSidebarKind =
-      getWorkbenchLayoutStateSnapshot().activeSidebarKind;
     lastContainer.dataset.workbenchParts = registeredPartIds;
   };
 
@@ -196,8 +197,13 @@ export function createWorkbenchTitlebarActionContribution(): Disposable {
       return;
     }
 
-    if (action.type === 'TOGGLE_SIDEBAR') {
-      handlers.onToggleSidebar();
+    if (action.type === 'TOGGLE_FETCH_SIDEBAR') {
+      handlers.onToggleFetchSidebar();
+      return;
+    }
+
+    if (action.type === 'TOGGLE_PRIMARY_SIDEBAR') {
+      handlers.onTogglePrimarySidebar();
       return;
     }
 
