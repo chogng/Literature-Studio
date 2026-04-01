@@ -7,12 +7,16 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 let cleanupDomEnvironment: (() => void) | null = null;
 let createHoverController: typeof import('ls/base/browser/ui/hover/hover').createHoverController;
 let createButtonView: typeof import('ls/base/browser/ui/button/button').createButtonView;
+let createInputView: typeof import('ls/base/browser/ui/input/input').createInputView;
+let createDropdownView: typeof import('ls/base/browser/ui/dropdown/dropdown').createDropdownView;
 
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createHoverController } = await import('ls/base/browser/ui/hover/hover'));
   ({ createButtonView } = await import('ls/base/browser/ui/button/button'));
+  ({ createInputView } = await import('ls/base/browser/ui/input/input'));
+  ({ createDropdownView } = await import('ls/base/browser/ui/dropdown/dropdown'));
 });
 
 after(() => {
@@ -77,6 +81,58 @@ test('button view uses shared hover content instead of native title tooltips', a
     assert.equal(overlayContent.textContent, 'Settings');
   } finally {
     buttonView.dispose();
+  }
+});
+
+test('input view uses shared hover content instead of native title tooltips', async () => {
+  const inputView = createInputView({
+    title: 'Article URL',
+    value: 'https://example.com',
+  });
+  const input = inputView.getElement();
+  document.body.append(input);
+
+  try {
+    const wrapper = input.querySelector('.input-wrapper');
+    assert(wrapper instanceof HTMLElement);
+    assert.equal(wrapper.getAttribute('title'), null);
+
+    wrapper.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    await delay(450);
+
+    const overlayContent = document.querySelector('.ls-hover-content');
+    assert(overlayContent instanceof HTMLElement);
+    assert.equal(overlayContent.textContent, 'Article URL');
+  } finally {
+    inputView.dispose();
+  }
+});
+
+test('dropdown view uses shared hover content instead of native title tooltips', async () => {
+  const dropdownView = createDropdownView({
+    title: 'Quick access source',
+    value: 'nature',
+    options: [
+      {
+        value: 'nature',
+        label: 'Nature',
+      },
+    ],
+  });
+  const dropdown = dropdownView.getElement();
+  document.body.append(dropdown);
+
+  try {
+    assert.equal(dropdown.getAttribute('title'), null);
+
+    dropdown.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    await delay(450);
+
+    const overlayContent = document.querySelector('.ls-hover-content');
+    assert(overlayContent instanceof HTMLElement);
+    assert.equal(overlayContent.textContent, 'Quick access source');
+  } finally {
+    dropdownView.dispose();
   }
 });
 
