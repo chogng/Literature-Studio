@@ -1,20 +1,17 @@
 ﻿import { BrowserWindow, WebContentsView } from 'electron';
+import { normalizeListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
+import type { ListingCandidateExtraction, ListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
 
-import type {
-  ListingCandidateExtraction,
-  ListingCandidateSeed,
-} from '../../../code/electron-main/fetch/sourceExtractors/types.js';
-import { normalizeListingCandidateSeed } from '../../../code/electron-main/fetch/sourceExtractors/types.js';
-import { READER_SHARED_WEB_PARTITION } from '../../native/electron-main/sharedWebSession.js';
-import { shortenForLog } from '../../../code/electron-main/fetchTiming.js';
+import { READER_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
+import { shortenForLog } from 'ls/code/electron-main/fetchTiming';
 import type {
   WebContentBounds,
   WebContentLayoutPhase,
   WebContentNavigationMode,
   WebContentSelectionSnapshot,
   WebContentState,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { appError } from '../../../base/common/errors.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { appError } from 'ls/base/common/errors';
 
 const webContentPartition = READER_SHARED_WEB_PARTITION;
 const webContentCornerRadius = 10;

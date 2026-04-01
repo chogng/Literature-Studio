@@ -20,8 +20,8 @@ import type {
   WebContentState,
   WindowControlAction,
   WindowState,
-} from '../common/desktopTypes.js';
-import { parseSerializedAppError } from '../../../common/errors.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { parseSerializedAppError } from 'ls/base/common/errors';
 
 const APP_IPC_CHANNEL_PREFIX = 'app:';
 

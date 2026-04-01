@@ -1,8 +1,7 @@
-import '../../../base/browser/ui/button/button.css';
-import {
-  createLxIcon,
-  type LxIconName,
-} from 'ls/base/browser/ui/lxicon/lxicon.js';
+import 'ls/base/browser/ui/button/button.css';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+
 import type { WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 

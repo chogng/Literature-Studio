@@ -1,11 +1,6 @@
 import type { Node as ProseMirrorNode } from 'prosemirror-model';
-import {
-  type BlockNodeAttrs,
-  type CitationNodeAttrs,
-  type FigureRefNodeAttrs,
-  createEditorNodeId,
-  writingEditorSchema,
-} from '../browser/text/schema';
+import { createEditorNodeId, writingEditorSchema } from 'ls/editor/browser/text/schema';
+import type { BlockNodeAttrs, CitationNodeAttrs, FigureRefNodeAttrs } from 'ls/editor/browser/text/schema';
 
 export type WritingEditorMark = {
   type: string;

@@ -1,15 +1,15 @@
 import type {
   FetchLatestArticlesPayload,
   WebContentPdfDownloadPayload,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { normalizeUrl } from '../../../base/common/url.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { normalizeUrl } from 'ls/base/common/url';
 import {
   getWebContentDocumentSnapshot,
   getWebContentListingCandidateSnapshot,
   getWebContentState,
-} from '../../../platform/windows/electron-main/webContentView.js';
-import type { WebContentExtractionSnapshot, WebContentSnapshot } from './fetchStrategy.js';
-import { shouldAllowScienceWebContentWhileLoading } from './scienceValidationRules.js';
+} from 'ls/platform/window/electron-main/webContentView';
+import type { WebContentExtractionSnapshot, WebContentSnapshot } from 'ls/code/electron-main/fetch/fetchStrategy';
+import { shouldAllowScienceWebContentWhileLoading } from 'ls/code/electron-main/fetch/scienceValidationRules';
 
 const BATCH_PREVIEW_EXTRACTION_TIMEOUT_MS = 2500;
 const BATCH_PREVIEW_SNAPSHOT_TIMEOUT_MS = 1500;

@@ -12,7 +12,7 @@ import type {
   ReindexLibraryDocumentPayload,
   ReindexLibraryDocumentResult,
   StoredAppSettings,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export interface TranslationCacheRecord {
   key: string;

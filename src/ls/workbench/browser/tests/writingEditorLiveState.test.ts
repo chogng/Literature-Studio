@@ -3,8 +3,8 @@ import test from 'node:test';
 import {
   createEmptyWritingEditorDocument,
   createWritingEditorDocumentFromPlainText,
-} from '../../../editor/common/writingEditorDocument';
-import { createWritingLiveDraftState } from '../writingEditorLiveState';
+} from 'ls/editor/common/writingEditorDocument';
+import { createWritingLiveDraftState } from 'ls/workbench/browser/writingEditorLiveState';
 
 test('live draft state updates the active draft document immediately', () => {
   const state = createWritingLiveDraftState();

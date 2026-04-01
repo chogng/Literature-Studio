@@ -1,4 +1,4 @@
-import { getLocaleMessages } from '../../../language/i18n';
+import { getLocaleMessages } from 'language/i18n';
 import { localeService } from 'ls/workbench/contrib/localization/browser/localeService';
 import {
   executeWorkbenchEditorCommand,

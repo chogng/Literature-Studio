@@ -1,4 +1,4 @@
-import type { BatchSource as DesktopBatchSource } from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type { BatchSource as DesktopBatchSource } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { sanitizeUrlInput } from 'ls/workbench/common/url';
 import {
   batchLimitMax,
@@ -6,7 +6,7 @@ import {
   defaultBatchLimit,
   defaultSameDomainOnly,
   getDefaultBatchSources,
-} from 'ls/platform/config/common/defaultBatchSources.js';
+} from 'ls/platform/config/common/defaultBatchSources';
 
 export {
   batchLimitMax,

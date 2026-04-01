@@ -1,11 +1,11 @@
 import type {
   NativeToastState,
   NativeToastType,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { detectInitialLocale, getLocaleMessages } from 'language/i18n';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
-import '../../base/browser/ui/toast/toast.css';
-import './media/toastOverlayWindow.css';
+import 'ls/base/browser/ui/toast/toast.css';
+import 'ls/workbench/browser/media/toastOverlayWindow.css';
 
 const fallbackToastState: NativeToastState = {
   items: [],

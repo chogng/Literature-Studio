@@ -1,9 +1,13 @@
 import { BrowserWindow } from 'electron';
-import { getWebContentDocumentSnapshot, getWebContentListingCandidateSnapshot, getWebContentState } from './webContentView.js';
-import { createAuxiliaryWindow } from './window.js';
-import { appError, isAppError } from '../../../base/common/errors.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { READER_SHARED_WEB_PARTITION } from '../../native/electron-main/sharedWebSession.js';
+import {
+  getWebContentDocumentSnapshot,
+  getWebContentListingCandidateSnapshot,
+  getWebContentState,
+} from 'ls/platform/window/electron-main/webContentView';
+import { createAuxiliaryWindow } from 'ls/platform/window/electron-main/window';
+import { appError, isAppError } from 'ls/base/common/errors';
+import { cleanText } from 'ls/base/common/strings';
+import { READER_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
 import {
   SCIENCE_DOWNLOAD_CONTROL_SELECTORS,
   SCIENCE_VALIDATION_ACCEPT,
@@ -17,21 +21,9 @@ import {
   SCIENCE_VALIDATION_STATE_SCRIPT,
   SCIENCE_VALIDATION_TIMEOUT_MS,
   SCIENCE_VALIDATION_USER_AGENT,
-} from './scienceValidationShared.js';
-import {
-  buildScienceValidationStateSignature,
-  extractTitleFromHtml,
-  isScienceChallengeHtml,
-  isScienceHostUrl,
-  isScienceSeriesListingPageUrl,
-  isScienceValidationReadyState,
-  isScienceValidationStableReadyState,
-  matchesScienceComparableUrl,
-  matchesScienceNavigationComparableUrl,
-  summarizeScienceValidationHtml,
-  type ScienceValidationResult,
-  type ScienceValidationWindowState,
-} from '../../../code/electron-main/fetch/scienceValidationRules.js';
+} from 'ls/platform/window/electron-main/scienceValidationShared';
+import { buildScienceValidationStateSignature, extractTitleFromHtml, isScienceChallengeHtml, isScienceHostUrl, isScienceSeriesListingPageUrl, isScienceValidationReadyState, isScienceValidationStableReadyState, matchesScienceComparableUrl, matchesScienceNavigationComparableUrl, summarizeScienceValidationHtml } from 'ls/code/electron-main/fetch/scienceValidationRules';
+import type { ScienceValidationResult, ScienceValidationWindowState } from 'ls/code/electron-main/fetch/scienceValidationRules';
 
 // This module owns the auxiliary validation window lifecycle.
 // Site-specific readiness/challenge decisions live in code/electron-main/fetch.
@@ -42,7 +34,7 @@ export {
   isScienceSeriesListingPageUrl,
   shouldAllowScienceWebContentWhileLoading,
   shouldUseScienceValidationRenderFallback,
-} from '../../../code/electron-main/fetch/scienceValidationRules.js';
+} from 'ls/code/electron-main/fetch/scienceValidationRules';
 
 function logScienceValidation(stage: string, details: Record<string, unknown>) {
   if (!SCIENCE_VALIDATION_LOG_ENABLED) return;
@@ -946,4 +938,3 @@ export async function withValidatedSciencePageWindow<T>(
     }
   }
 }
-

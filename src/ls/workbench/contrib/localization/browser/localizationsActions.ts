@@ -1,5 +1,5 @@
-import type { Locale } from '../../../../../language/i18n';
-import type { LocaleMessages } from '../../../../../language/locales';
+import type { Locale } from 'language/i18n';
+import type { LocaleMessages } from 'language/locales';
 
 export type LocalizationUiAction = {
   type: 'SET_DISPLAY_LANGUAGE';

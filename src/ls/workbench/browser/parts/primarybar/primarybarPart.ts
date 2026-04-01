@@ -1,5 +1,6 @@
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
-import { PrimaryBar, type PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybar';
+import { PrimaryBar } from 'ls/workbench/browser/parts/primarybar/primarybar';
+import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybar';
 
 export type { PrimaryBarLabels, PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybar';
 

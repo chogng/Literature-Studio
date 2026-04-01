@@ -1,5 +1,6 @@
-import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 import { resolveSourceTableMetadata } from 'ls/workbench/services/config/configSchema';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+
 import { normalizeUrl, sanitizeUrlInput } from 'ls/workbench/common/url';
 
 export type QuickAccessCycleDirection = 'prev' | 'next';

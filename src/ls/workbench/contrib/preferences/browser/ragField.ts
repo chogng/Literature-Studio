@@ -1,6 +1,6 @@
-import type { RagProviderId, RagProviderSettings } from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes.js';
-import { ApiKeyFieldView } from 'ls/workbench/contrib/preferences/browser/apiKeyField.js';
+import type { RagProviderId, RagProviderSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
+import { ApiKeyFieldView } from 'ls/workbench/contrib/preferences/browser/apiKeyField';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);

@@ -1,4 +1,4 @@
-import { cleanText } from '../../../base/common/strings.js';
+import { cleanText } from 'ls/base/common/strings';
 
 const INVALID_FILE_NAME_RE = /[<>:"/\\|?*\u0000-\u001F]/g;
 const TRAILING_FILE_NAME_RE = /[. ]+$/g;

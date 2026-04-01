@@ -1,6 +1,8 @@
 import type { AssistantModelSnapshot } from 'ls/workbench/browser/assistantModel';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
-import { AuxiliaryBar, type AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
+import { AuxiliaryBar } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
+import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
+
 import { createAuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
 
 export type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';

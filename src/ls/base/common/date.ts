@@ -1,5 +1,5 @@
-import { appError } from './errors.js';
-import { cleanText } from './strings.js';
+import { appError } from 'ls/base/common/errors';
+import { cleanText } from 'ls/base/common/strings';
 
 export interface DateRange {
   start: string | null;

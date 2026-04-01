@@ -2,13 +2,13 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import type { DownloadItem, WebContents } from 'electron';
 
-import { buildPdfFileName } from '../common/pdfFileName.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { appError, isAppError } from '../../../base/common/errors.js';
+import { buildPdfFileName } from 'ls/platform/download/common/pdfFileName';
+import { cleanText } from 'ls/base/common/strings';
+import { appError, isAppError } from 'ls/base/common/errors';
 import {
   READER_SHARED_WEB_PARTITION,
   resolveReaderSharedSession,
-} from '../../native/electron-main/sharedWebSession.js';
+} from 'ls/platform/native/electron-main/sharedWebSession';
 
 const PDF_FETCH_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';

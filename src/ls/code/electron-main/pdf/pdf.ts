@@ -2,28 +2,24 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { load } from 'cheerio';
 
-import type { WebContentPdfDownloadPayload } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { buildPdfDirectoryName } from '../../../platform/download/common/pdfFileName.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { normalizeUrl } from '../../../base/common/url.js';
-import { appError } from '../../../base/common/errors.js';
-import { fetchHtml } from '../fetch/dispatch.js';
+import type { WebContentPdfDownloadPayload } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { buildPdfDirectoryName } from 'ls/platform/download/common/pdfFileName';
+import { cleanText } from 'ls/base/common/strings';
+import { normalizeUrl } from 'ls/base/common/url';
+import { appError } from 'ls/base/common/errors';
+import { fetchHtml } from 'ls/code/electron-main/fetch/dispatch';
 import {
   buildNatureResearchPdfDownloadCandidates,
   extractNatureResearchPdfDownloadCandidatesFromHtml,
-} from './naturePdf.js';
-import {
-  persistDownloadedPdf,
-  toAbsoluteHttpUrl,
-  tryBrowserSessionDownloadCandidates,
-  tryDownloadPdfCandidates,
-  type PdfDownloadAttemptFailure,
-} from '../../../platform/download/electron-main/pdfDownload.js';
-import { natureLatestNewsPdfStrategy } from './pdfStrategies/natureLatestNewsPdfStrategy.js';
-import { naturePdfStrategy } from './pdfStrategies/naturePdfStrategy.js';
-import { sciencePdfStrategy } from './pdfStrategies/sciencePdfStrategy.js';
-import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategies/pdfStrategyTypes.js';
-import { buildScienceDirectPdfDownloadCandidates } from './sciencePdf.js';
+} from 'ls/code/electron-main/pdf/naturePdf';
+import { persistDownloadedPdf, toAbsoluteHttpUrl, tryBrowserSessionDownloadCandidates, tryDownloadPdfCandidates } from 'ls/platform/download/electron-main/pdfDownload';
+import type { PdfDownloadAttemptFailure } from 'ls/platform/download/electron-main/pdfDownload';
+
+import { natureLatestNewsPdfStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/natureLatestNewsPdfStrategy';
+import { naturePdfStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/naturePdfStrategy';
+import { sciencePdfStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/sciencePdfStrategy';
+import type { PdfDownloadContext, PdfDownloadStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/pdfStrategyTypes';
+import { buildScienceDirectPdfDownloadCandidates } from 'ls/code/electron-main/pdf/sciencePdf';
 
 const PDF_STRATEGY_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
 
@@ -466,8 +462,4 @@ export async function previewDownloadPdf(
   });
   return await previewDownloadPdfWithResolvedRequest(request);
 }
-
-
-
-
 

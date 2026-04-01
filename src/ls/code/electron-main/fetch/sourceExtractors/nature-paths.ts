@@ -1,7 +1,7 @@
-import { isNatureListingPage } from './nature-listing-shared.js';
-import { createNatureResearchArticlesCandidateExtractor } from './nature-research-articles.js';
+import { isNatureListingPage } from 'ls/code/electron-main/fetch/sourceExtractors/nature-listing-shared';
+import { createNatureResearchArticlesCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors/nature-research-articles';
 
-import type { ListingCandidateExtractor } from './types.js';
+import type { ListingCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors/types';
 
 type NaturePathDef = {
   id: string;

@@ -1,16 +1,16 @@
 import { load } from 'cheerio';
+import type { Article, FetchChannel, WebContentReuseMode } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { isWithinDateRange } from 'ls/base/common/date';
+import type { DateRange } from 'ls/base/common/date';
 
-import type { DateRange } from '../../../base/common/date.js';
-import type { Article, FetchChannel, WebContentReuseMode } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { isWithinDateRange } from '../../../base/common/date.js';
-import { hasStrongArticleSignals } from './acceptance.js';
-import { buildArticleFromHtml } from './parser.js';
-import type { SourcePageTypeResult } from './detect.js';
+import { hasStrongArticleSignals } from 'ls/code/electron-main/fetch/acceptance';
+import { buildArticleFromHtml } from 'ls/code/electron-main/fetch/parser';
+import type { SourcePageTypeResult } from 'ls/code/electron-main/fetch/detect';
 import type {
   FetchLatestArticlesOptions,
   PageFetchResult,
   PageHtmlResult,
-} from './sourcePageFetchTypes.js';
+} from 'ls/code/electron-main/fetch/sourcePageFetchTypes';
 
 export async function fetchDetail({
   sourceId,

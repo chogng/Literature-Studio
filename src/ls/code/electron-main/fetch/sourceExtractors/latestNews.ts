@@ -1,24 +1,16 @@
-import { parseDateHintFromText } from '../../../../base/common/date.js';
-import { parseDateString } from '../../../../base/common/date.js';
-import { cleanText } from '../../../../base/common/strings.js';
+import { parseDateHintFromText } from 'ls/base/common/date';
+import { parseDateString } from 'ls/base/common/date';
+import { cleanText } from 'ls/base/common/strings';
 
 import {
   createNatureListingCandidateExtractor,
   evaluateNatureListingPaginationStop,
   findNatureListingNextPageUrl,
   isNatureListingPage,
-} from './nature-listing-shared.js';
-import { shortenForLog, timingLog } from '../../fetchTiming.js';
-
-import type {
-  ListingCandidateExtraction,
-  ListingCandidateExtractor,
-  ListingCandidateExtractorContext,
-  ListingCandidateRefinementContext,
-  ListingPaginationContext,
-  ListingCandidateSeed,
-} from './types.js';
-import { normalizeListingCandidateSeed } from './types.js';
+} from 'ls/code/electron-main/fetch/sourceExtractors/nature-listing-shared';
+import { shortenForLog, timingLog } from 'ls/code/electron-main/fetchTiming';
+import { normalizeListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
+import type { ListingCandidateExtraction, ListingCandidateExtractor, ListingCandidateExtractorContext, ListingCandidateRefinementContext, ListingPaginationContext, ListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
 
 const NATURE_LATEST_NEWS_LISTING_PAGE_PATH = '/latest-news';
 const NATURE_LATEST_NEWS_RSS_URL = 'https://www.nature.com/nature.rss';

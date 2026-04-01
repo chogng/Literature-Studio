@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveWritingEditorSurfaceSyncPlan } from '../sync';
+import { resolveWritingEditorSurfaceSyncPlan } from 'ls/editor/browser/text/sync';
 
 test('surface sync defers updates while composition is active', () => {
   const plan = resolveWritingEditorSurfaceSyncPlan({

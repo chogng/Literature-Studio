@@ -1,5 +1,5 @@
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { TitleControl } from 'ls/workbench/browser/parts/editor/titleControl';
 
 function createElement<K extends keyof HTMLElementTagNameMap>(

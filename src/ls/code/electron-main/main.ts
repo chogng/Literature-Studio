@@ -7,13 +7,13 @@ import {
   prepareEnvironmentMain,
   resolveEnvironmentMainLocale,
   resolveEnvironmentMainPaths,
-} from '../../platform/environment/electron-main/environmentMainService.js';
-import { registerDevShortcuts } from '../../platform/windows/electron-main/devShortcuts.js';
-import { registerAppLifecycleHandlers } from '../../platform/lifecycle/electron-main/lifecycleMain.js';
-import { registerAppIpc } from './ipc.js';
-import { getDefaultBatchSources } from '../../platform/config/common/defaultBatchSources.js';
-import { createStorageService } from '../../platform/storage/electron-main/storageService.js';
-import { createMainWindow, getMainWindow } from '../../platform/windows/electron-main/window.js';
+} from 'ls/platform/environment/electron-main/environmentMainService';
+import { registerDevShortcuts } from 'ls/platform/window/electron-main/devShortcuts';
+import { registerAppLifecycleHandlers } from 'ls/platform/lifecycle/electron-main/lifecycleMain';
+import { registerAppIpc } from 'ls/code/electron-main/ipc';
+import { getDefaultBatchSources } from 'ls/platform/config/common/defaultBatchSources';
+import { createStorageService } from 'ls/platform/storage/electron-main/storageService';
+import { createMainWindow, getMainWindow } from 'ls/platform/window/electron-main/window';
 
 const environmentMainPaths = resolveEnvironmentMainPaths();
 configureDevelopmentEnvironmentMain();
@@ -45,4 +45,3 @@ app.whenReady().then(async () => {
   const settings = await storage.loadSettings();
   createMainWindow({ useMica: settings.useMica });
 });
-

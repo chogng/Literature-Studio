@@ -1,5 +1,5 @@
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
-import './media/view.css';
+import 'ls/workbench/browser/parts/views/media/view.css';
 
 export type ViewPartLabels = {
   emptyState: string;

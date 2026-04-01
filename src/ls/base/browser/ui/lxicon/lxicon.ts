@@ -1,6 +1,7 @@
-import './lxicon.css';
+import 'ls/base/browser/ui/lxicon/lxicon.css';
 import zoomOutSvg from 'ls/base/browser/ui/lxicon/svg/zoom-out.svg?raw';
 import zoomInSvg from 'ls/base/browser/ui/lxicon/svg/zoom-in.svg?raw';
+import writeSvg from 'ls/base/browser/ui/lxicon/svg/write.svg?raw';
 import warningSvg from 'ls/base/browser/ui/lxicon/svg/warning.svg?raw';
 import voiceCircleSvg from 'ls/base/browser/ui/lxicon/svg/voice-circle.svg?raw';
 import voiceCircleFilledSvg from 'ls/base/browser/ui/lxicon/svg/voice-circle-filled.svg?raw';
@@ -153,6 +154,7 @@ import accountSvg from 'ls/base/browser/ui/lxicon/svg/account.svg?raw';
 export type LxIconName =
   | 'zoom-out'
   | 'zoom-in'
+  | 'write'
   | 'warning'
   | 'voice-circle'
   | 'voice-circle-filled'
@@ -305,6 +307,7 @@ export type LxIconName =
 const SVG_BY_NAME: Record<LxIconName, string> = {
   'zoom-out': zoomOutSvg,
   'zoom-in': zoomInSvg,
+  'write': writeSvg,
   'warning': warningSvg,
   'voice-circle': voiceCircleSvg,
   'voice-circle-filled': voiceCircleFilledSvg,

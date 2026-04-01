@@ -1,5 +1,5 @@
-import '../button/button.css';
-import './modal.css';
+import 'ls/base/browser/ui/button/button.css';
+import 'ls/base/browser/ui/modal/modal.css';
 
 export type ModalContent =
   | string

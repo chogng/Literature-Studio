@@ -92,7 +92,7 @@ export interface FetchBatchSource {
   preferredExtractorId?: string | null;
 }
 
-export type DateRange = import('../../../common/date.js').DateRange;
+export type DateRange = import('ls/base/common/date').DateRange;
 
 export interface StoredAppSettings {
   defaultDownloadDir: string | null;

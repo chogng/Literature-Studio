@@ -1,17 +1,15 @@
 import { toast } from 'ls/base/browser/ui/toast/toast';
-import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { Locale } from '../../../../../language/i18n';
-import type { LocaleMessages } from '../../../../../language/locales';
+import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { Locale } from 'language/i18n';
+import type { LocaleMessages } from 'language/locales';
 import {
   formatLocalized,
   localizeDesktopInvokeError,
   parseDesktopInvokeError,
 } from 'ls/workbench/services/desktop/desktopError';
-import { type BatchSource } from 'ls/workbench/services/config/configSchema';
-import {
-  SettingsModel,
-  type SettingsModelSnapshot,
-} from 'ls/workbench/services/settings/settingsModel';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+import { SettingsModel } from 'ls/workbench/services/settings/settingsModel';
+import type { SettingsModelSnapshot } from 'ls/workbench/services/settings/settingsModel';
 
 export type SettingsControllerContext = {
   desktopRuntime: boolean;

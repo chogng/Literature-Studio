@@ -4,10 +4,9 @@ import {
 import {
   subscribeLocalizationUiActions,
 } from 'ls/workbench/contrib/localization/browser/localizationsActions';
-import {
-  registerWorkbenchContribution,
-  type Disposable,
-} from 'ls/workbench/contrib/workbench/workbench.contribution';
+import { registerWorkbenchContribution } from 'ls/workbench/contrib/workbench/workbench.contribution';
+import type { Disposable } from 'ls/workbench/contrib/workbench/workbench.contribution';
+
 import { hasDesktopRuntime } from 'ls/base/common/platform';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 

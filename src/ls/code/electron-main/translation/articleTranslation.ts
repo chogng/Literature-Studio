@@ -1,7 +1,7 @@
-import type { Article } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { cleanText } from '../../../base/common/strings.js';
-import type { StorageService } from '../../../platform/storage/common/storage.js';
-import { translateTextsToChinese } from './translationRouter.js';
+import type { Article } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { cleanText } from 'ls/base/common/strings';
+import type { StorageService } from 'ls/platform/storage/common/storage';
+import { translateTextsToChinese } from 'ls/code/electron-main/translation/translationRouter';
 
 export type TranslatableArticleField = 'descriptionText' | 'abstractText';
 

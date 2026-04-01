@@ -2,8 +2,8 @@ import { load } from 'cheerio';
 import {
   buildNatureResearchPdfDownloadCandidates,
   buildNatureResearchPdfDownloadUrl,
-} from '../../../base/common/url.js';
-import { cleanText } from '../../../base/common/strings.js';
+} from 'ls/base/common/url';
+import { cleanText } from 'ls/base/common/strings';
 
 function toAbsoluteNatureHttpUrl(rawUrl: string, baseUrl: string) {
   try {

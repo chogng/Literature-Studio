@@ -2,11 +2,11 @@ import type {
   LlmProviderId,
   LlmProviderSettings,
   LlmSettings,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 import {
   getDefaultModelForProvider,
   getLlmProviderDefinition,
-} from 'ls/workbench/services/llm/registry.js';
+} from 'ls/workbench/services/llm/registry';
 
 export const defaultLlmProviderId: LlmProviderId = 'glm';
 

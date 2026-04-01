@@ -1,11 +1,11 @@
-﻿import { appError } from '../../../base/common/errors.js';
-import { elapsedMs, shortenForLog, timingLog } from '../fetchTiming.js';
+﻿import { appError } from 'ls/base/common/errors';
+import { elapsedMs, shortenForLog, timingLog } from 'ls/code/electron-main/fetchTiming';
 import {
   getScienceChallengeSignal,
   isScienceChallengeHtml,
   shouldUseScienceValidationRenderFallback,
-} from './scienceValidationRules.js';
-import { ensureScienceValidationWindow } from '../../../platform/windows/electron-main/scienceValidationWindow.js';
+} from 'ls/code/electron-main/fetch/scienceValidationRules';
+import { ensureScienceValidationWindow } from 'ls/platform/window/electron-main/scienceValidationWindow';
 
 export type ChannelFetchOptions = {
   timeoutMs?: number;
@@ -222,4 +222,3 @@ export async function resolveNetworkAttemptResult(
     source: 'network',
   };
 }
-

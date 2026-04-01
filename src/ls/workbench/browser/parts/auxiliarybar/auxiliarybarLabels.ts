@@ -1,4 +1,4 @@
-import type { LocaleMessages } from '../../../../../language/locales';
+import type { LocaleMessages } from 'language/locales';
 
 export type AuxiliaryBarLabels = {
   assistantAnswerTitle: string;

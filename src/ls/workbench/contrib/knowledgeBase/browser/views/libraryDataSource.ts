@@ -1,13 +1,9 @@
 import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import {
-  buildLibraryTree,
-  type LibraryTreeFolderNode,
-  type LibraryTreeLabels,
-  type LibraryTreeNode,
-} from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { buildLibraryTree } from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel';
+import type { LibraryTreeFolderNode, LibraryTreeLabels, LibraryTreeNode } from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel';
 
 export type LibraryDataSourceLabels = LibraryTreeLabels;
 

@@ -4,8 +4,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import {
   createWritingEditorDocumentFromPlainText,
   writingEditorDocumentToPlainText,
-} from '../../../editor/common/writingEditorDocument';
-import { createWritingEditorStorage } from '../writingEditorStorage';
+} from 'ls/editor/common/writingEditorDocument';
+import { createWritingEditorStorage } from 'ls/workbench/browser/writingEditorStorage';
 
 type MockStorage = {
   getItem(key: string): string | null;

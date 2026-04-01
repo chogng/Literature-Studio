@@ -1,19 +1,13 @@
-import { parseDateHintFromText } from '../../../../base/common/date.js';
-import { cleanText } from '../../../../base/common/strings.js';
+import { parseDateHintFromText } from 'ls/base/common/date';
+import { cleanText } from 'ls/base/common/strings';
 import {
   createNatureListingCandidateExtractor,
   evaluateNatureListingPaginationStop,
   findNatureListingNextPageUrl,
   isNatureListingPage,
-} from './nature-listing-shared.js';
-
-import type {
-  ListingCandidateExtraction,
-  ListingCandidateExtractor,
-  ListingCandidateExtractorContext,
-  ListingPaginationContext,
-} from './types.js';
-import { normalizeListingCandidateSeed } from './types.js';
+} from 'ls/code/electron-main/fetch/sourceExtractors/nature-listing-shared';
+import { normalizeListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
+import type { ListingCandidateExtraction, ListingCandidateExtractor, ListingCandidateExtractorContext, ListingPaginationContext } from 'ls/code/electron-main/fetch/sourceExtractors/types';
 
 const NATURE_OPINION_LISTING_PAGE_PATH = '/opinion';
 const NATURE_OPINION_CARD_SELECTOR = 'div.c-article-item__wrapper';

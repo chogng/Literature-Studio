@@ -1,4 +1,4 @@
-import type { LocaleMessages } from '../../../language/locales';
+import type { LocaleMessages } from 'language/locales';
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 
 export type WorkbenchEditorCommandHandlers = {

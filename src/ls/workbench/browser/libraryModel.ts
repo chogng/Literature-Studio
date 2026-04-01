@@ -2,7 +2,7 @@ import type {
   ElectronInvoke,
   LibraryDocumentSummary,
   LibraryDocumentsResult,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export type LibraryModelContext = {
   desktopRuntime: boolean;

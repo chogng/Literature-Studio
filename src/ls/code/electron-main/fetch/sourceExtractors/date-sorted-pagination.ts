@@ -1,8 +1,8 @@
 import type {
   ListingPaginationStopContext,
   ListingPaginationStopEvaluation,
-} from './types.js';
-import { hasDateRangeStart } from '../../../../base/common/date.js';
+} from 'ls/code/electron-main/fetch/sourceExtractors/types';
+import { hasDateRangeStart } from 'ls/base/common/date';
 
 const DEFAULT_TAIL_WINDOW = 3;
 const DEFAULT_MIN_DATED_COVERAGE = 0.5;

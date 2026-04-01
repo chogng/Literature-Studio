@@ -1,4 +1,4 @@
-import './toast.css';
+import 'ls/base/browser/ui/toast/toast.css';
 
 export type ToastType = 'info' | 'success' | 'error' | 'warning';
 

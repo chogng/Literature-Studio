@@ -1,11 +1,11 @@
-import type { LlmProviderId, LlmSettings } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { appError } from '../../../base/common/errors.js';
-import { cleanText } from '../../../base/common/strings.js';
+import type { LlmProviderId, LlmSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { appError } from 'ls/base/common/errors';
+import { cleanText } from 'ls/base/common/strings';
 import {
   extractResponseContent,
   requestChatCompletion,
   resolveLlmRequestFromPayload,
-} from './llm.js';
+} from 'ls/code/electron-main/llm/llm';
 
 // LLM-based translation implementation only.
 // This module owns the prompt contract and response normalization for the

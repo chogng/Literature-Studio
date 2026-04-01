@@ -1,9 +1,7 @@
-import {
-  SimpleTree,
-  type SimpleTreeOptions,
-  type SimpleTreeRenderer,
-} from 'ls/base/browser/ui/tree/simpleTree.js';
-import type { DataTreeDataSource } from 'ls/base/browser/ui/tree/treeTypes.js';
+import { SimpleTree } from 'ls/base/browser/ui/tree/simpleTree';
+import type { SimpleTreeOptions, SimpleTreeRenderer } from 'ls/base/browser/ui/tree/simpleTree';
+
+import type { DataTreeDataSource } from 'ls/base/browser/ui/tree/treeTypes';
 
 export class DataTree<TInput, TNode> {
   private input: TInput | null = null;

@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 
-import { parseDateString } from '../../../base/common/date.js';
-import { cleanText, uniq } from '../../../base/common/strings.js';
+import { parseDateString } from 'ls/base/common/date';
+import { cleanText, uniq } from 'ls/base/common/strings';
 
 const DOI_RE = /10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i;
 

@@ -1,7 +1,7 @@
 import type {
   ElectronInvoke,
   LibraryDocumentSummary,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { Article } from 'ls/workbench/services/article/articleFetch';
 
 export async function syncLibraryMetadataFromArticle({

@@ -1,26 +1,18 @@
-import {
-  getWorkbenchContentClassName,
-  getWorkbenchContentStyle,
-  type WorkbenchSidebarKind,
-} from 'ls/workbench/browser/layout';
+import { getWorkbenchContentClassName, getWorkbenchContentStyle } from 'ls/workbench/browser/layout';
+import type { WorkbenchSidebarKind } from 'ls/workbench/browser/layout';
+
 import type { EditorStatusState } from 'ls/editor/browser/shared/editorStatus';
-import { createEditorPartView, type EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
+import { createEditorPartView } from 'ls/workbench/browser/parts/editor/editorPartView';
+import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
+
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
-import {
-  createSecondarySidebarPartView,
-  SecondarySidebarPartView,
-  type SecondarySidebarProps,
-} from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
-import {
-  createPrimaryBarPartView,
-  PrimaryBarPartView,
-  type PrimaryBarProps,
-} from 'ls/workbench/browser/parts/primarybar/primarybarPart';
-import {
-  createAuxiliaryBarPartView,
-  AuxiliaryBarPartView,
-  type AuxiliaryBarProps,
-} from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import { createSecondarySidebarPartView, SecondarySidebarPartView } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+import type { SecondarySidebarProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+import { createPrimaryBarPartView, PrimaryBarPartView } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
+import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
+import { createAuxiliaryBarPartView, AuxiliaryBarPartView } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+
 import { initializeStatusbarState, updateStatusbarState } from 'ls/workbench/browser/parts/statusbar/statusbarActions';
 
 type ReaderPageViewProps = {

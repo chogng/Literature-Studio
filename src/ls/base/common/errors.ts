@@ -1,7 +1,7 @@
 import type {
   AppErrorCode,
   AppErrorPayload,
-} from '../parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export const APP_ERROR_PREFIX = '__APP_ERROR__:';
 

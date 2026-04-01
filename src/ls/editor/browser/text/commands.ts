@@ -1,14 +1,14 @@
-import { Fragment, Slice, type Node as ProseMirrorNode } from 'prosemirror-model';
-import { type Command, EditorState, type Transaction } from 'prosemirror-state';
+import { Fragment, Slice } from 'prosemirror-model';
+import type { Node as ProseMirrorNode } from 'prosemirror-model';
+import { EditorState } from 'prosemirror-state';
+import type { Command, Transaction } from 'prosemirror-state';
+
 import { undo, redo, undoDepth, redoDepth } from 'prosemirror-history';
 import { lift, setBlockType, toggleMark, wrapIn } from 'prosemirror-commands';
 import { liftListItem, wrapInList } from 'prosemirror-schema-list';
 import type { EditorView } from 'prosemirror-view';
-import {
-  type CitationNodeAttrs,
-  createEditorNodeId,
-  writingEditorSchema,
-} from 'ls/editor/browser/text/schema';
+import { createEditorNodeId, writingEditorSchema } from 'ls/editor/browser/text/schema';
+import type { CitationNodeAttrs } from 'ls/editor/browser/text/schema';
 
 export type WritingEditorCommand = Command;
 

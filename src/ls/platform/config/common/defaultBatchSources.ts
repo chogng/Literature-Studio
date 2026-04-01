@@ -1,4 +1,4 @@
-import type { BatchSource } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { BatchSource } from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export const batchLimitMin = 1;
 export const batchLimitMax = 100;

@@ -1,14 +1,12 @@
 import { createHash } from 'node:crypto';
 
-import type { LlmSettings, TranslationSettings } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { cleanText } from '../../../base/common/strings.js';
-import type { StorageService, TranslationCacheRecord } from '../../../platform/storage/common/storage.js';
-import {
-  getLlmTranslationCacheIdentity,
-  translateTextsWithLlm,
-  type TranslationBatchItem,
-} from '../llm/llmTranslation.js';
-import { hasUsableTranslationSettings, translateTextsWithDedicatedApi } from './translation.js';
+import type { LlmSettings, TranslationSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { cleanText } from 'ls/base/common/strings';
+import type { StorageService, TranslationCacheRecord } from 'ls/platform/storage/common/storage';
+import { getLlmTranslationCacheIdentity, translateTextsWithLlm } from 'ls/code/electron-main/llm/llmTranslation';
+import type { TranslationBatchItem } from 'ls/code/electron-main/llm/llmTranslation';
+
+import { hasUsableTranslationSettings, translateTextsWithDedicatedApi } from 'ls/code/electron-main/translation/translation';
 
 // Central translation orchestrator.
 // Responsibilities:

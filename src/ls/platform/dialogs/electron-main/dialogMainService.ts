@@ -1,4 +1,5 @@
-import { dialog, type BrowserWindow, type OpenDialogOptions, type SaveDialogOptions } from 'electron';
+import { dialog } from 'electron';
+import type { BrowserWindow, OpenDialogOptions, SaveDialogOptions } from 'electron';
 
 function toDialogWindow(window?: BrowserWindow | null) {
   if (!window || window.isDestroyed()) {

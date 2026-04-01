@@ -1,5 +1,5 @@
-import type { Article } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { hasArticlePathSignal } from './articleUrlRules.js';
+import type { Article } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { hasArticlePathSignal } from 'ls/code/electron-main/fetch/articleUrlRules';
 
 export function hasStrongArticleSignals(
   candidateUrl: string,

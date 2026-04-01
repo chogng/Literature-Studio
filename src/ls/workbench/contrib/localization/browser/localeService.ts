@@ -1,8 +1,6 @@
-import {
-  detectInitialLocale,
-  toDocumentLang,
-  type Locale,
-} from '../../../../../language/i18n';
+import { detectInitialLocale, toDocumentLang } from 'language/i18n';
+import type { Locale } from 'language/i18n';
+
 import {
   loadAppSettings,
   saveAppSettingsPartial,

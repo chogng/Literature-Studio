@@ -1,5 +1,5 @@
-import type { Locale } from '../../../../../language/i18n';
-import type { LocaleMessages } from '../../../../../language/locales';
+import type { Locale } from 'language/i18n';
+import type { LocaleMessages } from 'language/locales';
 import type {
   LibraryDocumentSummary,
   LibraryStorageMode,
@@ -9,8 +9,8 @@ import type {
   RagProviderSettings,
   TranslationProviderId,
   TranslationProviderSettings,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { BatchSource } from 'ls/workbench/services/config/configSchema.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 
 // Keep preferences types separate from the editor implementation so field views
 // can depend on stable contracts without importing the editor host module.

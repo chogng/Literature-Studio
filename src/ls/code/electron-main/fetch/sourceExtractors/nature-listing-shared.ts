@@ -1,18 +1,9 @@
-import { parseDateHintFromText } from '../../../../base/common/date.js';
-import { cleanText } from '../../../../base/common/strings.js';
-import { isNatureMainSiteUrl } from '../../../../base/common/url.js';
-import { createDateSortedPaginationStopEvaluator } from './date-sorted-pagination.js';
-
-import type {
-  ListingCandidateExtraction,
-  ListingCandidateExtractor,
-  ListingCandidateExtractorContext,
-  ListingPaginationStopContext,
-  ListingPaginationStopEvaluation,
-  ListingCandidateRefinementContext,
-  ListingPaginationContext,
-} from './types.js';
-import { normalizeListingCandidateSeed } from './types.js';
+import { parseDateHintFromText } from 'ls/base/common/date';
+import { cleanText } from 'ls/base/common/strings';
+import { isNatureMainSiteUrl } from 'ls/base/common/url';
+import { createDateSortedPaginationStopEvaluator } from 'ls/code/electron-main/fetch/sourceExtractors/date-sorted-pagination';
+import { normalizeListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
+import type { ListingCandidateExtraction, ListingCandidateExtractor, ListingCandidateExtractorContext, ListingPaginationStopContext, ListingPaginationStopEvaluation, ListingCandidateRefinementContext, ListingPaginationContext } from 'ls/code/electron-main/fetch/sourceExtractors/types';
 
 const NATURE_LISTING_LAYOUT_SELECTORS = [
   'section.section__top-new > div.u-container',

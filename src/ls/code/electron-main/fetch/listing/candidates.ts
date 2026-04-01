@@ -1,7 +1,8 @@
-import type { DateRange } from '../../../../base/common/date.js';
-import { isWithinDateRange } from '../../../../base/common/date.js';
-import { isLikelyStaticResourcePath } from '../articleUrlRules.js';
-import { scoreCandidate } from './scoring.js';
+import { isWithinDateRange } from 'ls/base/common/date';
+import type { DateRange } from 'ls/base/common/date';
+
+import { isLikelyStaticResourcePath } from 'ls/code/electron-main/fetch/articleUrlRules';
+import { scoreCandidate } from 'ls/code/electron-main/fetch/listing/scoring';
 
 export type ListingCandidateSeed = {
   href: string | null;

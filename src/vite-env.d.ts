@@ -1,29 +1,29 @@
 /// <reference types="vite/client" />
 
-type DesktopArticle = import('./ls/base/parts/sandbox/common/desktopTypes.js').Article;
-type DesktopBatchSource = import('./ls/base/parts/sandbox/common/desktopTypes.js').BatchSource;
-type DesktopFetchBatchSource = import('./ls/base/parts/sandbox/common/desktopTypes.js').FetchBatchSource;
-type DesktopFetchStrategy = import('./ls/base/parts/sandbox/common/desktopTypes.js').FetchStrategy;
-type DesktopPdfDownloadResult = import('./ls/base/parts/sandbox/common/desktopTypes.js').PdfDownloadResult;
-type DesktopDocxExportResult = import('./ls/base/parts/sandbox/common/desktopTypes.js').DocxExportResult;
-type DesktopArticleDetailsModalLabels = import('./ls/base/parts/sandbox/common/desktopTypes.js').ArticleDetailsModalLabels;
-type DesktopArticleDetailsModalState = import('./ls/base/parts/sandbox/common/desktopTypes.js').ArticleDetailsModalState;
-type DesktopNativeModalState = import('./ls/base/parts/sandbox/common/desktopTypes.js').NativeModalState;
-type DesktopStoredAppSettings = import('./ls/base/parts/sandbox/common/desktopTypes.js').StoredAppSettings;
-type DesktopAppSettings = import('./ls/base/parts/sandbox/common/desktopTypes.js').AppSettings;
-type AppCommandPayloadMap = import('./ls/base/parts/sandbox/common/desktopTypes.js').AppCommandPayloadMap;
-type AppCommandResultMap = import('./ls/base/parts/sandbox/common/desktopTypes.js').AppCommandResultMap;
-type AppCommand = import('./ls/base/parts/sandbox/common/desktopTypes.js').AppCommand;
-type WindowControlAction = import('./ls/base/parts/sandbox/common/desktopTypes.js').WindowControlAction;
-type WindowState = import('./ls/base/parts/sandbox/common/desktopTypes.js').WindowState;
-type WindowStateListener = import('./ls/base/parts/sandbox/common/desktopTypes.js').WindowStateListener;
-type DesktopWebContentBounds = import('./ls/base/parts/sandbox/common/desktopTypes.js').WebContentBounds;
-type DesktopWebContentState = import('./ls/base/parts/sandbox/common/desktopTypes.js').WebContentState;
-type DesktopFetchChannel = import('./ls/base/parts/sandbox/common/desktopTypes.js').FetchChannel;
-type DesktopPreviewReuseMode = import('./ls/base/parts/sandbox/common/desktopTypes.js').WebContentReuseMode;
-type DesktopFetchStatus = import('./ls/base/parts/sandbox/common/desktopTypes.js').FetchStatus;
-type ElectronInvoke = import('./ls/base/parts/sandbox/common/desktopTypes.js').ElectronInvoke;
+type DesktopArticle = import('ls/base/parts/sandbox/common/desktopTypes').Article;
+type DesktopBatchSource = import('ls/base/parts/sandbox/common/desktopTypes').BatchSource;
+type DesktopFetchBatchSource = import('ls/base/parts/sandbox/common/desktopTypes').FetchBatchSource;
+type DesktopFetchStrategy = import('ls/base/parts/sandbox/common/desktopTypes').FetchStrategy;
+type DesktopPdfDownloadResult = import('ls/base/parts/sandbox/common/desktopTypes').PdfDownloadResult;
+type DesktopDocxExportResult = import('ls/base/parts/sandbox/common/desktopTypes').DocxExportResult;
+type DesktopArticleDetailsModalLabels = import('ls/base/parts/sandbox/common/desktopTypes').ArticleDetailsModalLabels;
+type DesktopArticleDetailsModalState = import('ls/base/parts/sandbox/common/desktopTypes').ArticleDetailsModalState;
+type DesktopNativeModalState = import('ls/base/parts/sandbox/common/desktopTypes').NativeModalState;
+type DesktopStoredAppSettings = import('ls/base/parts/sandbox/common/desktopTypes').StoredAppSettings;
+type DesktopAppSettings = import('ls/base/parts/sandbox/common/desktopTypes').AppSettings;
+type AppCommandPayloadMap = import('ls/base/parts/sandbox/common/desktopTypes').AppCommandPayloadMap;
+type AppCommandResultMap = import('ls/base/parts/sandbox/common/desktopTypes').AppCommandResultMap;
+type AppCommand = import('ls/base/parts/sandbox/common/desktopTypes').AppCommand;
+type WindowControlAction = import('ls/base/parts/sandbox/common/desktopTypes').WindowControlAction;
+type WindowState = import('ls/base/parts/sandbox/common/desktopTypes').WindowState;
+type WindowStateListener = import('ls/base/parts/sandbox/common/desktopTypes').WindowStateListener;
+type DesktopWebContentBounds = import('ls/base/parts/sandbox/common/desktopTypes').WebContentBounds;
+type DesktopWebContentState = import('ls/base/parts/sandbox/common/desktopTypes').WebContentState;
+type DesktopFetchChannel = import('ls/base/parts/sandbox/common/desktopTypes').FetchChannel;
+type DesktopPreviewReuseMode = import('ls/base/parts/sandbox/common/desktopTypes').WebContentReuseMode;
+type DesktopFetchStatus = import('ls/base/parts/sandbox/common/desktopTypes').FetchStatus;
+type ElectronInvoke = import('ls/base/parts/sandbox/common/desktopTypes').ElectronInvoke;
 
 interface Window {
-  electronAPI?: import('./ls/base/parts/sandbox/common/desktopTypes.js').ElectronAPI;
+  electronAPI?: import('ls/base/parts/sandbox/common/desktopTypes').ElectronAPI;
 }

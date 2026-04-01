@@ -1,12 +1,9 @@
 import type {
   LlmProviderId,
   LlmSettings,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import {
-  getDefaultModelForProvider,
-  getRecommendedModelForTask,
-  type LlmTask,
-} from 'ls/workbench/services/llm/registry.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { getDefaultModelForProvider, getRecommendedModelForTask } from 'ls/workbench/services/llm/registry';
+import type { LlmTask } from 'ls/workbench/services/llm/registry';
 
 export type ResolvedLlmRoute = {
   provider: LlmProviderId;

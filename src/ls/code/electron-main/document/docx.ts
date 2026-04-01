@@ -6,20 +6,17 @@ import type {
   Article,
   DocxExportResult,
   ExportArticlesDocxPayload,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import type { StorageService } from '../../../platform/storage/common/storage.js';
-import { defaultDocxExportConfig } from './docxConfig.js';
-import { appError } from '../../../base/common/errors.js';
-import {
-  resolveDocxExportCopy,
-  resolveDocxExportDialogCopy,
-  resolveSupportedLocale,
-  type SupportedLocale,
-} from './docxCopy.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { showSaveDialog } from '../../../platform/dialogs/electron-main/dialogMainService.js';
-import { buildPdfDirectoryName } from '../../../platform/download/common/pdfFileName.js';
-import { translateArticlesToChinese } from '../translation/articleTranslation.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { StorageService } from 'ls/platform/storage/common/storage';
+import { defaultDocxExportConfig } from 'ls/code/electron-main/document/docxConfig';
+import { appError } from 'ls/base/common/errors';
+import { resolveDocxExportCopy, resolveDocxExportDialogCopy, resolveSupportedLocale } from 'ls/code/electron-main/document/docxCopy';
+import type { SupportedLocale } from 'ls/code/electron-main/document/docxCopy';
+
+import { cleanText } from 'ls/base/common/strings';
+import { showSaveDialog } from 'ls/platform/dialogs/electron-main/dialogMainService';
+import { buildPdfDirectoryName } from 'ls/platform/download/common/pdfFileName';
+import { translateArticlesToChinese } from 'ls/code/electron-main/translation/articleTranslation';
 
 type ZipEntry = {
   name: string;

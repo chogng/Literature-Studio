@@ -1,14 +1,49 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BrowserWindow, type BrowserWindowConstructorOptions, type WebContents } from 'electron';
-import type { WindowControlAction, WindowState } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { disposeMenuOverlay, prewarmMenuOverlay } from './menuOverlayView.js';
-import { disposeToastOverlay } from './toastOverlayView.js';
-import { disposeWebContentView, ensureWebContentView } from './webContentView.js';
+import { BrowserWindow } from 'electron';
+import type { BrowserWindowConstructorOptions, WebContents } from 'electron';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import type { WindowControlAction, WindowState } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { disposeMenuOverlay, prewarmMenuOverlay } from 'ls/platform/window/electron-main/menuOverlayView';
+import { disposeToastOverlay } from 'ls/platform/window/electron-main/toastOverlayView';
+import { disposeWebContentView, ensureWebContentView } from 'ls/platform/window/electron-main/webContentView';
+
 const workbenchRendererPathname = '/src/ls/code/electron-sandbox/workbench/workbench.html';
+const windowModuleFilePath = fileURLToPath(import.meta.url);
+const distElectronMarker = `${path.sep}dist-electron${path.sep}`;
+const distElectronMarkerIndex = windowModuleFilePath.lastIndexOf(distElectronMarker);
+
+function resolveProjectRootDir() {
+  return distElectronMarkerIndex >= 0
+    ? windowModuleFilePath.slice(0, distElectronMarkerIndex)
+    : process.cwd();
+}
+
+function resolveDistElectronDir() {
+  return path.join(resolveProjectRootDir(), 'dist-electron');
+}
+
+function resolveDistRendererWorkbenchDir() {
+  return path.join(
+    resolveProjectRootDir(),
+    'dist',
+    'src',
+    'ls',
+    'code',
+    'electron-sandbox',
+    'workbench',
+  );
+}
+
+function resolvePreloadBrowserDir() {
+  return path.join(
+    resolveDistElectronDir(),
+    'base',
+    'parts',
+    'sandbox',
+    'electron-browser',
+  );
+}
 
 let mainWindow: BrowserWindow | null = null;
 const auxiliaryWindows = new Set<BrowserWindow>();
@@ -60,13 +95,6 @@ function logRendererEvent(
     })}`,
   );
 }
-
-type RendererConsoleMessageEvent = {
-  level: number;
-  message: string;
-  lineNumber: number;
-  sourceId: string;
-};
 
 function resolveWindowBackgroundMaterial(useMica: boolean) {
   if (process.platform !== 'win32') {
@@ -120,20 +148,11 @@ export function resolveWorkbenchRendererUrl(
 }
 
 export function resolveWorkbenchRendererFilePath() {
-  return path.join(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    '..',
-    'dist',
-    'src',
-    'ls',
-    'code',
-    'electron-sandbox',
-    'workbench',
-    'workbench.html',
-  );
+  return path.join(resolveDistRendererWorkbenchDir(), 'workbench.html');
+}
+
+export function resolvePreloadScriptPath() {
+  return path.join(resolvePreloadBrowserDir(), 'preload.js');
 }
 
 export function applyMainWindowBackgroundMaterial(
@@ -322,13 +341,8 @@ function wireRendererDiagnostics(window: BrowserWindow) {
   if (RENDERER_DEBUG_LOG_ENABLED) {
     (webContents as any).on(
       'console-message',
-      (_event: Electron.Event, details: RendererConsoleMessageEvent) => {
-        logRendererEvent('console', window, {
-          level: details.level,
-          message: details.message,
-          line: details.lineNumber,
-          sourceId: details.sourceId,
-        });
+      () => {
+        logRendererEvent('console', window);
       },
     );
   }
@@ -411,7 +425,7 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
     backgroundMaterial: resolveWindowBackgroundMaterial(useMica),
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
+      preload: resolvePreloadScriptPath(),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

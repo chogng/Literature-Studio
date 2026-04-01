@@ -5,8 +5,8 @@ import type {
   LlmSettings,
   RagAnswerResult,
   RagSettings,
-} from "ls/base/parts/sandbox/common/desktopTypes.js";
-import type { LocaleMessages } from "../../../language/locales";
+} from "ls/base/parts/sandbox/common/desktopTypes";
+import type { LocaleMessages } from "language/locales";
 import {
   formatLocalized,
   localizeDesktopInvokeError,

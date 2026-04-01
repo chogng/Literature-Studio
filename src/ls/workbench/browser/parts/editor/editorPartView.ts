@@ -11,8 +11,8 @@ import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/b
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import { EditorGroupView } from 'ls/workbench/browser/parts/editor/editorGroupView';
-import './media/editor.css';
-import './media/tabsTitleControl.css';
+import 'ls/workbench/browser/parts/editor/media/editor.css';
+import 'ls/workbench/browser/parts/editor/media/tabsTitleControl.css';
 
 export type EditorPartLabels = {
   draftMode: string;

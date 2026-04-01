@@ -1,8 +1,10 @@
 import type { AssistantChatMessage, AssistantConversation } from 'ls/workbench/browser/assistantModel';
-import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { AuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
-import './media/auxiliarybar.css';
+import 'ls/workbench/browser/parts/auxiliarybar/media/auxiliarybar.css';
 
 export type AuxiliaryBarProps = {
   labels: AuxiliaryBarLabels;

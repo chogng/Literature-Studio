@@ -1,4 +1,4 @@
-import { appError, isAppError } from '../../../base/common/errors.js';
+import { appError, isAppError } from 'ls/base/common/errors';
 
 type BrowserRequestSession = {
   fetch: (url: string, init: RequestInit) => Promise<Response>;

@@ -1,9 +1,5 @@
-import {
-  createEmptyWritingEditorDocument,
-  normalizeWritingEditorDocument,
-  type WritingEditorDocument,
-  writingEditorDocumentToPlainText,
-} from 'ls/editor/common/writingEditorDocument';
+import { createEmptyWritingEditorDocument, normalizeWritingEditorDocument, writingEditorDocumentToPlainText } from 'ls/editor/common/writingEditorDocument';
+import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
 type LiveDraftSyncParams = {
   activeDraftDocument: WritingEditorDocument | null;

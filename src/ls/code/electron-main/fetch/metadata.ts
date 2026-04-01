@@ -7,8 +7,8 @@ export {
   extractDescription,
   extractTitle,
   extractFigures as extractNatureFigures,
-} from './normalize.js';
-export { extractStructuredDataItems, type StructuredDataRecord } from './rawMetadata.js';
+} from 'ls/code/electron-main/fetch/normalize';
+export { extractStructuredDataItems, type StructuredDataRecord } from 'ls/code/electron-main/fetch/rawMetadata';
 export {
   extractNatureFigureCaptions,
   extractNatureMainText,
@@ -16,4 +16,4 @@ export {
   extractNatureHeaderAuthors,
   extractNatureAbstract,
   isNatureArticlePage,
-} from './sites/nature.js';
+} from 'ls/code/electron-main/fetch/sites/nature';

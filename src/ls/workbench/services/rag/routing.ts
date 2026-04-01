@@ -1,7 +1,7 @@
 import type {
   RagProviderId,
   RagSettings,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export type ResolvedRagRoute = {
   provider: RagProviderId;

@@ -2,7 +2,7 @@ import type {
   WindowControlAction,
   WindowState,
   WindowStateListener,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export type WorkbenchWindowControlAction = 'minimize' | 'toggle-maximize' | 'close';
 
