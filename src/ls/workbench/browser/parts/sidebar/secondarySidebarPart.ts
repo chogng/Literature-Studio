@@ -1,11 +1,13 @@
 import type {
   ArticleDetailsModalLabels,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import {
   createDateRangePickerView,
   type DateRangePickerView,
 } from 'ls/base/browser/ui/dateRangePicker/dateRangePicker';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
 import {
@@ -320,7 +322,10 @@ export class SecondarySidebarPartView {
   );
   private readonly contentElement = createElement('div');
   private readonly dateRangePicker: DateRangePickerView;
-  private readonly selectionButton = createElement('button');
+  private readonly selectionActionsView = createActionBarView({
+    className: 'secondary-sidebar-selection-actionbar',
+    ariaRole: 'group',
+  });
   private readonly fetchButton = createElement('button');
   private cards = new Map<string, ArticleCard>();
 
@@ -339,17 +344,13 @@ export class SecondarySidebarPartView {
       triggerIcon: createLxIcon('calendar'),
       triggerMode: 'icon',
     });
-    this.selectionButton.type = 'button';
-    this.selectionButton.addEventListener('click', () =>
-      this.props.onToggleSelectionMode(),
-    );
     this.fetchButton.type = 'button';
     this.fetchButton.addEventListener('click', () =>
       this.props.onFetchLatestBatch(),
     );
     this.actionBarElement.append(
       this.dateRangePicker.getElement(),
-      this.selectionButton,
+      this.selectionActionsView.getElement(),
       this.fetchButton,
     );
     this.element.append(this.actionBarElement, this.contentElement);
@@ -371,6 +372,7 @@ export class SecondarySidebarPartView {
 
   dispose() {
     this.dateRangePicker.dispose();
+    this.selectionActionsView.dispose();
     for (const card of this.cards.values()) {
       card.dispose();
     }
@@ -401,22 +403,24 @@ export class SecondarySidebarPartView {
       triggerMode: 'icon',
     });
 
-    this.selectionButton.className = [
-      'btn-base',
-      'btn-secondary',
-      'btn-md',
-      'secondary-sidebar-select-btn',
-      this.props.isSelectionModeEnabled ? 'is-active' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    this.selectionButton.textContent = selectionButtonLabel;
-    this.selectionButton.disabled =
-      !this.props.articles.length && !this.props.isSelectionModeEnabled;
-    this.selectionButton.setAttribute(
-      'aria-pressed',
-      String(this.props.isSelectionModeEnabled),
-    );
+    this.selectionActionsView.setProps({
+      className: 'secondary-sidebar-selection-actionbar',
+      ariaRole: 'group',
+      items: [
+        {
+          label: selectionButtonLabel,
+          title: selectionButtonLabel,
+          mode: 'icon',
+          active: this.props.isSelectionModeEnabled,
+          checked: this.props.isSelectionModeEnabled,
+          disabled:
+            !this.props.articles.length && !this.props.isSelectionModeEnabled,
+          buttonClassName: 'secondary-sidebar-select-action',
+          content: createLxIcon(lxIconSemanticMap.sidebar.selectionMode),
+          onClick: () => this.props.onToggleSelectionMode(),
+        },
+      ],
+    });
 
     this.fetchButton.className = [
       'btn-base',

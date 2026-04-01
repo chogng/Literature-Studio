@@ -77,22 +77,6 @@
   font-weight: 500;
 }
 
-.sidebar-select-btn {
-  border-radius: 6px;
-  font-weight: 500;
-}
-
-.sidebar-select-btn.is-active.btn-base.btn-secondary {
-  color: #0a5fbf;
-  border-color: #9fc3ef;
-  background: #eaf3ff;
-}
-
-.sidebar-select-btn.is-active.btn-base.btn-secondary:hover:not(:disabled) {
-  background: #deecff;
-  border-color: #86b3e8;
-}
-
 .sidebar-fetch-btn.btn-base.btn-primary {
   box-shadow: none;
 }
@@ -464,6 +448,11 @@ html[lang="en"] .secondary-sidebar-empty-state {
   border-radius: 4px;
 }
 
+.secondary-sidebar-select-action.ls-actionbar-action .lx-icon {
+  width: 16px;
+  height: 16px;
+}
+
 .secondary-sidebar-action-bar {
   display: flex;
   align-items: center;
@@ -476,7 +465,6 @@ html[lang="en"] .secondary-sidebar-empty-state {
   flex: 1;
 }
 
-.secondary-sidebar-select-btn,
 .secondary-sidebar-fetch-btn {
   flex-shrink: 0;
 }

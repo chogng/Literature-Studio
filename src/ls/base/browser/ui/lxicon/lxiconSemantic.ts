@@ -29,6 +29,9 @@ export const lxIconSemanticMap = {
     downloaded: 'check',
     details: 'chevron-down',
   },
+  sidebar: {
+    selectionMode: 'select-all',
+  },
   editor: {
     closeTab: 'close',
   },

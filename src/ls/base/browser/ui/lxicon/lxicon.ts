@@ -27,6 +27,7 @@ import startSvg from 'ls/base/browser/ui/lxicon/svg/start.svg?raw';
 import splitVerticalSvg from 'ls/base/browser/ui/lxicon/svg/split-vertical.svg?raw';
 import splitHorizontalSvg from 'ls/base/browser/ui/lxicon/svg/split-horizontal.svg?raw';
 import settingsSvg from 'ls/base/browser/ui/lxicon/svg/settings.svg?raw';
+import selectAllSvg from 'ls/base/browser/ui/lxicon/svg/select-all.svg?raw';
 import selectSvg from 'ls/base/browser/ui/lxicon/svg/select.svg?raw';
 import searchSvg from 'ls/base/browser/ui/lxicon/svg/search.svg?raw';
 import screenFullSvg from 'ls/base/browser/ui/lxicon/svg/screen-full.svg?raw';
@@ -189,6 +190,7 @@ export type LxIconName =
   | 'split-vertical'
   | 'split-horizontal'
   | 'settings'
+  | 'select-all'
   | 'select'
   | 'search'
   | 'screen-full'
@@ -351,6 +353,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'split-vertical': splitVerticalSvg,
   'split-horizontal': splitHorizontalSvg,
   'settings': settingsSvg,
+  'select-all': selectAllSvg,
   'select': selectSvg,
   'search': searchSvg,
   'screen-full': screenFullSvg,
