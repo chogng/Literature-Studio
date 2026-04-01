@@ -2,28 +2,18 @@ import 'ls/base/browser/ui/button/button.css';
 import { createDropdownView, type DropdownOption, type DropdownView } from 'ls/base/browser/ui/dropdown/dropdown';
 import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import type { WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
+import {
+  createWritingEditorToolbarButtonGroups,
+  type WritingEditorToolbarActions,
+  type WritingEditorToolbarButtonConfig,
+  type WritingEditorToolbarDropdownConfig,
+  type WritingEditorToolbarItemConfig,
+} from 'ls/editor/browser/text/editorCommandRegistry';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 
-export type DraftEditorToolbarActions = {
-  setParagraph: () => boolean | void;
-  toggleHeading: (level: number) => boolean | void;
-  toggleBold: () => boolean | void;
-  toggleItalic: () => boolean | void;
-  setFontFamily: (fontFamily: string | null) => boolean | void;
-  setFontSize: (fontSize: string | null) => boolean | void;
-  clearInlineStyles: () => boolean | void;
-  toggleBulletList: () => boolean | void;
-  toggleOrderedList: () => boolean | void;
-  toggleBlockquote: () => boolean | void;
-  undo: () => boolean | void;
-  redo: () => boolean | void;
-  insertCitation: () => boolean | void;
-  insertFigure: () => boolean | void;
-  insertFigureRef: () => boolean | void;
-};
+export type DraftEditorToolbarActions = WritingEditorToolbarActions;
 
 export type DraftEditorToolbarProps = {
   labels: WritingEditorSurfaceLabels;
@@ -31,28 +21,9 @@ export type DraftEditorToolbarProps = {
   actions: DraftEditorToolbarActions;
 };
 
-type ToolbarButtonConfig = {
-  label: string;
-  onClick: () => void;
-  icon?: LxIconName;
-  glyph?: string;
-  isActive?: boolean;
-  disabled?: boolean;
-  isToggle?: boolean;
-};
-
-type ToolbarDropdownConfig = {
-  label: string;
-  title?: string;
-  value: string;
-  placeholder: string;
-  options: DropdownOption[];
-  onChange: (value: string) => void;
-};
-
 type ToolbarGroupConfig = {
   title: string;
-  items: readonly (ToolbarButtonConfig | ToolbarDropdownConfig)[];
+  items: readonly WritingEditorToolbarItemConfig[];
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -339,139 +310,17 @@ export class DraftEditorToolbar {
       labels.defaultTextStyle,
     );
 
-    return [
-      {
-        title: labels.textGroup,
-        items: [
-          {
-            label: labels.paragraph,
-            glyph: 'Tx',
-            onClick: actions.setParagraph,
-            isActive: toolbarState.isParagraphActive,
-            isToggle: true,
-          },
-          {
-            label: labels.heading1,
-            glyph: 'H1',
-            onClick: () => actions.toggleHeading(1),
-            isActive: toolbarState.activeHeadingLevel === 1,
-            isToggle: true,
-          },
-          {
-            label: labels.heading2,
-            glyph: 'H2',
-            onClick: () => actions.toggleHeading(2),
-            isActive: toolbarState.activeHeadingLevel === 2,
-            isToggle: true,
-          },
-          {
-            label: labels.heading3,
-            glyph: 'H3',
-            onClick: () => actions.toggleHeading(3),
-            isActive: toolbarState.activeHeadingLevel === 3,
-            isToggle: true,
-          },
-        ],
+    const buttonGroups = createWritingEditorToolbarButtonGroups({
+      labels,
+      toolbarState,
+      actions,
+      dropdownOptions: {
+        setFontFamily: fontFamilyOptions,
+        setFontSize: fontSizeOptions,
       },
-      {
-        title: labels.formatGroup,
-        items: [
-          {
-            label: labels.bold,
-            icon: 'bold',
-            onClick: actions.toggleBold,
-            isActive: toolbarState.isBoldActive,
-            isToggle: true,
-          },
-          {
-            label: labels.italic,
-            icon: 'italics',
-            onClick: actions.toggleItalic,
-            isActive: toolbarState.isItalicActive,
-            isToggle: true,
-          },
-          {
-            label: labels.fontFamily,
-            title: labels.fontFamily,
-            value: toolbarState.fontFamily ?? '',
-            placeholder: labels.fontFamily,
-            options: fontFamilyOptions,
-            onChange: (value) => actions.setFontFamily(value || null),
-          },
-          {
-            label: labels.fontSize,
-            title: labels.fontSize,
-            value: toolbarState.fontSize ?? '',
-            placeholder: labels.fontSize,
-            options: fontSizeOptions,
-            onChange: (value) => actions.setFontSize(value || null),
-          },
-          {
-            label: labels.clearInlineStyles,
-            icon: 'circle-slash',
-            onClick: actions.clearInlineStyles,
-          },
-          {
-            label: labels.bulletList,
-            icon: 'list-unordered',
-            onClick: actions.toggleBulletList,
-            isActive: toolbarState.isBulletListActive,
-            isToggle: true,
-          },
-          {
-            label: labels.orderedList,
-            icon: 'list-ordered',
-            onClick: actions.toggleOrderedList,
-            isActive: toolbarState.isOrderedListActive,
-            isToggle: true,
-          },
-          {
-            label: labels.blockquote,
-            icon: 'quote',
-            onClick: actions.toggleBlockquote,
-            isActive: toolbarState.isBlockquoteActive,
-            isToggle: true,
-          },
-        ],
-      },
-      {
-        title: labels.insertGroup,
-        items: [
-          {
-            label: labels.insertCitation,
-            icon: 'quotes',
-            onClick: actions.insertCitation,
-          },
-          {
-            label: labels.insertFigure,
-            icon: 'image',
-            onClick: actions.insertFigure,
-          },
-          {
-            label: labels.insertFigureRef,
-            icon: 'mention',
-            onClick: actions.insertFigureRef,
-          },
-        ],
-      },
-      {
-        title: labels.historyGroup,
-        items: [
-          {
-            label: labels.undo,
-            icon: 'arrow-left',
-            onClick: actions.undo,
-            disabled: !toolbarState.canUndo,
-          },
-          {
-            label: labels.redo,
-            icon: 'arrow-right',
-            onClick: actions.redo,
-            disabled: !toolbarState.canRedo,
-          },
-        ],
-      },
-    ];
+    });
+
+    return buttonGroups;
   }
 
   private createToolbarGroup(groupConfig: ToolbarGroupConfig) {
@@ -493,7 +342,7 @@ export class DraftEditorToolbar {
     return group;
   }
 
-  private createToolbarDropdown(dropdownConfig: ToolbarDropdownConfig) {
+  private createToolbarDropdown(dropdownConfig: WritingEditorToolbarDropdownConfig) {
     const dropdown = createDropdownView({
       size: 'sm',
       className: 'pm-toolbar-dropdown',
@@ -502,7 +351,7 @@ export class DraftEditorToolbar {
       title: dropdownConfig.title,
       value: dropdownConfig.value,
       placeholder: dropdownConfig.placeholder,
-      options: dropdownConfig.options,
+      options: [...dropdownConfig.options],
       onChange: ({ target }) => {
         dropdownConfig.onChange(target.value);
       },
@@ -511,7 +360,7 @@ export class DraftEditorToolbar {
     return dropdown.getElement();
   }
 
-  private createToolbarButton(buttonConfig: ToolbarButtonConfig) {
+  private createToolbarButton(buttonConfig: WritingEditorToolbarButtonConfig) {
     const button = createElement(
       'button',
       [

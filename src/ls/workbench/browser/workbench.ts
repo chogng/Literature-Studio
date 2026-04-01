@@ -726,6 +726,8 @@ class WorkbenchHost {
     setWorkbenchEditorCommandHandlers({
       executeActiveDraftCommand: (commandId) =>
         this.readerPageView?.executeActiveDraftCommand(commandId) ?? false,
+      canExecuteActiveDraftCommand: (commandId) =>
+        this.readerPageView?.canExecuteActiveDraftCommand(commandId) ?? false,
       getActiveDraftStableSelectionTarget: () =>
         this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null,
     });

@@ -250,6 +250,10 @@ export class EditorGroupView {
     return this.draftCommandExecutor.execute(commandId);
   }
 
+  canExecuteActiveDraftCommand(commandId: DraftEditorCommandId) {
+    return this.draftCommandExecutor.canExecute(commandId);
+  }
+
   runActiveDraftEditorAction(actionId: DraftEditorSurfaceActionId) {
     return this.draftCommandExecutor.runAction(actionId);
   }

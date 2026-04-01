@@ -118,8 +118,12 @@ export function showWorkbenchCommandPaletteModal(params: {
       command.shortcutLabel,
     );
     button.type = 'button';
+    button.disabled = !command.enabled;
     button.append(text, shortcut);
     button.addEventListener('click', () => {
+      if (!command.enabled) {
+        return;
+      }
       params.onSelect(command.id);
       modal.dispose();
     });

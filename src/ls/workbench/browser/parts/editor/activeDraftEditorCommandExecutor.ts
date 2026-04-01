@@ -7,6 +7,7 @@ export type DraftEditorSurfaceActionId = 'undo' | 'redo';
 
 export type ActiveDraftEditorCommandExecutor = {
   execute: (commandId: DraftEditorCommandId) => boolean;
+  canExecute: (commandId: DraftEditorCommandId) => boolean;
   runAction: (actionId: DraftEditorSurfaceActionId) => boolean;
   getStableSelectionTarget: () => WritingEditorStableSelectionTarget | null;
 };
@@ -21,8 +22,15 @@ export function createActiveDraftEditorCommandExecutor(
         return false;
       }
 
-      activePaneRenderer.executeCommand(commandId);
-      return true;
+      return activePaneRenderer.executeCommand(commandId);
+    },
+    canExecute(commandId) {
+      const activePaneRenderer = getActivePaneRenderer();
+      if (!(activePaneRenderer instanceof DraftEditorPane)) {
+        return false;
+      }
+
+      return activePaneRenderer.canExecuteCommand(commandId);
     },
     runAction(actionId) {
       const activePaneRenderer = getActivePaneRenderer();
