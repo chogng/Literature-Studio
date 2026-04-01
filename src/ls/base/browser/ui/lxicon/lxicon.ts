@@ -1,4 +1,6 @@
 import 'ls/base/browser/ui/lxicon/lxicon.css';
+import agentSvg from 'ls/base/browser/ui/lxicon/svg/agent.svg?raw';
+import agentFilledSvg from 'ls/base/browser/ui/lxicon/svg/agent-filled.svg?raw';
 import zoomOutSvg from 'ls/base/browser/ui/lxicon/svg/zoom-out.svg?raw';
 import zoomInSvg from 'ls/base/browser/ui/lxicon/svg/zoom-in.svg?raw';
 import writeSvg from 'ls/base/browser/ui/lxicon/svg/write.svg?raw';
@@ -157,6 +159,8 @@ import accountSvg from 'ls/base/browser/ui/lxicon/svg/account.svg?raw';
 import underlineSvg from 'ls/base/browser/ui/lxicon/svg/underline.svg?raw';
 
 export type LxIconName =
+  | 'agent'
+  | 'agent-filled'
   | 'zoom-out'
   | 'zoom-in'
   | 'write'
@@ -315,6 +319,8 @@ export type LxIconName =
   | 'underline';
 
 const SVG_BY_NAME: Record<LxIconName, string> = {
+  agent: agentSvg,
+  'agent-filled': agentFilledSvg,
   'zoom-out': zoomOutSvg,
   'zoom-in': zoomInSvg,
   'write': writeSvg,
