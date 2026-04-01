@@ -1,4 +1,5 @@
 import 'ls/base/browser/ui/button/button.css';
+import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -228,8 +229,8 @@ export class DraftEditorToolbar {
 
     button.type = 'button';
     button.disabled = Boolean(buttonConfig.disabled);
-    button.title = buttonConfig.label;
     button.setAttribute('aria-label', buttonConfig.label);
+    createHoverController(button, buttonConfig.label);
     if (buttonConfig.isToggle) {
       button.setAttribute('aria-pressed', String(Boolean(buttonConfig.isActive)));
     }

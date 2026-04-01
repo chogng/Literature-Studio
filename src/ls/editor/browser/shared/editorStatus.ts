@@ -77,6 +77,8 @@ export type EditorStatusItem = {
   label: string;
   value: string;
   tone?: EditorStatusItemTone;
+  commandId?: 'undo' | 'redo';
+  commandEnabled?: boolean;
 };
 
 export type EditorStatusState = {
@@ -369,12 +371,16 @@ function createDraftEditorStatus(
         label: labels.undo,
         value: runtimeState.canUndo ? labels.ready : '-',
         tone: runtimeState.canUndo ? 'accent' : 'muted',
+        commandId: 'undo',
+        commandEnabled: runtimeState.canUndo,
       },
       {
         id: 'redo',
         label: labels.redo,
         value: runtimeState.canRedo ? labels.ready : '-',
         tone: runtimeState.canRedo ? 'accent' : 'muted',
+        commandId: 'redo',
+        commandEnabled: runtimeState.canRedo,
       },
     ],
   };

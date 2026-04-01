@@ -2,6 +2,7 @@ import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -152,8 +153,8 @@ export class PrimaryBar {
     );
     button.type = 'button';
     button.append(createLxIcon(icon));
-    button.title = label;
     button.setAttribute('aria-label', label);
+    createHoverController(button, label);
     button.disabled = disabled;
     if (onClick) {
       button.addEventListener('click', onClick);

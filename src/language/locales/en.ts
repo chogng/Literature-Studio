@@ -137,6 +137,9 @@ const en = {
   assistantSidebarImage: 'Image',
   assistantSidebarSend: 'Send',
   assistantSidebarSendBusy: 'Asking...',
+  assistantSidebarNewConversation: 'New conversation',
+  assistantSidebarHistory: 'History',
+  assistantSidebarMore: 'More',
   assistantSidebarQuestion: 'Question',
   assistantSidebarQuestionPlaceholder:
     'Ask about the fetched literature, compare findings, or draft a short evidence-backed answer.',

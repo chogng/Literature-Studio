@@ -41,7 +41,9 @@ function areStatusItemsEqual(
       previousItem.id !== nextItem.id ||
       previousItem.label !== nextItem.label ||
       previousItem.value !== nextItem.value ||
-      previousItem.tone !== nextItem.tone
+      previousItem.tone !== nextItem.tone ||
+      previousItem.commandId !== nextItem.commandId ||
+      previousItem.commandEnabled !== nextItem.commandEnabled
     ) {
       return false;
     }

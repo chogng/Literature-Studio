@@ -3,6 +3,9 @@ import type { LocaleMessages } from 'language/locales';
 export type AuxiliaryBarLabels = {
   assistantAnswerTitle: string;
   assistantEvidenceTitle: string;
+  assistantNewConversation: string;
+  assistantHistory: string;
+  assistantMore: string;
   assistantQuestion: string;
   assistantQuestionPlaceholder: string;
   assistantVoice: string;
@@ -17,6 +20,9 @@ export function createAuxiliaryBarLabels(ui: LocaleMessages): AuxiliaryBarLabels
   return {
     assistantAnswerTitle: ui.assistantSidebarAnswerTitle,
     assistantEvidenceTitle: ui.assistantSidebarEvidenceTitle,
+    assistantNewConversation: ui.assistantSidebarNewConversation,
+    assistantHistory: ui.assistantSidebarHistory,
+    assistantMore: ui.assistantSidebarMore,
     assistantQuestion: ui.assistantSidebarQuestion,
     assistantQuestionPlaceholder: ui.assistantSidebarQuestionPlaceholder,
     assistantVoice: ui.assistantSidebarVoice,

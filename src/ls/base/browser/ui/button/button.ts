@@ -1,4 +1,9 @@
 import 'ls/base/browser/ui/button/button.css';
+import {
+  createHoverController,
+  type HoverHandle,
+  type HoverInput,
+} from 'ls/base/browser/ui/hover/hover';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
@@ -20,6 +25,7 @@ export interface ButtonProps {
   children?: ButtonContent;
   disabled?: boolean;
   title?: string;
+  hover?: HoverInput;
   ariaLabel?: string;
   type?: 'button' | 'submit' | 'reset';
   onClick?: (event: MouseEvent) => void;
@@ -98,10 +104,12 @@ function resolveButtonContent(props: ButtonProps) {
 export class ButtonView {
   private props: ButtonProps;
   private readonly element = createElement('button');
+  private readonly hoverController: HoverHandle;
   private disposed = false;
 
   constructor(props: ButtonProps = {}) {
     this.props = props;
+    this.hoverController = createHoverController(this.element, null);
     this.element.addEventListener('click', this.handleClick);
     this.element.addEventListener('focus', this.handleFocus);
     this.element.addEventListener('blur', this.handleBlur);
@@ -138,6 +146,7 @@ export class ButtonView {
     this.element.removeEventListener('click', this.handleClick);
     this.element.removeEventListener('focus', this.handleFocus);
     this.element.removeEventListener('blur', this.handleBlur);
+    this.hoverController.dispose();
     this.element.replaceChildren();
   }
 
@@ -166,6 +175,7 @@ export class ButtonView {
       rightIcon,
       disabled = false,
       title,
+      hover,
       ariaLabel,
       type = 'button',
     } = this.props;
@@ -199,11 +209,9 @@ export class ButtonView {
     this.element.type = type;
     this.element.disabled = isLoading || disabled;
 
-    if (title) {
-      this.element.title = title;
-    } else {
-      this.element.removeAttribute('title');
-    }
+    const resolvedHover = hover === undefined ? title ?? null : hover;
+    this.hoverController.update(resolvedHover);
+    this.element.removeAttribute('title');
 
     if (ariaLabel) {
       this.element.setAttribute('aria-label', ariaLabel);

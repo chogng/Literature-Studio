@@ -1,4 +1,5 @@
 import 'ls/base/browser/ui/button/button.css';
+import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import 'ls/base/browser/ui/modal/modal.css';
 
 export type ModalContent =
@@ -139,6 +140,7 @@ export class ModalView {
     'button',
     'modal-close-btn btn-base btn-ghost btn-mode-icon btn-md',
   ) as HTMLButtonElement;
+  private readonly closeHover = createHoverController(this.closeButton, null);
   private readonly bodyElement = createElement('div', 'modal-body');
   private isAttached = false;
   private readonly titleId = `modal-title-${Math.random().toString(36).slice(2, 10)}`;
@@ -211,6 +213,7 @@ export class ModalView {
     this.disposed = true;
     this.close();
     this.closeButton.removeEventListener('click', this.handleCloseClick);
+    this.closeHover.dispose();
     this.element.removeEventListener('click', this.handleOverlayClick);
     this.panelElement.removeEventListener('click', this.handlePanelClick);
     this.element.replaceChildren();
@@ -254,7 +257,8 @@ export class ModalView {
     const bodyContent = resolveBodyContent(this.props);
 
     this.closeButton.setAttribute('aria-label', closeLabel);
-    this.closeButton.title = closeLabel;
+    this.closeHover.update(closeLabel);
+    this.closeButton.removeAttribute('title');
 
     this.titleElement.replaceChildren();
     appendContent(this.titleElement, titleContent);
