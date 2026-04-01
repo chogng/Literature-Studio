@@ -1,33 +1,26 @@
-import { parseDateHintFromText } from '../../../../base/common/date.js';
-import { cleanText, uniq } from '../../../../base/common/strings.js';
-import {
-  extractScienceDoiFromPathLike,
-  isScienceCurrentTocUrl,
-} from '../../../../base/common/url.js';
+import { cleanText } from '../../../../base/common/strings.js';
+import { isScienceCurrentTocUrl } from '../../../../base/common/url.js';
 
 import type {
   ListingCandidateExtraction,
   ListingCandidateExtractor,
   ListingCandidateExtractorContext,
-  ListingCandidateSeed,
 } from './types.js';
-import { normalizeListingCandidateSeed } from './types.js';
-
-const SCIENCE_CURRENT_TOC_BODY_SELECTORS = [
-  'div.toc > div.toc__body > div.toc__body',
-  'div.toc__body > div.toc__body',
-  'div.toc__body',
-] as const;
-const SCIENCE_CURRENT_SECTION_SELECTOR = 'section.toc__section';
-const SCIENCE_CURRENT_SECTION_HEADING_SELECTOR = 'h4';
-const SCIENCE_CURRENT_SUBSECTION_HEADING_SELECTOR = 'h5';
-const SCIENCE_CURRENT_CARD_SELECTOR = 'div.card';
-const SCIENCE_CURRENT_LINK_SELECTOR =
-  'h3.article-title a[href*="/doi/"], h3.article-title a[href], a[href*="/doi/"]';
-const SCIENCE_CURRENT_TITLE_SELECTOR = 'h3.article-title';
-const SCIENCE_CURRENT_DATE_SELECTOR = '.card-meta time, time[datetime], [datetime]';
-const SCIENCE_CURRENT_ABSTRACT_SELECTOR = '.accordion__content, div.card-body';
-const SCIENCE_CURRENT_AUTHORS_SELECTOR = 'ul[title="list of authors"] li span';
+import {
+  ABSTRACT_SELECTOR,
+  AUTHORS_SELECTOR,
+  CARD_SELECTOR,
+  DATE_SELECTOR,
+  LINK_SELECTOR,
+  normalizeScienceHeading,
+  parseScienceCard,
+  resolveTocRoot,
+  SECTION_HEADING_SELECTOR,
+  SECTION_SELECTOR,
+  SUBSECTION_HEADING_SELECTOR,
+  TITLE_SELECTOR,
+  TOC_BODY_SELECTORS,
+} from './science-common.js';
 
 const SCIENCE_CURRENT_TARGET_SUBSECTIONS = [
   {
@@ -45,38 +38,16 @@ const SCIENCE_CURRENT_TARGET_SUBSECTIONS = [
 type ScienceCurrentTargetSubsection =
   (typeof SCIENCE_CURRENT_TARGET_SUBSECTIONS)[number];
 
-function normalizeHeading(value: unknown) {
-  return cleanText(value).toLowerCase();
-}
-
 function buildTargetKey(sectionHeading: string, subsectionHeading: string) {
-  return `${normalizeHeading(sectionHeading)}::${normalizeHeading(subsectionHeading)}`;
-}
-
-function resolveScienceCurrentTocBodyRoot({
-  $,
-}: Pick<ListingCandidateExtractorContext, '$'>) {
-  for (const selector of SCIENCE_CURRENT_TOC_BODY_SELECTORS) {
-    const roots = $(selector).toArray();
-    const matchedRoot = roots.find((root) => $(root).children(SCIENCE_CURRENT_SECTION_SELECTOR).length > 0);
-    if (!matchedRoot) continue;
-
-    return {
-      root: matchedRoot,
-      selector,
-      matchedRootCount: roots.length,
-    };
-  }
-
-  return null;
+  return `${normalizeScienceHeading(sectionHeading)}::${normalizeScienceHeading(subsectionHeading)}`;
 }
 
 function resolveScienceCurrentTargetSubsection(
   sectionHeading: string,
   subsectionHeading: string,
 ): ScienceCurrentTargetSubsection | null {
-  const normalizedSectionHeading = normalizeHeading(sectionHeading);
-  const normalizedSubsectionHeading = normalizeHeading(subsectionHeading);
+  const normalizedSectionHeading = normalizeScienceHeading(sectionHeading);
+  const normalizedSubsectionHeading = normalizeScienceHeading(subsectionHeading);
   return (
     SCIENCE_CURRENT_TARGET_SUBSECTIONS.find(
       (target) =>
@@ -86,87 +57,14 @@ function resolveScienceCurrentTargetSubsection(
   );
 }
 
-function extractScienceCurrentCardLink({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  return $(root).find(SCIENCE_CURRENT_LINK_SELECTOR).first();
-}
-
-function extractScienceCurrentCardHref({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  return cleanText(extractScienceCurrentCardLink({ $, root }).attr('href'));
-}
-
-function extractScienceCurrentCardTitle({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  const title = cleanText($(root).find(SCIENCE_CURRENT_TITLE_SELECTOR).first().text());
-  if (title) return title;
-  return cleanText(extractScienceCurrentCardLink({ $, root }).text());
-}
-
-function extractScienceCurrentCardDateHint({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  const dateNodes = $(root).find(SCIENCE_CURRENT_DATE_SELECTOR).toArray();
-  for (const node of dateNodes) {
-    const current = $(node);
-    const values = [
-      current.attr('datetime'),
-      current.attr('content'),
-      current.attr('aria-label'),
-      current.attr('title'),
-      current.text(),
-    ];
-    for (const value of values) {
-      const parsed = parseDateHintFromText(value);
-      if (parsed) return parsed;
-    }
-  }
-
-  return parseDateHintFromText($(root).text());
-}
-
-function extractScienceCurrentCardDoi(href: string) {
-  return extractScienceDoiFromPathLike(href);
-}
-
-function extractScienceCurrentCardAuthors({
-  $,
-  root,
-}: Pick<ListingCandidateExtractorContext, '$'> & {
-  root: Parameters<ListingCandidateExtractorContext['$']>[0];
-}) {
-  const authors = $(root)
-    .find(SCIENCE_CURRENT_AUTHORS_SELECTOR)
-    .map((_, node) => cleanText($(node).text()))
-    .get()
-    .filter(Boolean);
-
-  return uniq(authors);
-}
-
 function extractScienceCurrentTargetedSubsections(
   context: ListingCandidateExtractorContext,
 ): ListingCandidateExtraction | null {
   const { $, pageUrl } = context;
-  const tocBody = resolveScienceCurrentTocBodyRoot({ $ });
+  const tocBody = resolveTocRoot({ $ });
   if (!tocBody) return null;
 
-  const sections = $(tocBody.root).children(SCIENCE_CURRENT_SECTION_SELECTOR).toArray();
+  const sections = $(tocBody.root).children(SECTION_SELECTOR).toArray();
   if (sections.length === 0) return null;
 
   const targetState = new Map(
@@ -185,20 +83,20 @@ function extractScienceCurrentTargetedSubsections(
   );
 
   const seen = new Set<string>();
-  const candidates: ListingCandidateSeed[] = [];
+  const candidates: ListingCandidateExtraction['candidates'] = [];
   let datedCandidateCount = 0;
   let summarizedCandidateCount = 0;
   let totalCardCount = 0;
   let order = 0;
 
   for (const [sectionIndex, section] of sections.entries()) {
-    const sectionHeading = cleanText($(section).children(SCIENCE_CURRENT_SECTION_HEADING_SELECTOR).first().text());
+    const sectionHeading = cleanText($(section).children(SECTION_HEADING_SELECTOR).first().text());
     let currentTargetKey = '';
 
     const children = $(section).children().toArray();
     for (const child of children) {
       const current = $(child);
-      if (current.is(SCIENCE_CURRENT_SUBSECTION_HEADING_SELECTOR)) {
+      if (current.is(SUBSECTION_HEADING_SELECTOR)) {
         const subsectionHeading = cleanText(current.text());
         const matchedTarget = resolveScienceCurrentTargetSubsection(sectionHeading, subsectionHeading);
         currentTargetKey = matchedTarget
@@ -217,7 +115,7 @@ function extractScienceCurrentTargetedSubsections(
         continue;
       }
 
-      if (!current.is(SCIENCE_CURRENT_CARD_SELECTOR) || !currentTargetKey) {
+      if (!current.is(CARD_SELECTOR) || !currentTargetKey) {
         continue;
       }
 
@@ -229,43 +127,20 @@ function extractScienceCurrentTargetedSubsections(
       state.cardCount += 1;
       totalCardCount += 1;
 
-      const href = extractScienceCurrentCardHref({ $, root: child });
-      const title = extractScienceCurrentCardTitle({ $, root: child });
-      if (!href || !title) continue;
-
-      let normalized = '';
-      try {
-        normalized = new URL(href, pageUrl).toString();
-      } catch {
-        continue;
-      }
-
-      if (seen.has(normalized)) continue;
-      seen.add(normalized);
-
-      const dateHint = extractScienceCurrentCardDateHint({ $, root: child });
-      const abstractText =
-        cleanText($(child).find(SCIENCE_CURRENT_ABSTRACT_SELECTOR).first().text()) || null;
-      const authors = extractScienceCurrentCardAuthors({ $, root: child });
-      const doi = extractScienceCurrentCardDoi(href);
-
-      if (dateHint) datedCandidateCount += 1;
-      if (abstractText) summarizedCandidateCount += 1;
-
-      const candidate = normalizeListingCandidateSeed({
-        href,
+      const parsedCard = parseScienceCard({
+        $,
+        root: child,
+        pageUrl,
         order,
-        dateHint,
         articleType: state.articleType,
-        title,
-        doi,
-        authors,
-        abstractText,
-        publishedAt: dateHint ?? null,
         scoreBoost: 180,
       });
-      if (!candidate) continue;
-      candidates.push(candidate);
+      if (!parsedCard || seen.has(parsedCard.normalizedUrl)) continue;
+
+      seen.add(parsedCard.normalizedUrl);
+      if (parsedCard.hasDateHint) datedCandidateCount += 1;
+      if (parsedCard.hasAbstractText) summarizedCandidateCount += 1;
+      candidates.push(parsedCard.seed);
       order += 1;
       state.candidateCount += 1;
     }
@@ -293,12 +168,12 @@ function extractScienceCurrentTargetedSubsections(
   return {
     candidates,
     diagnostics: {
-      tocBodySelectors: SCIENCE_CURRENT_TOC_BODY_SELECTORS,
+      tocBodySelectors: TOC_BODY_SELECTORS,
       tocBodySelector: tocBody.selector,
       tocBodyMatchedRootCount: tocBody.matchedRootCount,
-      sectionSelector: SCIENCE_CURRENT_SECTION_SELECTOR,
-      sectionHeadingSelector: SCIENCE_CURRENT_SECTION_HEADING_SELECTOR,
-      subsectionHeadingSelector: SCIENCE_CURRENT_SUBSECTION_HEADING_SELECTOR,
+      sectionSelector: SECTION_SELECTOR,
+      sectionHeadingSelector: SECTION_HEADING_SELECTOR,
+      subsectionHeadingSelector: SUBSECTION_HEADING_SELECTOR,
       selectedSectionIndex:
         selectedSectionIndices.length > 0 ? Math.max(...selectedSectionIndices) : null,
       selectedSectionIndices,
@@ -307,12 +182,12 @@ function extractScienceCurrentTargetedSubsections(
       targetSubsections: targetSummaries,
       targetSubsectionCount: targetSummaries.length,
       matchedTargetSubsectionCount: targetSummaries.filter((target) => target.matched).length,
-      cardSelector: SCIENCE_CURRENT_CARD_SELECTOR,
-      linkSelector: SCIENCE_CURRENT_LINK_SELECTOR,
-      titleSelector: SCIENCE_CURRENT_TITLE_SELECTOR,
-      dateSelector: SCIENCE_CURRENT_DATE_SELECTOR,
-      abstractSelector: SCIENCE_CURRENT_ABSTRACT_SELECTOR,
-      authorsSelector: SCIENCE_CURRENT_AUTHORS_SELECTOR,
+      cardSelector: CARD_SELECTOR,
+      linkSelector: LINK_SELECTOR,
+      titleSelector: TITLE_SELECTOR,
+      dateSelector: DATE_SELECTOR,
+      abstractSelector: ABSTRACT_SELECTOR,
+      authorsSelector: AUTHORS_SELECTOR,
       cardCount: totalCardCount,
       candidateCount: candidates.length,
       datedCandidateCount,
