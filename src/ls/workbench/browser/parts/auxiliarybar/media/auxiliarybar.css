@@ -68,7 +68,7 @@
   --auxiliarybar-tab-scrollbar-thumb-hover: rgba(107, 128, 151, 0.96);
   --auxiliarybar-tab-scrollbar-thumb-active: rgba(82, 103, 127, 0.98);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   min-width: 0;
   padding: 4px 12px;
@@ -79,7 +79,8 @@
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  min-height: 26px;
 }
 
 .auxiliarybar-tab-strip {
@@ -233,14 +234,16 @@
   box-shadow: 0 0 0 2px #0a5fbf;
 }
 
-.sidebar-action-bar {
+.auxiliarybar-topbar > .sidebar-action-bar {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 0;
+  border-bottom: none;
 }
 
-.sidebar-action-btn.btn-base {
+.auxiliarybar-topbar .sidebar-action-btn.btn-base {
   --btn-icon-size: 26px;
   min-width: 26px;
   width: 26px;
@@ -249,22 +252,22 @@
   border-radius: 6px;
 }
 
-.sidebar-action-btn.btn-base:hover:not(:disabled) {
+.auxiliarybar-topbar .sidebar-action-btn.btn-base:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.05);
 }
 
-.sidebar-action-btn.btn-base:active:not(:disabled) {
+.auxiliarybar-topbar .sidebar-action-btn.btn-base:active:not(:disabled) {
   background: rgba(0, 0, 0, 0.1);
 }
 
-.sidebar-action-btn.btn-base.is-active {
+.auxiliarybar-topbar .sidebar-action-btn.btn-base.is-active {
   background: #e8f1fc;
   border-color: #bfd7f4;
   color: #0a5fbf;
 }
 
-.sidebar-action-btn.btn-base.is-active:hover:not(:disabled),
-.sidebar-action-btn.btn-base.is-active:active:not(:disabled) {
+.auxiliarybar-topbar .sidebar-action-btn.btn-base.is-active:hover:not(:disabled),
+.auxiliarybar-topbar .sidebar-action-btn.btn-base.is-active:active:not(:disabled) {
   background: #e8f1fc;
 }
 
