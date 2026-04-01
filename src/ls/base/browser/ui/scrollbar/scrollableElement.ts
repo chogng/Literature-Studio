@@ -1,6 +1,7 @@
 import { ScrollbarVisibility, resolveScrollableElementOptions } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
 import type { ScrollableElementChangeOptions, ScrollableElementCreationOptions, ScrollableElementResolvedOptions } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
 import { HorizontalScrollbarState, VerticalScrollbarState } from 'ls/base/browser/ui/scrollbar/scrollbarState';
+import { ScrollbarVisibilityController } from 'ls/base/browser/ui/scrollbar/scrollbarVisibilityController';
 
 import 'ls/base/browser/ui/scrollbar/media/verticalScrollbar.css';
 
@@ -59,6 +60,7 @@ class Emitter<T> {
 }
 
 export class AbstractScrollableElement {
+  private static readonly SCROLLBAR_REVEAL_DURATION = 500;
   protected readonly element: HTMLElement;
   protected readonly domNode: HTMLDivElement;
   protected options: ScrollableElementResolvedOptions;
@@ -68,8 +70,12 @@ export class AbstractScrollableElement {
   private readonly mutationObserver?: MutationObserver;
   private readonly horizontalScrollbarState: HorizontalScrollbarState;
   private readonly verticalScrollbarState: VerticalScrollbarState;
+  private readonly horizontalVisibilityController: ScrollbarVisibilityController;
+  private readonly verticalVisibilityController: ScrollbarVisibilityController;
   private scrollDimensions: IScrollDimensions;
   private scrollPosition: IScrollPosition;
+  private scrollbarHideTimeout: number | null = null;
+  private isHovered = false;
 
   constructor(
     element: HTMLElement,
@@ -78,7 +84,7 @@ export class AbstractScrollableElement {
     this.element = element;
     this.options = resolveScrollableElementOptions(options);
     this.domNode = document.createElement('div');
-    this.domNode.className = 'monaco-scrollable-element';
+    this.domNode.className = 'scrollable-element-root';
     this.domNode.append(this.element);
 
     this.element.classList.add('scrollable-content');
@@ -120,6 +126,20 @@ export class AbstractScrollableElement {
       scrollSize: this.scrollDimensions.scrollHeight,
       scrollPosition: this.scrollPosition.scrollTop,
     });
+    this.horizontalVisibilityController = new ScrollbarVisibilityController(
+      this.options.horizontal,
+      'is-horizontal-scrollbar-visible',
+      'is-horizontal-scrollbar-hidden',
+    );
+    this.verticalVisibilityController = new ScrollbarVisibilityController(
+      this.options.vertical,
+      'is-vertical-scrollbar-visible',
+      'is-vertical-scrollbar-hidden',
+    );
+    this.horizontalVisibilityController.setIsNeeded(this.horizontalScrollbarState.isNeeded());
+    this.verticalVisibilityController.setIsNeeded(this.verticalScrollbarState.isNeeded());
+    this.horizontalVisibilityController.setDomNode(this.domNode);
+    this.verticalVisibilityController.setDomNode(this.domNode);
 
     this.applyOptions();
 
@@ -236,11 +256,14 @@ export class AbstractScrollableElement {
   }
 
   dispose() {
+    this.clearScrollbarHideTimeout();
     this.element.removeEventListener('scroll', this.handleElementScroll);
     this.domNode.removeEventListener('mouseenter', this.handleMouseEnter);
     this.domNode.removeEventListener('mouseleave', this.handleMouseLeave);
     this.resizeObserver?.disconnect();
     this.mutationObserver?.disconnect();
+    this.horizontalVisibilityController.dispose();
+    this.verticalVisibilityController.dispose();
     this.onScrollEmitter.clear();
     this.onWillScrollEmitter.clear();
   }
@@ -257,36 +280,29 @@ export class AbstractScrollableElement {
       scrollTopChanged: previous.scrollTop !== next.scrollTop,
     };
     this.onWillScrollEmitter.fire(event);
+    this.revealScrollbarsTemporarily();
     this.captureState();
     this.onScrollEmitter.fire(event);
   };
 
   private readonly handleMouseEnter = () => {
-    this.domNode.classList.add('is-hovered');
+    this.isHovered = true;
+    this.clearScrollbarHideTimeout();
+    this.setScrollbarsVisible(true);
   };
 
   private readonly handleMouseLeave = () => {
-    this.domNode.classList.remove('is-hovered');
+    this.isHovered = false;
+    this.scheduleScrollbarHide();
   };
 
   private applyOptions() {
-    const classNames = ['monaco-scrollable-element'];
+    const classNames = ['scrollable-element-root'];
     if (this.options.className) {
       classNames.push(this.options.className);
     }
     if (this.options.useShadows) {
       classNames.push('use-shadows');
-    }
-    if (
-      this.options.vertical === ScrollbarVisibility.Hidden &&
-      this.options.horizontal === ScrollbarVisibility.Hidden
-    ) {
-      classNames.push('scrollbar-visibility-hidden');
-    } else if (
-      this.options.vertical === ScrollbarVisibility.Visible ||
-      this.options.horizontal === ScrollbarVisibility.Visible
-    ) {
-      classNames.push('scrollbar-visibility-visible');
     }
     this.domNode.className = classNames.join(' ');
     this.domNode.style.setProperty(
@@ -313,6 +329,9 @@ export class AbstractScrollableElement {
         : this.options.verticalScrollbarSize,
     );
     this.verticalScrollbarState.setOppositeScrollbarSize(0);
+    this.horizontalVisibilityController.setVisibility(this.options.horizontal);
+    this.verticalVisibilityController.setVisibility(this.options.vertical);
+    this.syncScrollbarVisibility();
   }
 
   private captureState() {
@@ -342,6 +361,8 @@ export class AbstractScrollableElement {
   private refreshDomState() {
     const needsVertical = this.verticalScrollbarState.isNeeded();
     const needsHorizontal = this.horizontalScrollbarState.isNeeded();
+    this.horizontalVisibilityController.setIsNeeded(needsHorizontal);
+    this.verticalVisibilityController.setIsNeeded(needsVertical);
 
     this.domNode.classList.toggle(
       'is-scrollbar-needed',
@@ -351,6 +372,52 @@ export class AbstractScrollableElement {
       'has-top-shadow',
       this.options.useShadows && this.scrollPosition.scrollTop > 0,
     );
+    this.syncScrollbarVisibility();
+  }
+
+  private revealScrollbarsTemporarily() {
+    this.setScrollbarsVisible(true);
+    if (!this.isHovered) {
+      this.scheduleScrollbarHide();
+    }
+  }
+
+  private setScrollbarsVisible(visible: boolean) {
+    this.horizontalVisibilityController.setShouldBeVisible(visible);
+    this.verticalVisibilityController.setShouldBeVisible(visible);
+  }
+
+  private scheduleScrollbarHide() {
+    this.clearScrollbarHideTimeout();
+    this.scrollbarHideTimeout = window.setTimeout(() => {
+      this.scrollbarHideTimeout = null;
+      if (!this.isHovered) {
+        this.setScrollbarsVisible(false);
+      }
+    }, AbstractScrollableElement.SCROLLBAR_REVEAL_DURATION);
+  }
+
+  private clearScrollbarHideTimeout() {
+    if (this.scrollbarHideTimeout === null) {
+      return;
+    }
+
+    window.clearTimeout(this.scrollbarHideTimeout);
+    this.scrollbarHideTimeout = null;
+  }
+
+  private syncScrollbarVisibility() {
+    if (this.options.horizontal === ScrollbarVisibility.Visible) {
+      this.horizontalVisibilityController.setShouldBeVisible(true);
+    } else if (!this.isHovered && this.scrollbarHideTimeout === null) {
+      this.horizontalVisibilityController.setShouldBeVisible(false);
+    }
+
+    if (this.options.vertical === ScrollbarVisibility.Visible) {
+      this.verticalVisibilityController.setShouldBeVisible(true);
+    } else if (!this.isHovered && this.scrollbarHideTimeout === null) {
+      this.verticalVisibilityController.setShouldBeVisible(false);
+    }
   }
 }
 
