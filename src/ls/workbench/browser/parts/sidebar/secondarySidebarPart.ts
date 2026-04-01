@@ -70,6 +70,9 @@ export type SidebarLabels = {
   libraryStatusQueued: string;
   libraryStatusRunning: string;
   libraryStatusFailed: string;
+  contextRename: string;
+  contextEditSourceUrl: string;
+  contextDelete: string;
   assistantTitle: string;
   assistantDescriptionEnabled: string;
   assistantDescriptionDisabled: string;
@@ -209,6 +212,9 @@ export function createSidebarPartLabels({
     libraryStatusQueued: ui.settingsLibraryDocumentQueued,
     libraryStatusRunning: ui.settingsLibraryDocumentRunning,
     libraryStatusFailed: ui.settingsLibraryDocumentFailed,
+    contextRename: ui.libraryContextRename,
+    contextEditSourceUrl: ui.libraryContextEditSourceUrl,
+    contextDelete: ui.libraryContextDelete,
     assistantTitle: ui.assistantSidebarTitle,
     assistantDescriptionEnabled: ui.assistantSidebarDescriptionEnabled,
     assistantDescriptionDisabled: ui.assistantSidebarDescriptionDisabled,

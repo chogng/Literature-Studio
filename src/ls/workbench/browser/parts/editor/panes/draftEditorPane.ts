@@ -100,6 +100,10 @@ export class DraftEditorPane {
         blockFigure: props.labels.status.blockFigure,
       },
       labels: {
+        textGroup: props.labels.textGroup,
+        formatGroup: props.labels.formatGroup,
+        insertGroup: props.labels.insertGroup,
+        historyGroup: props.labels.historyGroup,
         paragraph: props.labels.paragraph,
         heading1: props.labels.heading1,
         heading2: props.labels.heading2,

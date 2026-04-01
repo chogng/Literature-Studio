@@ -343,15 +343,11 @@ function normalizeKnowledgeBaseSettings(payload: unknown): KnowledgeBaseSettings
       ? knowledgeBasePayload.enabled
       : defaults.enabled;
   const libraryStorageMode = knowledgeBasePayload.libraryStorageMode;
-
-  if (
-    libraryStorageMode !== 'managed-copy' &&
-    libraryStorageMode !== 'linked-original'
-  ) {
-    throw new Error(
-      'Invalid settings: knowledgeBase.libraryStorageMode is required.',
-    );
-  }
+  const normalizedLibraryStorageMode =
+    libraryStorageMode === 'managed-copy' ||
+    libraryStorageMode === 'linked-original'
+      ? libraryStorageMode
+      : defaults.libraryStorageMode;
 
   return {
     enabled,
@@ -363,7 +359,7 @@ function normalizeKnowledgeBaseSettings(payload: unknown): KnowledgeBaseSettings
       typeof knowledgeBasePayload.downloadDirectory === 'string'
         ? cleanText(knowledgeBasePayload.downloadDirectory) || null
         : defaults.downloadDirectory,
-    libraryStorageMode,
+    libraryStorageMode: normalizedLibraryStorageMode,
     libraryDirectory: libraryDirectory || null,
     maxConcurrentIndexJobs: normalizedConcurrentJobs,
   };

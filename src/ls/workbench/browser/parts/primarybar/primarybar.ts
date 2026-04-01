@@ -26,6 +26,9 @@ export type PrimaryBarProps = {
   onDocumentDragStart?: (documentId: string) => void;
   onDocumentSelect?: (document: LibraryDocumentSummary | null) => void;
   onDocumentOpen?: (document: LibraryDocumentSummary) => void;
+  onDocumentRename?: (document: LibraryDocumentSummary) => void;
+  onDocumentEditSourceUrl?: (document: LibraryDocumentSummary) => void;
+  onDocumentDelete?: (document: LibraryDocumentSummary) => void;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -67,6 +70,9 @@ export class PrimaryBar {
       onDocumentDragStart: props.onDocumentDragStart,
       onDocumentSelect: props.onDocumentSelect,
       onDocumentOpen: props.onDocumentOpen,
+      onDocumentRename: props.onDocumentRename,
+      onDocumentEditSourceUrl: props.onDocumentEditSourceUrl,
+      onDocumentDelete: props.onDocumentDelete,
     });
     this.contentElement.append(this.headerElement, this.libraryView.getElement());
     this.headerElement.append(this.actionsElement);
@@ -86,6 +92,9 @@ export class PrimaryBar {
       onDocumentDragStart: props.onDocumentDragStart,
       onDocumentSelect: props.onDocumentSelect,
       onDocumentOpen: props.onDocumentOpen,
+      onDocumentRename: props.onDocumentRename,
+      onDocumentEditSourceUrl: props.onDocumentEditSourceUrl,
+      onDocumentDelete: props.onDocumentDelete,
     });
     this.render();
   }

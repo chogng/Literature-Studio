@@ -12,6 +12,9 @@ import { LibraryRenderer } from './libraryRenderer.js';
 
 export type LibraryViewerLabels = LibraryTreeLabels & {
   unknown: string;
+  contextRename: string;
+  contextEditSourceUrl: string;
+  contextDelete: string;
 };
 
 export type LibraryViewerProps = {
@@ -20,6 +23,9 @@ export type LibraryViewerProps = {
   onDocumentDragStart?: (documentId: string) => void;
   onDocumentSelect?: (document: LibraryDocumentSummary | null) => void;
   onDocumentOpen?: (document: LibraryDocumentSummary) => void;
+  onDocumentRename?: (document: LibraryDocumentSummary) => void;
+  onDocumentEditSourceUrl?: (document: LibraryDocumentSummary) => void;
+  onDocumentDelete?: (document: LibraryDocumentSummary) => void;
 };
 
 export class LibraryViewer {
@@ -47,6 +53,9 @@ export class LibraryViewer {
       dragAndDrop: this.dragAndDrop,
       delegate: this.delegate,
       dataSource: this.dataSource,
+      onDocumentRename: props.onDocumentRename,
+      onDocumentEditSourceUrl: props.onDocumentEditSourceUrl,
+      onDocumentDelete: props.onDocumentDelete,
     });
     this.tree = new DataTree<LibraryDocumentsResult, LibraryTreeNode>(
       {
@@ -94,11 +103,18 @@ export class LibraryViewer {
       dragAndDrop: this.dragAndDrop,
       delegate: this.delegate,
       dataSource: this.dataSource,
+      onDocumentRename: props.onDocumentRename,
+      onDocumentEditSourceUrl: props.onDocumentEditSourceUrl,
+      onDocumentDelete: props.onDocumentDelete,
     });
   }
 
   getElement() {
     return this.tree.getElement();
+  }
+
+  dispose() {
+    this.renderer.dispose();
   }
 
   render() {

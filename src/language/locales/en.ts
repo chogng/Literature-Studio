@@ -160,6 +160,10 @@ const en = {
     'This area is the editor workspace. Create a draft tab first, or use the URL flow above to open source or PDF web content.',
   editorDraftBodyPlaceholder:
     'Start drafting here. If you do not type a separate writing context in the assistant sidebar, the current draft is sent to the LLM as context.',
+  editorRibbonText: 'Text',
+  editorRibbonFormat: 'Format',
+  editorRibbonInsert: 'Insert',
+  editorRibbonHistory: 'History',
   editorParagraph: 'P',
   editorHeading1: 'H1',
   editorHeading2: 'H2',
@@ -335,6 +339,15 @@ const en = {
   titlebarExportDocx: 'Export DOCX',
   titlebarNoExportableArticles: 'No selected article cards to export',
   titlebarDesktopOnly: 'Desktop only',
+  libraryContextRename: 'Rename',
+  libraryContextEditSourceUrl: 'Edit source URL',
+  libraryContextDelete: 'Delete',
+  libraryContextRenameTitle: 'Rename document',
+  libraryContextRenameLabel: 'Document title',
+  libraryContextRenamePlaceholder: 'Enter a document title',
+  libraryContextEditSourceUrlTitle: 'Edit source URL',
+  libraryContextEditSourceUrlLabel: 'Source URL',
+  libraryContextDeleteConfirm: 'Delete "{title}" from the knowledge base?',
 } as const;
 
 export default en;

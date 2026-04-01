@@ -58,14 +58,6 @@ export type LibraryTreeDragPayload = {
 export const LIBRARY_TREE_DRAG_MIME =
   'application/vnd.literature-studio.library-documents';
 
-function normalizePathSegment(value: string) {
-  return value.trim().replace(/[\\/]+/g, '/');
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 export function resolveLibraryDocumentStatusLabel(
   labels: Pick<
     LibraryTreeLabels,
@@ -101,34 +93,11 @@ export function resolveLibraryDocumentStatusLabel(
 }
 
 export function getLibraryDocumentPathSegments(
-  document: LibraryDocumentSummary,
+  _document: LibraryDocumentSummary,
   librarySnapshot: LibraryDocumentsResult,
 ) {
-  const filePath = normalizePathSegment(document.latestFilePath ?? '');
-  const managedDirectory = normalizePathSegment(
-    librarySnapshot.defaultManagedDirectory,
-  );
-
-  if (!filePath) {
-    return [];
-  }
-
-  if (managedDirectory) {
-    const managedDirectoryPattern = new RegExp(
-      `^${escapeRegExp(managedDirectory)}/?`,
-      'i',
-    );
-    const relativePath = filePath.replace(managedDirectoryPattern, '');
-    if (relativePath && relativePath !== filePath) {
-      return relativePath
-        .split('/')
-        .slice(0, -1)
-        .filter(Boolean);
-    }
-  }
-
-  const parts = filePath.split('/').filter(Boolean);
-  return parts.slice(Math.max(parts.length - 3, 0), -1);
+  void librarySnapshot;
+  return [];
 }
 
 export function buildLibraryTree(

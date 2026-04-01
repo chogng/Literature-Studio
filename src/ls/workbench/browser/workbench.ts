@@ -33,6 +33,7 @@ import {
   createSettingsController,
 } from '../contrib/preferences/browser/settingsController';
 import {
+  type EditorPartChangeReason,
   type EditorPartControllerContext,
   type EditorPartModel,
   createEditorPartController,
@@ -53,7 +54,8 @@ import { createTitlebarView, type TitlebarView } from './parts/titlebar/titlebar
 import { createToastOverlayWindowView } from './toastOverlayWindow';
 import { createMenuOverlayWindowView } from './menuOverlayWindow';
 import { createArticleDetailsModalWindowView } from './articleDetailsModalWindow';
-import { createReaderView } from './readerView';
+import { createReaderPageView } from './readerPageView';
+import { showWorkbenchTextInputModal } from './workbenchEditorModals';
 import { createToastHost, type ToastHost } from '../../base/browser/ui/toast/toastHost';
 import {
   localeService,
@@ -146,6 +148,7 @@ const DEFAULT_WORKBENCH_STATE: WorkbenchStateSnapshot = {
 };
 
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
+const DRAFT_CONTENT_RENDER_DEBOUNCE_MS = 120;
 
 let workbenchState = DEFAULT_WORKBENCH_STATE;
 const workbenchStateListeners = new Set<() => void>();
@@ -321,7 +324,7 @@ class WorkbenchHost {
   private readonly statusbarElement: HTMLElement;
   private readonly toastHost: ToastHost;
   private titlebarView: TitlebarView | null = null;
-  private readerView: ReturnType<typeof createReaderView> | null = null;
+  private readerPageView: ReturnType<typeof createReaderPageView> | null = null;
   private settingsView: ReturnType<typeof createSettingsPartView> | null = null;
   private readonly globalDisposables: Array<() => void> = [];
   private webContentStateDisposable: (() => void) | null = null;
@@ -329,6 +332,7 @@ class WorkbenchHost {
   private isDisposed = false;
   private isRendering = false;
   private renderPending = false;
+  private draftContentRenderTimer: number | null = null;
   private webContentRuntime = false;
   private previousBrowserUrl = '';
   private previousActiveContentTabId: string | null = null;
@@ -381,6 +385,7 @@ class WorkbenchHost {
     this.isDisposed = true;
     this.webContentStateDisposable?.();
     this.webContentStateDisposable = null;
+    this.clearDraftContentRenderTimer();
     window.removeEventListener('keydown', this.handleWindowKeydown);
     while (this.globalDisposables.length > 0) {
       this.globalDisposables.pop()?.();
@@ -393,8 +398,8 @@ class WorkbenchHost {
 
     this.titlebarView?.dispose();
     this.titlebarView = null;
-    this.readerView?.dispose();
-    this.readerView = null;
+    this.readerPageView?.dispose();
+    this.readerPageView = null;
     this.settingsView?.dispose();
     this.settingsView = null;
     this.toastHost.dispose();
@@ -440,11 +445,43 @@ class WorkbenchHost {
       services.settingsController.subscribe(this.requestRender),
       services.libraryModel.subscribe(this.requestRender),
       services.webContentNavigationModel.subscribe(this.requestRender),
-      services.editorPartController.subscribe(this.requestRender),
+      services.editorPartController.subscribe(this.handleEditorPartChange),
       services.assistantModel.subscribe(this.requestRender),
       services.documentActionsController.subscribe(this.requestRender),
       services.batchFetchController.subscribe(this.requestRender),
     );
+  }
+
+  private readonly handleEditorPartChange = (
+    reason: EditorPartChangeReason,
+  ) => {
+    if (reason === 'draftContent') {
+      this.scheduleDraftContentRender();
+      return;
+    }
+
+    this.clearDraftContentRenderTimer();
+    this.requestRender();
+  };
+
+  private scheduleDraftContentRender() {
+    if (this.draftContentRenderTimer !== null) {
+      window.clearTimeout(this.draftContentRenderTimer);
+    }
+
+    this.draftContentRenderTimer = window.setTimeout(() => {
+      this.draftContentRenderTimer = null;
+      this.requestRender();
+    }, DRAFT_CONTENT_RENDER_DEBOUNCE_MS);
+  }
+
+  private clearDraftContentRenderTimer() {
+    if (this.draftContentRenderTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.draftContentRenderTimer);
+    this.draftContentRenderTimer = null;
   }
 
   private syncWebContentRuntime(
@@ -700,7 +737,7 @@ class WorkbenchHost {
   private syncEditorCommandHandlers() {
     setWorkbenchEditorCommandHandlers({
       executeActiveDraftCommand: (commandId) =>
-        this.readerView?.executeActiveDraftCommand(commandId) ?? false,
+        this.readerPageView?.executeActiveDraftCommand(commandId) ?? false,
     });
   }
 
@@ -766,14 +803,14 @@ class WorkbenchHost {
   }) {
     this.settingsView?.dispose();
     this.settingsView = null;
-    if (!this.readerView) {
-      this.readerView = createReaderView(props);
+    if (!this.readerPageView) {
+      this.readerPageView = createReaderPageView(props);
     } else {
-      this.readerView.setProps(props);
+      this.readerPageView.setProps(props);
     }
     this.syncEditorCommandHandlers();
 
-    const readerElement = this.readerView.getElement();
+    const readerElement = this.readerPageView.getElement();
     if (this.pageMount.firstChild !== readerElement) {
       this.pageMount.replaceChildren(readerElement);
     }
@@ -782,8 +819,8 @@ class WorkbenchHost {
   private renderSettingsPage(
     settingsPartProps: ReturnType<typeof createSettingsPartProps>,
   ) {
-    this.readerView?.dispose();
-    this.readerView = null;
+    this.readerPageView?.dispose();
+    this.readerPageView = null;
     setWorkbenchEditorCommandHandlers(null);
     if (!this.settingsView) {
       this.settingsView = createSettingsPartView(settingsPartProps);
@@ -1015,6 +1052,8 @@ class WorkbenchHost {
         isSelectionModeEnabled: selectionModePhase !== 'off',
         selectedArticleOrderLookup,
         exportableArticles,
+        onLibraryDocumentUpserted:
+          libraryModelInstance.upsertDocumentSummary,
         onLibraryUpdated: refreshLibrary,
       });
     const { canExportDocx } = documentActionsControllerInstance.getSnapshot();
@@ -1061,6 +1100,82 @@ class WorkbenchHost {
         }
         handleCreateWebTab(sourceUrl);
       }
+    };
+
+    const handleLibraryDocumentRename = async (
+      document: LibraryDocumentSummary,
+    ) => {
+      const nextTitle =
+        (await showWorkbenchTextInputModal({
+          title: ui.libraryContextRenameTitle,
+          label: ui.libraryContextRenameLabel,
+          defaultValue: document.title?.trim() || '',
+          placeholder: ui.libraryContextRenamePlaceholder,
+          ui,
+        })) ?? '';
+      if (!nextTitle) {
+        return;
+      }
+
+      const updatedDocument = await invokeDesktop<LibraryDocumentSummary>(
+        'upsert_library_document_metadata',
+        {
+          documentId: document.documentId,
+          articleTitle: nextTitle,
+        },
+      );
+      libraryModelInstance.upsertDocumentSummary(updatedDocument);
+      void refreshLibrary();
+    };
+
+    const handleLibraryDocumentEditSourceUrl = async (
+      document: LibraryDocumentSummary,
+    ) => {
+      const nextSourceUrl =
+        (await showWorkbenchTextInputModal({
+          title: ui.libraryContextEditSourceUrlTitle,
+          label: ui.libraryContextEditSourceUrlLabel,
+          defaultValue: document.sourceUrl?.trim() || '',
+          placeholder: 'https://',
+          ui,
+        })) ?? '';
+      if (!nextSourceUrl) {
+        return;
+      }
+
+      const updatedDocument = await invokeDesktop<LibraryDocumentSummary>(
+        'upsert_library_document_metadata',
+        {
+          documentId: document.documentId,
+          sourceUrl: nextSourceUrl,
+        },
+      );
+      libraryModelInstance.upsertDocumentSummary(updatedDocument);
+      void refreshLibrary();
+    };
+
+    const handleLibraryDocumentDelete = async (
+      document: LibraryDocumentSummary,
+    ) => {
+      const confirmed = window.confirm(
+        ui.libraryContextDeleteConfirm.replace(
+          '{title}',
+          document.title?.trim() || ui.untitled,
+        ),
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      const deleted = await invokeDesktop<boolean>('delete_library_document', {
+        documentId: document.documentId,
+      });
+      if (!deleted) {
+        return;
+      }
+
+      libraryModelInstance.removeDocumentSummary(document.documentId);
+      void refreshLibrary();
     };
 
     const handleWebContentBack = () => {
@@ -1310,7 +1425,7 @@ class WorkbenchHost {
       },
     });
 
-    const primaryBarProps = {
+    const primaryBarProps: PrimaryBarProps = {
       labels: secondarySidebarProps.labels,
       librarySnapshot,
       isLibraryLoading,
@@ -1318,6 +1433,15 @@ class WorkbenchHost {
       onDownloadPdf: handleSidebarPdfDownload,
       onCreateDraftTab: handleCreateDraftTab,
       onDocumentOpen: handleLibraryDocumentOpen,
+      onDocumentRename: (document: LibraryDocumentSummary) => {
+        void handleLibraryDocumentRename(document);
+      },
+      onDocumentEditSourceUrl: (document: LibraryDocumentSummary) => {
+        void handleLibraryDocumentEditSourceUrl(document);
+      },
+      onDocumentDelete: (document: LibraryDocumentSummary) => {
+        void handleLibraryDocumentDelete(document);
+      },
     };
 
     const auxiliarySidebarProps = createAuxiliaryBarPartProps({

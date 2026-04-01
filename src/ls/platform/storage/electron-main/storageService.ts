@@ -54,6 +54,26 @@ export function createStorageService(paths: StoragePaths, options: StorageOption
       return configStore.saveSettings(settings);
     },
 
+    async upsertLibraryDocumentMetadata(payload) {
+      const settings = await configStore.loadSettings();
+      if (!settings.knowledgeBase.enabled) {
+        throw appError('UNKNOWN_ERROR', {
+          message: 'Knowledge base mode is disabled.',
+        });
+      }
+      return libraryStore.upsertLibraryDocumentMetadata(payload);
+    },
+
+    async deleteLibraryDocument(payload) {
+      const settings = await configStore.loadSettings();
+      if (!settings.knowledgeBase.enabled) {
+        throw appError('UNKNOWN_ERROR', {
+          message: 'Knowledge base mode is disabled.',
+        });
+      }
+      return libraryStore.deleteLibraryDocument(payload);
+    },
+
     async registerLibraryDocument(payload) {
       const settings = await configStore.loadSettings();
       if (!settings.knowledgeBase.enabled) {

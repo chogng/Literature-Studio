@@ -1,7 +1,12 @@
+import type {
+  NativeMenuEvent,
+  NativeMenuOpenPayload,
+} from '../../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { LibraryDocumentsResult } from '../../../../../base/parts/sandbox/common/desktopTypes.js';
 import type { SimpleTreeRenderContext } from '../../../../../base/browser/ui/tree/simpleTree.js';
 import { createLxIcon } from '../../../../../base/browser/ui/lxicon/lxicon.js';
 import { lxIconSemanticMap } from '../../../../../base/browser/ui/lxicon/lxiconSemantic.js';
+import { nativeHostService } from '../../../../../platform/native/electron-sandbox/nativeHostService.js';
 import {
   resolveLibraryDocumentStatusLabel,
   type LibraryTreeLabels,
@@ -14,6 +19,9 @@ import type { LibraryDragAndDrop } from './libraryDragAndDrop.js';
 
 export type LibraryRendererLabels = LibraryTreeLabels & {
   unknown: string;
+  contextRename: string;
+  contextEditSourceUrl: string;
+  contextDelete: string;
 };
 
 export type LibraryRendererProps = {
@@ -21,7 +29,29 @@ export type LibraryRendererProps = {
   dragAndDrop: LibraryDragAndDrop;
   delegate: LibraryDelegate;
   dataSource: LibraryDataSource;
+  onDocumentRename?: (document: LibraryDocumentsResult['items'][number]) => void;
+  onDocumentEditSourceUrl?: (
+    document: LibraryDocumentsResult['items'][number],
+  ) => void;
+  onDocumentDelete?: (document: LibraryDocumentsResult['items'][number]) => void;
 };
+
+let libraryDocumentMenuRequestId = 0;
+
+function canUseNativeContextMenu() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const nativeOverlayKind = new URLSearchParams(window.location.search).get(
+    'nativeOverlay',
+  );
+  if (nativeOverlayKind === 'menu' || nativeOverlayKind === 'toast') {
+    return false;
+  }
+
+  return typeof nativeHostService.menu?.open === 'function';
+}
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -36,6 +66,31 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 
 export class LibraryRenderer {
   private props: LibraryRendererProps;
+  private activeMenuRequestId: string | null = null;
+  private activeMenuActions = new Map<string, () => void>();
+  private readonly removeMenuEventListener =
+    canUseNativeContextMenu() &&
+    typeof nativeHostService.menu?.onEvent === 'function'
+      ? nativeHostService.menu.onEvent((event) => {
+          const nativeEvent = event as NativeMenuEvent;
+          if (
+            !this.activeMenuRequestId ||
+            nativeEvent.requestId !== this.activeMenuRequestId
+          ) {
+            return;
+          }
+
+          const actions = this.activeMenuActions;
+          this.activeMenuRequestId = null;
+          this.activeMenuActions = new Map<string, () => void>();
+          if (
+            nativeEvent.type === 'select' &&
+            typeof nativeEvent.value === 'string'
+          ) {
+            actions.get(nativeEvent.value)?.();
+          }
+        })
+      : () => {};
 
   constructor(props: LibraryRendererProps) {
     this.props = props;
@@ -43,6 +98,10 @@ export class LibraryRenderer {
 
   setProps(props: LibraryRendererProps) {
     this.props = props;
+  }
+
+  dispose() {
+    this.removeMenuEventListener();
   }
 
   renderElement(
@@ -115,6 +174,11 @@ export class LibraryRenderer {
     row.addEventListener('dblclick', () => {
       context.open();
     });
+    row.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      context.select();
+      this.openDocumentContextMenu(event, document);
+    });
 
     const titleElement = createElement('span', 'library-tree-document-title');
     titleElement.textContent = title;
@@ -138,5 +202,69 @@ export class LibraryRenderer {
 
     row.append(main, aside);
     return row;
+  }
+
+  private openDocumentContextMenu(
+    event: MouseEvent,
+    document: LibraryDocumentsResult['items'][number],
+  ) {
+    const menuApi = nativeHostService.menu;
+    if (!canUseNativeContextMenu() || !menuApi) {
+      return;
+    }
+
+    const actions = new Map<string, () => void>();
+    const options: NativeMenuOpenPayload['options'] = [];
+
+    if (this.props.onDocumentRename) {
+      options.push({
+        value: 'rename',
+        label: this.props.labels.contextRename,
+      });
+      actions.set('rename', () => {
+        this.props.onDocumentRename?.(document);
+      });
+    }
+
+    if (this.props.onDocumentEditSourceUrl) {
+      options.push({
+        value: 'edit-source-url',
+        label: this.props.labels.contextEditSourceUrl,
+      });
+      actions.set('edit-source-url', () => {
+        this.props.onDocumentEditSourceUrl?.(document);
+      });
+    }
+
+    if (this.props.onDocumentDelete) {
+      options.push({
+        value: 'delete',
+        label: this.props.labels.contextDelete,
+      });
+      actions.set('delete', () => {
+        this.props.onDocumentDelete?.(document);
+      });
+    }
+
+    if (options.length === 0) {
+      return;
+    }
+
+    const requestId = `library-document-menu-${++libraryDocumentMenuRequestId}`;
+    this.activeMenuRequestId = requestId;
+    this.activeMenuActions = actions;
+    menuApi.open({
+      requestId,
+      triggerRect: {
+        x: event.clientX,
+        y: event.clientY,
+        width: 0,
+        height: 0,
+      },
+      options,
+      value: '',
+      align: 'start',
+      coverage: 'trigger-band',
+    });
   }
 }

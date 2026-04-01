@@ -17,7 +17,9 @@ yarn-error.log*
 
 
 
-tests/
+tests/*
+!tests/writing-editor/
+!tests/writing-editor/**
 tests/.tmp*
 
 # Local agent/runtime cache

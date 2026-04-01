@@ -4,6 +4,7 @@ import type {
   AppCommand,
   AppCommandPayloadMap,
   AppCommandResultMap,
+  DeleteLibraryDocumentPayload,
   FetchArticlePayload,
   FetchLatestArticlesPayload,
   IndexDownloadedPdfPayload,
@@ -11,6 +12,7 @@ import type {
   ListLibraryDocumentsPayload,
   OpenArticleDetailsModalPayload,
   OpenPathPayload,
+  UpsertLibraryDocumentMetadataPayload,
   WebContentPdfDownloadPayload,
   NativeModalState,
   WebContentBounds,
@@ -207,6 +209,14 @@ async function invokeCommand<TCommand extends AppCommand>(
     case 'index_downloaded_pdf':
       return storage.registerLibraryDocument(
         payload as IndexDownloadedPdfPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'upsert_library_document_metadata':
+      return storage.upsertLibraryDocumentMetadata(
+        payload as UpsertLibraryDocumentMetadataPayload,
+      ) as Promise<AppCommandResultMap[TCommand]>;
+    case 'delete_library_document':
+      return storage.deleteLibraryDocument(
+        payload as DeleteLibraryDocumentPayload,
       ) as Promise<AppCommandResultMap[TCommand]>;
     case 'get_library_document_status':
       return storage.getLibraryDocumentStatus(

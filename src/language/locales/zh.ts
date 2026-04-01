@@ -160,6 +160,10 @@ const zh = {
     '这里是编辑工作区。先新建一个写作标签，或者通过上方链接流程打开来源 / PDF 预览。',
   editorDraftBodyPlaceholder:
     '在这里开始写作。如果你没有在右侧助手栏单独填写“写作上下文”，当前草稿会自动作为上下文送入 LLM。',
+  editorRibbonText: '文本',
+  editorRibbonFormat: '格式',
+  editorRibbonInsert: '插入',
+  editorRibbonHistory: '历史',
   editorParagraph: '正文',
   editorHeading1: 'H1',
   editorHeading2: 'H2',
@@ -339,6 +343,15 @@ const zh = {
   titlebarExportDocx: '导出 DOCX',
   titlebarNoExportableArticles: '当前没有选中的文献卡片可导出',
   titlebarDesktopOnly: '仅桌面端可用',
+  libraryContextRename: '重命名',
+  libraryContextEditSourceUrl: '修改来源链接',
+  libraryContextDelete: '删除',
+  libraryContextRenameTitle: '重命名文献',
+  libraryContextRenameLabel: '文献标题',
+  libraryContextRenamePlaceholder: '输入文献标题',
+  libraryContextEditSourceUrlTitle: '修改来源链接',
+  libraryContextEditSourceUrlLabel: '来源链接',
+  libraryContextDeleteConfirm: '确定要从知识库中删除“{title}”吗？',
 } as const;
 
 export default zh;

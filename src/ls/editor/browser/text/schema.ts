@@ -104,6 +104,26 @@ function createFigureSpec(): NodeSpec {
         0,
       ];
     },
+    parseDOM: [
+      {
+        tag: 'figure[data-editor-figure]',
+        contentElement: (element) =>
+          element.querySelector('figcaption') ?? element,
+        getAttrs: (element) => {
+          const image = element.querySelector('img');
+          return {
+            blockId: element.getAttribute('data-block-id') || null,
+            figureId: element.getAttribute('data-figure-id') || null,
+            src: image?.getAttribute('src') || null,
+            alt: image?.getAttribute('alt') || '',
+            title: image?.getAttribute('title') || '',
+            width: image?.getAttribute('width')
+              ? Number(image.getAttribute('width')) || null
+              : null,
+          } satisfies FigureNodeAttrs;
+        },
+      },
+    ],
   };
 }
 
@@ -124,6 +144,14 @@ function createFigcaptionSpec(): NodeSpec {
         0,
       ];
     },
+    parseDOM: [
+      {
+        tag: 'figcaption.pm-figure-caption',
+        getAttrs: (element) => ({
+          blockId: element.getAttribute('data-block-id') || null,
+        } satisfies BlockNodeAttrs),
+      },
+    ],
   };
 }
 
@@ -151,6 +179,18 @@ function createCitationSpec(): NodeSpec {
         displayText,
       ];
     },
+    parseDOM: [
+      {
+        tag: 'span.pm-inline-chip-citation[data-citation-ids]',
+        getAttrs: (element) => ({
+          citationIds: (element.getAttribute('data-citation-ids') ?? '')
+            .split(',')
+            .map((segment) => segment.trim())
+            .filter(Boolean),
+          displayText: element.textContent?.trim() || null,
+        } satisfies CitationNodeAttrs),
+      },
+    ],
   };
 }
 
@@ -177,6 +217,23 @@ function createFigureRefSpec(): NodeSpec {
         `${attrs.label}${suffix}`,
       ];
     },
+    parseDOM: [
+      {
+        tag: 'span.pm-inline-chip-figure-ref[data-target-id]',
+        getAttrs: (element) => {
+          const targetId = element.getAttribute('data-target-id');
+          const rawText = element.textContent?.trim() || '';
+          const suffix = targetId?.trim() ? ` ${targetId.trim()}` : '';
+
+          return {
+            targetId: targetId || null,
+            label: suffix && rawText.endsWith(suffix)
+              ? rawText.slice(0, -suffix.length).trim() || 'Figure'
+              : rawText || 'Figure',
+          } satisfies FigureRefNodeAttrs;
+        },
+      },
+    ],
   };
 }
 
