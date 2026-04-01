@@ -9,10 +9,12 @@ import type {
 import {
   redoCommand,
   setParagraphCommand,
+  setTextAlignCommand,
   toggleBoldCommand,
   toggleBulletListCommand,
   toggleHeadingCommand,
   toggleItalicCommand,
+  toggleUnderlineCommand,
   toggleOrderedListCommand,
   undoCommand,
 } from 'ls/editor/browser/text/commands';
@@ -23,10 +25,14 @@ type WritingEditorKeybindingId =
   | 'redo'
   | 'toggleBold'
   | 'toggleItalic'
+  | 'toggleUnderline'
   | 'setParagraph'
   | 'toggleHeading1'
   | 'toggleHeading2'
   | 'toggleHeading3'
+  | 'setTextAlignLeft'
+  | 'setTextAlignCenter'
+  | 'setTextAlignRight'
   | 'toggleOrderedList'
   | 'toggleBulletList'
   | 'splitListItem'
@@ -40,8 +46,12 @@ type WritingEditorToolbarCommandId =
   | 'toggleHeading3'
   | 'toggleBold'
   | 'toggleItalic'
+  | 'toggleUnderline'
   | 'setFontFamily'
   | 'setFontSize'
+  | 'setTextAlignLeft'
+  | 'setTextAlignCenter'
+  | 'setTextAlignRight'
   | 'clearInlineStyles'
   | 'toggleBulletList'
   | 'toggleOrderedList'
@@ -64,8 +74,10 @@ export type WritingEditorToolbarActions = {
   toggleHeading: (level: number) => boolean | void;
   toggleBold: () => boolean | void;
   toggleItalic: () => boolean | void;
+  toggleUnderline: () => boolean | void;
   setFontFamily: (fontFamily: string | null) => boolean | void;
   setFontSize: (fontSize: string | null) => boolean | void;
+  setTextAlign: (textAlign: 'left' | 'center' | 'right') => boolean | void;
   clearInlineStyles: () => boolean | void;
   toggleBulletList: () => boolean | void;
   toggleOrderedList: () => boolean | void;
@@ -83,6 +95,10 @@ export type WritingEditorToolbarButtonConfig = {
   icon?:
     | 'bold'
     | 'italics'
+    | 'underline'
+    | 'align-left'
+    | 'align-center'
+    | 'align-right'
     | 'circle-slash'
     | 'list-unordered'
     | 'list-ordered'
@@ -136,8 +152,12 @@ type WritingEditorToolbarLabels = {
   heading3: string;
   bold: string;
   italic: string;
+  underline: string;
   fontFamily: string;
   fontSize: string;
+  alignLeft: string;
+  alignCenter: string;
+  alignRight: string;
   clearInlineStyles: string;
   bulletList: string;
   orderedList: string;
@@ -250,6 +270,20 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     },
   }),
   registerWritingEditorCommand({
+    id: 'toggleUnderline',
+    shortcuts: ['Mod-u'],
+    createCommand: () => toggleUnderlineCommand(),
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.underline,
+      icon: 'underline',
+      isActive: (state) => state.isUnderlineActive,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleUnderline();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
     id: 'setFontFamily',
     toolbar: {
       kind: 'dropdown',
@@ -272,6 +306,48 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
       getPlaceholder: (labels) => labels.fontSize,
       run: (actions: WritingEditorToolbarActions, value: string) => {
         actions.setFontSize(value || null);
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'setTextAlignLeft',
+    shortcuts: ['Mod-Shift-l'],
+    createCommand: () => setTextAlignCommand('left'),
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.alignLeft,
+      icon: 'align-left',
+      isActive: (state) => state.textAlign === 'left',
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.setTextAlign('left');
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'setTextAlignCenter',
+    shortcuts: ['Mod-Shift-e'],
+    createCommand: () => setTextAlignCommand('center'),
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.alignCenter,
+      icon: 'align-center',
+      isActive: (state) => state.textAlign === 'center',
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.setTextAlign('center');
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'setTextAlignRight',
+    shortcuts: ['Mod-Shift-r'],
+    createCommand: () => setTextAlignCommand('right'),
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.alignRight,
+      icon: 'align-right',
+      isActive: (state) => state.textAlign === 'right',
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.setTextAlign('right');
       },
     },
   }),

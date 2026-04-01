@@ -7,7 +7,7 @@ import {
   textblockTypeInputRule,
 } from 'prosemirror-inputrules';
 import { Schema } from 'prosemirror-model';
-import type { MarkSpec, Node as ProseMirrorNode, NodeSpec } from 'prosemirror-model';
+import type { DOMOutputSpec, MarkSpec, Node as ProseMirrorNode, NodeSpec } from 'prosemirror-model';
 
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { schema as basicSchema } from 'prosemirror-schema-basic';
@@ -17,6 +17,7 @@ import type { EditorView } from 'prosemirror-view';
 
 export type BlockNodeAttrs = {
   blockId: string | null;
+  textAlign?: 'left' | 'center' | 'right' | null;
 };
 
 export type FigureNodeAttrs = BlockNodeAttrs & {
@@ -70,6 +71,67 @@ function withTrackedBlockId(spec: NodeSpec): NodeSpec {
     attrs: {
       ...spec.attrs,
       blockId: { default: null },
+    },
+  };
+}
+
+function normalizeTextAlignValue(value: string | null | undefined) {
+  if (value === 'left' || value === 'center' || value === 'right') {
+    return value;
+  }
+
+  return null;
+}
+
+function withTextAlign(spec: NodeSpec): NodeSpec {
+  const parseDOM = spec.parseDOM?.map((rule) => {
+    const nextRule = { ...rule };
+    const baseGetAttrs = rule.getAttrs;
+    nextRule.getAttrs = (node) => {
+      const baseAttrs = typeof baseGetAttrs === 'function' ? baseGetAttrs(node) : null;
+      if (baseAttrs === false) {
+        return false;
+      }
+
+      const element = node instanceof HTMLElement ? node : null;
+      const rawTextAlign = element?.style.textAlign || element?.getAttribute('data-text-align') || null;
+      return {
+        ...(baseAttrs && typeof baseAttrs === 'object' ? baseAttrs : {}),
+        textAlign: normalizeTextAlignValue(rawTextAlign),
+      };
+    };
+    return nextRule;
+  }) ?? [];
+
+  return {
+    ...spec,
+    attrs: {
+      ...spec.attrs,
+      textAlign: { default: null },
+    },
+    parseDOM,
+    toDOM(node) {
+      const attrs = node.attrs as BlockNodeAttrs;
+      const baseDom = (spec.toDOM ? spec.toDOM(node) : [node.type.name, 0]) as DOMOutputSpec;
+      if (!Array.isArray(baseDom)) {
+        return baseDom;
+      }
+
+      const [tagName, maybeAttrs, ...rest] = baseDom;
+      const domAttrs =
+        maybeAttrs && typeof maybeAttrs === 'object' && !Array.isArray(maybeAttrs)
+          ? { ...maybeAttrs }
+          : {};
+      const content = domAttrs === maybeAttrs ? rest : [maybeAttrs, ...rest];
+
+      if (attrs.textAlign) {
+        domAttrs.style = [domAttrs.style, `text-align: ${attrs.textAlign}`]
+          .filter((part) => typeof part === 'string' && part.trim().length > 0)
+          .join('; ');
+        domAttrs['data-text-align'] = attrs.textAlign;
+      }
+
+      return [String(tagName), domAttrs, ...content];
     },
   };
 }
@@ -297,10 +359,26 @@ function createTextStyleMarkSpec(): MarkSpec {
   };
 }
 
+function createUnderlineMarkSpec(): MarkSpec {
+  return {
+    parseDOM: [
+      { tag: 'u' },
+      {
+        style: 'text-decoration',
+        getAttrs: (value) =>
+          typeof value === 'string' && value.toLowerCase().includes('underline') ? null : false,
+      },
+    ],
+    toDOM() {
+      return ['u', 0];
+    },
+  };
+}
+
 const baseNodes = basicSchema.spec.nodes
   .remove('image')
-  .update('paragraph', withTrackedBlockId(requireNodeSpec(basicSchema.spec.nodes, 'paragraph')))
-  .update('heading', withTrackedBlockId(requireNodeSpec(basicSchema.spec.nodes, 'heading')))
+  .update('paragraph', withTextAlign(withTrackedBlockId(requireNodeSpec(basicSchema.spec.nodes, 'paragraph'))))
+  .update('heading', withTextAlign(withTrackedBlockId(requireNodeSpec(basicSchema.spec.nodes, 'heading'))))
   .update('blockquote', withTrackedBlockId(requireNodeSpec(basicSchema.spec.nodes, 'blockquote')))
   .append({
     figure: createFigureSpec(),
@@ -317,7 +395,9 @@ const writingEditorNodes = listNodes
 
 export const writingEditorSchema = new Schema({
   nodes: writingEditorNodes,
-  marks: basicSchema.spec.marks.addToEnd('text_style', createTextStyleMarkSpec()),
+  marks: basicSchema.spec.marks
+    .addToEnd('underline', createUnderlineMarkSpec())
+    .addToEnd('text_style', createTextStyleMarkSpec()),
 });
 
 type WritingEditorPlaceholderState = {

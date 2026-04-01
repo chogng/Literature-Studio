@@ -8,7 +8,7 @@ import { gapCursor } from 'prosemirror-gapcursor';
 import { dropCursor } from 'prosemirror-dropcursor';
 import { createDraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
-import { clearFontFamilyCommand, clearFontSizeCommand, clearInlineStylesCommand, getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setFontFamilyCommand, setFontSizeCommand, setParagraphCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, undoCommand } from 'ls/editor/browser/text/commands';
+import { clearFontFamilyCommand, clearFontSizeCommand, clearInlineStylesCommand, getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setFontFamilyCommand, setFontSizeCommand, setParagraphCommand, setTextAlignCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, toggleUnderlineCommand, undoCommand } from 'ls/editor/browser/text/commands';
 import type { InsertFigurePayload, WritingEditorCommand, WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
 import { createWritingEditorKeymapBindings } from 'ls/editor/browser/text/editorCommandRegistry';
 import { collectWritingEditorDerivedLabels, createWritingEditorDocumentModel, findWritingEditorNodeByBlockId, getWritingEditorNodeText, getWritingEditorTextUnitKind, isWritingEditorPlainTextEditableNode, normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
@@ -39,9 +39,13 @@ export type WritingEditorSurfaceLabels = {
   heading3: string;
   bold: string;
   italic: string;
+  underline: string;
   fontFamily: string;
   fontSize: string;
   defaultTextStyle: string;
+  alignLeft: string;
+  alignCenter: string;
+  alignRight: string;
   clearInlineStyles: string;
   bulletList: string;
   orderedList: string;
@@ -101,8 +105,10 @@ const EMPTY_TOOLBAR_STATE: WritingEditorToolbarState = {
   activeHeadingLevel: null,
   isBoldActive: false,
   isItalicActive: false,
+  isUnderlineActive: false,
   fontFamily: null,
   fontSize: null,
+  textAlign: 'left',
   isBulletListActive: false,
   isOrderedListActive: false,
   isBlockquoteActive: false,
@@ -179,6 +185,10 @@ function areToolbarStatesEqual(
     previous.activeHeadingLevel === next.activeHeadingLevel &&
     previous.isBoldActive === next.isBoldActive &&
     previous.isItalicActive === next.isItalicActive &&
+    previous.isUnderlineActive === next.isUnderlineActive &&
+    previous.fontFamily === next.fontFamily &&
+    previous.fontSize === next.fontSize &&
+    previous.textAlign === next.textAlign &&
     previous.isBulletListActive === next.isBulletListActive &&
     previous.isOrderedListActive === next.isOrderedListActive &&
     previous.isBlockquoteActive === next.isBlockquoteActive &&
@@ -203,9 +213,13 @@ function areSurfaceLabelsEqual(
     previous.heading3 === next.heading3 &&
     previous.bold === next.bold &&
     previous.italic === next.italic &&
+    previous.underline === next.underline &&
     previous.fontFamily === next.fontFamily &&
     previous.fontSize === next.fontSize &&
     previous.defaultTextStyle === next.defaultTextStyle &&
+    previous.alignLeft === next.alignLeft &&
+    previous.alignCenter === next.alignCenter &&
+    previous.alignRight === next.alignRight &&
     previous.clearInlineStyles === next.clearInlineStyles &&
     previous.bulletList === next.bulletList &&
     previous.orderedList === next.orderedList &&
@@ -397,10 +411,13 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   toggleHeading = (level: number) => this.runCommand(toggleHeadingCommand(level));
   toggleBold = () => this.runCommand(toggleBoldCommand());
   toggleItalic = () => this.runCommand(toggleItalicCommand());
+  toggleUnderline = () => this.runCommand(toggleUnderlineCommand());
   setFontFamily = (fontFamily: string | null) =>
     this.runCommand(fontFamily ? setFontFamilyCommand(fontFamily) : clearFontFamilyCommand());
   setFontSize = (fontSize: string | null) =>
     this.runCommand(fontSize ? setFontSizeCommand(fontSize) : clearFontSizeCommand());
+  setTextAlign = (textAlign: 'left' | 'center' | 'right') =>
+    this.runCommand(setTextAlignCommand(textAlign));
   clearInlineStyles = () => this.runCommand(clearInlineStylesCommand());
   toggleBulletList = () => this.runCommand(toggleBulletListCommand());
   toggleOrderedList = () => this.runCommand(toggleOrderedListCommand());
@@ -446,8 +463,10 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
         toggleHeading: this.toggleHeading,
         toggleBold: this.toggleBold,
         toggleItalic: this.toggleItalic,
+        toggleUnderline: this.toggleUnderline,
         setFontFamily: this.setFontFamily,
         setFontSize: this.setFontSize,
+        setTextAlign: this.setTextAlign,
         clearInlineStyles: this.clearInlineStyles,
         toggleBulletList: this.toggleBulletList,
         toggleOrderedList: this.toggleOrderedList,

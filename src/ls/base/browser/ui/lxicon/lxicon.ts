@@ -125,6 +125,7 @@ import codeReviewSvg from 'ls/base/browser/ui/lxicon/svg/code-review.svg?raw';
 import cloudSvg from 'ls/base/browser/ui/lxicon/svg/cloud.svg?raw';
 import closeSvg from 'ls/base/browser/ui/lxicon/svg/close.svg?raw';
 import circleSlashSvg from 'ls/base/browser/ui/lxicon/svg/circle-slash.svg?raw';
+import alignLeftSvg from 'ls/base/browser/ui/lxicon/svg/align-left.svg?raw';
 import alignRightSvg from 'ls/base/browser/ui/lxicon/svg/align-right.svg?raw';
 import alignJustifiedSvg from 'ls/base/browser/ui/lxicon/svg/align-justified.svg?raw';
 import alignCenterSvg from 'ls/base/browser/ui/lxicon/svg/align-center.svg?raw';
@@ -282,6 +283,7 @@ export type LxIconName =
   | 'cloud'
   | 'close'
   | 'circle-slash'
+  | 'align-left'
   | 'align-right'
   | 'align-justified'
   | 'align-center'
@@ -439,6 +441,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'cloud': cloudSvg,
   'close': closeSvg,
   'circle-slash': circleSlashSvg,
+  'align-left': alignLeftSvg,
   'align-right': alignRightSvg,
   'align-justified': alignJustifiedSvg,
   'align-center': alignCenterSvg,
