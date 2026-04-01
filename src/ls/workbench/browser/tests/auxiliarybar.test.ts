@@ -13,7 +13,7 @@ function createProps(): AuxiliaryBarProps {
     labels: {
       assistantAnswerTitle: 'Answer',
       assistantEvidenceTitle: 'Evidence',
-      assistantNewConversation: 'New conversation',
+      assistantNewConversation: 'New chat',
       assistantHistory: 'History',
       assistantMore: 'More',
       assistantQuestion: 'Question',
@@ -37,6 +37,7 @@ function createProps(): AuxiliaryBarProps {
       {
         id: 'conversation-1',
         title: 'Conversation 1',
+        autoTitleIndex: null,
         question: '',
         result: null,
         messages: [],
@@ -79,7 +80,7 @@ test('auxiliary bar action buttons expose labels and shared hover', async () => 
     assert.equal(actionButtons.length, 3);
     assert.deepEqual(
       actionButtons.map((button) => button.getAttribute('aria-label')),
-      ['New conversation', 'History', 'More'],
+      ['New chat', 'History', 'More'],
     );
 
     const historyButton = actionButtons[1];

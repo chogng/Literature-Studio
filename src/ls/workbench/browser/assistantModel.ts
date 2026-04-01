@@ -41,14 +41,13 @@ export type AssistantChatMessage =
 export type AssistantConversation = {
   id: string;
   title: string;
+  autoTitleIndex: number | null;
   question: string;
   result: RagAnswerResult | null;
   messages: AssistantChatMessage[];
   isAsking: boolean;
   errorMessage: string | null;
 };
-
-const DEFAULT_CONVERSATION_TITLE = "新对话";
 
 type AssistantModelState = {
   conversations: AssistantConversation[];
@@ -76,13 +75,19 @@ function createConversationId() {
     .slice(2, 8)}`;
 }
 
-function createConversation(index: number): AssistantConversation {
+function createDefaultConversationTitle(ui: LocaleMessages, index: number) {
+  const baseTitle = ui.assistantSidebarNewConversation;
+  return index === 0 ? baseTitle : `${baseTitle} ${index + 1}`;
+}
+
+function createConversation(
+  ui: LocaleMessages,
+  index: number,
+): AssistantConversation {
   return {
     id: createConversationId(),
-    title:
-      index === 0
-        ? DEFAULT_CONVERSATION_TITLE
-        : `${DEFAULT_CONVERSATION_TITLE} ${index + 1}`,
+    title: createDefaultConversationTitle(ui, index),
+    autoTitleIndex: index,
     question: "",
     result: null,
     messages: [],
@@ -136,7 +141,7 @@ export class AssistantModel {
   constructor(context: AssistantModelContext) {
     this.context = context;
 
-    const initialConversation = createConversation(0);
+    const initialConversation = createConversation(context.ui, 0);
     this.state = {
       conversations: [initialConversation],
       activeConversationId: initialConversation.id,
@@ -157,6 +162,37 @@ export class AssistantModel {
 
   readonly setContext = (context: AssistantModelContext) => {
     this.context = context;
+    this.updateState((state) => {
+      let changed = false;
+      const nextConversations = state.conversations.map((conversation) => {
+        if (conversation.autoTitleIndex === null) {
+          return conversation;
+        }
+
+        const nextTitle = createDefaultConversationTitle(
+          context.ui,
+          conversation.autoTitleIndex,
+        );
+        if (conversation.title === nextTitle) {
+          return conversation;
+        }
+
+        changed = true;
+        return {
+          ...conversation,
+          title: nextTitle,
+        };
+      });
+
+      if (!changed) {
+        return state;
+      }
+
+      return {
+        ...state,
+        conversations: nextConversations,
+      };
+    });
   };
 
   readonly setQuestion = (value: string) => {
@@ -169,7 +205,10 @@ export class AssistantModel {
 
   readonly handleCreateConversation = () => {
     this.updateState((state) => {
-      const nextConversation = createConversation(state.conversations.length);
+      const nextConversation = createConversation(
+        this.context.ui,
+        state.conversations.length,
+      );
       return {
         ...state,
         conversations: [...state.conversations, nextConversation],
@@ -280,8 +319,13 @@ export class AssistantModel {
       ...conversation,
       title:
         conversation.messages.length === 0
-          ? normalizedQuestion.slice(0, 18) || DEFAULT_CONVERSATION_TITLE
+          ? normalizedQuestion.slice(0, 18) ||
+            createDefaultConversationTitle(
+              context.ui,
+              conversation.autoTitleIndex ?? 0,
+            )
           : conversation.title,
+      autoTitleIndex: null,
       messages: [...conversation.messages, userMessage],
       question: "",
       isAsking: true,

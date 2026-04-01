@@ -137,7 +137,7 @@ const en = {
   assistantSidebarImage: 'Image',
   assistantSidebarSend: 'Send',
   assistantSidebarSendBusy: 'Asking...',
-  assistantSidebarNewConversation: 'New conversation',
+  assistantSidebarNewConversation: 'New chat',
   assistantSidebarHistory: 'History',
   assistantSidebarMore: 'More',
   assistantSidebarQuestion: 'Question',

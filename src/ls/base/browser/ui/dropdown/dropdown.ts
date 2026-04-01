@@ -1,4 +1,9 @@
 import 'ls/base/browser/ui/dropdown/dropdown.css';
+import {
+  createHoverController,
+  type HoverHandle,
+  type HoverInput,
+} from 'ls/base/browser/ui/hover/hover';
 
 export type DropdownSize = 'sm' | 'md' | 'lg';
 export type DropdownMenuAlign = 'start' | 'center' | 'end';
@@ -19,6 +24,7 @@ export type DropdownProps = {
   disabled?: boolean;
   className?: string;
   title?: string;
+  hover?: HoverInput;
   menuMode?: 'dom' | 'external';
   menuAlign?: DropdownMenuAlign;
   onExternalMenuChange?: (request: DropdownExternalMenuRequest | null) => void;
@@ -174,6 +180,7 @@ export class DropdownView {
   private readonly field = createElement('div', 'dropdown-field custom-dropdown-field');
   private readonly iconWrapper = createElement('div', 'dropdown-icon-wrapper');
   private readonly chevronIcon = createChevronIcon();
+  private readonly hoverController: HoverHandle;
   private menuView: HTMLDivElement | null = null;
   private activeExternalMenuRequest: DropdownExternalMenuRequest | null = null;
   private removeDocumentMouseDown = () => {};
@@ -182,6 +189,7 @@ export class DropdownView {
 
   constructor(props: DropdownProps) {
     this.props = this.normalizeProps(props);
+    this.hoverController = createHoverController(this.element, null);
     this.iconWrapper.append(this.chevronIcon);
     this.element.append(this.field, this.iconWrapper);
 
@@ -240,6 +248,7 @@ export class DropdownView {
     this.element.removeEventListener('keydown', this.handleKeyDown);
     this.element.removeEventListener('focus', this.handleFocus);
     this.element.removeEventListener('blur', this.handleBlur);
+    this.hoverController.dispose();
     this.element.replaceChildren();
   }
 
@@ -514,14 +523,15 @@ export class DropdownView {
       this.props.className,
     ]);
     this.element.tabIndex = this.props.disabled ? -1 : 0;
-    this.element.title = this.props.title ?? selectedOption?.title ?? '';
+    const resolvedHover =
+      this.props.hover === undefined
+        ? this.props.title ?? selectedOption?.title ?? null
+        : this.props.hover;
+    this.hoverController.update(resolvedHover);
+    this.element.removeAttribute('title');
 
     this.field.textContent = selectedOption?.label ?? this.props.placeholder ?? '';
-    if (selectedOption?.title) {
-      this.field.title = selectedOption.title;
-    } else {
-      this.field.removeAttribute('title');
-    }
+    this.field.removeAttribute('title');
 
     if (this.isOpen) {
       this.chevronIcon.classList.add('open');

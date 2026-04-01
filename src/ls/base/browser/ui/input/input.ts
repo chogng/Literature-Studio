@@ -1,4 +1,9 @@
 import 'ls/base/browser/ui/input/input.css';
+import {
+  createHoverController,
+  type HoverHandle,
+  type HoverInput,
+} from 'ls/base/browser/ui/hover/hover';
 
 export type InputSize = 'sm' | 'md' | 'lg';
 export type InputAppearance = 'default' | 'flat';
@@ -23,6 +28,7 @@ export interface InputProps {
   autocomplete?: HTMLInputElement['autocomplete'];
   className?: string;
   title?: string;
+  hover?: HoverInput;
   onInput?: (event: Event) => void;
   onChange?: (event: Event) => void;
   onFocus?: (event: FocusEvent) => void;
@@ -101,10 +107,12 @@ export class InputView {
   private readonly labelElement = createElement('label', 'input-label');
   private readonly wrapperElement = createElement('div', 'input-wrapper');
   private readonly inputElement = createElement('input', 'input-field') as HTMLInputElement;
+  private readonly hoverController: HoverHandle;
 
   constructor(props: InputProps = {}) {
     this.props = { ...DEFAULT_INPUT_PROPS, ...props };
     this.value = typeof props.value === 'string' ? props.value : '';
+    this.hoverController = createHoverController(this.wrapperElement, null);
 
     this.inputElement.addEventListener('input', this.handleInput);
     this.inputElement.addEventListener('change', this.handleChange);
@@ -143,6 +151,7 @@ export class InputView {
     this.inputElement.removeEventListener('change', this.handleChange);
     this.inputElement.removeEventListener('focus', this.handleFocus);
     this.inputElement.removeEventListener('blur', this.handleBlur);
+    this.hoverController.dispose();
     this.element.replaceChildren();
   }
 
@@ -210,6 +219,7 @@ export class InputView {
       autocomplete,
       className = '',
       title,
+      hover,
     } = this.props;
 
     const wrapperClassName = [
@@ -225,7 +235,9 @@ export class InputView {
       .join(' ');
 
     this.wrapperElement.className = wrapperClassName;
-    this.wrapperElement.title = title ?? '';
+    const resolvedHover = hover === undefined ? title ?? null : hover;
+    this.hoverController.update(resolvedHover);
+    this.wrapperElement.removeAttribute('title');
 
     this.inputElement.disabled = Boolean(disabled);
     this.inputElement.name = name ?? '';
@@ -237,7 +249,7 @@ export class InputView {
     } else {
       this.inputElement.removeAttribute('autocomplete');
     }
-    this.inputElement.title = title ?? '';
+    this.inputElement.removeAttribute('title');
     if (this.inputElement.value !== this.value) {
       this.inputElement.value = this.value;
     }
