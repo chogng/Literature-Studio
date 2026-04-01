@@ -14,6 +14,7 @@ export type DateRangePickerProps = {
   onEndDateChange: (value: string) => void;
   className?: string;
   triggerIcon?: Node | string | number | null;
+  triggerMode?: 'default' | 'icon';
 };
 
 type PickerField = 'start' | 'end';
@@ -250,6 +251,7 @@ export class DateRangePickerView {
       ...props,
       className: props.className ?? '',
       triggerIcon: props.triggerIcon ?? null,
+      triggerMode: props.triggerMode ?? 'default',
     };
   }
 
@@ -453,6 +455,7 @@ export class DateRangePickerView {
       'btn-base',
       'btn-secondary',
       'btn-md',
+      this.props.triggerMode === 'icon' ? 'btn-mode-icon' : '',
       this.isOpen ? 'is-active' : '',
     ]
       .filter(Boolean)
@@ -467,6 +470,7 @@ export class DateRangePickerView {
       appendTriggerIcon(this.triggerIcon, this.props.triggerIcon);
     }
     this.triggerText.textContent = triggerLabel;
+    this.triggerText.style.display = this.props.triggerMode === 'icon' ? 'none' : '';
 
     this.renderPopup();
   }
