@@ -1,3 +1,5 @@
+import { getEditorNamedFontSizeDocxHalfPoints } from 'ls/base/common/editorFormat';
+
 export type DocxExportConfig = {
   fileNamePrefix: string;
   article: {
@@ -37,8 +39,8 @@ export type DocxExportConfig = {
 export const defaultDocxExportConfig: Readonly<DocxExportConfig> = {
   fileNamePrefix: 'literature-batch',
   article: {
-    titleFontSize: 24,
-    bodyFontSize: 24,
+    titleFontSize: getEditorNamedFontSizeDocxHalfPoints('小四'),
+    bodyFontSize: getEditorNamedFontSizeDocxHalfPoints('小四'),
     fontAscii: 'Times New Roman',
     fontEastAsia: '宋体',
     bodyColor: '000000',
@@ -47,7 +49,7 @@ export const defaultDocxExportConfig: Readonly<DocxExportConfig> = {
     abstractLineSpacingAfter: 60,
   },
   journal: {
-    titleFontSize: 30,
+    titleFontSize: getEditorNamedFontSizeDocxHalfPoints('小三'),
     fontAscii: 'Times New Roman',
     fontEastAsia: '宋体',
     titleColor: '0070C0',

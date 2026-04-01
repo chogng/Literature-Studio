@@ -62,6 +62,7 @@ import {
   fetchLatestArticles,
 } from 'ls/code/electron-main/fetch/dispatch';
 import { exportArticlesDocx } from 'ls/code/electron-main/document/docx';
+import { exportEditorDocx } from 'ls/code/electron-main/document/editorDocx';
 import { normalizeFetchStrategy, shouldPrepareWebContentArtifacts } from 'ls/code/electron-main/fetch/fetchStrategy';
 import type { WebContentExtractionSnapshot, WebContentSnapshot } from 'ls/code/electron-main/fetch/fetchStrategy';
 
@@ -244,6 +245,18 @@ async function invokeCommand<TCommand extends AppCommand>(
           payload as AppCommandPayloadMap['export_articles_docx'],
           app.getPath('downloads'),
           storage,
+          mainWindow,
+        ) as Promise<AppCommandResultMap[TCommand]>;
+      }
+    case 'export_editor_docx':
+      {
+        const mainWindow = getMainWindow();
+        if (!mainWindow) {
+          throw appError('MAIN_WINDOW_UNAVAILABLE');
+        }
+        return exportEditorDocx(
+          payload as AppCommandPayloadMap['export_editor_docx'],
+          app.getPath('downloads'),
           mainWindow,
         ) as Promise<AppCommandResultMap[TCommand]>;
       }

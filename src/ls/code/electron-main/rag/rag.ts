@@ -101,11 +101,17 @@ function buildEvidenceExcerpt(article: Article): string {
   return truncateText(sourceText, maxEvidenceExcerptLength);
 }
 
-function resolveRagSettings(payload: RagAnswerArticlesPayload, appSettings: AppSettings): RagSettings {
+function resolveRagSettings(
+  payload: RagAnswerArticlesPayload,
+  appSettings: Pick<AppSettings, 'rag'>,
+): RagSettings {
   return payload.rag ?? appSettings.rag;
 }
 
-function resolveLlmSettings(payload: RagAnswerArticlesPayload, appSettings: AppSettings): LlmSettings {
+function resolveLlmSettings(
+  payload: RagAnswerArticlesPayload,
+  appSettings: Pick<AppSettings, 'llm'>,
+): LlmSettings {
   return payload.llm ?? appSettings.llm;
 }
 
@@ -185,7 +191,7 @@ export async function testRagConnection(payload: TestRagConnectionPayload = {}) 
 
 export async function answerQuestionFromArticles(
   payload: RagAnswerArticlesPayload,
-  appSettings: AppSettings,
+  appSettings: Pick<AppSettings, 'llm' | 'rag'>,
 ): Promise<RagAnswerResult> {
   const question = normalizeQuestion(payload.question);
   const writingContext = cleanText(payload.writingContext);

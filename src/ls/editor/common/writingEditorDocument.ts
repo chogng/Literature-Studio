@@ -15,6 +15,15 @@ export type WritingEditorNode = {
   text?: string;
 };
 
+type QueryElementLike = {
+  getAttribute: (name: string) => string | null;
+  textContent: string | null;
+};
+
+type QueryRootLike = {
+  querySelectorAll: (selectors: string) => ArrayLike<QueryElementLike> | Iterable<QueryElementLike>;
+};
+
 export type WritingEditorDocument = WritingEditorNode;
 
 export type WritingEditorDerivedLabels = {
@@ -865,10 +874,10 @@ export function collectWritingEditorStats(document: WritingEditorDocument) {
   };
 }
 
-export function syncWritingEditorDerivedLabels(root: ParentNode, documentNode: ProseMirrorNode) {
+export function syncWritingEditorDerivedLabels(root: QueryRootLike, documentNode: ProseMirrorNode) {
   const derivedLabels = collectWritingEditorDerivedLabels(documentNode);
 
-  root.querySelectorAll<HTMLElement>('[data-citation-ids]').forEach((element) => {
+  for (const element of Array.from(root.querySelectorAll('[data-citation-ids]') as ArrayLike<QueryElementLike>)) {
     const citationIds = (element.getAttribute('data-citation-ids') ?? '')
       .split(',')
       .map((segment) => segment.trim())
@@ -881,9 +890,9 @@ export function syncWritingEditorDerivedLabels(root: ParentNode, documentNode: P
       },
       derivedLabels,
     );
-  });
+  }
 
-  root.querySelectorAll<HTMLElement>('[data-target-id]').forEach((element) => {
+  for (const element of Array.from(root.querySelectorAll('[data-target-id]') as ArrayLike<QueryElementLike>)) {
     const targetId = element.getAttribute('data-target-id');
     const label = element.textContent?.split(/\s+/)[0] || 'Figure';
 
@@ -894,7 +903,7 @@ export function syncWritingEditorDerivedLabels(root: ParentNode, documentNode: P
       },
       derivedLabels,
     );
-  });
+  }
 }
 
 export function withParagraphBlockId(attrs: Record<string, unknown> | null | undefined) {

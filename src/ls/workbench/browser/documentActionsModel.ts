@@ -25,6 +25,7 @@ import {
   resolvePreferredDirectory,
 } from 'ls/workbench/services/document/documentActionService';
 import { syncLibraryMetadataFromArticle } from 'ls/workbench/services/knowledgeBase/libraryMetadataService';
+import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
 export type DocumentActionsControllerContext = {
   desktopRuntime: boolean;
@@ -38,6 +39,10 @@ export type DocumentActionsControllerContext = {
   isSelectionModeEnabled: boolean;
   selectedArticleOrderLookup: ReadonlyMap<string, number>;
   exportableArticles: Article[];
+  activeDraftExport: {
+    title: string;
+    document: WritingEditorDocument;
+  } | null;
   onLibraryDocumentUpserted?: (document: LibraryDocumentSummary) => void;
   onLibraryUpdated?: () => void | Promise<void>;
 };
@@ -117,7 +122,9 @@ function createSnapshot(
   context: DocumentActionsControllerContext,
 ): DocumentActionsControllerSnapshot {
   return {
-    canExportDocx: canExportArticlesDocx(context.exportableArticles.length),
+    canExportDocx:
+      Boolean(context.activeDraftExport) ||
+      canExportArticlesDocx(context.exportableArticles.length),
   };
 }
 
@@ -287,7 +294,7 @@ export class DocumentActionsController {
     }
   };
 
-  readonly handleExportArticlesDocx = async () => {
+  readonly handleExportDocx = async () => {
     const {
       desktopRuntime,
       invokeDesktop,
@@ -295,9 +302,41 @@ export class DocumentActionsController {
       ui,
       pdfDownloadDir,
       exportableArticles,
+      activeDraftExport,
     } = this.context;
 
     if (!desktopRuntime) {
+      return;
+    }
+
+    if (activeDraftExport) {
+      try {
+        const result = await invokeDesktop('export_editor_docx', {
+          document: activeDraftExport.document,
+          title: activeDraftExport.title,
+          preferredDirectory: resolvePreferredDirectory(pdfDownloadDir),
+          locale,
+        });
+
+        if (!result) {
+          return;
+        }
+
+        toast.success(
+          formatLocalized(ui.toastEditorDocxExported, {
+            title: result.title,
+            filePath: result.filePath,
+          }),
+        );
+      } catch (exportError) {
+        const localizedError = localizeDesktopInvokeError(
+          ui,
+          parseDesktopInvokeError(exportError),
+        );
+        toast.error(
+          formatLocalized(ui.toastDocxExportFailed, { error: localizedError }),
+        );
+      }
       return;
     }
 
