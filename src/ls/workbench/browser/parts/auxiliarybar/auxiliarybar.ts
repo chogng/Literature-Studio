@@ -1,5 +1,8 @@
 import type { AssistantChatMessage, AssistantConversation } from 'ls/workbench/browser/assistantModel';
-import { createHoverController } from 'ls/base/browser/ui/hover/hover';
+import {
+  createActionBarView,
+  type ActionBarActionItem,
+} from 'ls/base/browser/ui/actionbar/actionbar';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -7,6 +10,7 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { AuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
 import 'ls/workbench/browser/parts/auxiliarybar/media/auxiliarybar.css';
+import 'ls/workbench/browser/parts/auxiliarybar/media/chatwidget.css';
 
 export type AuxiliaryBarProps = {
   labels: AuxiliaryBarLabels;
@@ -158,29 +162,35 @@ export class AuxiliaryBar {
       tabStripScrollbar.dispose();
     });
 
-    const actions = createElement('div', 'sidebar-action-bar');
-    actions.append(
-      this.createActionButton(
-        this.props.labels.assistantNewConversation,
-        lxIconSemanticMap.assistant.newConversation,
-        this.props.onCreateConversation,
-      ),
-      this.createActionButton(
-        this.props.labels.assistantHistory,
-        lxIconSemanticMap.assistant.history,
-        this.props.onToggleHistory,
-        this.props.isHistoryOpen,
-        true,
-      ),
-      this.createActionButton(
-        this.props.labels.assistantMore,
-        lxIconSemanticMap.assistant.more,
-        this.props.onToggleMoreMenu,
-        this.props.isMoreMenuOpen,
-        true,
-      ),
-    );
-    topbar.append(stripHost, actions);
+    const actionsView = createActionBarView({
+      className: 'sidebar-action-bar',
+      ariaRole: 'group',
+      items: [
+        this.createTopbarActionItem(
+          this.props.labels.assistantNewConversation,
+          lxIconSemanticMap.assistant.newConversation,
+          this.props.onCreateConversation,
+        ),
+        this.createTopbarActionItem(
+          this.props.labels.assistantHistory,
+          lxIconSemanticMap.assistant.history,
+          this.props.onToggleHistory,
+          this.props.isHistoryOpen,
+          true,
+        ),
+        this.createTopbarActionItem(
+          this.props.labels.assistantMore,
+          lxIconSemanticMap.assistant.more,
+          this.props.onToggleMoreMenu,
+          this.props.isMoreMenuOpen,
+          true,
+        ),
+      ],
+    });
+    this.renderDisposables.add(() => {
+      actionsView.dispose();
+    });
+    topbar.append(stripHost, actionsView.getElement());
     return topbar;
   }
 
@@ -413,67 +423,68 @@ export class AuxiliaryBar {
     });
 
     const toolbar = createElement('div', 'auxiliarybar-composer-toolbar');
-    const tools = createElement('div', 'auxiliarybar-composer-tools');
-    tools.append(
-      this.createComposerButton(this.props.labels.assistantVoice, lxIconSemanticMap.assistant.voice),
-      this.createComposerButton(this.props.labels.assistantImage, lxIconSemanticMap.assistant.image),
-    );
-    const send = createElement(
-      'button',
-      'auxiliarybar-send-btn auxiliarybar-send-icon-btn btn-base btn-primary btn-mode-icon btn-md',
-    );
-    send.type = 'button';
-    send.replaceChildren(
-      this.props.isAsking
-        ? createLxIcon(lxIconSemanticMap.assistant.busy)
-        : createLxIcon(lxIconSemanticMap.assistant.send),
-    );
-    send.disabled = !canSend;
     const sendLabel = this.props.isAsking
       ? this.props.labels.assistantSendBusy
       : this.props.labels.assistantSend;
-    send.setAttribute('aria-label', sendLabel);
-    createHoverController(send, sendLabel);
-    send.addEventListener('click', this.props.onAsk);
-    toolbar.append(tools, send);
+    const actionsView = createActionBarView({
+      className: 'auxiliarybar-composer-actions',
+      ariaRole: 'group',
+      items: [
+        this.createComposerActionItem(
+          this.props.labels.assistantImage,
+          lxIconSemanticMap.assistant.image,
+          'auxiliarybar-composer-tool-action',
+        ),
+        {
+          label: sendLabel,
+          title: sendLabel,
+          content: createLxIcon(
+            this.props.isAsking
+              ? lxIconSemanticMap.assistant.busy
+              : 'voice-circle-filled',
+          ),
+          disabled: !canSend,
+          buttonClassName: 'auxiliarybar-composer-send-action',
+          onClick: () => this.props.onAsk(),
+        },
+      ],
+    });
+    this.renderDisposables.add(() => {
+      actionsView.dispose();
+    });
+    toolbar.append(actionsView.getElement());
     composer.append(textarea, toolbar);
     return composer;
   }
 
-  private createActionButton(
+  private createTopbarActionItem(
     label: string,
     icon: LxIconName,
     onClick: () => void,
     isActive = false,
     isToggle = false,
-  ) {
-    const button = createElement(
-      'button',
-      ['sidebar-action-btn', 'btn-base', 'btn-ghost', 'btn-mode-icon', 'btn-sm', isActive ? 'is-active' : '']
-        .filter(Boolean)
-        .join(' '),
-    );
-    button.type = 'button';
-    button.append(createLxIcon(icon));
-    button.setAttribute('aria-label', label);
-    if (isToggle) {
-      button.setAttribute('aria-pressed', String(isActive));
-    }
-    createHoverController(button, label);
-    button.addEventListener('click', onClick);
-    return button;
+  ): ActionBarActionItem {
+    return {
+      label,
+      content: createLxIcon(icon),
+      buttonClassName: 'sidebar-action-btn',
+      checked: isToggle ? isActive : undefined,
+      active: isActive,
+      onClick: () => onClick(),
+    };
   }
 
-  private createComposerButton(label: string, icon: LxIconName) {
-    const button = createElement(
-      'button',
-      'auxiliarybar-composer-tool-btn btn-base btn-ghost btn-mode-icon btn-sm',
-    );
-    button.type = 'button';
-    button.append(createLxIcon(icon));
-    button.setAttribute('aria-label', label);
-    createHoverController(button, label);
-    return button;
+  private createComposerActionItem(
+    label: string,
+    icon: LxIconName,
+    buttonClassName = 'auxiliarybar-composer-tool-action',
+  ): ActionBarActionItem {
+    return {
+      label,
+      title: label,
+      content: createLxIcon(icon),
+      buttonClassName,
+    };
   }
 
   private disposeRenderDisposables() {

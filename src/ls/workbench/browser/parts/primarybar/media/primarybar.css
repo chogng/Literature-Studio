@@ -20,11 +20,12 @@
   gap: 4px;
 }
 
-.sidebar-action-btn.btn-base {
-  --btn-icon-size: 26px;
-  min-width: 26px;
-  width: 26px;
-  height: 26px;
-  padding: 0;
+.sidebar-action-bar.ls-actionbar {
+  --ls-actionbar-item-size: 26px;
+  --ls-actionbar-gap: 4px;
+}
+
+.sidebar-action-btn.btn-base,
+.sidebar-action-btn.ls-actionbar-action {
   border-radius: 6px;
 }

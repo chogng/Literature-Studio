@@ -1,5 +1,5 @@
 import type { ArticleDetailsModalLabels } from 'ls/base/parts/sandbox/common/desktopTypes';
-import { createHoverController } from 'ls/base/browser/ui/hover/hover';
+import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import type { Locale } from 'language/i18n';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
@@ -101,31 +101,18 @@ export class ArticleCard {
     'span',
     'secondary-sidebar-article-card-meta',
   );
-  private readonly toolbarElement = createElement(
-    'div',
-    'secondary-sidebar-article-card-toolbar-actions',
-  );
-  private readonly downloadButton = createElement(
-    'button',
-    'secondary-sidebar-article-card-icon-btn btn-base btn-ghost btn-mode-icon btn-sm',
-  );
-  private readonly detailsButton = createElement(
-    'button',
-    'secondary-sidebar-article-card-icon-btn btn-base btn-ghost btn-mode-icon btn-sm',
-  );
-  private readonly downloadHover = createHoverController(this.downloadButton, null);
-  private readonly detailsHover = createHoverController(this.detailsButton, null);
+  private readonly toolbarView = createActionBarView({
+    className: 'secondary-sidebar-article-card-toolbar-actions',
+    ariaRole: 'group',
+  });
   private readonly unsubscribeDownloadStatus: () => void;
 
   constructor(props: ArticleCardProps) {
     this.props = props;
-    this.element.append(this.mainElement, this.toolbarElement);
+    this.element.append(this.mainElement, this.toolbarView.getElement());
     this.mainElement.append(this.titleElement, this.metaElement);
-    this.toolbarElement.append(this.downloadButton, this.detailsButton);
     this.element.addEventListener('click', this.handleCardClick);
     this.element.addEventListener('keydown', this.handleCardKeyDown);
-    this.downloadButton.addEventListener('click', this.handleDownloadClick);
-    this.detailsButton.addEventListener('click', this.handleDetailsClick);
     this.unsubscribeDownloadStatus = subscribePdfDownloadStatus(this.render);
     this.render();
   }
@@ -141,12 +128,9 @@ export class ArticleCard {
 
   dispose() {
     this.unsubscribeDownloadStatus();
-    this.downloadHover.dispose();
-    this.detailsHover.dispose();
+    this.toolbarView.dispose();
     this.element.removeEventListener('click', this.handleCardClick);
     this.element.removeEventListener('keydown', this.handleCardKeyDown);
-    this.downloadButton.removeEventListener('click', this.handleDownloadClick);
-    this.detailsButton.removeEventListener('click', this.handleDetailsClick);
     this.element.replaceChildren();
   }
 
@@ -181,62 +165,71 @@ export class ArticleCard {
     this.titleElement.title = title;
     this.metaElement.textContent = metaText;
 
-    this.downloadButton.type = 'button';
-    this.downloadButton.className = [
-      'secondary-sidebar-article-card-icon-btn',
-      'btn-base',
-      'btn-ghost',
-      'btn-mode-icon',
-      'btn-sm',
-      hasDownloaded ? 'is-downloaded' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    this.downloadButton.replaceChildren(
-      isDownloading
-        ? createLxIcon('sync')
-        : hasDownloaded
-          ? createLxIcon(lxIconSemanticMap.articleCard.downloaded)
-          : createLxIcon(lxIconSemanticMap.articleCard.download),
-    );
-    this.downloadButton.disabled = isDownloading;
-    this.downloadButton.setAttribute('aria-label', DOWNLOAD_PDF_LABEL);
-    this.downloadButton.removeAttribute('title');
-    this.downloadHover.update({
-      content: hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL,
-      subtitle: title,
-      actions: [
+    this.toolbarView.setProps({
+      className: 'secondary-sidebar-article-card-toolbar-actions',
+      ariaRole: 'group',
+      items: [
+        {
+          label: DOWNLOAD_PDF_LABEL,
+          content: isDownloading
+            ? createLxIcon('sync')
+            : hasDownloaded
+              ? createLxIcon(lxIconSemanticMap.articleCard.downloaded)
+              : createLxIcon(lxIconSemanticMap.articleCard.download),
+          disabled: isDownloading,
+          title: hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL,
+          hover: {
+            content: hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL,
+            subtitle: title,
+            actions: [
+              {
+                label: VIEW_DETAILS_LABEL,
+                run: () => {
+                  this.openArticleDetails();
+                },
+              },
+            ],
+          },
+          buttonClassName: [
+            'secondary-sidebar-article-card-icon-btn',
+            hasDownloaded ? 'is-downloaded' : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+          onClick: (event) => {
+            event.stopPropagation();
+            void this.startPdfDownload();
+          },
+        },
         {
           label: VIEW_DETAILS_LABEL,
-          run: () => {
+          content: createLxIcon(lxIconSemanticMap.articleCard.details),
+          buttonClassName: 'secondary-sidebar-article-card-icon-btn',
+          buttonAttributes: {
+            'aria-haspopup': 'dialog',
+          },
+          hover: {
+            content: VIEW_DETAILS_LABEL,
+            subtitle: title,
+            actions:
+              article.sourceUrl && !isDownloading
+                ? [
+                    {
+                      label: hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL,
+                      disabled: hasDownloaded,
+                      run: () => {
+                        void this.startPdfDownload();
+                      },
+                    },
+                  ]
+                : [],
+          },
+          onClick: (event) => {
+            event.stopPropagation();
             this.openArticleDetails();
           },
         },
       ],
-    });
-
-    this.detailsButton.type = 'button';
-    this.detailsButton.className =
-      'secondary-sidebar-article-card-icon-btn btn-base btn-ghost btn-mode-icon btn-sm';
-    this.detailsButton.replaceChildren(createLxIcon(lxIconSemanticMap.articleCard.details));
-    this.detailsButton.setAttribute('aria-label', VIEW_DETAILS_LABEL);
-    this.detailsButton.removeAttribute('title');
-    this.detailsButton.setAttribute('aria-haspopup', 'dialog');
-    this.detailsHover.update({
-      content: VIEW_DETAILS_LABEL,
-      subtitle: title,
-      actions:
-        article.sourceUrl && !isDownloading
-          ? [
-              {
-                label: hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL,
-                disabled: hasDownloaded,
-                run: () => {
-                  void this.startPdfDownload();
-                },
-              },
-            ]
-          : [],
     });
   };
 
@@ -260,16 +253,6 @@ export class ArticleCard {
 
     keyboardEvent.preventDefault();
     this.props.onToggleSelected(this.props.article);
-  };
-
-  private readonly handleDownloadClick = async (event: Event) => {
-    event.stopPropagation();
-    await this.startPdfDownload();
-  };
-
-  private readonly handleDetailsClick = (event: Event) => {
-    event.stopPropagation();
-    this.openArticleDetails();
   };
 
   private startPdfDownload() {

@@ -1,5 +1,5 @@
 import type { QuickAccessSourceOption } from 'ls/workbench/services/quickAccess/quickAccessService';
-import { createButtonView } from 'ls/base/browser/ui/button/button';
+import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -124,6 +124,10 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+function composeClassName(parts: Array<string | undefined | null | false>) {
+  return parts.filter(Boolean).join(' ');
+}
+
 function measureSourceTriggerWidth(label: string): number {
   const text = label.trim();
   if (!text) {
@@ -159,24 +163,32 @@ function createSourceOptions(
   }));
 }
 
-function createIconButton(params: {
+type TitlebarIconActionItem = {
   className: string;
   label: string;
   icon: LxIconName;
   onClick: () => void;
   disabled?: boolean;
   title?: string;
+};
+
+function createTitlebarActionBar(params: {
+  className: string;
+  ariaLabel?: string;
+  items: readonly TitlebarIconActionItem[];
 }) {
-  return createButtonView({
-    className: params.className,
-    variant: 'ghost',
-    size: 'md',
-    mode: 'icon',
-    ariaLabel: params.label,
-    title: params.title ?? params.label,
-    content: createLxIcon(params.icon),
-    disabled: params.disabled,
-    onClick: () => params.onClick(),
+  return createActionBarView({
+    className: composeClassName(['titlebar-actionbar', params.className]),
+    ariaRole: 'group',
+    ariaLabel: params.ariaLabel,
+    items: params.items.map((item) => ({
+      label: item.label,
+      title: item.title ?? item.label,
+      content: createLxIcon(item.icon),
+      disabled: item.disabled,
+      buttonClassName: composeClassName(['titlebar-btn', item.className]),
+      onClick: () => item.onClick(),
+    })),
   });
 }
 
@@ -300,58 +312,63 @@ export class TitlebarView {
       return;
     }
 
-    const fetchSidebarButton = this.trackView(
-      createIconButton({
-        className: 'titlebar-btn titlebar-btn-fetch',
-        label: props.fetchSidebarToggleLabel,
-        icon: props.isFetchSidebarOpen
-          ? lxIconSemanticMap.titlebar.fetchSidebarOpen
-          : lxIconSemanticMap.titlebar.fetchSidebarClosed,
-        onClick: requestToggleTitlebarFetchSidebar,
+    const fetchSidebarActionBar = this.trackView(
+      createTitlebarActionBar({
+        className: 'titlebar-start-group',
+        items: [
+          {
+            className: 'titlebar-btn-fetch',
+            label: props.fetchSidebarToggleLabel,
+            icon: props.isFetchSidebarOpen
+              ? lxIconSemanticMap.titlebar.fetchSidebarOpen
+              : lxIconSemanticMap.titlebar.fetchSidebarClosed,
+            onClick: requestToggleTitlebarFetchSidebar,
+          },
+        ],
       }),
     );
 
-    this.startElement.append(fetchSidebarButton.getElement());
+    this.startElement.append(fetchSidebarActionBar.getElement());
   }
 
   private renderCenter(props: TitlebarProps & { labels: TitlebarLabels }) {
     this.centerElement.replaceChildren();
 
-    const navGroup = createElement('div', 'titlebar-nav-group');
-    const backButton = this.trackView(
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-nav',
-          label: props.labels.backLabel,
-          icon: lxIconSemanticMap.titlebar.navigateBack,
-          onClick: requestTitlebarNavigateBack,
-          disabled: !props.browserUrl || !props.canGoBack,
-        }),
-    );
-    const forwardButton = this.trackView(
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-nav',
-          label: props.labels.forwardLabel,
-          icon: lxIconSemanticMap.titlebar.navigateForward,
-          onClick: requestTitlebarNavigateForward,
-          disabled: !props.browserUrl || !props.canGoForward,
-        }),
-    );
-    navGroup.append(backButton.getElement(), forwardButton.getElement());
+    const navItems: TitlebarIconActionItem[] = [
+      {
+        className: 'titlebar-btn-nav',
+        label: props.labels.backLabel,
+        icon: lxIconSemanticMap.titlebar.navigateBack,
+        onClick: requestTitlebarNavigateBack,
+        disabled: !props.browserUrl || !props.canGoBack,
+      },
+      {
+        className: 'titlebar-btn-nav',
+        label: props.labels.forwardLabel,
+        icon: lxIconSemanticMap.titlebar.navigateForward,
+        onClick: requestTitlebarNavigateForward,
+        disabled: !props.browserUrl || !props.canGoForward,
+      },
+    ];
 
     if (props.onNavigateRefresh) {
-      const refreshButton = this.trackView(
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-nav titlebar-btn-refresh',
-          label: props.labels.refreshLabel,
-          icon: lxIconSemanticMap.titlebar.refresh,
-          onClick: () => props.onNavigateRefresh?.(),
-          disabled: !props.browserUrl,
-        }),
-      );
-      navGroup.append(refreshButton.getElement());
+      navItems.push({
+        className: 'titlebar-btn-nav titlebar-btn-refresh',
+        label: props.labels.refreshLabel,
+        icon: lxIconSemanticMap.titlebar.refresh,
+        onClick: () => props.onNavigateRefresh?.(),
+        disabled: !props.browserUrl,
+      });
     }
 
-    this.centerElement.append(navGroup);
+    const navGroup = this.trackView(
+      createTitlebarActionBar({
+        className: 'titlebar-nav-group',
+        items: navItems,
+      }),
+    );
+
+    this.centerElement.append(navGroup.getElement());
 
     if (props.onWebUrlChange) {
       const urlBar = createElement('div', 'titlebar-url-bar');
@@ -402,7 +419,7 @@ export class TitlebarView {
 
   private renderControls(props: TitlebarProps & { labels: TitlebarLabels }) {
     this.controlsElement.replaceChildren();
-    const actionGroup = createElement('div', 'titlebar-controls-group');
+    const actionItems: TitlebarIconActionItem[] = [];
 
     if (props.onSelectAddressBarSource) {
       const sourceOptions = createSourceOptions(
@@ -459,36 +476,30 @@ export class TitlebarView {
     }
 
     if (props.onTogglePrimarySidebar && props.primarySidebarToggleLabel) {
-      const primarySidebarButton = this.trackView(
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-primary',
-          label: props.primarySidebarToggleLabel,
-          icon: props.isPrimarySidebarOpen
-            ? lxIconSemanticMap.titlebar.primarySidebarOpen
-            : lxIconSemanticMap.titlebar.primarySidebarClosed,
-          onClick: requestToggleTitlebarPrimarySidebar,
-        }),
-      );
-      actionGroup.append(primarySidebarButton.getElement());
+      actionItems.push({
+        className: 'titlebar-btn-primary',
+        label: props.primarySidebarToggleLabel,
+        icon: props.isPrimarySidebarOpen
+          ? lxIconSemanticMap.titlebar.primarySidebarOpen
+          : lxIconSemanticMap.titlebar.primarySidebarClosed,
+        onClick: requestToggleTitlebarPrimarySidebar,
+      });
     }
 
     if (props.onToggleAuxiliarySidebar && props.auxiliarySidebarToggleLabel) {
-      const auxiliaryButton = this.trackView(
-        createIconButton({
-          className: 'titlebar-btn titlebar-btn-auxiliary',
-          label: props.auxiliarySidebarToggleLabel,
-          icon: props.isAuxiliarySidebarOpen
-            ? lxIconSemanticMap.titlebar.auxiliaryOpen
-            : lxIconSemanticMap.titlebar.auxiliaryClosed,
-          onClick: requestToggleTitlebarAuxiliarySidebar,
-        }),
-      );
-      actionGroup.append(auxiliaryButton.getElement());
+      actionItems.push({
+        className: 'titlebar-btn-auxiliary',
+        label: props.auxiliarySidebarToggleLabel,
+        icon: props.isAuxiliarySidebarOpen
+          ? lxIconSemanticMap.titlebar.auxiliaryOpen
+          : lxIconSemanticMap.titlebar.auxiliaryClosed,
+        onClick: requestToggleTitlebarAuxiliarySidebar,
+      });
     }
 
-    const exportButton = this.trackView(
-      createIconButton({
-        className: 'titlebar-btn titlebar-btn-export',
+    actionItems.push(
+      {
+        className: 'titlebar-btn-export',
         label: props.labels.exportDocxLabel,
         icon: lxIconSemanticMap.titlebar.exportDocx,
         onClick: requestExportTitlebarDocx,
@@ -496,19 +507,24 @@ export class TitlebarView {
         title: props.canExportDocx
           ? props.labels.exportDocxLabel
           : props.labels.noExportableArticlesLabel,
-      }),
-    );
-    const settingsButton = this.trackView(
-      createIconButton({
-        className: 'titlebar-btn titlebar-btn-settings',
+      },
+      {
+        className: 'titlebar-btn-settings',
         label: props.labels.settingsLabel,
         icon: lxIconSemanticMap.titlebar.settings,
         onClick: requestToggleTitlebarSettings,
+      },
+    );
+
+    const actionGroup = this.trackView(
+      createTitlebarActionBar({
+        className: 'titlebar-controls-group',
+        ariaLabel: props.labels.controlsAriaLabel,
+        items: actionItems,
       }),
     );
-    actionGroup.append(exportButton.getElement(), settingsButton.getElement());
 
-    this.controlsElement.append(actionGroup);
+    this.controlsElement.append(actionGroup.getElement());
 
     if (WINDOW_CHROME_LAYOUT.renderCustomWindowControls) {
       const windowControls = this.trackView(

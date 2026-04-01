@@ -1,0 +1,141 @@
+.ls-actionbar {
+  --ls-actionbar-item-size: 28px;
+  --ls-actionbar-icon-size: 16px;
+  --ls-actionbar-gap: 4px;
+  --ls-actionbar-radius: 6px;
+  --ls-actionbar-foreground: #425468;
+  --ls-actionbar-hover-foreground: #1a2530;
+  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.04);
+  --ls-actionbar-active-foreground: #0a5fbf;
+  --ls-actionbar-active-background: #e8f1fc;
+  --ls-actionbar-focus-outline: #0a5fbf;
+  --ls-actionbar-separator: rgba(66, 84, 104, 0.18);
+  --ls-actionbar-disabled-opacity: 0.5;
+
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.ls-actionbar-actions-container {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ls-actionbar-gap);
+  min-width: 0;
+}
+
+.ls-actionbar.is-vertical .ls-actionbar-actions-container {
+  flex-direction: column;
+}
+
+.ls-actionbar-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ls-actionbar-action {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ls-actionbar-foreground);
+  border-radius: var(--ls-actionbar-radius);
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.ls-actionbar-action.is-icon {
+  width: var(--ls-actionbar-item-size);
+  min-width: var(--ls-actionbar-item-size);
+  max-width: var(--ls-actionbar-item-size);
+  height: var(--ls-actionbar-item-size);
+  aspect-ratio: 1 / 1;
+}
+
+.ls-actionbar-action.is-text,
+.ls-actionbar-action.is-custom {
+  min-height: var(--ls-actionbar-item-size);
+}
+
+.ls-actionbar-action.is-text {
+  padding: 0 8px;
+}
+
+.ls-actionbar-action:hover:not(:disabled) {
+  background: var(--ls-actionbar-hover-background);
+  color: var(--ls-actionbar-hover-foreground);
+}
+
+.ls-actionbar-action:active:not(:disabled),
+.ls-actionbar-item.is-active .ls-actionbar-action,
+.ls-actionbar-item.is-checked .ls-actionbar-action {
+  background: var(--ls-actionbar-active-background);
+  color: var(--ls-actionbar-active-foreground);
+}
+
+.ls-actionbar-item.is-active .ls-actionbar-action:hover:not(:disabled),
+.ls-actionbar-item.is-checked .ls-actionbar-action:hover:not(:disabled) {
+  background: var(--ls-actionbar-active-background);
+  color: var(--ls-actionbar-active-foreground);
+}
+
+.ls-actionbar-action:focus-visible {
+  outline: 2px solid var(--ls-actionbar-focus-outline);
+  outline-offset: 1px;
+}
+
+.ls-actionbar-action:disabled {
+  opacity: var(--ls-actionbar-disabled-opacity);
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.ls-actionbar-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ls-actionbar-action.is-icon .ls-actionbar-content,
+.ls-actionbar-action.is-custom .ls-actionbar-content {
+  line-height: 0;
+}
+
+.ls-actionbar-action.is-icon .lx-icon,
+.ls-actionbar-action.is-custom .lx-icon {
+  font-size: var(--ls-actionbar-icon-size);
+  width: var(--ls-actionbar-icon-size);
+  height: var(--ls-actionbar-icon-size);
+}
+
+.ls-actionbar-action.is-icon .lx-icon svg,
+.ls-actionbar-action.is-custom .lx-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ls-actionbar-separator {
+  width: 1px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--ls-actionbar-separator);
+}
+
+.ls-actionbar.is-vertical .ls-actionbar-separator {
+  width: 16px;
+  height: 1px;
+}
