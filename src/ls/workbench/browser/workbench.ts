@@ -80,9 +80,13 @@ import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentS
 import { getLocaleMessages } from 'language/i18n';
 import type { Article } from 'ls/workbench/services/article/articleFetch';
 import { normalizeUrl } from 'ls/workbench/common/url';
-import type { LibraryDocumentSummary } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { LibraryDocumentSummary, LlmProviderId } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { getConfigBatchSourceSeed, normalizeBatchLimit } from 'ls/workbench/services/config/configSchema';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+import {
+  getEnabledLlmModelsForProvider,
+  getLlmProviderDefinition,
+} from 'ls/workbench/services/llm/registry';
 import { reduceQuickAccessAction } from 'ls/workbench/services/quickAccess/quickAccessService';
 import type { QuickAccessAction, QuickAccessCommand } from 'ls/workbench/services/quickAccess/quickAccessService';
 
@@ -784,6 +788,10 @@ class WorkbenchHost {
     isFetchSidebarVisible: boolean;
     isPrimarySidebarVisible: boolean;
     isAuxiliarySidebarVisible: boolean;
+    isLayoutEdgeSnappingEnabled: boolean;
+    fetchSidebarSize: number;
+    primarySidebarSize: number;
+    auxiliarySidebarSize: number;
     secondarySidebarProps: ReturnType<typeof createSecondarySidebarPartProps>;
     primaryBarProps: PrimaryBarProps;
     auxiliarySidebarProps: AuxiliaryBarProps;
@@ -802,6 +810,7 @@ class WorkbenchHost {
     if (this.pageMount.firstChild !== readerElement) {
       this.pageMount.replaceChildren(readerElement);
     }
+    this.readerPageView.layout();
   }
 
   private renderSettingsPage(
@@ -836,10 +845,16 @@ class WorkbenchHost {
       isFetchSidebarVisible,
       isPrimarySidebarVisible,
       isAuxiliarySidebarVisible,
+      fetchSidebarSize,
+      primarySidebarSize,
+      auxiliarySidebarSize,
     } = getWorkbenchLayoutStateSnapshot();
     const { electronRuntime, webContentRuntime, desktopRuntime } =
       resolveRuntimeState();
-    const { isMaximized: isWindowMaximized } = getWindowStateSnapshot();
+    const {
+      isMaximized: isWindowMaximized,
+      isFullscreen: isWindowFullscreen,
+    } = getWindowStateSnapshot();
     const handleWindowControl = performWorkbenchWindowControl;
 
     const invokeDesktop = async <T>(
@@ -913,6 +928,21 @@ class WorkbenchHost {
       activeProvider: activeLlmProvider,
       providers: llmProviders,
     };
+    const auxiliaryLlmModelOptions = (Object.entries(llmProviders) as Array<
+      [LlmProviderId, (typeof llmProviders)[LlmProviderId]]
+    >).flatMap(([provider, providerSettings]) => {
+      const providerLabel = getLlmProviderDefinition(provider).label;
+      const providerModels = getEnabledLlmModelsForProvider(
+        provider,
+        providerSettings.enabledModels,
+      );
+      return providerModels.map((model) => ({
+        value: `${provider}:${model.id}`,
+        label: `${providerLabel} / ${model.label}`,
+        title: `${providerLabel} / ${model.label}`,
+      }));
+    });
+    const activeLlmModelOptionValue = `${activeLlmProvider}:${llmProviders[activeLlmProvider].model}`;
     const currentRagSettings = {
       enabled: knowledgeBaseModeEnabled,
       activeProvider: activeRagProvider,
@@ -1478,6 +1508,8 @@ class WorkbenchHost {
         activeConversationId: activeAssistantConversationId,
         isHistoryOpen: isAssistantHistoryOpen,
         isMoreMenuOpen: isAssistantMoreMenuOpen,
+        llmModelOptions: auxiliaryLlmModelOptions,
+        activeLlmModelOptionValue,
       },
       actions: {
         onQuestionChange: setAssistantQuestion,
@@ -1489,6 +1521,19 @@ class WorkbenchHost {
         onCloseAuxiliarySidebar: handleCloseAuxiliarySidebar,
         onToggleHistory: handleAssistantToggleHistory,
         onToggleMoreMenu: handleAssistantToggleMoreMenu,
+        onSelectLlmModel: (value) => {
+          const separatorIndex = value.indexOf(':');
+          if (separatorIndex <= 0) {
+            return;
+          }
+          const provider = value.slice(0, separatorIndex);
+          const model = value.slice(separatorIndex + 1);
+          if (!model) {
+            return;
+          }
+          settingsControllerInstance.setActiveLlmProvider(provider as LlmProviderId);
+          settingsControllerInstance.setLlmProviderModel(provider as LlmProviderId, model);
+        },
       },
     });
 
@@ -1619,6 +1664,8 @@ class WorkbenchHost {
         onActiveLlmProviderChange: settingsControllerInstance.setActiveLlmProvider,
         onLlmProviderApiKeyChange: settingsControllerInstance.setLlmProviderApiKey,
         onLlmProviderModelChange: settingsControllerInstance.setLlmProviderModel,
+        onLlmProviderModelEnabledChange:
+          settingsControllerInstance.setLlmProviderModelEnabled,
         onActiveTranslationProviderChange:
           settingsControllerInstance.setActiveTranslationProvider,
         onTranslationProviderApiKeyChange:
@@ -1647,6 +1694,10 @@ class WorkbenchHost {
         isFetchSidebarVisible,
         isPrimarySidebarVisible,
         isAuxiliarySidebarVisible,
+        isLayoutEdgeSnappingEnabled: isWindowFullscreen,
+        fetchSidebarSize,
+        primarySidebarSize,
+        auxiliarySidebarSize,
         secondarySidebarProps,
         primaryBarProps,
         auxiliarySidebarProps,

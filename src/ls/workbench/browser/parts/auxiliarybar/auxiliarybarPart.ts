@@ -1,4 +1,5 @@
 import type { AssistantModelSnapshot } from 'ls/workbench/browser/assistantModel';
+import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
 import { AuxiliaryBar } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
 import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
@@ -20,6 +21,8 @@ type CreateAuxiliaryBarPartPropsParams = {
     activeConversationId: AssistantModelSnapshot['activeConversationId'];
     isHistoryOpen: AssistantModelSnapshot['isHistoryOpen'];
     isMoreMenuOpen: AssistantModelSnapshot['isMoreMenuOpen'];
+    llmModelOptions: DropdownOption[];
+    activeLlmModelOptionValue: string;
   };
   actions: {
     onQuestionChange: (value: string) => void;
@@ -31,6 +34,7 @@ type CreateAuxiliaryBarPartPropsParams = {
     onCloseAuxiliarySidebar: () => void;
     onToggleHistory: () => void;
     onToggleMoreMenu: () => void;
+    onSelectLlmModel: (value: string) => void;
   };
 };
 
@@ -58,6 +62,8 @@ export function createAuxiliaryBarPartProps({
     activeConversationId,
     isHistoryOpen,
     isMoreMenuOpen,
+    llmModelOptions,
+    activeLlmModelOptionValue,
   },
   actions: {
     onQuestionChange,
@@ -69,6 +75,7 @@ export function createAuxiliaryBarPartProps({
     onCloseAuxiliarySidebar,
     onToggleHistory,
     onToggleMoreMenu,
+    onSelectLlmModel,
   },
 }: CreateAuxiliaryBarPartPropsParams): AuxiliaryBarProps {
   return {
@@ -86,12 +93,15 @@ export function createAuxiliaryBarPartProps({
     activeConversationId,
     isHistoryOpen,
     isMoreMenuOpen,
+    llmModelOptions,
+    activeLlmModelOptionValue,
     onCreateConversation,
     onActivateConversation,
     onCloseConversation,
     onCloseAuxiliarySidebar,
     onToggleHistory,
     onToggleMoreMenu,
+    onSelectLlmModel,
   };
 }
 

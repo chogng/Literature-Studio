@@ -230,7 +230,7 @@ const zh = {
   settingsConfigPath: '配置文件',
   currentDir: '当前生效目录：',
   systemDownloads: '系统 Downloads 目录',
-  settingsLlmTitle: '\u6a21\u578b\u63a5\u5165',
+  settingsLlmTitle: '\u6a21\u578b',
   settingsLlmProvider: '\u63d0\u4f9b\u65b9',
   settingsLlmProviderHint:
     '\u5f53\u524d\u5148\u63a5\u5165 GLM\u3001Kimi \u548c DeepSeek\uff0c\u5747\u6309 OpenAI \u517c\u5bb9\u7684 chat completions \u5f62\u5f0f\u914d\u7f6e\u3002',
@@ -240,11 +240,11 @@ const zh = {
   settingsLlmApiKey: 'API Key',
   settingsLlmApiKeyPlaceholder: '\u8bf7\u8f93\u5165\u5f53\u524d provider \u7684 API Key',
   settingsLlmModel: '\u6a21\u578b',
+  settingsLlmSearchPlaceholder: '\u641c\u7d22\u6a21\u578b',
+  settingsLlmNoResults: '\u6ca1\u6709\u627e\u5230\u5339\u914d\u7684\u6a21\u578b',
   settingsLlmTestConnection: '\u6d4b\u8bd5',
   settingsLlmShowApiKey: '\u663e\u793a',
   settingsLlmHideApiKey: '\u9690\u85cf',
-  settingsLlmHint:
-    '\u6bcf\u4e2a provider \u7684 API Key \u548c\u6a21\u578b\u90fd\u4f1a\u5355\u72ec\u4fdd\u5b58\uff0c\u5207\u6362 provider \u65f6\u4e0d\u4f1a\u4e22\u5931\u4e4b\u524d\u7684\u914d\u7f6e\u3002',
   settingsTranslationTitle: '\u4e13\u7528\u7ffb\u8bd1 API',
   settingsTranslationProvider: '\u7ffb\u8bd1\u63d0\u4f9b\u65b9',
   settingsTranslationProviderHint:

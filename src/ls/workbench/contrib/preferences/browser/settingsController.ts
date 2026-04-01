@@ -273,6 +273,15 @@ export class SettingsController {
     this.scheduleImmediateAutoSave();
   };
 
+  readonly setLlmProviderModelEnabled = (
+    provider: 'glm' | 'kimi' | 'deepseek',
+    model: string,
+    enabled: boolean,
+  ) => {
+    this.settingsModel.setLlmProviderModelEnabled(provider, model, enabled);
+    this.scheduleImmediateAutoSave();
+  };
+
   readonly setActiveTranslationProvider = (nextProvider: 'deepl') => {
     this.settingsModel.setActiveTranslationProvider(nextProvider);
     this.scheduleImmediateAutoSave();

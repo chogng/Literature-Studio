@@ -15,9 +15,10 @@ export type DateRangePickerProps = {
   className?: string;
   triggerIcon?: Node | string | number | null;
   triggerMode?: 'default' | 'icon';
+  popupWidthMode?: 'default' | 'fit-container';
 };
 
-type PickerField = 'start' | 'end';
+type DateRangeSlot = 'primary' | 'secondary';
 
 type CalendarCell = {
   date: Date;
@@ -143,19 +144,6 @@ function createTriggerLabel(labels: DateRangePickerLabels) {
   return labels.endDate || labels.startDate || 'Date';
 }
 
-function formatSelectedDate(value: string) {
-  const parsed = parseDateValue(value);
-  if (!parsed) {
-    return '--';
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(parsed);
-}
-
 function appendTriggerIcon(target: HTMLElement, icon: DateRangePickerProps['triggerIcon']) {
   target.replaceChildren();
   if (icon === null || icon === undefined) {
@@ -170,27 +158,54 @@ function appendTriggerIcon(target: HTMLElement, icon: DateRangePickerProps['trig
   target.textContent = String(icon);
 }
 
+function normalizeDateValue(value: string) {
+  return parseDateValue(value) ? value : '';
+}
+
+function orderDateValues(primaryValue: string, secondaryValue: string) {
+  const first = normalizeDateValue(primaryValue);
+  const second = normalizeDateValue(secondaryValue);
+
+  if (first && second) {
+    return first <= second ? { start: first, end: second } : { start: second, end: first };
+  }
+
+  if (first || second) {
+    return {
+      start: first || second,
+      end: '',
+    };
+  }
+
+  return {
+    start: '',
+    end: '',
+  };
+}
+
 export class DateRangePickerView {
   private props: DateRangePickerProps;
   private isOpen = false;
-  private activeField: PickerField = 'start';
   private visibleMonth: Date;
   private readonly weekdayLabels = createWeekdayLabels();
   private readonly todayValue = formatDateInputValue(new Date());
   private readonly element = createElement('div', 'date-range-picker');
-  private readonly trigger = createElement(
-    'button',
-    'date-range-trigger btn-base btn-secondary btn-md',
-  );
+  private readonly trigger = createElement('button', 'date-range-trigger');
   private readonly triggerContent = createElement('span', 'date-range-trigger-content');
   private readonly triggerIcon = createElement('span', 'date-range-trigger-icon');
   private readonly triggerText = createElement('span', 'date-range-trigger-text');
   private popup: HTMLDivElement | null = null;
+  private activeSlot: DateRangeSlot = 'primary';
+  private draftPrimaryDate = '';
+  private draftSecondaryDate = '';
+  private pendingFocusDayValue: string | null = null;
   private removeOutsideHandlers = () => {};
+  private removeWindowResizeHandler = () => {};
   private disposed = false;
 
   constructor(props: DateRangePickerProps) {
     this.props = this.normalizeProps(props);
+    this.syncDraftValuesFromProps();
     const now = new Date();
     this.visibleMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -210,6 +225,9 @@ export class DateRangePickerView {
 
   setProps(props: DateRangePickerProps) {
     this.props = this.normalizeProps(props);
+    if (!this.isOpen) {
+      this.syncDraftValuesFromProps();
+    }
     this.render();
   }
 
@@ -228,7 +246,9 @@ export class DateRangePickerView {
   }
 
   private readonly handleTriggerClick = () => {
-    this.setOpen(!this.isOpen);
+    if (!this.isOpen) {
+      this.setOpen(true);
+    }
   };
 
   private readonly handlePointerDown = (event: MouseEvent) => {
@@ -246,19 +266,112 @@ export class DateRangePickerView {
     }
   };
 
+  private readonly handleWindowResize = () => {
+    this.updatePopupLayout();
+  };
+
   private normalizeProps(props: DateRangePickerProps): DateRangePickerProps {
     return {
       ...props,
       className: props.className ?? '',
       triggerIcon: props.triggerIcon ?? null,
       triggerMode: props.triggerMode ?? 'default',
+      popupWidthMode: props.popupWidthMode ?? 'default',
     };
   }
 
-  private resolveFieldMonth(field: PickerField) {
-    const value = field === 'start' ? this.props.startDate : this.props.endDate;
-    const fallback = field === 'start' ? this.props.endDate : this.props.startDate;
-    const parsed = parseDateValue(value) ?? parseDateValue(fallback) ?? new Date();
+  private syncDraftValuesFromProps() {
+    this.draftPrimaryDate = this.props.startDate;
+    this.draftSecondaryDate = this.props.endDate;
+  }
+
+  private getSlotValue(slot: DateRangeSlot) {
+    return slot === 'primary' ? this.draftPrimaryDate : this.draftSecondaryDate;
+  }
+
+  private setSlotValue(slot: DateRangeSlot, value: string) {
+    if (slot === 'primary') {
+      this.draftPrimaryDate = value;
+      return;
+    }
+
+    this.draftSecondaryDate = value;
+  }
+
+  private applyOrderedSlotValue(slot: DateRangeSlot, value: string) {
+    const normalizedValue = normalizeDateValue(value);
+    const primaryValue = slot === 'primary' ? normalizedValue : this.draftPrimaryDate;
+    const secondaryValue = slot === 'secondary' ? normalizedValue : this.draftSecondaryDate;
+
+    if (primaryValue && secondaryValue) {
+      if (primaryValue <= secondaryValue) {
+        this.draftPrimaryDate = primaryValue;
+        this.draftSecondaryDate = secondaryValue;
+        this.activeSlot = slot === 'primary' ? 'primary' : 'secondary';
+        return;
+      }
+
+      this.draftPrimaryDate = secondaryValue;
+      this.draftSecondaryDate = primaryValue;
+      this.activeSlot = slot === 'primary' ? 'secondary' : 'primary';
+      return;
+    }
+
+    this.setSlotValue(slot, normalizedValue);
+  }
+
+  private commitDraftValues() {
+    const ordered = orderDateValues(this.draftPrimaryDate, this.draftSecondaryDate);
+    if (ordered.start !== this.props.startDate) {
+      this.props.onStartDateChange(ordered.start);
+    }
+    if (ordered.end !== this.props.endDate) {
+      this.props.onEndDateChange(ordered.end);
+    }
+  }
+
+  private updatePopupLayout() {
+    if (!this.popup) {
+      return;
+    }
+
+    this.popup.style.removeProperty('width');
+    this.popup.style.removeProperty('max-width');
+    this.popup.style.removeProperty('left');
+    this.popup.style.removeProperty('right');
+
+    if (this.props.popupWidthMode !== 'fit-container') {
+      return;
+    }
+
+    const container = this.element.parentElement;
+    if (!container) {
+      return;
+    }
+
+    const containerWidth = container.clientWidth;
+    const triggerOffsetLeft = this.element.offsetLeft;
+    const availableWidth = Math.max(0, containerWidth - triggerOffsetLeft);
+    if (availableWidth <= 0) {
+      return;
+    }
+
+    const popupWidth = Math.min(280, availableWidth);
+    this.popup.style.width = `${popupWidth}px`;
+    this.popup.style.maxWidth = `${availableWidth}px`;
+
+    if (triggerOffsetLeft + popupWidth > containerWidth) {
+      this.popup.style.left = 'auto';
+      this.popup.style.right = '0';
+    }
+  }
+
+  private resolveVisibleMonth() {
+    const parsed =
+      parseDateValue(this.getSlotValue(this.activeSlot)) ??
+      parseDateValue(this.draftPrimaryDate) ??
+      parseDateValue(this.draftSecondaryDate) ??
+      new Date();
     return new Date(parsed.getFullYear(), parsed.getMonth(), 1);
   }
 
@@ -269,16 +382,25 @@ export class DateRangePickerView {
 
     this.isOpen = nextOpen;
     if (nextOpen) {
-      this.visibleMonth = this.resolveFieldMonth(this.activeField);
+      this.syncDraftValuesFromProps();
+      this.activeSlot = 'primary';
+      this.visibleMonth = this.resolveVisibleMonth();
       document.addEventListener('mousedown', this.handlePointerDown);
       document.addEventListener('keydown', this.handleEscape);
+      window.addEventListener('resize', this.handleWindowResize);
       this.removeOutsideHandlers = () => {
         document.removeEventListener('mousedown', this.handlePointerDown);
         document.removeEventListener('keydown', this.handleEscape);
       };
+      this.removeWindowResizeHandler = () => {
+        window.removeEventListener('resize', this.handleWindowResize);
+      };
     } else {
+      this.syncDraftValuesFromProps();
       this.removeOutsideHandlers();
       this.removeOutsideHandlers = () => {};
+      this.removeWindowResizeHandler();
+      this.removeWindowResizeHandler = () => {};
     }
 
     this.render();
@@ -293,68 +415,60 @@ export class DateRangePickerView {
     this.renderPopup();
   }
 
-  private activateField(field: PickerField) {
-    this.activeField = field;
-    this.visibleMonth = this.resolveFieldMonth(field);
+  private restorePendingFocus() {
+    if (!this.popup || !this.pendingFocusDayValue) {
+      return;
+    }
+
+    const targetValue = this.pendingFocusDayValue;
+    this.pendingFocusDayValue = null;
+    const dayButtons = this.popup.querySelectorAll<HTMLButtonElement>('.date-range-day');
+    for (const button of dayButtons) {
+      if (button.dataset.dateValue === targetValue && !button.disabled) {
+        button.focus({ preventScroll: true });
+        return;
+      }
+    }
+  }
+
+  private setActiveSlot(slot: DateRangeSlot) {
+    if (this.activeSlot === slot) {
+      return;
+    }
+    this.activeSlot = slot;
+    this.visibleMonth = this.resolveVisibleMonth();
     this.renderPopup();
   }
 
   private handleSelectDate(value: string) {
-    const startDateLimit = parseDateValue(this.props.startDate) ? this.props.startDate : '';
-    const endDateLimit = parseDateValue(this.props.endDate) ? this.props.endDate : '';
-
-    if (this.activeField === 'start') {
-      this.props.onStartDateChange(value);
-      if (endDateLimit && value > endDateLimit) {
-        this.props.onEndDateChange(value);
-      }
-      this.activeField = 'end';
-      const parsed = parseDateValue(value);
-      if (parsed) {
-        this.visibleMonth = new Date(parsed.getFullYear(), parsed.getMonth(), 1);
-      }
-      this.render();
-      return;
+    this.applyOrderedSlotValue(this.activeSlot, value);
+    const parsed = parseDateValue(value);
+    if (parsed) {
+      this.visibleMonth = new Date(parsed.getFullYear(), parsed.getMonth(), 1);
     }
-
-    this.props.onEndDateChange(value);
-    if (startDateLimit && value < startDateLimit) {
-      this.props.onStartDateChange(value);
-    }
-    this.setOpen(false);
+    this.pendingFocusDayValue = value;
+    this.commitDraftValues();
+    this.render();
   }
 
   private isCellDisabled(cell: CalendarCell) {
-    const startDateLimit = parseDateValue(this.props.startDate) ? this.props.startDate : '';
-    const endDateLimit = parseDateValue(this.props.endDate) ? this.props.endDate : '';
-
-    if (this.activeField === 'start') {
-      return Boolean((endDateLimit && cell.value > endDateLimit) || cell.value > this.todayValue);
-    }
-
-    return Boolean((startDateLimit && cell.value < startDateLimit) || cell.value > this.todayValue);
+    return cell.value > this.todayValue;
   }
 
-  private renderSummaryButton(field: PickerField, label: string, value: string) {
-    const button = createElement(
+  private renderSlot(slot: DateRangeSlot, indexText: string) {
+    const slotElement = createElement(
       'button',
-      [
-        'date-range-summary-button',
-        'btn-base',
-        'btn-secondary',
-        'btn-md',
-        this.activeField === field ? 'is-active' : '',
-      ]
-        .filter(Boolean)
-        .join(' '),
+      ['date-range-slot', this.activeSlot === slot ? 'is-active' : ''].filter(Boolean).join(' '),
     );
-    button.type = 'button';
-    button.append(
-      createElement('span', 'date-range-summary-label', label),
-      createElement('span', 'date-range-summary-value', formatSelectedDate(value)),
+    slotElement.type = 'button';
+    slotElement.dataset.slot = slot;
+    slotElement.setAttribute('aria-pressed', String(this.activeSlot === slot));
+    slotElement.addEventListener('click', () => this.setActiveSlot(slot));
+    slotElement.append(
+      createElement('span', 'date-range-slot-index', indexText),
+      createElement('span', 'date-range-slot-value', this.getSlotValue(slot) || '--'),
     );
-    button.addEventListener('click', () => this.activateField(field));
-    return button;
+    return slotElement;
   }
 
   private renderPopup() {
@@ -370,10 +484,11 @@ export class DateRangePickerView {
     popup.setAttribute('aria-modal', 'false');
     popup.setAttribute('aria-label', createTriggerLabel(this.props.labels));
 
-    const summary = createElement('div', 'date-range-popup-summary');
-    summary.append(
-      this.renderSummaryButton('start', this.props.labels.startDate, this.props.startDate),
-      this.renderSummaryButton('end', this.props.labels.endDate, this.props.endDate),
+    const slots = createElement('div', 'date-range-slots');
+    slots.append(
+      this.renderSlot('primary', '1'),
+      createElement('div', 'date-range-slot-divider'),
+      this.renderSlot('secondary', '2'),
     );
 
     const header = createElement('div', 'date-range-popup-header');
@@ -401,18 +516,26 @@ export class DateRangePickerView {
       ...this.weekdayLabels.map((weekday) => createElement('span', 'date-range-weekday', weekday)),
     );
 
-    const showRange = Boolean(
-      this.props.startDate &&
-        this.props.endDate &&
-        isDateRangeValid(this.props.startDate, this.props.endDate),
+    const orderedDraft = orderDateValues(this.draftPrimaryDate, this.draftSecondaryDate);
+    const selectedValues = new Set(
+      [normalizeDateValue(this.draftPrimaryDate), normalizeDateValue(this.draftSecondaryDate)].filter(Boolean),
+    );
+    const activeValue = this.getSlotValue(this.activeSlot);
+    const showCommittedRange = Boolean(
+      orderedDraft.start &&
+        orderedDraft.end &&
+        isDateRangeValid(orderedDraft.start, orderedDraft.end),
     );
     const grid = createElement('div', 'date-range-grid');
     grid.append(
       ...createMonthCells(this.visibleMonth).map((cell) => {
-        const isStart = cell.value === this.props.startDate;
-        const isEnd = cell.value === this.props.endDate;
-        const isInRange = showRange && cell.value > this.props.startDate && cell.value < this.props.endDate;
+        const isSelected = selectedValues.has(cell.value);
+        const isStart = cell.value === orderedDraft.start;
+        const isEnd = Boolean(orderedDraft.end) && cell.value === orderedDraft.end;
+        const isInRange =
+          showCommittedRange && cell.value > orderedDraft.start && cell.value < orderedDraft.end;
         const isToday = cell.value === this.todayValue;
+        const isActiveValue = Boolean(activeValue) && cell.value === activeValue;
         const disabled = this.isCellDisabled(cell);
 
         const day = createElement(
@@ -423,9 +546,11 @@ export class DateRangePickerView {
             'btn-ghost',
             'btn-sm',
             cell.inCurrentMonth ? '' : 'is-outside',
+            isSelected ? 'is-selected' : '',
             isStart ? 'is-start' : '',
             isEnd ? 'is-end' : '',
             isInRange ? 'is-in-range' : '',
+            isActiveValue ? 'is-active-value' : '',
             isToday ? 'is-today' : '',
             disabled ? 'is-disabled' : '',
           ]
@@ -435,15 +560,18 @@ export class DateRangePickerView {
         );
         day.type = 'button';
         day.disabled = disabled;
-        day.setAttribute('aria-pressed', String(isStart || isEnd));
+        day.dataset.dateValue = cell.value;
+        day.setAttribute('aria-pressed', String(isSelected));
         day.addEventListener('click', () => this.handleSelectDate(cell.value));
         return day;
       }),
     );
 
-    popup.append(summary, header, weekdays, grid);
+    popup.append(slots, header, weekdays, grid);
     this.popup = popup;
     this.element.append(popup);
+    this.updatePopupLayout();
+    this.restorePendingFocus();
   }
 
   private render() {
@@ -452,10 +580,8 @@ export class DateRangePickerView {
     const triggerLabel = createTriggerLabel(this.props.labels);
     this.trigger.className = [
       'date-range-trigger',
-      'btn-base',
-      'btn-secondary',
-      'btn-md',
-      this.props.triggerMode === 'icon' ? 'btn-mode-icon' : '',
+      'actionbar-action',
+      this.props.triggerMode === 'icon' ? 'is-icon' : 'is-text',
       this.isOpen ? 'is-active' : '',
     ]
       .filter(Boolean)

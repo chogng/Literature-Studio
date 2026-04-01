@@ -99,15 +99,19 @@
   margin-top: auto;
   padding: 0;
   border: 1px solid #d7e2ec;
-  border-radius: 18px;
+  border-radius: 10px;
   background: #ffffff;
   box-shadow: none;
   overflow: hidden;
 }
 
+.auxiliarybar-composer.is-empty-state {
+  margin-top: 0;
+}
+
 .auxiliarybar-composer .auxiliarybar-input {
-  min-height: 104px;
-  padding: 14px 14px 10px;
+  min-height: 56px;
+  padding: 6px 8px 4px;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -117,61 +121,34 @@
 .auxiliarybar-composer-toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px 10px;
+  padding: 6px 8px 4px;
   border-top: 1px solid #e6edf4;
   background: #ffffff;
 }
 
-.auxiliarybar-composer-actions.ls-actionbar {
+.auxiliarybar-model-dropdown {
+  flex: 0 1 220px;
+  min-width: 0;
+}
+
+.auxiliarybar-composer-actions.actionbar {
   flex: 0 0 auto;
   margin-left: auto;
 }
 
-.auxiliarybar-composer-actions.ls-actionbar .ls-actionbar-actions-container {
-  gap: 8px;
+.auxiliarybar-composer-send-action.actionbar-action {
+  --ls-actionbar-icon-size: 22px;
+}
+
+.auxiliarybar-composer-send-action.actionbar-action:hover:not(:disabled) {
+  background: transparent;
 }
 
 .auxiliarybar-composer .auxiliarybar-input:focus {
   outline: none;
   box-shadow: none;
-}
-
-.auxiliarybar-composer-tool-action.ls-actionbar-action,
-.auxiliarybar-composer-send-action.ls-actionbar-action {
-  border: 1px solid transparent;
-  box-shadow: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.auxiliarybar-composer-tool-action.ls-actionbar-action {
-  width: 30px;
-  min-width: 30px;
-  max-width: 30px;
-  height: 30px;
-  border-radius: 8px;
-}
-
-.auxiliarybar-composer-send-action.ls-actionbar-action {
-  width: 30px;
-  min-width: 30px;
-  max-width: 30px;
-  height: 30px;
-  border-radius: 999px;
-}
-
-.auxiliarybar-composer-tool-action.ls-actionbar-action .lx-icon,
-.auxiliarybar-composer-send-action.ls-actionbar-action .lx-icon {
-  font-size: 16px;
-  width: 16px;
-  height: 16px;
-}
-
-.auxiliarybar-composer-tool-action.ls-actionbar-action .lx-icon svg,
-.auxiliarybar-composer-send-action.ls-actionbar-action .lx-icon svg {
-  width: 100%;
-  height: 100%;
 }
 
 .auxiliarybar-result {

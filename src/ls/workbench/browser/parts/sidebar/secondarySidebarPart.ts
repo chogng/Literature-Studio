@@ -318,7 +318,7 @@ export class SecondarySidebarPartView {
   private readonly element = createElement('section', 'panel sidebar-panel');
   private readonly actionBarElement = createElement(
     'div',
-    'secondary-sidebar-action-bar',
+    'actionbar secondary-sidebar-action-bar',
   );
   private readonly contentElement = createElement('div');
   private readonly dateRangePicker: DateRangePickerView;
@@ -423,14 +423,20 @@ export class SecondarySidebarPartView {
     });
 
     this.fetchButton.className = [
-      'btn-base',
-      'btn-primary',
-      'btn-md',
+      'actionbar-action',
+      'is-icon',
       'secondary-sidebar-fetch-btn',
     ].join(' ');
-    this.fetchButton.textContent = this.props.isBatchLoading
+    const fetchButtonLabel = this.props.isBatchLoading
       ? this.props.labels.fetchLatestBusy
       : this.props.labels.fetchLatest;
+    this.fetchButton.replaceChildren(
+      createLxIcon(
+        this.props.isBatchLoading ? 'sync' : lxIconSemanticMap.library.downloadPdf,
+      ),
+    );
+    this.fetchButton.setAttribute('aria-label', fetchButtonLabel);
+    this.fetchButton.title = fetchButtonLabel;
     this.fetchButton.disabled = this.props.isBatchLoading;
 
     this.renderContent();

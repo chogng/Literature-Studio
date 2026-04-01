@@ -18,22 +18,22 @@
 }
 
 .sidebar-date-picker {
+  --ls-actionbar-item-size: 26px;
+  --ls-actionbar-icon-size: 16px;
+  --ls-actionbar-radius: 6px;
+  --ls-actionbar-foreground: #1f2d3a;
+  --ls-actionbar-hover-foreground: #1f2d3a;
+  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
+  --ls-actionbar-active-foreground: #1f2d3a;
+  --ls-actionbar-active-background: rgba(0, 0, 0, 0.1);
+  --ls-actionbar-focus-outline: transparent;
   --date-range-trigger-min-width: 26px;
   --date-range-trigger-min-height: 26px;
   --date-range-trigger-padding: 0;
-  --date-range-trigger-radius: 6px;
-  --date-range-trigger-bg: transparent;
-  --date-range-trigger-bg-hover: rgba(0, 0, 0, 0.05);
-  --date-range-trigger-bg-focus: rgba(0, 0, 0, 0.05);
-  --date-range-trigger-bg-active: rgba(0, 0, 0, 0.1);
-  --date-range-trigger-color: #1f2d3a;
-  --date-range-trigger-color-active: #1f2d3a;
-  --date-range-trigger-focus-shadow: none;
   flex: 0 0 auto;
 }
 
 .sidebar-date-picker .date-range-trigger {
-  --btn-icon-size: 26px;
   background: transparent;
   color: #1f2d3a;
   border: none;
@@ -47,6 +47,11 @@
   gap: 0;
 }
 
+.sidebar-date-picker .date-range-trigger:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .sidebar-date-picker .date-range-trigger-icon {
   color: inherit;
 }
@@ -55,14 +60,14 @@
   font-size: 16px;
 }
 
-.sidebar-date-picker .date-range-trigger.btn-base:hover:not(:disabled) {
+.sidebar-date-picker .date-range-trigger:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.05);
   color: #1f2d3a;
   border: none;
   box-shadow: none;
 }
 
-.sidebar-date-picker .date-range-trigger.btn-base:active:not(:disabled),
+.sidebar-date-picker .date-range-trigger:active:not(:disabled),
 .sidebar-date-picker .date-range-trigger.is-active {
   background: rgba(0, 0, 0, 0.1);
   color: #1f2d3a;
@@ -72,21 +77,47 @@
 }
 
 .sidebar-fetch-btn {
+  --ls-actionbar-foreground: #1f2d3a;
+  --ls-actionbar-hover-foreground: #1f2d3a;
+  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
+  --ls-actionbar-active-foreground: #1f2d3a;
+  --ls-actionbar-active-background: rgba(0, 0, 0, 0.1);
+  --ls-actionbar-focus-outline: transparent;
   margin-left: auto;
   border-radius: 6px;
-  font-weight: 500;
+  width: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  color: var(--ls-actionbar-foreground);
+  box-shadow: none;
+  transition: none;
 }
 
-.sidebar-fetch-btn.btn-base.btn-primary {
+.sidebar-fetch-btn:focus-visible {
+  outline: none;
   box-shadow: none;
 }
 
-.sidebar-fetch-btn.btn-base.btn-primary:hover:not(:disabled) {
+.sidebar-fetch-btn .lx-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+
+.sidebar-fetch-btn:hover:not(:disabled) {
+  background: var(--ls-actionbar-hover-background);
+  color: var(--ls-actionbar-hover-foreground);
   box-shadow: none;
 }
 
-.sidebar-fetch-btn.btn-base.btn-primary:active:not(:disabled) {
+.sidebar-fetch-btn:active:not(:disabled) {
+  background: var(--ls-actionbar-active-background);
+  color: var(--ls-actionbar-active-foreground);
   box-shadow: none;
+  transform: none;
 }
 
 .sidebar-panel > .panel-title {
@@ -348,34 +379,6 @@
   flex-shrink: 0;
 }
 
-.secondary-sidebar-article-card-toolbar-actions.ls-actionbar {
-  --ls-actionbar-item-size: 24px;
-  --ls-actionbar-gap: 2px;
-  --ls-actionbar-radius: 2px;
-  --ls-actionbar-foreground: #4a4a4a;
-  --ls-actionbar-hover-foreground: #1f1f1f;
-  --ls-actionbar-hover-background: #e9e9e9;
-  --ls-actionbar-active-background: #dfdfdf;
-  --ls-actionbar-active-foreground: #1f1f1f;
-}
-
-.secondary-sidebar-article-card-icon-btn.ls-actionbar-action {
-  border-radius: 2px;
-}
-
-.secondary-sidebar-article-card-icon-btn.is-downloaded.ls-actionbar-action {
-  color: #0e639c;
-  background: transparent;
-  border-color: transparent;
-}
-
-.secondary-sidebar-article-card-icon-btn.is-downloaded.ls-actionbar-action:hover:not(
-    :disabled
-  ) {
-  color: #1177bb;
-  background: #e8f3fb;
-}
-
 .secondary-sidebar-article-card-details {
   display: grid;
   gap: 8px;
@@ -442,16 +445,19 @@ html[lang="en"] .secondary-sidebar-empty-state {
 }
 
 .secondary-sidebar-action-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  --ls-actionbar-item-size: 26px;
+  --ls-actionbar-icon-size: 16px;
+  --ls-actionbar-gap: 8px;
+  --ls-actionbar-radius: 6px;
+  --ls-actionbar-foreground: #1f2d3a;
+  --ls-actionbar-hover-foreground: #1f2d3a;
+  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
+  --ls-actionbar-active-foreground: #1f2d3a;
+  --ls-actionbar-active-background: rgba(0, 0, 0, 0.1);
+  --ls-actionbar-focus-outline: transparent;
   padding: 8px;
 }
 
-.secondary-sidebar-select-action.ls-actionbar-action .lx-icon {
-  width: 16px;
-  height: 16px;
-}
 
 .secondary-sidebar-date-picker {
   min-width: 0;

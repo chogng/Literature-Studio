@@ -30,6 +30,10 @@ import {
   updateBatchSourceUrl,
 } from 'ls/workbench/services/settings/settingsEditing';
 import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config';
+import {
+  getEnabledLlmModelIdsForProvider,
+  isLlmModelIdForProvider,
+} from 'ls/workbench/services/llm/registry';
 import { resolveLlmRoute } from 'ls/workbench/services/llm/routing';
 import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config';
 import { resolveRagRoute } from 'ls/workbench/services/rag/routing';
@@ -471,16 +475,77 @@ export class SettingsModel {
   };
 
   readonly setLlmProviderModel = (provider: LlmProviderId, model: string) => {
+    if (!isLlmModelIdForProvider(provider, model)) {
+      return;
+    }
+
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       llmProviders: {
         ...snapshot.llmProviders,
         [provider]: {
           ...snapshot.llmProviders[provider],
-          model,
+          model: getEnabledLlmModelIdsForProvider(
+            provider,
+            snapshot.llmProviders[provider].enabledModels,
+          ).includes(model)
+            ? model
+            : (getEnabledLlmModelIdsForProvider(
+                provider,
+                snapshot.llmProviders[provider].enabledModels,
+              )[0] ?? snapshot.llmProviders[provider].model),
         },
       },
     }));
+  };
+
+  readonly setLlmProviderModelEnabled = (
+    provider: LlmProviderId,
+    model: string,
+    enabled: boolean,
+  ) => {
+    if (!isLlmModelIdForProvider(provider, model)) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => {
+      const providerSettings = snapshot.llmProviders[provider];
+      const currentEnabledModels = getEnabledLlmModelIdsForProvider(
+        provider,
+        providerSettings.enabledModels,
+      );
+      const isCurrentlyEnabled = currentEnabledModels.includes(model);
+      if (isCurrentlyEnabled === enabled) {
+        return snapshot;
+      }
+
+      if (!enabled && currentEnabledModels.length <= 1) {
+        return snapshot;
+      }
+
+      const currentEnabledSet = new Set(currentEnabledModels);
+      const nextEnabledModels = getEnabledLlmModelIdsForProvider(provider).filter(
+        (modelId) =>
+          enabled
+            ? currentEnabledSet.has(modelId) || modelId === model
+            : currentEnabledSet.has(modelId) && modelId !== model,
+      );
+      const nextModel = nextEnabledModels.includes(providerSettings.model)
+        ? providerSettings.model
+        : (nextEnabledModels[0] ?? providerSettings.model);
+
+      return {
+        ...snapshot,
+        llmProviders: {
+          ...snapshot.llmProviders,
+          [provider]: {
+            ...providerSettings,
+            model: nextModel,
+            enabledModels: nextEnabledModels,
+          },
+        },
+      };
+    });
   };
 
   readonly setActiveTranslationProvider = (activeTranslationProvider: TranslationProviderId) => {

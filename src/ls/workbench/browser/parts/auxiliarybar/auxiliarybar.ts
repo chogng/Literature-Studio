@@ -3,6 +3,10 @@ import {
   createActionBarView,
   type ActionBarActionItem,
 } from 'ls/base/browser/ui/actionbar/actionbar';
+import {
+  createDropdownView,
+  type DropdownOption,
+} from 'ls/base/browser/ui/dropdown/dropdown';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -27,12 +31,15 @@ export type AuxiliaryBarProps = {
   activeConversationId: string;
   isHistoryOpen: boolean;
   isMoreMenuOpen: boolean;
+  llmModelOptions: DropdownOption[];
+  activeLlmModelOptionValue: string;
   onCreateConversation: () => void;
   onActivateConversation: (conversationId: string) => void;
   onCloseConversation: (conversationId: string) => void;
   onCloseAuxiliarySidebar: () => void;
   onToggleHistory: () => void;
   onToggleMoreMenu: () => void;
+  onSelectLlmModel: (value: string) => void;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -402,9 +409,17 @@ export class AuxiliaryBar {
   }
 
   private renderComposer(canSend: boolean) {
-    const composer = createElement('div', 'auxiliarybar-composer');
+    const composer = createElement(
+      'div',
+      [
+        'auxiliarybar-composer',
+        this.props.messages.length === 0 ? 'is-empty-state' : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+    );
     const textarea = createElement('textarea', 'auxiliarybar-input');
-    textarea.rows = 3;
+    textarea.rows = 2;
     textarea.value = this.props.question;
     textarea.placeholder = this.props.labels.assistantQuestionPlaceholder;
     textarea.disabled = this.props.isAsking;
@@ -423,6 +438,17 @@ export class AuxiliaryBar {
     });
 
     const toolbar = createElement('div', 'auxiliarybar-composer-toolbar');
+    const modelDropdownView = createDropdownView({
+      options: this.props.llmModelOptions,
+      value: this.props.activeLlmModelOptionValue,
+      size: 'sm',
+      className: 'auxiliarybar-model-dropdown',
+      title: 'Model',
+      onChange: ({ target }) => this.props.onSelectLlmModel(target.value),
+    });
+    this.renderDisposables.add(() => {
+      modelDropdownView.dispose();
+    });
     const sendLabel = this.props.isAsking
       ? this.props.labels.assistantSendBusy
       : this.props.labels.assistantSend;
@@ -432,7 +458,7 @@ export class AuxiliaryBar {
       items: [
         this.createComposerActionItem(
           this.props.labels.assistantImage,
-          lxIconSemanticMap.assistant.image,
+          'image-filled',
           'auxiliarybar-composer-tool-action',
         ),
         {
@@ -443,7 +469,6 @@ export class AuxiliaryBar {
               ? lxIconSemanticMap.assistant.busy
               : 'voice-circle-filled',
           ),
-          disabled: !canSend,
           buttonClassName: 'auxiliarybar-composer-send-action',
           onClick: () => this.props.onAsk(),
         },
@@ -452,7 +477,7 @@ export class AuxiliaryBar {
     this.renderDisposables.add(() => {
       actionsView.dispose();
     });
-    toolbar.append(actionsView.getElement());
+    toolbar.append(modelDropdownView.getElement(), actionsView.getElement());
     composer.append(textarea, toolbar);
     return composer;
   }

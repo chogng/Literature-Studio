@@ -406,6 +406,7 @@ export function performWindowControlAction(window: BrowserWindow, action: Window
 export function getWindowState(window?: BrowserWindow | null): WindowState {
   return {
     isMaximized: Boolean(window && !window.isDestroyed() && window.isMaximized()),
+    isFullscreen: Boolean(window && !window.isDestroyed() && window.isFullScreen()),
   };
 }
 

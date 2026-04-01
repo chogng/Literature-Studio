@@ -311,22 +311,11 @@
   -webkit-app-region: no-drag;
 }
 
-.titlebar-actionbar.ls-actionbar {
-  --ls-actionbar-item-size: 26px;
-  --ls-actionbar-icon-size: 16px;
-  --ls-actionbar-gap: 4px;
-  --ls-actionbar-radius: 6px;
-  --ls-actionbar-foreground: #1f2d3a;
-  --ls-actionbar-hover-foreground: #1f2d3a;
-  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
-  --ls-actionbar-active-background: rgba(0, 0, 0, 0.1);
-  --ls-actionbar-active-foreground: #1f2d3a;
-  --ls-actionbar-focus-outline: #0a5fbf;
+.titlebar-actionbar {
   height: 100%;
 }
 
-.titlebar-btn.btn-base,
-.titlebar-btn.ls-actionbar-action {
+.titlebar-btn.btn-base {
   border: none;
   background: transparent;
   color: #1f2d3a;
@@ -339,9 +328,8 @@
   gap: 0;
 }
 
-.titlebar-btn.ls-actionbar-action {
+.titlebar-btn.actionbar-action {
   align-self: center;
-  transition: none;
 }
 
 .titlebar-btn-window.btn-base.btn-mode-icon {
@@ -356,21 +344,20 @@
 }
 
 .titlebar-btn-fetch.btn-base,
-.titlebar-btn-fetch.ls-actionbar-action {
+.titlebar-btn-fetch.actionbar-action {
   -webkit-app-region: no-drag;
 }
 
 .titlebar-btn-primary.btn-base,
-.titlebar-btn-primary.ls-actionbar-action {
+.titlebar-btn-primary.actionbar-action {
   -webkit-app-region: no-drag;
 }
 
 .titlebar-btn-auxiliary.btn-base,
-.titlebar-btn-auxiliary.ls-actionbar-action {
+.titlebar-btn-auxiliary.actionbar-action {
   -webkit-app-region: no-drag;
 }
 
-.titlebar-btn-nav.ls-actionbar-action:disabled,
 .titlebar-btn-nav.btn-base:disabled {
   opacity: 0.38;
   filter: none;
@@ -382,10 +369,6 @@
   flex: 0 0 auto;
   align-self: center;
   padding: 0;
-}
-
-.titlebar-btn-refresh.ls-actionbar-action {
-  --ls-actionbar-icon-size: 22px;
 }
 
 .titlebar-btn-close.btn-base:hover {

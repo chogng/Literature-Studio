@@ -48,14 +48,14 @@ test('actionbar renders actions and separators without relying on button base cl
   document.body.append(element);
 
   try {
-    assert.equal(element.classList.contains('ls-actionbar'), true);
+    assert.equal(element.classList.contains('actionbar'), true);
     assert.equal(element.classList.contains('btn-base'), false);
     assert.equal(element.getAttribute('role'), 'toolbar');
     assert.equal(element.getAttribute('aria-label'), 'Document actions');
 
-    const buttons = element.querySelectorAll('.ls-actionbar-action');
+    const buttons = element.querySelectorAll('.actionbar-action');
     assert.equal(buttons.length, 2);
-    assert(element.querySelector('.ls-actionbar-separator') instanceof HTMLElement);
+    assert(element.querySelector('.actionbar-separator') instanceof HTMLElement);
 
     const refreshButton = buttons[0] as HTMLButtonElement;
     const disabledButton = buttons[1] as HTMLButtonElement;
@@ -93,7 +93,7 @@ test('actionbar keyboard navigation skips disabled items', () => {
   document.body.append(element);
 
   try {
-    const buttons = element.querySelectorAll('.ls-actionbar-action');
+    const buttons = element.querySelectorAll('.actionbar-action');
     const backButton = buttons[0] as HTMLButtonElement;
     const forwardButton = buttons[2] as HTMLButtonElement;
 
@@ -127,7 +127,7 @@ test('actionbar actions use shared hover content instead of native title tooltip
   document.body.append(element);
 
   try {
-    const button = element.querySelector('.ls-actionbar-action');
+    const button = element.querySelector('.actionbar-action');
     if (!(button instanceof HTMLButtonElement)) {
       throw new Error('Expected actionbar button.');
     }
@@ -164,7 +164,7 @@ test('actionbar forwards custom button attributes', () => {
   document.body.append(element);
 
   try {
-    const button = element.querySelector('.ls-actionbar-action');
+    const button = element.querySelector('.actionbar-action');
     if (!(button instanceof HTMLButtonElement)) {
       throw new Error('Expected actionbar button.');
     }
