@@ -18,7 +18,7 @@ import { createEditorGroupModel } from 'ls/workbench/browser/parts/editor/editor
 import type { EditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 
 import { TabsTitleControl } from 'ls/workbench/browser/parts/editor/tabsTitleControl';
-import type { TitleControl } from 'ls/workbench/browser/parts/editor/titleControl';
+import type { TitleControl, TitleControlProps } from 'ls/workbench/browser/parts/editor/titleControl';
 
 export type EditorGroupViewProps = {
   labels: EditorPartLabels;
@@ -49,10 +49,10 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-function createTitleAreaControl(
+function createTitleControlProps(
   props: Pick<EditorGroupViewProps, 'labels' | 'onActivateTab' | 'onCloseTab'>,
   group: EditorGroupModel,
-){
+): TitleControlProps {
   return {
     group,
     labels: {
@@ -67,7 +67,7 @@ function createTitleControl(
   props: Pick<EditorGroupViewProps, 'labels' | 'onActivateTab' | 'onCloseTab'>,
   group: EditorGroupModel,
 ): TitleControl {
-  return new TabsTitleControl(createTitleAreaControl(props, group));
+  return new TabsTitleControl(createTitleControlProps(props, group));
 }
 
 function createEditorStatusLabels(labels: EditorPartLabels) {
@@ -107,6 +107,7 @@ function createEditorGroupControllerSnapshot(
     activeTabId: context.activeTabId,
     activeTab: context.activeTab,
     labels: context.labels,
+    draftStatusByTabId,
   });
   const activeDraftStatus =
     group.activeTab?.kind === 'draft' ? draftStatusByTabId[group.activeTab.id] : undefined;
@@ -280,7 +281,7 @@ export class EditorGroupView {
   private render() {
     const { group, editorStatus } = this.controller.getSnapshot();
     this.props.onStatusChange?.(editorStatus);
-    this.titleAreaControl.setProps(createTitleAreaControl(this.props, group));
+    this.titleAreaControl.setProps(createTitleControlProps(this.props, group));
 
     this.contentElement.className = '';
     this.contentElement.removeAttribute('data-editor-pane');

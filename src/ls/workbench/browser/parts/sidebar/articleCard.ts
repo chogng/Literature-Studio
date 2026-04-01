@@ -1,4 +1,5 @@
 import type { ArticleDetailsModalLabels } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import type { Locale } from 'language/i18n';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
@@ -112,6 +113,8 @@ export class ArticleCard {
     'button',
     'secondary-sidebar-article-card-icon-btn btn-base btn-ghost btn-mode-icon btn-sm',
   );
+  private readonly downloadHover = createHoverController(this.downloadButton, null);
+  private readonly detailsHover = createHoverController(this.detailsButton, null);
   private readonly unsubscribeDownloadStatus: () => void;
 
   constructor(props: ArticleCardProps) {
@@ -138,6 +141,8 @@ export class ArticleCard {
 
   dispose() {
     this.unsubscribeDownloadStatus();
+    this.downloadHover.dispose();
+    this.detailsHover.dispose();
     this.element.removeEventListener('click', this.handleCardClick);
     this.element.removeEventListener('keydown', this.handleCardKeyDown);
     this.downloadButton.removeEventListener('click', this.handleDownloadClick);
@@ -196,17 +201,43 @@ export class ArticleCard {
     );
     this.downloadButton.disabled = isDownloading;
     this.downloadButton.setAttribute('aria-label', DOWNLOAD_PDF_LABEL);
-    this.downloadButton.title = hasDownloaded
-      ? DOWNLOADED_PDF_LABEL
-      : DOWNLOAD_PDF_LABEL;
+    this.downloadButton.removeAttribute('title');
+    this.downloadHover.update({
+      content: hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL,
+      subtitle: title,
+      actions: [
+        {
+          label: VIEW_DETAILS_LABEL,
+          run: () => {
+            this.openArticleDetails();
+          },
+        },
+      ],
+    });
 
     this.detailsButton.type = 'button';
     this.detailsButton.className =
       'secondary-sidebar-article-card-icon-btn btn-base btn-ghost btn-mode-icon btn-sm';
     this.detailsButton.replaceChildren(createLxIcon(lxIconSemanticMap.articleCard.details));
     this.detailsButton.setAttribute('aria-label', VIEW_DETAILS_LABEL);
-    this.detailsButton.title = VIEW_DETAILS_LABEL;
+    this.detailsButton.removeAttribute('title');
     this.detailsButton.setAttribute('aria-haspopup', 'dialog');
+    this.detailsHover.update({
+      content: VIEW_DETAILS_LABEL,
+      subtitle: title,
+      actions:
+        article.sourceUrl && !isDownloading
+          ? [
+              {
+                label: hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL,
+                disabled: hasDownloaded,
+                run: () => {
+                  void this.startPdfDownload();
+                },
+              },
+            ]
+          : [],
+    });
   };
 
   private readonly handleCardClick = () => {
@@ -233,21 +264,27 @@ export class ArticleCard {
 
   private readonly handleDownloadClick = async (event: Event) => {
     event.stopPropagation();
-    if (!this.props.article.sourceUrl) {
-      return;
-    }
-
-    try {
-      await this.props.onDownloadPdf(this.props.article);
-    } catch {
-      // Shared download handler owns user-facing error feedback.
-    }
+    await this.startPdfDownload();
   };
 
   private readonly handleDetailsClick = (event: Event) => {
     event.stopPropagation();
-    void this.props.onOpenArticleDetails(this.props.article, this.props.labels);
+    this.openArticleDetails();
   };
+
+  private startPdfDownload() {
+    if (!this.props.article.sourceUrl) {
+      return Promise.resolve();
+    }
+
+    return this.props.onDownloadPdf(this.props.article).catch(() => {
+      // Shared download handler owns user-facing error feedback.
+    });
+  }
+
+  private openArticleDetails() {
+    void this.props.onOpenArticleDetails(this.props.article, this.props.labels);
+  }
 }
 
 export function createArticleCard(props: ArticleCardProps) {

@@ -1,6 +1,9 @@
 import './prosemirrorDocument.test';
+import '../../src/ls/base/browser/ui/hover/tests/hover.test';
 import '../../src/ls/editor/browser/text/tests/input.test';
 import '../../src/ls/editor/browser/text/tests/editorDom.test';
 import '../../src/ls/editor/browser/text/tests/sync.test';
+import '../../src/ls/workbench/browser/tests/auxiliarybar.test';
 import '../../src/ls/workbench/browser/tests/writingEditorLiveState.test';
 import '../../src/ls/workbench/browser/tests/writingEditorStorage.test';
+import '../../src/ls/workbench/browser/tests/tabsTitleControl.test';

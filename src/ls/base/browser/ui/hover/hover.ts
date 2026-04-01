@@ -1,0 +1,556 @@
+import 'ls/base/browser/ui/hover/hover.css';
+
+export type HoverRenderable = string | Node | (() => string | Node);
+
+export type HoverAction = {
+  label: string;
+  icon?: HoverRenderable;
+  disabled?: boolean;
+  run: (target: HTMLElement) => void;
+};
+
+export type HoverOptions = {
+  content?: HoverRenderable;
+  subtitle?: string;
+  actions?: readonly HoverAction[];
+  delay?: number;
+  hideOnHover?: boolean;
+  position?: 'auto' | 'above' | 'below';
+  showPointer?: boolean;
+  compact?: boolean;
+  maxWidth?: number;
+  className?: string;
+};
+
+export type HoverInput = HoverOptions | string | null | undefined;
+
+export type HoverHandle = {
+  show: () => void;
+  hide: () => void;
+  update: (input: HoverInput) => void;
+  dispose: () => void;
+};
+
+const DEFAULT_DELAY_MS = 420;
+const POINTER_OFFSET_PX = 10;
+const POINTER_SAFE_MARGIN_PX = 18;
+const VIEWPORT_MARGIN_PX = 8;
+
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
+
+function isHoverRenderableEmpty(content: HoverRenderable | undefined) {
+  if (typeof content === 'string') {
+    return content.trim().length === 0;
+  }
+
+  return !content;
+}
+
+function cloneHoverRenderable(content: HoverRenderable): Node {
+  if (typeof content === 'function') {
+    return cloneHoverRenderable(content());
+  }
+
+  if (typeof content === 'string') {
+    return document.createTextNode(content);
+  }
+
+  return content.cloneNode(true);
+}
+
+export function normalizeHoverInput(input: HoverInput): HoverOptions | null {
+  if (typeof input === 'string') {
+    if (!input.trim()) {
+      return null;
+    }
+
+    return {
+      content: input,
+      delay: DEFAULT_DELAY_MS,
+      hideOnHover: true,
+      position: 'auto',
+      showPointer: true,
+      compact: false,
+      maxWidth: 320,
+    };
+  }
+
+  if (!input) {
+    return null;
+  }
+
+  const normalized: HoverOptions = {
+    ...input,
+    actions: input.actions ? [...input.actions] : [],
+    delay: input.delay ?? DEFAULT_DELAY_MS,
+    hideOnHover:
+      input.actions && input.actions.length > 0
+        ? false
+        : input.hideOnHover ?? typeof input.content === 'string',
+    position: input.position ?? 'auto',
+    showPointer: input.showPointer ?? true,
+    compact: input.compact ?? false,
+    maxWidth: input.maxWidth ?? 320,
+  };
+
+  const hasContent = !isHoverRenderableEmpty(normalized.content);
+  const hasSubtitle = Boolean(normalized.subtitle?.trim());
+  const hasActions = (normalized.actions?.length ?? 0) > 0;
+
+  if (!hasContent && !hasSubtitle && !hasActions) {
+    return null;
+  }
+
+  return normalized;
+}
+
+class SharedHoverOverlay {
+  private readonly element = createElement('div', 'ls-hover-overlay');
+  private readonly pointer = createElement(
+    'div',
+    'ls-hover-pointer workbench-hover-pointer',
+  );
+  private readonly card = createElement('div', 'ls-hover-card');
+  private owner: HoverController | null = null;
+  private target: HTMLElement | null = null;
+  private pointerInside = false;
+  private mounted = false;
+
+  constructor() {
+    this.element.append(this.pointer, this.card);
+    this.card.addEventListener('mouseenter', this.handleMouseEnter);
+    this.card.addEventListener('mouseleave', this.handleMouseLeave);
+    this.card.addEventListener('pointerdown', this.handlePointerDown);
+  }
+
+  isPointerInside() {
+    return this.pointerInside;
+  }
+
+  show(target: HTMLElement, options: HoverOptions, owner: HoverController) {
+    this.owner = owner;
+    this.target = target;
+    this.pointerInside = false;
+    this.render(options);
+    this.mount();
+    this.layout(target, options);
+  }
+
+  hide() {
+    this.owner = null;
+    this.target = null;
+    this.pointerInside = false;
+    this.unmount();
+  }
+
+  private mount() {
+    if (this.mounted) {
+      return;
+    }
+
+    this.mounted = true;
+    document.body.append(this.element);
+    document.addEventListener('mousedown', this.handleDocumentMouseDown, true);
+    document.addEventListener('keydown', this.handleDocumentKeyDown, true);
+    document.addEventListener('scroll', this.handleDocumentScroll, true);
+    window.addEventListener('resize', this.handleWindowResize);
+  }
+
+  private unmount() {
+    if (!this.mounted) {
+      return;
+    }
+
+    this.mounted = false;
+    this.element.remove();
+    document.removeEventListener('mousedown', this.handleDocumentMouseDown, true);
+    document.removeEventListener('keydown', this.handleDocumentKeyDown, true);
+    document.removeEventListener('scroll', this.handleDocumentScroll, true);
+    window.removeEventListener('resize', this.handleWindowResize);
+  }
+
+  private render(options: HoverOptions) {
+    this.card.className = 'ls-hover-card';
+    this.card.classList.toggle('compact', Boolean(options.compact));
+    this.card.classList.remove('right-aligned');
+    if (options.className) {
+      this.card.classList.add(...options.className.split(/\s+/).filter(Boolean));
+    }
+    this.card.style.maxWidth = `${Math.max(options.maxWidth ?? 320, 132)}px`;
+    this.card.setAttribute(
+      'role',
+      (options.actions?.length ?? 0) > 0 ? 'dialog' : 'tooltip',
+    );
+
+    const contentRow = createElement('div', 'ls-hover-row hover-row markdown-hover');
+    const contents = createElement(
+      'div',
+      `ls-hover-contents hover-contents${typeof options.content === 'string' ? '' : ' is-node'}`,
+    );
+
+    if (!isHoverRenderableEmpty(options.content)) {
+      const content = createElement('div', 'ls-hover-content');
+      content.append(cloneHoverRenderable(options.content!));
+      contents.append(content);
+    }
+
+    if (options.subtitle?.trim()) {
+      const subtitle = createElement('div', 'ls-hover-subtitle');
+      subtitle.textContent = options.subtitle;
+      contents.append(subtitle);
+    }
+
+    contentRow.append(contents);
+    const nodes: Node[] = [contentRow];
+    if ((options.actions?.length ?? 0) > 0) {
+      const statusBarElement = createElement('div', 'ls-hover-row hover-row status-bar');
+      const actionsElement = createElement('div', 'ls-hover-actions actions');
+      for (const action of options.actions ?? []) {
+        const actionContainer = createElement(
+          'div',
+          'ls-hover-action-container action-container',
+        );
+        actionContainer.tabIndex = action.disabled ? -1 : 0;
+        actionContainer.setAttribute(
+          'aria-disabled',
+          action.disabled ? 'true' : 'false',
+        );
+        if (action.disabled) {
+          actionContainer.classList.add('disabled');
+        }
+
+        const button = createElement('button', 'ls-hover-action action') as HTMLButtonElement;
+        button.type = 'button';
+        button.disabled = Boolean(action.disabled);
+        if (action.icon && !button.disabled) {
+          const icon = createElement('span', 'ls-hover-action-icon icon');
+          icon.append(cloneHoverRenderable(action.icon));
+          button.append(icon);
+        }
+        button.append(document.createTextNode(action.label));
+        actionContainer.append(button);
+
+        const runAction = (event?: Event) => {
+          if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+          if (!this.target || action.disabled) {
+            return;
+          }
+          action.run(this.target);
+          this.hide();
+        };
+
+        actionContainer.addEventListener('click', runAction);
+        actionContainer.addEventListener('keyup', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+          }
+
+          runAction(event);
+        });
+        actionsElement.append(actionContainer);
+      }
+      statusBarElement.append(actionsElement);
+      nodes.push(statusBarElement);
+    }
+
+    this.card.replaceChildren(...nodes);
+  }
+
+  private layout(target: HTMLElement, options: HoverOptions) {
+    const targetRect = target.getBoundingClientRect();
+    const viewportWidth =
+      window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight =
+      window.innerHeight || document.documentElement.clientHeight || 0;
+
+    this.element.classList.toggle('has-pointer', options.showPointer !== false);
+    this.element.classList.remove('is-above', 'is-below');
+    this.pointer.classList.remove('top', 'bottom');
+    this.element.style.left = `${VIEWPORT_MARGIN_PX}px`;
+    this.element.style.top = `${VIEWPORT_MARGIN_PX}px`;
+
+    const hoverRect = this.element.getBoundingClientRect();
+    const canFitBelow =
+      targetRect.bottom + hoverRect.height + POINTER_OFFSET_PX + VIEWPORT_MARGIN_PX <=
+      viewportHeight;
+    const canFitAbove =
+      targetRect.top - hoverRect.height - POINTER_OFFSET_PX - VIEWPORT_MARGIN_PX >= 0;
+    const placement =
+      options.position === 'above'
+        ? 'above'
+        : options.position === 'below'
+          ? 'below'
+          : canFitBelow || !canFitAbove
+            ? 'below'
+            : 'above';
+
+    this.element.classList.add(placement === 'above' ? 'is-above' : 'is-below');
+    this.pointer.classList.add(placement === 'above' ? 'bottom' : 'top');
+
+    const nextTop =
+      placement === 'above'
+        ? targetRect.top - hoverRect.height - POINTER_OFFSET_PX
+        : targetRect.bottom + POINTER_OFFSET_PX;
+    const top = Math.max(
+      VIEWPORT_MARGIN_PX,
+      Math.min(nextTop, viewportHeight - hoverRect.height - VIEWPORT_MARGIN_PX),
+    );
+    const nextLeft = targetRect.left + targetRect.width / 2 - hoverRect.width / 2;
+    const left = Math.max(
+      VIEWPORT_MARGIN_PX,
+      Math.min(nextLeft, viewportWidth - hoverRect.width - VIEWPORT_MARGIN_PX),
+    );
+    const isRightAligned =
+      nextLeft + hoverRect.width >= viewportWidth - VIEWPORT_MARGIN_PX;
+    const pointerLeft = Math.max(
+      POINTER_SAFE_MARGIN_PX,
+      Math.min(
+        targetRect.left + targetRect.width / 2 - left,
+        hoverRect.width - POINTER_SAFE_MARGIN_PX,
+      ),
+    );
+
+    this.element.style.left = `${Math.round(left)}px`;
+    this.element.style.top = `${Math.round(top)}px`;
+    this.pointer.style.left = `${Math.round(pointerLeft - 3)}px`;
+    this.card.classList.toggle('right-aligned', isRightAligned);
+    this.element.style.setProperty(
+      '--ls-hover-pointer-left',
+      `${Math.round(pointerLeft)}px`,
+    );
+  }
+
+  private readonly handleMouseEnter = () => {
+    this.pointerInside = true;
+    this.owner?.handleOverlayEnter();
+  };
+
+  private readonly handleMouseLeave = () => {
+    this.pointerInside = false;
+    this.owner?.handleOverlayLeave();
+  };
+
+  private readonly handlePointerDown = () => {
+    this.owner?.handleOverlayInteraction();
+  };
+
+  private readonly handleDocumentMouseDown = (event: MouseEvent) => {
+    const targetNode = event.target;
+    if (!(targetNode instanceof Node)) {
+      this.hide();
+      return;
+    }
+
+    if (this.card.contains(targetNode) || this.target?.contains(targetNode)) {
+      return;
+    }
+
+    this.hide();
+  };
+
+  private readonly handleDocumentKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      this.hide();
+    }
+  };
+
+  private readonly handleDocumentScroll = () => {
+    this.hide();
+  };
+
+  private readonly handleWindowResize = () => {
+    this.hide();
+  };
+}
+
+const sharedHoverOverlay = new SharedHoverOverlay();
+let activeController: HoverController | null = null;
+
+class HoverController implements HoverHandle {
+  private options: HoverOptions | null;
+  private disposed = false;
+  private showTimer: number | null = null;
+  private hideTimer: number | null = null;
+
+  constructor(
+    private readonly target: HTMLElement,
+    input: HoverInput,
+  ) {
+    this.options = normalizeHoverInput(input);
+    this.target.addEventListener('mouseenter', this.handleMouseEnter);
+    this.target.addEventListener('mouseleave', this.handleMouseLeave);
+    this.target.addEventListener('focus', this.handleFocus, true);
+    this.target.addEventListener('blur', this.handleBlur, true);
+  }
+
+  show = () => {
+    if (this.disposed || !this.options) {
+      return;
+    }
+
+    this.clearShowTimer();
+    this.clearHideTimer();
+
+    if (activeController && activeController !== this) {
+      activeController.hide();
+    }
+
+    activeController = this;
+    sharedHoverOverlay.show(this.target, this.options, this);
+  };
+
+  hide = () => {
+    this.clearShowTimer();
+    this.clearHideTimer();
+
+    if (activeController !== this) {
+      return;
+    }
+
+    activeController = null;
+    sharedHoverOverlay.hide();
+  };
+
+  update = (input: HoverInput) => {
+    this.options = normalizeHoverInput(input);
+
+    if (!this.options) {
+      this.hide();
+      return;
+    }
+
+    if (activeController === this) {
+      sharedHoverOverlay.show(this.target, this.options, this);
+    }
+  };
+
+  dispose = () => {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.hide();
+    this.target.removeEventListener('mouseenter', this.handleMouseEnter);
+    this.target.removeEventListener('mouseleave', this.handleMouseLeave);
+    this.target.removeEventListener('focus', this.handleFocus, true);
+    this.target.removeEventListener('blur', this.handleBlur, true);
+  };
+
+  handleOverlayEnter() {
+    if (this.shouldHideOnHover()) {
+      return;
+    }
+    this.clearHideTimer();
+  }
+
+  handleOverlayLeave() {
+    this.scheduleHide(this.shouldHideOnHover() ? 0 : this.hasActions() ? 90 : 0);
+  }
+
+  handleOverlayInteraction() {
+    this.clearHideTimer();
+  }
+
+  private hasActions() {
+    return (this.options?.actions?.length ?? 0) > 0;
+  }
+
+  private shouldHideOnHover() {
+    return Boolean(this.options?.hideOnHover) && !this.hasActions();
+  }
+
+  private scheduleShow(delay = this.options?.delay ?? DEFAULT_DELAY_MS) {
+    this.clearShowTimer();
+    if (!this.options) {
+      return;
+    }
+
+    if (delay <= 0) {
+      this.show();
+      return;
+    }
+
+    this.showTimer = window.setTimeout(() => {
+      this.show();
+    }, delay);
+  }
+
+  private scheduleHide(delay = 0) {
+    this.clearHideTimer();
+    this.hideTimer = window.setTimeout(() => {
+      if (!this.shouldHideOnHover() && sharedHoverOverlay.isPointerInside()) {
+        return;
+      }
+      this.hide();
+    }, delay);
+  }
+
+  private clearShowTimer() {
+    if (this.showTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.showTimer);
+    this.showTimer = null;
+  }
+
+  private clearHideTimer() {
+    if (this.hideTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.hideTimer);
+    this.hideTimer = null;
+  }
+
+  private readonly handleMouseEnter = () => {
+    this.clearHideTimer();
+    if (activeController === this) {
+      this.show();
+      return;
+    }
+    this.scheduleShow();
+  };
+
+  private readonly handleMouseLeave = () => {
+    this.clearShowTimer();
+    if (activeController !== this) {
+      return;
+    }
+
+    this.scheduleHide(this.shouldHideOnHover() ? 0 : this.hasActions() ? 90 : 0);
+  };
+
+  private readonly handleFocus = () => {
+    this.clearHideTimer();
+    this.show();
+  };
+
+  private readonly handleBlur = () => {
+    if (activeController !== this) {
+      return;
+    }
+
+    this.scheduleHide(90);
+  };
+}
+
+export function createHoverController(
+  target: HTMLElement,
+  input: HoverInput,
+): HoverHandle {
+  return new HoverController(target, input);
+}

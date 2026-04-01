@@ -1,4 +1,5 @@
 import type { AssistantChatMessage, AssistantConversation } from 'ls/workbench/browser/assistantModel';
+import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -147,9 +148,25 @@ export class AuxiliaryBar {
 
     const actions = createElement('div', 'sidebar-action-bar');
     actions.append(
-      this.createActionButton(lxIconSemanticMap.assistant.newConversation, this.props.onCreateConversation),
-      this.createActionButton(lxIconSemanticMap.assistant.history, this.props.onToggleHistory, this.props.isHistoryOpen),
-      this.createActionButton(lxIconSemanticMap.assistant.more, this.props.onToggleMoreMenu, this.props.isMoreMenuOpen),
+      this.createActionButton(
+        this.props.labels.assistantNewConversation,
+        lxIconSemanticMap.assistant.newConversation,
+        this.props.onCreateConversation,
+      ),
+      this.createActionButton(
+        this.props.labels.assistantHistory,
+        lxIconSemanticMap.assistant.history,
+        this.props.onToggleHistory,
+        this.props.isHistoryOpen,
+        true,
+      ),
+      this.createActionButton(
+        this.props.labels.assistantMore,
+        lxIconSemanticMap.assistant.more,
+        this.props.onToggleMoreMenu,
+        this.props.isMoreMenuOpen,
+        true,
+      ),
     );
     topbar.append(stripHost, actions);
     return topbar;
@@ -176,7 +193,7 @@ export class AuxiliaryBar {
     const popover = createElement('div', 'auxiliarybar-popover');
     const section = createElement('div', 'auxiliarybar-popover-section');
     const title = createElement('strong', 'auxiliarybar-popover-title');
-    title.textContent = 'History';
+    title.textContent = this.props.labels.assistantHistory;
     const list = createElement('div', 'auxiliarybar-history-list');
     for (const conversation of this.props.conversations) {
       const item = createElement(
@@ -208,15 +225,15 @@ export class AuxiliaryBar {
     const popover = createElement('div', 'auxiliarybar-popover');
     const section = createElement('div', 'auxiliarybar-popover-section');
     const title = createElement('strong', 'auxiliarybar-popover-title');
-    title.textContent = 'More';
+    title.textContent = this.props.labels.assistantMore;
     const list = createElement('div', 'auxiliarybar-menu-list');
     const newConversation = createElement('button', 'auxiliarybar-menu-item');
     newConversation.type = 'button';
-    newConversation.textContent = 'New Conversation';
+    newConversation.textContent = this.props.labels.assistantNewConversation;
     newConversation.addEventListener('click', this.props.onCreateConversation);
     const history = createElement('button', 'auxiliarybar-menu-item');
     history.type = 'button';
-    history.textContent = 'History';
+    history.textContent = this.props.labels.assistantHistory;
     history.addEventListener('click', this.props.onToggleHistory);
     list.append(newConversation, history);
     section.append(title, list);
@@ -333,17 +350,24 @@ export class AuxiliaryBar {
         : createLxIcon(lxIconSemanticMap.assistant.send),
     );
     send.disabled = !canSend;
-    send.title = this.props.isAsking
+    const sendLabel = this.props.isAsking
       ? this.props.labels.assistantSendBusy
       : this.props.labels.assistantSend;
-    send.setAttribute('aria-label', send.title);
+    send.setAttribute('aria-label', sendLabel);
+    createHoverController(send, sendLabel);
     send.addEventListener('click', this.props.onAsk);
     toolbar.append(tools, send);
     composer.append(textarea, toolbar);
     return composer;
   }
 
-  private createActionButton(icon: LxIconName, onClick: () => void, isActive = false) {
+  private createActionButton(
+    label: string,
+    icon: LxIconName,
+    onClick: () => void,
+    isActive = false,
+    isToggle = false,
+  ) {
     const button = createElement(
       'button',
       ['sidebar-action-btn', 'btn-base', 'btn-ghost', 'btn-mode-icon', 'btn-sm', isActive ? 'is-active' : '']
@@ -352,6 +376,11 @@ export class AuxiliaryBar {
     );
     button.type = 'button';
     button.append(createLxIcon(icon));
+    button.setAttribute('aria-label', label);
+    if (isToggle) {
+      button.setAttribute('aria-pressed', String(isActive));
+    }
+    createHoverController(button, label);
     button.addEventListener('click', onClick);
     return button;
   }
@@ -363,8 +392,8 @@ export class AuxiliaryBar {
     );
     button.type = 'button';
     button.append(createLxIcon(icon));
-    button.title = label;
     button.setAttribute('aria-label', label);
+    createHoverController(button, label);
     return button;
   }
 

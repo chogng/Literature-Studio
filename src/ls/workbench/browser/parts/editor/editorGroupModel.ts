@@ -1,15 +1,26 @@
 import type {
+  DraftEditorRuntimeState,
+} from 'ls/editor/browser/shared/editorStatus';
+import type {
   WritingWorkspaceDraftTab,
   WritingWorkspaceTab,
 } from 'ls/workbench/browser/writingEditorModel';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+
+export type EditorGroupTabState = {
+  isActive: boolean;
+  isClosable: boolean;
+  hasLocalHistory: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+};
 
 export type EditorGroupTabItem = {
   id: string;
   kind: WritingWorkspaceTab['kind'];
   label: string;
   title: string;
-  isActive: boolean;
+  state: EditorGroupTabState;
 };
 
 export type EditorGroupModel = {
@@ -48,11 +59,13 @@ export function createEditorGroupModel({
   activeTabId,
   activeTab,
   labels,
+  draftStatusByTabId,
 }: {
   tabs: WritingWorkspaceTab[];
   activeTabId: string | null;
   activeTab: WritingWorkspaceTab | null;
   labels: EditorPartLabels;
+  draftStatusByTabId: Record<string, DraftEditorRuntimeState>;
 }): EditorGroupModel {
   const draftTabIds = tabs
     .filter((tab) => tab.kind === 'draft')
@@ -65,13 +78,22 @@ export function createEditorGroupModel({
       const draftIndex =
         tab.kind === 'draft' ? draftTabIds.indexOf(tab.id) : -1;
       const label = getTabDisplayLabel(tab, labels, Math.max(draftIndex, 0));
+      const draftStatus = tab.kind === 'draft' ? draftStatusByTabId[tab.id] : undefined;
+      const canUndo = Boolean(draftStatus?.canUndo);
+      const canRedo = Boolean(draftStatus?.canRedo);
 
       return {
         id: tab.id,
         kind: tab.kind,
         label,
         title: label,
-        isActive: tab.id === activeTabId,
+        state: {
+          isActive: tab.id === activeTabId,
+          isClosable: true,
+          hasLocalHistory: canUndo || canRedo,
+          canUndo,
+          canRedo,
+        },
       };
     }),
     activeTabId,

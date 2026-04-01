@@ -137,6 +137,9 @@ const zh = {
   assistantSidebarImage: '\u56fe\u7247',
   assistantSidebarSend: '发送',
   assistantSidebarSendBusy: '检索中...',
+  assistantSidebarNewConversation: '新建会话',
+  assistantSidebarHistory: '历史记录',
+  assistantSidebarMore: '更多',
   assistantSidebarQuestion: '问题',
   assistantSidebarQuestionPlaceholder:
     '可以提问某个主题、比较几篇文献的结论，或者让它生成一段带证据的短回答。',

@@ -15,7 +15,32 @@ export type TitleControlProps = {
 } & TitleControlCallbacks;
 
 export abstract class TitleControl {
-  constructor(protected readonly props: TitleControlProps) {}
+  private element: HTMLElement | null = null;
 
-  abstract render(): HTMLElement;
+  constructor(protected props: TitleControlProps) {}
+
+  getElement() {
+    if (!this.element) {
+      this.element = this.create();
+    }
+
+    return this.element;
+  }
+
+  setProps(props: TitleControlProps) {
+    this.props = props;
+    if (!this.element) {
+      return;
+    }
+
+    this.update();
+  }
+
+  dispose() {
+    this.element = null;
+  }
+
+  protected abstract create(): HTMLElement;
+
+  protected abstract update(): void;
 }
