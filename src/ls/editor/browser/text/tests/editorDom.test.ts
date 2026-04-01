@@ -102,6 +102,12 @@ function getScrollableRoot(editor: InstanceType<typeof ProseMirrorEditor>) {
   return element;
 }
 
+function getLatestFigureWidth(document: WritingEditorDocument) {
+  const figureNode = document.content?.find((node) => node.type === 'figure');
+  assert(figureNode, 'Figure node was not found in the document.');
+  return figureNode.attrs?.width;
+}
+
 function getToolbarButton(editor: InstanceType<typeof ProseMirrorEditor>, label: string) {
   const button = Array.from(editor.getElement().querySelectorAll('button')).find(
     (candidate) => candidate.getAttribute('aria-label') === label,
@@ -122,6 +128,37 @@ function createCompositionEvent(type: 'compositionstart' | 'compositionend', dat
   return new Event(type, {
     bubbles: true,
     cancelable: true,
+  });
+}
+
+function createDragPointerEvent(
+  type: 'pointerdown' | 'pointermove' | 'pointerup',
+  clientX: number,
+) {
+  const pointerEventConstructor = (
+    window as Window & {
+      PointerEvent?: typeof PointerEvent;
+    }
+  ).PointerEvent;
+
+  if (typeof pointerEventConstructor === 'function') {
+    return new pointerEventConstructor(type, {
+      bubbles: true,
+      clientX,
+      pointerId: 1,
+      pointerType: 'mouse',
+    });
+  }
+
+  const fallbackType =
+    type === 'pointerdown'
+      ? 'mousedown'
+      : type === 'pointermove'
+        ? 'mousemove'
+        : 'mouseup';
+  return new MouseEvent(fallbackType, {
+    bubbles: true,
+    clientX,
   });
 }
 
@@ -202,6 +239,33 @@ test('ProseMirrorEditor keeps composed text when stale props land during composi
 
     assert.equal(changes.length, 1);
     assert.equal(writingEditorDocumentToPlainText(changes[0]), '你好');
+  });
+});
+
+test('ProseMirrorEditor writes resized figure widths back to the document', async () => {
+  await withEditor(({ editor, changes }) => {
+    assert.equal(
+      editor.insertFigure({
+        src: 'https://example.com/figure.png',
+        caption: 'Figure caption',
+        width: 220,
+      }),
+      true,
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(getLatestFigureWidth(changes[0]), 220);
+
+    const resizeHandle = editor.getElement().querySelector('.pm-resizable-handle');
+    assert(resizeHandle instanceof HTMLElement, 'Figure resize handle was not rendered.');
+
+    resizeHandle.dispatchEvent(
+      createDragPointerEvent('pointerdown', 220),
+    );
+    window.dispatchEvent(createDragPointerEvent('pointermove', 300));
+    window.dispatchEvent(createDragPointerEvent('pointerup', 300));
+
+    assert.equal(changes.length, 2);
+    assert.equal(getLatestFigureWidth(changes[1]), 300);
   });
 });
 

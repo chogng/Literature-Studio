@@ -53,12 +53,17 @@ function createProps(): AuxiliaryBarProps {
     activeConversationId: 'conversation-1',
     isHistoryOpen: true,
     isMoreMenuOpen: false,
+    llmModelOptions: [
+      { value: 'glm:glm-4.7-flash', label: 'GLM / GLM-4.7-Flash' },
+    ],
+    activeLlmModelOptionValue: 'glm:glm-4.7-flash',
     onCreateConversation: () => {},
     onActivateConversation: () => {},
     onCloseConversation: () => {},
     onCloseAuxiliarySidebar: () => {},
     onToggleHistory: () => {},
     onToggleMoreMenu: () => {},
+    onSelectLlmModel: () => {},
   };
 }
 

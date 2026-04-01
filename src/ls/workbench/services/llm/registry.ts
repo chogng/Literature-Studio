@@ -127,6 +127,41 @@ export function getLlmModelsForProvider(providerId: LlmProviderId): LlmModelDefi
   return llmModels.filter((model) => model.provider === providerId && model.enabled);
 }
 
+export function getEnabledLlmModelIdsForProvider(
+  providerId: LlmProviderId,
+  enabledModels?: readonly string[],
+): string[] {
+  const providerModels = getLlmModelsForProvider(providerId);
+  if (providerModels.length === 0) {
+    return [];
+  }
+
+  if (!enabledModels || enabledModels.length === 0) {
+    return providerModels.map((model) => model.id);
+  }
+
+  const enabledModelSet = new Set(enabledModels);
+  const filteredModelIds = providerModels
+    .map((model) => model.id)
+    .filter((modelId) => enabledModelSet.has(modelId));
+
+  return filteredModelIds.length > 0
+    ? filteredModelIds
+    : providerModels.map((model) => model.id);
+}
+
+export function getEnabledLlmModelsForProvider(
+  providerId: LlmProviderId,
+  enabledModels?: readonly string[],
+): LlmModelDefinition[] {
+  const enabledModelIds = new Set(
+    getEnabledLlmModelIdsForProvider(providerId, enabledModels),
+  );
+  return getLlmModelsForProvider(providerId).filter((model) =>
+    enabledModelIds.has(model.id),
+  );
+}
+
 export function isLlmModelIdForProvider(providerId: LlmProviderId, modelId: string): boolean {
   return getLlmModelsForProvider(providerId).some((model) => model.id === modelId);
 }

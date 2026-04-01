@@ -20,6 +20,7 @@ type GlobalKey =
   | 'DocumentFragment'
   | 'Event'
   | 'MouseEvent'
+  | 'PointerEvent'
   | 'KeyboardEvent'
   | 'CompositionEvent'
   | 'InputEvent'
@@ -47,6 +48,7 @@ const GLOBAL_KEYS: readonly GlobalKey[] = [
   'DocumentFragment',
   'Event',
   'MouseEvent',
+  'PointerEvent',
   'KeyboardEvent',
   'CompositionEvent',
   'InputEvent',

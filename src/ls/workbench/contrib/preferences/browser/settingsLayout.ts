@@ -1,3 +1,4 @@
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
 
 export type SettingsSectionId =
@@ -15,6 +16,7 @@ export type SettingsSectionId =
 export type SettingsPageId =
   | 'general'
   | 'textEditor'
+  | 'model'
   | 'chat'
   | 'knowledgeBase'
   | 'literature';
@@ -22,6 +24,7 @@ export type SettingsPageId =
 type SettingsPageDefinition = {
   id: SettingsPageId;
   label: (labels: SettingsPartLabels) => string;
+  icon?: LxIconName;
   sections: SettingsSectionId[];
 };
 
@@ -29,6 +32,7 @@ const settingsPageLayout: SettingsPageDefinition[] = [
   {
     id: 'general',
     label: (labels) => labels.settingsNavigationGeneral,
+    icon: 'gear',
     sections: ['locale', 'appearance', 'configPath'],
   },
   {
@@ -37,9 +41,15 @@ const settingsPageLayout: SettingsPageDefinition[] = [
     sections: ['textEditor'],
   },
   {
+    id: 'model',
+    label: (labels) => labels.settingsLlmTitle,
+    icon: 'model',
+    sections: ['llm'],
+  },
+  {
     id: 'chat',
     label: (labels) => labels.settingsNavigationChat,
-    sections: ['llm', 'translation'],
+    sections: ['translation'],
   },
   {
     id: 'knowledgeBase',
@@ -57,6 +67,7 @@ export type SettingsSectionMap = Record<SettingsSectionId, HTMLElement>;
 export type SettingsNavigationItem = {
   id: SettingsPageId;
   label: string;
+  icon?: LxIconName;
 };
 
 // This remains intentionally lightweight: it defines page structure and the
@@ -76,6 +87,7 @@ export function getSettingsNavigationItems(labels: SettingsPartLabels): Settings
   return settingsPageLayout.map((page) => ({
     id: page.id,
     label: page.label(labels).trim(),
+    icon: page.icon,
   }));
 }
 

@@ -240,11 +240,11 @@ const en = {
   settingsLlmApiKey: 'API key',
   settingsLlmApiKeyPlaceholder: 'Paste the API key for the selected provider',
   settingsLlmModel: 'Model',
+  settingsLlmSearchPlaceholder: 'Search models',
+  settingsLlmNoResults: 'No matching models',
   settingsLlmTestConnection: 'Test',
   settingsLlmShowApiKey: 'Show',
   settingsLlmHideApiKey: 'Hide',
-  settingsLlmHint:
-    'Provider, model, and API key are saved locally so switching providers does not lose previous values.',
   settingsTranslationTitle: 'Translation API',
   settingsTranslationProvider: 'Translation provider',
   settingsTranslationProviderHint: 'Dedicated translation APIs are faster for short-form translation than general chat models.',

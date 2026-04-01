@@ -10,7 +10,10 @@ registerWorkbenchWindowControlsProvider({
   getState: async () => {
     const controls = nativeHostService.windowControls;
     if (!controls) {
-      return { isMaximized: false };
+      return {
+        isMaximized: false,
+        isFullscreen: false,
+      };
     }
 
     return controls.getState();

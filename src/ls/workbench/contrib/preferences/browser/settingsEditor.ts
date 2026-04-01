@@ -54,8 +54,8 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
     pdfFileNameUseSelectionOrder: ui.pdfFileNameUseSelectionOrder, pdfFileNameUseSelectionOrderHint: ui.pdfFileNameUseSelectionOrderHint, downloadDirPlaceholder: ui.downloadDirPlaceholder, chooseDirectory: ui.chooseDirectory, openConfigLocation: ui.openConfigLocation,
     resetDefault: ui.resetDefault, settingsHintPath: ui.settingsHintPath, settingsConfigPath: ui.settingsConfigPath, currentDir: ui.currentDir, systemDownloads: ui.systemDownloads, settingsLlmTitle: ui.settingsLlmTitle, settingsLlmProvider: ui.settingsLlmProvider,
     settingsLlmProviderHint: ui.settingsLlmProviderHint, settingsLlmProviderGlm: ui.settingsLlmProviderGlm, settingsLlmProviderKimi: ui.settingsLlmProviderKimi, settingsLlmProviderDeepSeek: ui.settingsLlmProviderDeepSeek, settingsLlmApiKey: ui.settingsLlmApiKey,
-    settingsLlmApiKeyPlaceholder: ui.settingsLlmApiKeyPlaceholder, settingsLlmModel: ui.settingsLlmModel, settingsLlmTestConnection: ui.settingsLlmTestConnection, settingsLlmShowApiKey: ui.settingsLlmShowApiKey, settingsLlmHideApiKey: ui.settingsLlmHideApiKey,
-    settingsLlmHint: ui.settingsLlmHint, settingsTranslationTitle: ui.settingsTranslationTitle, settingsTranslationProvider: ui.settingsTranslationProvider, settingsTranslationProviderHint: ui.settingsTranslationProviderHint, settingsTranslationProviderDeepL: ui.settingsTranslationProviderDeepL,
+    settingsLlmApiKeyPlaceholder: ui.settingsLlmApiKeyPlaceholder, settingsLlmModel: ui.settingsLlmModel, settingsLlmSearchPlaceholder: ui.settingsLlmSearchPlaceholder, settingsLlmNoResults: ui.settingsLlmNoResults, settingsLlmTestConnection: ui.settingsLlmTestConnection, settingsLlmShowApiKey: ui.settingsLlmShowApiKey, settingsLlmHideApiKey: ui.settingsLlmHideApiKey,
+    settingsTranslationTitle: ui.settingsTranslationTitle, settingsTranslationProvider: ui.settingsTranslationProvider, settingsTranslationProviderHint: ui.settingsTranslationProviderHint, settingsTranslationProviderDeepL: ui.settingsTranslationProviderDeepL,
     settingsTranslationApiKey: ui.settingsTranslationApiKey, settingsTranslationApiKeyPlaceholder: ui.settingsTranslationApiKeyPlaceholder, settingsTranslationTestConnection: ui.settingsTranslationTestConnection, settingsTranslationShowApiKey: ui.settingsTranslationShowApiKey,
     settingsTranslationHideApiKey: ui.settingsTranslationHideApiKey, settingsTranslationHint: ui.settingsTranslationHint,
   };
@@ -252,6 +252,7 @@ export class SettingsPartView {
       onActiveLlmProviderChange: (provider) => this.props.onActiveLlmProviderChange(provider),
       onLlmProviderApiKeyChange: (provider, apiKey) => this.props.onLlmProviderApiKeyChange(provider, apiKey),
       onLlmProviderModelChange: (provider, model) => this.props.onLlmProviderModelChange(provider, model),
+      onLlmProviderModelEnabledChange: (provider, model, enabled) => this.props.onLlmProviderModelEnabledChange(provider, model, enabled),
       onTestLlmConnection: () => this.props.onTestLlmConnection(),
     });
     this.translationField = new TranslationFieldView({
@@ -407,6 +408,7 @@ export class SettingsPartView {
       onActiveLlmProviderChange: (provider) => this.props.onActiveLlmProviderChange(provider),
       onLlmProviderApiKeyChange: (provider, apiKey) => this.props.onLlmProviderApiKeyChange(provider, apiKey),
       onLlmProviderModelChange: (provider, model) => this.props.onLlmProviderModelChange(provider, model),
+      onLlmProviderModelEnabledChange: (provider, model, enabled) => this.props.onLlmProviderModelEnabledChange(provider, model, enabled),
       onTestLlmConnection: () => this.props.onTestLlmConnection(),
     });
   }
@@ -438,8 +440,13 @@ export class SettingsPartView {
     this.navigation.replaceChildren(
       ...items.map((item) => {
         const button = el('button', 'settings-navigation-item');
+        const label = el('span', 'settings-navigation-label');
         button.type = 'button';
-        button.textContent = item.label;
+        if (item.icon) {
+          label.append(createLxIcon(item.icon, 'settings-navigation-icon'));
+        }
+        label.append(document.createTextNode(item.label));
+        button.append(label);
         button.dataset.pageTarget = item.id;
         button.classList.toggle('active', item.id === this.activePageId);
         button.addEventListener('click', () => this.focusPage(item.id));

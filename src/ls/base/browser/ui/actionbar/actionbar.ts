@@ -76,7 +76,7 @@ type RenderedAction = {
 export class ActionBarView {
   private props: ActionBarProps;
   private readonly element = createElement('div');
-  private readonly actionsContainer = createElement('div', 'ls-actionbar-actions-container');
+  private readonly actionsContainer = createElement('div', 'actionbar-actions-container');
   private readonly renderedActions: RenderedAction[] = [];
   private disposed = false;
 
@@ -130,7 +130,7 @@ export class ActionBarView {
   private render() {
     this.clearRenderedActions();
     this.element.className = composeClassName([
-      'ls-actionbar',
+      'actionbar',
       this.props.orientation === 'vertical' ? 'is-vertical' : 'is-horizontal',
       this.props.className,
     ]);
@@ -161,9 +161,9 @@ export class ActionBarView {
 
   private renderItem(item: ActionBarItem) {
     const itemElement = createElement(
-      'div',
+        'div',
       composeClassName([
-        'ls-actionbar-item',
+        'actionbar-item',
         isActionItem(item) ? 'is-action' : 'is-separator',
         isActionItem(item) && item.disabled ? 'is-disabled' : '',
         isActionItem(item) && item.active ? 'is-active' : '',
@@ -177,7 +177,7 @@ export class ActionBarView {
     }
 
     if (!isActionItem(item)) {
-      const separator = createElement('div', 'ls-actionbar-separator');
+      const separator = createElement('div', 'actionbar-separator');
       separator.setAttribute('aria-hidden', 'true');
       itemElement.append(separator);
       return itemElement;
@@ -187,7 +187,7 @@ export class ActionBarView {
     const button = createElement(
       'button',
       composeClassName([
-        'ls-actionbar-action',
+        'actionbar-action',
         `is-${mode}`,
         item.buttonClassName,
       ]),
@@ -209,7 +209,7 @@ export class ActionBarView {
       button.setAttribute(name, value);
     }
 
-    const content = createElement('span', 'ls-actionbar-content');
+    const content = createElement('span', 'actionbar-content');
     content.append(
       resolveRenderable(item.content ?? item.label),
     );

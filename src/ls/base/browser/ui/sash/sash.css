@@ -1,0 +1,75 @@
+:root {
+  --sash-size: 10px;
+  --sash-hover-size: 16px;
+  --sash-hover-border: rgba(46, 109, 179, 0.28);
+}
+
+.sash {
+  position: absolute;
+  z-index: 20;
+  touch-action: none;
+  user-select: none;
+}
+
+.sash.vertical {
+  top: 0;
+  width: var(--sash-size);
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.sash.horizontal {
+  left: 0;
+  width: 100%;
+  height: var(--sash-size);
+  cursor: ns-resize;
+}
+
+.sash.disabled {
+  cursor: default !important;
+  pointer-events: none !important;
+}
+
+.sash.vertical.minimum {
+  cursor: e-resize;
+}
+
+.sash.vertical.maximum {
+  cursor: w-resize;
+}
+
+.sash.horizontal.minimum {
+  cursor: s-resize;
+}
+
+.sash.horizontal.maximum {
+  cursor: n-resize;
+}
+
+.sash::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  border-radius: 999px;
+  transition: background-color 120ms ease-out;
+  background: transparent;
+}
+
+.sash.vertical::before {
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  left: calc(50% - 2px);
+}
+
+.sash.horizontal::before {
+  left: 0;
+  right: 0;
+  height: 4px;
+  top: calc(50% - 2px);
+}
+
+.sash.hover::before,
+.sash.active::before {
+  background: var(--sash-hover-border);
+}

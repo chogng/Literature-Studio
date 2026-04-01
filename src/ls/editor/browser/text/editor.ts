@@ -22,6 +22,7 @@ import {
   writingEditorSchema,
 } from 'ls/editor/browser/text/schema';
 import { DraftEditorToolbar } from 'ls/editor/browser/text/editorToolbar';
+import { FigureNodeView } from 'ls/editor/browser/text/figureNodeView';
 import { WritingEditorInputSession } from 'ls/editor/browser/text/input';
 import { resolveWritingEditorSurfaceSyncPlan } from 'ls/editor/browser/text/sync';
 import { DomScrollableElement } from 'ls/base/browser/ui/scrollbar/scrollableElement';
@@ -436,6 +437,9 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
           this.props.document,
           this.props.placeholder,
         ),
+        nodeViews: {
+          figure: (node, view, getPos) => new FigureNodeView(node, view, getPos),
+        },
         dispatchTransaction: (transaction) => {
           const nextState = editorView.state.apply(transaction);
           editorView.updateState(nextState);

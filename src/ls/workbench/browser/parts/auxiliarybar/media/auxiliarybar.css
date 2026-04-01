@@ -186,16 +186,6 @@
   border-bottom: none;
 }
 
-.auxiliarybar-topbar > .sidebar-action-bar.ls-actionbar {
-  --ls-actionbar-item-size: 26px;
-  --ls-actionbar-gap: 4px;
-  --ls-actionbar-radius: 6px;
-  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
-  --ls-actionbar-hover-foreground: #1a2530;
-  --ls-actionbar-active-background: #e8f1fc;
-  --ls-actionbar-active-foreground: #0a5fbf;
-}
-
 .auxiliarybar-popover {
   display: grid;
   gap: 8px;

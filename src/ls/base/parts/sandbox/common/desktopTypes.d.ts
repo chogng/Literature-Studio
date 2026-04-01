@@ -36,6 +36,7 @@ export interface LlmProviderSettings {
   apiKey: string;
   baseUrl: string;
   model: string;
+  enabledModels?: string[];
 }
 
 export interface LlmSettings {
@@ -158,6 +159,7 @@ export type WindowControlAction =
 
 export interface WindowState {
   isMaximized: boolean;
+  isFullscreen: boolean;
 }
 
 export interface WebContentBounds {

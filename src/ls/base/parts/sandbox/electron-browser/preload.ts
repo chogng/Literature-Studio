@@ -119,6 +119,7 @@ const electronAPI: ElectronAPI = {
     onStateChange(listener: (state: WindowState) => void) {
       return subscribeIpc<WindowState>('app:window-state', listener, {
         isMaximized: false,
+        isFullscreen: false,
       });
     },
   },
