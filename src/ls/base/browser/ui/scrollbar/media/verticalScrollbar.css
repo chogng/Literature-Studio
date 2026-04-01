@@ -1,4 +1,4 @@
-.monaco-scrollable-element {
+.scrollable-element-root {
   position: relative;
   display: block;
   overflow: hidden;
@@ -8,7 +8,7 @@
   min-width: 0;
 }
 
-.monaco-scrollable-element .scrollable-content {
+.scrollable-element-root .scrollable-content {
   position: absolute;
   inset: 0;
   display: block;
@@ -18,60 +18,81 @@
   overflow: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
+}
+
+.scrollable-element-root.is-vertical-scrollbar-visible .scrollable-content,
+.scrollable-element-root.is-horizontal-scrollbar-visible .scrollable-content {
   scrollbar-color:
     var(--vscode-scrollbarSlider-background, rgba(96, 125, 139, 0.55))
     transparent;
+  scrollbar-width: thin;
 }
 
-.monaco-scrollable-element.scrollbar-visibility-hidden .scrollable-content {
-  scrollbar-width: none;
-}
-
-.monaco-scrollable-element.scrollbar-visibility-hidden .scrollable-content::-webkit-scrollbar {
+.scrollable-element-root .scrollable-content::-webkit-scrollbar:vertical {
   width: 0;
 }
 
-.monaco-scrollable-element.scrollbar-visibility-hidden .scrollable-content::-webkit-scrollbar:horizontal {
+.scrollable-element-root .scrollable-content::-webkit-scrollbar:horizontal {
   height: 0;
 }
 
-.monaco-scrollable-element.scrollbar-visibility-visible .scrollable-content,
-.monaco-scrollable-element.is-scrollbar-needed .scrollable-content,
-.monaco-scrollable-element.is-hovered .scrollable-content {
-  scrollbar-color:
-    var(--vscode-scrollbarSlider-background, rgba(96, 125, 139, 0.55))
-    transparent;
-}
-
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar:vertical {
+.scrollable-element-root.is-vertical-scrollbar-visible .scrollable-content::-webkit-scrollbar:vertical {
   width: var(--scrollbar-size-vertical, 10px);
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-corner {
+.scrollable-element-root.is-horizontal-scrollbar-visible .scrollable-content::-webkit-scrollbar:horizontal {
+  height: var(--scrollbar-size-horizontal, 10px);
+}
+
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-track:vertical {
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-track:vertical {
   background: transparent;
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb:vertical {
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-track:horizontal {
+  background: transparent;
+}
+
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-thumb:vertical {
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
   background: var(--vscode-scrollbarSlider-background, rgba(96, 125, 139, 0.55));
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb:vertical:hover {
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-thumb:horizontal {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background: var(--vscode-scrollbarSlider-background, rgba(96, 125, 139, 0.55));
+}
+
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-thumb:vertical:hover {
   background: var(--vscode-scrollbarSlider-hoverBackground, rgba(76, 107, 122, 0.72));
 }
 
-.monaco-scrollable-element .scrollable-content::-webkit-scrollbar-thumb:vertical:active {
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-thumb:horizontal:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground, rgba(76, 107, 122, 0.72));
+}
+
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-thumb:vertical:active {
   background: var(--vscode-scrollbarSlider-activeBackground, rgba(58, 87, 102, 0.88));
 }
 
-.monaco-scrollable-element.use-shadows::before {
+.scrollable-element-root .scrollable-content::-webkit-scrollbar-thumb:horizontal:active {
+  background: var(--vscode-scrollbarSlider-activeBackground, rgba(58, 87, 102, 0.88));
+}
+
+.scrollable-element-root.is-scrollbar-hiding .scrollable-content {
+  transition: scrollbar-color 120ms linear;
+}
+
+.scrollable-element-root.use-shadows::before {
   content: '';
   position: absolute;
   inset: 0 auto auto 0;
@@ -83,6 +104,6 @@
   transition: opacity 120ms linear;
 }
 
-.monaco-scrollable-element.use-shadows.has-top-shadow::before {
+.scrollable-element-root.use-shadows.has-top-shadow::before {
   opacity: 1;
 }
