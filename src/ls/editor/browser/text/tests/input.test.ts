@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
-import { WritingEditorInputSession } from '../inputSession';
+import { WritingEditorInputSession } from '../input';
 
 function createHarness() {
   let composing = false;

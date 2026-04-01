@@ -8,7 +8,12 @@ export type WritingEditorSurfaceSyncPlan =
       kind: 'preserve-local-state';
       shouldRefreshToolbarChrome: boolean;
       shouldClearPendingDocumentSync: boolean;
-      shouldReplaceStateFromCurrent: boolean;
+      shouldRefreshPlaceholder: boolean;
+    }
+  | {
+      kind: 'refresh-placeholder';
+      shouldRefreshToolbarChrome: boolean;
+      shouldClearPendingDocumentSync: boolean;
     }
   | {
       kind: 'replace-state';
@@ -56,16 +61,24 @@ export function resolveWritingEditorSurfaceSyncPlan({
       kind: 'preserve-local-state',
       shouldRefreshToolbarChrome,
       shouldClearPendingDocumentSync,
-      shouldReplaceStateFromCurrent: shouldRefreshPlaceholder,
+      shouldRefreshPlaceholder,
     };
   }
 
-  if (currentDocumentKey !== nextDocumentKey || shouldRefreshPlaceholder) {
+  if (currentDocumentKey === nextDocumentKey && shouldRefreshPlaceholder) {
+    return {
+      kind: 'refresh-placeholder',
+      shouldRefreshToolbarChrome,
+      shouldClearPendingDocumentSync,
+    };
+  }
+
+  if (currentDocumentKey !== nextDocumentKey) {
     return {
       kind: 'replace-state',
       shouldRefreshToolbarChrome,
       shouldClearPendingDocumentSync,
-      documentSource: currentDocumentKey === nextDocumentKey ? 'current' : 'props',
+      documentSource: 'props',
     };
   }
 

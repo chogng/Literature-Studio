@@ -9,6 +9,7 @@ type GlobalKey =
   | 'document'
   | 'navigator'
   | 'HTMLElement'
+  | 'HTMLButtonElement'
   | 'Element'
   | 'Node'
   | 'Text'
@@ -32,6 +33,7 @@ const GLOBAL_KEYS: readonly GlobalKey[] = [
   'document',
   'navigator',
   'HTMLElement',
+  'HTMLButtonElement',
   'Element',
   'Node',
   'Text',
@@ -65,6 +67,18 @@ function createDomRect(width = 120, height = 24) {
       return this;
     },
   };
+}
+
+function createDomRectList() {
+  const rect = createDomRect() as DOMRect;
+  return {
+    0: rect,
+    item: (index: number) => (index === 0 ? rect : null),
+    length: 1,
+    [Symbol.iterator]: function* iterator() {
+      yield rect;
+    },
+  } as DOMRectList;
 }
 
 export function installDomTestEnvironment(): InstalledDomEnvironment {
@@ -107,23 +121,9 @@ export function installDomTestEnvironment(): InstalledDomEnvironment {
   }
 
   elementPrototype.getBoundingClientRect = () => createDomRect() as DOMRect;
-  elementPrototype.getClientRects = () =>
-    ({
-      item: (index: number) => (index === 0 ? createDomRect() : null),
-      length: 1,
-      [Symbol.iterator]: function* iterator() {
-        yield createDomRect();
-      },
-    }) as DOMRectList;
+  elementPrototype.getClientRects = () => createDomRectList();
   rangePrototype.getBoundingClientRect = () => createDomRect() as DOMRect;
-  rangePrototype.getClientRects = () =>
-    ({
-      item: (index: number) => (index === 0 ? createDomRect() : null),
-      length: 1,
-      [Symbol.iterator]: function* iterator() {
-        yield createDomRect();
-      },
-    }) as DOMRectList;
+  rangePrototype.getClientRects = () => createDomRectList();
 
   return {
     cleanup() {

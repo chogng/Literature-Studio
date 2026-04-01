@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveWritingEditorSurfaceSyncPlan } from '../surfaceSync';
+import { resolveWritingEditorSurfaceSyncPlan } from '../sync';
 
 test('surface sync defers updates while composition is active', () => {
   const plan = resolveWritingEditorSurfaceSyncPlan({
@@ -33,11 +33,11 @@ test('surface sync preserves local state when stale props arrive before model ec
     kind: 'preserve-local-state',
     shouldRefreshToolbarChrome: false,
     shouldClearPendingDocumentSync: false,
-    shouldReplaceStateFromCurrent: false,
+    shouldRefreshPlaceholder: false,
   });
 });
 
-test('surface sync keeps current document when only placeholder changes', () => {
+test('surface sync refreshes placeholder without replacing state when only placeholder changes', () => {
   const plan = resolveWritingEditorSurfaceSyncPlan({
     currentDocumentKey: 'same',
     nextDocumentKey: 'same',
@@ -48,10 +48,27 @@ test('surface sync keeps current document when only placeholder changes', () => 
   });
 
   assert.deepEqual(plan, {
-    kind: 'replace-state',
+    kind: 'refresh-placeholder',
     shouldRefreshToolbarChrome: false,
     shouldClearPendingDocumentSync: false,
-    documentSource: 'current',
+  });
+});
+
+test('surface sync preserves local state and still refreshes placeholder when props are stale', () => {
+  const plan = resolveWritingEditorSurfaceSyncPlan({
+    currentDocumentKey: 'local',
+    nextDocumentKey: 'stale',
+    pendingDocumentSyncKey: 'pending-local',
+    isComposing: false,
+    shouldRefreshPlaceholder: true,
+    shouldRefreshToolbarChrome: false,
+  });
+
+  assert.deepEqual(plan, {
+    kind: 'preserve-local-state',
+    shouldRefreshToolbarChrome: false,
+    shouldClearPendingDocumentSync: false,
+    shouldRefreshPlaceholder: true,
   });
 });
 

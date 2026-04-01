@@ -5,8 +5,11 @@ This note records the current contract for the writing editor's structured Prose
 ## Current scope
 
 - The editor stores `citation`, `figure`, and `figure_ref` as structured nodes instead of plain text.
-- Plain-text export and editor stats now flow through `src/ls/workbench/browser/parts/editor/prosemirror/document.ts`.
-- `src/ls/workbench/browser/writingEditorDocument.ts` is only a compatibility shim so older imports resolve to the same ProseMirror-aware helpers.
+- Plain-text export, derived labels, and editor stats live in `src/ls/editor/common/writingEditorDocument.ts`.
+- The browser surface is split by responsibility:
+  - `src/ls/editor/browser/text/input.ts` owns composition, pending-sync, and focus-restore timing.
+  - `src/ls/editor/browser/text/sync.ts` owns props-to-editor sync decisions.
+  - `src/ls/editor/browser/text/editor.ts` owns ProseMirror wiring and toolbar integration.
 
 ## Regression checks
 
@@ -16,12 +19,34 @@ Run the targeted regression check with:
 npm run test:writing-editor
 ```
 
-The test entry point is `tests/writing-editor/prosemirrorDocument.test.ts`.
+The test entry point is `tests/writing-editor/index.test.ts`.
 
-The lightweight runner bundles the test file with `esbuild` and executes it through Node's built-in `node:test` runner, so we do not need an additional test framework for this coverage.
+The lightweight runner bundles the test entry with `esbuild` and executes it through Node's built-in `node:test` runner. DOM integration coverage uses `jsdom`, so we still avoid introducing a full browser test stack.
 
 ## What is covered
 
 - Citation numbers are derived from first appearance order, not from the raw `citationIds` text.
 - Figure references render against figure order and fall back to `?` when the target figure is missing.
 - Figure insertion keeps a structured figure node, generates stable ids, and leaves a trailing paragraph so editing can continue naturally.
+- `input.ts` is covered as a standalone state machine for composition, pending sync, focus restore, and timer cleanup.
+- `sync.ts` is covered as a standalone decision layer for stale props, placeholder-only updates, and model echo handling.
+- `editor.ts` is covered in `jsdom` for DOM-level regressions around stale props during local edits, composition flush timing, placeholder refresh, and external document replacement semantics.
+
+## Sync policy
+
+- Stale props that arrive before the local model echo do not overwrite the current DOM/editor state.
+- Placeholder-only changes update the existing editor state instead of rebuilding the full `EditorState`.
+- Authoritative external document replacements still rebuild `EditorState` and clear undo/redo history.
+  This is intentional: preserving the old history across a whole-document replace produced invalid undo behavior.
+
+## What is not fully covered
+
+- Native macOS IME candidate UI is still a manual smoke test.
+- The manual checklist lives in `docs/writing-ime-smoke.md`.
+
+## Next cleanup targets
+
+- Keep `input.ts` as the only owner of composition/focus timing state.
+- Keep `sync.ts` as the only owner of props-to-editor sync branching.
+- Keep placeholder and other non-document updates away from full `EditorState` recreation.
+- If we revisit full-document external sync later, the replacement path must either reset history explicitly or define a valid history-mapping strategy first.

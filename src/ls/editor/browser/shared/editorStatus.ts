@@ -9,7 +9,7 @@ import {
   collectWritingEditorStats,
   getWritingEditorNodeText,
 } from '../../common/writingEditorDocument';
-import type { WritingEditorSurfaceLabels } from '../text/prosemirrorEditor';
+import type { WritingEditorSurfaceLabels } from '../text/editor';
 
 export type EditorStatusLabels = {
   statusbarAriaLabel: string;
