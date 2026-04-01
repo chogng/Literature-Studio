@@ -1,5 +1,13 @@
 export type Locale = 'zh' | 'en';
 
+export interface ArticleFigure {
+  id: string | null;
+  title: string | null;
+  captionText: string | null;
+  imageUrl: string | null;
+  fullSizeUrl: string | null;
+}
+
 export interface Article {
   title: string;
   articleType: string | null;
@@ -7,6 +15,7 @@ export interface Article {
   authors: string[];
   abstractText: string | null;
   descriptionText: string | null;
+  figures?: ArticleFigure[];
   publishedAt: string | null;
   sourceUrl: string;
   fetchedAt: string;
@@ -353,6 +362,21 @@ export interface IndexDownloadedPdfPayload {
   publishedAt?: string | null;
 }
 
+export interface UpsertLibraryDocumentMetadataPayload {
+  documentId?: string;
+  sourceUrl?: string;
+  sourceId?: string | null;
+  doi?: string | null;
+  articleTitle?: string | null;
+  authors?: string[];
+  journalTitle?: string | null;
+  publishedAt?: string | null;
+}
+
+export interface DeleteLibraryDocumentPayload {
+  documentId?: string;
+}
+
 export interface LibraryRegistrationResult {
   documentId: string;
   fileId: string;
@@ -529,6 +553,8 @@ export interface AppCommandPayloadMap {
   open_path: OpenPathPayload;
   web_content_download_pdf: WebContentPdfDownloadPayload;
   index_downloaded_pdf: IndexDownloadedPdfPayload;
+  upsert_library_document_metadata: UpsertLibraryDocumentMetadataPayload;
+  delete_library_document: DeleteLibraryDocumentPayload;
   get_library_document_status: LibraryDocumentStatusPayload;
   list_library_documents: ListLibraryDocumentsPayload;
   reindex_library_document: ReindexLibraryDocumentPayload;
@@ -549,6 +575,8 @@ export interface AppCommandResultMap {
   open_path: boolean;
   web_content_download_pdf: PdfDownloadResult;
   index_downloaded_pdf: LibraryRegistrationResult;
+  upsert_library_document_metadata: LibraryDocumentSummary;
+  delete_library_document: boolean;
   get_library_document_status: LibraryDocumentSummary | null;
   list_library_documents: LibraryDocumentsResult;
   reindex_library_document: ReindexLibraryDocumentResult;

@@ -42,9 +42,15 @@ import {
   writingEditorSchema,
 } from './schema';
 import { DraftEditorToolbar } from './draftEditorToolbar';
+import { WritingEditorInputSession } from './inputSession';
+import { resolveWritingEditorSurfaceSyncPlan } from './surfaceSync';
 import './media/prosemirrorEditor.css';
 
 export type WritingEditorSurfaceLabels = {
+  textGroup: string;
+  formatGroup: string;
+  insertGroup: string;
+  historyGroup: string;
   paragraph: string;
   heading1: string;
   heading2: string;
@@ -181,6 +187,36 @@ function areToolbarStatesEqual(
   );
 }
 
+function areSurfaceLabelsEqual(
+  previous: WritingEditorSurfaceLabels,
+  next: WritingEditorSurfaceLabels,
+) {
+  return (
+    previous.textGroup === next.textGroup &&
+    previous.formatGroup === next.formatGroup &&
+    previous.insertGroup === next.insertGroup &&
+    previous.historyGroup === next.historyGroup &&
+    previous.paragraph === next.paragraph &&
+    previous.heading1 === next.heading1 &&
+    previous.heading2 === next.heading2 &&
+    previous.heading3 === next.heading3 &&
+    previous.bold === next.bold &&
+    previous.italic === next.italic &&
+    previous.bulletList === next.bulletList &&
+    previous.orderedList === next.orderedList &&
+    previous.blockquote === next.blockquote &&
+    previous.undo === next.undo &&
+    previous.redo === next.redo &&
+    previous.insertCitation === next.insertCitation &&
+    previous.insertFigure === next.insertFigure &&
+    previous.insertFigureRef === next.insertFigureRef &&
+    previous.citationPrompt === next.citationPrompt &&
+    previous.figureUrlPrompt === next.figureUrlPrompt &&
+    previous.figureCaptionPrompt === next.figureCaptionPrompt &&
+    previous.figureRefPrompt === next.figureRefPrompt
+  );
+}
+
 export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   private props: WritingEditorSurfaceProps;
   private readonly element = createElement('div', 'pm-editor-shell');
@@ -188,6 +224,14 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   private readonly editorRootElement = createElement('div', 'pm-editor-root');
   private readonly toolbar: DraftEditorToolbar;
   private view: EditorView | null = null;
+  // The workbench can rerender before the writing model echoes the latest local document back.
+  private readonly inputSession = new WritingEditorInputSession({
+    isViewComposing: () => Boolean(this.view?.composing),
+    hasViewFocus: () => Boolean(this.view?.hasFocus()),
+    focusView: () => {
+      this.view?.focus();
+    },
+  });
   private snapshot: WritingEditorSurfaceSnapshot = {
     toolbarState: EMPTY_TOOLBAR_STATE,
   };
@@ -213,26 +257,31 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
       return;
     }
 
-    const currentDocumentKey = JSON.stringify(this.view.state.doc.toJSON());
+    const currentDocumentKey = createNormalizedDocumentKey(
+      this.view.state.doc.toJSON() as WritingEditorDocument,
+    );
     const nextDocumentKey = createNormalizedDocumentKey(props.document);
-    const shouldReplaceState =
-      currentDocumentKey !== nextDocumentKey ||
-      previousProps.placeholder !== props.placeholder;
+    const shouldRefreshPlaceholder = previousProps.placeholder !== props.placeholder;
+    const shouldRefreshToolbarChrome = !areSurfaceLabelsEqual(
+      previousProps.labels,
+      props.labels,
+    );
+    const shouldRestoreFocus =
+      this.view.hasFocus() || this.inputSession.shouldKeepFocus();
+    const syncPlan = resolveWritingEditorSurfaceSyncPlan({
+      currentDocumentKey,
+      nextDocumentKey,
+      pendingDocumentSyncKey: this.inputSession.getPendingDocumentSyncKey(),
+      isComposing: this.view.composing,
+      shouldRefreshPlaceholder,
+      shouldRefreshToolbarChrome,
+    });
 
-    if (shouldReplaceState) {
-      this.view.updateState(
-        createWritingEditorState(props.document, props.placeholder),
-      );
-      this.syncEditorViewState(this.view.state, false);
-      return;
-    }
-
-    this.emitStatusChange(this.view.state);
-    this.refreshToolbarSnapshot(this.view.state);
-    this.toolbar.setProps(this.createToolbarProps());
+    this.applySurfaceSyncPlan(syncPlan, props, shouldRestoreFocus);
   }
 
   dispose() {
+    this.inputSession.dispose();
     this.destroyView();
     this.element.replaceChildren();
   }
@@ -276,7 +325,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
 
     let editorView: EditorView;
     editorView = new EditorView(
-      { mount: this.editorRootElement },
+      this.editorRootElement,
       {
         state: createWritingEditorState(
           this.props.document,
@@ -285,12 +334,16 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
         dispatchTransaction: (transaction) => {
           const nextState = editorView.state.apply(transaction);
           editorView.updateState(nextState);
-          this.syncEditorViewState(nextState, true);
+          this.syncEditorViewState(nextState, transaction.docChanged);
         },
       },
     );
 
     this.view = editorView;
+    this.view.dom.addEventListener('compositionstart', this.handleCompositionStart);
+    this.view.dom.addEventListener('compositionend', this.handleCompositionEnd);
+    this.view.dom.addEventListener('focus', this.handleFocus);
+    this.view.dom.addEventListener('blur', this.handleBlur);
     this.syncEditorViewState(editorView.state, false);
   }
 
@@ -321,6 +374,13 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   }
 
   private destroyView() {
+    this.inputSession.dispose();
+    if (this.view) {
+      this.view.dom.removeEventListener('compositionstart', this.handleCompositionStart);
+      this.view.dom.removeEventListener('compositionend', this.handleCompositionEnd);
+      this.view.dom.removeEventListener('focus', this.handleFocus);
+      this.view.dom.removeEventListener('blur', this.handleBlur);
+    }
     this.view?.destroy();
     this.view = null;
     this.snapshot = { toolbarState: EMPTY_TOOLBAR_STATE };
@@ -360,12 +420,138 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
       return;
     }
 
+    const shouldRestoreFocus =
+      this.view.hasFocus() || this.inputSession.shouldKeepFocus();
     syncWritingEditorDerivedLabels(this.view.dom, nextState.doc);
     if (emitDocumentChange) {
-      this.props.onDocumentChange(nextState.doc.toJSON() as WritingEditorDocument);
+      const nextDocument = nextState.doc.toJSON() as WritingEditorDocument;
+      if (this.view.composing) {
+        this.inputSession.setPendingComposedDocument(nextDocument);
+      } else {
+        this.emitDocumentChange(nextDocument, shouldRestoreFocus);
+      }
     }
     this.emitStatusChange(nextState);
     this.refreshToolbarSnapshot(nextState);
+    this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+  }
+
+  private applySurfaceSyncPlan(
+    syncPlan: ReturnType<typeof resolveWritingEditorSurfaceSyncPlan>,
+    props: WritingEditorSurfaceProps,
+    shouldRestoreFocus: boolean,
+  ) {
+    if (!this.view) {
+      return;
+    }
+
+    if (syncPlan.shouldClearPendingDocumentSync) {
+      this.inputSession.clearPendingDocumentSyncIfMatches(
+        createNormalizedDocumentKey(props.document),
+      );
+    }
+
+    switch (syncPlan.kind) {
+      case 'defer-while-composing':
+        this.emitStatusChange(this.view.state);
+        this.refreshToolbarSnapshot(this.view.state);
+        if (syncPlan.shouldRefreshToolbarChrome) {
+          this.toolbar.setProps(this.createToolbarProps());
+        }
+        return;
+      case 'preserve-local-state':
+        if (syncPlan.shouldReplaceStateFromCurrent) {
+          this.view.updateState(
+            createWritingEditorState(
+              this.view.state.doc.toJSON() as WritingEditorDocument,
+              props.placeholder,
+            ),
+          );
+          this.syncEditorViewState(this.view.state, false);
+          this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+          return;
+        }
+
+        this.emitStatusChange(this.view.state);
+        this.refreshToolbarSnapshot(this.view.state);
+        if (syncPlan.shouldRefreshToolbarChrome) {
+          this.toolbar.setProps(this.createToolbarProps());
+        }
+        this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+        return;
+      case 'replace-state':
+        this.view.updateState(
+          createWritingEditorState(
+            syncPlan.documentSource === 'current'
+              ? (this.view.state.doc.toJSON() as WritingEditorDocument)
+              : props.document,
+            props.placeholder,
+          ),
+        );
+        this.syncEditorViewState(this.view.state, false);
+        this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+        return;
+      case 'sync-current-state':
+        this.emitStatusChange(this.view.state);
+        this.refreshToolbarSnapshot(this.view.state);
+        if (syncPlan.shouldRefreshToolbarChrome) {
+          this.toolbar.setProps(this.createToolbarProps());
+        }
+        this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+        return;
+    }
+  }
+
+  private emitDocumentChange(
+    nextDocument: WritingEditorDocument,
+    shouldRestoreFocus: boolean,
+  ) {
+    this.inputSession.markDocumentSyncPending(
+      createNormalizedDocumentKey(nextDocument),
+    );
+    if (shouldRestoreFocus) {
+      this.inputSession.armFocusRestore();
+    } else {
+      this.inputSession.clearFocusRestoreState();
+    }
+    this.inputSession.clearPendingComposedDocument();
+    this.props.onDocumentChange(nextDocument);
+  }
+
+  private readonly handleCompositionStart = () => {
+    this.inputSession.handleCompositionStart();
+  };
+
+  private readonly handleCompositionEnd = () => {
+    this.inputSession.scheduleCompositionFlush(() => {
+      if (!this.view) {
+        return;
+      }
+
+      const nextDocument =
+        this.inputSession.getPendingComposedDocument() ??
+        (this.view.state.doc.toJSON() as WritingEditorDocument);
+      const nextDocumentKey = createNormalizedDocumentKey(nextDocument);
+      const propsDocumentKey = createNormalizedDocumentKey(this.props.document);
+
+      if (nextDocumentKey === propsDocumentKey) {
+        this.inputSession.clearPendingComposedDocument();
+        return;
+      }
+
+      this.emitDocumentChange(
+        nextDocument,
+        this.view.hasFocus() || this.inputSession.isFocusRestorePending(),
+      );
+    });
+  };
+
+  private readonly handleBlur = () => {
+    this.inputSession.handleBlur();
+  };
+
+  private readonly handleFocus = () => {
+    this.inputSession.handleFocus();
   }
 }
 

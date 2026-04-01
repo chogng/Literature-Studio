@@ -6,6 +6,7 @@ import { promises as fs } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 import type {
+  DeleteLibraryDocumentPayload,
   IndexDownloadedPdfPayload,
   KnowledgeBaseSettings,
   LibraryDedupeReason,
@@ -14,6 +15,7 @@ import type {
   LibraryDocumentsResult,
   LibraryIngestStatus,
   ReindexLibraryDocumentResult,
+  UpsertLibraryDocumentMetadataPayload,
 } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { cleanText } from '../../../base/common/strings.js';
 import { createDefaultKnowledgeBaseSettings } from '../../../workbench/services/knowledgeBase/config.js';
@@ -21,7 +23,12 @@ import type { StorageService } from '../common/storage.js';
 
 type LibraryStore = Pick<
   StorageService,
-  'registerLibraryDocument' | 'getLibraryDocumentStatus' | 'listLibraryDocuments' | 'reindexLibraryDocument'
+  | 'upsertLibraryDocumentMetadata'
+  | 'deleteLibraryDocument'
+  | 'registerLibraryDocument'
+  | 'getLibraryDocumentStatus'
+  | 'listLibraryDocuments'
+  | 'reindexLibraryDocument'
 >;
 
 type StorageMode = KnowledgeBaseSettings['libraryStorageMode'];
@@ -383,6 +390,9 @@ export function createLibraryStore(paths: LibraryPaths): LibraryStore {
   const selectDocumentByTitleAuthorYear = db.prepare(
     'SELECT document_id FROM documents WHERE title_key = ? AND first_author_key = ? AND published_year = ? LIMIT 1',
   );
+  const selectDocumentBySourceUrl = db.prepare(
+    'SELECT document_id FROM documents WHERE source_url = ? ORDER BY updated_at DESC, created_at DESC LIMIT 1',
+  );
   const selectFileByPath = db.prepare(
     'SELECT file_id, document_id FROM document_files WHERE file_path = ? LIMIT 1',
   );
@@ -480,6 +490,10 @@ export function createLibraryStore(paths: LibraryPaths): LibraryStore {
   const updateDocumentStatus = db.prepare(`
     UPDATE documents
     SET ingest_status = ?, updated_at = ?
+    WHERE document_id = ?
+  `);
+  const deleteDocumentById = db.prepare(`
+    DELETE FROM documents
     WHERE document_id = ?
   `);
   const selectSummaryByDocumentId = db.prepare(`
@@ -585,7 +599,141 @@ export function createLibraryStore(paths: LibraryPaths): LibraryStore {
     return targetFilePath;
   }
 
+  function resolveMetadataDocumentMatch(
+    sourceUrl: string | null,
+    doiNormalized: string | null,
+    titleKey: string,
+    firstAuthorKey: string,
+    publishedYear: string | null,
+  ) {
+    const matchedBySourceUrl = sourceUrl
+      ? (selectDocumentBySourceUrl.get(sourceUrl) as { document_id: string } | undefined)
+      : undefined;
+    if (matchedBySourceUrl) {
+      return matchedBySourceUrl.document_id;
+    }
+
+    const matchedByDoi = doiNormalized
+      ? (selectDocumentByDoi.get(doiNormalized) as { document_id: string } | undefined)
+      : undefined;
+    if (matchedByDoi) {
+      return matchedByDoi.document_id;
+    }
+
+    if (titleKey && firstAuthorKey && publishedYear) {
+      const matchedByTitle = selectDocumentByTitleAuthorYear.get(
+        titleKey,
+        firstAuthorKey,
+        publishedYear,
+      ) as { document_id: string } | undefined;
+      if (matchedByTitle) {
+        return matchedByTitle.document_id;
+      }
+    }
+
+    return null;
+  }
+
   return {
+    async upsertLibraryDocumentMetadata(
+      payload: UpsertLibraryDocumentMetadataPayload,
+    ) {
+      const requestedDocumentId = cleanText(payload.documentId);
+      const normalizedTitle = cleanText(payload.articleTitle) || null;
+      const normalizedAuthors = normalizeAuthors(payload.authors);
+      const normalizedJournalTitle = cleanText(payload.journalTitle) || null;
+      const normalizedPublishedAt = cleanText(payload.publishedAt) || null;
+      const normalizedSourceUrl = cleanText(payload.sourceUrl) || null;
+      const normalizedSourceId = cleanText(payload.sourceId) || null;
+      const normalizedDoi = cleanText(payload.doi) || null;
+      const doiNormalized = normalizeDoi(normalizedDoi);
+      const titleKey = normalizeTextKey(normalizedTitle);
+      const firstAuthorKey = normalizeTextKey(normalizedAuthors[0] ?? '');
+      const publishedYear = extractPublishedYear(normalizedPublishedAt);
+      const matchedDocumentId =
+        requestedDocumentId ||
+        resolveMetadataDocumentMatch(
+          normalizedSourceUrl,
+          doiNormalized,
+          titleKey,
+          firstAuthorKey,
+          publishedYear,
+        );
+      const documentId = matchedDocumentId ?? randomUUID();
+
+      runTransaction(db, () => {
+        const currentTimestamp = nowIso();
+        const existingDocument = matchedDocumentId
+          ? (selectDocumentById.get(matchedDocumentId) as DocumentRow | undefined)
+          : undefined;
+        const nextDocumentTitle = normalizedTitle || existingDocument?.title || null;
+        const nextAuthors =
+          normalizedAuthors.length > 0
+            ? normalizedAuthors
+            : parseAuthorsJson(existingDocument?.authors_json);
+        const nextJournalTitle =
+          normalizedJournalTitle || existingDocument?.journal_title || null;
+        const nextPublishedAt =
+          normalizedPublishedAt || existingDocument?.published_at || null;
+        const nextPublishedYear =
+          extractPublishedYear(nextPublishedAt) || existingDocument?.published_year || null;
+        const nextSourceUrl = normalizedSourceUrl || existingDocument?.source_url || null;
+        const nextSourceId = normalizedSourceId || existingDocument?.source_id || null;
+        const nextDoi = normalizedDoi || existingDocument?.doi || null;
+        const nextDoiNormalized = normalizeDoi(nextDoi);
+        const nextTitleKey = normalizeTextKey(nextDocumentTitle);
+        const nextFirstAuthorKey = normalizeTextKey(nextAuthors[0] ?? '');
+        const nextIngestStatus = resolveNextIngestStatus(existingDocument?.ingest_status);
+
+        upsertDocument.run(
+          documentId,
+          nextDocumentTitle,
+          nextDoi,
+          nextDoiNormalized,
+          JSON.stringify(nextAuthors),
+          nextJournalTitle,
+          nextPublishedAt,
+          nextPublishedYear,
+          nextSourceUrl,
+          nextSourceId,
+          null,
+          nextTitleKey,
+          nextFirstAuthorKey,
+          nextIngestStatus,
+          existingDocument ? existingDocument.created_at ?? currentTimestamp : currentTimestamp,
+          currentTimestamp,
+        );
+      });
+
+      const row = selectSummaryByDocumentId.get(documentId) as
+        | DocumentSummaryRow
+        | undefined;
+      if (!row) {
+        throw new Error(`Failed to upsert library metadata for document '${documentId}'.`);
+      }
+
+      return mapDocumentSummary(row);
+    },
+
+    async deleteLibraryDocument(payload: DeleteLibraryDocumentPayload) {
+      const documentId = cleanText(payload.documentId);
+      if (!documentId) {
+        throw new Error('A document id is required to delete a library document.');
+      }
+
+      return runTransaction(db, () => {
+        const existingDocument = selectDocumentById.get(documentId) as
+          | DocumentRow
+          | undefined;
+        if (!existingDocument) {
+          return false;
+        }
+
+        deleteDocumentById.run(documentId);
+        return true;
+      });
+    },
+
     async registerLibraryDocument(payload: IndexDownloadedPdfPayload) {
       const sourceFilePath = cleanText(payload.filePath);
       if (!sourceFilePath) {

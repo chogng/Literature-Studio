@@ -13,21 +13,131 @@
 
 .pm-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 12px 10px;
-  border-bottom: 1px solid #e4ebf3;
-  background: rgba(247, 250, 253, 0.92);
+  gap: 10px;
+  align-items: stretch;
+  padding: 12px;
+  border-bottom: 1px solid #dde7f0;
+  background:
+    linear-gradient(180deg, rgba(249, 252, 255, 0.98), rgba(236, 244, 251, 0.96));
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .pm-toolbar-group {
-  display: inline-flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px 8px;
+  border: 1px solid rgba(183, 197, 214, 0.72);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 248, 252, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 18px rgba(64, 89, 118, 0.06);
+}
+
+.pm-toolbar-group-actions {
+  display: flex;
   gap: 8px;
 }
 
+.pm-toolbar-group-title {
+  padding-top: 6px;
+  border-top: 1px solid rgba(193, 205, 219, 0.72);
+  color: #5f7185;
+  font:
+    600 10px/1.2 "IBM Plex Sans",
+    "Noto Sans SC",
+    sans-serif;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .pm-toolbar-btn.btn-base {
-  border-radius: 999px;
+  min-width: 74px;
+  min-height: 66px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #314458;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 6px;
+  justify-items: center;
+  align-content: start;
+  box-shadow: none;
+}
+
+.pm-toolbar-btn.btn-base:hover:not(:disabled) {
+  background: rgba(220, 232, 245, 0.58);
+  border-color: rgba(155, 183, 212, 0.76);
+  color: #173556;
+  transform: translateY(-1px);
+}
+
+.pm-toolbar-btn.btn-base:active:not(:disabled) {
+  background: rgba(206, 222, 240, 0.72);
+  transform: translateY(0);
+}
+
+.pm-toolbar-btn.btn-base.is-active {
+  background:
+    linear-gradient(180deg, rgba(217, 233, 251, 0.98), rgba(198, 219, 243, 0.96));
+  border-color: rgba(129, 163, 200, 0.9);
+  color: #143454;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 6px 14px rgba(56, 98, 145, 0.16);
+}
+
+.pm-toolbar-btn-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(236, 242, 248, 0.92);
+  color: #234160;
+}
+
+.pm-toolbar-btn.btn-base.is-active .pm-toolbar-btn-icon {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.pm-toolbar-btn-icon .lx-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pm-toolbar-btn-icon .lx-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pm-toolbar-btn-glyph {
+  font:
+    700 12px/1 "IBM Plex Sans",
+    "Noto Sans SC",
+    sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.pm-toolbar-btn-label {
+  max-width: 76px;
+  color: inherit;
+  font:
+    600 11px/1.25 "IBM Plex Sans",
+    "Noto Sans SC",
+    sans-serif;
+  text-align: center;
+  white-space: normal;
 }
 
 .pm-editor-host {
@@ -161,6 +271,26 @@
   .pm-toolbar {
     padding-left: 10px;
     padding-right: 10px;
+    gap: 8px;
+  }
+
+  .pm-toolbar-group {
+    padding: 9px 10px 7px;
+  }
+
+  .pm-toolbar-group-actions {
+    gap: 6px;
+  }
+
+  .pm-toolbar-btn.btn-base {
+    min-width: 66px;
+    min-height: 60px;
+    padding: 7px 8px;
+  }
+
+  .pm-toolbar-btn-label {
+    max-width: 68px;
+    font-size: 10px;
   }
 
   .pm-editor-root .ProseMirror {

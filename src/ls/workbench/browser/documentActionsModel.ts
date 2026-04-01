@@ -2,6 +2,7 @@ import { toast } from '../../base/browser/ui/toast/toast';
 import type {
   ArticleDetailsModalLabels,
   ElectronInvoke,
+  LibraryDocumentSummary,
 } from '../../base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../language/i18n';
 import type { LocaleMessages } from '../../../language/locales';
@@ -36,6 +37,7 @@ export type DocumentActionsControllerContext = {
   isSelectionModeEnabled: boolean;
   selectedArticleOrderLookup: ReadonlyMap<string, number>;
   exportableArticles: Article[];
+  onLibraryDocumentUpserted?: (document: LibraryDocumentSummary) => void;
   onLibraryUpdated?: () => void | Promise<void>;
 };
 
@@ -171,6 +173,7 @@ export class DocumentActionsController {
       isSelectionModeEnabled,
       selectedArticleOrderLookup,
       onLibraryUpdated,
+      onLibraryDocumentUpserted,
     } = this.context;
 
     const preparedPdfDownload = preparePdfDownload(article.sourceUrl, article.doi);
@@ -184,6 +187,29 @@ export class DocumentActionsController {
       return;
     }
 
+    if (knowledgeBaseEnabled) {
+      try {
+        const document = await invokeDesktop<LibraryDocumentSummary>(
+          'upsert_library_document_metadata',
+          {
+            articleTitle: article.title,
+            doi: typeof article.doi === 'string' ? article.doi : null,
+            authors: article.authors,
+            journalTitle:
+              typeof article.journalTitle === 'string'
+                ? article.journalTitle
+                : null,
+            publishedAt:
+              typeof article.publishedAt === 'string' ? article.publishedAt : null,
+            sourceUrl: preparedPdfDownload.normalizedSourceUrl,
+            sourceId: typeof article.sourceId === 'string' ? article.sourceId : null,
+          },
+        );
+        onLibraryDocumentUpserted?.(document);
+      } catch (metadataError) {
+        console.error('Failed to upsert library document metadata.', metadataError);
+      }
+    }
     markPdfDownloadStarted(preparedPdfDownload.normalizedSourceUrl);
 
     if (preparedPdfDownload.isSciencePdfDownload && this.sciencePdfDownloadCount > 0) {

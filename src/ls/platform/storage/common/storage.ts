@@ -1,7 +1,9 @@
 import type {
   AppSettings,
   Article,
+  DeleteLibraryDocumentPayload,
   IndexDownloadedPdfPayload,
+  UpsertLibraryDocumentMetadataPayload,
   LibraryDocumentStatusPayload,
   LibraryDocumentSummary,
   LibraryDocumentsResult,
@@ -23,6 +25,10 @@ export interface StorageService {
   saveTranslationCache(entries: TranslationCacheRecord[]): Promise<void>;
   loadSettings(): Promise<AppSettings>;
   saveSettings(settings?: Partial<StoredAppSettings>): Promise<AppSettings>;
+  upsertLibraryDocumentMetadata(
+    payload: UpsertLibraryDocumentMetadataPayload,
+  ): Promise<LibraryDocumentSummary>;
+  deleteLibraryDocument(payload: DeleteLibraryDocumentPayload): Promise<boolean>;
   registerLibraryDocument(payload: IndexDownloadedPdfPayload): Promise<LibraryRegistrationResult>;
   getLibraryDocumentStatus(
     payload: LibraryDocumentStatusPayload,

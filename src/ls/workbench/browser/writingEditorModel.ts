@@ -66,6 +66,7 @@ type StoredWritingWorkspaceState = {
 };
 
 const DEFAULT_VIEW_MODE: WritingEditorViewMode = 'draft';
+const DRAFT_PERSIST_DEBOUNCE_MS = 250;
 
 const draftStorageKeys = {
   title: 'ls.writingDraft.title',
@@ -135,6 +136,10 @@ function createDraftTab(
     ),
     viewMode: initial?.viewMode === 'draft' ? initial.viewMode : DEFAULT_VIEW_MODE,
   };
+}
+
+function createNormalizedDocumentKey(document: WritingEditorDocument) {
+  return JSON.stringify(normalizeWritingEditorDocument(document));
 }
 
 function getContentTabTitle(url: string) {
@@ -396,6 +401,7 @@ export class WritingEditorModel {
   private workspaceState: WritingWorkspaceState;
   private snapshot: WritingEditorModelSnapshot;
   private listeners = new Set<WritingEditorModelListener>();
+  private persistTimer: number | null = null;
 
   constructor(initialState: WritingWorkspaceState = readStoredWorkspaceState()) {
     this.workspaceState = normalizeWorkspaceState(initialState);
@@ -495,17 +501,35 @@ export class WritingEditorModel {
   };
 
   readonly setDraftDocument = (value: WritingEditorDocument) => {
-    this.updateWorkspaceState((state) => ({
-      ...state,
-      tabs: state.tabs.map((tab) =>
-        tab.id === state.activeTabId && tab.kind === 'draft'
-          ? {
-              ...tab,
-              document: normalizeWritingEditorDocument(value),
-            }
-          : tab,
-      ),
-    }));
+    const normalizedDocument = normalizeWritingEditorDocument(value);
+    const currentActiveDraftTab =
+      this.workspaceState.tabs.find(
+        (tab): tab is WritingWorkspaceDraftTab =>
+          tab.id === this.workspaceState.activeTabId && tab.kind === 'draft',
+      ) ?? null;
+
+    if (
+      currentActiveDraftTab &&
+      createNormalizedDocumentKey(currentActiveDraftTab.document) ===
+        createNormalizedDocumentKey(normalizedDocument)
+    ) {
+      return;
+    }
+
+    this.updateWorkspaceState(
+      (state) => ({
+        ...state,
+        tabs: state.tabs.map((tab) =>
+          tab.id === state.activeTabId && tab.kind === 'draft'
+            ? {
+                ...tab,
+                document: normalizedDocument,
+              }
+            : tab,
+        ),
+      }),
+      { persist: 'debounced' },
+    );
   };
 
   readonly updateActiveContentTabUrl = (url: string) => {
@@ -527,6 +551,7 @@ export class WritingEditorModel {
   };
 
   readonly dispose = () => {
+    this.flushPersistWorkspaceSnapshot();
     this.listeners.clear();
   };
 
@@ -538,11 +563,36 @@ export class WritingEditorModel {
 
   private updateWorkspaceState(
     updater: (state: WritingWorkspaceState) => WritingWorkspaceState,
+    options: { persist?: 'immediate' | 'debounced' } = {},
   ) {
     this.workspaceState = normalizeWorkspaceState(updater(this.workspaceState));
     this.snapshot = createWritingEditorModelSnapshot(this.workspaceState);
-    persistWorkspaceSnapshot(this.workspaceState);
+    if (options.persist === 'debounced') {
+      this.schedulePersistWorkspaceSnapshot();
+    } else {
+      this.flushPersistWorkspaceSnapshot();
+    }
     this.emitChange();
+  }
+
+  private schedulePersistWorkspaceSnapshot() {
+    if (this.persistTimer !== null) {
+      window.clearTimeout(this.persistTimer);
+    }
+
+    this.persistTimer = window.setTimeout(() => {
+      this.persistTimer = null;
+      persistWorkspaceSnapshot(this.workspaceState);
+    }, DRAFT_PERSIST_DEBOUNCE_MS);
+  }
+
+  private flushPersistWorkspaceSnapshot() {
+    if (this.persistTimer !== null) {
+      window.clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+
+    persistWorkspaceSnapshot(this.workspaceState);
   }
 }
 

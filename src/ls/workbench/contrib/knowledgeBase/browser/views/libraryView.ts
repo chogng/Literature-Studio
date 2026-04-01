@@ -16,6 +16,9 @@ export type LibraryViewProps = {
   onDocumentDragStart?: (documentId: string) => void;
   onDocumentSelect?: (document: LibraryDocumentSummary | null) => void;
   onDocumentOpen?: (document: LibraryDocumentSummary) => void;
+  onDocumentRename?: (document: LibraryDocumentSummary) => void;
+  onDocumentEditSourceUrl?: (document: LibraryDocumentSummary) => void;
+  onDocumentDelete?: (document: LibraryDocumentSummary) => void;
 };
 
 export class LibraryView {
@@ -32,6 +35,9 @@ export class LibraryView {
       onDocumentDragStart: props.onDocumentDragStart,
       onDocumentSelect: props.onDocumentSelect,
       onDocumentOpen: props.onDocumentOpen,
+      onDocumentRename: props.onDocumentRename,
+      onDocumentEditSourceUrl: props.onDocumentEditSourceUrl,
+      onDocumentDelete: props.onDocumentDelete,
     });
     this.render();
   }
@@ -48,11 +54,15 @@ export class LibraryView {
       onDocumentDragStart: props.onDocumentDragStart,
       onDocumentSelect: props.onDocumentSelect,
       onDocumentOpen: props.onDocumentOpen,
+      onDocumentRename: props.onDocumentRename,
+      onDocumentEditSourceUrl: props.onDocumentEditSourceUrl,
+      onDocumentDelete: props.onDocumentDelete,
     });
     this.render();
   }
 
   dispose() {
+    this.viewer.dispose();
     this.element.replaceChildren();
   }
 

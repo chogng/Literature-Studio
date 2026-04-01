@@ -7,8 +7,8 @@ import { build } from 'esbuild';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, '..');
 const outputDir = path.join(rootDir, '.tmp', 'writing-editor-tests');
-const entryPoint = path.join(rootDir, 'tests', 'writing-editor', 'prosemirrorDocument.test.ts');
-const outputFile = path.join(outputDir, 'prosemirrorDocument.test.mjs');
+const entryPoint = path.join(rootDir, 'tests', 'writing-editor', 'index.test.ts');
+const outputFile = path.join(outputDir, 'index.test.mjs');
 
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
@@ -21,7 +21,11 @@ await build({
   format: 'esm',
   target: 'node20',
   sourcemap: 'inline',
-  external: ['node:assert/strict', 'node:test'],
+  external: ['node:assert/strict', 'node:test', 'jsdom'],
+  loader: {
+    '.css': 'empty',
+    '.svg': 'text',
+  },
 });
 
 const result = spawnSync(process.execPath, ['--test', outputFile], {

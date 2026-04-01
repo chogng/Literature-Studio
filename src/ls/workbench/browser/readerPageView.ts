@@ -23,7 +23,7 @@ import {
 } from './parts/auxiliarybar/auxiliarybarPart';
 import { initializeStatusbarState, updateStatusbarState } from './parts/statusbar/statusbarActions';
 
-type ReaderViewProps = {
+type ReaderPageViewProps = {
   isSidebarVisible: boolean;
   activeSidebarKind: WorkbenchSidebarKind;
   isAuxiliarySidebarVisible: boolean;
@@ -44,8 +44,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-export class ReaderView {
-  private props: ReaderViewProps;
+export class ReaderPageView {
+  private props: ReaderPageViewProps;
   private readonly element = createElement('section', 'reader-layout');
   private readonly mainElement = createElement('main');
   private leftPaneView:
@@ -55,7 +55,7 @@ export class ReaderView {
   private auxiliarySidebarView: AuxiliaryBarPartView | null = null;
   private editorView: ReturnType<typeof createEditorPartView> | null = null;
 
-  constructor(props: ReaderViewProps) {
+  constructor(props: ReaderPageViewProps) {
     this.props = props;
     this.element.append(this.mainElement);
     this.render();
@@ -69,7 +69,7 @@ export class ReaderView {
     return this.editorView?.executeActiveDraftCommand(commandId) ?? false;
   }
 
-  setProps(props: ReaderViewProps) {
+  setProps(props: ReaderPageViewProps) {
     this.props = props;
     this.render();
   }
@@ -110,15 +110,31 @@ export class ReaderView {
     this.renderEditor();
     this.renderAuxiliarySidebar();
 
-    this.mainElement.replaceChildren();
-    if (this.leftPaneView) {
-      this.mainElement.append(this.leftPaneView.getElement());
+    // Keep the editor DOM attached while outer workbench props change. Detaching and
+    // re-attaching the focused contenteditable breaks IME sessions in Electron/macOS.
+    this.syncMainChildren([
+      this.leftPaneView?.getElement(),
+      this.editorView?.getElement(),
+      this.auxiliarySidebarView?.getElement(),
+    ].filter((element): element is HTMLElement => Boolean(element)));
+  }
+
+  private syncMainChildren(children: readonly HTMLElement[]) {
+    let cursor = this.mainElement.firstChild;
+
+    for (const child of children) {
+      if (child === cursor) {
+        cursor = cursor?.nextSibling ?? null;
+        continue;
+      }
+
+      this.mainElement.insertBefore(child, cursor);
     }
-    if (this.editorView) {
-      this.mainElement.append(this.editorView.getElement());
-    }
-    if (this.auxiliarySidebarView) {
-      this.mainElement.append(this.auxiliarySidebarView.getElement());
+
+    while (cursor) {
+      const nextSibling = cursor.nextSibling;
+      this.mainElement.removeChild(cursor);
+      cursor = nextSibling;
     }
   }
 
@@ -184,8 +200,8 @@ export class ReaderView {
   }
 }
 
-export function createReaderView(props: ReaderViewProps) {
-  return new ReaderView(props);
+export function createReaderPageView(props: ReaderPageViewProps) {
+  return new ReaderPageView(props);
 }
 
-export default ReaderView;
+export default ReaderPageView;

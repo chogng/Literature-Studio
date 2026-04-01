@@ -48,11 +48,39 @@ export type EditorPartControllerSnapshot = Pick<
 };
 
 export type EditorPartModel = EditorPartController;
+export type EditorPartChangeReason = 'structure' | 'draftContent' | 'context';
 
 type CreateEditorPartPropsParams = {
   state: EditorPartState;
   actions: EditorPartActions;
 };
+
+function toStructuralWorkspaceTab(tab: WritingWorkspaceTab) {
+  if (tab.kind === 'draft') {
+    return {
+      id: tab.id,
+      kind: tab.kind,
+      title: tab.title,
+      viewMode: tab.viewMode,
+    };
+  }
+
+  return {
+    id: tab.id,
+    kind: tab.kind,
+    title: tab.title,
+    url: tab.url,
+  };
+}
+
+function createEditorPartStructureKey(snapshot: EditorPartControllerSnapshot) {
+  return JSON.stringify({
+    tabs: snapshot.tabs.map(toStructuralWorkspaceTab),
+    activeTabId: snapshot.activeTabId,
+    activeTab: snapshot.activeTab ? toStructuralWorkspaceTab(snapshot.activeTab) : null,
+    webContentSurfaceSnapshot: snapshot.webContentSurfaceSnapshot,
+  });
+}
 
 export function createEditorPartProps({
   state: {
@@ -94,6 +122,10 @@ export function createEditorPartProps({
         blockFigure: ui.editorStatusFigure,
         ready: ui.statusReady,
       },
+      textGroup: ui.editorRibbonText,
+      formatGroup: ui.editorRibbonFormat,
+      insertGroup: ui.editorRibbonInsert,
+      historyGroup: ui.editorRibbonHistory,
       paragraph: ui.editorParagraph,
       heading1: ui.editorHeading1,
       heading2: ui.editorHeading2,
@@ -184,7 +216,9 @@ export class EditorPartController {
   private context: EditorPartControllerContext;
   private readonly writingEditorModel = createWritingEditorModel();
   private snapshot: EditorPartControllerSnapshot;
-  private readonly listeners = new Set<() => void>();
+  private readonly listeners = new Set<
+    (reason: EditorPartChangeReason) => void
+  >();
   private readonly actions: EditorPartActions;
   private readonly unsubscribeWritingModel: () => void;
 
@@ -203,11 +237,11 @@ export class EditorPartController {
       this.actions,
     );
     this.unsubscribeWritingModel = this.writingEditorModel.subscribe(() => {
-      this.refreshSnapshot();
+      this.refreshSnapshot('model');
     });
   }
 
-  readonly subscribe = (listener: () => void) => {
+  readonly subscribe = (listener: (reason: EditorPartChangeReason) => void) => {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);
@@ -222,7 +256,7 @@ export class EditorPartController {
     }
 
     this.context = context;
-    this.refreshSnapshot();
+    this.refreshSnapshot('context');
   };
 
   readonly dispose = () => {
@@ -289,29 +323,44 @@ export class EditorPartController {
     this.writingEditorModel.createPdfTab(normalizedPdfUrl);
   };
 
-  private emitChange() {
+  private emitChange(reason: EditorPartChangeReason) {
     for (const listener of this.listeners) {
-      listener();
+      listener(reason);
     }
   }
 
-  private refreshSnapshot() {
+  private refreshSnapshot(reason: 'model' | 'context') {
     this.setSnapshot(
       createEditorPartControllerSnapshot(
         this.context,
         this.writingEditorModel.getSnapshot(),
         this.actions,
       ),
+      reason,
     );
   }
 
-  private setSnapshot(nextSnapshot: EditorPartControllerSnapshot) {
+  private setSnapshot(
+    nextSnapshot: EditorPartControllerSnapshot,
+    reason: 'model' | 'context',
+  ) {
     if (Object.is(this.snapshot, nextSnapshot)) {
       return;
     }
 
+    const previousSnapshot = this.snapshot;
     this.snapshot = nextSnapshot;
-    this.emitChange();
+
+    if (
+      reason === 'model' &&
+      createEditorPartStructureKey(previousSnapshot) ===
+        createEditorPartStructureKey(nextSnapshot)
+    ) {
+      this.emitChange('draftContent');
+      return;
+    }
+
+    this.emitChange(reason === 'context' ? 'context' : 'structure');
   }
 }
 
