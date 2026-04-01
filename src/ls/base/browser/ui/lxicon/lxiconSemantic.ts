@@ -11,7 +11,7 @@ export const lxIconSemanticMap = {
     navigateBack: 'arrow-left',
     navigateForward: 'arrow-right',
     refresh: 'refresh',
-    exportDocx: 'export',
+    exportDocx: 'docx',
     settings: 'gear',
   },
   assistant: {
@@ -36,11 +36,11 @@ export const lxIconSemanticMap = {
     moveUp: 'arrow-up',
     moveDown: 'arrow-down',
     removeBatchSource: 'close',
-    chooseDirectory: 'library',
+    chooseDirectory: 'projects',
     openConfigLocation: 'link-external',
   },
   library: {
-    refresh: 'library',
+    refresh: 'projects',
     downloadPdf: 'download-2',
     createDraft: 'write',
     folderExpanded: 'chevron-down',
