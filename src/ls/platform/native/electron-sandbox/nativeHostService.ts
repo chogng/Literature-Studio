@@ -1,8 +1,8 @@
 import type {
   ElectronAPI,
   ElectronInvoke,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import type { INativeHostService } from '../common/native.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { INativeHostService } from 'ls/platform/native/common/native';
 
 class ElectronSandboxNativeHostService implements INativeHostService {
   private get api(): ElectronAPI | undefined {

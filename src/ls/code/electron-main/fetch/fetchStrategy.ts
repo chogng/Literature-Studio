@@ -1,4 +1,4 @@
-import type { ListingCandidateExtraction } from './sourceExtractors/index.js';
+import type { ListingCandidateExtraction } from 'ls/code/electron-main/fetch/sourceExtractors';
 
 export type FetchStrategy = 'network-first' | 'web-content-first' | 'compare';
 

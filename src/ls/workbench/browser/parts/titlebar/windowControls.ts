@@ -1,7 +1,7 @@
-import type { WindowControlAction } from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import { createButtonView } from 'ls/base/browser/ui/button/button.js';
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
+import type { WindowControlAction } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { createButtonView } from 'ls/base/browser/ui/button/button';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 
 export type WindowControlsAction = Extract<
   WindowControlAction,

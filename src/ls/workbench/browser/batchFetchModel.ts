@@ -2,19 +2,14 @@ import { toast } from 'ls/base/browser/ui/toast/toast';
 import type {
   ElectronInvoke,
   FetchStatus,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { LocaleMessages } from '../../../language/locales';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { LocaleMessages } from 'language/locales';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
-import {
-  fetchLatestArticlesBatch,
-  type Article,
-} from 'ls/workbench/services/article/articleFetch';
-import {
-  INITIAL_BATCH_FETCH_MACHINE_STATE,
-  reduceBatchFetchMachineState,
-  type BatchFetchMachineEvent,
-  type BatchFetchMachineState,
-} from 'ls/workbench/services/article/batchFetchState';
+import { fetchLatestArticlesBatch } from 'ls/workbench/services/article/articleFetch';
+import type { Article } from 'ls/workbench/services/article/articleFetch';
+import { INITIAL_BATCH_FETCH_MACHINE_STATE, reduceBatchFetchMachineState } from 'ls/workbench/services/article/batchFetchState';
+import type { BatchFetchMachineEvent, BatchFetchMachineState } from 'ls/workbench/services/article/batchFetchState';
+
 import {
   formatLocalized,
   localizeDesktopInvokeError,

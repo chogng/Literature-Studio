@@ -6,35 +6,13 @@ import { EditorView } from 'prosemirror-view';
 import { gapCursor } from 'prosemirror-gapcursor';
 import { dropCursor } from 'prosemirror-dropcursor';
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
-import {
-  createDraftEditorRuntimeState,
-  type DraftEditorRuntimeState,
-} from 'ls/editor/browser/shared/editorStatus';
-import {
-  type InsertFigurePayload,
-  getWritingEditorToolbarState,
-  insertCitationCommand,
-  insertFigureCommand,
-  insertFigureRefCommand,
-  insertPlainTextCommand,
-  redoCommand,
-  runWritingEditorCommand,
-  setParagraphCommand,
-  toggleBlockquoteCommand,
-  toggleBoldCommand,
-  toggleBulletListCommand,
-  toggleHeadingCommand,
-  toggleItalicCommand,
-  toggleOrderedListCommand,
-  undoCommand,
-  type WritingEditorCommand,
-  type WritingEditorToolbarState,
-} from 'ls/editor/browser/text/commands';
-import {
-  type WritingEditorDocument,
-  normalizeWritingEditorDocument,
-  syncWritingEditorDerivedLabels,
-} from 'ls/editor/common/writingEditorDocument';
+import { createDraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
+import type { DraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
+import { getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setParagraphCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, undoCommand } from 'ls/editor/browser/text/commands';
+import type { InsertFigurePayload, WritingEditorCommand, WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
+import { normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
+import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
+
 import {
   createWritingEditorDocumentIdentityPlugin,
   createWritingEditorInputRules,
@@ -47,7 +25,7 @@ import { WritingEditorInputSession } from 'ls/editor/browser/text/input';
 import { resolveWritingEditorSurfaceSyncPlan } from 'ls/editor/browser/text/sync';
 import { DomScrollableElement } from 'ls/base/browser/ui/scrollbar/scrollableElement';
 import { ScrollbarVisibility } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
-import './media/editor.css';
+import 'ls/editor/browser/text/media/editor.css';
 
 export type WritingEditorSurfaceLabels = {
   textGroup: string;

@@ -4,9 +4,9 @@ import { EditorState } from 'prosemirror-state';
 import {
   createEmptyWritingEditorDocument,
   writingEditorDocumentToPlainText,
-} from '../../src/ls/editor/common/writingEditorDocument';
-import { insertFigureCommand } from '../../src/ls/editor/browser/text/commands';
-import { writingEditorSchema } from '../../src/ls/editor/browser/text/schema';
+} from 'ls/editor/common/writingEditorDocument';
+import { insertFigureCommand } from 'ls/editor/browser/text/commands';
+import { writingEditorSchema } from 'ls/editor/browser/text/schema';
 
 test('citations are numbered by first appearance order', () => {
   const document = {

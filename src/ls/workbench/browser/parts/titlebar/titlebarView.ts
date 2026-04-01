@@ -1,13 +1,14 @@
 import type { QuickAccessSourceOption } from 'ls/workbench/services/quickAccess/quickAccessService';
-import { createButtonView } from 'ls/base/browser/ui/button/button.js';
-import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
-import { createInputView } from 'ls/base/browser/ui/input/input.js';
-import { getWindowChromeLayout } from 'ls/platform/window/common/window.js';
-import {
-  createTitlebarSourceDropdownView,
-  type TitlebarSourceDropdownView,
-} from 'ls/workbench/browser/parts/titlebar/nativeTitlebarSourceDropdown';
+import { createButtonView } from 'ls/base/browser/ui/button/button';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
+import { createInputView } from 'ls/base/browser/ui/input/input';
+import { getWindowChromeLayout } from 'ls/platform/window/common/window';
+import { createTitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/nativeTitlebarSourceDropdown';
+import type { TitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/nativeTitlebarSourceDropdown';
+
 import {
   requestExportTitlebarDocx,
   requestTitlebarNavigateBack,
@@ -18,11 +19,10 @@ import {
   requestToggleTitlebarSidebar,
   subscribeTitlebarUiActions,
 } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
-import {
-  createWindowControlsView,
-  type WindowControlsAction,
-} from 'ls/workbench/browser/parts/titlebar/windowControls';
-import './media/titlebar.css';
+import { createWindowControlsView } from 'ls/workbench/browser/parts/titlebar/windowControls';
+import type { WindowControlsAction } from 'ls/workbench/browser/parts/titlebar/windowControls';
+
+import 'ls/workbench/browser/parts/titlebar/media/titlebar.css';
 
 export type TitlebarAction = WindowControlsAction;
 
@@ -60,7 +60,7 @@ export type TitlebarProps = {
   canExportDocx?: boolean;
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
-   onNavigateRefresh?: () => void;
+  onNavigateRefresh?: () => void;
   webUrl?: string;
   onWebUrlChange?: (url: string) => void;
   articleUrlPlaceholder?: string;

@@ -1,4 +1,4 @@
-import './button.css';
+import 'ls/base/browser/ui/button/button.css';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';

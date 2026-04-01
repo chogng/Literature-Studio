@@ -1,19 +1,17 @@
-import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { Locale } from '../../../../language/i18n';
-import {
-  type BatchSource,
-  defaultBatchLimit,
-  defaultSameDomainOnly,
-} from 'ls/workbench/services/config/configSchema';
-import {
-  type LibraryStorageMode,
-  type LlmProviderId,
-  type LlmProviderSettings,
-  type RagProviderId,
-  type RagProviderSettings,
-  type TranslationProviderId,
-  type TranslationProviderSettings,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type {
+  ElectronInvoke,
+  LibraryStorageMode,
+  LlmProviderId,
+  LlmProviderSettings,
+  RagProviderId,
+  RagProviderSettings,
+  TranslationProviderId,
+  TranslationProviderSettings,
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { Locale } from 'language/i18n';
+import { defaultBatchLimit, defaultSameDomainOnly } from 'ls/workbench/services/config/configSchema';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+
 import {
   buildSaveSettingsPayload,
   loadAppSettings,
@@ -23,7 +21,7 @@ import {
 } from 'ls/workbench/services/settings/settingsService';
 import {
   createDefaultKnowledgeBaseSettings,
-} from 'ls/workbench/services/knowledgeBase/config.js';
+} from 'ls/workbench/services/knowledgeBase/config';
 import {
   addBatchSource,
   moveBatchSource,
@@ -31,11 +29,11 @@ import {
   updateBatchSourceJournalTitle,
   updateBatchSourceUrl,
 } from 'ls/workbench/services/settings/settingsEditing';
-import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config.js';
-import { resolveLlmRoute } from 'ls/workbench/services/llm/routing.js';
-import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config.js';
-import { resolveRagRoute } from 'ls/workbench/services/rag/routing.js';
-import { cloneTranslationSettings, createDefaultTranslationSettings } from 'ls/workbench/services/translation/config.js';
+import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config';
+import { resolveLlmRoute } from 'ls/workbench/services/llm/routing';
+import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config';
+import { resolveRagRoute } from 'ls/workbench/services/rag/routing';
+import { cloneTranslationSettings, createDefaultTranslationSettings } from 'ls/workbench/services/translation/config';
 
 export type SettingsModelSnapshot = {
   pdfDownloadDir: string;

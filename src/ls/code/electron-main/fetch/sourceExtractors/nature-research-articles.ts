@@ -1,20 +1,14 @@
-import { parseDateHintFromText } from '../../../../base/common/date.js';
-import { parseDateString } from '../../../../base/common/date.js';
-import { cleanText } from '../../../../base/common/strings.js';
-import { isNatureMainSiteUrl } from '../../../../base/common/url.js';
-import { createDateSortedPaginationStopEvaluator } from './date-sorted-pagination.js';
+import { parseDateHintFromText } from 'ls/base/common/date';
+import { parseDateString } from 'ls/base/common/date';
+import { cleanText } from 'ls/base/common/strings';
+import { isNatureMainSiteUrl } from 'ls/base/common/url';
+import { createDateSortedPaginationStopEvaluator } from 'ls/code/electron-main/fetch/sourceExtractors/date-sorted-pagination';
 import {
   createNatureListingCandidateExtractor,
   findNatureListingNextPageUrl,
-} from './nature-listing-shared.js';
-
-import type {
-  ListingCandidateExtraction,
-  ListingCandidateExtractor,
-  ListingCandidateExtractorContext,
-  ListingPaginationContext,
-} from './types.js';
-import { normalizeListingCandidateSeed } from './types.js';
+} from 'ls/code/electron-main/fetch/sourceExtractors/nature-listing-shared';
+import { normalizeListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
+import type { ListingCandidateExtraction, ListingCandidateExtractor, ListingCandidateExtractorContext, ListingPaginationContext } from 'ls/code/electron-main/fetch/sourceExtractors/types';
 
 const NATURE_RESEARCH_ARTICLES_PATH_RE = /^\/[^/]+\/research-articles\/?$/i;
 const NATURE_RESEARCH_CARD_SELECTORS = [

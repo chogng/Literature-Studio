@@ -1,18 +1,14 @@
 import { toast } from 'ls/base/browser/ui/toast/toast';
-import type { LocaleMessages } from '../../../language/locales';
+import type { LocaleMessages } from 'language/locales';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 import { formatLocalized } from 'ls/workbench/services/desktop/desktopError';
-import {
-  EMPTY_WEB_CONTENT_STATE,
-  type WebContentState,
-  resolveWebContentNavigation,
-  resolveWebContentRefreshMode,
-  resolveWebContentStateUrlUpdate,
-} from 'ls/workbench/services/webContent/webContentNavigationService';
-import {
-  type QuickAccessCycleDirection,
-  type QuickAccessSourceOption,
+import { EMPTY_WEB_CONTENT_STATE, resolveWebContentNavigation, resolveWebContentRefreshMode, resolveWebContentStateUrlUpdate } from 'ls/workbench/services/webContent/webContentNavigationService';
+import type { WebContentState } from 'ls/workbench/services/webContent/webContentNavigationService';
+
+import type {
+  QuickAccessCycleDirection,
+  QuickAccessSourceOption,
 } from 'ls/workbench/services/quickAccess/quickAccessService';
 
 type StringSetter = (value: string) => void;

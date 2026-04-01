@@ -1,4 +1,4 @@
-import type { KnowledgeBaseSettings } from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type { KnowledgeBaseSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export function createDefaultKnowledgeBaseSettings(): KnowledgeBaseSettings {
   return {

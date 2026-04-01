@@ -7,40 +7,40 @@ import type {
   KnowledgeBaseSettings,
   RagSettings,
   StoredAppSettings,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import type { StorageService } from '../common/storage.js';
-import { cleanText } from '../../../base/common/strings.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { StorageService } from 'ls/platform/storage/common/storage';
+import { cleanText } from 'ls/base/common/strings';
 import {
   batchLimitMax,
   batchLimitMin,
   defaultBatchLimit,
   defaultSameDomainOnly,
-} from '../../config/common/defaultBatchSources.js';
+} from 'ls/platform/config/common/defaultBatchSources';
 import {
   createDefaultLlmSettings,
   defaultLlmProviderSettings,
-} from '../../../workbench/services/llm/config.js';
+} from 'ls/workbench/services/llm/config';
 import {
   getDefaultModelForProvider,
   isLlmModelIdForProvider,
   isLlmProviderId,
-} from '../../../workbench/services/llm/registry.js';
+} from 'ls/workbench/services/llm/registry';
 import {
   createDefaultTranslationSettings,
   defaultTranslationProviderSettings,
-} from '../../../workbench/services/translation/config.js';
-import { isTranslationProviderId } from '../../../workbench/services/translation/registry.js';
+} from 'ls/workbench/services/translation/config';
+import { isTranslationProviderId } from 'ls/workbench/services/translation/registry';
 import {
   cloneKnowledgeBaseSettings,
   createDefaultKnowledgeBaseSettings,
-} from '../../../workbench/services/knowledgeBase/config.js';
+} from 'ls/workbench/services/knowledgeBase/config';
 import {
   createDefaultRagSettings,
   defaultRagProviderSettings,
   defaultRagRetrievalCandidateCount,
   defaultRagRetrievalTopK,
-} from '../../../workbench/services/rag/config.js';
-import { isRagProviderId } from '../../../workbench/services/rag/registry.js';
+} from 'ls/workbench/services/rag/config';
+import { isRagProviderId } from 'ls/workbench/services/rag/registry';
 
 type ConfigStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
 const fallbackLocale: 'zh' | 'en' = 'zh';

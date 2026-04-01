@@ -2,4 +2,4 @@ export {
   buildScienceDirectPdfDownloadCandidates,
   buildScienceEpdfPageUrl,
   buildSciencePdfDownloadUrl,
-} from '../../../base/common/url.js';
+} from 'ls/base/common/url';

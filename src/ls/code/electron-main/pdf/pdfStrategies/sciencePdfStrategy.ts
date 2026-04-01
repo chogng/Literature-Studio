@@ -1,25 +1,17 @@
 import type { BrowserWindow } from 'electron';
 
-import type { PdfDownloadResult } from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import { appError } from '../../../../base/common/errors.js';
-import { clearReaderSharedSessionOrigins } from '../../../../platform/native/electron-main/sharedWebSession.js';
-import {
-  persistDownloadedPdf,
-  toPdfDownloadFailure,
-  toPdfDownloadFailureFromError,
-  tryBrowserSessionDownloadCandidates,
-  tryPdfDownloadWithFetcherPolling,
-  tryDownloadPdfCandidates,
-  type BrowserSessionDownloadResult,
-  type PdfDownloadAttemptFailure,
-  waitForPdfDownloadFromSession,
-} from '../../../../platform/download/electron-main/pdfDownload.js';
-import { buildScienceEpdfPageUrl } from '../sciencePdf.js';
+import type { PdfDownloadResult } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { appError } from 'ls/base/common/errors';
+import { clearReaderSharedSessionOrigins } from 'ls/platform/native/electron-main/sharedWebSession';
+import { persistDownloadedPdf, toPdfDownloadFailure, toPdfDownloadFailureFromError, tryBrowserSessionDownloadCandidates, tryPdfDownloadWithFetcherPolling, tryDownloadPdfCandidates, waitForPdfDownloadFromSession } from 'ls/platform/download/electron-main/pdfDownload';
+import type { BrowserSessionDownloadResult, PdfDownloadAttemptFailure } from 'ls/platform/download/electron-main/pdfDownload';
+
+import { buildScienceEpdfPageUrl } from 'ls/code/electron-main/pdf/sciencePdf';
 import {
   triggerSciencePdfDownloadInValidationWindow,
   withValidatedSciencePageWindow,
-} from '../../../../platform/windows/electron-main/scienceValidationWindow.js';
-import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategyTypes.js';
+} from 'ls/platform/window/electron-main/scienceValidationWindow';
+import type { PdfDownloadContext, PdfDownloadStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/pdfStrategyTypes';
 
 type ScienceValidatedPageDownloadOptions = {
   useWindowFetchProbe?: boolean;
@@ -502,7 +494,4 @@ export const sciencePdfStrategy: PdfDownloadStrategy = {
     return await downloadSciencePdf(request);
   },
 };
-
-
-
 

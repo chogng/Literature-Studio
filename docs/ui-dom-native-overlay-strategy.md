@@ -152,7 +152,7 @@ Policy:
 
 Current implementation:
 
-- [`src/ls/platform/windows/electron-main/menuOverlayView.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/windows/electron-main/menuOverlayView.ts) keeps the menu overlay sized to the parent content area and hides it without collapsing to `0x0` during normal close flows.
+- [`src/ls/platform/window/electron-main/menuOverlayView.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/window/electron-main/menuOverlayView.ts) keeps the menu overlay sized to the parent content area and hides it without collapsing to `0x0` during normal close flows.
 
 ### 3. Hover state lost after DOM rebuild
 

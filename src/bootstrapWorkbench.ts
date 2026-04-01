@@ -87,111 +87,111 @@ export function isNativeWorkbenchAuxiliaryWindow() {
 const workbenchDependencyModules = [
   {
     label: 'ls/base/browser/ui/toast/toast',
-    load: () => import('./ls/base/browser/ui/toast/toast'),
+    load: () => import('ls/base/browser/ui/toast/toast'),
   },
   {
     label: 'ls/workbench/services/desktop/desktopError',
-    load: () => import('./ls/workbench/services/desktop/desktopError'),
+    load: () => import('ls/workbench/services/desktop/desktopError'),
   },
   {
     label: 'ls/workbench/browser/assistantModel',
-    load: () => import('./ls/workbench/browser/assistantModel'),
+    load: () => import('ls/workbench/browser/assistantModel'),
   },
   {
     label: 'ls/workbench/browser/batchFetchModel',
-    load: () => import('./ls/workbench/browser/batchFetchModel'),
+    load: () => import('ls/workbench/browser/batchFetchModel'),
   },
   {
     label: 'ls/workbench/browser/documentActionsModel',
-    load: () => import('./ls/workbench/browser/documentActionsModel'),
+    load: () => import('ls/workbench/browser/documentActionsModel'),
   },
   {
     label: 'ls/workbench/browser/libraryModel',
-    load: () => import('./ls/workbench/browser/libraryModel'),
+    load: () => import('ls/workbench/browser/libraryModel'),
   },
   {
     label: 'ls/workbench/browser/webContentNavigationModel',
-    load: () => import('./ls/workbench/browser/webContentNavigationModel'),
+    load: () => import('ls/workbench/browser/webContentNavigationModel'),
   },
   {
     label: 'ls/workbench/browser/layout',
-    load: () => import('./ls/workbench/browser/layout'),
+    load: () => import('ls/workbench/browser/layout'),
   },
   {
     label: 'ls/workbench/contrib/preferences/browser/settingsController',
-    load: () => import('./ls/workbench/contrib/preferences/browser/settingsController'),
+    load: () => import('ls/workbench/contrib/preferences/browser/settingsController'),
   },
   {
     label: 'ls/workbench/browser/parts/editor/editorPart',
-    load: () => import('./ls/workbench/browser/parts/editor/editorPart'),
+    load: () => import('ls/workbench/browser/parts/editor/editorPart'),
   },
   {
     label: 'ls/workbench/contrib/preferences/browser/settingsEditor',
-    load: () => import('./ls/workbench/contrib/preferences/browser/settingsEditor'),
+    load: () => import('ls/workbench/contrib/preferences/browser/settingsEditor'),
   },
   {
     label: 'ls/workbench/browser/parts/sidebar/secondarySidebarPart',
-    load: () => import('./ls/workbench/browser/parts/sidebar/secondarySidebarPart'),
+    load: () => import('ls/workbench/browser/parts/sidebar/secondarySidebarPart'),
   },
   {
     label: 'ls/workbench/browser/parts/titlebar/titlebarPart',
-    load: () => import('./ls/workbench/browser/parts/titlebar/titlebarPart'),
+    load: () => import('ls/workbench/browser/parts/titlebar/titlebarPart'),
   },
   {
     label: 'ls/workbench/browser/parts/titlebar/titlebarView',
-    load: () => import('./ls/workbench/browser/parts/titlebar/titlebarView'),
+    load: () => import('ls/workbench/browser/parts/titlebar/titlebarView'),
   },
   {
     label: 'ls/workbench/browser/toastOverlayWindow',
-    load: () => import('./ls/workbench/browser/toastOverlayWindow'),
+    load: () => import('ls/workbench/browser/toastOverlayWindow'),
   },
   {
     label: 'ls/workbench/browser/menuOverlayWindow',
-    load: () => import('./ls/workbench/browser/menuOverlayWindow'),
+    load: () => import('ls/workbench/browser/menuOverlayWindow'),
   },
   {
     label: 'ls/workbench/browser/articleDetailsModalWindow',
-    load: () => import('./ls/workbench/browser/articleDetailsModalWindow'),
+    load: () => import('ls/workbench/browser/articleDetailsModalWindow'),
   },
   {
     label: 'ls/workbench/browser/readerPageView',
-    load: () => import('./ls/workbench/browser/readerPageView'),
+    load: () => import('ls/workbench/browser/readerPageView'),
   },
   {
     label: 'ls/workbench/contrib/localization/browser/localeService',
-    load: () => import('./ls/workbench/contrib/localization/browser/localeService'),
+    load: () => import('ls/workbench/contrib/localization/browser/localeService'),
   },
   {
     label: 'ls/workbench/browser/session',
-    load: () => import('./ls/workbench/browser/session'),
+    load: () => import('ls/workbench/browser/session'),
   },
   {
     label: 'ls/workbench/browser/titlebarCommands',
-    load: () => import('./ls/workbench/browser/titlebarCommands'),
+    load: () => import('ls/workbench/browser/titlebarCommands'),
   },
   {
     label: 'ls/workbench/browser/window',
-    load: () => import('./ls/workbench/browser/window'),
+    load: () => import('ls/workbench/browser/window'),
   },
   {
     label: 'ls/workbench/browser/readerState',
-    load: () => import('./ls/workbench/browser/readerState'),
+    load: () => import('ls/workbench/browser/readerState'),
   },
   {
     label: 'ls/workbench/browser/webContentSurfaceState',
-    load: () => import('./ls/workbench/browser/webContentSurfaceState'),
+    load: () => import('ls/workbench/browser/webContentSurfaceState'),
   },
   {
     label: 'ls/workbench/services/config/configSchema',
-    load: () => import('./ls/workbench/services/config/configSchema'),
+    load: () => import('ls/workbench/services/config/configSchema'),
   },
   {
     label: 'ls/workbench/services/quickAccess/quickAccessService',
-    load: () => import('./ls/workbench/services/quickAccess/quickAccessService'),
+    load: () => import('ls/workbench/services/quickAccess/quickAccessService'),
   },
   {
     label: 'ls/workbench/browser/writingEditorModel',
-    load: () => import('./ls/workbench/browser/writingEditorModel'),
+    load: () => import('ls/workbench/browser/writingEditorModel'),
   },
 ] as const;
 

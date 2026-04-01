@@ -1,8 +1,7 @@
 import { sanitizeUrlInput } from 'ls/workbench/common/url';
-import {
-  createEmptyBatchSource,
-  type BatchSource,
-} from 'ls/workbench/services/config/configSchema';
+import { createEmptyBatchSource } from 'ls/workbench/services/config/configSchema';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+
 import { resolveNextJournalTitleOnUrlChange } from 'ls/workbench/services/settings/sourceJournalTitle';
 
 export function updateBatchSourceUrl(

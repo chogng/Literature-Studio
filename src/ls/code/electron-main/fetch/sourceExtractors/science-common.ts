@@ -1,9 +1,8 @@
-import { parseDateHintFromText } from '../../../../base/common/date.js';
-import { cleanText, uniq } from '../../../../base/common/strings.js';
-import { extractScienceDoiFromPathLike } from '../../../../base/common/url.js';
-
-import type { ListingCandidateExtractorContext, ListingCandidateSeed } from './types.js';
-import { normalizeListingCandidateSeed } from './types.js';
+import { parseDateHintFromText } from 'ls/base/common/date';
+import { cleanText, uniq } from 'ls/base/common/strings';
+import { extractScienceDoiFromPathLike } from 'ls/base/common/url';
+import { normalizeListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
+import type { ListingCandidateExtractorContext, ListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors/types';
 
 export const TOC_BODY_SELECTORS = [
   'div.toc > div.toc__body > div.toc__body',

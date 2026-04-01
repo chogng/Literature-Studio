@@ -3,14 +3,14 @@ import type {
   FetchChannel,
   FetchStatus,
   WebContentReuseMode,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import type { CandidateArticleSnapshot } from './merge.js';
-import type { ListingPaginationStopEvaluation } from './sourceExtractors/index.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { CandidateArticleSnapshot } from 'ls/code/electron-main/fetch/merge';
+import type { ListingPaginationStopEvaluation } from 'ls/code/electron-main/fetch/sourceExtractors';
 import type {
   FetchStrategy,
   WebContentExtractionSnapshot,
   WebContentSnapshot,
-} from './fetchStrategy.js';
+} from 'ls/code/electron-main/fetch/fetchStrategy';
 
 export type FetchLatestArticlesOptions = {
   previewExtractions?: ReadonlyMap<string, WebContentExtractionSnapshot>;

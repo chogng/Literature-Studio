@@ -25,8 +25,8 @@ import type {
   TestRagConnectionPayload,
   TestTranslationConnectionPayload,
   WindowControlAction,
-} from '../../base/parts/sandbox/common/desktopTypes.js';
-import type { StorageService } from '../../platform/storage/common/storage.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { StorageService } from 'ls/platform/storage/common/storage';
 import {
   getWebContentState,
   getWebContentSelection,
@@ -39,46 +39,46 @@ import {
   setWebContentBounds,
   setWebContentLayoutPhaseState,
   setWebContentVisible,
-} from '../../platform/windows/electron-main/webContentView.js';
-import { getNativeModalState, openArticleDetailsModal } from '../../platform/windows/electron-main/articleDetailsWindow.js';
+} from 'ls/platform/window/electron-main/webContentView';
+import {
+  getNativeModalState,
+  openArticleDetailsModal,
+} from 'ls/platform/window/electron-main/articleDetailsWindow';
 import {
   dismissToast,
   getToastState,
   reportToastLayout,
   setToastHovering,
   showToast,
-} from '../../platform/windows/electron-main/toastOverlayView.js';
+} from 'ls/platform/window/electron-main/toastOverlayView';
 import {
   closeMenuOverlay,
   getMenuOverlayState,
   openMenuOverlay,
   selectMenuOption,
-} from '../../platform/windows/electron-main/menuOverlayView.js';
+} from 'ls/platform/window/electron-main/menuOverlayView';
 import {
   fetchArticle,
   fetchLatestArticles,
-} from './fetch/dispatch.js';
-import { exportArticlesDocx } from './document/docx.js';
-import {
-  normalizeFetchStrategy,
-  shouldPrepareWebContentArtifacts,
-  type WebContentExtractionSnapshot,
-  type WebContentSnapshot,
-} from './fetch/fetchStrategy.js';
-import { resolveBatchWebContentExtractions, resolveBatchWebContentSnapshots, resolveWebContentSnapshotHtml } from './fetch/webContentChannel.js';
-import { previewDownloadPdf } from './pdf/pdf.js';
-import { appError, serializeAppError } from '../../base/common/errors.js';
-import { pickDirectoryDialog } from '../../platform/dialogs/electron-main/dialogMainService.js';
-import { testLlmConnection } from './llm/llm.js';
-import { answerQuestionFromArticles, testRagConnection } from './rag/rag.js';
-import { testTranslationConnection } from './translation/translation.js';
+} from 'ls/code/electron-main/fetch/dispatch';
+import { exportArticlesDocx } from 'ls/code/electron-main/document/docx';
+import { normalizeFetchStrategy, shouldPrepareWebContentArtifacts } from 'ls/code/electron-main/fetch/fetchStrategy';
+import type { WebContentExtractionSnapshot, WebContentSnapshot } from 'ls/code/electron-main/fetch/fetchStrategy';
+
+import { resolveBatchWebContentExtractions, resolveBatchWebContentSnapshots, resolveWebContentSnapshotHtml } from 'ls/code/electron-main/fetch/webContentChannel';
+import { previewDownloadPdf } from 'ls/code/electron-main/pdf/pdf';
+import { appError, serializeAppError } from 'ls/base/common/errors';
+import { pickDirectoryDialog } from 'ls/platform/dialogs/electron-main/dialogMainService';
+import { testLlmConnection } from 'ls/code/electron-main/llm/llm';
+import { answerQuestionFromArticles, testRagConnection } from 'ls/code/electron-main/rag/rag';
+import { testTranslationConnection } from 'ls/code/electron-main/translation/translation';
 import {
   applyMainWindowBackgroundMaterial,
   getMainWindow,
   getWindowState,
   performWindowControlAction,
   resolveWindowFromWebContents,
-} from '../../platform/windows/electron-main/window.js';
+} from 'ls/platform/window/electron-main/window';
 const FETCH_STATUS_CHANNEL = 'app:fetch-status';
 type AppInvokeResponse<T> =
   | { ok: true; result: T }
@@ -97,7 +97,6 @@ async function showArticleDetailsModal(
 }
 
 let micaMaterialTimeout: ReturnType<typeof setTimeout> | null = null;
-
 
 async function invokeCommand<TCommand extends AppCommand>(
   command: TCommand,

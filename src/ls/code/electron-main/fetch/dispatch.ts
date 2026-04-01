@@ -6,56 +6,46 @@ import type {
   FetchLatestArticlesPayload,
   FetchStatus,
   WebContentReuseMode,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import type { DateRange } from '../../../base/common/date.js';
-import type { StorageService } from '../../../platform/storage/common/storage.js';
-import { normalizeNatureMainSiteListingUrl } from '../../../base/common/url.js';
-import { collectCandidateDescriptorsFromSeeds as collectListingCandidateDescriptorsFromSeeds } from './listing/candidates.js';
-import { buildArticleFromHtml } from './parser.js';
-import { isProbablyArticle } from './acceptance.js';
-import { hasArticlePathSignal } from './articleUrlRules.js';
-import { parseDateRange } from '../../../base/common/date.js';
-import { parseDateHintFromText } from '../../../base/common/date.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { normalizeUrl } from '../../../base/common/url.js';
-import { READER_SHARED_WEB_PARTITION } from '../../../platform/native/electron-main/sharedWebSession.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { StorageService } from 'ls/platform/storage/common/storage';
+import { parseDateRange, parseDateHintFromText } from 'ls/base/common/date';
+import type { DateRange } from 'ls/base/common/date';
+
+import { cleanText } from 'ls/base/common/strings';
+import { normalizeNatureMainSiteListingUrl, normalizeUrl } from 'ls/base/common/url';
+import { collectCandidateDescriptorsFromSeeds as collectListingCandidateDescriptorsFromSeeds } from 'ls/code/electron-main/fetch/listing/candidates';
+import { buildArticleFromHtml } from 'ls/code/electron-main/fetch/parser';
+import { isProbablyArticle } from 'ls/code/electron-main/fetch/acceptance';
+import { hasArticlePathSignal } from 'ls/code/electron-main/fetch/articleUrlRules';
+import { READER_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
 import {
   renderHtmlWithBrowserWindow,
   requestWithPreferredTransport,
-} from '../../../platform/request/electron-main/requestMainService.js';
+} from 'ls/platform/request/electron-main/requestMainService';
 import {
   batchLimitMax,
   batchLimitMin,
   defaultBatchLimit,
-} from '../../../platform/config/common/defaultBatchSources.js';
-import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from '../fetchTiming.js';
-import {
-  buildPageHtmlFetchPlan,
-  normalizeFetchStrategy,
-  type WebContentExtractionSnapshot,
-} from './fetchStrategy.js';
-import {
-  attemptNetworkHtml,
-  resolveNetworkAttemptResult,
-  type NetworkAttemptResult,
-} from './networkChannel.js';
-import { detect } from './detect.js';
-import { fetchDetail } from './fetchDetail.js';
-import { fetchListing } from './fetchListing.js';
-import {
-  findListingCandidateExtractor,
-  type ListingCandidateExtraction,
-  type ListingCandidateExtractor,
-  type ListingCandidateSeed,
-  normalizeListingCandidateSeeds,
-} from './sourceExtractors/index.js';
-import { appError, isAppError } from '../../../base/common/errors.js';
+} from 'ls/platform/config/common/defaultBatchSources';
+import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from 'ls/code/electron-main/fetchTiming';
+import { buildPageHtmlFetchPlan, normalizeFetchStrategy } from 'ls/code/electron-main/fetch/fetchStrategy';
+import type { WebContentExtractionSnapshot } from 'ls/code/electron-main/fetch/fetchStrategy';
+import { attemptNetworkHtml, resolveNetworkAttemptResult } from 'ls/code/electron-main/fetch/networkChannel';
+import type { NetworkAttemptResult } from 'ls/code/electron-main/fetch/networkChannel';
+
+import { detect } from 'ls/code/electron-main/fetch/detect';
+import { fetchDetail } from 'ls/code/electron-main/fetch/fetchDetail';
+import { fetchListing } from 'ls/code/electron-main/fetch/fetchListing';
+import { findListingCandidateExtractor, normalizeListingCandidateSeeds } from 'ls/code/electron-main/fetch/sourceExtractors';
+import type { ListingCandidateExtraction, ListingCandidateExtractor, ListingCandidateSeed } from 'ls/code/electron-main/fetch/sourceExtractors';
+
+import { appError, isAppError } from 'ls/base/common/errors';
 import type {
   CandidateCollectionResult,
   FetchLatestArticlesOptions,
   PageFetchResult,
   PageHtmlResult,
-} from './sourcePageFetchTypes.js';
+} from 'ls/code/electron-main/fetch/sourcePageFetchTypes';
 
 const SYSTEM_BATCH_LIMIT_MAX = batchLimitMax;
 const USER_BATCH_LIMIT_MIN = batchLimitMin;

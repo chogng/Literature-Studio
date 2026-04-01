@@ -1,5 +1,3 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { BrowserWindow, WebContentsView, webContents } from 'electron';
 
 import type {
@@ -7,10 +5,11 @@ import type {
   NativeMenuOpenPayload,
   NativeMenuRect,
   NativeMenuState,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import {
+  resolvePreloadScriptPath,
+  resolveWorkbenchRendererFilePath,
+} from 'ls/platform/window/electron-main/window';
 
 const menuStateChannel = 'app:native-menu-state';
 const menuEventChannel = 'app:native-menu-event';
@@ -52,20 +51,7 @@ function resolveOverlayRendererTarget() {
 
   return {
     type: 'file' as const,
-    target: path.join(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      '..',
-      'dist',
-      'src',
-      'ls',
-      'code',
-      'electron-sandbox',
-      'workbench',
-      'workbench.html',
-    ),
+    target: resolveWorkbenchRendererFilePath(),
     query: {
       [overlayQueryKey]: overlayQueryValue,
     },
@@ -202,7 +188,7 @@ function bindParentWindow(parentWindow: BrowserWindow, view: WebContentsView) {
 function createMenuOverlayView(window: BrowserWindow) {
   const view = new WebContentsView({
     webPreferences: {
-      preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
+      preload: resolvePreloadScriptPath(),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

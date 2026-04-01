@@ -1,10 +1,6 @@
-import {
-  createEmptyWritingEditorDocument,
-  createWritingEditorDocumentFromPlainText,
-  normalizeWritingEditorDocument,
-  writingEditorDocumentToPlainText,
-  type WritingEditorDocument,
-} from 'ls/editor/common/writingEditorDocument';
+import { createEmptyWritingEditorDocument, createWritingEditorDocumentFromPlainText, normalizeWritingEditorDocument, writingEditorDocumentToPlainText } from 'ls/editor/common/writingEditorDocument';
+import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
+
 import type {
   WritingEditorViewMode,
   WritingWorkspaceDraftTab,

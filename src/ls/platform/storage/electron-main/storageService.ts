@@ -1,10 +1,10 @@
-import type { BatchSource } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import type { StorageService } from '../common/storage.js';
-import { appError } from '../../../base/common/errors.js';
-import { createConfigStore } from './configStore.js';
-import { createHistoryStore } from './historyStore.js';
-import { createLibraryStore } from './libraryStore.js';
-import { createTranslationCacheStore } from './translationCacheStore.js';
+import type { BatchSource } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { StorageService } from 'ls/platform/storage/common/storage';
+import { appError } from 'ls/base/common/errors';
+import { createConfigStore } from 'ls/platform/storage/electron-main/configStore';
+import { createHistoryStore } from 'ls/platform/storage/electron-main/historyStore';
+import { createLibraryStore } from 'ls/platform/storage/electron-main/libraryStore';
+import { createTranslationCacheStore } from 'ls/platform/storage/electron-main/translationCacheStore';
 
 interface StoragePaths {
   historyFile: string;

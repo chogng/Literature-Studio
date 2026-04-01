@@ -7,22 +7,22 @@ import type {
   RagSettings,
   TestRagConnectionPayload,
   LlmSettings,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { appError } from '../../../base/common/errors.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { resolveLlmRoute } from '../../../workbench/services/llm/routing.js';
-import { resolveRagRoute } from '../../../workbench/services/rag/routing.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { appError } from 'ls/base/common/errors';
+import { cleanText } from 'ls/base/common/strings';
+import { resolveLlmRoute } from 'ls/workbench/services/llm/routing';
+import { resolveRagRoute } from 'ls/workbench/services/rag/routing';
 import {
   extractResponseContent,
   requestChatCompletion,
   resolveLlmRequestFromPayload,
-} from '../llm/llm.js';
+} from 'ls/code/electron-main/llm/llm';
 import {
   requestMoarkEmbeddings,
   requestMoarkRerank,
   resolveMoarkRequest,
   testMoarkConnection,
-} from './moark.js';
+} from 'ls/code/electron-main/rag/moark';
 
 const ragAnswerTimeoutMs = 60000;
 const maxArticlesForRetrieval = 60;

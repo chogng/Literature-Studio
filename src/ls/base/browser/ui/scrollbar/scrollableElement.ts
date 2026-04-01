@@ -1,13 +1,7 @@
-import type {
-  ScrollableElementChangeOptions,
-  ScrollableElementCreationOptions,
-  ScrollableElementResolvedOptions,
-} from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
-import {
-  ScrollbarVisibility,
-  resolveScrollableElementOptions,
-} from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
-import './media/scrollbars.css';
+import { ScrollbarVisibility, resolveScrollableElementOptions } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
+import type { ScrollableElementChangeOptions, ScrollableElementCreationOptions, ScrollableElementResolvedOptions } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
+
+import 'ls/base/browser/ui/scrollbar/media/scrollbars.css';
 
 export interface IScrollDimensions {
   width: number;

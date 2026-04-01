@@ -1,11 +1,8 @@
-import { appError } from '../../../../base/common/errors.js';
-import {
-  persistDownloadedPdf,
-  tryBrowserSessionDownloadCandidates,
-  tryDownloadPdfCandidates,
-  type PdfDownloadAttemptFailure,
-} from '../../../../platform/download/electron-main/pdfDownload.js';
-import type { PdfDownloadContext, PdfDownloadStrategy } from './pdfStrategyTypes.js';
+import { appError } from 'ls/base/common/errors';
+import { persistDownloadedPdf, tryBrowserSessionDownloadCandidates, tryDownloadPdfCandidates } from 'ls/platform/download/electron-main/pdfDownload';
+import type { PdfDownloadAttemptFailure } from 'ls/platform/download/electron-main/pdfDownload';
+
+import type { PdfDownloadContext, PdfDownloadStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/pdfStrategyTypes';
 
 const NATURE_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
 

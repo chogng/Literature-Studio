@@ -3,14 +3,21 @@ import process from 'node:process';
 import fs from 'node:fs';
 import { promises as fsPromises } from 'node:fs';
 import { builtinModules } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import * as esbuild from 'esbuild';
 
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(scriptDir, '..');
+const scriptFilePath = fileURLToPath(import.meta.url);
+const scriptsMarker = `${path.sep}scripts${path.sep}`;
+const scriptsMarkerIndex = scriptFilePath.lastIndexOf(scriptsMarker);
+const projectRoot =
+  scriptsMarkerIndex >= 0
+    ? scriptFilePath.slice(0, scriptsMarkerIndex)
+    : path.dirname(scriptFilePath);
 const watchMode = process.argv.includes('--watch');
+const appRoot = path.join(projectRoot, 'src');
 const distElectronDir = path.join(projectRoot, 'dist-electron');
+const languageRoot = path.join(projectRoot, 'src', 'language');
 const srcRoot = path.join(projectRoot, 'src', 'ls');
 const lsRoot = srcRoot;
 const entryPoints = [
@@ -19,7 +26,7 @@ const entryPoints = [
   path.join(srcRoot, 'base', 'parts', 'sandbox', 'electron-browser', 'preload.ts'),
 ];
 
-const packageJson = await import(path.join(projectRoot, 'package.json'), {
+const packageJson = await import(pathToFileURL(path.join(projectRoot, 'package.json')).href, {
   with: { type: 'json' },
 });
 const packageNames = [
@@ -29,19 +36,29 @@ const packageNames = [
 const builtinExternals = builtinModules.flatMap((moduleName) => [moduleName, `node:${moduleName}`]);
 
 function resolveSourcePath(candidatePath) {
-  if (fs.existsSync(candidatePath)) {
-    return candidatePath;
-  }
+  const candidatePaths = candidatePath.endsWith('.js')
+    ? [
+        `${candidatePath.slice(0, -3)}.ts`,
+        `${candidatePath.slice(0, -3)}.tsx`,
+        candidatePath,
+      ]
+    : !path.extname(candidatePath)
+      ? [
+          `${candidatePath}.ts`,
+          `${candidatePath}.tsx`,
+          path.join(candidatePath, 'index.ts'),
+          path.join(candidatePath, 'index.tsx'),
+          candidatePath,
+        ]
+      : [candidatePath];
 
-  if (candidatePath.endsWith('.js')) {
-    const tsCandidate = `${candidatePath.slice(0, -3)}.ts`;
-    if (fs.existsSync(tsCandidate)) {
-      return tsCandidate;
+  for (const resolvedPath of candidatePaths) {
+    if (!fs.existsSync(resolvedPath)) {
+      continue;
     }
 
-    const tsxCandidate = `${candidatePath.slice(0, -3)}.tsx`;
-    if (fs.existsSync(tsxCandidate)) {
-      return tsxCandidate;
+    if (fs.statSync(resolvedPath).isFile()) {
+      return resolvedPath;
     }
   }
 
@@ -61,11 +78,20 @@ const buildOptions = {
   platform: 'node',
   plugins: [
     {
-      name: 'ls-alias',
+      name: 'source-alias',
       setup(build) {
-        build.onResolve({ filter: /^ls\// }, (args) => ({
-          path: resolveSourcePath(path.join(lsRoot, args.path.slice('ls/'.length))),
-        }));
+        build.onResolve({ filter: /^(?:app|language|ls)\// }, (args) => {
+          const aliasRoots = {
+            app: appRoot,
+            language: languageRoot,
+            ls: lsRoot,
+          };
+          const [alias] = args.path.split('/', 1);
+          const aliasRoot = aliasRoots[alias];
+          return {
+            path: resolveSourcePath(path.join(aliasRoot, args.path.slice(alias.length + 1))),
+          };
+        });
       },
     },
   ],

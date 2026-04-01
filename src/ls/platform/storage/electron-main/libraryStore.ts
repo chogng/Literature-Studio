@@ -16,10 +16,10 @@ import type {
   LibraryIngestStatus,
   ReindexLibraryDocumentResult,
   UpsertLibraryDocumentMetadataPayload,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { createDefaultKnowledgeBaseSettings } from '../../../workbench/services/knowledgeBase/config.js';
-import type { StorageService } from '../common/storage.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { cleanText } from 'ls/base/common/strings';
+import { createDefaultKnowledgeBaseSettings } from 'ls/workbench/services/knowledgeBase/config';
+import type { StorageService } from 'ls/platform/storage/common/storage';
 
 type LibraryStore = Pick<
   StorageService,

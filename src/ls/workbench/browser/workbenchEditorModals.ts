@@ -1,8 +1,8 @@
-import type { LocaleMessages } from '../../../language/locales';
+import type { LocaleMessages } from 'language/locales';
 import { createInputView } from 'ls/base/browser/ui/input/input';
 import { createModalView } from 'ls/base/browser/ui/modal/modal';
 import type { WorkbenchEditorCommandDefinition } from 'ls/workbench/browser/editorCommands';
-import './media/workbenchEditorModals.css';
+import 'ls/workbench/browser/media/workbenchEditorModals.css';
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,

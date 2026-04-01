@@ -2,10 +2,13 @@
   "compilerOptions": {
     "target": "ES2022",
     "baseUrl": ".",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": false,
     "lib": ["ES2022"],
     "paths": {
+      "app/*": ["src/*"],
+      "language/*": ["src/language/*"],
       "ls/*": ["src/ls/*"]
     },
     "types": ["node"],
@@ -14,6 +17,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
+    "isolatedModules": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

@@ -1,11 +1,11 @@
-import { cleanText } from '../../../../base/common/strings.js';
-import { isScienceCurrentTocUrl } from '../../../../base/common/url.js';
+import { cleanText } from 'ls/base/common/strings';
+import { isScienceCurrentTocUrl } from 'ls/base/common/url';
 
 import type {
   ListingCandidateExtraction,
   ListingCandidateExtractor,
   ListingCandidateExtractorContext,
-} from './types.js';
+} from 'ls/code/electron-main/fetch/sourceExtractors/types';
 import {
   ABSTRACT_SELECTOR,
   AUTHORS_SELECTOR,
@@ -20,7 +20,7 @@ import {
   SUBSECTION_HEADING_SELECTOR,
   TITLE_SELECTOR,
   TOC_BODY_SELECTORS,
-} from './science-common.js';
+} from 'ls/code/electron-main/fetch/sourceExtractors/science-common';
 
 const SCIENCE_CURRENT_TARGET_SUBSECTIONS = [
   {

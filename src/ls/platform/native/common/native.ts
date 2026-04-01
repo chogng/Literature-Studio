@@ -6,7 +6,7 @@ import type {
   ElectronToastApi,
   ElectronWebContentApi,
   ElectronWindowControls,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export interface INativeHostService {
   canInvoke(): boolean;

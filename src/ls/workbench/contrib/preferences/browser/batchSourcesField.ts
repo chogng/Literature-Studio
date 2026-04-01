@@ -1,8 +1,9 @@
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
-import type { BatchSource } from 'ls/workbench/services/config/configSchema.js';
-import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes.js';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);

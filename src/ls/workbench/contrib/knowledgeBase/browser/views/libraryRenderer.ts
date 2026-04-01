@@ -1,21 +1,18 @@
 import type {
   NativeMenuEvent,
   NativeMenuOpenPayload,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { LibraryDocumentsResult } from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { SimpleTreeRenderContext } from 'ls/base/browser/ui/tree/simpleTree.js';
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
-import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService.js';
-import {
-  resolveLibraryDocumentStatusLabel,
-  type LibraryTreeLabels,
-  type LibraryTreeFolderNode,
-  type LibraryTreeNode,
-} from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel.js';
-import { LibraryDataSource } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDataSource.js';
-import { LibraryDelegate } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDelegate.js';
-import type { LibraryDragAndDrop } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDragAndDrop.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { LibraryDocumentsResult } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { SimpleTreeRenderContext } from 'ls/base/browser/ui/tree/simpleTree';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
+import { resolveLibraryDocumentStatusLabel } from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel';
+import type { LibraryTreeLabels, LibraryTreeFolderNode, LibraryTreeNode } from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel';
+
+import { LibraryDataSource } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDataSource';
+import { LibraryDelegate } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDelegate';
+import type { LibraryDragAndDrop } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDragAndDrop';
 
 export type LibraryRendererLabels = LibraryTreeLabels & {
   unknown: string;

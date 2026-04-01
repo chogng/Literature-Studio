@@ -1,11 +1,11 @@
-import { natureLatestNewsCandidateExtractor } from './latestNews.js';
-import { natureOpinionCandidateExtractor } from './nature-opinions.js';
-import { naturePathExtractors } from './nature-paths.js';
-import { natureResearchArticlesCandidateExtractor } from './nature-research-articles.js';
-import { scienceCurrentNewsInDepthResearchArticlesCandidateExtractor } from './science-current-news-in-depth-research-articles.js';
-import { scienceSciadvCurrentPhysicalMaterialsCandidateExtractor } from './science-sciadv-current-physical-materials.js';
+import { natureLatestNewsCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors/latestNews';
+import { natureOpinionCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors/nature-opinions';
+import { naturePathExtractors } from 'ls/code/electron-main/fetch/sourceExtractors/nature-paths';
+import { natureResearchArticlesCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors/nature-research-articles';
+import { scienceCurrentNewsInDepthResearchArticlesCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors/science-current-news-in-depth-research-articles';
+import { scienceSciadvCurrentPhysicalMaterialsCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors/science-sciadv-current-physical-materials';
 
-import type { ListingCandidateExtractor } from './types.js';
+import type { ListingCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors/types';
 
 const listingCandidateExtractors: ListingCandidateExtractor[] = [
   scienceCurrentNewsInDepthResearchArticlesCandidateExtractor,
@@ -47,8 +47,8 @@ export type {
   ListingPaginationStopEvaluation,
   ListingCandidateSeed,
   ListingDom,
-} from './types.js';
+} from 'ls/code/electron-main/fetch/sourceExtractors/types';
 export {
   normalizeListingCandidateSeed,
   normalizeListingCandidateSeeds,
-} from './types.js';
+} from 'ls/code/electron-main/fetch/sourceExtractors/types';

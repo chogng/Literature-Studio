@@ -1,9 +1,5 @@
-import {
-  getRuntimeMode,
-  getRuntimePlatform,
-  type RuntimeMode,
-  type RuntimePlatform,
-} from '../../../base/common/platform.js';
+import { getRuntimeMode, getRuntimePlatform } from 'ls/base/common/platform';
+import type { RuntimeMode, RuntimePlatform } from 'ls/base/common/platform';
 
 export type WindowChromeTitleBarStyle = 'native' | 'custom';
 export type WindowControlsContainerMode = 'none' | 'native';

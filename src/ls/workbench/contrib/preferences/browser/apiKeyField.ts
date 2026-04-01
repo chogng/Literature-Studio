@@ -1,5 +1,5 @@
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);

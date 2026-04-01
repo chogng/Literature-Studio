@@ -2,7 +2,7 @@ import {
   hasArticlePathScoreSignal,
   hasNewsListingPathSignal,
   isLikelyStaticResourcePath,
-} from '../articleUrlRules.js';
+} from 'ls/code/electron-main/fetch/articleUrlRules';
 
 export function scoreCandidate(page: URL, candidate: string) {
   const baseHost = page.host;

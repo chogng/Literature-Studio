@@ -1,5 +1,5 @@
-import { isLikelyNatureLatestNewsArticleUrl, tryDownloadNatureLatestNewsPdf } from '../natureLatestNewsPdf.js';
-import type { PdfDownloadStrategy } from './pdfStrategyTypes.js';
+import { isLikelyNatureLatestNewsArticleUrl, tryDownloadNatureLatestNewsPdf } from 'ls/code/electron-main/pdf/natureLatestNewsPdf';
+import type { PdfDownloadStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/pdfStrategyTypes';
 
 export const natureLatestNewsPdfStrategy: PdfDownloadStrategy = {
   id: 'nature-latest-news-pdf',

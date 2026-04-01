@@ -1,5 +1,3 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { BrowserWindow, WebContentsView } from 'electron';
 
 import type {
@@ -8,11 +6,12 @@ import type {
   NativeToastOptions,
   NativeToastState,
   NativeToastType,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { cleanText } from '../../../base/common/strings.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { cleanText } from 'ls/base/common/strings';
+import {
+  resolvePreloadScriptPath,
+  resolveWorkbenchRendererFilePath,
+} from 'ls/platform/window/electron-main/window';
 
 const nativeToastStateChannel = 'app:native-toast-state';
 const nativeToastQueryKey = 'nativeOverlay';
@@ -56,20 +55,7 @@ function resolveRendererTarget() {
 
   return {
     type: 'file' as const,
-    target: path.join(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      '..',
-      'dist',
-      'src',
-      'ls',
-      'code',
-      'electron-sandbox',
-      'workbench',
-      'workbench.html',
-    ),
+    target: resolveWorkbenchRendererFilePath(),
     query: {
       [nativeToastQueryKey]: nativeToastQueryValue,
     },
@@ -251,7 +237,7 @@ function applyNativeToastBounds() {
 function createNativeToastView(window: BrowserWindow) {
   const view = new WebContentsView({
     webPreferences: {
-      preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
+      preload: resolvePreloadScriptPath(),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

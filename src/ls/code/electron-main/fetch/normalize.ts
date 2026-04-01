@@ -1,20 +1,9 @@
 import { load } from 'cheerio';
 
-import { cleanText, pickFirstNonEmpty, uniq } from '../../../base/common/strings.js';
-import {
-  collectStructuredFieldTextCandidates,
-  extractRawAbstract,
-  extractRawArticleType,
-  extractRawAuthors,
-  extractRawDescription,
-  extractRawDomArticleType,
-  extractRawDomTitle,
-  extractRawDoi,
-  extractRawPublishedDate,
-  extractRawTitle,
-  normalizeRawAuthorName,
-  type StructuredDataRecord,
-} from './rawMetadata.js';
+import { cleanText, pickFirstNonEmpty, uniq } from 'ls/base/common/strings';
+import { collectStructuredFieldTextCandidates, extractRawAbstract, extractRawArticleType, extractRawAuthors, extractRawDescription, extractRawDomArticleType, extractRawDomTitle, extractRawDoi, extractRawPublishedDate, extractRawTitle, normalizeRawAuthorName } from 'ls/code/electron-main/fetch/rawMetadata';
+import type { StructuredDataRecord } from 'ls/code/electron-main/fetch/rawMetadata';
+
 import {
   extractNatureAbstract,
   extractNatureFigureCaptions,
@@ -23,7 +12,7 @@ import {
   extractNatureMainText,
   extractNatureReferenceTexts,
   isNatureArticlePage,
-} from './sites/nature.js';
+} from 'ls/code/electron-main/fetch/sites/nature';
 
 export function extractAuthors(
   $: ReturnType<typeof load>,

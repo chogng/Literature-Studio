@@ -6,23 +6,18 @@ import type {
   RagSettings,
   TranslationSettings,
   StoredAppSettings as DesktopStoredAppSettings,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { Locale } from '../../../../language/i18n';
-import {
-  type BatchSource,
-  defaultBatchLimit,
-  defaultSameDomainOnly,
-  getConfigBatchSourceSeed,
-  normalizeBatchLimit,
-  resolveConfigBatchSources,
-} from 'ls/workbench/services/config/configSchema';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { Locale } from 'language/i18n';
+import { defaultBatchLimit, defaultSameDomainOnly, getConfigBatchSourceSeed, normalizeBatchLimit, resolveConfigBatchSources } from 'ls/workbench/services/config/configSchema';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+
 import {
   cloneKnowledgeBaseSettings,
   createDefaultKnowledgeBaseSettings,
-} from 'ls/workbench/services/knowledgeBase/config.js';
-import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config.js';
-import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config.js';
-import { cloneTranslationSettings, createDefaultTranslationSettings } from 'ls/workbench/services/translation/config.js';
+} from 'ls/workbench/services/knowledgeBase/config';
+import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config';
+import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config';
+import { cloneTranslationSettings, createDefaultTranslationSettings } from 'ls/workbench/services/translation/config';
 
 export type StoredAppSettingsPayload = DesktopStoredAppSettings;
 export type AppSettingsPayload = DesktopAppSettings;

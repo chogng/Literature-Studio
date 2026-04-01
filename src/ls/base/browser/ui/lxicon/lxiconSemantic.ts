@@ -1,4 +1,4 @@
-import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 export const lxIconSemanticMap = {
   titlebar: {
@@ -40,7 +40,7 @@ export const lxIconSemanticMap = {
   library: {
     refresh: 'library',
     downloadPdf: 'download-2',
-    createDraft: 'add-file',
+    createDraft: 'write',
     folderExpanded: 'chevron-down',
     folderCollapsed: 'chevron-right',
   },

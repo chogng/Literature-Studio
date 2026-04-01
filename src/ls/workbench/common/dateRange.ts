@@ -2,7 +2,7 @@ import {
   formatDateInputValue,
   isDateRangeValid,
   shiftDateInputValue,
-} from '../../base/common/date';
+} from 'ls/base/common/date';
 
 export type BatchDateRange = {
   startDate: string;

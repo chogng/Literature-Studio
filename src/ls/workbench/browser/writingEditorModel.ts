@@ -1,8 +1,6 @@
-import {
-  createEmptyWritingEditorDocument,
-  normalizeWritingEditorDocument,
-  type WritingEditorDocument,
-} from 'ls/editor/common/writingEditorDocument';
+import { createEmptyWritingEditorDocument, normalizeWritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
+import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
+
 import { createWritingLiveDraftState } from 'ls/workbench/browser/writingEditorLiveState';
 import { createWritingEditorStorage } from 'ls/workbench/browser/writingEditorStorage';
 

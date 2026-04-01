@@ -2,11 +2,11 @@ import type {
   RagConnectionTestResult,
   RagProviderId,
   TestRagConnectionPayload,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { appError, isAppError } from '../../../base/common/errors.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { defaultRagProviderId } from '../../../workbench/services/rag/config.js';
-import { isRagProviderId } from '../../../workbench/services/rag/registry.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { appError, isAppError } from 'ls/base/common/errors';
+import { cleanText } from 'ls/base/common/strings';
+import { defaultRagProviderId } from 'ls/workbench/services/rag/config';
+import { isRagProviderId } from 'ls/workbench/services/rag/registry';
 
 const ragTestTimeoutMs = 20000;
 

@@ -1,4 +1,4 @@
-import './switch.css';
+import 'ls/base/browser/ui/switch/switch.css';
 
 export interface SwitchProps {
   checked?: boolean;

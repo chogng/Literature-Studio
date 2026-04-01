@@ -2,8 +2,8 @@ import type {
   RagProviderId,
   RagProviderSettings,
   RagSettings,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import { getRagProviderDefinition } from 'ls/workbench/services/rag/registry.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { getRagProviderDefinition } from 'ls/workbench/services/rag/registry';
 
 export const defaultRagProviderId: RagProviderId = 'moark';
 export const defaultRagRetrievalCandidateCount = 10;

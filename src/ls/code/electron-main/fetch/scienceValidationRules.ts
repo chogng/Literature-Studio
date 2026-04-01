@@ -1,9 +1,9 @@
-import { isAppError } from '../../../base/common/errors.js';
+import { isAppError } from 'ls/base/common/errors';
 import {
   isScienceHostUrl as isSharedScienceHostUrl,
   isScienceSeriesCurrentTocUrl,
-} from '../../../base/common/url.js';
-import { cleanText } from '../../../base/common/strings.js';
+} from 'ls/base/common/url';
+import { cleanText } from 'ls/base/common/strings';
 
 // Science site validation rules used by fetch/pdf flows.
 // Keep BrowserWindow lifecycle and script execution in platform/windows.

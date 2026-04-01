@@ -2,11 +2,11 @@ import type {
   LlmConnectionTestResult,
   LlmProviderId,
   TestLlmConnectionPayload,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { appError, isAppError } from '../../../base/common/errors.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { defaultLlmProviderId } from '../../../workbench/services/llm/config.js';
-import { isLlmProviderId } from '../../../workbench/services/llm/registry.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { appError, isAppError } from 'ls/base/common/errors';
+import { cleanText } from 'ls/base/common/strings';
+import { defaultLlmProviderId } from 'ls/workbench/services/llm/config';
+import { isLlmProviderId } from 'ls/workbench/services/llm/registry';
 
 const llmTestTimeoutMs = 15000;
 type ChatCompletionMessage = {

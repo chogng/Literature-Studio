@@ -1,5 +1,5 @@
-import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { Locale } from '../../../../../language/i18n';
+import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { Locale } from 'language/i18n';
 
 export type LocaleServiceContext = {
   desktopRuntime: boolean;

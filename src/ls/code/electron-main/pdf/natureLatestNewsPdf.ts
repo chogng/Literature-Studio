@@ -1,11 +1,11 @@
 import { load } from 'cheerio';
 
-import type { PdfDownloadResult } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { isNatureMainSiteUrl } from '../../../base/common/url.js';
-import { fetchHtml } from '../fetch/dispatch.js';
-import type { PdfDownloadContext } from './pdfStrategies/pdfStrategyTypes.js';
-import { printWebPageToPdf } from './webPagePdf.js';
+import type { PdfDownloadResult } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { cleanText } from 'ls/base/common/strings';
+import { isNatureMainSiteUrl } from 'ls/base/common/url';
+import { fetchHtml } from 'ls/code/electron-main/fetch/dispatch';
+import type { PdfDownloadContext } from 'ls/code/electron-main/pdf/pdfStrategies/pdfStrategyTypes';
+import { printWebPageToPdf } from 'ls/code/electron-main/pdf/webPagePdf';
 
 const NATURE_LATEST_NEWS_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
 

@@ -1,5 +1,5 @@
-import type { AppErrorCode } from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { LocaleMessages } from '../../../../language/locales';
+import type { AppErrorCode } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { LocaleMessages } from 'language/locales';
 
 export type DesktopErrorCode = AppErrorCode;
 

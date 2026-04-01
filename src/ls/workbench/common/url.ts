@@ -3,7 +3,7 @@ import {
   buildSciencePdfDownloadUrl as buildSharedSciencePdfDownloadUrl,
   isScienceCurrentTocUrl as isSharedScienceCurrentTocUrl,
   sanitizeUrlInput as sanitizeSharedUrlInput,
-} from '../../base/common/url';
+} from 'ls/base/common/url';
 
 export function sanitizeUrlInput(input: string) {
   return sanitizeSharedUrlInput(input);

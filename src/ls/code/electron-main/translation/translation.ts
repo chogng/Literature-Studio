@@ -3,11 +3,11 @@ import type {
   TranslationConnectionTestResult,
   TranslationProviderId,
   TranslationSettings,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { appError, isAppError } from '../../../base/common/errors.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { defaultTranslationProviderId } from '../../../workbench/services/translation/config.js';
-import { isTranslationProviderId } from '../../../workbench/services/translation/registry.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { appError, isAppError } from 'ls/base/common/errors';
+import { cleanText } from 'ls/base/common/strings';
+import { defaultTranslationProviderId } from 'ls/workbench/services/translation/config';
+import { isTranslationProviderId } from 'ls/workbench/services/translation/registry';
 
 // Dedicated translation API implementations live here.
 // This module should stay focused on provider-specific behavior such as:

@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 
-import type { Article } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { cleanNullable } from '../../../base/common/strings.js';
+import type { Article } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { cleanNullable } from 'ls/base/common/strings';
 import {
   extractAbstract,
   extractArticleType,
@@ -12,7 +12,7 @@ import {
   extractPublishedDate,
   extractStructuredDataItems,
   extractTitle,
-} from './metadata.js';
+} from 'ls/code/electron-main/fetch/metadata';
 
 export function buildArticleFromHtml(sourceUrl: string, html: string): Article {
   const $ = load(html);

@@ -1,12 +1,11 @@
 import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import {
-  LibraryViewer,
-  type LibraryViewerLabels,
-} from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryViewer.js';
-import '../media/libraryView.css';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { LibraryViewer } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryViewer';
+import type { LibraryViewerLabels } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryViewer';
+
+import 'ls/workbench/contrib/knowledgeBase/browser/media/libraryView.css';
 
 export type LibraryViewLabels = LibraryViewerLabels;
 

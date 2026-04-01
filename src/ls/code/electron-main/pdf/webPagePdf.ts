@@ -1,16 +1,16 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
-import type { PdfDownloadResult } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { cleanText } from '../../../base/common/strings.js';
-import { appError } from '../../../base/common/errors.js';
-import { buildPdfFileName } from '../../../platform/download/common/pdfFileName.js';
+import type { PdfDownloadResult } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { cleanText } from 'ls/base/common/strings';
+import { appError } from 'ls/base/common/errors';
+import { buildPdfFileName } from 'ls/platform/download/common/pdfFileName';
 import {
   getWebContentState,
   navigateWebContentForPrint,
   printCurrentWebContentToPdf,
   waitForWebContentPrintLayout,
-} from '../../../platform/windows/electron-main/webContentView.js';
+} from 'ls/platform/window/electron-main/webContentView';
 
 const WEB_PAGE_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
 const WEB_PAGE_PDF_STABILIZE_MS = 1200;

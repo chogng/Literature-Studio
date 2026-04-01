@@ -1,4 +1,4 @@
-import { hasArticlePathSignal } from './articleUrlRules.js';
+import { hasArticlePathSignal } from 'ls/code/electron-main/fetch/articleUrlRules';
 
 export type SourcePageType = 'detail' | 'listing';
 

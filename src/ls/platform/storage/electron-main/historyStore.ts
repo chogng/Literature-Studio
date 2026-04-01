@@ -1,8 +1,8 @@
 ﻿import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
-import type { Article } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import type { StorageService } from '../common/storage.js';
+import type { Article } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { StorageService } from 'ls/platform/storage/common/storage';
 
 type HistoryStore = Pick<StorageService, 'saveFetchedArticles'>;
 

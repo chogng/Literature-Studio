@@ -1,20 +1,16 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { BrowserWindow } from 'electron';
 
 import type {
   NativeModalState,
   OpenArticleDetailsModalPayload,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { appError } from '../../../base/common/errors.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { appError } from 'ls/base/common/errors';
 import {
   createAuxiliaryWindow,
+  resolvePreloadScriptPath,
   resolveWorkbenchRendererFilePath,
   resolveWorkbenchRendererUrl,
-} from './window.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+} from 'ls/platform/window/electron-main/window';
 
 const nativeModalQueryKey = 'nativeModal';
 const nativeModalStateChannel = 'app:modal-state';
@@ -81,7 +77,7 @@ function createModalWindow(_parentWindow: BrowserWindow, title: string) {
     autoHideMenuBar: true,
     backgroundColor: '#eff4fb',
     webPreferences: {
-      preload: path.join(__dirname, '../../../base/parts/sandbox/electron-browser/preload.js'),
+      preload: resolvePreloadScriptPath(),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,

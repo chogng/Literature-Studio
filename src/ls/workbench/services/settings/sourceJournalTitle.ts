@@ -1,7 +1,5 @@
-import {
-  type BatchSource,
-  resolveDefaultJournalTitleFromSourceUrl,
-} from 'ls/workbench/services/config/configSchema';
+import { resolveDefaultJournalTitleFromSourceUrl } from 'ls/workbench/services/config/configSchema';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 
 type ResolveNextJournalTitleOnUrlChangeParams = {
   currentJournalTitle: string;

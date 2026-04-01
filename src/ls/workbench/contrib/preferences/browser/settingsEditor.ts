@@ -1,36 +1,33 @@
-import type { Locale } from '../../../../../language/i18n';
-import type { LocaleMessages } from '../../../../../language/locales';
-import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
-import { createSwitchView } from 'ls/base/browser/ui/switch/switch.js';
-import { BatchSourcesFieldView } from 'ls/workbench/contrib/preferences/browser/batchSourcesField.js';
-import {
-  KnowledgeBaseFieldView,
-  type KnowledgeBaseFieldViewProps,
-} from 'ls/workbench/contrib/preferences/browser/knowledgeBaseField.js';
-import { LlmFieldView } from 'ls/workbench/contrib/preferences/browser/llmField.js';
-import {
-  createSettingsSectionMap,
-  getSettingsNavigationItems,
-  getSettingsPageSectionIds,
-  type SettingsPageId,
-  type SettingsSectionId,
-} from 'ls/workbench/contrib/preferences/browser/settingsLayout.js';
+import type { Locale } from 'language/i18n';
+import type { LocaleMessages } from 'language/locales';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
+import { createSwitchView } from 'ls/base/browser/ui/switch/switch';
+import { BatchSourcesFieldView } from 'ls/workbench/contrib/preferences/browser/batchSourcesField';
+import { KnowledgeBaseFieldView } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseField';
+import type { KnowledgeBaseFieldViewProps } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseField';
+
+import { LlmFieldView } from 'ls/workbench/contrib/preferences/browser/llmField';
+import { createSettingsSectionMap, getSettingsNavigationItems, getSettingsPageSectionIds } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
+import type { SettingsPageId, SettingsSectionId } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
+
 import type {
   SettingsPartActions,
   SettingsPartLabels,
   SettingsPartProps,
   SettingsPartState,
-} from 'ls/workbench/contrib/preferences/browser/settingsTypes.js';
-import { TranslationFieldView } from 'ls/workbench/contrib/preferences/browser/translationField.js';
+} from 'ls/workbench/contrib/preferences/browser/settingsTypes';
+import { TranslationFieldView } from 'ls/workbench/contrib/preferences/browser/translationField';
 import {
   createDisplayLanguageOptions,
   requestSetDisplayLanguage,
 } from 'ls/workbench/contrib/localization/browser/localizationsActions';
 import { batchLimitMax, batchLimitMin } from 'ls/workbench/services/config/configSchema';
 import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from 'ls/workbench/browser/layout';
-import './media/settingsEditor.css';
-import './media/settingsWidgets.css';
+import 'ls/workbench/contrib/preferences/browser/media/settingsEditor.css';
+import 'ls/workbench/contrib/preferences/browser/media/settingsWidgets.css';
 
 type SelectOption = { value: string; label: string };
 

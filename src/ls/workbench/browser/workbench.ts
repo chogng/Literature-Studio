@@ -1,19 +1,12 @@
-import {
-  type AssistantModel,
-  type AssistantModelContext,
-  createAssistantModel,
-} from 'ls/workbench/browser/assistantModel';
-import {
-  type BatchFetchController,
-  type BatchFetchControllerContext,
-  createBatchFetchController,
-} from 'ls/workbench/browser/batchFetchModel';
-import {
-  type DocumentActionsController,
-  type DocumentActionsControllerContext,
-  createDocumentActionsController,
-} from 'ls/workbench/browser/documentActionsModel';
-import { type LibraryModel, type LibraryModelContext, createLibraryModel } from 'ls/workbench/browser/libraryModel';
+import { createAssistantModel } from 'ls/workbench/browser/assistantModel';
+import type { AssistantModel, AssistantModelContext } from 'ls/workbench/browser/assistantModel';
+import { createBatchFetchController } from 'ls/workbench/browser/batchFetchModel';
+import type { BatchFetchController, BatchFetchControllerContext } from 'ls/workbench/browser/batchFetchModel';
+import { createDocumentActionsController } from 'ls/workbench/browser/documentActionsModel';
+import type { DocumentActionsController, DocumentActionsControllerContext } from 'ls/workbench/browser/documentActionsModel';
+import { createLibraryModel } from 'ls/workbench/browser/libraryModel';
+import type { LibraryModel, LibraryModelContext } from 'ls/workbench/browser/libraryModel';
+
 import { WebContentNavigationModel } from 'ls/workbench/browser/webContentNavigationModel';
 import {
   getWorkbenchLayoutStateSnapshot,
@@ -27,36 +20,33 @@ import {
   toggleSidebarVisibility,
   WORKBENCH_PART_IDS,
 } from 'ls/workbench/browser/layout';
-import {
-  type SettingsController,
-  type SettingsControllerContext,
-  createSettingsController,
-} from 'ls/workbench/contrib/preferences/browser/settingsController';
-import {
-  type EditorPartChangeReason,
-  type EditorPartControllerContext,
-  type EditorPartModel,
-  createEditorPartController,
-} from 'ls/workbench/browser/parts/editor/editorPart';
+import { createSettingsController } from 'ls/workbench/contrib/preferences/browser/settingsController';
+import type { SettingsController, SettingsControllerContext } from 'ls/workbench/contrib/preferences/browser/settingsController';
+import { createEditorPartController } from 'ls/workbench/browser/parts/editor/editorPart';
+import type { EditorPartChangeReason, EditorPartControllerContext, EditorPartModel } from 'ls/workbench/browser/parts/editor/editorPart';
+
 import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
 import {
   createSettingsPartView,
   createSettingsPartProps,
 } from 'ls/workbench/contrib/preferences/browser/settingsEditor';
-import {
-  createAuxiliaryBarPartProps,
-  type AuxiliaryBarProps,
-} from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import { createAuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+
 import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
 import { createSecondarySidebarPartProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
 import { createTitlebarPartProps } from 'ls/workbench/browser/parts/titlebar/titlebarPart';
-import { createTitlebarView, type TitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
+import { createTitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
+import type { TitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
+
 import { createToastOverlayWindowView } from 'ls/workbench/browser/toastOverlayWindow';
 import { createMenuOverlayWindowView } from 'ls/workbench/browser/menuOverlayWindow';
 import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
 import { createReaderPageView } from 'ls/workbench/browser/readerPageView';
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
-import { createToastHost, type ToastHost } from 'ls/base/browser/ui/toast/toastHost';
+import { createToastHost } from 'ls/base/browser/ui/toast/toastHost';
+import type { ToastHost } from 'ls/base/browser/ui/toast/toastHost';
+
 import {
   localeService,
 } from 'ls/workbench/contrib/localization/browser/localeService';
@@ -84,32 +74,25 @@ import {
   setBatchStartDate,
   subscribeReaderState,
 } from 'ls/workbench/browser/readerState';
-import {
-  resolveContentSourceUrl,
-  shouldSyncActiveContentTabFromBrowserUrl,
-  type WebContentSurfaceSnapshot,
-} from 'ls/workbench/browser/webContentSurfaceState';
-import { getLocaleMessages } from '../../../language/i18n';
+import { resolveContentSourceUrl, shouldSyncActiveContentTabFromBrowserUrl } from 'ls/workbench/browser/webContentSurfaceState';
+import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
+
+import { getLocaleMessages } from 'language/i18n';
 import type { Article } from 'ls/workbench/services/article/articleFetch';
 import { normalizeUrl } from 'ls/workbench/common/url';
-import type { LibraryDocumentSummary } from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import {
-  getConfigBatchSourceSeed,
-  normalizeBatchLimit,
-  type BatchSource,
-} from 'ls/workbench/services/config/configSchema';
-import {
-  reduceQuickAccessAction,
-  type QuickAccessAction,
-  type QuickAccessCommand,
-} from 'ls/workbench/services/quickAccess/quickAccessService';
+import type { LibraryDocumentSummary } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { getConfigBatchSourceSeed, normalizeBatchLimit } from 'ls/workbench/services/config/configSchema';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+import { reduceQuickAccessAction } from 'ls/workbench/services/quickAccess/quickAccessService';
+import type { QuickAccessAction, QuickAccessCommand } from 'ls/workbench/services/quickAccess/quickAccessService';
+
 import type { WritingWorkspaceTab } from 'ls/workbench/browser/writingEditorModel';
 import {
   hasDesktopRuntime,
   hasWebContentRuntime,
 } from 'ls/base/common/platform';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
-import './media/workbench.css';
+import 'ls/workbench/browser/media/workbench.css';
 
 export type WorkbenchPage = 'reader' | 'settings';
 

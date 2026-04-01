@@ -1,4 +1,4 @@
-import './media/tree.css';
+import 'ls/base/browser/ui/tree/media/tree.css';
 
 export type SimpleTreeDataSource<T> = {
   hasChildren(node: T): boolean;

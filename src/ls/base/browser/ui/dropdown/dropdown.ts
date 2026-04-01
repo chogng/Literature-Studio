@@ -1,4 +1,4 @@
-import './dropdown.css';
+import 'ls/base/browser/ui/dropdown/dropdown.css';
 
 export type DropdownSize = 'sm' | 'md' | 'lg';
 export type DropdownMenuAlign = 'start' | 'center' | 'end';

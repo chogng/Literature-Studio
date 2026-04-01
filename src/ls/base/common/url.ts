@@ -1,4 +1,4 @@
-import { appError } from './errors.js';
+import { appError } from 'ls/base/common/errors';
 
 const TRAILING_URL_PUNCTUATION_RE =
   /[\u3001\uFF0C\u3002\uFF1B\uFF1A\uFF01\uFF1F,.;:!?]+$/u;

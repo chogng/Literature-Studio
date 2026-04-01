@@ -1,7 +1,5 @@
-import {
-  createToastContainerView,
-  type ToastContainerView,
-} from 'ls/base/browser/ui/toast/toast';
+import { createToastContainerView } from 'ls/base/browser/ui/toast/toast';
+import type { ToastContainerView } from 'ls/base/browser/ui/toast/toast';
 
 export type ToastHost = {
   render: (closeLabel: string) => void;

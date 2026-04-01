@@ -1,13 +1,11 @@
 import type {
   NativeMenuEvent,
   NativeMenuOpenPayload,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import {
-  createDropdownView,
-  type DropdownProps,
-  type DropdownExternalMenuRequest,
-} from 'ls/base/browser/ui/dropdown/dropdown.js';
-import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { createDropdownView } from 'ls/base/browser/ui/dropdown/dropdown';
+import type { DropdownProps, DropdownExternalMenuRequest } from 'ls/base/browser/ui/dropdown/dropdown';
+
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 
 export type TitlebarSourceDropdownView = {
   getElement: () => HTMLElement;

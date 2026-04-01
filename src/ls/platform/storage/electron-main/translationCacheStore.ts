@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
-import type { StorageService, TranslationCacheRecord } from '../common/storage.js';
-import { cleanText } from '../../../base/common/strings.js';
+import type { StorageService, TranslationCacheRecord } from 'ls/platform/storage/common/storage';
+import { cleanText } from 'ls/base/common/strings';
 
 type TranslationCacheStore = Pick<StorageService, 'loadTranslationCache' | 'saveTranslationCache'>;
 

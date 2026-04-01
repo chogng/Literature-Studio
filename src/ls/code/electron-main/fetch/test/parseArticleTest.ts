@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-import { buildArticleFromHtml } from '../parser.js';
+import { buildArticleFromHtml } from 'ls/code/electron-main/fetch/parser';
 
 async function main() {
   const [, , sourceUrl, htmlPath] = process.argv;

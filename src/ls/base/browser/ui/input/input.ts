@@ -1,4 +1,4 @@
-import './input.css';
+import 'ls/base/browser/ui/input/input.css';
 
 export type InputSize = 'sm' | 'md' | 'lg';
 export type InputAppearance = 'default' | 'flat';

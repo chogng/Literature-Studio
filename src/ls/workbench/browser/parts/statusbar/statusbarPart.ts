@@ -1,6 +1,6 @@
 import type { EditorStatusState } from 'ls/editor/browser/shared/editorStatus';
 import { createStatusbarItemElement } from 'ls/workbench/browser/parts/statusbar/statusbarItem';
-import './media/statusbar.css';
+import 'ls/workbench/browser/parts/statusbar/media/statusbar.css';
 
 function createTextElement(className: string, text: string, title?: string) {
   const element = document.createElement('span');

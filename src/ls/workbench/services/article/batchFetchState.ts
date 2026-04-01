@@ -1,4 +1,4 @@
-import type { FetchStatus } from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type { FetchStatus } from 'ls/base/parts/sandbox/common/desktopTypes';
 
 export type BatchFetchPhase = 'idle' | 'loading' | 'succeeded' | 'failed';
 

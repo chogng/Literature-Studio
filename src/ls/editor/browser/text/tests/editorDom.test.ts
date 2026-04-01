@@ -1,15 +1,12 @@
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
-import {
-  createEmptyWritingEditorDocument,
-  createWritingEditorDocumentFromPlainText,
-  writingEditorDocumentToPlainText,
-  type WritingEditorDocument,
-} from '../../../common/writingEditorDocument';
-import { installDomTestEnvironment } from './domTestUtils';
+import { createEmptyWritingEditorDocument, createWritingEditorDocumentFromPlainText, writingEditorDocumentToPlainText } from 'ls/editor/common/writingEditorDocument';
+import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
-let ProseMirrorEditor: typeof import('../editor').ProseMirrorEditor;
+import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
+
+let ProseMirrorEditor: typeof import('ls/editor/browser/text/editor').ProseMirrorEditor;
 let cleanupDomEnvironment: (() => void) | null = null;
 
 const labels = {
@@ -40,7 +37,7 @@ const labels = {
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
-  ({ ProseMirrorEditor } = await import('../editor'));
+  ({ ProseMirrorEditor } = await import('ls/editor/browser/text/editor'));
 });
 
 after(() => {
@@ -51,7 +48,7 @@ after(() => {
 function createProps(
   document: WritingEditorDocument,
   onDocumentChange: (nextDocument: WritingEditorDocument) => void,
-): import('../editor').WritingEditorSurfaceProps {
+): import('ls/editor/browser/text/editor').WritingEditorSurfaceProps {
   return {
     document,
     placeholder: 'Write here',

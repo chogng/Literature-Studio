@@ -4,16 +4,16 @@ import {
   installWorkbenchBootstrapErrorHandlers,
   renderWorkbenchBootstrapError,
   updateWorkbenchBootstrapStatus,
-} from './bootstrapWorkbench';
+} from 'app/bootstrapWorkbench';
 
 async function bootstrapWorkbench() {
   installWorkbenchBootstrapErrorHandlers('web');
 
   try {
-    await import('./ls/workbench/workbench.web.main');
+    await import('ls/workbench/workbench.web.main');
 
     const { startWorkbenchContributions, stopWorkbenchContributions } =
-      await import('./ls/workbench/contrib/workbench/workbench.contribution');
+      await import('ls/workbench/contrib/workbench/workbench.contribution');
     if (!isNativeWorkbenchAuxiliaryWindow()) {
       startWorkbenchContributions();
       window.addEventListener('beforeunload', stopWorkbenchContributions, {
@@ -22,7 +22,7 @@ async function bootstrapWorkbench() {
     }
 
     await diagnoseWorkbenchDependencyImports('web');
-    const { renderWorkbench } = await import('./ls/workbench/browser/workbench');
+    const { renderWorkbench } = await import('ls/workbench/browser/workbench');
     renderWorkbench();
   } catch (error) {
     updateWorkbenchBootstrapStatus('web', 'startup failed', error);

@@ -6,6 +6,8 @@
     "module": "ESNext",
     "baseUrl": ".",
     "paths": {
+      "app/*": ["src/*"],
+      "language/*": ["src/language/*"],
       "ls/*": ["src/ls/*"]
     },
     "skipLibCheck": true,

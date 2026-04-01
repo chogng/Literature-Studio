@@ -1,29 +1,29 @@
 import { load } from 'cheerio';
-
-import type { DateRange } from '../../../base/common/date.js';
 import type {
   Article,
   FetchChannel,
   FetchStatus,
   WebContentReuseMode,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { isWithinDateRange } from '../../../base/common/date.js';
-import { hasStrongArticleSignals, isProbablyArticle } from './acceptance.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import { isWithinDateRange } from 'ls/base/common/date';
+import type { DateRange } from 'ls/base/common/date';
+
+import { hasStrongArticleSignals, isProbablyArticle } from 'ls/code/electron-main/fetch/acceptance';
 import {
   applyCandidateArticleType,
   buildArticleFromCandidate,
-} from './merge.js';
-import { buildArticleFromHtml } from './parser.js';
-import { planCandidateFetch } from './listing/planning.js';
-import { buildWebContentExtractionFetchPlan } from './fetchStrategy.js';
-import type { SourcePageTypeResult } from './detect.js';
-import type { ListingCandidateExtractor } from './sourceExtractors/index.js';
+} from 'ls/code/electron-main/fetch/merge';
+import { buildArticleFromHtml } from 'ls/code/electron-main/fetch/parser';
+import { planCandidateFetch } from 'ls/code/electron-main/fetch/listing/planning';
+import { buildWebContentExtractionFetchPlan } from 'ls/code/electron-main/fetch/fetchStrategy';
+import type { SourcePageTypeResult } from 'ls/code/electron-main/fetch/detect';
+import type { ListingCandidateExtractor } from 'ls/code/electron-main/fetch/sourceExtractors';
 import type {
   CandidateCollectionResult,
   FetchLatestArticlesOptions,
   PageFetchResult,
   PageHtmlResult,
-} from './sourcePageFetchTypes.js';
+} from 'ls/code/electron-main/fetch/sourcePageFetchTypes';
 
 export async function fetchListing({
   sourceId,

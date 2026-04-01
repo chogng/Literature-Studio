@@ -1,16 +1,15 @@
-import {
-  type WritingEditorDocument,
-  type WritingWorkspaceDraftTab,
+import type {
+  WritingEditorDocument,
+  WritingWorkspaceDraftTab,
 } from 'ls/workbench/browser/writingEditorModel';
-import { getLocaleMessages } from '../../../../../../language/i18n';
+import { getLocaleMessages } from 'language/i18n';
 import type { DraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
 import { ProseMirrorEditor } from 'ls/editor/browser/text/editor';
 import { localeService } from 'ls/workbench/contrib/localization/browser/localeService';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
-import {
-  createDraftEditorCommandAction,
-  type DraftEditorCommandId,
-} from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+import { createDraftEditorCommandAction } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 
 export type DraftEditorPaneProps = {

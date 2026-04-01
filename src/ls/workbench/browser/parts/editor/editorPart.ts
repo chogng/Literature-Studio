@@ -1,17 +1,12 @@
-import type { LocaleMessages } from '../../../../../language/locales';
+import type { LocaleMessages } from 'language/locales';
 import { normalizeUrl } from 'ls/workbench/common/url';
-import {
-  createWebContentSurfaceSnapshot,
-  resolveContentSourceUrl,
-  type WebContentSurfaceSnapshot,
-} from 'ls/workbench/browser/webContentSurfaceState';
+import { createWebContentSurfaceSnapshot, resolveContentSourceUrl } from 'ls/workbench/browser/webContentSurfaceState';
+import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
+
 import { preparePdfDownload } from 'ls/workbench/services/document/documentActionService';
-import {
-  createWritingEditorModel,
-  type WritingEditorDocument,
-  type WritingEditorModelSnapshot,
-  type WritingWorkspaceTab,
-} from 'ls/workbench/browser/writingEditorModel';
+import { createWritingEditorModel } from 'ls/workbench/browser/writingEditorModel';
+import type { WritingEditorDocument, WritingEditorModelSnapshot, WritingWorkspaceTab } from 'ls/workbench/browser/writingEditorModel';
+
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';

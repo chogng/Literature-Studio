@@ -1,12 +1,10 @@
-import type { LocaleMessages } from '../../../../../language/locales';
+import type { LocaleMessages } from 'language/locales';
 import type { QuickAccessSourceOption } from 'ls/workbench/services/quickAccess/quickAccessService';
 import type { WebContentState } from 'ls/workbench/services/webContent/webContentNavigationService';
 import type { TitlebarAction, TitlebarProps } from 'ls/workbench/browser/parts/titlebar/titlebarView';
 import type { WorkbenchPage } from 'ls/workbench/browser/workbench';
-import {
-  createTitlebarQuickAccessProps,
-  type QuickAccessAction,
-} from 'ls/workbench/browser/parts/titlebar/quickAccess';
+import { createTitlebarQuickAccessProps } from 'ls/workbench/browser/parts/titlebar/quickAccess';
+import type { QuickAccessAction } from 'ls/workbench/browser/parts/titlebar/quickAccess';
 
 export type TitlebarPartState = {
   activePage: WorkbenchPage;

@@ -3,9 +3,9 @@ import type {
   ArticleDetailsModalLabels,
   ElectronInvoke,
   LibraryDocumentSummary,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
-import type { Locale } from '../../../language/i18n';
-import type { LocaleMessages } from '../../../language/locales';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { Locale } from 'language/i18n';
+import type { LocaleMessages } from 'language/locales';
 import type { Article } from 'ls/workbench/services/article/articleFetch';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import {

@@ -1,10 +1,10 @@
 import type {
   NativeMenuOption,
   NativeMenuState,
-} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
-import '../../base/browser/ui/dropdown/dropdown.css';
-import './media/menuOverlayWindow.css';
+import 'ls/base/browser/ui/dropdown/dropdown.css';
+import 'ls/workbench/browser/media/menuOverlayWindow.css';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

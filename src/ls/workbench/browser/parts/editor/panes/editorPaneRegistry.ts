@@ -8,9 +8,12 @@ import type {
 import type { DraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
-import { ContentEditorPane, type ContentEditorPaneProps } from 'ls/workbench/browser/parts/editor/panes/contentEditorPane';
-import { DraftEditorPane, type DraftEditorPaneProps } from 'ls/workbench/browser/parts/editor/panes/draftEditorPane';
-import { PdfEditorPane, type PdfEditorPaneProps } from 'ls/workbench/browser/parts/editor/panes/pdfEditorPane';
+import { ContentEditorPane } from 'ls/workbench/browser/parts/editor/panes/contentEditorPane';
+import type { ContentEditorPaneProps } from 'ls/workbench/browser/parts/editor/panes/contentEditorPane';
+import { DraftEditorPane } from 'ls/workbench/browser/parts/editor/panes/draftEditorPane';
+import type { DraftEditorPaneProps } from 'ls/workbench/browser/parts/editor/panes/draftEditorPane';
+import { PdfEditorPane } from 'ls/workbench/browser/parts/editor/panes/pdfEditorPane';
+import type { PdfEditorPaneProps } from 'ls/workbench/browser/parts/editor/panes/pdfEditorPane';
 
 export type EditorPaneRenderer = {
   getElement: () => HTMLElement;

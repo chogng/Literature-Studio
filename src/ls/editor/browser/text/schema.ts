@@ -6,11 +6,14 @@ import {
   wrappingInputRule,
   textblockTypeInputRule,
 } from 'prosemirror-inputrules';
-import { Schema, type Node as ProseMirrorNode, type NodeSpec } from 'prosemirror-model';
+import { Schema } from 'prosemirror-model';
+import type { Node as ProseMirrorNode, NodeSpec } from 'prosemirror-model';
+
 import { Plugin, PluginKey } from 'prosemirror-state';
 import { schema as basicSchema } from 'prosemirror-schema-basic';
 import { addListNodes } from 'prosemirror-schema-list';
-import { Decoration, DecorationSet, type EditorView } from 'prosemirror-view';
+import { Decoration, DecorationSet } from 'prosemirror-view';
+import type { EditorView } from 'prosemirror-view';
 
 export type BlockNodeAttrs = {
   blockId: string | null;
