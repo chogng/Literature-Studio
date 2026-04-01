@@ -1,9 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "baseUrl": ".",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
+    "paths": {
+      "ls/*": ["src/ls/*"]
+    },
     "types": ["node"],
     "rootDir": "src/ls",
     "outDir": "dist-electron",
