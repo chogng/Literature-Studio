@@ -28,24 +28,3 @@
   padding: 0;
   border-radius: 6px;
 }
-
-.sidebar-action-btn.btn-base:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.sidebar-action-btn.btn-base:active:not(:disabled) {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-action-btn.btn-base.is-active {
-  background: #e8f1fc;
-  border-color: #bfd7f4;
-  color: #0a5fbf;
-}
-
-.sidebar-action-btn.btn-base.is-active:hover:not(:disabled),
-.sidebar-action-btn.btn-base.is-active:active:not(:disabled) {
-  background: #e8f1fc;
-  border-color: #bfd7f4;
-  color: #0a5fbf;
-}

@@ -114,7 +114,6 @@ export class PrimaryBar {
         lxIconSemanticMap.library.refresh,
         this.props.onRefreshLibrary,
         isLibraryLoading || !this.props.onRefreshLibrary,
-        true,
       ),
       this.createActionButton(
         labels.pdfDownloadAction,
@@ -136,20 +135,10 @@ export class PrimaryBar {
     icon: LxIconName,
     onClick: (() => void) | undefined,
     disabled: boolean,
-    isActive: boolean = false,
   ) {
     const button = createElement(
       'button',
-      [
-        'sidebar-action-btn',
-        'btn-base',
-        'btn-ghost',
-        'btn-mode-icon',
-        'btn-sm',
-        isActive ? 'is-active' : '',
-      ]
-        .filter(Boolean)
-        .join(' '),
+      ['sidebar-action-btn', 'btn-base', 'btn-ghost', 'btn-mode-icon', 'btn-sm'].join(' '),
     );
     button.type = 'button';
     button.append(createLxIcon(icon));
