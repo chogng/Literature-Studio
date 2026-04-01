@@ -1,6 +1,6 @@
 import type {
-  DraftEditorRuntimeState,
-} from 'ls/editor/browser/shared/editorStatus';
+  DraftEditorStatusState,
+} from 'ls/editor/browser/text/draftEditorStatusState';
 import type {
   WritingWorkspaceDraftTab,
   WritingWorkspaceTab,
@@ -65,7 +65,7 @@ export function createEditorGroupModel({
   activeTabId: string | null;
   activeTab: WritingWorkspaceTab | null;
   labels: EditorPartLabels;
-  draftStatusByTabId: Record<string, DraftEditorRuntimeState>;
+  draftStatusByTabId: Record<string, DraftEditorStatusState>;
 }): EditorGroupModel {
   const draftTabIds = tabs
     .filter((tab) => tab.kind === 'draft')

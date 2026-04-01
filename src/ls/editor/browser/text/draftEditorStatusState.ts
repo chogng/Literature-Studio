@@ -1,29 +1,11 @@
 import type { EditorState } from 'prosemirror-state';
 import { redoDepth, undoDepth } from 'prosemirror-history';
-import type {
-  WritingWorkspaceDraftTab,
-  WritingWorkspaceTab,
-} from 'ls/workbench/browser/writingEditorModel';
 import {
   collectWritingEditorDerivedLabels,
   collectWritingEditorStats,
   getWritingEditorNodeText,
 } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
-
-export type EditorStatusLabels = {
-  statusbarAriaLabel: string;
-  words: string;
-  characters: string;
-  paragraphs: string;
-  selection: string;
-  block: string;
-  line: string;
-  column: string;
-  url: string;
-  blockFigure: string;
-  ready: string;
-};
 
 type DraftStatusResolverLabels = Pick<
   WritingEditorSurfaceLabels,
@@ -34,30 +16,11 @@ type DraftStatusResolverLabels = Pick<
   | 'bulletList'
   | 'orderedList'
   | 'blockquote'
-> &
-  Pick<EditorStatusLabels, 'blockFigure'>;
+> & {
+  blockFigure: string;
+};
 
-export type EditorStatusContextLabels = DraftStatusResolverLabels &
-  Pick<WritingEditorSurfaceLabels, 'undo' | 'redo'> &
-  Pick<
-    EditorStatusLabels,
-    | 'statusbarAriaLabel'
-    | 'words'
-    | 'characters'
-    | 'paragraphs'
-    | 'selection'
-    | 'block'
-    | 'line'
-    | 'column'
-    | 'url'
-    | 'ready'
-  > & {
-    draftMode: string;
-    sourceMode: string;
-    pdfMode: string;
-  };
-
-export type DraftEditorRuntimeState = {
+export type DraftEditorStatusState = {
   wordCount: number;
   characterCount: number;
   paragraphCount: number;
@@ -68,26 +31,6 @@ export type DraftEditorRuntimeState = {
   currentColumn: number;
   canUndo: boolean;
   canRedo: boolean;
-};
-
-export type EditorStatusItemTone = 'default' | 'accent' | 'muted';
-
-export type EditorStatusItem = {
-  id: string;
-  label: string;
-  value: string;
-  tone?: EditorStatusItemTone;
-  commandId?: 'undo' | 'redo';
-  commandEnabled?: boolean;
-};
-
-export type EditorStatusState = {
-  ariaLabel: string;
-  kind: 'empty' | 'draft' | 'web' | 'pdf';
-  modeLabel?: string;
-  summary?: string;
-  leftItems: readonly EditorStatusItem[];
-  rightItems: readonly EditorStatusItem[];
 };
 
 const statusTrackedBlockNodeNames = new Set([
@@ -270,167 +213,10 @@ function getActiveBlockInfo(state: EditorState, labels: DraftStatusResolverLabel
   };
 }
 
-function formatBlockValue(runtimeState: DraftEditorRuntimeState) {
-  if (!runtimeState.activeBlockIndex) {
-    return runtimeState.activeBlockLabel;
-  }
-
-  return `${runtimeState.activeBlockLabel} #${runtimeState.activeBlockIndex}`;
-}
-
-function createDraftFallbackRuntimeState(
-  tab: WritingWorkspaceDraftTab,
-  labels: DraftStatusResolverLabels,
-): DraftEditorRuntimeState {
-  const stats = collectWritingEditorStats(tab.document);
-
-  return {
-    wordCount: stats.wordCount,
-    characterCount: stats.characterCount,
-    paragraphCount: stats.paragraphCount,
-    selectionCharacterCount: 0,
-    activeBlockLabel: labels.paragraph,
-    activeBlockIndex: null,
-    currentLine: 1,
-    currentColumn: 1,
-    canUndo: false,
-    canRedo: false,
-  };
-}
-
-function formatStatusUrl(url: string) {
-  const normalizedUrl = url.trim();
-  if (!normalizedUrl) {
-    return '';
-  }
-
-  try {
-    const parsedUrl = new URL(normalizedUrl);
-    return `${parsedUrl.host}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
-  } catch {
-    return normalizedUrl;
-  }
-}
-
-function createDraftEditorStatus(
-  tab: WritingWorkspaceDraftTab,
-  labels: EditorStatusContextLabels,
-  draftRuntimeState?: DraftEditorRuntimeState,
-): EditorStatusState {
-  const runtimeState = draftRuntimeState ?? createDraftFallbackRuntimeState(tab, labels);
-  const leftItems: EditorStatusItem[] = [
-    {
-      id: 'block',
-      label: labels.block,
-      value: formatBlockValue(runtimeState),
-    },
-    {
-      id: 'line',
-      label: labels.line,
-      value: String(runtimeState.currentLine),
-    },
-    {
-      id: 'column',
-      label: labels.column,
-      value: String(runtimeState.currentColumn),
-    },
-  ];
-
-  if (runtimeState.selectionCharacterCount > 0) {
-    leftItems.push({
-      id: 'selection',
-      label: labels.selection,
-      value: String(runtimeState.selectionCharacterCount),
-      tone: 'accent',
-    });
-  }
-
-  return {
-    ariaLabel: labels.statusbarAriaLabel,
-    kind: 'draft',
-    modeLabel: labels.draftMode,
-    leftItems,
-    rightItems: [
-      {
-        id: 'words',
-        label: labels.words,
-        value: String(runtimeState.wordCount),
-      },
-      {
-        id: 'characters',
-        label: labels.characters,
-        value: String(runtimeState.characterCount),
-      },
-      {
-        id: 'paragraphs',
-        label: labels.paragraphs,
-        value: String(runtimeState.paragraphCount),
-      },
-      {
-        id: 'undo',
-        label: labels.undo,
-        value: runtimeState.canUndo ? labels.ready : '-',
-        tone: runtimeState.canUndo ? 'accent' : 'muted',
-        commandId: 'undo',
-        commandEnabled: runtimeState.canUndo,
-      },
-      {
-        id: 'redo',
-        label: labels.redo,
-        value: runtimeState.canRedo ? labels.ready : '-',
-        tone: runtimeState.canRedo ? 'accent' : 'muted',
-        commandId: 'redo',
-        commandEnabled: runtimeState.canRedo,
-      },
-    ],
-  };
-}
-
-function createContentEditorStatus(
-  tab: Extract<WritingWorkspaceTab, { kind: 'web' | 'pdf' }>,
-  labels: EditorStatusContextLabels,
-): EditorStatusState {
-  return {
-    ariaLabel: labels.statusbarAriaLabel,
-    kind: tab.kind === 'pdf' ? 'pdf' : 'web',
-    modeLabel: tab.kind === 'pdf' ? labels.pdfMode : labels.sourceMode,
-    leftItems: [],
-    rightItems: [
-      {
-        id: 'url',
-        label: labels.url,
-        value: formatStatusUrl(tab.url),
-      },
-    ],
-  };
-}
-
-export function createEditorStatus(
-  activeTab: WritingWorkspaceTab | null,
-  labels: EditorStatusContextLabels,
-  draftRuntimeState?: DraftEditorRuntimeState,
-): EditorStatusState {
-  if (!activeTab) {
-    return {
-      ariaLabel: labels.statusbarAriaLabel,
-      kind: 'empty',
-      summary: labels.ready,
-      leftItems: [],
-      rightItems: [],
-    };
-  }
-
-  if (activeTab.kind === 'draft') {
-    return createDraftEditorStatus(activeTab, labels, draftRuntimeState);
-  }
-
-  return createContentEditorStatus(activeTab, labels);
-}
-
-export function createDraftEditorRuntimeState(
+export function createDraftEditorStatusState(
   state: EditorState,
   labels: DraftStatusResolverLabels,
-): DraftEditorRuntimeState {
+): DraftEditorStatusState {
   const stats = collectWritingEditorStats(state.doc.toJSON());
   const activeBlock = getActiveBlockInfo(state, labels);
   const blockLocation = getBlockLocation(state);
@@ -449,9 +235,9 @@ export function createDraftEditorRuntimeState(
   };
 }
 
-export function areDraftEditorRuntimeStatesEqual(
-  previous: DraftEditorRuntimeState | undefined,
-  next: DraftEditorRuntimeState,
+export function areDraftEditorStatusStatesEqual(
+  previous: DraftEditorStatusState | undefined,
+  next: DraftEditorStatusState,
 ) {
   if (!previous) {
     return false;

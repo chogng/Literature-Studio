@@ -3,8 +3,10 @@ import type {
   WritingWorkspaceTab,
 } from 'ls/workbench/browser/writingEditorModel';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
-import { areDraftEditorRuntimeStatesEqual, createEditorStatus } from 'ls/editor/browser/shared/editorStatus';
-import type { DraftEditorRuntimeState, EditorStatusState } from 'ls/editor/browser/shared/editorStatus';
+import { areDraftEditorStatusStatesEqual } from 'ls/editor/browser/text/draftEditorStatusState';
+import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
+import { createEditorStatus } from 'ls/workbench/browser/parts/editor/editorStatus';
+import type { EditorStatusState } from 'ls/workbench/browser/parts/editor/editorStatus';
 
 import { createActiveDraftEditorCommandExecutor } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
 import type { DraftEditorSurfaceActionId } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
@@ -100,7 +102,7 @@ function createEditorStatusLabels(labels: EditorPartLabels) {
 
 function createEditorGroupControllerSnapshot(
   context: EditorGroupViewProps,
-  draftStatusByTabId: Record<string, DraftEditorRuntimeState>,
+  draftStatusByTabId: Record<string, DraftEditorStatusState>,
 ): EditorGroupControllerSnapshot {
   const group = createEditorGroupModel({
     tabs: context.tabs,
@@ -138,7 +140,7 @@ function createEditorGroupSnapshotKey(snapshot: EditorGroupControllerSnapshot) {
 
 class EditorGroupController {
   private context: EditorGroupViewProps;
-  private draftStatusByTabId: Record<string, DraftEditorRuntimeState> = {};
+  private draftStatusByTabId: Record<string, DraftEditorStatusState> = {};
   private snapshot: EditorGroupControllerSnapshot;
   private snapshotKey: string;
 
@@ -161,8 +163,8 @@ class EditorGroupController {
     this.refreshSnapshot();
   }
 
-  updateDraftStatus = (tabId: string, nextStatus: DraftEditorRuntimeState) => {
-    if (areDraftEditorRuntimeStatesEqual(this.draftStatusByTabId[tabId], nextStatus)) {
+  updateDraftStatus = (tabId: string, nextStatus: DraftEditorStatusState) => {
+    if (areDraftEditorStatusStatesEqual(this.draftStatusByTabId[tabId], nextStatus)) {
       return;
     }
 
@@ -183,7 +185,7 @@ class EditorGroupController {
       Object.entries(this.draftStatusByTabId).filter(([tabId]) =>
         draftTabIds.has(tabId),
       ),
-    ) as Record<string, DraftEditorRuntimeState>;
+    ) as Record<string, DraftEditorStatusState>;
 
     if (
       Object.keys(nextDraftStatusByTabId).length ===
@@ -272,7 +274,7 @@ export class EditorGroupView {
 
   private handleDraftStatusChange = (
     tabId: string,
-    status: DraftEditorRuntimeState,
+    status: DraftEditorStatusState,
   ) => {
     this.controller.updateDraftStatus(tabId, status);
     this.props.onStatusChange?.(this.controller.getSnapshot().editorStatus);

@@ -5,7 +5,7 @@ import type {
 import type {
   EditorStatusLabels,
   EditorStatusState,
-} from 'ls/editor/browser/shared/editorStatus';
+} from 'ls/workbench/browser/parts/editor/editorStatus';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
 import type { DraftEditorSurfaceActionId } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';

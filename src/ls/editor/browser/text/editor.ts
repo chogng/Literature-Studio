@@ -7,8 +7,8 @@ import { EditorView } from 'prosemirror-view';
 import { gapCursor } from 'prosemirror-gapcursor';
 import { dropCursor } from 'prosemirror-dropcursor';
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
-import { createDraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
-import type { DraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
+import { createDraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
+import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import { clearFontFamilyCommand, clearFontSizeCommand, clearInlineStylesCommand, getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setFontFamilyCommand, setFontSizeCommand, setParagraphCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, undoCommand } from 'ls/editor/browser/text/commands';
 import type { InsertFigurePayload, WritingEditorCommand, WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
 import { collectWritingEditorDerivedLabels, createWritingEditorDocumentModel, findWritingEditorNodeByBlockId, getWritingEditorNodeText, getWritingEditorTextUnitKind, isWritingEditorPlainTextEditableNode, normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
@@ -82,7 +82,7 @@ export type WritingEditorSurfaceProps = {
   onInsertFigure: () => void;
   onInsertFigureRef: (availableFigureIds: readonly string[]) => void;
   onDocumentChange: (document: WritingEditorDocument) => void;
-  onStatusChange?: (status: DraftEditorRuntimeState) => void;
+  onStatusChange?: (status: DraftEditorStatusState) => void;
 };
 
 type WritingEditorSurfaceSnapshot = {
@@ -499,7 +499,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
 
   private emitStatusChange(nextState: EditorState) {
     this.props.onStatusChange?.(
-      createDraftEditorRuntimeState(nextState, {
+      createDraftEditorStatusState(nextState, {
         paragraph: this.props.labels.paragraph,
         heading1: this.props.labels.heading1,
         heading2: this.props.labels.heading2,

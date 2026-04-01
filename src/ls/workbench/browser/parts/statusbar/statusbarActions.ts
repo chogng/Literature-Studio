@@ -1,7 +1,7 @@
 import type {
   EditorStatusItem,
   EditorStatusState,
-} from 'ls/editor/browser/shared/editorStatus';
+} from 'ls/workbench/browser/parts/editor/editorStatus';
 import { resetStatusbarState, setStatusbarState } from 'ls/workbench/browser/parts/statusbar/statusbarModel';
 
 export type StatusbarCommandHandler = () => void;

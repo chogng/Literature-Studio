@@ -5,7 +5,7 @@ import type {
   WritingWorkspaceTab,
   WritingWorkspaceWebTab,
 } from 'ls/workbench/browser/writingEditorModel';
-import type { DraftEditorRuntimeState } from 'ls/editor/browser/shared/editorStatus';
+import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { ContentEditorPane } from 'ls/workbench/browser/parts/editor/panes/contentEditorPane';
@@ -25,7 +25,7 @@ export type EditorPaneResolverContext = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
-  onDraftStatusChange: (tabId: string, status: DraftEditorRuntimeState) => void;
+  onDraftStatusChange: (tabId: string, status: DraftEditorStatusState) => void;
 };
 
 export type EditorPaneInput =
@@ -85,7 +85,7 @@ function createDraftPaneProps(
     labels: context.labels,
     draftTab: input.tab,
     onDraftDocumentChange: context.onDraftDocumentChange,
-    onStatusChange: (status: DraftEditorRuntimeState) =>
+    onStatusChange: (status: DraftEditorStatusState) =>
       context.onDraftStatusChange(input.tab.id, status),
   };
 }
