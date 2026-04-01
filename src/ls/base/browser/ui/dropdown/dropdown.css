@@ -109,6 +109,14 @@
   color: #1a2530;
 }
 
+.dropdown-menu-portal {
+  position: fixed;
+  min-width: 0;
+  top: 0;
+  left: 0;
+  bottom: auto;
+}
+
 .dropdown-menu-top {
   top: auto;
   bottom: calc(100% + 4px);
