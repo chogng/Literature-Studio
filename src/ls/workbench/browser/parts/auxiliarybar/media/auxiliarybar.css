@@ -62,12 +62,26 @@
 }
 
 .auxiliarybar-topbar {
+  --auxiliarybar-tab-scrollbar-size: 4px;
+  --auxiliarybar-tab-scrollbar-track: rgba(208, 218, 228, 0.72);
+  --auxiliarybar-tab-scrollbar-thumb: rgba(132, 152, 173, 0.92);
+  --auxiliarybar-tab-scrollbar-thumb-hover: rgba(107, 128, 151, 0.96);
+  --auxiliarybar-tab-scrollbar-thumb-active: rgba(82, 103, 127, 0.98);
   display: flex;
   align-items: flex-start;
-  /* Anchor children to the top. This allows the scrollbar to expand downwards into the bottom padding without shifting elements up */
   gap: 4px;
   min-width: 0;
   padding: 4px 12px;
+}
+
+.auxiliarybar-tab-scroll-host {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-bottom: var(--auxiliarybar-tab-scrollbar-size);
+  margin-bottom: calc(-1 * var(--auxiliarybar-tab-scrollbar-size));
 }
 
 .auxiliarybar-tab-strip {
@@ -76,34 +90,60 @@
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  /* Pull the scrollbar dynamically into the topbar's bottom padding area.
-     When scrollbar appears, layout height shrinks, but sibling buttons keep it at 26px */
-  margin-bottom: -4px;
-  /* Allow natural intrinsic height so scrollbar doesn't eat the tab content area */
   overflow-x: auto;
   overflow-y: hidden;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .auxiliarybar-tab-strip::-webkit-scrollbar {
-  height: 4px;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
-.auxiliarybar-tab-strip::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.auxiliarybar-tab-strip::-webkit-scrollbar-thumb {
-  background: transparent;
-  /* visually hide until hovering container */
+.auxiliarybar-tab-scrollbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--auxiliarybar-tab-scrollbar-size);
   border-radius: 999px;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, background-color 120ms ease;
 }
 
-.auxiliarybar-tab-strip:hover::-webkit-scrollbar-thumb {
-  background: rgba(132, 152, 173, 0.9);
+.auxiliarybar-tab-scroll-host.is-scrollable:hover .auxiliarybar-tab-scrollbar,
+.auxiliarybar-tab-scroll-host.is-scrollable:focus-within .auxiliarybar-tab-scrollbar,
+.auxiliarybar-tab-scroll-host.is-scrollbar-active .auxiliarybar-tab-scrollbar,
+.auxiliarybar-tab-scroll-host.is-scrollbar-dragging .auxiliarybar-tab-scrollbar {
+  opacity: 1;
+  pointer-events: auto;
+  background: var(--auxiliarybar-tab-scrollbar-track);
 }
 
-.auxiliarybar-tab-strip::-webkit-scrollbar-thumb:hover {
-  background: rgba(107, 128, 151, 0.95);
+.auxiliarybar-tab-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  min-width: 24px;
+  border-radius: 999px;
+  background: var(--auxiliarybar-tab-scrollbar-thumb);
+  cursor: grab;
+  touch-action: none;
+  transition: background-color 120ms ease;
+}
+
+.auxiliarybar-tab-scrollbar-thumb:hover {
+  background: var(--auxiliarybar-tab-scrollbar-thumb-hover);
+}
+
+.auxiliarybar-tab-scroll-host.is-scrollbar-dragging .auxiliarybar-tab-scrollbar-thumb {
+  background: var(--auxiliarybar-tab-scrollbar-thumb-active);
+  cursor: grabbing;
 }
 
 .auxiliarybar-tab-item {
