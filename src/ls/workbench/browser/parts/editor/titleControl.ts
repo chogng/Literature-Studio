@@ -1,4 +1,4 @@
-import type { EditorGroupModel } from './editorGroupModel';
+import type { EditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 
 export type TitleControlCallbacks = {
   onActivateTab: (tabId: string) => void;

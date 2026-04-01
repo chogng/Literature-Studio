@@ -2,7 +2,7 @@
   buildNatureResearchPdfDownloadUrl,
   buildSciencePdfDownloadUrl,
   normalizeUrl,
-} from '../../common/url';
+} from 'ls/workbench/common/url';
 
 export type PreparedPdfDownload = {
   normalizedSourceUrl: string;

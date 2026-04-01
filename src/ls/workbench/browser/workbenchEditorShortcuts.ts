@@ -2,8 +2,8 @@ import {
   executeWorkbenchEditorCommand,
   type WorkbenchEditorCommandDefinition,
   workbenchEditorCommandDefinitions,
-} from './editorCommands';
-import { showWorkbenchEditorCommandPalette } from './workbenchEditorPalette';
+} from 'ls/workbench/browser/editorCommands';
+import { showWorkbenchEditorCommandPalette } from 'ls/workbench/browser/workbenchEditorPalette';
 
 function isEditableEventTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {

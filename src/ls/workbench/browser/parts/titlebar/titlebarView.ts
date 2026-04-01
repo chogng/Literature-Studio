@@ -1,13 +1,13 @@
-import type { QuickAccessSourceOption } from '../../../services/quickAccess/quickAccessService';
-import { createButtonView } from '../../../../base/browser/ui/button/button.js';
-import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
-import { createInputView } from '../../../../base/browser/ui/input/input.js';
-import { getWindowChromeLayout } from '../../../../platform/window/common/window.js';
+import type { QuickAccessSourceOption } from 'ls/workbench/services/quickAccess/quickAccessService';
+import { createButtonView } from 'ls/base/browser/ui/button/button.js';
+import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
+import { createInputView } from 'ls/base/browser/ui/input/input.js';
+import { getWindowChromeLayout } from 'ls/platform/window/common/window.js';
 import {
   createTitlebarSourceDropdownView,
   type TitlebarSourceDropdownView,
-} from './nativeTitlebarSourceDropdown';
+} from 'ls/workbench/browser/parts/titlebar/nativeTitlebarSourceDropdown';
 import {
   requestExportTitlebarDocx,
   requestTitlebarNavigateBack,
@@ -17,11 +17,11 @@ import {
   requestToggleTitlebarSettings,
   requestToggleTitlebarSidebar,
   subscribeTitlebarUiActions,
-} from './titlebarActions';
+} from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 import {
   createWindowControlsView,
   type WindowControlsAction,
-} from './windowControls';
+} from 'ls/workbench/browser/parts/titlebar/windowControls';
 import './media/titlebar.css';
 
 export type TitlebarAction = WindowControlsAction;

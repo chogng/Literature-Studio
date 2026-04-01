@@ -2,9 +2,9 @@ import {
   getWorkbenchPartDomSnapshot,
   subscribeWorkbenchPartDom,
   WORKBENCH_PART_IDS,
-} from '../../browser/layout';
-import { nativeHostService } from '../../../platform/native/electron-sandbox/nativeHostService';
-import type { Disposable } from '../workbench/workbench.contribution';
+} from 'ls/workbench/browser/layout';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
+import type { Disposable } from 'ls/workbench/contrib/workbench/workbench.contribution';
 
 type WebContentLayoutSnapshot = {
   visible: boolean;

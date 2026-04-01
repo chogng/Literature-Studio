@@ -1,6 +1,6 @@
-export type { WebContentState } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import type { WebContentState } from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { normalizeUrl } from '../../common/url';
+export type { WebContentState } from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type { WebContentState } from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import { normalizeUrl } from 'ls/workbench/common/url';
 
 export const EMPTY_WEB_CONTENT_STATE: WebContentState = {
   targetId: null,

@@ -1,21 +1,21 @@
 import type {
   NativeMenuEvent,
   NativeMenuOpenPayload,
-} from '../../../../../base/parts/sandbox/common/desktopTypes.js';
-import type { LibraryDocumentsResult } from '../../../../../base/parts/sandbox/common/desktopTypes.js';
-import type { SimpleTreeRenderContext } from '../../../../../base/browser/ui/tree/simpleTree.js';
-import { createLxIcon } from '../../../../../base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from '../../../../../base/browser/ui/lxicon/lxiconSemantic.js';
-import { nativeHostService } from '../../../../../platform/native/electron-sandbox/nativeHostService.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type { LibraryDocumentsResult } from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import type { SimpleTreeRenderContext } from 'ls/base/browser/ui/tree/simpleTree.js';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService.js';
 import {
   resolveLibraryDocumentStatusLabel,
   type LibraryTreeLabels,
   type LibraryTreeFolderNode,
   type LibraryTreeNode,
-} from '../../common/libraryTreeModel.js';
-import { LibraryDataSource } from './libraryDataSource.js';
-import { LibraryDelegate } from './libraryDelegate.js';
-import type { LibraryDragAndDrop } from './libraryDragAndDrop.js';
+} from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel.js';
+import { LibraryDataSource } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDataSource.js';
+import { LibraryDelegate } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDelegate.js';
+import type { LibraryDragAndDrop } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDragAndDrop.js';
 
 export type LibraryRendererLabels = LibraryTreeLabels & {
   unknown: string;

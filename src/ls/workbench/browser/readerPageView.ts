@@ -2,26 +2,26 @@ import {
   getWorkbenchContentClassName,
   getWorkbenchContentStyle,
   type WorkbenchSidebarKind,
-} from './layout';
-import type { EditorStatusState } from '../../editor/browser/shared/editorStatus';
-import { createEditorPartView, type EditorPartProps } from './parts/editor/editorPartView';
-import type { DraftEditorCommandId } from './parts/editor/panes/draftEditorCommands';
+} from 'ls/workbench/browser/layout';
+import type { EditorStatusState } from 'ls/editor/browser/shared/editorStatus';
+import { createEditorPartView, type EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
+import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import {
   createSecondarySidebarPartView,
   SecondarySidebarPartView,
   type SecondarySidebarProps,
-} from './parts/sidebar/secondarySidebarPart';
+} from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
 import {
   createPrimaryBarPartView,
   PrimaryBarPartView,
   type PrimaryBarProps,
-} from './parts/primarybar/primarybarPart';
+} from 'ls/workbench/browser/parts/primarybar/primarybarPart';
 import {
   createAuxiliaryBarPartView,
   AuxiliaryBarPartView,
   type AuxiliaryBarProps,
-} from './parts/auxiliarybar/auxiliarybarPart';
-import { initializeStatusbarState, updateStatusbarState } from './parts/statusbar/statusbarActions';
+} from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import { initializeStatusbarState, updateStatusbarState } from 'ls/workbench/browser/parts/statusbar/statusbarActions';
 
 type ReaderPageViewProps = {
   isSidebarVisible: boolean;

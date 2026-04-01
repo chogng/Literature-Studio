@@ -1,7 +1,7 @@
 import type {
   EditorStatusItem,
   EditorStatusState,
-} from '../../../../editor/browser/shared/editorStatus';
+} from 'ls/editor/browser/shared/editorStatus';
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,

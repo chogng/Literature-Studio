@@ -1,4 +1,4 @@
 export {
   getPdfDownloadStatus,
   subscribePdfDownloadStatus,
-} from '../services/document/pdfDownloadStatus';
+} from 'ls/workbench/services/document/pdfDownloadStatus';

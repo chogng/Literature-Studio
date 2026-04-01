@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import type { PdfDownloadResult } from '../../../base/parts/sandbox/common/desktopTypes.js';
 import { cleanText } from '../../../base/common/strings.js';
 import { isNatureMainSiteUrl } from '../../../base/common/url.js';
-import { fetchHtml } from '../fetch/articleFetcher.js';
+import { fetchHtml } from '../fetch/dispatch.js';
 import type { PdfDownloadContext } from './pdfStrategies/pdfStrategyTypes.js';
 import { printWebPageToPdf } from './webPagePdf.js';
 

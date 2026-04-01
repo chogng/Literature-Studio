@@ -1,9 +1,9 @@
-import type { LibraryDocumentsResult } from '../../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { LibraryDocumentsResult } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import {
   createLibraryTreeDragPayload,
   LIBRARY_TREE_DRAG_MIME,
   serializeLibraryTreeDragPayload,
-} from '../../common/libraryTreeModel.js';
+} from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel.js';
 
 export type LibraryDragAndDropProps = {
   onDocumentDragStart?: (documentId: string) => void;

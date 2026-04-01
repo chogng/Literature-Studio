@@ -1,4 +1,4 @@
-import type { EditorStatusItem } from '../../../../editor/browser/shared/editorStatus';
+import type { EditorStatusItem } from 'ls/editor/browser/shared/editorStatus';
 
 export function createStatusbarItemElement(item: EditorStatusItem) {
   const itemElement = document.createElement('span');

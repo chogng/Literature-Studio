@@ -1,4 +1,4 @@
-import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
+import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
 import './media/view.css';
 
 export type ViewPartLabels = {

@@ -8,7 +8,7 @@ import {
   type CitationNodeAttrs,
   createEditorNodeId,
   writingEditorSchema,
-} from './schema';
+} from 'ls/editor/browser/text/schema';
 
 export type WritingEditorCommand = Command;
 

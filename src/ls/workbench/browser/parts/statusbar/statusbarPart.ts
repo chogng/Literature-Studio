@@ -1,5 +1,5 @@
-import type { EditorStatusState } from '../../../../editor/browser/shared/editorStatus';
-import { createStatusbarItemElement } from './statusbarItem';
+import type { EditorStatusState } from 'ls/editor/browser/shared/editorStatus';
+import { createStatusbarItemElement } from 'ls/workbench/browser/parts/statusbar/statusbarItem';
 import './media/statusbar.css';
 
 function createTextElement(className: string, text: string, title?: string) {

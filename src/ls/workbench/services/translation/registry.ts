@@ -1,4 +1,4 @@
-import type { TranslationProviderId } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { TranslationProviderId } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 
 export type TranslationApiStyle = 'deepl-compatible';
 

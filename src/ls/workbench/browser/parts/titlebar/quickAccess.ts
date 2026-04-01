@@ -1,12 +1,12 @@
 import type { LocaleMessages } from '../../../../../language/locales';
 import type {
   TitlebarProps,
-} from './titlebarView';
+} from 'ls/workbench/browser/parts/titlebar/titlebarView';
 import type {
   QuickAccessAction,
   QuickAccessCycleDirection,
   QuickAccessSourceOption,
-} from '../../../services/quickAccess/quickAccessService';
+} from 'ls/workbench/services/quickAccess/quickAccessService';
 
 export type { QuickAccessAction, QuickAccessCycleDirection };
 

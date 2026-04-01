@@ -1,4 +1,4 @@
-import type { WritingEditorDocument } from '../../common/writingEditorDocument';
+import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
 type WritingEditorInputSessionOptions = {
   isViewComposing: () => boolean;

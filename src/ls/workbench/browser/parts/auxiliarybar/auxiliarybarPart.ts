@@ -1,9 +1,9 @@
-import type { AssistantModelSnapshot } from '../../assistantModel';
-import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
-import { AuxiliaryBar, type AuxiliaryBarProps } from './auxiliarybar';
-import { createAuxiliaryBarLabels } from './auxiliarybarLabels';
+import type { AssistantModelSnapshot } from 'ls/workbench/browser/assistantModel';
+import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
+import { AuxiliaryBar, type AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
+import { createAuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
 
-export type { AuxiliaryBarProps } from './auxiliarybar';
+export type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
 
 type CreateAuxiliaryBarPartPropsParams = {
   state: {

@@ -82,6 +82,12 @@ function getPlaceholderNode(editor: InstanceType<typeof ProseMirrorEditor>) {
   return element;
 }
 
+function getScrollableRoot(editor: InstanceType<typeof ProseMirrorEditor>) {
+  const element = editor.getElement().querySelector('.monaco-scrollable-element');
+  assert(element instanceof HTMLElement, 'Scrollable root was not rendered.');
+  return element;
+}
+
 function getToolbarButton(editor: InstanceType<typeof ProseMirrorEditor>, label: string) {
   const button = Array.from(editor.getElement().querySelectorAll('button')).find(
     (candidate) => candidate.getAttribute('aria-label') === label,
@@ -218,6 +224,16 @@ test('ProseMirrorEditor refreshes placeholder text during an external document r
     assert.equal(placeholderAfter.getAttribute('data-placeholder'), 'Continue writing');
     assert.equal(changes.length, 0);
   }, initialDocument);
+});
+
+test('ProseMirrorEditor mounts the editing surface inside the shared scrollable shell', async () => {
+  await withEditor(({ editor }) => {
+    const scrollableRoot = getScrollableRoot(editor);
+    const host = scrollableRoot.querySelector('.pm-editor-host');
+    assert(host instanceof HTMLElement);
+    assert.equal(scrollableRoot.classList.contains('pm-editor-scrollable'), true);
+    assert.equal(host.classList.contains('scrollable-content'), true);
+  });
 });
 
 test('ProseMirrorEditor applies external document changes without echoing them back through onDocumentChange', async () => {

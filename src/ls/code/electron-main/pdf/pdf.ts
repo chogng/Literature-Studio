@@ -7,7 +7,7 @@ import { buildPdfDirectoryName } from '../../../platform/download/common/pdfFile
 import { cleanText } from '../../../base/common/strings.js';
 import { normalizeUrl } from '../../../base/common/url.js';
 import { appError } from '../../../base/common/errors.js';
-import { fetchHtml } from '../fetch/articleFetcher.js';
+import { fetchHtml } from '../fetch/dispatch.js';
 import {
   buildNatureResearchPdfDownloadCandidates,
   extractNatureResearchPdfDownloadCandidatesFromHtml,
@@ -466,7 +466,6 @@ export async function previewDownloadPdf(
   });
   return await previewDownloadPdfWithResolvedRequest(request);
 }
-
 
 
 

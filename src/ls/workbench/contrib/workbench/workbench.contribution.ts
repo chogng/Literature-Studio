@@ -4,22 +4,22 @@ import {
   WORKBENCH_PART_IDS,
   getWorkbenchLayoutStateSnapshot,
   subscribeWorkbenchLayoutState,
-} from '../../browser/layout';
+} from 'ls/workbench/browser/layout';
 import {
   disposeWorkbenchServices,
   getWorkbenchStateSnapshot,
   subscribeWorkbenchState,
-} from '../../browser/workbench';
+} from 'ls/workbench/browser/workbench';
 import {
   localeService,
-} from '../localization/browser/localeService';
-import { getWorkbenchTitlebarCommandHandlers } from '../../browser/titlebarCommands';
+} from 'ls/workbench/contrib/localization/browser/localeService';
+import { getWorkbenchTitlebarCommandHandlers } from 'ls/workbench/browser/titlebarCommands';
 import {
   getStatusbarStateSnapshot,
   subscribeStatusbarState,
-} from '../../browser/parts/statusbar/statusbarModel';
-import { StatusbarPart } from '../../browser/parts/statusbar/statusbarPart';
-import { subscribeTitlebarUiActions } from '../../browser/parts/titlebar/titlebarActions';
+} from 'ls/workbench/browser/parts/statusbar/statusbarModel';
+import { StatusbarPart } from 'ls/workbench/browser/parts/statusbar/statusbarPart';
+import { subscribeTitlebarUiActions } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 
 export type Disposable = {
   dispose: () => void;

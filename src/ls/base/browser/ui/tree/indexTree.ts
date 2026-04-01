@@ -2,8 +2,8 @@ import {
   SimpleTree,
   type SimpleTreeOptions,
   type SimpleTreeRenderContext,
-} from './simpleTree.js';
-import type { IndexTreeElement } from './treeTypes.js';
+} from 'ls/base/browser/ui/tree/simpleTree.js';
+import type { IndexTreeElement } from 'ls/base/browser/ui/tree/treeTypes.js';
 
 type IndexTreeNode<T> = {
   element: T;

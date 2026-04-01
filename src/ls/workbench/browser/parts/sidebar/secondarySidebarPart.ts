@@ -1,14 +1,14 @@
 import type {
   ArticleDetailsModalLabels,
-} from '../../../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
 import {
   requestFocusTitlebarWebUrlInput,
   requestOpenAddressBarSourceMenu,
-} from '../titlebar/titlebarActions';
-import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from '../../layout';
-import { ArticleCard } from './articleCard';
+} from 'ls/workbench/browser/parts/titlebar/titlebarActions';
+import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
+import { ArticleCard } from 'ls/workbench/browser/parts/sidebar/articleCard';
 import './media/secondarySidebar.css';
 
 export type SidebarArticle = {

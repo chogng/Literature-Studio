@@ -1,5 +1,5 @@
-import type { Article } from '../services/article/articleFetch';
-import { buildDefaultBatchDateRange } from '../common/dateRange';
+import type { Article } from 'ls/workbench/services/article/articleFetch';
+import { buildDefaultBatchDateRange } from 'ls/workbench/common/dateRange';
 
 export type ReaderStateSnapshot = {
   batchStartDate: string;

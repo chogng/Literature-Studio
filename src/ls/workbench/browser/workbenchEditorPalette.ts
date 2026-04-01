@@ -1,10 +1,10 @@
 import { getLocaleMessages } from '../../../language/i18n';
-import { localeService } from '../contrib/localization/browser/localeService';
+import { localeService } from 'ls/workbench/contrib/localization/browser/localeService';
 import {
   executeWorkbenchEditorCommand,
   workbenchEditorCommandDefinitions,
-} from './editorCommands';
-import { showWorkbenchCommandPaletteModal } from './workbenchEditorModals';
+} from 'ls/workbench/browser/editorCommands';
+import { showWorkbenchCommandPaletteModal } from 'ls/workbench/browser/workbenchEditorModals';
 
 export function showWorkbenchEditorCommandPalette() {
   const ui = getLocaleMessages(localeService.getLocale());

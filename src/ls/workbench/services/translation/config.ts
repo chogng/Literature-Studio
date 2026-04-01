@@ -2,8 +2,8 @@ import type {
   TranslationProviderId,
   TranslationProviderSettings,
   TranslationSettings,
-} from '../../../base/parts/sandbox/common/desktopTypes.js';
-import { getTranslationProviderDefinition } from './registry.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import { getTranslationProviderDefinition } from 'ls/workbench/services/translation/registry.js';
 
 export const defaultTranslationProviderId: TranslationProviderId = 'deepl';
 

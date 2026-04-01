@@ -1,8 +1,8 @@
 import type {
   WritingWorkspaceDraftTab,
   WritingWorkspaceTab,
-} from '../../writingEditorModel';
-import type { EditorPartLabels } from './editorPartView';
+} from 'ls/workbench/browser/writingEditorModel';
+import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 
 export type EditorGroupTabItem = {
   id: string;

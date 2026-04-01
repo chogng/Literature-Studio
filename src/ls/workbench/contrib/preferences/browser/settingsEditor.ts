@@ -1,34 +1,34 @@
 import type { Locale } from '../../../../../language/i18n';
 import type { LocaleMessages } from '../../../../../language/locales';
-import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
-import { createSwitchView } from '../../../../base/browser/ui/switch/switch.js';
-import { BatchSourcesFieldView } from './batchSourcesField.js';
+import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
+import { createSwitchView } from 'ls/base/browser/ui/switch/switch.js';
+import { BatchSourcesFieldView } from 'ls/workbench/contrib/preferences/browser/batchSourcesField.js';
 import {
   KnowledgeBaseFieldView,
   type KnowledgeBaseFieldViewProps,
-} from './knowledgeBaseField.js';
-import { LlmFieldView } from './llmField.js';
+} from 'ls/workbench/contrib/preferences/browser/knowledgeBaseField.js';
+import { LlmFieldView } from 'ls/workbench/contrib/preferences/browser/llmField.js';
 import {
   createSettingsSectionMap,
   getSettingsNavigationItems,
   getSettingsPageSectionIds,
   type SettingsPageId,
   type SettingsSectionId,
-} from './settingsLayout.js';
+} from 'ls/workbench/contrib/preferences/browser/settingsLayout.js';
 import type {
   SettingsPartActions,
   SettingsPartLabels,
   SettingsPartProps,
   SettingsPartState,
-} from './settingsTypes.js';
-import { TranslationFieldView } from './translationField.js';
+} from 'ls/workbench/contrib/preferences/browser/settingsTypes.js';
+import { TranslationFieldView } from 'ls/workbench/contrib/preferences/browser/translationField.js';
 import {
   createDisplayLanguageOptions,
   requestSetDisplayLanguage,
-} from '../../localization/browser/localizationsActions';
-import { batchLimitMax, batchLimitMin } from '../../../services/config/configSchema';
-import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from '../../../browser/layout';
+} from 'ls/workbench/contrib/localization/browser/localizationsActions';
+import { batchLimitMax, batchLimitMin } from 'ls/workbench/services/config/configSchema';
+import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from 'ls/workbench/browser/layout';
 import './media/settingsEditor.css';
 import './media/settingsWidgets.css';
 

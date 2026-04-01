@@ -1,20 +1,20 @@
 import type { LocaleMessages } from '../../../../../language/locales';
-import { normalizeUrl } from '../../../common/url';
+import { normalizeUrl } from 'ls/workbench/common/url';
 import {
   createWebContentSurfaceSnapshot,
   resolveContentSourceUrl,
   type WebContentSurfaceSnapshot,
-} from '../../webContentSurfaceState';
-import { preparePdfDownload } from '../../../services/document/documentActionService';
+} from 'ls/workbench/browser/webContentSurfaceState';
+import { preparePdfDownload } from 'ls/workbench/services/document/documentActionService';
 import {
   createWritingEditorModel,
   type WritingEditorDocument,
   type WritingEditorModelSnapshot,
   type WritingWorkspaceTab,
-} from '../../writingEditorModel';
-import { showWorkbenchTextInputModal } from '../../workbenchEditorModals';
-import type { ViewPartProps } from '../views/viewPartView';
-import type { EditorPartProps } from './editorPartView';
+} from 'ls/workbench/browser/writingEditorModel';
+import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
+import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
+import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
 
 export type EditorPartState = {
   ui: LocaleMessages;
@@ -41,14 +41,15 @@ export type EditorPartControllerContext = {
 
 export type EditorPartControllerSnapshot = Pick<
   WritingEditorModelSnapshot,
-  'tabs' | 'activeTabId' | 'activeTab' | 'draftBody'
+  'tabs' | 'activeTabId' | 'activeTab'
 > & {
+  draftBody: string;
   webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
   editorPartProps: EditorPartProps;
 };
 
 export type EditorPartModel = EditorPartController;
-export type EditorPartChangeReason = 'structure' | 'draftContent' | 'context';
+export type EditorPartChangeReason = 'structure' | 'context';
 
 type CreateEditorPartPropsParams = {
   state: EditorPartState;
@@ -169,11 +170,13 @@ function looksLikePdfUrl(url: string) {
 
 function createEditorPartControllerSnapshot(
   context: EditorPartControllerContext,
-  writingSnapshot: WritingEditorModelSnapshot,
+  writingEditorModel: ReturnType<typeof createWritingEditorModel>,
   actions: EditorPartActions,
 ): EditorPartControllerSnapshot {
+  const writingSnapshot = writingEditorModel.getSnapshot();
   const { ui, viewPartProps } = context;
-  const { tabs, activeTabId, activeTab, draftBody } = writingSnapshot;
+  const { tabs, activeTabId, activeTab } = writingSnapshot;
+  const draftBody = writingEditorModel.getDraftBody();
   const webContentSurfaceSnapshot = createWebContentSurfaceSnapshot(activeTab);
 
   return {
@@ -233,7 +236,7 @@ export class EditorPartController {
     };
     this.snapshot = createEditorPartControllerSnapshot(
       this.context,
-      this.writingEditorModel.getSnapshot(),
+      this.writingEditorModel,
       this.actions,
     );
     this.unsubscribeWritingModel = this.writingEditorModel.subscribe(() => {
@@ -280,6 +283,8 @@ export class EditorPartController {
   readonly updateActiveContentTabUrl = (url: string) => {
     this.writingEditorModel.updateActiveContentTabUrl(url);
   };
+
+  readonly getDraftBody = () => this.writingEditorModel.getDraftBody();
 
   private readonly setDraftDocument = (value: WritingEditorDocument) => {
     this.writingEditorModel.setDraftDocument(value);
@@ -333,7 +338,7 @@ export class EditorPartController {
     this.setSnapshot(
       createEditorPartControllerSnapshot(
         this.context,
-        this.writingEditorModel.getSnapshot(),
+        this.writingEditorModel,
         this.actions,
       ),
       reason,
@@ -356,7 +361,6 @@ export class EditorPartController {
       createEditorPartStructureKey(previousSnapshot) ===
         createEditorPartStructureKey(nextSnapshot)
     ) {
-      this.emitChange('draftContent');
       return;
     }
 

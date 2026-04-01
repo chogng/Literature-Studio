@@ -1,12 +1,12 @@
-import type { ArticleDetailsModalLabels } from '../../../../base/parts/sandbox/common/desktopTypes.js';
+import type { ArticleDetailsModalLabels } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import type { Locale } from '../../../../../language/i18n';
-import { createLxIcon } from '../../../../base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
 import {
   getPdfDownloadStatus,
   subscribePdfDownloadStatus,
-} from '../../../browser/pdfDownloadStatus';
-import type { SidebarArticle } from './secondarySidebarPart';
+} from 'ls/workbench/browser/pdfDownloadStatus';
+import type { SidebarArticle } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
 
 type ArticleCardLabels = ArticleDetailsModalLabels;
 

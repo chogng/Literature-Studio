@@ -1,11 +1,11 @@
 import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
-} from '../../../../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import {
   LibraryViewer,
   type LibraryViewerLabels,
-} from './libraryViewer.js';
+} from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryViewer.js';
 import '../media/libraryView.css';
 
 export type LibraryViewLabels = LibraryViewerLabels;

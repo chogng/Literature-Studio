@@ -1,4 +1,5 @@
-import type { EditorPartLabels } from './editorPartView';
+import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+import { EditorPlaceholder } from 'ls/workbench/browser/parts/editor/editorPlaceholder';
 
 export type EditorEmptyWorkspaceViewProps = {
   labels: Pick<
@@ -8,50 +9,41 @@ export type EditorEmptyWorkspaceViewProps = {
   onCreateDraftTab: () => void;
 };
 
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tagName: K,
-  className?: string,
-) {
-  const element = document.createElement(tagName);
-  if (className) {
-    element.className = className;
-  }
-  return element;
-}
-
 export class EditorEmptyWorkspaceView {
-  private readonly element = createElement('div', 'editor-empty-workspace');
-  private readonly titleElement = createElement('h2', 'editor-empty-workspace-title');
-  private readonly bodyElement = createElement('p', 'editor-empty-workspace-body');
-  private readonly actionElement = createElement(
-    'button',
-    'editor-workspace-action-btn btn-base btn-secondary btn-md',
-  );
+  private readonly placeholder: EditorPlaceholder;
   private onCreateDraftTab: () => void;
 
   constructor(props: EditorEmptyWorkspaceViewProps) {
     this.onCreateDraftTab = props.onCreateDraftTab;
-    this.actionElement.type = 'button';
-    this.actionElement.addEventListener('click', () => {
-      this.onCreateDraftTab();
+    this.placeholder = new EditorPlaceholder({
+      className: 'editor-empty-workspace',
+      title: props.labels.emptyWorkspaceTitle,
+      body: props.labels.emptyWorkspaceBody,
+      actions: [],
     });
-    this.element.append(
-      this.titleElement,
-      this.bodyElement,
-      this.actionElement,
-    );
     this.setProps(props);
   }
 
   getElement() {
-    return this.element;
+    return this.placeholder.getElement();
   }
 
   setProps(props: EditorEmptyWorkspaceViewProps) {
     this.onCreateDraftTab = props.onCreateDraftTab;
-    this.titleElement.textContent = props.labels.emptyWorkspaceTitle;
-    this.bodyElement.textContent = props.labels.emptyWorkspaceBody;
-    this.actionElement.textContent = props.labels.draftMode;
+    this.placeholder.setProps({
+      className: 'editor-empty-workspace',
+      title: props.labels.emptyWorkspaceTitle,
+      body: props.labels.emptyWorkspaceBody,
+      actions: [
+        {
+          label: props.labels.draftMode,
+          onRun: () => {
+            this.onCreateDraftTab();
+          },
+          className: 'editor-workspace-action-btn btn-secondary btn-md',
+        },
+      ],
+    });
   }
 }
 

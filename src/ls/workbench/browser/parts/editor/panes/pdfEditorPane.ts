@@ -1,12 +1,12 @@
-import type { Annotation } from '../../../../../editor/common/annotation';
-import { PdfAnnotationEditor } from '../../../../../editor/browser/pdf/pdfAnnotationEditor';
+import type { Annotation } from 'ls/editor/common/annotation';
+import { PdfAnnotationEditor } from 'ls/editor/browser/pdf/pdfAnnotationEditor';
 import {
   readStoredPdfAnnotations,
   writeStoredPdfAnnotations,
-} from '../../../../../editor/browser/pdf/pdfAnnotationPersistence';
-import type { WritingWorkspacePdfTab } from '../../../writingEditorModel';
-import type { ViewPartProps } from '../../views/viewPartView';
-import type { EditorPartLabels } from '../editorPartView';
+} from 'ls/editor/browser/pdf/pdfAnnotationPersistence';
+import type { WritingWorkspacePdfTab } from 'ls/workbench/browser/writingEditorModel';
+import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
+import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 
 export type PdfEditorPaneProps = {
   labels: EditorPartLabels;

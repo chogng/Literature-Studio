@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 
-import { buildArticleFromHtml } from '../parser.ts';
+import { buildArticleFromHtml } from '../parser.js';
 
 async function main() {
   const [, , sourceUrl, htmlPath] = process.argv;

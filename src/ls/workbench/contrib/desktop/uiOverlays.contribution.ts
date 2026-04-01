@@ -1,5 +1,5 @@
-import { registerToastBridge } from '../../../base/browser/ui/toast/toast';
-import { nativeHostService } from '../../../platform/native/electron-sandbox/nativeHostService';
+import { registerToastBridge } from 'ls/base/browser/ui/toast/toast';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 
 function canUseNativeToastOverlay() {
   if (typeof window === 'undefined') {

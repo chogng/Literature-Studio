@@ -2,8 +2,8 @@ import {
   createWindowControlsView,
   type WindowControlsAction,
   type WindowControlsLabels,
-} from '../titlebar/windowControls';
-import { getWindowChromeLayout } from '../../../../platform/window/common/window.js';
+} from 'ls/workbench/browser/parts/titlebar/windowControls';
+import { getWindowChromeLayout } from 'ls/platform/window/common/window.js';
 import './media/childWindowShell.css';
 
 const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();

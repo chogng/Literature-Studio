@@ -1,4 +1,4 @@
-import type { RagProviderId } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { RagProviderId } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 
 export type RagApiStyle = 'openai-compatible+rerank';
 

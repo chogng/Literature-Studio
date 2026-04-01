@@ -1,17 +1,17 @@
-import { toast } from "../../base/browser/ui/toast/toast";
+import { toast } from "ls/base/browser/ui/toast/toast";
 import type {
   Article,
   ElectronInvoke,
   LlmSettings,
   RagAnswerResult,
   RagSettings,
-} from "../../base/parts/sandbox/common/desktopTypes.js";
+} from "ls/base/parts/sandbox/common/desktopTypes.js";
 import type { LocaleMessages } from "../../../language/locales";
 import {
   formatLocalized,
   localizeDesktopInvokeError,
   parseDesktopInvokeError,
-} from "../services/desktop/desktopError";
+} from "ls/workbench/services/desktop/desktopError";
 
 export type AssistantModelContext = {
   desktopRuntime: boolean;
@@ -22,6 +22,7 @@ export type AssistantModelContext = {
   llmSettings: LlmSettings;
   ragSettings: RagSettings;
   fallbackWritingContext?: string;
+  getFallbackWritingContext?: () => string;
 };
 
 export type AssistantChatMessage =
@@ -291,9 +292,11 @@ export class AssistantModel {
       const retrievalArticles = context.isKnowledgeBaseModeEnabled
         ? context.articles
         : [];
+      const fallbackWritingContext =
+        context.getFallbackWritingContext?.() ?? context.fallbackWritingContext ?? '';
       const nextResult = await context.invokeDesktop("rag_answer_articles", {
         question: normalizedQuestion,
-        writingContext: context.fallbackWritingContext?.trim() || null,
+        writingContext: fallbackWritingContext.trim() || null,
         articles: retrievalArticles,
         llm: context.llmSettings,
         rag: context.ragSettings,

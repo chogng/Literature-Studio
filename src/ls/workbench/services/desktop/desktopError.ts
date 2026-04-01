@@ -1,4 +1,4 @@
-import type { AppErrorCode } from '../../../base/parts/sandbox/common/desktopTypes.js';
+import type { AppErrorCode } from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import type { LocaleMessages } from '../../../../language/locales';
 
 export type DesktopErrorCode = AppErrorCode;

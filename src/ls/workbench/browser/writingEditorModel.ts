@@ -1,12 +1,12 @@
 import {
   createEmptyWritingEditorDocument,
-  createWritingEditorDocumentFromPlainText,
   normalizeWritingEditorDocument,
   type WritingEditorDocument,
-  writingEditorDocumentToPlainText,
-} from '../../editor/common/writingEditorDocument';
+} from 'ls/editor/common/writingEditorDocument';
+import { createWritingLiveDraftState } from 'ls/workbench/browser/writingEditorLiveState';
+import { createWritingEditorStorage } from 'ls/workbench/browser/writingEditorStorage';
 
-export type { WritingEditorDocument } from '../../editor/common/writingEditorDocument';
+export type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
 export type WritingEditorViewMode = 'draft';
 
@@ -42,7 +42,7 @@ export type WritingWorkspaceTab =
   | WritingWorkspaceDraftTab
   | WritingWorkspaceContentTab;
 
-type WritingWorkspaceState = {
+export type WritingWorkspaceState = {
   tabs: WritingWorkspaceTab[];
   activeTabId: string | null;
   mruTabIds: string[];
@@ -53,75 +53,15 @@ export type WritingEditorModelSnapshot = {
   activeTabId: string | null;
   mruTabIds: string[];
   activeTab: WritingWorkspaceTab | null;
-  draftDocument: WritingEditorDocument;
-  draftBody: string;
 };
 
 type WritingEditorModelListener = () => void;
 
-type StoredWritingWorkspaceState = {
-  tabs?: unknown;
-  activeTabId?: unknown;
-  mruTabIds?: unknown;
-};
-
 const DEFAULT_VIEW_MODE: WritingEditorViewMode = 'draft';
-const DRAFT_PERSIST_DEBOUNCE_MS = 250;
-
-const draftStorageKeys = {
-  title: 'ls.writingDraft.title',
-  body: 'ls.writingDraft.body',
-  document: 'ls.writingDraft.document',
-  viewMode: 'ls.writingDraft.viewMode',
-  workspace: 'ls.writingWorkspace.state',
-} as const;
-
-function readStoredValue(key: string): string {
-  if (typeof window === 'undefined') {
-    return '';
-  }
-
-  try {
-    return window.localStorage.getItem(key) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-function persistDraftValue(key: string, value: string) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    if (value) {
-      window.localStorage.setItem(key, value);
-      return;
-    }
-
-    window.localStorage.removeItem(key);
-  } catch {
-    // Ignore local storage failures so the editor still works in restricted runtimes.
-  }
-}
 
 function createWorkspaceTabId(prefix: 'draft' | 'web' | 'pdf') {
   const randomPart = Math.random().toString(36).slice(2, 8);
   return `ls-${prefix}-tab-${Date.now().toString(36)}-${randomPart}`;
-}
-
-function readStoredViewMode(): WritingEditorViewMode {
-  const value = readStoredValue(draftStorageKeys.viewMode);
-  if (value === 'draft') {
-    return value;
-  }
-
-  // Legacy split mode is removed; migrate old values back to draft.
-  if (value === 'split') {
-    return DEFAULT_VIEW_MODE;
-  }
-
-  return DEFAULT_VIEW_MODE;
 }
 
 function createDraftTab(
@@ -253,28 +193,14 @@ function normalizeWorkspaceState(
   };
 }
 
-function readStoredDocument(): WritingEditorDocument {
-  const rawDocument = readStoredValue(draftStorageKeys.document);
-  if (rawDocument) {
-    try {
-      return normalizeWritingEditorDocument(JSON.parse(rawDocument));
-    } catch {
-      return createEmptyWritingEditorDocument();
-    }
-  }
-
-  // Migrate legacy textarea drafts into the structured ProseMirror document once.
-  const legacyBody = readStoredValue(draftStorageKeys.body);
-  return legacyBody
-    ? createWritingEditorDocumentFromPlainText(legacyBody)
-    : createEmptyWritingEditorDocument();
-}
-
-function migrateLegacyWorkspaceState(): WritingWorkspaceState {
+function migrateLegacyWorkspaceState(
+  storage = createWritingEditorStorage(),
+): WritingWorkspaceState {
+  const legacyDraftState = storage.readLegacyDraftState();
   const initialDraftTab = createDraftTab({
-    title: readStoredValue(draftStorageKeys.title),
-    document: readStoredDocument(),
-    viewMode: readStoredViewMode(),
+    title: legacyDraftState.title,
+    document: legacyDraftState.document,
+    viewMode: legacyDraftState.viewMode,
   });
 
   return {
@@ -284,25 +210,26 @@ function migrateLegacyWorkspaceState(): WritingWorkspaceState {
   };
 }
 
-function readStoredWorkspaceState(): WritingWorkspaceState {
-  const rawWorkspace = readStoredValue(draftStorageKeys.workspace);
+function readStoredWorkspaceState(
+  storage = createWritingEditorStorage(),
+): WritingWorkspaceState {
+  const rawWorkspace = storage.readWorkspaceState();
   if (!rawWorkspace) {
-    return migrateLegacyWorkspaceState();
+    return migrateLegacyWorkspaceState(storage);
   }
 
   try {
-    const parsedWorkspace = JSON.parse(rawWorkspace) as StoredWritingWorkspaceState;
-    const tabs = Array.isArray(parsedWorkspace.tabs)
-      ? parsedWorkspace.tabs
+    const tabs = Array.isArray(rawWorkspace.tabs)
+      ? rawWorkspace.tabs
           .map((tab) => normalizeWorkspaceTab(tab))
           .filter((tab): tab is WritingWorkspaceTab => Boolean(tab))
       : [];
     const activeTabId =
-      typeof parsedWorkspace.activeTabId === 'string'
-        ? parsedWorkspace.activeTabId
+      typeof rawWorkspace.activeTabId === 'string'
+        ? rawWorkspace.activeTabId
         : null;
-    const mruTabIds = Array.isArray(parsedWorkspace.mruTabIds)
-      ? parsedWorkspace.mruTabIds.filter(
+    const mruTabIds = Array.isArray(rawWorkspace.mruTabIds)
+      ? rawWorkspace.mruTabIds.filter(
           (tabId): tabId is string => typeof tabId === 'string',
         )
       : [];
@@ -313,7 +240,7 @@ function readStoredWorkspaceState(): WritingWorkspaceState {
       mruTabIds,
     });
   } catch {
-    return migrateLegacyWorkspaceState();
+    return migrateLegacyWorkspaceState(storage);
   }
 }
 
@@ -345,68 +272,27 @@ function createWritingEditorModelSnapshot(
   workspaceState: WritingWorkspaceState,
 ): WritingEditorModelSnapshot {
   const activeTab = resolveActiveTab(workspaceState);
-  const activeDraftTab = activeTab?.kind === 'draft' ? activeTab : null;
-  const contextDraftTab = resolveContextDraftTab(workspaceState, activeTab);
 
   return {
     tabs: workspaceState.tabs,
     activeTabId: workspaceState.activeTabId,
     mruTabIds: workspaceState.mruTabIds,
     activeTab,
-    draftDocument: activeDraftTab?.document ?? createEmptyWritingEditorDocument(),
-    draftBody: contextDraftTab
-      ? writingEditorDocumentToPlainText(contextDraftTab.document)
-      : '',
   };
-}
-
-function persistWorkspaceState(workspaceState: WritingWorkspaceState) {
-  persistDraftValue(
-    draftStorageKeys.workspace,
-    JSON.stringify({
-      tabs: workspaceState.tabs,
-      activeTabId: workspaceState.activeTabId,
-      mruTabIds: workspaceState.mruTabIds,
-    }),
-  );
-}
-
-function persistContextDraftState(
-  workspaceState: WritingWorkspaceState,
-  activeTab: WritingWorkspaceTab | null,
-) {
-  const contextDraftTab = resolveContextDraftTab(workspaceState, activeTab);
-  persistDraftValue(draftStorageKeys.title, contextDraftTab?.title ?? '');
-  persistDraftValue(
-    draftStorageKeys.document,
-    contextDraftTab ? JSON.stringify(contextDraftTab.document) : '',
-  );
-  persistDraftValue(
-    draftStorageKeys.body,
-    contextDraftTab ? writingEditorDocumentToPlainText(contextDraftTab.document) : '',
-  );
-  persistDraftValue(
-    draftStorageKeys.viewMode,
-    contextDraftTab?.viewMode ?? DEFAULT_VIEW_MODE,
-  );
-}
-
-function persistWorkspaceSnapshot(workspaceState: WritingWorkspaceState) {
-  const activeTab = resolveActiveTab(workspaceState);
-  persistWorkspaceState(workspaceState);
-  persistContextDraftState(workspaceState, activeTab);
 }
 
 export class WritingEditorModel {
   private workspaceState: WritingWorkspaceState;
   private snapshot: WritingEditorModelSnapshot;
+  private readonly liveDraftState = createWritingLiveDraftState();
+  private readonly storage = createWritingEditorStorage();
   private listeners = new Set<WritingEditorModelListener>();
-  private persistTimer: number | null = null;
 
   constructor(initialState: WritingWorkspaceState = readStoredWorkspaceState()) {
     this.workspaceState = normalizeWorkspaceState(initialState);
+    this.syncLiveDraftState();
     this.snapshot = createWritingEditorModelSnapshot(this.workspaceState);
-    persistWorkspaceSnapshot(this.workspaceState);
+    this.storage.save(this.createPersistedState());
   }
 
   readonly subscribe = (listener: WritingEditorModelListener) => {
@@ -417,6 +303,8 @@ export class WritingEditorModel {
   };
 
   readonly getSnapshot = () => this.snapshot;
+  readonly getDraftBody = () => this.liveDraftState.getContextDraftBody();
+  readonly getDraftDocument = () => this.liveDraftState.getActiveDraftDocument();
 
   readonly activateTab = (tabId: string) => {
     this.updateWorkspaceState((state) => ({
@@ -551,7 +439,7 @@ export class WritingEditorModel {
   };
 
   readonly dispose = () => {
-    this.flushPersistWorkspaceSnapshot();
+    this.storage.dispose();
     this.listeners.clear();
   };
 
@@ -566,33 +454,37 @@ export class WritingEditorModel {
     options: { persist?: 'immediate' | 'debounced' } = {},
   ) {
     this.workspaceState = normalizeWorkspaceState(updater(this.workspaceState));
+    this.syncLiveDraftState();
     this.snapshot = createWritingEditorModelSnapshot(this.workspaceState);
     if (options.persist === 'debounced') {
-      this.schedulePersistWorkspaceSnapshot();
+      this.storage.scheduleSave(this.createPersistedState());
     } else {
-      this.flushPersistWorkspaceSnapshot();
+      this.storage.save(this.createPersistedState());
     }
     this.emitChange();
   }
 
-  private schedulePersistWorkspaceSnapshot() {
-    if (this.persistTimer !== null) {
-      window.clearTimeout(this.persistTimer);
-    }
-
-    this.persistTimer = window.setTimeout(() => {
-      this.persistTimer = null;
-      persistWorkspaceSnapshot(this.workspaceState);
-    }, DRAFT_PERSIST_DEBOUNCE_MS);
+  private syncLiveDraftState() {
+    const activeTab = resolveActiveTab(this.workspaceState);
+    const activeDraftTab = activeTab?.kind === 'draft' ? activeTab : null;
+    const contextDraftTab = resolveContextDraftTab(this.workspaceState, activeTab);
+    this.liveDraftState.sync({
+      activeDraftDocument: activeDraftTab?.document ?? null,
+      contextDraftDocument: contextDraftTab?.document ?? null,
+    });
   }
 
-  private flushPersistWorkspaceSnapshot() {
-    if (this.persistTimer !== null) {
-      window.clearTimeout(this.persistTimer);
-      this.persistTimer = null;
-    }
+  private createPersistedState() {
+    const activeTab = resolveActiveTab(this.workspaceState);
 
-    persistWorkspaceSnapshot(this.workspaceState);
+    return {
+      workspaceState: {
+        tabs: this.workspaceState.tabs,
+        activeTabId: this.workspaceState.activeTabId,
+        mruTabIds: this.workspaceState.mruTabIds,
+      },
+      contextDraftTab: resolveContextDraftTab(this.workspaceState, activeTab),
+    };
   }
 }
 

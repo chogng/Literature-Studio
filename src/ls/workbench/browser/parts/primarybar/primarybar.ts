@@ -1,13 +1,13 @@
 import type {
   LibraryDocumentSummary,
   LibraryDocumentsResult,
-} from '../../../../base/parts/sandbox/common/desktopTypes.js';
-import { createLxIcon, type LxIconName } from '../../../../base/browser/ui/lxicon/lxicon.js';
-import { lxIconSemanticMap } from '../../../../base/browser/ui/lxicon/lxiconSemantic.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
+import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon.js';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic.js';
 import {
   LibraryView,
   type LibraryViewLabels,
-} from '../../../contrib/knowledgeBase/browser/views/libraryView.js';
+} from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryView.js';
 import './media/primarybar.css';
 
 export type PrimaryBarLabels = LibraryViewLabels & {

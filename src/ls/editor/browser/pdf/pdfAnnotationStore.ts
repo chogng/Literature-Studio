@@ -1,5 +1,5 @@
-import type { Annotation } from '../../common/annotation';
-import type { PdfSelection } from './pdfSelection';
+import type { Annotation } from 'ls/editor/common/annotation';
+import type { PdfSelection } from 'ls/editor/browser/pdf/pdfSelection';
 
 export type PdfAnnotationStoreSnapshot = {
   targetId: string | null;

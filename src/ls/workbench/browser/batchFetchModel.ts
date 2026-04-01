@@ -1,25 +1,25 @@
-import { toast } from '../../base/browser/ui/toast/toast';
+import { toast } from 'ls/base/browser/ui/toast/toast';
 import type {
   ElectronInvoke,
   FetchStatus,
-} from '../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import type { LocaleMessages } from '../../../language/locales';
-import type { BatchSource } from '../services/config/configSchema';
+import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 import {
   fetchLatestArticlesBatch,
   type Article,
-} from '../services/article/articleFetch';
+} from 'ls/workbench/services/article/articleFetch';
 import {
   INITIAL_BATCH_FETCH_MACHINE_STATE,
   reduceBatchFetchMachineState,
   type BatchFetchMachineEvent,
   type BatchFetchMachineState,
-} from '../services/article/batchFetchState';
+} from 'ls/workbench/services/article/batchFetchState';
 import {
   formatLocalized,
   localizeDesktopInvokeError,
-} from '../services/desktop/desktopError';
-import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
+} from 'ls/workbench/services/desktop/desktopError';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 
 type BatchFetchTitlebarStatus = {
   titlebarFetchSourceText: string;

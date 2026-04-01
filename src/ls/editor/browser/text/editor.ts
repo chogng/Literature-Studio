@@ -9,7 +9,7 @@ import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-li
 import {
   createDraftEditorRuntimeState,
   type DraftEditorRuntimeState,
-} from '../shared/editorStatus';
+} from 'ls/editor/browser/shared/editorStatus';
 import {
   type InsertFigurePayload,
   getWritingEditorToolbarState,
@@ -29,22 +29,24 @@ import {
   undoCommand,
   type WritingEditorCommand,
   type WritingEditorToolbarState,
-} from './commands';
+} from 'ls/editor/browser/text/commands';
 import {
   type WritingEditorDocument,
   normalizeWritingEditorDocument,
   syncWritingEditorDerivedLabels,
-} from '../../common/writingEditorDocument';
+} from 'ls/editor/common/writingEditorDocument';
 import {
   createWritingEditorDocumentIdentityPlugin,
   createWritingEditorInputRules,
   createWritingEditorPlaceholderPlugin,
   updateWritingEditorPlaceholder,
   writingEditorSchema,
-} from './schema';
-import { DraftEditorToolbar } from './toolbar';
-import { WritingEditorInputSession } from './input';
-import { resolveWritingEditorSurfaceSyncPlan } from './sync';
+} from 'ls/editor/browser/text/schema';
+import { DraftEditorToolbar } from 'ls/editor/browser/text/toolbar';
+import { WritingEditorInputSession } from 'ls/editor/browser/text/input';
+import { resolveWritingEditorSurfaceSyncPlan } from 'ls/editor/browser/text/sync';
+import { DomScrollableElement } from 'ls/base/browser/ui/scrollbar/scrollableElement';
+import { ScrollbarVisibility } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
 import './media/editor.css';
 
 export type WritingEditorSurfaceLabels = {
@@ -223,6 +225,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   private readonly element = createElement('div', 'pm-editor-shell');
   private readonly hostWrapperElement = createElement('div', 'pm-editor-host');
   private readonly editorRootElement = createElement('div', 'pm-editor-root');
+  private readonly scrollableElement: DomScrollableElement;
   private readonly toolbar: DraftEditorToolbar;
   private view: EditorView | null = null;
   // The workbench can rerender before the writing model echoes the latest local document back.
@@ -241,7 +244,14 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.props = props;
     this.toolbar = new DraftEditorToolbar(this.createToolbarProps());
     this.hostWrapperElement.append(this.editorRootElement);
-    this.element.append(this.toolbar.getElement(), this.hostWrapperElement);
+    this.scrollableElement = new DomScrollableElement(this.hostWrapperElement, {
+      className: 'pm-editor-scrollable',
+      useShadows: true,
+      horizontal: ScrollbarVisibility.Hidden,
+      vertical: ScrollbarVisibility.Auto,
+      verticalScrollbarSize: 10,
+    });
+    this.element.append(this.toolbar.getElement(), this.scrollableElement.getDomNode());
     this.createView();
   }
 
@@ -284,6 +294,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   dispose() {
     this.inputSession.dispose();
     this.destroyView();
+    this.scrollableElement.dispose();
     this.element.replaceChildren();
   }
 
@@ -336,6 +347,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
           const nextState = editorView.state.apply(transaction);
           editorView.updateState(nextState);
           this.syncEditorViewState(nextState, transaction.docChanged);
+          this.refreshScrollableDimensions();
         },
       },
     );
@@ -346,6 +358,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.view.dom.addEventListener('focus', this.handleFocus);
     this.view.dom.addEventListener('blur', this.handleBlur);
     this.syncEditorViewState(editorView.state, false);
+    this.refreshScrollableDimensions();
   }
 
   private createToolbarProps() {
@@ -387,6 +400,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.snapshot = { toolbarState: EMPTY_TOOLBAR_STATE };
     this.editorRootElement.replaceChildren();
     this.toolbar.setProps(this.createToolbarProps());
+    this.refreshScrollableDimensions();
   }
 
   private emitStatusChange(nextState: EditorState) {
@@ -435,6 +449,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.emitStatusChange(nextState);
     this.refreshToolbarSnapshot(nextState);
     this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+    this.refreshScrollableDimensions();
   }
 
   private applySurfaceSyncPlan(
@@ -459,6 +474,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
         if (syncPlan.shouldRefreshToolbarChrome) {
           this.toolbar.setProps(this.createToolbarProps());
         }
+        this.refreshScrollableDimensions();
         return;
       case 'preserve-local-state':
         if (syncPlan.shouldRefreshPlaceholder) {
@@ -470,6 +486,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
             this.toolbar.setProps(this.createToolbarProps());
           }
           if (updatedPlaceholder) {
+            this.refreshScrollableDimensions();
             return;
           }
         }
@@ -480,6 +497,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
           this.toolbar.setProps(this.createToolbarProps());
         }
         this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+        this.refreshScrollableDimensions();
         return;
       case 'refresh-placeholder':
         const updatedPlaceholder = updateWritingEditorPlaceholder(
@@ -492,6 +510,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
         if (!updatedPlaceholder) {
           this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
         }
+        this.refreshScrollableDimensions();
         return;
       case 'replace-state':
         this.view.updateState(
@@ -501,6 +520,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
         if (syncPlan.shouldRefreshToolbarChrome) {
           this.toolbar.setProps(this.createToolbarProps());
         }
+        this.refreshScrollableDimensions();
         return;
       case 'sync-current-state':
         this.emitStatusChange(this.view.state);
@@ -509,8 +529,13 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
           this.toolbar.setProps(this.createToolbarProps());
         }
         this.inputSession.restoreFocusIfNeeded(shouldRestoreFocus);
+        this.refreshScrollableDimensions();
         return;
     }
+  }
+
+  private refreshScrollableDimensions() {
+    this.scrollableElement.scanDomNode();
   }
 
   private emitDocumentChange(

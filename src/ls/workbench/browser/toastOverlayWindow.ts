@@ -1,9 +1,9 @@
 import type {
   NativeToastState,
   NativeToastType,
-} from '../../base/parts/sandbox/common/desktopTypes.js';
+} from 'ls/base/parts/sandbox/common/desktopTypes.js';
 import { detectInitialLocale, getLocaleMessages } from '../../../language/i18n';
-import { nativeHostService } from '../../platform/native/electron-sandbox/nativeHostService';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import '../../base/browser/ui/toast/toast.css';
 import './media/toastOverlayWindow.css';
 

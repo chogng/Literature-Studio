@@ -1,4 +1,4 @@
-import { formatDateInputValue, isDateRangeValid } from '../../../common/date.js';
+import { formatDateInputValue, isDateRangeValid } from 'ls/base/common/date.js';
 import './dateRangePicker.css';
 
 export type DateRangePickerLabels = {

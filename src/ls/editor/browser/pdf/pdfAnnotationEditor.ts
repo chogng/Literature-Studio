@@ -1,12 +1,12 @@
-import { createAnnotationId, type Annotation } from '../../common/annotation';
-import { ViewPartView, type ViewPartProps } from '../../../workbench/browser/parts/views/viewPartView';
-import { PdfAnnotationStore, type PdfAnnotationStoreSnapshot } from './pdfAnnotationStore';
+import { createAnnotationId, type Annotation } from 'ls/editor/common/annotation';
+import { ViewPartView, type ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
+import { PdfAnnotationStore, type PdfAnnotationStoreSnapshot } from 'ls/editor/browser/pdf/pdfAnnotationStore';
 import {
   createPdfSelection,
   isPdfSelectionEmpty,
   type PdfSelection,
-} from './pdfSelection';
-import { nativeHostService } from '../../../platform/native/electron-sandbox/nativeHostService.js';
+} from 'ls/editor/browser/pdf/pdfSelection';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService.js';
 import './media/pdfAnnotationEditor.css';
 
 export type PdfAnnotationEditorLabels = {
