@@ -135,6 +135,7 @@ import chevronUpSvg from 'ls/base/browser/ui/lxicon/svg/chevron-up.svg?raw';
 import chevronRightSvg from 'ls/base/browser/ui/lxicon/svg/chevron-right.svg?raw';
 import chevronLeftSvg from 'ls/base/browser/ui/lxicon/svg/chevron-left.svg?raw';
 import chevronDownSvg from 'ls/base/browser/ui/lxicon/svg/chevron-down.svg?raw';
+import calendarSvg from 'ls/base/browser/ui/lxicon/svg/calendar.svg?raw';
 import checklistSvg from 'ls/base/browser/ui/lxicon/svg/checklist.svg?raw';
 import checkSvg from 'ls/base/browser/ui/lxicon/svg/check.svg?raw';
 import broswerSvg from 'ls/base/browser/ui/lxicon/svg/broswer.svg?raw';
@@ -295,6 +296,7 @@ export type LxIconName =
   | 'chevron-right'
   | 'chevron-left'
   | 'chevron-down'
+  | 'calendar'
   | 'checklist'
   | 'check'
   | 'broswer'
@@ -455,6 +457,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'chevron-right': chevronRightSvg,
   'chevron-left': chevronLeftSvg,
   'chevron-down': chevronDownSvg,
+  'calendar': calendarSvg,
   'checklist': checklistSvg,
   'check': checkSvg,
   'broswer': broswerSvg,

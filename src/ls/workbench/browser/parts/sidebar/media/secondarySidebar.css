@@ -18,22 +18,57 @@
 }
 
 .sidebar-date-picker {
-  --date-range-trigger-min-width: 48px;
-  --date-range-trigger-min-height: 32px;
-  --date-range-trigger-padding: 0 12px;
+  --date-range-trigger-min-width: 26px;
+  --date-range-trigger-min-height: 26px;
+  --date-range-trigger-padding: 0;
   --date-range-trigger-radius: 6px;
-  --date-range-trigger-bg: #0a5fbf;
-  --date-range-trigger-bg-hover: #0d6ed8;
-  --date-range-trigger-bg-focus: #0d6ed8;
-  --date-range-trigger-bg-active: #084c9a;
-  --date-range-trigger-color: #ffffff;
-  --date-range-trigger-color-active: #ffffff;
-  --date-range-trigger-focus-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+  --date-range-trigger-bg: transparent;
+  --date-range-trigger-bg-hover: rgba(0, 0, 0, 0.05);
+  --date-range-trigger-bg-focus: rgba(0, 0, 0, 0.05);
+  --date-range-trigger-bg-active: rgba(0, 0, 0, 0.1);
+  --date-range-trigger-color: #1f2d3a;
+  --date-range-trigger-color-active: #1f2d3a;
+  --date-range-trigger-focus-shadow: none;
   flex: 0 0 auto;
 }
 
 .sidebar-date-picker .date-range-trigger {
-  width: auto;
+  --btn-icon-size: 26px;
+  background: transparent;
+  color: #1f2d3a;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  width: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  height: 26px;
+  transition: none;
+  gap: 0;
+}
+
+.sidebar-date-picker .date-range-trigger-icon {
+  color: inherit;
+}
+
+.sidebar-date-picker .date-range-trigger-icon .lx-icon {
+  font-size: 16px;
+}
+
+.sidebar-date-picker .date-range-trigger.btn-base:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1f2d3a;
+  border: none;
+  box-shadow: none;
+}
+
+.sidebar-date-picker .date-range-trigger.btn-base:active:not(:disabled),
+.sidebar-date-picker .date-range-trigger.is-active {
+  background: rgba(0, 0, 0, 0.1);
+  color: #1f2d3a;
+  border: none;
+  box-shadow: none;
+  transform: none;
 }
 
 .sidebar-fetch-btn {

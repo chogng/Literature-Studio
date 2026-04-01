@@ -40,6 +40,10 @@
   gap: 6px;
 }
 
+.date-range-trigger.btn-mode-icon .date-range-trigger-content {
+  gap: 0;
+}
+
 .date-range-trigger-icon {
   display: inline-flex;
   align-items: center;

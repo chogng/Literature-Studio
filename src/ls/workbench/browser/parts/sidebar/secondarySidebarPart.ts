@@ -1,6 +1,11 @@
 import type {
   ArticleDetailsModalLabels,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import {
+  createDateRangePickerView,
+  type DateRangePickerView,
+} from 'ls/base/browser/ui/dateRangePicker/dateRangePicker';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
 import {
@@ -314,24 +319,26 @@ export class SecondarySidebarPartView {
     'secondary-sidebar-action-bar',
   );
   private readonly contentElement = createElement('div');
-  private readonly startDateInput = createElement('input');
-  private readonly endDateInput = createElement('input');
+  private readonly dateRangePicker: DateRangePickerView;
   private readonly selectionButton = createElement('button');
   private readonly fetchButton = createElement('button');
   private cards = new Map<string, ArticleCard>();
 
   constructor(props: SecondarySidebarProps) {
     this.props = props;
-    this.startDateInput.type = 'date';
-    this.endDateInput.type = 'date';
-    this.startDateInput.className = 'secondary-sidebar-date-picker';
-    this.endDateInput.className = 'secondary-sidebar-date-picker';
-    this.startDateInput.addEventListener('input', () =>
-      this.props.onBatchStartDateChange(this.startDateInput.value),
-    );
-    this.endDateInput.addEventListener('input', () =>
-      this.props.onBatchEndDateChange(this.endDateInput.value),
-    );
+    this.dateRangePicker = createDateRangePickerView({
+      startDate: this.props.batchStartDate,
+      endDate: this.props.batchEndDate,
+      labels: {
+        startDate: this.props.labels.startDate,
+        endDate: this.props.labels.endDate,
+      },
+      onStartDateChange: (value) => this.props.onBatchStartDateChange(value),
+      onEndDateChange: (value) => this.props.onBatchEndDateChange(value),
+      className: 'sidebar-date-picker',
+      triggerIcon: createLxIcon('calendar'),
+      triggerMode: 'icon',
+    });
     this.selectionButton.type = 'button';
     this.selectionButton.addEventListener('click', () =>
       this.props.onToggleSelectionMode(),
@@ -341,8 +348,7 @@ export class SecondarySidebarPartView {
       this.props.onFetchLatestBatch(),
     );
     this.actionBarElement.append(
-      this.startDateInput,
-      this.endDateInput,
+      this.dateRangePicker.getElement(),
       this.selectionButton,
       this.fetchButton,
     );
@@ -364,6 +370,7 @@ export class SecondarySidebarPartView {
   }
 
   dispose() {
+    this.dateRangePicker.dispose();
     for (const card of this.cards.values()) {
       card.dispose();
     }
@@ -380,10 +387,19 @@ export class SecondarySidebarPartView {
           ? this.props.labels.selectionModeSelectAll
           : this.props.labels.selectionModeExit;
 
-    this.startDateInput.value = this.props.batchStartDate;
-    this.endDateInput.value = this.props.batchEndDate;
-    this.startDateInput.setAttribute('aria-label', this.props.labels.startDate);
-    this.endDateInput.setAttribute('aria-label', this.props.labels.endDate);
+    this.dateRangePicker.setProps({
+      startDate: this.props.batchStartDate,
+      endDate: this.props.batchEndDate,
+      labels: {
+        startDate: this.props.labels.startDate,
+        endDate: this.props.labels.endDate,
+      },
+      onStartDateChange: (value) => this.props.onBatchStartDateChange(value),
+      onEndDateChange: (value) => this.props.onBatchEndDateChange(value),
+      className: 'sidebar-date-picker',
+      triggerIcon: createLxIcon('calendar'),
+      triggerMode: 'icon',
+    });
 
     this.selectionButton.className = [
       'btn-base',
