@@ -1,0 +1,579 @@
+import type { NodeType } from 'prosemirror-model';
+import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
+
+import type { LocaleMessages } from 'language/locales';
+import type {
+  WritingEditorCommand,
+  WritingEditorToolbarState,
+} from 'ls/editor/browser/text/commands';
+import {
+  redoCommand,
+  setParagraphCommand,
+  toggleBoldCommand,
+  toggleBulletListCommand,
+  toggleHeadingCommand,
+  toggleItalicCommand,
+  toggleOrderedListCommand,
+  undoCommand,
+} from 'ls/editor/browser/text/commands';
+import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+
+type WritingEditorKeybindingId =
+  | 'undo'
+  | 'redo'
+  | 'toggleBold'
+  | 'toggleItalic'
+  | 'setParagraph'
+  | 'toggleHeading1'
+  | 'toggleHeading2'
+  | 'toggleHeading3'
+  | 'toggleOrderedList'
+  | 'toggleBulletList'
+  | 'splitListItem'
+  | 'sinkListItem'
+  | 'liftListItem';
+
+type WritingEditorToolbarCommandId =
+  | 'setParagraph'
+  | 'toggleHeading1'
+  | 'toggleHeading2'
+  | 'toggleHeading3'
+  | 'toggleBold'
+  | 'toggleItalic'
+  | 'setFontFamily'
+  | 'setFontSize'
+  | 'clearInlineStyles'
+  | 'toggleBulletList'
+  | 'toggleOrderedList'
+  | 'toggleBlockquote'
+  | 'undo'
+  | 'redo'
+  | 'insertCitation'
+  | 'insertFigure'
+  | 'insertFigureRef';
+
+export type WritingEditorRegisteredCommandId =
+  | WritingEditorKeybindingId
+  | WritingEditorToolbarCommandId
+  | DraftEditorCommandId;
+
+type WritingEditorToolbarGroupId = 'text' | 'format' | 'insert' | 'history';
+
+export type WritingEditorToolbarActions = {
+  setParagraph: () => boolean | void;
+  toggleHeading: (level: number) => boolean | void;
+  toggleBold: () => boolean | void;
+  toggleItalic: () => boolean | void;
+  setFontFamily: (fontFamily: string | null) => boolean | void;
+  setFontSize: (fontSize: string | null) => boolean | void;
+  clearInlineStyles: () => boolean | void;
+  toggleBulletList: () => boolean | void;
+  toggleOrderedList: () => boolean | void;
+  toggleBlockquote: () => boolean | void;
+  undo: () => boolean | void;
+  redo: () => boolean | void;
+  insertCitation: () => boolean | void;
+  insertFigure: () => boolean | void;
+  insertFigureRef: () => boolean | void;
+};
+
+export type WritingEditorToolbarButtonConfig = {
+  label: string;
+  onClick: () => void;
+  icon?:
+    | 'bold'
+    | 'italics'
+    | 'circle-slash'
+    | 'list-unordered'
+    | 'list-ordered'
+    | 'quote'
+    | 'quotes'
+    | 'image'
+    | 'mention'
+    | 'arrow-left'
+    | 'arrow-right';
+  glyph?: string;
+  isActive?: boolean;
+  disabled?: boolean;
+  isToggle?: boolean;
+};
+
+export type WritingEditorToolbarDropdownConfig = {
+  label: string;
+  title?: string;
+  value: string;
+  placeholder: string;
+  options: readonly {
+    value: string;
+    label: string;
+    title?: string;
+    disabled?: boolean;
+  }[];
+  onChange: (value: string) => void;
+};
+
+export type WritingEditorToolbarItemConfig =
+  | WritingEditorToolbarButtonConfig
+  | WritingEditorToolbarDropdownConfig;
+
+export type WritingEditorToolbarButtonGroup = {
+  title: string;
+  items: readonly WritingEditorToolbarItemConfig[];
+};
+
+export type WritingEditorDraftCommandContext = {
+  availableFigureIds: readonly string[];
+};
+
+type WritingEditorToolbarLabels = {
+  textGroup: string;
+  formatGroup: string;
+  insertGroup: string;
+  historyGroup: string;
+  paragraph: string;
+  heading1: string;
+  heading2: string;
+  heading3: string;
+  bold: string;
+  italic: string;
+  fontFamily: string;
+  fontSize: string;
+  clearInlineStyles: string;
+  bulletList: string;
+  orderedList: string;
+  blockquote: string;
+  undo: string;
+  redo: string;
+  insertCitation: string;
+  insertFigure: string;
+  insertFigureRef: string;
+};
+
+type WritingEditorCommandContext = {
+  listItemType: NodeType;
+};
+
+type WritingEditorToolbarBaseDefinition = {
+  group: WritingEditorToolbarGroupId;
+  getLabel: (labels: WritingEditorToolbarLabels) => string;
+};
+
+type WritingEditorToolbarButtonDefinition = WritingEditorToolbarBaseDefinition & {
+  kind?: 'button';
+  icon?: WritingEditorToolbarButtonConfig['icon'];
+  glyph?: string;
+  isActive?: (state: WritingEditorToolbarState) => boolean;
+  isEnabled?: (state: WritingEditorToolbarState) => boolean;
+  run: (actions: WritingEditorToolbarActions) => void;
+};
+
+type WritingEditorToolbarDropdownDefinition = WritingEditorToolbarBaseDefinition & {
+  kind: 'dropdown';
+  getValue: (state: WritingEditorToolbarState) => string;
+  getPlaceholder: (labels: WritingEditorToolbarLabels) => string;
+  run: (actions: WritingEditorToolbarActions, value: string) => void;
+};
+
+type WritingEditorToolbarDefinition =
+  | WritingEditorToolbarButtonDefinition
+  | WritingEditorToolbarDropdownDefinition;
+
+type WritingEditorCommandDefinition = {
+  id: WritingEditorRegisteredCommandId;
+  shortcuts?: readonly string[];
+  createCommand?: (context: WritingEditorCommandContext) => WritingEditorCommand;
+  toolbar?: WritingEditorToolbarDefinition;
+  draftShortcutLabel?: string;
+  getWorkbenchLabel?: (ui: LocaleMessages) => string;
+  isEnabledInDraft?: (context: WritingEditorDraftCommandContext) => boolean;
+};
+
+function registerWritingEditorCommand(definition: WritingEditorCommandDefinition) {
+  return definition;
+}
+
+const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[] = [
+  registerWritingEditorCommand({
+    id: 'undo',
+    shortcuts: ['Mod-z'],
+    createCommand: () => undoCommand(),
+    toolbar: {
+      group: 'history',
+      getLabel: (labels) => labels.undo,
+      icon: 'arrow-left',
+      isEnabled: (state) => state.canUndo,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.undo();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'redo',
+    shortcuts: ['Shift-Mod-z', 'Mod-y'],
+    createCommand: () => redoCommand(),
+    toolbar: {
+      group: 'history',
+      getLabel: (labels) => labels.redo,
+      icon: 'arrow-right',
+      isEnabled: (state) => state.canRedo,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.redo();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'toggleBold',
+    shortcuts: ['Mod-b'],
+    createCommand: () => toggleBoldCommand(),
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.bold,
+      icon: 'bold',
+      isActive: (state) => state.isBoldActive,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleBold();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'toggleItalic',
+    shortcuts: ['Mod-i'],
+    createCommand: () => toggleItalicCommand(),
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.italic,
+      icon: 'italics',
+      isActive: (state) => state.isItalicActive,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleItalic();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'setFontFamily',
+    toolbar: {
+      kind: 'dropdown',
+      group: 'format',
+      getLabel: (labels) => labels.fontFamily,
+      getValue: (state) => state.fontFamily ?? '',
+      getPlaceholder: (labels) => labels.fontFamily,
+      run: (actions: WritingEditorToolbarActions, value: string) => {
+        actions.setFontFamily(value || null);
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'setFontSize',
+    toolbar: {
+      kind: 'dropdown',
+      group: 'format',
+      getLabel: (labels) => labels.fontSize,
+      getValue: (state) => state.fontSize ?? '',
+      getPlaceholder: (labels) => labels.fontSize,
+      run: (actions: WritingEditorToolbarActions, value: string) => {
+        actions.setFontSize(value || null);
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'setParagraph',
+    shortcuts: ['Mod-Alt-0'],
+    createCommand: () => setParagraphCommand(),
+    toolbar: {
+      group: 'text',
+      getLabel: (labels) => labels.paragraph,
+      glyph: 'Tx',
+      isActive: (state) => state.isParagraphActive,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.setParagraph();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'toggleHeading1',
+    shortcuts: ['Mod-Alt-1'],
+    createCommand: () => toggleHeadingCommand(1),
+    toolbar: {
+      group: 'text',
+      getLabel: (labels) => labels.heading1,
+      glyph: 'H1',
+      isActive: (state) => state.activeHeadingLevel === 1,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleHeading(1);
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'toggleHeading2',
+    shortcuts: ['Mod-Alt-2'],
+    createCommand: () => toggleHeadingCommand(2),
+    toolbar: {
+      group: 'text',
+      getLabel: (labels) => labels.heading2,
+      glyph: 'H2',
+      isActive: (state) => state.activeHeadingLevel === 2,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleHeading(2);
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'toggleHeading3',
+    shortcuts: ['Mod-Alt-3'],
+    createCommand: () => toggleHeadingCommand(3),
+    toolbar: {
+      group: 'text',
+      getLabel: (labels) => labels.heading3,
+      glyph: 'H3',
+      isActive: (state) => state.activeHeadingLevel === 3,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleHeading(3);
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'toggleOrderedList',
+    shortcuts: ['Mod-Shift-7'],
+    createCommand: () => toggleOrderedListCommand(),
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.orderedList,
+      icon: 'list-ordered',
+      isActive: (state) => state.isOrderedListActive,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleOrderedList();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'toggleBulletList',
+    shortcuts: ['Mod-Shift-8'],
+    createCommand: () => toggleBulletListCommand(),
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.bulletList,
+      icon: 'list-unordered',
+      isActive: (state) => state.isBulletListActive,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleBulletList();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'splitListItem',
+    shortcuts: ['Enter'],
+    createCommand: ({ listItemType }) => splitListItem(listItemType),
+  }),
+  registerWritingEditorCommand({
+    id: 'sinkListItem',
+    shortcuts: ['Tab'],
+    createCommand: ({ listItemType }) => sinkListItem(listItemType),
+  }),
+  registerWritingEditorCommand({
+    id: 'liftListItem',
+    shortcuts: ['Shift-Tab'],
+    createCommand: ({ listItemType }) => liftListItem(listItemType),
+  }),
+  registerWritingEditorCommand({
+    id: 'clearInlineStyles',
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.clearInlineStyles,
+      icon: 'circle-slash',
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.clearInlineStyles();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'toggleBlockquote',
+    toolbar: {
+      group: 'format',
+      getLabel: (labels) => labels.blockquote,
+      icon: 'quote',
+      isActive: (state) => state.isBlockquoteActive,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.toggleBlockquote();
+      },
+    },
+  }),
+  registerWritingEditorCommand({
+    id: 'insertCitation',
+    toolbar: {
+      group: 'insert',
+      getLabel: (labels) => labels.insertCitation,
+      icon: 'quotes',
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.insertCitation();
+      },
+    },
+    draftShortcutLabel: 'Mod+Shift+C',
+    getWorkbenchLabel: (ui) => ui.editorInsertCitation,
+  }),
+  registerWritingEditorCommand({
+    id: 'insertFigure',
+    toolbar: {
+      group: 'insert',
+      getLabel: (labels) => labels.insertFigure,
+      icon: 'image',
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.insertFigure();
+      },
+    },
+    draftShortcutLabel: 'Mod+Shift+F',
+    getWorkbenchLabel: (ui) => ui.editorInsertFigure,
+  }),
+  registerWritingEditorCommand({
+    id: 'insertFigureRef',
+    toolbar: {
+      group: 'insert',
+      getLabel: (labels) => labels.insertFigureRef,
+      icon: 'mention',
+      isEnabled: (state) => state.availableFigureIds.length > 0,
+      run: (actions: WritingEditorToolbarActions) => {
+        actions.insertFigureRef();
+      },
+    },
+    draftShortcutLabel: 'Mod+Shift+R',
+    getWorkbenchLabel: (ui) => ui.editorInsertFigureRef,
+    isEnabledInDraft: (context) => context.availableFigureIds.length > 0,
+  }),
+];
+
+function getToolbarGroupTitle(groupId: WritingEditorToolbarGroupId, labels: WritingEditorToolbarLabels) {
+  switch (groupId) {
+    case 'text':
+      return labels.textGroup;
+    case 'format':
+      return labels.formatGroup;
+    case 'insert':
+      return labels.insertGroup;
+    case 'history':
+      return labels.historyGroup;
+  }
+}
+
+function isDraftEditorCommandId(commandId: WritingEditorRegisteredCommandId): commandId is DraftEditorCommandId {
+  return commandId === 'insertCitation' || commandId === 'insertFigure' || commandId === 'insertFigureRef';
+}
+
+export function getWritingEditorCommands() {
+  return writingEditorCommandDefinitions;
+}
+
+export function getWritingEditorCommand(commandId: WritingEditorRegisteredCommandId) {
+  return writingEditorCommandDefinitions.find((definition) => definition.id === commandId) ?? null;
+}
+
+export function createWritingEditorKeymapBindings(listItemType: NodeType) {
+  const bindings: Record<string, WritingEditorCommand> = {};
+
+  for (const definition of writingEditorCommandDefinitions) {
+    if (!definition.shortcuts || !definition.createCommand) {
+      continue;
+    }
+
+    for (const shortcut of definition.shortcuts) {
+      bindings[shortcut] = definition.createCommand({ listItemType });
+    }
+  }
+
+  return bindings;
+}
+
+export function getDraftEditorCommandIds() {
+  return writingEditorCommandDefinitions
+    .map((definition) => definition.id)
+    .filter(isDraftEditorCommandId);
+}
+
+export function getDraftEditorShortcutLabel(commandId: DraftEditorCommandId) {
+  return getWritingEditorCommand(commandId)?.draftShortcutLabel ?? '';
+}
+
+export function isDraftEditorCommandEnabled(
+  commandId: DraftEditorCommandId,
+  context: WritingEditorDraftCommandContext,
+) {
+  return getWritingEditorCommand(commandId)?.isEnabledInDraft?.(context) ?? true;
+}
+
+export function getDraftEditorWorkbenchLabel(
+  commandId: DraftEditorCommandId,
+  ui: LocaleMessages,
+) {
+  return getWritingEditorCommand(commandId)?.getWorkbenchLabel?.(ui) ?? commandId;
+}
+
+export function matchesShortcutLabel(shortcutLabel: string, event: KeyboardEvent) {
+  const parts = shortcutLabel
+    .split('+')
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  const expectedKey = parts.at(-1);
+  if (!expectedKey) {
+    return false;
+  }
+
+  return (
+    (parts.includes('mod')
+      ? (event.metaKey || event.ctrlKey)
+      : (!event.metaKey && !event.ctrlKey)) &&
+    (parts.includes('shift') ? event.shiftKey : !event.shiftKey) &&
+    (parts.includes('alt') ? event.altKey : !event.altKey) &&
+    event.key.toLowerCase() === expectedKey
+  );
+}
+
+export function createWritingEditorToolbarButtonGroups(params: {
+  labels: WritingEditorToolbarLabels;
+  toolbarState: WritingEditorToolbarState;
+  actions: WritingEditorToolbarActions;
+  dropdownOptions: Partial<Record<'setFontFamily' | 'setFontSize', WritingEditorToolbarDropdownConfig['options']>>;
+}): readonly WritingEditorToolbarButtonGroup[] {
+  const { labels, toolbarState, actions, dropdownOptions } = params;
+  const groups = new Map<WritingEditorToolbarGroupId, WritingEditorToolbarItemConfig[]>();
+
+  for (const definition of writingEditorCommandDefinitions) {
+    const toolbar = definition.toolbar;
+    if (!toolbar) {
+      continue;
+    }
+
+    const items = groups.get(toolbar.group) ?? [];
+    if (toolbar.kind === 'dropdown') {
+      const options = dropdownOptions[definition.id as 'setFontFamily' | 'setFontSize'] ?? [];
+      items.push({
+        label: toolbar.getLabel(labels),
+        title: toolbar.getLabel(labels),
+        value: toolbar.getValue(toolbarState),
+        placeholder: toolbar.getPlaceholder(labels),
+        options,
+        onChange: (value) => {
+          toolbar.run(actions, value);
+        },
+      });
+    } else {
+      items.push({
+        label: toolbar.getLabel(labels),
+        onClick: () => {
+          toolbar.run(actions);
+        },
+        icon: toolbar.icon,
+        glyph: toolbar.glyph,
+        isActive: toolbar.isActive?.(toolbarState),
+        disabled: toolbar.isEnabled ? !toolbar.isEnabled(toolbarState) : undefined,
+        isToggle: typeof toolbar.isActive === 'function',
+      });
+    }
+    groups.set(toolbar.group, items);
+  }
+
+  return (['text', 'format', 'insert', 'history'] as const)
+    .filter((groupId) => (groups.get(groupId)?.length ?? 0) > 0)
+    .map((groupId) => ({
+      title: getToolbarGroupTitle(groupId, labels),
+      items: groups.get(groupId) ?? [],
+    }));
+}

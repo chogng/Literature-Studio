@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
+import { ScrollbarVisibility } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
 import { createEmptyWritingEditorDocument, createWritingEditorDocumentFromPlainText, writingEditorDocumentToPlainText } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 
 let ProseMirrorEditor: typeof import('ls/editor/browser/text/editor').ProseMirrorEditor;
-let DraftEditorToolbar: typeof import('ls/editor/browser/text/toolbar').DraftEditorToolbar;
+let DraftEditorToolbar: typeof import('ls/editor/browser/text/editortoolbar').DraftEditorToolbar;
 let TextSelection: typeof import('prosemirror-state').TextSelection;
+let DomScrollableElement: typeof import('ls/base/browser/ui/scrollbar/scrollableElement').DomScrollableElement;
 let cleanupDomEnvironment: (() => void) | null = null;
 
 const labels = {
@@ -46,8 +48,9 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ ProseMirrorEditor } = await import('ls/editor/browser/text/editor'));
-  ({ DraftEditorToolbar } = await import('ls/editor/browser/text/toolbar'));
+  ({ DraftEditorToolbar } = await import('ls/editor/browser/text/editortoolbar'));
   ({ TextSelection } = await import('prosemirror-state'));
+  ({ DomScrollableElement } = await import('ls/base/browser/ui/scrollbar/scrollableElement'));
 });
 
 after(() => {
@@ -90,7 +93,7 @@ function getPlaceholderNode(editor: InstanceType<typeof ProseMirrorEditor>) {
 }
 
 function getScrollableRoot(editor: InstanceType<typeof ProseMirrorEditor>) {
-  const element = editor.getElement().querySelector('.monaco-scrollable-element');
+  const element = editor.getElement().querySelector('.scrollable-element-root');
   assert(element instanceof HTMLElement, 'Scrollable root was not rendered.');
   return element;
 }
@@ -339,6 +342,56 @@ test('DraftEditorToolbar marks unavailable preset fonts in the dropdown', () => 
   }
 });
 
+test('DraftEditorToolbar disables figure-ref action when no figures are available', () => {
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      fontFamily: null,
+      fontSize: null,
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: false,
+      canRedo: false,
+      availableFigureIds: [],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      clearInlineStyles: () => {},
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {},
+      undo: () => {},
+      redo: () => {},
+      insertCitation: () => {},
+      insertFigure: () => {},
+      insertFigureRef: () => {},
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const button = Array.from(toolbar.getElement().querySelectorAll('button')).find(
+      (candidate) => candidate.getAttribute('aria-label') === labels.insertFigureRef,
+    );
+    assert(button instanceof HTMLButtonElement);
+    assert.equal(button.disabled, true);
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
+  }
+});
+
 test('ProseMirrorEditor refreshes placeholder text during an external document replacement', async () => {
   const initialDocument = createWritingEditorDocumentFromPlainText('alpha');
 
@@ -452,4 +505,46 @@ test('ProseMirrorEditor clears undo history after an external document replaceme
     const undoButton = getToolbarButton(editor, 'Undo');
     assert.equal(undoButton.disabled, true);
   });
+});
+
+test('DomScrollableElement uses visibility controllers to reveal auto scrollbars on hover and scroll', async () => {
+  const content = document.createElement('div');
+  Object.defineProperties(content, {
+    clientHeight: { configurable: true, value: 120 },
+    clientWidth: { configurable: true, value: 120 },
+    scrollHeight: { configurable: true, value: 360 },
+    scrollWidth: { configurable: true, value: 120 },
+    scrollTop: { configurable: true, writable: true, value: 0 },
+    scrollLeft: { configurable: true, writable: true, value: 0 },
+  });
+
+  const scrollable = new DomScrollableElement(content, {
+    vertical: ScrollbarVisibility.Auto,
+    horizontal: ScrollbarVisibility.Hidden,
+  });
+  const root = scrollable.getDomNode();
+  document.body.append(root);
+
+  try {
+    assert.equal(root.classList.contains('is-vertical-scrollbar-visible'), false);
+
+    root.dispatchEvent(new Event('mouseenter'));
+    await delay(0);
+    assert.equal(root.classList.contains('is-vertical-scrollbar-visible'), true);
+
+    root.dispatchEvent(new Event('mouseleave'));
+    await delay(550);
+    assert.equal(root.classList.contains('is-vertical-scrollbar-visible'), false);
+
+    content.scrollTop = 48;
+    content.dispatchEvent(new Event('scroll'));
+    await delay(0);
+    assert.equal(root.classList.contains('is-vertical-scrollbar-visible'), true);
+
+    await delay(550);
+    assert.equal(root.classList.contains('is-vertical-scrollbar-visible'), false);
+  } finally {
+    scrollable.dispose();
+    document.body.replaceChildren();
+  }
 });

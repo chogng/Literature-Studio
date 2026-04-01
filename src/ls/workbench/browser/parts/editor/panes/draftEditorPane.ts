@@ -3,6 +3,7 @@ import type {
   WritingWorkspaceDraftTab,
 } from 'ls/workbench/browser/writingEditorModel';
 import { getLocaleMessages } from 'language/i18n';
+import { isDraftEditorCommandEnabled } from 'ls/editor/browser/text/editorCommandRegistry';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import { ProseMirrorEditor } from 'ls/editor/browser/text/editor';
 import { localeService } from 'ls/workbench/contrib/localization/browser/localeService';
@@ -40,17 +41,27 @@ export class DraftEditorPane {
     return this.editor.getStableSelectionTarget();
   }
 
+  canExecuteCommand(commandId: DraftEditorCommandId) {
+    return isDraftEditorCommandEnabled(commandId, {
+      availableFigureIds: this.editor.getAvailableFigureIds(),
+    });
+  }
+
   executeCommand(commandId: DraftEditorCommandId) {
+    if (!this.canExecuteCommand(commandId)) {
+      return false;
+    }
+
     switch (commandId) {
       case 'insertCitation':
         this.handleInsertCitation();
-        return;
+        return true;
       case 'insertFigure':
         this.handleInsertFigure();
-        return;
+        return true;
       case 'insertFigureRef':
         this.handleInsertFigureRef();
-        return;
+        return true;
     }
   }
 

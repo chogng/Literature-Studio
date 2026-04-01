@@ -66,6 +66,10 @@ export class ReaderPageView {
     return this.editorView?.executeActiveDraftCommand(commandId) ?? false;
   }
 
+  canExecuteActiveDraftCommand(commandId: DraftEditorCommandId) {
+    return this.editorView?.canExecuteActiveDraftCommand(commandId) ?? false;
+  }
+
   getActiveDraftStableSelectionTarget() {
     return this.editorView?.getActiveDraftStableSelectionTarget() ?? null;
   }

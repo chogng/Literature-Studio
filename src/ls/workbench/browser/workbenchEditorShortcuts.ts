@@ -1,5 +1,9 @@
-import { executeWorkbenchEditorCommand, workbenchEditorCommandDefinitions } from 'ls/workbench/browser/editorCommands';
-import type { WorkbenchEditorCommandDefinition } from 'ls/workbench/browser/editorCommands';
+import { matchesShortcutLabel } from 'ls/editor/browser/text/editorCommandRegistry';
+import {
+  canExecuteWorkbenchEditorCommand,
+  executeWorkbenchEditorCommand,
+  getWorkbenchEditorCommandDefinitions,
+} from 'ls/workbench/browser/editorCommands';
 
 import { showWorkbenchEditorCommandPalette } from 'ls/workbench/browser/workbenchEditorPalette';
 
@@ -20,18 +24,6 @@ function hasPrimaryModifier(event: KeyboardEvent) {
   return event.metaKey || event.ctrlKey;
 }
 
-function matchesShortcut(
-  definition: WorkbenchEditorCommandDefinition,
-  event: KeyboardEvent,
-) {
-  if (!hasPrimaryModifier(event) || !event.shiftKey || event.altKey) {
-    return false;
-  }
-
-  const expectedKey = definition.shortcutLabel.split('+').at(-1)?.toLowerCase();
-  return Boolean(expectedKey) && event.key.toLowerCase() === expectedKey;
-}
-
 export function handleWorkbenchEditorShortcut(event: KeyboardEvent) {
   if (event.defaultPrevented || isEditableEventTarget(event.target)) {
     return false;
@@ -47,10 +39,14 @@ export function handleWorkbenchEditorShortcut(event: KeyboardEvent) {
     return true;
   }
 
-  const matchingDefinition = workbenchEditorCommandDefinitions.find((definition) =>
-    matchesShortcut(definition, event),
+  const matchingDefinition = getWorkbenchEditorCommandDefinitions().find((definition) =>
+    matchesShortcutLabel(definition.shortcutLabel, event),
   );
   if (!matchingDefinition) {
+    return false;
+  }
+
+  if (!canExecuteWorkbenchEditorCommand(matchingDefinition.id)) {
     return false;
   }
 

@@ -6,11 +6,11 @@ import { keymap } from 'prosemirror-keymap';
 import { EditorView } from 'prosemirror-view';
 import { gapCursor } from 'prosemirror-gapcursor';
 import { dropCursor } from 'prosemirror-dropcursor';
-import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
 import { createDraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import { clearFontFamilyCommand, clearFontSizeCommand, clearInlineStylesCommand, getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setFontFamilyCommand, setFontSizeCommand, setParagraphCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, undoCommand } from 'ls/editor/browser/text/commands';
 import type { InsertFigurePayload, WritingEditorCommand, WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
+import { createWritingEditorKeymapBindings } from 'ls/editor/browser/text/editorCommandRegistry';
 import { collectWritingEditorDerivedLabels, createWritingEditorDocumentModel, findWritingEditorNodeByBlockId, getWritingEditorNodeText, getWritingEditorTextUnitKind, isWritingEditorPlainTextEditableNode, normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument, WritingEditorStableSelectionTarget, WritingEditorTextUnitKind } from 'ls/editor/common/writingEditorDocument';
 
@@ -21,7 +21,7 @@ import {
   updateWritingEditorPlaceholder,
   writingEditorSchema,
 } from 'ls/editor/browser/text/schema';
-import { DraftEditorToolbar } from 'ls/editor/browser/text/toolbar';
+import { DraftEditorToolbar } from 'ls/editor/browser/text/editortoolbar';
 import { WritingEditorInputSession } from 'ls/editor/browser/text/input';
 import { resolveWritingEditorSurfaceSyncPlan } from 'ls/editor/browser/text/sync';
 import { DomScrollableElement } from 'ls/base/browser/ui/scrollbar/scrollableElement';
@@ -132,22 +132,7 @@ function createWritingEditorState(document: WritingEditorDocument, placeholder: 
       createWritingEditorDocumentIdentityPlugin(),
       createWritingEditorInputRules(),
       history(),
-      keymap({
-        'Mod-z': undoCommand(),
-        'Shift-Mod-z': redoCommand(),
-        'Mod-y': redoCommand(),
-        'Mod-b': toggleBoldCommand(),
-        'Mod-i': toggleItalicCommand(),
-        'Mod-Alt-0': setParagraphCommand(),
-        'Mod-Alt-1': toggleHeadingCommand(1),
-        'Mod-Alt-2': toggleHeadingCommand(2),
-        'Mod-Alt-3': toggleHeadingCommand(3),
-        'Mod-Shift-7': toggleOrderedListCommand(),
-        'Mod-Shift-8': toggleBulletListCommand(),
-        Enter: splitListItem(listItemType),
-        Tab: sinkListItem(listItemType),
-        'Shift-Tab': liftListItem(listItemType),
-      }),
+      keymap(createWritingEditorKeymapBindings(listItemType)),
       keymap(baseKeymap),
       gapCursor(),
       dropCursor(),
