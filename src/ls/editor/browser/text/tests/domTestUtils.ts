@@ -127,7 +127,8 @@ export function installDomTestEnvironment(): InstalledDomEnvironment {
 
   return {
     cleanup() {
-      document.body.replaceChildren();
+      const currentDocument = globalTarget.document as Document | undefined;
+      currentDocument?.body?.replaceChildren();
       for (const key of GLOBAL_KEYS) {
         const previousDescriptor = previousDescriptors.get(key);
         if (!previousDescriptor) {

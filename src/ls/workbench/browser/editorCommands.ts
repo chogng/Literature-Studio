@@ -1,8 +1,10 @@
 import type { LocaleMessages } from 'language/locales';
+import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 
 export type WorkbenchEditorCommandHandlers = {
   executeActiveDraftCommand: (commandId: DraftEditorCommandId) => boolean;
+  getActiveDraftStableSelectionTarget: () => WritingEditorStableSelectionTarget | null;
 };
 
 export type WorkbenchEditorCommandDefinition = {
@@ -45,6 +47,12 @@ export function getWorkbenchEditorCommandHandlers() {
 export function executeWorkbenchEditorCommand(commandId: DraftEditorCommandId) {
   return (
     workbenchEditorCommandHandlers?.executeActiveDraftCommand(commandId) ?? false
+  );
+}
+
+export function getWorkbenchActiveDraftStableSelectionTarget() {
+  return (
+    workbenchEditorCommandHandlers?.getActiveDraftStableSelectionTarget() ?? null
   );
 }
 

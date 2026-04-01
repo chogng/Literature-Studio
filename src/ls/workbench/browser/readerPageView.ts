@@ -13,7 +13,12 @@ import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/prim
 import { createAuxiliaryBarPartView, AuxiliaryBarPartView } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
 import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
 
-import { initializeStatusbarState, updateStatusbarState } from 'ls/workbench/browser/parts/statusbar/statusbarActions';
+import {
+  clearStatusbarCommandHandlers,
+  initializeStatusbarState,
+  setStatusbarCommandHandlers,
+  updateStatusbarState,
+} from 'ls/workbench/browser/parts/statusbar/statusbarActions';
 
 type ReaderPageViewProps = {
   isSidebarVisible: boolean;
@@ -61,12 +66,17 @@ export class ReaderPageView {
     return this.editorView?.executeActiveDraftCommand(commandId) ?? false;
   }
 
+  getActiveDraftStableSelectionTarget() {
+    return this.editorView?.getActiveDraftStableSelectionTarget() ?? null;
+  }
+
   setProps(props: ReaderPageViewProps) {
     this.props = props;
     this.render();
   }
 
   dispose() {
+    clearStatusbarCommandHandlers();
     this.leftPaneView?.dispose();
     this.auxiliarySidebarView?.dispose();
     this.editorView?.dispose();
@@ -165,6 +175,7 @@ export class ReaderPageView {
         ...this.props.editorPartProps,
         onStatusChange: this.handleEditorStatusChange,
       });
+      this.syncStatusbarCommandHandlers();
       return;
     }
 
@@ -172,6 +183,7 @@ export class ReaderPageView {
       ...this.props.editorPartProps,
       onStatusChange: this.handleEditorStatusChange,
     });
+    this.syncStatusbarCommandHandlers();
   }
 
   private renderAuxiliarySidebar() {
@@ -189,6 +201,17 @@ export class ReaderPageView {
     }
 
     this.auxiliarySidebarView.setProps(this.props.auxiliarySidebarProps);
+  }
+
+  private syncStatusbarCommandHandlers() {
+    setStatusbarCommandHandlers({
+      undo: () => {
+        this.editorView?.runActiveDraftEditorAction('undo');
+      },
+      redo: () => {
+        this.editorView?.runActiveDraftEditorAction('redo');
+      },
+    });
   }
 }
 

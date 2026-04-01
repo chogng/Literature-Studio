@@ -8,6 +8,7 @@ import type {
 } from 'ls/editor/browser/shared/editorStatus';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
+import type { DraftEditorSurfaceActionId } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import { EditorGroupView } from 'ls/workbench/browser/parts/editor/editorGroupView';
@@ -58,6 +59,14 @@ export class EditorPartView {
 
   executeActiveDraftCommand(commandId: DraftEditorCommandId) {
     return this.groupView.executeActiveDraftCommand(commandId);
+  }
+
+  runActiveDraftEditorAction(actionId: DraftEditorSurfaceActionId) {
+    return this.groupView.runActiveDraftEditorAction(actionId);
+  }
+
+  getActiveDraftStableSelectionTarget() {
+    return this.groupView.getActiveDraftStableSelectionTarget();
   }
 
   setProps(props: EditorPartProps) {
