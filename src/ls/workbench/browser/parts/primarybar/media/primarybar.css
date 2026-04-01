@@ -46,4 +46,6 @@
 .sidebar-action-btn.btn-base.is-active:hover:not(:disabled),
 .sidebar-action-btn.btn-base.is-active:active:not(:disabled) {
   background: #e8f1fc;
+  border-color: #bfd7f4;
+  color: #0a5fbf;
 }
