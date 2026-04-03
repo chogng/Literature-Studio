@@ -1,5 +1,5 @@
 import type { LocaleMessages } from 'language/locales';
-import { createInputView } from 'ls/base/browser/ui/input/input';
+import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createModalView } from 'ls/base/browser/ui/modal/modal';
 import type { WorkbenchEditorCommandDefinition } from 'ls/workbench/browser/editorCommands';
 import 'ls/workbench/browser/media/workbenchEditorModals.css';
@@ -27,13 +27,14 @@ export function showWorkbenchTextInputModal(params: {
   ui: LocaleMessages;
 }): Promise<string | null> {
   return new Promise((resolve) => {
-    const inputView = createInputView({
+    const body = createElement('div', 'workbench-editor-modal-body');
+    const label = createElement('label', 'workbench-editor-modal-label', params.label);
+    const inputHost = createElement('div');
+    const inputBox = new InputBox(inputHost, undefined, {
       value: params.defaultValue ?? '',
       placeholder: params.placeholder ?? '',
       className: 'workbench-editor-modal-input',
     });
-    const body = createElement('div', 'workbench-editor-modal-body');
-    const label = createElement('label', 'workbench-editor-modal-label', params.label);
     const actions = createElement('div', 'workbench-editor-modal-actions');
     const cancelButton = createElement(
       'button',
@@ -54,25 +55,24 @@ export function showWorkbenchTextInputModal(params: {
 
       resolved = true;
       modal.dispose();
-      inputView.dispose();
+      inputBox.dispose();
       resolve(value);
     };
 
     cancelButton.type = 'button';
     submitButton.type = 'button';
     cancelButton.addEventListener('click', () => finish(null));
-    submitButton.addEventListener('click', () => finish(inputView.getValue().trim()));
+    submitButton.addEventListener('click', () => finish(inputBox.value.trim()));
 
-    const inputElement = inputView.getElement().querySelector('input');
-    inputElement?.addEventListener('keydown', (event) => {
+    inputBox.inputElement.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        finish(inputView.getValue().trim());
+        finish(inputBox.value.trim());
       }
     });
 
     actions.append(cancelButton, submitButton);
-    body.append(label, inputView.getElement(), actions);
+    body.append(label, inputHost, actions);
 
     const modal = createModalView({
       open: true,
@@ -84,7 +84,7 @@ export function showWorkbenchTextInputModal(params: {
     });
 
     modal.open();
-    queueMicrotask(() => inputView.focus());
+    queueMicrotask(() => inputBox.focus());
   });
 }
 

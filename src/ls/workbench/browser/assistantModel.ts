@@ -73,8 +73,6 @@ export type AssistantConversation = {
 type AssistantModelState = {
   conversations: AssistantConversation[];
   activeConversationId: string;
-  isHistoryOpen: boolean;
-  isMoreMenuOpen: boolean;
 };
 
 export type AssistantModelSnapshot = AssistantModelState & {
@@ -227,8 +225,6 @@ export class AssistantModel {
     this.state = {
       conversations: [initialConversation],
       activeConversationId: initialConversation.id,
-      isHistoryOpen: false,
-      isMoreMenuOpen: false,
     };
     this.snapshot = createSnapshot(this.state);
   }
@@ -295,8 +291,6 @@ export class AssistantModel {
         ...state,
         conversations: [...state.conversations, nextConversation],
         activeConversationId: nextConversation.id,
-        isHistoryOpen: false,
-        isMoreMenuOpen: false,
       };
     });
   };
@@ -315,8 +309,6 @@ export class AssistantModel {
       return {
         ...state,
         activeConversationId: conversationId,
-        isHistoryOpen: false,
-        isMoreMenuOpen: false,
       };
     });
   };
@@ -348,26 +340,8 @@ export class AssistantModel {
         ...state,
         conversations: nextConversations,
         activeConversationId: nextActiveConversationId,
-        isHistoryOpen: false,
-        isMoreMenuOpen: false,
       };
     });
-  };
-
-  readonly handleToggleHistory = () => {
-    this.updateState((state) => ({
-      ...state,
-      isHistoryOpen: !state.isHistoryOpen,
-      isMoreMenuOpen: false,
-    }));
-  };
-
-  readonly handleToggleMoreMenu = () => {
-    this.updateState((state) => ({
-      ...state,
-      isHistoryOpen: false,
-      isMoreMenuOpen: !state.isMoreMenuOpen,
-    }));
   };
 
   readonly handleApplyPatch = (messageId: string) => {

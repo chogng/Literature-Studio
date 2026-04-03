@@ -296,11 +296,14 @@ export async function answerQuestionFromArticles(
     apiKey: llmRoute.apiKey,
     baseUrl: llmRoute.baseUrl,
     model: llmRoute.model,
+    reasoningEffort: llmRoute.reasoningEffort,
+    serviceTier: llmRoute.serviceTier,
   });
   const llmResponse = await requestChatCompletion(
     llmRequest,
     {
       model: llmRoute.model,
+      service_tier: llmRoute.serviceTier,
       messages: buildRagMessages(question, writingContext, evidence),
       max_tokens: 1200,
       temperature: 0.2,

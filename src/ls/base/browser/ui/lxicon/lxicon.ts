@@ -1,6 +1,7 @@
 import 'ls/base/browser/ui/lxicon/lxicon.css';
 import agentSvg from 'ls/base/browser/ui/lxicon/svg/agent.svg?raw';
 import agentFilledSvg from 'ls/base/browser/ui/lxicon/svg/agent-filled.svg?raw';
+import anthropicSvg from 'ls/base/browser/ui/lxicon/svg/anthropic.svg?raw';
 import zoomOutSvg from 'ls/base/browser/ui/lxicon/svg/zoom-out.svg?raw';
 import zoomInSvg from 'ls/base/browser/ui/lxicon/svg/zoom-in.svg?raw';
 import writeSvg from 'ls/base/browser/ui/lxicon/svg/write.svg?raw';
@@ -38,6 +39,7 @@ import repoPushSvg from 'ls/base/browser/ui/lxicon/svg/repo-push.svg?raw';
 import repoPullSvg from 'ls/base/browser/ui/lxicon/svg/repo-pull.svg?raw';
 import repoFetchSvg from 'ls/base/browser/ui/lxicon/svg/repo-fetch.svg?raw';
 import removeSvg from 'ls/base/browser/ui/lxicon/svg/remove.svg?raw';
+import reasoningSvg from 'ls/base/browser/ui/lxicon/svg/reasoning.svg?raw';
 import refreshSvg from 'ls/base/browser/ui/lxicon/svg/refresh.svg?raw';
 import quotesSvg from 'ls/base/browser/ui/lxicon/svg/quotes.svg?raw';
 import quoteSvg from 'ls/base/browser/ui/lxicon/svg/quote.svg?raw';
@@ -48,6 +50,7 @@ import projectsSvg from 'ls/base/browser/ui/lxicon/svg/projects.svg?raw';
 import pinnedSvg from 'ls/base/browser/ui/lxicon/svg/pinned.svg?raw';
 import pdfSvg from 'ls/base/browser/ui/lxicon/svg/pdf.svg?raw';
 import pauseSvg from 'ls/base/browser/ui/lxicon/svg/pause.svg?raw';
+import ollamaSvg from 'ls/base/browser/ui/lxicon/svg/ollama.svg?raw';
 import originSvg from 'ls/base/browser/ui/lxicon/svg/origin.svg?raw';
 import openaiSvg from 'ls/base/browser/ui/lxicon/svg/openai.svg?raw';
 import noteSvg from 'ls/base/browser/ui/lxicon/svg/note.svg?raw';
@@ -55,6 +58,7 @@ import moreSvg from 'ls/base/browser/ui/lxicon/svg/more.svg?raw';
 import modelSvg from 'ls/base/browser/ui/lxicon/svg/model.svg?raw';
 import micSvg from 'ls/base/browser/ui/lxicon/svg/mic.svg?raw';
 import micFilledSvg from 'ls/base/browser/ui/lxicon/svg/mic-filled.svg?raw';
+import minimaxColorSvg from 'ls/base/browser/ui/lxicon/svg/minimax-color.svg?raw';
 import messageMoreSvg from 'ls/base/browser/ui/lxicon/svg/message-more.svg?raw';
 import mentionSvg from 'ls/base/browser/ui/lxicon/svg/mention.svg?raw';
 import mdSvg from 'ls/base/browser/ui/lxicon/svg/md.svg?raw';
@@ -83,6 +87,7 @@ import imageSvg from 'ls/base/browser/ui/lxicon/svg/image.svg?raw';
 import imageFilledSvg from 'ls/base/browser/ui/lxicon/svg/image-filled.svg?raw';
 import htmlSvg from 'ls/base/browser/ui/lxicon/svg/html.svg?raw';
 import historySvg from 'ls/base/browser/ui/lxicon/svg/history.svg?raw';
+import kimiColorSvg from 'ls/base/browser/ui/lxicon/svg/kimi-color.svg?raw';
 import githubSvg from 'ls/base/browser/ui/lxicon/svg/Github.svg?raw';
 import githubInvertedSvg from 'ls/base/browser/ui/lxicon/svg/Github-inverted.svg?raw';
 import githubAltSvg from 'ls/base/browser/ui/lxicon/svg/Github-alt.svg?raw';
@@ -90,6 +95,7 @@ import gitSvg from 'ls/base/browser/ui/lxicon/svg/git.svg?raw';
 import gitPullRequestSvg from 'ls/base/browser/ui/lxicon/svg/git-pull-request.svg?raw';
 import gitCommitSvg from 'ls/base/browser/ui/lxicon/svg/git-commit.svg?raw';
 import gitBranchSvg from 'ls/base/browser/ui/lxicon/svg/git-branch.svg?raw';
+import geminiColorSvg from 'ls/base/browser/ui/lxicon/svg/gemini-color.svg?raw';
 import gearSvg from 'ls/base/browser/ui/lxicon/svg/gear.svg?raw';
 import followSvg from 'ls/base/browser/ui/lxicon/svg/follow.svg?raw';
 import foldersSvg from 'ls/base/browser/ui/lxicon/svg/folders.svg?raw';
@@ -97,6 +103,7 @@ import folderSvg from 'ls/base/browser/ui/lxicon/svg/folder.svg?raw';
 import folderOpenSvg from 'ls/base/browser/ui/lxicon/svg/folder-open.svg?raw';
 import foldSvg from 'ls/base/browser/ui/lxicon/svg/fold.svg?raw';
 import filterSvg from 'ls/base/browser/ui/lxicon/svg/filter.svg?raw';
+import fastSvg from 'ls/base/browser/ui/lxicon/svg/fast.svg?raw';
 import filesSvg from 'ls/base/browser/ui/lxicon/svg/files.svg?raw';
 import fileSvg from 'ls/base/browser/ui/lxicon/svg/file.svg?raw';
 import filePdfSvg from 'ls/base/browser/ui/lxicon/svg/file-pdf.svg?raw';
@@ -112,6 +119,8 @@ import docxSvg from 'ls/base/browser/ui/lxicon/svg/docx.svg?raw';
 import discardSvg from 'ls/base/browser/ui/lxicon/svg/discard.svg?raw';
 import diffRemovedSvg from 'ls/base/browser/ui/lxicon/svg/diff-removed.svg?raw';
 import diffAddedSvg from 'ls/base/browser/ui/lxicon/svg/diff-added.svg?raw';
+import deeplColorSvg from 'ls/base/browser/ui/lxicon/svg/deepl-color.svg?raw';
+import deepseekColorSvg from 'ls/base/browser/ui/lxicon/svg/deepseek-color.svg?raw';
 import databaseSvg from 'ls/base/browser/ui/lxicon/svg/database.svg?raw';
 import cursorSvg from 'ls/base/browser/ui/lxicon/svg/cursor.svg?raw';
 import cornerTopRightSvg from 'ls/base/browser/ui/lxicon/svg/corner-top-right.svg?raw';
@@ -120,6 +129,9 @@ import cornerBottomRightSvg from 'ls/base/browser/ui/lxicon/svg/corner-bottom-ri
 import cornerBottomLeftSvg from 'ls/base/browser/ui/lxicon/svg/corner-bottom-left.svg?raw';
 import copySvg from 'ls/base/browser/ui/lxicon/svg/copy.svg?raw';
 import commentSvg from 'ls/base/browser/ui/lxicon/svg/comment.svg?raw';
+import chatSvg from 'ls/base/browser/ui/lxicon/svg/chat.svg?raw';
+import chatFilledSvg from 'ls/base/browser/ui/lxicon/svg/chat-filled.svg?raw';
+import claudeColorSvg from 'ls/base/browser/ui/lxicon/svg/claude-color.svg?raw';
 import commandSvg from 'ls/base/browser/ui/lxicon/svg/command.svg?raw';
 import commandSuccessSvg from 'ls/base/browser/ui/lxicon/svg/command-success.svg?raw';
 import commandStartSvg from 'ls/base/browser/ui/lxicon/svg/command-start.svg?raw';
@@ -164,6 +176,7 @@ import underlineSvg from 'ls/base/browser/ui/lxicon/svg/underline.svg?raw';
 export type LxIconName =
   | 'agent'
   | 'agent-filled'
+  | 'anthropic'
   | 'zoom-out'
   | 'zoom-in'
   | 'write'
@@ -201,6 +214,7 @@ export type LxIconName =
   | 'repo-pull'
   | 'repo-fetch'
   | 'remove'
+  | 'reasoning'
   | 'refresh'
   | 'quotes'
   | 'quote'
@@ -211,6 +225,7 @@ export type LxIconName =
   | 'pinned'
   | 'pdf'
   | 'pause'
+  | 'ollama'
   | 'origin'
   | 'openai'
   | 'note'
@@ -218,6 +233,7 @@ export type LxIconName =
   | 'model'
   | 'mic'
   | 'mic-filled'
+  | 'minimax-color'
   | 'message-more'
   | 'mention'
   | 'md'
@@ -246,6 +262,7 @@ export type LxIconName =
   | 'image-filled'
   | 'html'
   | 'history'
+  | 'kimi-color'
   | 'Github'
   | 'Github-inverted'
   | 'Github-alt'
@@ -253,6 +270,7 @@ export type LxIconName =
   | 'git-pull-request'
   | 'git-commit'
   | 'git-branch'
+  | 'gemini-color'
   | 'gear'
   | 'follow'
   | 'folders'
@@ -260,6 +278,7 @@ export type LxIconName =
   | 'folder-open'
   | 'fold'
   | 'filter'
+  | 'fast'
   | 'files'
   | 'file'
   | 'file-pdf'
@@ -275,6 +294,8 @@ export type LxIconName =
   | 'discard'
   | 'diff-removed'
   | 'diff-added'
+  | 'deepl-color'
+  | 'deepseek-color'
   | 'database'
   | 'cursor'
   | 'corner-top-right'
@@ -283,6 +304,9 @@ export type LxIconName =
   | 'corner-bottom-left'
   | 'copy'
   | 'comment'
+  | 'chat'
+  | 'chat-filled'
+  | 'claude-color'
   | 'command'
   | 'command-success'
   | 'command-start'
@@ -327,6 +351,7 @@ export type LxIconName =
 const SVG_BY_NAME: Record<LxIconName, string> = {
   agent: agentSvg,
   'agent-filled': agentFilledSvg,
+  anthropic: anthropicSvg,
   'zoom-out': zoomOutSvg,
   'zoom-in': zoomInSvg,
   'write': writeSvg,
@@ -364,6 +389,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'repo-pull': repoPullSvg,
   'repo-fetch': repoFetchSvg,
   'remove': removeSvg,
+  'reasoning': reasoningSvg,
   'refresh': refreshSvg,
   'quotes': quotesSvg,
   'quote': quoteSvg,
@@ -374,6 +400,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'pinned': pinnedSvg,
   'pdf': pdfSvg,
   'pause': pauseSvg,
+  'ollama': ollamaSvg,
   'origin': originSvg,
   'openai': openaiSvg,
   'note': noteSvg,
@@ -381,6 +408,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'model': modelSvg,
   'mic': micSvg,
   'mic-filled': micFilledSvg,
+  'minimax-color': minimaxColorSvg,
   'message-more': messageMoreSvg,
   'mention': mentionSvg,
   'md': mdSvg,
@@ -409,6 +437,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'image-filled': imageFilledSvg,
   'html': htmlSvg,
   'history': historySvg,
+  'kimi-color': kimiColorSvg,
   'Github': githubSvg,
   'Github-inverted': githubInvertedSvg,
   'Github-alt': githubAltSvg,
@@ -416,6 +445,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'git-pull-request': gitPullRequestSvg,
   'git-commit': gitCommitSvg,
   'git-branch': gitBranchSvg,
+  'gemini-color': geminiColorSvg,
   'gear': gearSvg,
   'follow': followSvg,
   'folders': foldersSvg,
@@ -423,6 +453,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'folder-open': folderOpenSvg,
   'fold': foldSvg,
   'filter': filterSvg,
+  'fast': fastSvg,
   'files': filesSvg,
   'file': fileSvg,
   'file-pdf': filePdfSvg,
@@ -438,6 +469,8 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'discard': discardSvg,
   'diff-removed': diffRemovedSvg,
   'diff-added': diffAddedSvg,
+  'deepl-color': deeplColorSvg,
+  'deepseek-color': deepseekColorSvg,
   'database': databaseSvg,
   'cursor': cursorSvg,
   'corner-top-right': cornerTopRightSvg,
@@ -446,6 +479,9 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'corner-bottom-left': cornerBottomLeftSvg,
   'copy': copySvg,
   'comment': commentSvg,
+  'chat': chatSvg,
+  'chat-filled': chatFilledSvg,
+  'claude-color': claudeColorSvg,
   'command': commandSvg,
   'command-success': commandSuccessSvg,
   'command-start': commandStartSvg,

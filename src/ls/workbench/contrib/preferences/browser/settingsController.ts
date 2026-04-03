@@ -1,5 +1,8 @@
 import { toast } from 'ls/base/browser/ui/toast/toast';
-import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type {
+  ElectronInvoke,
+  LlmProviderId,
+} from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
 import {
@@ -252,13 +255,21 @@ export class SettingsController {
     this.scheduleImmediateAutoSave();
   };
 
-  readonly setActiveLlmProvider = (nextProvider: 'glm' | 'kimi' | 'deepseek') => {
+  readonly setActiveLlmProvider = (nextProvider: LlmProviderId) => {
     this.settingsModel.setActiveLlmProvider(nextProvider);
     this.scheduleImmediateAutoSave();
   };
 
+  readonly setLlmProviderUseMaxContextWindow = (
+    provider: LlmProviderId,
+    useMaxContextWindow: boolean,
+  ) => {
+    this.settingsModel.setLlmProviderUseMaxContextWindow(provider, useMaxContextWindow);
+    this.scheduleImmediateAutoSave();
+  };
+
   readonly setLlmProviderApiKey = (
-    provider: 'glm' | 'kimi' | 'deepseek',
+    provider: LlmProviderId,
     apiKey: string,
   ) => {
     this.settingsModel.setLlmProviderApiKey(provider, apiKey);
@@ -266,19 +277,35 @@ export class SettingsController {
   };
 
   readonly setLlmProviderModel = (
-    provider: 'glm' | 'kimi' | 'deepseek',
+    provider: LlmProviderId,
     model: string,
   ) => {
     this.settingsModel.setLlmProviderModel(provider, model);
     this.scheduleImmediateAutoSave();
   };
 
+  readonly setLlmProviderReasoningEffort = (
+    provider: LlmProviderId,
+    reasoningEffort: import('ls/workbench/services/llm/types').LlmReasoningEffort | undefined,
+  ) => {
+    this.settingsModel.setLlmProviderReasoningEffort(provider, reasoningEffort);
+    this.scheduleImmediateAutoSave();
+  };
+
+  readonly setLlmProviderSelectedModelOption = (
+    provider: LlmProviderId,
+    optionValue: string,
+  ) => {
+    this.settingsModel.setLlmProviderSelectedModelOption(provider, optionValue);
+    this.scheduleImmediateAutoSave();
+  };
+
   readonly setLlmProviderModelEnabled = (
-    provider: 'glm' | 'kimi' | 'deepseek',
-    model: string,
+    provider: LlmProviderId,
+    optionValue: string,
     enabled: boolean,
   ) => {
-    this.settingsModel.setLlmProviderModelEnabled(provider, model, enabled);
+    this.settingsModel.setLlmProviderModelEnabled(provider, optionValue, enabled);
     this.scheduleImmediateAutoSave();
   };
 

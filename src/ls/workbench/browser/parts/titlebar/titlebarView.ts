@@ -1,13 +1,21 @@
 import type { QuickAccessSourceOption } from 'ls/workbench/services/quickAccess/quickAccessService';
-import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
+import {
+  createActionBarView,
+  type ActionBarMenuItem,
+} from 'ls/base/browser/ui/actionbar/actionbar';
+import type {
+  DropdownMenuActionOverlayContext,
+  DropdownMenuActionPresenter,
+} from 'ls/base/browser/ui/dropdown/dropdownMenuActionViewItem';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
-import { createInputView } from 'ls/base/browser/ui/input/input';
+import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { getWindowChromeLayout } from 'ls/platform/window/common/window';
-import { createTitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/nativeTitlebarSourceDropdown';
-import type { TitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/nativeTitlebarSourceDropdown';
+import { createTitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/titlebarSourceDropdownView';
+import type { TitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/titlebarSourceDropdownView';
+import { createWorkbenchDropdownMenuActionPresenter } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
 
 import {
   requestExportTitlebarDocx,
@@ -167,9 +175,15 @@ type TitlebarIconActionItem = {
   className: string;
   label: string;
   icon: LxIconName;
-  onClick: () => void;
+  onClick?: () => void;
   disabled?: boolean;
   title?: string;
+  menu?: readonly ActionBarMenuItem[];
+  renderOverlay?: (context: DropdownMenuActionOverlayContext) => HTMLElement;
+  overlayRole?: string;
+  menuClassName?: string;
+  minWidth?: number;
+  menuPresenter?: DropdownMenuActionPresenter;
 };
 
 function createTitlebarActionBar(params: {
@@ -177,7 +191,20 @@ function createTitlebarActionBar(params: {
   ariaLabel?: string;
   items: readonly TitlebarIconActionItem[];
 }) {
-  return createActionBarView({
+  const shouldUseMenuPresenter = params.items.some(
+    (item) => item.menu && !item.renderOverlay && !item.menuPresenter,
+  );
+  const electronOverlayMenuPresenter = shouldUseMenuPresenter
+    ? createWorkbenchDropdownMenuActionPresenter({
+        backend: 'electron-overlay',
+        electronOverlay: {
+          coverage: 'trigger-band',
+          requestIdPrefix: 'electron-overlay-titlebar-action-menu',
+        },
+      })
+    : null;
+
+  const actionBarView = createActionBarView({
     className: composeClassName(['titlebar-actionbar', params.className]),
     ariaRole: 'group',
     ariaLabel: params.ariaLabel,
@@ -187,9 +214,31 @@ function createTitlebarActionBar(params: {
       content: createLxIcon(item.icon),
       disabled: item.disabled,
       buttonClassName: composeClassName(['titlebar-btn', item.className]),
-      onClick: () => item.onClick(),
+      onClick: item.onClick ? () => item.onClick?.() : undefined,
+      menu: item.menu,
+      renderOverlay: item.renderOverlay,
+      overlayRole: item.overlayRole,
+      menuClassName: item.menuClassName,
+      minWidth: item.minWidth,
+      menuPresenter:
+        item.menuPresenter ??
+        (
+          electronOverlayMenuPresenter &&
+          item.menu &&
+          !item.renderOverlay
+            ? electronOverlayMenuPresenter
+            : undefined
+        ),
     })),
   });
+
+  return {
+    getElement: () => actionBarView.getElement(),
+    dispose: () => {
+      actionBarView.dispose();
+      electronOverlayMenuPresenter?.dispose();
+    },
+  };
 }
 
 export class TitlebarView {
@@ -372,45 +421,41 @@ export class TitlebarView {
 
     if (props.onWebUrlChange) {
       const urlBar = createElement('div', 'titlebar-url-bar');
-      const inputView = this.trackView(
-        createInputView({
-          className: 'titlebar-input-field titlebar-field-base',
-          value: props.webUrl ?? '',
-          placeholder: props.articleUrlPlaceholder ?? '',
-          size: 'sm',
-          onInput: (event) => {
-            if (event.target instanceof HTMLInputElement) {
-              props.onWebUrlChange?.(event.target.value);
-            }
-          },
-        }),
-      );
-      const inputElement = inputView.getElement().querySelector('.input-field');
-      if (inputElement instanceof HTMLInputElement) {
-        inputElement.addEventListener('keydown', (event) => {
-          if (props.onCycleAddressBarSource && event.altKey) {
-            if (event.key === 'ArrowUp') {
-              event.preventDefault();
-              props.onCycleAddressBarSource('prev');
-              return;
-            }
-
-            if (event.key === 'ArrowDown') {
-              event.preventDefault();
-              props.onCycleAddressBarSource('next');
-              return;
-            }
+      const inputBox = new InputBox(urlBar, undefined, {
+        className: 'titlebar-input-field titlebar-field-base',
+        value: props.webUrl ?? '',
+        placeholder: props.articleUrlPlaceholder ?? '',
+      });
+      const changeListener = inputBox.onDidChange((value) => {
+        props.onWebUrlChange?.(value);
+      });
+      const inputElement = inputBox.inputElement;
+      inputElement.addEventListener('keydown', (event) => {
+        if (props.onCycleAddressBarSource && event.altKey) {
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            props.onCycleAddressBarSource('prev');
+            return;
           }
 
-          if (event.key === 'Enter') {
-            requestTitlebarNavigateWeb();
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            props.onCycleAddressBarSource('next');
+            return;
           }
-        });
-        this.webUrlInput = inputElement;
-      } else {
-        this.webUrlInput = null;
-      }
-      urlBar.append(inputView.getElement());
+        }
+
+        if (event.key === 'Enter') {
+          requestTitlebarNavigateWeb();
+        }
+      });
+      this.trackView({
+        dispose: () => {
+          changeListener.dispose();
+          inputBox.dispose();
+        },
+      });
+      this.webUrlInput = inputElement;
       this.centerElement.append(urlBar);
     } else {
       this.webUrlInput = null;

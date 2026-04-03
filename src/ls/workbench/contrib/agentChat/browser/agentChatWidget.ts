@@ -2,11 +2,10 @@ import type { AssistantChatMessage, AssistantConversation } from 'ls/workbench/b
 import {
   createActionBarView,
   type ActionBarActionItem,
+  type ActionBarItem,
 } from 'ls/base/browser/ui/actionbar/actionbar';
-import {
-  createDropdownView,
-  type DropdownOption,
-} from 'ls/base/browser/ui/dropdown/dropdown';
+import { DropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownMenuActionViewItem';
+import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -14,9 +13,9 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { AuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
 import 'ls/workbench/browser/parts/auxiliarybar/media/auxiliarybar.css';
-import 'ls/workbench/browser/parts/auxiliarybar/media/chatwidget.css';
+import 'ls/workbench/contrib/agentChat/browser/media/agentChatWidget.css';
 
-export type AuxiliaryBarProps = {
+export type AgentChatWidgetProps = {
   labels: AuxiliaryBarLabels;
   isKnowledgeBaseModeEnabled: boolean;
   messages: AssistantChatMessage[];
@@ -29,17 +28,14 @@ export type AuxiliaryBarProps = {
   availableArticleCount: number;
   conversations: AssistantConversation[];
   activeConversationId: string;
-  isHistoryOpen: boolean;
-  isMoreMenuOpen: boolean;
   llmModelOptions: DropdownOption[];
   activeLlmModelOptionValue: string;
   onCreateConversation: () => void;
   onActivateConversation: (conversationId: string) => void;
   onCloseConversation: (conversationId: string) => void;
   onCloseAuxiliarySidebar: () => void;
-  onToggleHistory: () => void;
-  onToggleMoreMenu: () => void;
   onSelectLlmModel: (value: string) => void;
+  onOpenModelSettings: () => void;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -53,13 +49,13 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-export class AuxiliaryBar {
-  private props: AuxiliaryBarProps;
+export class AgentChatWidget {
+  private props: AgentChatWidgetProps;
   private readonly element = createElement('div', 'auxiliarybar-content');
   private readonly renderDisposables = new Set<() => void>();
   private tabStripScrollLeft = 0;
 
-  constructor(props: AuxiliaryBarProps) {
+  constructor(props: AgentChatWidgetProps) {
     this.props = props;
     this.render();
   }
@@ -68,7 +64,7 @@ export class AuxiliaryBar {
     return this.element;
   }
 
-  setProps(props: AuxiliaryBarProps) {
+  setProps(props: AgentChatWidgetProps) {
     this.props = props;
     this.render();
   }
@@ -169,30 +165,20 @@ export class AuxiliaryBar {
       tabStripScrollbar.dispose();
     });
 
+    const topbarItems: ActionBarItem[] = [
+      this.createTopbarActionItem(
+        this.props.labels.assistantNewConversation,
+        lxIconSemanticMap.assistant.newConversation,
+        this.props.onCreateConversation,
+      ),
+      this.createTopbarHistoryActionItem(),
+      this.createTopbarMoreActionItem(),
+    ];
+
     const actionsView = createActionBarView({
       className: 'sidebar-action-bar',
       ariaRole: 'group',
-      items: [
-        this.createTopbarActionItem(
-          this.props.labels.assistantNewConversation,
-          lxIconSemanticMap.assistant.newConversation,
-          this.props.onCreateConversation,
-        ),
-        this.createTopbarActionItem(
-          this.props.labels.assistantHistory,
-          lxIconSemanticMap.assistant.history,
-          this.props.onToggleHistory,
-          this.props.isHistoryOpen,
-          true,
-        ),
-        this.createTopbarActionItem(
-          this.props.labels.assistantMore,
-          lxIconSemanticMap.assistant.more,
-          this.props.onToggleMoreMenu,
-          this.props.isMoreMenuOpen,
-          true,
-        ),
-      ],
+      items: topbarItems,
     });
     this.renderDisposables.add(() => {
       actionsView.dispose();
@@ -203,12 +189,6 @@ export class AuxiliaryBar {
 
   private renderShell(canSend: boolean) {
     const shell = createElement('div', 'auxiliarybar-shell');
-    if (this.props.isHistoryOpen) {
-      shell.append(this.renderHistoryPopover());
-    }
-    if (this.props.isMoreMenuOpen) {
-      shell.append(this.renderMorePopover());
-    }
     if (this.props.errorMessage) {
       const error = createElement('div', 'auxiliarybar-error');
       error.textContent = this.props.errorMessage;
@@ -235,9 +215,7 @@ export class AuxiliaryBar {
           .join(' '),
       );
       item.type = 'button';
-      item.addEventListener('click', () =>
-        this.props.onActivateConversation(conversation.id),
-      );
+      item.addEventListener('click', () => this.props.onActivateConversation(conversation.id));
       const titleNode = createElement('span', 'auxiliarybar-history-item-title');
       titleNode.textContent = conversation.title;
       const meta = createElement('span', 'auxiliarybar-history-item-meta');
@@ -245,26 +223,6 @@ export class AuxiliaryBar {
       item.append(titleNode, meta);
       list.append(item);
     }
-    section.append(title, list);
-    popover.append(section);
-    return popover;
-  }
-
-  private renderMorePopover() {
-    const popover = createElement('div', 'auxiliarybar-popover');
-    const section = createElement('div', 'auxiliarybar-popover-section');
-    const title = createElement('strong', 'auxiliarybar-popover-title');
-    title.textContent = this.props.labels.assistantMore;
-    const list = createElement('div', 'auxiliarybar-menu-list');
-    const newConversation = createElement('button', 'auxiliarybar-menu-item');
-    newConversation.type = 'button';
-    newConversation.textContent = this.props.labels.assistantNewConversation;
-    newConversation.addEventListener('click', this.props.onCreateConversation);
-    const history = createElement('button', 'auxiliarybar-menu-item');
-    history.type = 'button';
-    history.textContent = this.props.labels.assistantHistory;
-    history.addEventListener('click', this.props.onToggleHistory);
-    list.append(newConversation, history);
     section.append(title, list);
     popover.append(section);
     return popover;
@@ -408,6 +366,158 @@ export class AuxiliaryBar {
     return card;
   }
 
+  private createModelDropdownActionViewItem() {
+    const currentOption =
+      this.props.llmModelOptions.find(
+        (option) => option.value === this.props.activeLlmModelOptionValue,
+      ) ?? null;
+
+    return new DropdownMenuActionViewItem({
+      label: currentOption?.label ?? 'Switch model',
+      title: 'Switch model',
+      mode: 'custom',
+      buttonClassName: 'auxiliarybar-model-switch-btn',
+      className: 'auxiliarybar-model-switch',
+      disabled: this.props.llmModelOptions.length === 0,
+      menuClassName: 'auxiliarybar-model-switch-context-view',
+      overlayRole: 'dialog',
+      minWidth: 280,
+      content: () => this.renderModelDropdownTrigger(currentOption),
+      renderOverlay: ({ hide }: { hide: () => void }) => this.renderModelDropdownMenu(hide),
+    });
+  }
+
+  private renderModelDropdownTrigger(currentOption: DropdownOption | null) {
+    const trigger = createElement('span', 'auxiliarybar-model-switch-trigger');
+    const activeIcon = currentOption?.icon
+      ? createLxIcon(currentOption.icon, 'auxiliarybar-model-switch-icon')
+      : null;
+    const label = createElement('span', 'auxiliarybar-model-switch-label');
+    label.textContent = currentOption?.label ?? 'Select model';
+    const chevron = createLxIcon('chevron-down', 'auxiliarybar-model-switch-chevron');
+
+    if (activeIcon) {
+      trigger.append(activeIcon);
+    }
+    trigger.append(label, chevron);
+    return trigger;
+  }
+
+  private renderModelDropdownMenu(hide: () => void) {
+    const menu = createElement('div', 'auxiliarybar-model-menu');
+    menu.setAttribute('role', 'group');
+    menu.append(
+      this.renderModelMenuSectionLabel('Mode'),
+      this.createModelMenuItem({
+        label: 'Auto Max mode',
+        description: 'Let the app route to the recommended model automatically.',
+        icon: 'agent',
+        checked: this.props.activeLlmModelOptionValue === 'auto',
+        onClick: () => {
+          this.props.onSelectLlmModel('auto');
+          hide();
+        },
+      }),
+      this.createModelMenuItem({
+        label: 'Use multiple models',
+        description: 'Not available yet.',
+        icon: 'reasoning',
+        disabled: true,
+      }),
+      this.renderModelMenuSeparator(),
+      this.renderModelMenuSectionLabel('Models'),
+      ...this.props.llmModelOptions
+        .filter((option) => option.value !== 'auto')
+        .map((option) =>
+          this.createModelMenuItem({
+            label: option.label,
+            description: option.title,
+            icon: option.icon,
+            checked: this.props.activeLlmModelOptionValue === option.value,
+            disabled: option.disabled,
+            onClick: () => {
+              this.props.onSelectLlmModel(option.value);
+              hide();
+            },
+          })),
+      this.renderModelMenuSeparator(),
+      this.createModelMenuItem({
+        label: 'Add models',
+        description: 'Open Settings to manage enabled models.',
+        icon: 'gear',
+        onClick: () => {
+          this.props.onOpenModelSettings();
+          hide();
+        },
+      }),
+    );
+    return menu;
+  }
+
+  private renderModelMenuSectionLabel(label: string) {
+    const element = createElement('div', 'auxiliarybar-model-menu-section-label');
+    element.textContent = label;
+    return element;
+  }
+
+  private renderModelMenuSeparator() {
+    return createElement('div', 'auxiliarybar-model-menu-separator');
+  }
+
+  private createModelMenuItem(options: {
+    label: string;
+    description?: string;
+    icon?: LxIconName;
+    checked?: boolean;
+    disabled?: boolean;
+    onClick?: () => void;
+  }) {
+    const item = createElement(
+      'button',
+      [
+        'auxiliarybar-model-menu-item',
+        options.checked ? 'is-selected' : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+    );
+    item.type = 'button';
+    item.disabled = Boolean(options.disabled);
+    item.setAttribute('aria-pressed', String(Boolean(options.checked)));
+
+    const content = createElement('span', 'auxiliarybar-model-menu-item-content');
+    if (options.icon) {
+      content.append(createLxIcon(options.icon, 'auxiliarybar-model-menu-item-icon'));
+    }
+
+    const copy = createElement('span', 'auxiliarybar-model-menu-item-copy');
+    const label = createElement('span', 'auxiliarybar-model-menu-item-label');
+    label.textContent = options.label;
+    copy.append(label);
+    if (options.description) {
+      const description = createElement('span', 'auxiliarybar-model-menu-item-description');
+      description.textContent = options.description;
+      copy.append(description);
+    }
+    content.append(copy);
+
+    const check = createElement('span', 'auxiliarybar-model-menu-item-check');
+    if (options.checked) {
+      check.append(createLxIcon('check'));
+    }
+
+    item.append(content, check);
+    item.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (options.disabled) {
+        return;
+      }
+      options.onClick?.();
+    });
+    return item;
+  }
+
   private renderComposer(canSend: boolean) {
     const composer = createElement(
       'div',
@@ -438,14 +548,8 @@ export class AuxiliaryBar {
     });
 
     const toolbar = createElement('div', 'auxiliarybar-composer-toolbar');
-    const modelDropdownView = createDropdownView({
-      options: this.props.llmModelOptions,
-      value: this.props.activeLlmModelOptionValue,
-      size: 'sm',
-      className: 'auxiliarybar-model-dropdown',
-      title: 'Model',
-      onChange: ({ target }) => this.props.onSelectLlmModel(target.value),
-    });
+    const modelDropdownView = this.createModelDropdownActionViewItem();
+    modelDropdownView.render(toolbar);
     this.renderDisposables.add(() => {
       modelDropdownView.dispose();
     });
@@ -477,7 +581,7 @@ export class AuxiliaryBar {
     this.renderDisposables.add(() => {
       actionsView.dispose();
     });
-    toolbar.append(modelDropdownView.getElement(), actionsView.getElement());
+    toolbar.append(actionsView.getElement());
     composer.append(textarea, toolbar);
     return composer;
   }
@@ -485,9 +589,10 @@ export class AuxiliaryBar {
   private createTopbarActionItem(
     label: string,
     icon: LxIconName,
-    onClick: () => void,
+    onClick?: () => void,
     isActive = false,
     isToggle = false,
+    triggerId?: string,
   ): ActionBarActionItem {
     return {
       label,
@@ -495,7 +600,12 @@ export class AuxiliaryBar {
       buttonClassName: 'sidebar-action-btn',
       checked: isToggle ? isActive : undefined,
       active: isActive,
-      onClick: () => onClick(),
+      buttonAttributes: triggerId
+        ? {
+            'data-auxiliarybar-trigger': triggerId,
+          }
+        : undefined,
+      onClick: onClick ? () => onClick() : undefined,
     };
   }
 
@@ -512,6 +622,43 @@ export class AuxiliaryBar {
     };
   }
 
+  private createTopbarMoreActionItem(): ActionBarActionItem {
+    return {
+      label: this.props.labels.assistantMore,
+      title: this.props.labels.assistantMore,
+      content: createLxIcon(lxIconSemanticMap.assistant.more),
+      buttonClassName: 'sidebar-action-btn',
+      menuClassName: 'auxiliarybar-context-view',
+      menu: [
+        {
+          label: this.props.labels.assistantNewConversation,
+          onClick: () => {
+            this.props.onCreateConversation();
+          },
+        },
+      ],
+    };
+  }
+
+  private createTopbarHistoryActionItem(): ActionBarActionItem {
+    return {
+      label: this.props.labels.assistantHistory,
+      title: this.props.labels.assistantHistory,
+      content: createLxIcon(lxIconSemanticMap.assistant.history),
+      buttonClassName: 'sidebar-action-btn',
+      menuClassName: 'auxiliarybar-context-view',
+      overlayRole: 'dialog',
+      minWidth: 280,
+      renderOverlay: ({ hide }) => {
+        const popover = this.renderHistoryPopover();
+        for (const button of popover.querySelectorAll<HTMLButtonElement>('.auxiliarybar-history-item')) {
+          button.addEventListener('click', () => hide(), { once: true });
+        }
+        return popover;
+      },
+    };
+  }
+
   private disposeRenderDisposables() {
     for (const dispose of this.renderDisposables) {
       dispose();
@@ -520,8 +667,8 @@ export class AuxiliaryBar {
   }
 }
 
-export function createAuxiliaryBar(props: AuxiliaryBarProps) {
-  return new AuxiliaryBar(props);
+export function createAgentChatWidget(props: AgentChatWidgetProps) {
+  return new AgentChatWidget(props);
 }
 
-export default AuxiliaryBar;
+export default AgentChatWidget;

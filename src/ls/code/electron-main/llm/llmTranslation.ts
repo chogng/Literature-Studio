@@ -1,6 +1,7 @@
 import type { LlmProviderId, LlmSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { appError } from 'ls/base/common/errors';
 import { cleanText } from 'ls/base/common/strings';
+import { parseLlmModelOptionValue } from 'ls/workbench/services/llm/registry';
 import {
   extractResponseContent,
   requestChatCompletion,
@@ -28,12 +29,16 @@ export type TranslationBatchItem = {
 function resolveLlmRequestFromSettings(settings: LlmSettings) {
   const provider = settings.activeProvider;
   const providerSettings = settings.providers[provider];
+  const selectedOption = providerSettings.selectedModelOption
+    ? parseLlmModelOptionValue(providerSettings.selectedModelOption)
+    : null;
 
   return resolveLlmRequestFromPayload({
     provider,
     apiKey: providerSettings.apiKey,
     baseUrl: providerSettings.baseUrl,
-    model: providerSettings.model,
+    model: selectedOption?.modelId ?? '',
+    serviceTier: selectedOption?.serviceTier,
   });
 }
 
@@ -125,6 +130,7 @@ export async function translateTextsWithLlm(
     request,
     {
       model: request.model,
+      service_tier: request.serviceTier,
       messages: [
         {
           role: 'system',

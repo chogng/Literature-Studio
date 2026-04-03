@@ -4,12 +4,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
-import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
+import type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
 
 let cleanupDomEnvironment: (() => void) | null = null;
-let createAuxiliaryBar: typeof import('ls/workbench/browser/parts/auxiliarybar/auxiliarybar').createAuxiliaryBar;
+let createAgentChatWidget: typeof import('ls/workbench/contrib/agentChat/browser/agentChatWidget').createAgentChatWidget;
 
-function createProps(): AuxiliaryBarProps {
+function createProps(): AgentChatWidgetProps {
   return {
     labels: {
       assistantAnswerTitle: 'Answer',
@@ -51,26 +51,24 @@ function createProps(): AuxiliaryBarProps {
       },
     ],
     activeConversationId: 'conversation-1',
-    isHistoryOpen: true,
-    isMoreMenuOpen: false,
     llmModelOptions: [
-      { value: 'glm:glm-4.7-flash', label: 'GLM / GLM-4.7-Flash' },
+      { value: 'auto', label: 'Auto' },
+      { value: 'glm:glm-4.7-flash', label: 'GLM-4.7-Flash' },
     ],
-    activeLlmModelOptionValue: 'glm:glm-4.7-flash',
+    activeLlmModelOptionValue: 'auto',
     onCreateConversation: () => {},
     onActivateConversation: () => {},
     onCloseConversation: () => {},
     onCloseAuxiliarySidebar: () => {},
-    onToggleHistory: () => {},
-    onToggleMoreMenu: () => {},
     onSelectLlmModel: () => {},
+    onOpenModelSettings: () => {},
   };
 }
 
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
-  ({ createAuxiliaryBar } = await import('ls/workbench/browser/parts/auxiliarybar/auxiliarybar'));
+  ({ createAgentChatWidget } = await import('ls/workbench/contrib/agentChat/browser/agentChatWidget'));
 });
 
 after(() => {
@@ -79,7 +77,7 @@ after(() => {
 });
 
 test('auxiliary bar action buttons expose labels and shared hover', async () => {
-  const auxiliaryBar = createAuxiliaryBar(createProps());
+  const auxiliaryBar = createAgentChatWidget(createProps());
   const element = auxiliaryBar.getElement();
   document.body.append(element);
 
@@ -95,7 +93,7 @@ test('auxiliary bar action buttons expose labels and shared hover', async () => 
 
     const historyButton = actionButtons[1];
     assert(historyButton instanceof HTMLButtonElement);
-    assert.equal(historyButton.getAttribute('aria-pressed'), 'true');
+    assert.equal(historyButton.getAttribute('aria-haspopup'), 'dialog');
 
     document.dispatchEvent(
       new window.KeyboardEvent('keydown', { bubbles: true, key: 'Tab' }),
@@ -111,13 +109,126 @@ test('auxiliary bar action buttons expose labels and shared hover', async () => 
   }
 });
 
+test('auxiliary bar more action uses dropdown action view item', async () => {
+  let createConversationCount = 0;
+  const auxiliaryBar = createAgentChatWidget({
+    ...createProps(),
+    onCreateConversation: () => {
+      createConversationCount += 1;
+    },
+  });
+  const element = auxiliaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const actionButtons = Array.from(
+      element.querySelectorAll('.sidebar-action-bar .sidebar-action-btn'),
+    );
+    const moreButton = actionButtons[2];
+    assert(moreButton instanceof HTMLButtonElement);
+
+    moreButton.click();
+    await delay(0);
+
+    const menu = document.body.querySelector('.actionbar-context-view .dropdown-menu');
+    assert(menu instanceof HTMLElement);
+    assert.equal(moreButton.getAttribute('aria-expanded'), 'true');
+
+    const newChatItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.includes('New chat'),
+    );
+    assert(newChatItem instanceof HTMLElement);
+    newChatItem.click();
+    await delay(0);
+
+    assert.equal(createConversationCount, 1);
+    assert.equal(moreButton.getAttribute('aria-expanded'), 'false');
+  } finally {
+    auxiliaryBar.dispose();
+  }
+});
+
+test('auxiliary bar history action uses custom dropdown overlay', async () => {
+  let activatedConversationId = '';
+  const auxiliaryBar = createAgentChatWidget({
+    ...createProps(),
+    conversations: [
+      {
+        id: 'conversation-1',
+        title: 'Conversation 1',
+        autoTitleIndex: null,
+        question: '',
+        result: null,
+        messages: [],
+        isAsking: false,
+        errorMessage: null,
+      },
+      {
+        id: 'conversation-2',
+        title: 'Conversation 2',
+        autoTitleIndex: null,
+        question: '',
+        result: null,
+        messages: [{ id: 'm1', role: 'user', content: 'hello' }],
+        isAsking: false,
+        errorMessage: null,
+      },
+    ],
+    onActivateConversation: (conversationId) => {
+      activatedConversationId = conversationId;
+    },
+  });
+  const element = auxiliaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const actionButtons = Array.from(
+      element.querySelectorAll('.sidebar-action-bar .sidebar-action-btn'),
+    );
+    const historyButton = actionButtons[1];
+    assert(historyButton instanceof HTMLButtonElement);
+
+    historyButton.click();
+    await delay(0);
+
+    const popover = document.body.querySelector('.actionbar-context-view .auxiliarybar-popover');
+    assert(popover instanceof HTMLElement);
+    assert.equal(historyButton.getAttribute('aria-expanded'), 'true');
+
+    const historyItem = Array.from(popover.querySelectorAll('.auxiliarybar-history-item')).find(
+      (node) => node.textContent?.includes('Conversation 2'),
+    );
+    assert(historyItem instanceof HTMLButtonElement);
+    historyItem.click();
+    await delay(0);
+
+    assert.equal(activatedConversationId, 'conversation-2');
+    assert.equal(historyButton.getAttribute('aria-expanded'), 'false');
+  } finally {
+    auxiliaryBar.dispose();
+  }
+});
+
 test('composer toolbar uses actionbar icon controls', () => {
   let askCount = 0;
-  const auxiliaryBar = createAuxiliaryBar({
+  let selectedModelValue: string | null = null;
+  let openedModelSettings = 0;
+  const auxiliaryBar = createAgentChatWidget({
     ...createProps(),
     question: 'Explain this selection',
+    llmModelOptions: [
+      { value: 'auto', label: 'Auto' },
+      { value: 'glm:glm-4.7-flash', label: 'GLM-4.7-Flash' },
+      { value: 'openai:gpt-5.4:medium', label: 'GPT-5.4 · medium' },
+    ],
     onAsk: () => {
       askCount += 1;
+    },
+    onSelectLlmModel: (value) => {
+      selectedModelValue = value;
+    },
+    onOpenModelSettings: () => {
+      openedModelSettings += 1;
     },
   });
   const element = auxiliaryBar.getElement();
@@ -144,6 +255,42 @@ test('composer toolbar uses actionbar icon controls', () => {
 
     sendButton.click();
     assert.equal(askCount, 1);
+
+    const dropdownButton = element.querySelector('.auxiliarybar-model-switch-btn');
+    assert(dropdownButton instanceof HTMLButtonElement);
+    dropdownButton.click();
+
+    const menu = document.body.querySelector('.auxiliarybar-model-menu');
+    assert(menu instanceof HTMLElement);
+    assert.equal(
+      menu.querySelectorAll('.auxiliarybar-model-menu-separator').length,
+      2,
+    );
+
+    const autoMode = Array.from(menu.querySelectorAll('.auxiliarybar-model-menu-item')).find(
+      (node) => node.textContent?.includes('Auto Max mode'),
+    );
+    assert(autoMode instanceof HTMLButtonElement);
+    assert.equal(autoMode.getAttribute('aria-pressed'), 'true');
+
+    const option = Array.from(menu.querySelectorAll('.auxiliarybar-model-menu-item')).find(
+      (node) => node.textContent?.includes('GPT-5.4 · medium'),
+    );
+    assert(option instanceof HTMLButtonElement);
+    option.click();
+
+    assert.equal(selectedModelValue, 'openai:gpt-5.4:medium');
+
+    dropdownButton.click();
+    const reopenedMenu = document.body.querySelector('.auxiliarybar-model-menu');
+    assert(reopenedMenu instanceof HTMLElement);
+    const addModels = Array.from(
+      reopenedMenu.querySelectorAll('.auxiliarybar-model-menu-item'),
+    ).find((node) => node.textContent?.includes('Add models'));
+    assert(addModels instanceof HTMLButtonElement);
+    addModels.click();
+
+    assert.equal(openedModelSettings, 1);
   } finally {
     auxiliaryBar.dispose();
   }

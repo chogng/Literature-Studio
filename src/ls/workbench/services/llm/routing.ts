@@ -3,15 +3,21 @@ import type {
   LlmSettings,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
 import {
-  getDefaultModelForProvider,
-  getEnabledLlmModelIdsForProvider,
+  getEnabledLlmModelOptionValuesForProvider,
+  getLlmModelByIdForProvider,
+  getPreferredReasoningEffort,
   getRecommendedModelForTask,
+  parseLlmModelOptionValue,
 } from 'ls/workbench/services/llm/registry';
+import type { LlmReasoningEffort } from 'ls/workbench/services/llm/registry';
+import type { LlmServiceTier } from 'ls/workbench/services/llm/registry';
 import type { LlmTask } from 'ls/workbench/services/llm/registry';
 
 export type ResolvedLlmRoute = {
   provider: LlmProviderId;
   model: string;
+  reasoningEffort?: LlmReasoningEffort;
+  serviceTier?: LlmServiceTier;
   baseUrl: string;
   apiKey: string;
 };
@@ -19,27 +25,34 @@ export type ResolvedLlmRoute = {
 export function resolveLlmRoute(settings: LlmSettings, task: LlmTask): ResolvedLlmRoute {
   const provider = settings.activeProvider;
   const providerSettings = settings.providers[provider];
-  const enabledModelIds = getEnabledLlmModelIdsForProvider(
+  const enabledOptionValues = getEnabledLlmModelOptionValuesForProvider(
     provider,
-    providerSettings.enabledModels,
+    providerSettings.enabledModelOptions,
   );
-  const enabledModelIdSet = new Set(enabledModelIds);
+  const enabledOptionValueSet = new Set(enabledOptionValues);
   const recommendedModelId = getRecommendedModelForTask(provider, task)?.id;
-  const recommendedModel =
-    recommendedModelId && enabledModelIdSet.has(recommendedModelId)
-      ? recommendedModelId
-      : null;
-  const model =
-    (providerSettings.model && enabledModelIdSet.has(providerSettings.model)
-      ? providerSettings.model
+  const selectedOptionValue = providerSettings.selectedModelOption;
+  const selectedOption =
+    (selectedOptionValue && enabledOptionValueSet.has(selectedOptionValue)
+      ? parseLlmModelOptionValue(selectedOptionValue)
       : null) ??
-    recommendedModel ??
-    enabledModelIds[0] ??
-    getDefaultModelForProvider(provider);
+    (recommendedModelId
+      ? enabledOptionValues
+          .map((value) => parseLlmModelOptionValue(value))
+          .find((option) => option?.modelId === recommendedModelId) ?? null
+      : null) ??
+    (enabledOptionValues[0] ? parseLlmModelOptionValue(enabledOptionValues[0]) : null);
+  const model = selectedOption?.modelId ?? '';
+  const modelDefinition = getLlmModelByIdForProvider(provider, model);
+  const reasoningEffort = modelDefinition
+    ? getPreferredReasoningEffort(modelDefinition, selectedOption?.reasoningEffort)
+      : null;
 
   return {
     provider,
     model,
+    reasoningEffort: reasoningEffort ?? undefined,
+    serviceTier: selectedOption?.serviceTier,
     baseUrl: providerSettings.baseUrl,
     apiKey: providerSettings.apiKey,
   };

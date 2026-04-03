@@ -5,11 +5,11 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { createSwitchView } from 'ls/base/browser/ui/switch/switch';
-import { BatchSourcesFieldView } from 'ls/workbench/contrib/preferences/browser/batchSourcesField';
-import { KnowledgeBaseFieldView } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseField';
-import type { KnowledgeBaseFieldViewProps } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseField';
+import { BatchSourcesWidget } from 'ls/workbench/contrib/preferences/browser/batchSourcesWidget';
+import { KnowledgeBaseWidget } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseWidget';
+import type { KnowledgeBaseWidgetProps } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseWidget';
 
-import { LlmFieldView } from 'ls/workbench/contrib/preferences/browser/llmField';
+import { LlmWidget } from 'ls/workbench/contrib/preferences/browser/llmWidget';
 import { createSettingsSectionMap, getSettingsNavigationItems, getSettingsPageSectionIds } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 import type { SettingsPageId, SettingsSectionId } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 
@@ -19,7 +19,7 @@ import type {
   SettingsPartProps,
   SettingsPartState,
 } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
-import { TranslationFieldView } from 'ls/workbench/contrib/preferences/browser/translationField';
+import { TranslationWidget } from 'ls/workbench/contrib/preferences/browser/translationWidget';
 import {
   createDisplayLanguageOptions,
   requestSetDisplayLanguage,
@@ -53,8 +53,8 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
     settingsRagTestConnection: ui.settingsRagTestConnection, settingsRagShowApiKey: ui.settingsRagShowApiKey, settingsRagHideApiKey: ui.settingsRagHideApiKey, settingsRagHint: ui.settingsRagHint, settingsBatchHint: ui.settingsBatchHint, defaultPdfDir: ui.defaultPdfDir,
     pdfFileNameUseSelectionOrder: ui.pdfFileNameUseSelectionOrder, pdfFileNameUseSelectionOrderHint: ui.pdfFileNameUseSelectionOrderHint, downloadDirPlaceholder: ui.downloadDirPlaceholder, chooseDirectory: ui.chooseDirectory, openConfigLocation: ui.openConfigLocation,
     resetDefault: ui.resetDefault, settingsHintPath: ui.settingsHintPath, settingsConfigPath: ui.settingsConfigPath, currentDir: ui.currentDir, systemDownloads: ui.systemDownloads, settingsLlmTitle: ui.settingsLlmTitle, settingsLlmProvider: ui.settingsLlmProvider,
-    settingsLlmProviderHint: ui.settingsLlmProviderHint, settingsLlmProviderGlm: ui.settingsLlmProviderGlm, settingsLlmProviderKimi: ui.settingsLlmProviderKimi, settingsLlmProviderDeepSeek: ui.settingsLlmProviderDeepSeek, settingsLlmApiKey: ui.settingsLlmApiKey,
-    settingsLlmApiKeyPlaceholder: ui.settingsLlmApiKeyPlaceholder, settingsLlmModel: ui.settingsLlmModel, settingsLlmSearchPlaceholder: ui.settingsLlmSearchPlaceholder, settingsLlmNoResults: ui.settingsLlmNoResults, settingsLlmTestConnection: ui.settingsLlmTestConnection, settingsLlmShowApiKey: ui.settingsLlmShowApiKey, settingsLlmHideApiKey: ui.settingsLlmHideApiKey,
+    settingsLlmProviderHint: ui.settingsLlmProviderHint, settingsLlmProviderGlm: ui.settingsLlmProviderGlm, settingsLlmProviderKimi: ui.settingsLlmProviderKimi, settingsLlmProviderDeepSeek: ui.settingsLlmProviderDeepSeek, settingsLlmProviderGemini: ui.settingsLlmProviderGemini, settingsLlmApiKey: ui.settingsLlmApiKey,
+    settingsLlmApiKeyPlaceholder: ui.settingsLlmApiKeyPlaceholder, settingsLlmModel: ui.settingsLlmModel, settingsLlmSearchPlaceholder: ui.settingsLlmSearchPlaceholder, settingsLlmNoResults: ui.settingsLlmNoResults, settingsLlmMaxContext: ui.settingsLlmMaxContext, settingsLlmMaxContextHint: ui.settingsLlmMaxContextHint, settingsLlmTestConnection: ui.settingsLlmTestConnection, settingsLlmShowApiKey: ui.settingsLlmShowApiKey, settingsLlmHideApiKey: ui.settingsLlmHideApiKey,
     settingsTranslationTitle: ui.settingsTranslationTitle, settingsTranslationProvider: ui.settingsTranslationProvider, settingsTranslationProviderHint: ui.settingsTranslationProviderHint, settingsTranslationProviderDeepL: ui.settingsTranslationProviderDeepL,
     settingsTranslationApiKey: ui.settingsTranslationApiKey, settingsTranslationApiKeyPlaceholder: ui.settingsTranslationApiKeyPlaceholder, settingsTranslationTestConnection: ui.settingsTranslationTestConnection, settingsTranslationShowApiKey: ui.settingsTranslationShowApiKey,
     settingsTranslationHideApiKey: ui.settingsTranslationHideApiKey, settingsTranslationHint: ui.settingsTranslationHint,
@@ -219,10 +219,10 @@ export class SettingsPartView {
   // Keep section containers stable so updates can replace only local content
   // without recreating the whole settings page.
   private readonly sections = createSettingsSectionMap(() => el('section', 'settings-section'));
-  private readonly batchSourcesField: BatchSourcesFieldView;
-  private readonly knowledgeBaseField: KnowledgeBaseFieldView;
-  private readonly llmField: LlmFieldView;
-  private readonly translationField: TranslationFieldView;
+  private readonly batchSourcesWidget: BatchSourcesWidget;
+  private readonly knowledgeBaseWidget: KnowledgeBaseWidget;
+  private readonly llmWidget: LlmWidget;
+  private readonly translationWidget: TranslationWidget;
   private showRagApiKey = false;
   private showLlmApiKey = false;
   private showTranslationApiKey = false;
@@ -230,7 +230,7 @@ export class SettingsPartView {
 
   constructor(props: SettingsPartProps) {
     this.props = props;
-    this.batchSourcesField = new BatchSourcesFieldView({
+    this.batchSourcesWidget = new BatchSourcesWidget({
       labels: this.props.labels,
       batchSources: this.props.batchSources,
       isSettingsSaving: this.props.isSettingsSaving,
@@ -240,29 +240,32 @@ export class SettingsPartView {
       onRemoveBatchSource: (index) => this.props.onRemoveBatchSource(index),
       onMoveBatchSource: (index, direction) => this.props.onMoveBatchSource(index, direction),
     });
-    this.knowledgeBaseField = new KnowledgeBaseFieldView(this.getKnowledgeBaseFieldProps());
-    this.llmField = new LlmFieldView({
+    this.knowledgeBaseWidget = new KnowledgeBaseWidget(this.getKnowledgeBaseWidgetProps());
+    this.llmWidget = new LlmWidget({
       labels: this.props.labels,
       activeLlmProvider: this.props.activeLlmProvider,
       llmProviders: this.props.llmProviders,
       isSettingsSaving: this.props.isSettingsSaving,
       isTestingLlmConnection: this.props.isTestingLlmConnection,
       showApiKey: this.showLlmApiKey,
-      onToggleShowApiKey: () => { this.showLlmApiKey = !this.showLlmApiKey; this.updateLlmField(); },
+      onToggleShowApiKey: () => { this.showLlmApiKey = !this.showLlmApiKey; this.updateLlmWidget(); },
       onActiveLlmProviderChange: (provider) => this.props.onActiveLlmProviderChange(provider),
       onLlmProviderApiKeyChange: (provider, apiKey) => this.props.onLlmProviderApiKeyChange(provider, apiKey),
       onLlmProviderModelChange: (provider, model) => this.props.onLlmProviderModelChange(provider, model),
+      onLlmProviderSelectedModelOption: (provider, optionValue) => this.props.onLlmProviderSelectedModelOption(provider, optionValue),
+      onLlmProviderReasoningEffortChange: (provider, reasoningEffort) => this.props.onLlmProviderReasoningEffortChange(provider, reasoningEffort),
       onLlmProviderModelEnabledChange: (provider, model, enabled) => this.props.onLlmProviderModelEnabledChange(provider, model, enabled),
+      onLlmProviderUseMaxContextWindowChange: (provider, useMaxContextWindow) => this.props.onLlmProviderUseMaxContextWindowChange(provider, useMaxContextWindow),
       onTestLlmConnection: () => this.props.onTestLlmConnection(),
     });
-    this.translationField = new TranslationFieldView({
+    this.translationWidget = new TranslationWidget({
       labels: this.props.labels,
       activeTranslationProvider: this.props.activeTranslationProvider,
       translationProviders: this.props.translationProviders,
       isSettingsSaving: this.props.isSettingsSaving,
       isTestingTranslationConnection: this.props.isTestingTranslationConnection,
       showApiKey: this.showTranslationApiKey,
-      onToggleShowApiKey: () => { this.showTranslationApiKey = !this.showTranslationApiKey; this.updateTranslationField(); },
+      onToggleShowApiKey: () => { this.showTranslationApiKey = !this.showTranslationApiKey; this.updateTranslationWidget(); },
       onActiveTranslationProviderChange: (provider) => this.props.onActiveTranslationProviderChange(provider),
       onTranslationProviderApiKeyChange: (provider, apiKey) => this.props.onTranslationProviderApiKeyChange(provider, apiKey),
       onTestTranslationConnection: () => this.props.onTestTranslationConnection(),
@@ -325,8 +328,8 @@ export class SettingsPartView {
     container.replaceChildren(content);
   }
 
-  private updateBatchSourcesField() {
-    this.batchSourcesField.setProps({
+  private updateBatchSourcesWidget() {
+    this.batchSourcesWidget.setProps({
       labels: this.props.labels,
       batchSources: this.props.batchSources,
       isSettingsSaving: this.props.isSettingsSaving,
@@ -338,7 +341,7 @@ export class SettingsPartView {
     });
   }
 
-  private getKnowledgeBaseFieldProps(): KnowledgeBaseFieldViewProps {
+  private getKnowledgeBaseWidgetProps(): KnowledgeBaseWidgetProps {
     return {
       title: this.props.labels.settingsKnowledgeBaseTitle,
       hint: this.props.labels.settingsKnowledgeBaseHint,
@@ -378,7 +381,7 @@ export class SettingsPartView {
         isSettingsSaving: this.props.isSettingsSaving,
         isTestingRagConnection: this.props.isTestingRagConnection,
         showApiKey: this.showRagApiKey,
-        onToggleShowApiKey: () => { this.showRagApiKey = !this.showRagApiKey; this.updateKnowledgeBaseField(); },
+        onToggleShowApiKey: () => { this.showRagApiKey = !this.showRagApiKey; this.updateKnowledgeBaseWidget(); },
         onRagProviderApiKeyChange: (provider, apiKey) => this.props.onRagProviderApiKeyChange(provider, apiKey),
         onRagProviderBaseUrlChange: (provider, baseUrl) => this.props.onRagProviderBaseUrlChange(provider, baseUrl),
         onRagProviderEmbeddingModelChange: (provider, model) => this.props.onRagProviderEmbeddingModelChange(provider, model),
@@ -392,36 +395,39 @@ export class SettingsPartView {
     };
   }
 
-  private updateKnowledgeBaseField() {
-    this.knowledgeBaseField.setProps(this.getKnowledgeBaseFieldProps());
+  private updateKnowledgeBaseWidget() {
+    this.knowledgeBaseWidget.setProps(this.getKnowledgeBaseWidgetProps());
   }
 
-  private updateLlmField() {
-    this.llmField.setProps({
+  private updateLlmWidget() {
+    this.llmWidget.setProps({
       labels: this.props.labels,
       activeLlmProvider: this.props.activeLlmProvider,
       llmProviders: this.props.llmProviders,
       isSettingsSaving: this.props.isSettingsSaving,
       isTestingLlmConnection: this.props.isTestingLlmConnection,
       showApiKey: this.showLlmApiKey,
-      onToggleShowApiKey: () => { this.showLlmApiKey = !this.showLlmApiKey; this.updateLlmField(); },
+      onToggleShowApiKey: () => { this.showLlmApiKey = !this.showLlmApiKey; this.updateLlmWidget(); },
       onActiveLlmProviderChange: (provider) => this.props.onActiveLlmProviderChange(provider),
       onLlmProviderApiKeyChange: (provider, apiKey) => this.props.onLlmProviderApiKeyChange(provider, apiKey),
       onLlmProviderModelChange: (provider, model) => this.props.onLlmProviderModelChange(provider, model),
+      onLlmProviderSelectedModelOption: (provider, optionValue) => this.props.onLlmProviderSelectedModelOption(provider, optionValue),
+      onLlmProviderReasoningEffortChange: (provider, reasoningEffort) => this.props.onLlmProviderReasoningEffortChange(provider, reasoningEffort),
       onLlmProviderModelEnabledChange: (provider, model, enabled) => this.props.onLlmProviderModelEnabledChange(provider, model, enabled),
+      onLlmProviderUseMaxContextWindowChange: (provider, useMaxContextWindow) => this.props.onLlmProviderUseMaxContextWindowChange(provider, useMaxContextWindow),
       onTestLlmConnection: () => this.props.onTestLlmConnection(),
     });
   }
 
-  private updateTranslationField() {
-    this.translationField.setProps({
+  private updateTranslationWidget() {
+    this.translationWidget.setProps({
       labels: this.props.labels,
       activeTranslationProvider: this.props.activeTranslationProvider,
       translationProviders: this.props.translationProviders,
       isSettingsSaving: this.props.isSettingsSaving,
       isTestingTranslationConnection: this.props.isTestingTranslationConnection,
       showApiKey: this.showTranslationApiKey,
-      onToggleShowApiKey: () => { this.showTranslationApiKey = !this.showTranslationApiKey; this.updateTranslationField(); },
+      onToggleShowApiKey: () => { this.showTranslationApiKey = !this.showTranslationApiKey; this.updateTranslationWidget(); },
       onActiveTranslationProviderChange: (provider) => this.props.onActiveTranslationProviderChange(provider),
       onTranslationProviderApiKeyChange: (provider, apiKey) => this.props.onTranslationProviderApiKeyChange(provider, apiKey),
       onTestTranslationConnection: () => this.props.onTestTranslationConnection(),
@@ -628,8 +634,8 @@ export class SettingsPartView {
       this.updateSection(this.sections.locale, this.renderLocaleField());
     }
     if (forceAll || this.shouldUpdateBatchSourcesSection(previousProps)) {
-      this.updateBatchSourcesField();
-      this.updateSection(this.sections.batchSources, this.batchSourcesField.getElement());
+      this.updateBatchSourcesWidget();
+      this.updateSection(this.sections.batchSources, this.batchSourcesWidget.getElement());
     }
     if (forceAll || this.shouldUpdateBatchOptionsSection(previousProps)) {
       this.updateSection(this.sections.batchOptions, this.renderBatchOptionsField());
@@ -641,19 +647,19 @@ export class SettingsPartView {
       this.updateSection(this.sections.textEditor, this.renderTextEditorField());
     }
     if (forceAll || this.shouldUpdateKnowledgeBaseSection(previousProps)) {
-      this.updateKnowledgeBaseField();
-      this.updateSection(this.sections.knowledgeBase, this.knowledgeBaseField.getElement());
+      this.updateKnowledgeBaseWidget();
+      this.updateSection(this.sections.knowledgeBase, this.knowledgeBaseWidget.getElement());
     }
     if (forceAll || this.shouldUpdateDownloadDirectorySection(previousProps)) {
       this.updateSection(this.sections.downloadDirectory, this.renderDownloadDirectoryField());
     }
     if (forceAll || this.shouldUpdateLlmSection(previousProps)) {
-      this.updateLlmField();
-      this.updateSection(this.sections.llm, this.llmField.getElement());
+      this.updateLlmWidget();
+      this.updateSection(this.sections.llm, this.llmWidget.getElement());
     }
     if (forceAll || this.shouldUpdateTranslationSection(previousProps)) {
-      this.updateTranslationField();
-      this.updateSection(this.sections.translation, this.translationField.getElement());
+      this.updateTranslationWidget();
+      this.updateSection(this.sections.translation, this.translationWidget.getElement());
     }
     if (forceAll || this.shouldUpdateConfigPathSection(previousProps)) {
       this.updateSection(this.sections.configPath, this.renderConfigPathField());
