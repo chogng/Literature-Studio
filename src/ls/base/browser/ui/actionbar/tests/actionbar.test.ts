@@ -7,14 +7,14 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 let cleanupDomEnvironment: (() => void) | null = null;
 let createActionBarView: typeof import('ls/base/browser/ui/actionbar/actionbar').createActionBarView;
 let createLxIcon: typeof import('ls/base/browser/ui/lxicon/lxicon').createLxIcon;
-let DropdownMenuActionViewItem: typeof import('ls/base/browser/ui/dropdown/dropdownMenuActionViewItem').DropdownMenuActionViewItem;
+let DropdownMenuActionViewItem: typeof import('ls/base/browser/ui/dropdown/dropdownActionViewItem').DropdownMenuActionViewItem;
 
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createActionBarView } = await import('ls/base/browser/ui/actionbar/actionbar'));
   ({ createLxIcon } = await import('ls/base/browser/ui/lxicon/lxicon'));
-  ({ DropdownMenuActionViewItem } = await import('ls/base/browser/ui/dropdown/dropdownMenuActionViewItem'));
+  ({ DropdownMenuActionViewItem } = await import('ls/base/browser/ui/dropdown/dropdownActionViewItem'));
 });
 
 after(() => {

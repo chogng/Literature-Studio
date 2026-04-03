@@ -1,5 +1,6 @@
 import './prosemirrorDocument.test';
 import 'ls/code/electron-main/document/tests/editorDocxSerializer.test';
+import 'ls/base/parts/contextmenu/native-popup-sandbox/tests/contextmenu.test';
 import 'ls/base/browser/ui/dropdown/tests/dropdown.test';
 import 'ls/base/browser/ui/hover/tests/hover.test';
 import 'ls/editor/browser/text/tests/fontSizePresets.test';

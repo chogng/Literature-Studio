@@ -1,6 +1,11 @@
-import { canUseElectronOverlayContextMenus } from 'ls/workbench/browser/contextmenu/electronOverlayMenuController';
+import { canUseElectronOverlayContextMenus } from 'ls/base/parts/contextmenu/electron-overlay/overlayContextmenu';
+import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 
-export type WorkbenchContextMenuBackend = 'dom' | 'electron-overlay' | 'system';
+// The workbench keeps only the backend choices that matter to product code:
+// DOM, Electron overlay (a dedicated WebContentsView surface that can cover
+// other WebContentsView instances), and native popup.
+
+export type WorkbenchContextMenuBackend = 'dom' | 'electron-overlay' | 'native-popup';
 export type WorkbenchContextMenuBackendPreference =
   | 'auto'
   | WorkbenchContextMenuBackend;
@@ -10,12 +15,11 @@ export type ResolveWorkbenchContextMenuBackendOptions = {
   supportsCustomOverlay?: boolean;
 };
 
-export function canUseSystemContextMenus() {
-  // Reserve this backend for a real OS-level menu implementation.
-  return false;
+export function canUseNativePopupContextMenus() {
+  return Boolean(nativeHostService.nativePopupContextMenu);
 }
 
-export function resolveWorkbenchContextMenuBackend(
+export function resolveWorkbenchContextMenuRouting(
   options: ResolveWorkbenchContextMenuBackendOptions = {},
 ): WorkbenchContextMenuBackend {
   // Custom overlays require DOM rendering even when other menu backends exist.
@@ -28,17 +32,17 @@ export function resolveWorkbenchContextMenuBackend(
       return 'dom';
     case 'electron-overlay':
       return canUseElectronOverlayContextMenus() ? 'electron-overlay' : 'dom';
-    case 'system':
-      if (canUseSystemContextMenus()) {
-        return 'system';
+    case 'native-popup':
+      if (canUseNativePopupContextMenus()) {
+        return 'native-popup';
       }
       return canUseElectronOverlayContextMenus() ? 'electron-overlay' : 'dom';
     default:
       if (canUseElectronOverlayContextMenus()) {
         return 'electron-overlay';
       }
-      if (canUseSystemContextMenus()) {
-        return 'system';
+      if (canUseNativePopupContextMenus()) {
+        return 'native-popup';
       }
       return 'dom';
   }

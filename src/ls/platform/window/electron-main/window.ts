@@ -1,49 +1,15 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { BrowserWindow } from 'electron';
 import type { BrowserWindowConstructorOptions, WebContents } from 'electron';
 
 import type { WindowControlAction, WindowState } from 'ls/base/parts/sandbox/common/desktopTypes';
-import { disposeMenuOverlay, prewarmMenuOverlay } from 'ls/platform/window/electron-main/menuOverlayView';
+import { disposeMenuOverlay, prewarmMenuOverlay } from 'ls/base/parts/contextmenu/electron-overlay-main/contextmenu';
 import { disposeToastOverlay } from 'ls/platform/window/electron-main/toastOverlayView';
 import { disposeWebContentView, ensureWebContentView } from 'ls/platform/window/electron-main/webContentView';
-
-const workbenchRendererPathname = '/src/ls/code/electron-sandbox/workbench/workbench.html';
-const windowModuleFilePath = fileURLToPath(import.meta.url);
-const distElectronMarker = `${path.sep}dist-electron${path.sep}`;
-const distElectronMarkerIndex = windowModuleFilePath.lastIndexOf(distElectronMarker);
-
-function resolveProjectRootDir() {
-  return distElectronMarkerIndex >= 0
-    ? windowModuleFilePath.slice(0, distElectronMarkerIndex)
-    : process.cwd();
-}
-
-function resolveDistElectronDir() {
-  return path.join(resolveProjectRootDir(), 'dist-electron');
-}
-
-function resolveDistRendererWorkbenchDir() {
-  return path.join(
-    resolveProjectRootDir(),
-    'dist',
-    'src',
-    'ls',
-    'code',
-    'electron-sandbox',
-    'workbench',
-  );
-}
-
-function resolvePreloadBrowserDir() {
-  return path.join(
-    resolveDistElectronDir(),
-    'base',
-    'parts',
-    'sandbox',
-    'electron-browser',
-  );
-}
+import {
+  resolvePreloadScriptPath,
+  resolveWorkbenchRendererFilePath,
+  resolveWorkbenchRendererUrl,
+} from 'ls/platform/window/electron-main/windowPaths';
 
 let mainWindow: BrowserWindow | null = null;
 const auxiliaryWindows = new Set<BrowserWindow>();
@@ -130,30 +96,11 @@ export function getMainWindow() {
   return mainWindow;
 }
 
-export function resolveWorkbenchRendererUrl(
-  devServerUrl: string,
-  query: Record<string, string | undefined> = {},
-) {
-  const url = new URL(devServerUrl);
-  url.pathname = workbenchRendererPathname;
-  url.search = '';
-
-  for (const [key, value] of Object.entries(query)) {
-    if (typeof value === 'string') {
-      url.searchParams.set(key, value);
-    }
-  }
-
-  return url.toString();
-}
-
-export function resolveWorkbenchRendererFilePath() {
-  return path.join(resolveDistRendererWorkbenchDir(), 'workbench.html');
-}
-
-export function resolvePreloadScriptPath() {
-  return path.join(resolvePreloadBrowserDir(), 'preload.js');
-}
+export {
+  resolvePreloadScriptPath,
+  resolveWorkbenchRendererFilePath,
+  resolveWorkbenchRendererUrl,
+} from 'ls/platform/window/electron-main/windowPaths';
 
 export function applyMainWindowBackgroundMaterial(
   useMica: boolean,

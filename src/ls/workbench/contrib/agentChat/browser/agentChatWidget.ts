@@ -4,7 +4,7 @@ import {
   type ActionBarActionItem,
   type ActionBarItem,
 } from 'ls/base/browser/ui/actionbar/actionbar';
-import { DropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownMenuActionViewItem';
+import { DropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';

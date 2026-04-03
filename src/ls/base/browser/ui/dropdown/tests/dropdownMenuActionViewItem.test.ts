@@ -4,14 +4,18 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 import {
-  ActionWithDropdownMenuActionViewItem,
+  ActionWithDropdownActionViewItem,
   createDropdownMenuActionViewItem,
   DropdownMenuActionViewItem,
-} from 'ls/base/browser/ui/dropdown/dropdownMenuActionViewItem';
+} from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 
 before(() => {
+  if (typeof document !== 'undefined') {
+    return;
+  }
+
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
 });
@@ -133,29 +137,25 @@ test('DropdownMenuActionViewItem can render a custom overlay', async () => {
   }
 });
 
-test('DropdownMenuActionViewItem delegates overlay lifecycle to an injected presenter', async () => {
-  const requests: import('ls/base/browser/ui/dropdown/dropdownMenuActionViewItem').DropdownMenuActionPresenterRequest[] = [];
+test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context menu service', async () => {
+  const delegates: import('ls/base/browser/contextmenu').ContextMenuDelegate[] = [];
   let visible = false;
   let hideCount = 0;
-  const menuPresenter: import('ls/base/browser/ui/dropdown/dropdownMenuActionViewItem').DropdownMenuActionPresenter = {
-    isDetached: true,
-    show(request) {
+  const contextMenuService: import('ls/base/browser/contextmenu').ContextMenuService = {
+    showContextMenu(delegate) {
       visible = true;
-      requests.push(request);
+      delegates.push(delegate);
     },
-    hide() {
+    hideContextMenu() {
       if (!visible) {
         return;
       }
       visible = false;
       hideCount += 1;
-      requests.at(-1)?.onHide();
+      delegates.at(-1)?.onHide?.(true);
     },
     isVisible() {
       return visible;
-    },
-    containsTarget() {
-      return false;
     },
     dispose() {
       visible = false;
@@ -164,7 +164,7 @@ test('DropdownMenuActionViewItem delegates overlay lifecycle to an injected pres
   const item = new DropdownMenuActionViewItem({
     label: 'More',
     content: 'More',
-    menuPresenter,
+    contextMenuService,
     menu: [
       {
         label: 'Archive',
@@ -183,8 +183,8 @@ test('DropdownMenuActionViewItem delegates overlay lifecycle to an injected pres
     await delay(0);
 
     assert.equal(document.body.querySelector('.dropdown-menu'), null);
-    assert.equal(requests.length, 1);
-    assert.equal(requests[0]?.anchor, button);
+    assert.equal(delegates.length, 1);
+    assert.equal(delegates[0]?.getAnchor(), button);
     assert.equal(button.getAttribute('aria-expanded'), 'true');
 
     button.click();
@@ -198,10 +198,10 @@ test('DropdownMenuActionViewItem delegates overlay lifecycle to an injected pres
   }
 });
 
-test('ActionWithDropdownMenuActionViewItem renders primary and dropdown controls', async () => {
+test('ActionWithDropdownActionViewItem renders primary and dropdown controls', async () => {
   let primaryRan = 0;
   let selected = '';
-  const item = new ActionWithDropdownMenuActionViewItem({
+  const item = new ActionWithDropdownActionViewItem({
     primary: {
       label: 'Run',
       content: 'Run',

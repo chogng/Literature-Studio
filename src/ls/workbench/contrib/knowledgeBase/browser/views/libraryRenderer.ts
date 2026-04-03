@@ -201,14 +201,14 @@ export class LibraryRenderer {
     }
 
     this.contextMenuService.showContextMenu({
-      anchor: {
+      getAnchor: () => ({
         x: event.clientX,
         y: event.clientY,
         width: 0,
         height: 0,
-      },
-      options,
-      align: 'start',
+      }),
+      getActions: () => options,
+      alignment: 'start',
       coverage: 'trigger-band',
       requestIdPrefix: 'library-document-menu',
       onSelect: (value) => {

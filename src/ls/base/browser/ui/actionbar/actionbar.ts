@@ -1,17 +1,18 @@
 import 'ls/base/browser/ui/actionbar/actionbar.css';
+import type { ContextMenuService } from 'ls/base/browser/contextmenu';
 import {
   ActionViewItem,
   type ActionViewItemLike,
 } from 'ls/base/browser/ui/actionbar/actionViewItems';
-import { DropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownMenuActionViewItem';
-import type {
-  DropdownMenuActionAlignment,
-  DropdownMenuActionOverlayContext,
-  DropdownMenuActionPosition,
-  DropdownMenuActionPresenter,
-} from 'ls/base/browser/ui/dropdown/dropdownMenuActionPresenter';
+import {
+  DropdownMenuActionViewItem,
+  type DropdownMenuActionAlignment,
+  type DropdownMenuActionOverlayContext,
+  type DropdownMenuActionPosition,
+} from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import type { HoverInput } from 'ls/base/browser/ui/hover/hover';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
 
 export type ActionBarOrientation = 'horizontal' | 'vertical';
 export type ActionBarActionMode = 'icon' | 'text' | 'custom';
@@ -48,7 +49,7 @@ export type ActionBarActionItem = {
   overlayRole?: string;
   menuClassName?: string;
   minWidth?: number;
-  menuPresenter?: DropdownMenuActionPresenter;
+  contextMenuService?: ContextMenuService;
   overlayAlignment?: DropdownMenuActionAlignment;
   overlayPosition?: DropdownMenuActionPosition;
 };
@@ -67,6 +68,7 @@ export type ActionBarProps = {
   orientation?: ActionBarOrientation;
   ariaLabel?: string;
   ariaRole?: string;
+  contextMenuService?: ContextMenuService;
 };
 
 function composeClassName(parts: Array<string | undefined | null | false>) {
@@ -90,7 +92,10 @@ function isActionBarViewItem(item: ActionBarItem): item is ActionBarViewItem {
   );
 }
 
-function createActionViewItem(item: ActionBarActionItem): ActionBarViewItem {
+function createActionViewItem(
+  item: ActionBarActionItem,
+  contextMenuService?: ContextMenuService,
+): ActionBarViewItem {
   if (item.menu || item.renderOverlay) {
     return new DropdownMenuActionViewItem({
       id: item.id,
@@ -110,7 +115,7 @@ function createActionViewItem(item: ActionBarActionItem): ActionBarViewItem {
       overlayRole: item.overlayRole,
       menuClassName: item.menuClassName,
       minWidth: item.minWidth,
-      menuPresenter: item.menuPresenter,
+      contextMenuService: item.contextMenuService ?? contextMenuService,
       overlayAlignment: item.overlayAlignment,
       overlayPosition: item.overlayPosition,
     });
@@ -129,6 +134,7 @@ export class ActionBarView {
   private readonly element = document.createElement('div');
   private readonly actionsContainer = document.createElement('div');
   private readonly renderedActions: RenderedAction[] = [];
+  private fallbackContextMenuService: ContextMenuService | null = null;
   private disposed = false;
 
   constructor(props: ActionBarProps = {}) {
@@ -165,6 +171,8 @@ export class ActionBarView {
     }
     this.disposed = true;
     this.clearRenderedActions();
+    this.fallbackContextMenuService?.dispose?.();
+    this.fallbackContextMenuService = null;
     this.element.removeEventListener('keydown', this.handleKeyDown);
     this.element.replaceChildren();
   }
@@ -176,6 +184,7 @@ export class ActionBarView {
       orientation: props.orientation ?? 'horizontal',
       ariaLabel: props.ariaLabel,
       ariaRole: props.ariaRole ?? 'toolbar',
+      contextMenuService: props.contextMenuService,
     };
   }
 
@@ -241,7 +250,10 @@ export class ActionBarView {
       return itemElement;
     }
 
-    const viewItem = createActionViewItem(item);
+    const viewItem = createActionViewItem(
+      item,
+      item.menu ? this.getContextMenuService() : undefined,
+    );
     viewItem.render();
     const element = viewItem.getElement();
     if (item.id) {
@@ -255,6 +267,16 @@ export class ActionBarView {
     });
     return element;
   }
+
+  private getContextMenuService() {
+    if (this.props.contextMenuService) {
+      return this.props.contextMenuService;
+    }
+
+    this.fallbackContextMenuService ??= createPlatformContextMenuService();
+    return this.fallbackContextMenuService;
+  }
+
   private getFocusableButtons() {
     return this.renderedActions
       .map((action) => action.button)
