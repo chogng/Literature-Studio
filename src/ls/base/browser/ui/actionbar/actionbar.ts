@@ -1,12 +1,32 @@
 import 'ls/base/browser/ui/actionbar/actionbar.css';
 import {
-  createHoverController,
-  type HoverInput,
-} from 'ls/base/browser/ui/hover/hover';
+  ActionViewItem,
+  type ActionViewItemLike,
+} from 'ls/base/browser/ui/actionbar/actionViewItems';
+import { DropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownMenuActionViewItem';
+import type {
+  DropdownMenuActionAlignment,
+  DropdownMenuActionOverlayContext,
+  DropdownMenuActionPosition,
+  DropdownMenuActionPresenter,
+} from 'ls/base/browser/ui/dropdown/dropdownMenuActionPresenter';
+import type { HoverInput } from 'ls/base/browser/ui/hover/hover';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 export type ActionBarOrientation = 'horizontal' | 'vertical';
 export type ActionBarActionMode = 'icon' | 'text' | 'custom';
 export type ActionBarRenderable = string | Node | (() => string | Node);
+export type ActionBarMenuItem = {
+  id?: string;
+  label: string;
+  title?: string;
+  icon?: LxIconName;
+  disabled?: boolean;
+  checked?: boolean;
+  onClick?: (event: MouseEvent) => void;
+};
+
+export type ActionBarViewItem = ActionViewItemLike;
 
 export type ActionBarActionItem = {
   type?: 'action';
@@ -23,6 +43,14 @@ export type ActionBarActionItem = {
   buttonClassName?: string;
   buttonAttributes?: Record<string, string | null | undefined | false>;
   onClick?: (event: MouseEvent) => void;
+  menu?: readonly ActionBarMenuItem[];
+  renderOverlay?: (context: DropdownMenuActionOverlayContext) => HTMLElement;
+  overlayRole?: string;
+  menuClassName?: string;
+  minWidth?: number;
+  menuPresenter?: DropdownMenuActionPresenter;
+  overlayAlignment?: DropdownMenuActionAlignment;
+  overlayPosition?: DropdownMenuActionPosition;
 };
 
 export type ActionBarSeparatorItem = {
@@ -31,7 +59,7 @@ export type ActionBarSeparatorItem = {
   className?: string;
 };
 
-export type ActionBarItem = ActionBarActionItem | ActionBarSeparatorItem;
+export type ActionBarItem = ActionBarActionItem | ActionBarSeparatorItem | ActionBarViewItem;
 
 export type ActionBarProps = {
   items?: readonly ActionBarItem[];
@@ -41,47 +69,71 @@ export type ActionBarProps = {
   ariaRole?: string;
 };
 
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tagName: K,
-  className?: string,
-) {
-  const element = document.createElement(tagName);
-  if (className) {
-    element.className = className;
-  }
-  return element;
-}
-
 function composeClassName(parts: Array<string | undefined | null | false>) {
   return parts.filter(Boolean).join(' ');
 }
 
 function isActionItem(item: ActionBarItem): item is ActionBarActionItem {
-  return item.type !== 'separator';
+  return !isActionBarViewItem(item) && item.type !== 'separator';
 }
 
-function resolveRenderable(renderable: ActionBarRenderable): Node {
-  const resolved = typeof renderable === 'function' ? renderable() : renderable;
-  if (typeof resolved === 'string') {
-    return document.createTextNode(resolved);
+function isActionBarViewItem(item: ActionBarItem): item is ActionBarViewItem {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'render' in item &&
+    typeof item.render === 'function' &&
+    'getElement' in item &&
+    typeof item.getElement === 'function' &&
+    'dispose' in item &&
+    typeof item.dispose === 'function'
+  );
+}
+
+function createActionViewItem(item: ActionBarActionItem): ActionBarViewItem {
+  if (item.menu || item.renderOverlay) {
+    return new DropdownMenuActionViewItem({
+      id: item.id,
+      label: item.label,
+      title: item.title,
+      content: item.content,
+      disabled: item.disabled,
+      active: item.active,
+      checked: item.checked,
+      mode: item.mode,
+      className: item.className,
+      buttonClassName: item.buttonClassName,
+      buttonAttributes: item.buttonAttributes,
+      hover: item.hover,
+      menu: item.menu,
+      renderOverlay: item.renderOverlay,
+      overlayRole: item.overlayRole,
+      menuClassName: item.menuClassName,
+      minWidth: item.minWidth,
+      menuPresenter: item.menuPresenter,
+      overlayAlignment: item.overlayAlignment,
+      overlayPosition: item.overlayPosition,
+    });
   }
-  return resolved.cloneNode(true);
+
+  return new ActionViewItem(item);
 }
 
 type RenderedAction = {
-  button: HTMLButtonElement;
+  button: HTMLElement;
   dispose: () => void;
 };
 
 export class ActionBarView {
   private props: ActionBarProps;
-  private readonly element = createElement('div');
-  private readonly actionsContainer = createElement('div', 'actionbar-actions-container');
+  private readonly element = document.createElement('div');
+  private readonly actionsContainer = document.createElement('div');
   private readonly renderedActions: RenderedAction[] = [];
   private disposed = false;
 
   constructor(props: ActionBarProps = {}) {
     this.props = this.normalizeProps(props);
+    this.actionsContainer.className = 'actionbar-actions-container';
     this.element.append(this.actionsContainer);
     this.element.addEventListener('keydown', this.handleKeyDown);
     this.render();
@@ -160,86 +212,61 @@ export class ActionBarView {
   }
 
   private renderItem(item: ActionBarItem) {
-    const itemElement = createElement(
-        'div',
-      composeClassName([
-        'actionbar-item',
-        isActionItem(item) ? 'is-action' : 'is-separator',
-        isActionItem(item) && item.disabled ? 'is-disabled' : '',
-        isActionItem(item) && item.active ? 'is-active' : '',
-        isActionItem(item) && item.checked ? 'is-checked' : '',
-        item.className,
-      ]),
-    );
-
-    if (item.id) {
-      itemElement.dataset.actionbarItemId = item.id;
+    if (isActionBarViewItem(item)) {
+      item.render();
+      const element = item.getElement();
+      this.renderedActions.push({
+        button: item.getFocusableElement?.() ?? element,
+        dispose: () => {
+          item.dispose();
+        },
+      });
+      return element;
     }
 
     if (!isActionItem(item)) {
-      const separator = createElement('div', 'actionbar-separator');
+      const itemElement = document.createElement('div');
+      itemElement.className = composeClassName([
+        'actionbar-item',
+        'is-separator',
+        item.className,
+      ]);
+      if (item.id) {
+        itemElement.dataset.actionbarItemId = item.id;
+      }
+      const separator = document.createElement('div');
+      separator.className = 'actionbar-separator';
       separator.setAttribute('aria-hidden', 'true');
       itemElement.append(separator);
       return itemElement;
     }
 
-    const mode = item.mode ?? 'icon';
-    const button = createElement(
-      'button',
-      composeClassName([
-        'actionbar-action',
-        `is-${mode}`,
-        item.buttonClassName,
-      ]),
-    );
-    button.type = 'button';
-    button.disabled = Boolean(item.disabled);
-    button.setAttribute('aria-label', item.label);
-    if (item.checked !== undefined) {
-      button.setAttribute('aria-pressed', String(Boolean(item.checked)));
-    } else {
-      button.removeAttribute('aria-pressed');
+    const viewItem = createActionViewItem(item);
+    viewItem.render();
+    const element = viewItem.getElement();
+    if (item.id) {
+      element.dataset.actionbarItemId = item.id;
     }
-
-    for (const [name, value] of Object.entries(item.buttonAttributes ?? {})) {
-      if (value === false || value === null || value === undefined) {
-        button.removeAttribute(name);
-        continue;
-      }
-      button.setAttribute(name, value);
-    }
-
-    const content = createElement('span', 'actionbar-content');
-    content.append(
-      resolveRenderable(item.content ?? item.label),
-    );
-    button.append(content);
-
-    const hoverInput =
-      item.hover === undefined ? item.title ?? item.label : item.hover;
-    const hoverController = createHoverController(button, hoverInput);
-
-    const handleClick = (event: MouseEvent) => {
-      item.onClick?.(event);
-    };
-    button.addEventListener('click', handleClick);
-
     this.renderedActions.push({
-      button,
+      button: viewItem.getFocusableElement?.() ?? element,
       dispose: () => {
-        button.removeEventListener('click', handleClick);
-        hoverController.dispose();
+        viewItem.dispose();
       },
     });
-
-    itemElement.append(button);
-    return itemElement;
+    return element;
   }
-
   private getFocusableButtons() {
     return this.renderedActions
       .map((action) => action.button)
-      .filter((button) => !button.disabled);
+      .filter((button) => {
+        if (!(button instanceof HTMLElement)) {
+          return false;
+        }
+        if (button instanceof HTMLButtonElement) {
+          return !button.disabled;
+        }
+        return button.tabIndex >= 0 || typeof (button as HTMLElement).focus === 'function';
+      });
   }
 
   private moveFocus(direction: -1 | 1) {
@@ -258,7 +285,7 @@ export class ActionBarView {
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent) => {
-    if (!(event.target instanceof HTMLButtonElement)) {
+    if (!(event.target instanceof HTMLElement)) {
       return;
     }
 

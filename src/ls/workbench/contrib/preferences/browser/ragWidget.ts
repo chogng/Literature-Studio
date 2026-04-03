@@ -1,6 +1,6 @@
 import type { RagProviderId, RagProviderSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
-import { ApiKeyFieldView } from 'ls/workbench/contrib/preferences/browser/apiKeyField';
+import { ApiKeyWidget } from 'ls/workbench/contrib/preferences/browser/apiKeyWidget';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);
@@ -51,7 +51,7 @@ function buildInput(config: {
   return input;
 }
 
-export type RagFieldViewProps = {
+export type RagWidgetProps = {
   labels: SettingsPartLabels;
   activeRagProvider: RagProviderId;
   ragProviders: Record<RagProviderId, RagProviderSettings>;
@@ -72,10 +72,10 @@ export type RagFieldViewProps = {
   onTestRagConnection: () => void;
 };
 
-export class RagFieldView {
-  private props: RagFieldViewProps;
+export class RagWidget {
+  private props: RagWidgetProps;
   private readonly element = el('div', 'settings-field');
-  private readonly apiKeyField = new ApiKeyFieldView({
+  private readonly apiKeyWidget = new ApiKeyWidget({
     title: '',
     value: '',
     placeholder: '',
@@ -92,7 +92,7 @@ export class RagFieldView {
     onTest: () => this.props.onTestRagConnection(),
   });
 
-  constructor(props: RagFieldViewProps) {
+  constructor(props: RagWidgetProps) {
     this.props = props;
     this.setProps(props);
   }
@@ -101,7 +101,7 @@ export class RagFieldView {
     return this.element;
   }
 
-  setProps(props: RagFieldViewProps) {
+  setProps(props: RagWidgetProps) {
     this.props = props;
     this.element.replaceChildren(this.render());
   }
@@ -140,7 +140,7 @@ export class RagFieldView {
     grid.append(this.renderTextField(this.props.labels.settingsRagRerankerModel, provider.rerankerModel, 'settings.rag.rerankerModel', (value) => this.props.onRagProviderRerankerModelChange(this.props.activeRagProvider, value)));
     grid.append(this.renderTextField(this.props.labels.settingsRagEmbeddingPath, provider.embeddingPath, 'settings.rag.embeddingPath', (value) => this.props.onRagProviderEmbeddingPathChange(this.props.activeRagProvider, value)));
     grid.append(this.renderTextField(this.props.labels.settingsRagRerankPath, provider.rerankPath, 'settings.rag.rerankPath', (value) => this.props.onRagProviderRerankPathChange(this.props.activeRagProvider, value)));
-    this.apiKeyField.setProps({
+    this.apiKeyWidget.setProps({
       title: this.props.labels.settingsRagApiKey,
       value: provider.apiKey,
       placeholder: this.props.labels.settingsRagApiKeyPlaceholder,
@@ -156,7 +156,7 @@ export class RagFieldView {
       testButtonDisabled: this.props.isSettingsSaving || this.props.isTestingRagConnection,
       onTest: () => this.props.onTestRagConnection(),
     });
-    grid.append(this.apiKeyField.getElement());
+    grid.append(this.apiKeyWidget.getElement());
     field.append(title, buildHint(this.props.labels.settingsRagHint), grid);
     return field;
   }

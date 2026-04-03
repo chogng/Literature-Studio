@@ -7,7 +7,7 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 let cleanupDomEnvironment: (() => void) | null = null;
 let createHoverController: typeof import('ls/base/browser/ui/hover/hover').createHoverController;
 let createButtonView: typeof import('ls/base/browser/ui/button/button').createButtonView;
-let createInputView: typeof import('ls/base/browser/ui/input/input').createInputView;
+let InputBox: typeof import('ls/base/browser/ui/inputbox/inputBox').InputBox;
 let createDropdownView: typeof import('ls/base/browser/ui/dropdown/dropdown').createDropdownView;
 
 function dispatchPointerDown(
@@ -41,7 +41,7 @@ before(async () => {
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createHoverController } = await import('ls/base/browser/ui/hover/hover'));
   ({ createButtonView } = await import('ls/base/browser/ui/button/button'));
-  ({ createInputView } = await import('ls/base/browser/ui/input/input'));
+  ({ InputBox } = await import('ls/base/browser/ui/inputbox/inputBox'));
   ({ createDropdownView } = await import('ls/base/browser/ui/dropdown/dropdown'));
 });
 
@@ -110,27 +110,29 @@ test('button view uses shared hover content instead of native title tooltips', a
   }
 });
 
-test('input view uses shared hover content instead of native title tooltips', async () => {
-  const inputView = createInputView({
-    title: 'Article URL',
+test('input box can be used with shared hover content instead of native title tooltips', async () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const inputBox = new InputBox(host, undefined, {
     value: 'https://example.com',
   });
-  const input = inputView.getElement();
-  document.body.append(input);
+  const hover = createHoverController(inputBox.element, {
+    content: 'Article URL',
+    delay: 0,
+  });
 
   try {
-    const wrapper = input.querySelector('.input-wrapper');
-    assert(wrapper instanceof HTMLElement);
-    assert.equal(wrapper.getAttribute('title'), null);
+    assert.equal(inputBox.element.getAttribute('title'), null);
 
-    wrapper.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
-    await delay(650);
+    inputBox.element.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    await delay(0);
 
     const overlayContent = document.querySelector('.ls-hover-content');
     assert(overlayContent instanceof HTMLElement);
     assert.equal(overlayContent.textContent, 'Article URL');
   } finally {
-    inputView.dispose();
+    hover.dispose();
+    inputBox.dispose();
   }
 });
 

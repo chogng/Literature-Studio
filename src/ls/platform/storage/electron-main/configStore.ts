@@ -21,8 +21,8 @@ import {
   defaultLlmProviderSettings,
 } from 'ls/workbench/services/llm/config';
 import {
-  getDefaultModelForProvider,
-  isLlmModelIdForProvider,
+  getEnabledLlmModelOptionValuesForProvider,
+  parseLlmModelOptionValue,
   isLlmProviderId,
 } from 'ls/workbench/services/llm/registry';
 import {
@@ -79,15 +79,28 @@ function serializeConfigValue(value: unknown) {
     journalTitle: source.journalTitle,
   }));
   const serializedProviders = Object.fromEntries(
-    Object.entries(settings.llm.providers)
-      .filter(([, provider]) => cleanText(provider.apiKey))
-      .map(([providerId, provider]) => [
+    Object.entries(settings.llm.providers).flatMap(([providerId, provider]) => {
+      const defaultProvider = defaultLlmProviderSettings[providerId as keyof typeof defaultLlmProviderSettings];
+      const hasApiKey = Boolean(cleanText(provider.apiKey));
+      const hasSelectedModelOption =
+        provider.selectedModelOption !== defaultProvider.selectedModelOption;
+      const hasEnabledModelOptions =
+        JSON.stringify(provider.enabledModelOptions ?? []) !==
+        JSON.stringify(defaultProvider.enabledModelOptions ?? []);
+
+      if (!hasApiKey && !hasSelectedModelOption && !hasEnabledModelOptions) {
+        return [];
+      }
+
+      return [[
         providerId,
         {
           apiKey: provider.apiKey,
-          model: provider.model,
+          selectedModelOption: provider.selectedModelOption,
+          enabledModelOptions: provider.enabledModelOptions,
         },
-      ]),
+      ]];
+    }),
   );
   const serializedTranslationProviders = Object.fromEntries(
     Object.entries(settings.translation.providers)
@@ -250,6 +263,10 @@ function normalizeLlmSettings(payload: unknown): StoredAppSettings['llm'] {
       glm: normalizeLlmProviderSettings('glm', providersPayload.glm),
       kimi: normalizeLlmProviderSettings('kimi', providersPayload.kimi),
       deepseek: normalizeLlmProviderSettings('deepseek', providersPayload.deepseek),
+      anthropic: normalizeLlmProviderSettings('anthropic', providersPayload.anthropic),
+      openai: normalizeLlmProviderSettings('openai', providersPayload.openai),
+      gemini: normalizeLlmProviderSettings('gemini', providersPayload.gemini),
+      custom: normalizeLlmProviderSettings('custom', providersPayload.custom),
     },
   };
 }
@@ -263,24 +280,46 @@ function normalizeLlmProviderSettings(
     payload && typeof payload === 'object'
       ? (payload as Partial<StoredAppSettings['llm']['providers'][typeof provider]>)
       : {};
+  const selectedModelOption = normalizeSelectedLlmModelOption(
+    provider,
+    providerPayload.selectedModelOption,
+  );
 
   return {
     apiKey: cleanText(providerPayload.apiKey),
     baseUrl: defaults.baseUrl,
-    model: normalizeLlmModel(provider, providerPayload.model) || defaults.model,
+    selectedModelOption,
+    enabledModelOptions: normalizeEnabledLlmModelOptions(
+      provider,
+      providerPayload.enabledModelOptions,
+    ),
   };
 }
 
-function normalizeLlmModel(
+function normalizeSelectedLlmModelOption(
   provider: keyof StoredAppSettings['llm']['providers'],
   value: unknown,
 ): string {
-  const model = cleanText(value);
-  if (!model) {
-    return getDefaultModelForProvider(provider);
+  const optionValue = cleanText(value);
+  if (parseLlmModelOptionValue(optionValue)?.providerId === provider) {
+    return optionValue;
   }
 
-  return isLlmModelIdForProvider(provider, model) ? model : getDefaultModelForProvider(provider);
+  return defaultLlmProviderSettings[provider].selectedModelOption;
+}
+
+function normalizeEnabledLlmModelOptions(
+  provider: keyof StoredAppSettings['llm']['providers'],
+  value: unknown,
+): string[] {
+  if (!Array.isArray(value)) {
+    return [...(defaultLlmProviderSettings[provider].enabledModelOptions ?? [])];
+  }
+
+  return getEnabledLlmModelOptionValuesForProvider(
+    provider,
+    value.filter((item): item is string => typeof item === 'string'),
+  );
 }
 
 function normalizeTranslationSettings(payload: unknown): StoredAppSettings['translation'] {

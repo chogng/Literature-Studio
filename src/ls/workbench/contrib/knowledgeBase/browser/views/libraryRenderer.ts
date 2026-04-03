@@ -1,18 +1,14 @@
-import type {
-  NativeMenuEvent,
-  NativeMenuOpenPayload,
-} from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { LibraryDocumentsResult } from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { SimpleTreeRenderContext } from 'ls/base/browser/ui/tree/simpleTree';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
-import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import { resolveLibraryDocumentStatusLabel } from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel';
 import type { LibraryTreeLabels, LibraryTreeFolderNode, LibraryTreeNode } from 'ls/workbench/contrib/knowledgeBase/common/libraryTreeModel';
 
 import { LibraryDataSource } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDataSource';
 import { LibraryDelegate } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDelegate';
 import type { LibraryDragAndDrop } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryDragAndDrop';
+import { createContextMenuService } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
 
 export type LibraryRendererLabels = LibraryTreeLabels & {
   unknown: string;
@@ -33,23 +29,6 @@ export type LibraryRendererProps = {
   onDocumentDelete?: (document: LibraryDocumentsResult['items'][number]) => void;
 };
 
-let libraryDocumentMenuRequestId = 0;
-
-function canUseNativeContextMenu() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const nativeOverlayKind = new URLSearchParams(window.location.search).get(
-    'nativeOverlay',
-  );
-  if (nativeOverlayKind === 'menu' || nativeOverlayKind === 'toast') {
-    return false;
-  }
-
-  return typeof nativeHostService.menu?.open === 'function';
-}
-
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
   className?: string,
@@ -63,31 +42,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 
 export class LibraryRenderer {
   private props: LibraryRendererProps;
-  private activeMenuRequestId: string | null = null;
-  private activeMenuActions = new Map<string, () => void>();
-  private readonly removeMenuEventListener =
-    canUseNativeContextMenu() &&
-    typeof nativeHostService.menu?.onEvent === 'function'
-      ? nativeHostService.menu.onEvent((event) => {
-          const nativeEvent = event as NativeMenuEvent;
-          if (
-            !this.activeMenuRequestId ||
-            nativeEvent.requestId !== this.activeMenuRequestId
-          ) {
-            return;
-          }
-
-          const actions = this.activeMenuActions;
-          this.activeMenuRequestId = null;
-          this.activeMenuActions = new Map<string, () => void>();
-          if (
-            nativeEvent.type === 'select' &&
-            typeof nativeEvent.value === 'string'
-          ) {
-            actions.get(nativeEvent.value)?.();
-          }
-        })
-      : () => {};
+  private readonly contextMenuService = createContextMenuService();
 
   constructor(props: LibraryRendererProps) {
     this.props = props;
@@ -98,7 +53,7 @@ export class LibraryRenderer {
   }
 
   dispose() {
-    this.removeMenuEventListener();
+    this.contextMenuService.dispose();
   }
 
   renderElement(
@@ -205,13 +160,11 @@ export class LibraryRenderer {
     event: MouseEvent,
     document: LibraryDocumentsResult['items'][number],
   ) {
-    const menuApi = nativeHostService.menu;
-    if (!canUseNativeContextMenu() || !menuApi) {
-      return;
-    }
-
     const actions = new Map<string, () => void>();
-    const options: NativeMenuOpenPayload['options'] = [];
+    const options: Array<{
+      value: string;
+      label: string;
+    }> = [];
 
     if (this.props.onDocumentRename) {
       options.push({
@@ -247,21 +200,20 @@ export class LibraryRenderer {
       return;
     }
 
-    const requestId = `library-document-menu-${++libraryDocumentMenuRequestId}`;
-    this.activeMenuRequestId = requestId;
-    this.activeMenuActions = actions;
-    menuApi.open({
-      requestId,
-      triggerRect: {
+    this.contextMenuService.showContextMenu({
+      anchor: {
         x: event.clientX,
         y: event.clientY,
         width: 0,
         height: 0,
       },
       options,
-      value: '',
       align: 'start',
       coverage: 'trigger-band',
+      requestIdPrefix: 'library-document-menu',
+      onSelect: (value) => {
+        actions.get(value)?.();
+      },
     });
   }
 }

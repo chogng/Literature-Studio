@@ -1,7 +1,7 @@
 import type {
   LlmConnectionTestResult,
   LlmProviderId,
-  TestLlmConnectionPayload,
+  TestLlmConnectionPayload as TestPayload,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { appError, isAppError } from 'ls/base/common/errors';
 import { cleanText } from 'ls/base/common/strings';
@@ -58,6 +58,8 @@ export type OpenAiCompatibleToolChoice =
 export type OpenAiCompatibleChatCompletionRequest = {
   model: string;
   messages: OpenAiCompatibleChatCompletionMessage[];
+  reasoning_effort?: string;
+  service_tier?: string;
   max_tokens?: number;
   temperature?: number;
   tools?: OpenAiCompatibleChatCompletionTool[];
@@ -82,6 +84,8 @@ export type ChatCompletionMessage = {
 export type ChatCompletionRequest = {
   model: string;
   messages: ChatCompletionMessage[];
+  reasoning_effort?: string;
+  service_tier?: string;
   max_tokens: number;
   temperature: number;
 };
@@ -91,6 +95,8 @@ export type ResolvedLlmRequest = {
   apiKey: string;
   baseUrl: string;
   model: string;
+  reasoningEffort?: TestPayload['reasoningEffort'];
+  serviceTier?: TestPayload['serviceTier'];
 };
 
 function normalizeProvider(value: unknown): LlmProviderId {
@@ -141,7 +147,7 @@ function normalizeModel(value: unknown): string {
   return model;
 }
 
-function resolveLlmRequest(payload: TestLlmConnectionPayload = {}): ResolvedLlmRequest {
+function resolveLlmRequest(payload: TestPayload = {}): ResolvedLlmRequest {
   const provider = normalizeProvider(payload.provider ?? defaultLlmProviderId);
   const apiKey = normalizeApiKey(payload.apiKey);
   const baseUrl = normalizeBaseUrl(payload.baseUrl);
@@ -152,6 +158,8 @@ function resolveLlmRequest(payload: TestLlmConnectionPayload = {}): ResolvedLlmR
     apiKey,
     baseUrl,
     model,
+    reasoningEffort: payload.reasoningEffort,
+    serviceTier: payload.serviceTier,
   };
 }
 
@@ -264,13 +272,15 @@ export function extractResponseContent(payload: unknown): string {
 }
 
 export async function testLlmConnection(
-  payload: TestLlmConnectionPayload = {},
+  payload: TestPayload = {},
 ): Promise<LlmConnectionTestResult> {
   const request = resolveLlmRequest(payload);
   const responseJson = await requestChatCompletion(
     request,
     {
       model: request.model,
+      reasoning_effort: request.reasoningEffort,
+      service_tier: request.serviceTier,
       messages: [
         {
           role: 'user',
@@ -286,11 +296,12 @@ export async function testLlmConnection(
   return {
     provider: request.provider,
     model: request.model,
+    reasoningEffort: request.reasoningEffort,
     baseUrl: request.baseUrl,
     responsePreview: extractResponsePreview(responseJson),
   };
 }
 
-export function resolveLlmRequestFromPayload(payload: TestLlmConnectionPayload = {}): ResolvedLlmRequest {
+export function resolveLlmRequestFromPayload(payload: TestPayload = {}): ResolvedLlmRequest {
   return resolveLlmRequest(payload);
 }

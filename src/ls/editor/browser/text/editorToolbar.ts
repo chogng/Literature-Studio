@@ -1,5 +1,9 @@
 import 'ls/base/browser/ui/button/button.css';
-import { createDropdownView, type DropdownOption, type DropdownView } from 'ls/base/browser/ui/dropdown/dropdown';
+import {
+  createDomDropdownMenuPresenter,
+  createDropdownView,
+  type DropdownOption,
+} from 'ls/base/browser/ui/dropdown/dropdown';
 import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { EDITOR_NAMED_FONT_SIZE_PRESETS } from 'ls/base/common/editorFormat';
@@ -133,7 +137,7 @@ const FONT_SIZE_PRESETS: readonly DropdownOption[] = [
 export class DraftEditorToolbar {
   private props: DraftEditorToolbarProps;
   private readonly element = createElement('div', 'pm-toolbar');
-  private dropdownViews: DropdownView[] = [];
+  private dropdownViews: Array<{ dispose: () => void }> = [];
 
   constructor(props: DraftEditorToolbarProps) {
     this.props = props;
@@ -345,11 +349,11 @@ export class DraftEditorToolbar {
   }
 
   private createToolbarDropdown(dropdownConfig: WritingEditorToolbarDropdownConfig) {
+    const menuPresenter = createDomDropdownMenuPresenter({ layer: 'portal' });
     const dropdown = createDropdownView({
       size: 'sm',
       className: 'pm-toolbar-dropdown',
-      menuMode: 'dom',
-      domMenuLayer: 'portal',
+      menuPresenter,
       title: dropdownConfig.title,
       value: dropdownConfig.value,
       placeholder: dropdownConfig.placeholder,
@@ -358,7 +362,12 @@ export class DraftEditorToolbar {
         dropdownConfig.onChange(target.value);
       },
     });
-    this.dropdownViews.push(dropdown);
+    this.dropdownViews.push({
+      dispose: () => {
+        dropdown.dispose();
+        menuPresenter.dispose();
+      },
+    });
     return dropdown.getElement();
   }
 

@@ -7,12 +7,14 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 let cleanupDomEnvironment: (() => void) | null = null;
 let createActionBarView: typeof import('ls/base/browser/ui/actionbar/actionbar').createActionBarView;
 let createLxIcon: typeof import('ls/base/browser/ui/lxicon/lxicon').createLxIcon;
+let DropdownMenuActionViewItem: typeof import('ls/base/browser/ui/dropdown/dropdownMenuActionViewItem').DropdownMenuActionViewItem;
 
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createActionBarView } = await import('ls/base/browser/ui/actionbar/actionbar'));
   ({ createLxIcon } = await import('ls/base/browser/ui/lxicon/lxicon'));
+  ({ DropdownMenuActionViewItem } = await import('ls/base/browser/ui/dropdown/dropdownMenuActionViewItem'));
 });
 
 after(() => {
@@ -171,6 +173,159 @@ test('actionbar forwards custom button attributes', () => {
 
     assert.equal(button.getAttribute('aria-haspopup'), 'dialog');
     assert.equal(button.getAttribute('data-kind'), 'details');
+  } finally {
+    actionBarView.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('actionbar action can open a dropdown-style menu', async () => {
+  let selected = '';
+  const actionBarView = createActionBarView({
+    items: [
+      {
+        label: 'More',
+        content: createLxIcon('more'),
+        menu: [
+          {
+            label: 'Rename',
+            onClick: () => {
+              selected = 'rename';
+            },
+          },
+          {
+            label: 'Delete',
+            disabled: true,
+          },
+        ],
+      },
+    ],
+  });
+  const element = actionBarView.getElement();
+  document.body.append(element);
+
+  try {
+    const button = element.querySelector('.actionbar-action');
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error('Expected actionbar button.');
+    }
+
+    button.click();
+    await delay(0);
+
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(menu instanceof HTMLElement);
+    assert.equal(button.getAttribute('aria-expanded'), 'true');
+
+    const renameItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.includes('Rename'),
+    );
+    assert(renameItem instanceof HTMLElement);
+    renameItem.click();
+    await delay(0);
+
+    assert.equal(selected, 'rename');
+    assert.equal(button.getAttribute('aria-expanded'), 'false');
+  } finally {
+    actionBarView.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('actionbar can render a dropdown action view item instance', async () => {
+  let selected = '';
+  const dropdownItem = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: createLxIcon('more'),
+    menu: [
+      {
+        label: 'Archive',
+        onClick: () => {
+          selected = 'archive';
+        },
+      },
+    ],
+  });
+  const actionBarView = createActionBarView({
+    items: [dropdownItem],
+  });
+  const element = actionBarView.getElement();
+  document.body.append(element);
+
+  try {
+    const button = element.querySelector('.actionbar-action');
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error('Expected actionbar button.');
+    }
+
+    button.click();
+    await delay(0);
+
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(menu instanceof HTMLElement);
+
+    const archiveItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.includes('Archive'),
+    );
+    assert(archiveItem instanceof HTMLElement);
+    archiveItem.click();
+    await delay(0);
+
+    assert.equal(selected, 'archive');
+  } finally {
+    actionBarView.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('actionbar action can render a custom overlay declaratively', async () => {
+  let closeCount = 0;
+  const actionBarView = createActionBarView({
+    items: [
+      {
+        label: 'History',
+        content: createLxIcon('history'),
+        overlayRole: 'dialog',
+        renderOverlay: ({ hide }) => {
+          const overlay = document.createElement('div');
+          overlay.className = 'actionbar-custom-overlay';
+          const close = document.createElement('button');
+          close.type = 'button';
+          close.textContent = 'Close';
+          close.addEventListener('click', () => {
+            closeCount += 1;
+            hide();
+          });
+          overlay.append(close);
+          return overlay;
+        },
+      },
+    ],
+  });
+  const element = actionBarView.getElement();
+  document.body.append(element);
+
+  try {
+    const button = element.querySelector('.actionbar-action');
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error('Expected actionbar button.');
+    }
+
+    button.click();
+    await delay(0);
+
+    const overlay = document.body.querySelector('.actionbar-custom-overlay');
+    assert(overlay instanceof HTMLElement);
+    assert.equal(button.getAttribute('aria-haspopup'), 'dialog');
+    assert.equal(button.getAttribute('aria-expanded'), 'true');
+
+    const closeButton = overlay.querySelector('button');
+    assert(closeButton instanceof HTMLButtonElement);
+    closeButton.click();
+    await delay(0);
+
+    assert.equal(closeCount, 1);
+    assert.equal(button.getAttribute('aria-expanded'), 'false');
   } finally {
     actionBarView.dispose();
     document.body.replaceChildren();

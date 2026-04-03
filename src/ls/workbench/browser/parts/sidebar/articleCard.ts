@@ -28,6 +28,7 @@ export type ArticleCardProps = {
 const DOWNLOAD_PDF_LABEL = 'Download PDF';
 const VIEW_DETAILS_LABEL = 'View details';
 const DOWNLOADED_PDF_LABEL = 'PDF downloaded';
+const MORE_ACTIONS_LABEL = 'More actions';
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -202,14 +203,31 @@ export class ArticleCard {
           },
         },
         {
-          label: VIEW_DETAILS_LABEL,
-          content: createLxIcon(lxIconSemanticMap.articleCard.details),
+          label: MORE_ACTIONS_LABEL,
+          title: MORE_ACTIONS_LABEL,
+          content: createLxIcon('more'),
           buttonClassName: 'secondary-sidebar-article-card-icon-btn',
-          buttonAttributes: {
-            'aria-haspopup': 'dialog',
-          },
+          menu: [
+            {
+              label: VIEW_DETAILS_LABEL,
+              onClick: () => {
+                this.openArticleDetails();
+              },
+            },
+            ...(article.sourceUrl
+              ? [
+                  {
+                    label: hasDownloaded ? DOWNLOADED_PDF_LABEL : DOWNLOAD_PDF_LABEL,
+                    disabled: isDownloading || hasDownloaded,
+                    onClick: () => {
+                      void this.startPdfDownload();
+                    },
+                  },
+                ]
+              : []),
+          ],
           hover: {
-            content: VIEW_DETAILS_LABEL,
+            content: MORE_ACTIONS_LABEL,
             subtitle: title,
             actions:
               article.sourceUrl && !isDownloading
@@ -223,10 +241,6 @@ export class ArticleCard {
                     },
                   ]
                 : [],
-          },
-          onClick: (event) => {
-            event.stopPropagation();
-            this.openArticleDetails();
           },
         },
       ],

@@ -14,17 +14,37 @@ const llmSettings: LlmSettings = {
     glm: {
       apiKey: 'test-key',
       baseUrl: 'https://example.test/v1',
-      model: 'glm-4.6',
+      selectedModelOption: 'glm:glm-4.6',
     },
     kimi: {
       apiKey: '',
       baseUrl: 'https://example.test/v1',
-      model: 'kimi-test-model',
+      selectedModelOption: 'kimi:kimi-test-model',
     },
     deepseek: {
       apiKey: '',
       baseUrl: 'https://example.test/v1',
-      model: 'deepseek-test-model',
+      selectedModelOption: 'deepseek:deepseek-test-model',
+    },
+    anthropic: {
+      apiKey: '',
+      baseUrl: '',
+      selectedModelOption: 'anthropic:claude-3-7-sonnet-20250219',
+    },
+    openai: {
+      apiKey: '',
+      baseUrl: 'https://example.test/v1',
+      selectedModelOption: 'openai:gpt-5',
+    },
+    gemini: {
+      apiKey: '',
+      baseUrl: 'https://example.test/v1',
+      selectedModelOption: 'gemini:gemini-2.5-flash',
+    },
+    custom: {
+      apiKey: '',
+      baseUrl: '',
+      selectedModelOption: '',
     },
   },
 };

@@ -1,6 +1,6 @@
 import type { TranslationProviderId, TranslationProviderSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
-import { ApiKeyFieldView } from 'ls/workbench/contrib/preferences/browser/apiKeyField';
+import { ApiKeyWidget } from 'ls/workbench/contrib/preferences/browser/apiKeyWidget';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);
@@ -38,7 +38,7 @@ function buildSelect(options: readonly { value: string; label: string }[], value
   return select;
 }
 
-export type TranslationFieldViewProps = {
+export type TranslationWidgetProps = {
   labels: SettingsPartLabels;
   activeTranslationProvider: TranslationProviderId;
   translationProviders: Record<TranslationProviderId, TranslationProviderSettings>;
@@ -51,10 +51,10 @@ export type TranslationFieldViewProps = {
   onTestTranslationConnection: () => void;
 };
 
-export class TranslationFieldView {
-  private props: TranslationFieldViewProps;
+export class TranslationWidget {
+  private props: TranslationWidgetProps;
   private readonly element = el('div', 'settings-field');
-  private readonly apiKeyField = new ApiKeyFieldView({
+  private readonly apiKeyWidget = new ApiKeyWidget({
     title: '',
     value: '',
     placeholder: '',
@@ -71,7 +71,7 @@ export class TranslationFieldView {
     onTest: () => this.props.onTestTranslationConnection(),
   });
 
-  constructor(props: TranslationFieldViewProps) {
+  constructor(props: TranslationWidgetProps) {
     this.props = props;
     this.setProps(props);
   }
@@ -80,7 +80,7 @@ export class TranslationFieldView {
     return this.element;
   }
 
-  setProps(props: TranslationFieldViewProps) {
+  setProps(props: TranslationWidgetProps) {
     this.props = props;
     this.element.replaceChildren(this.render());
   }
@@ -96,7 +96,7 @@ export class TranslationFieldView {
       buildSelect([{ value: 'deepl', label: this.props.labels.settingsTranslationProviderDeepL }], this.props.activeTranslationProvider, 'settings.translation.provider', (value) => this.props.onActiveTranslationProviderChange(value as TranslationProviderId), 'settings-llm-provider'),
     );
     grid.append(providerField);
-    this.apiKeyField.setProps({
+    this.apiKeyWidget.setProps({
       title: this.props.labels.settingsTranslationApiKey,
       value: this.props.translationProviders[this.props.activeTranslationProvider].apiKey,
       placeholder: this.props.labels.settingsTranslationApiKeyPlaceholder,
@@ -112,7 +112,7 @@ export class TranslationFieldView {
       testButtonDisabled: this.props.isSettingsSaving || this.props.isTestingTranslationConnection,
       onTest: () => this.props.onTestTranslationConnection(),
     });
-    grid.append(this.apiKeyField.getElement());
+    grid.append(this.apiKeyWidget.getElement());
     field.append(title, buildHint(this.props.labels.settingsTranslationHint), grid);
     return field;
   }

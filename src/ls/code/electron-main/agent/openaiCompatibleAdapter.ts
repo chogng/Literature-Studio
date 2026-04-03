@@ -236,6 +236,8 @@ export function createOpenAiCompatibleAgentAdapter(
     ): Promise<AgentCompletionResult> {
       const payload: OpenAiCompatibleChatCompletionRequest = {
         model: request.model,
+        reasoning_effort: request.reasoningEffort,
+        service_tier: request.serviceTier,
         messages: toOpenAiCompatibleMessages(
           completionRequest.systemPrompt,
           completionRequest.messages,

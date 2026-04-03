@@ -40,7 +40,7 @@ import {
   createAuxiliaryBarPartView,
   AuxiliaryBarPartView,
 } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
-import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import type { AgentChatWidgetProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
 
 import {
   clearStatusbarCommandHandlers,
@@ -59,7 +59,7 @@ type ReaderPageViewProps = {
   auxiliarySidebarSize: number;
   secondarySidebarProps: SecondarySidebarProps;
   primaryBarProps: PrimaryBarProps;
-  auxiliarySidebarProps: AuxiliaryBarProps;
+  auxiliarySidebarProps: AgentChatWidgetProps;
   editorPartProps: EditorPartProps;
 };
 

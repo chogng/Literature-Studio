@@ -1,9 +1,5 @@
 .titlebar {
   --titlebar-field-height: 28px;
-  --titlebar-field-radius: 8px;
-  --titlebar-field-border: #cfdae7;
-  --titlebar-field-border-hover: #b8c7d9;
-  --titlebar-field-border-focus: #0a5fbf;
   --titlebar-field-bg: rgba(255, 255, 255, 0.72);
   --titlebar-field-bg-hover: rgba(255, 255, 255, 0.9);
   --titlebar-field-bg-focus: #ffffff;
@@ -165,15 +161,12 @@
 
 .titlebar-field-base {
   height: var(--titlebar-field-height);
-  border-radius: var(--titlebar-field-radius);
-  border: 1px solid var(--titlebar-field-border);
   background: var(--titlebar-field-bg);
   color: #304357;
   font-size: 12px;
 }
 
 .titlebar-field-base:hover {
-  border-color: var(--titlebar-field-border-hover);
   background: var(--titlebar-field-bg-hover);
 }
 
@@ -199,6 +192,7 @@
 }
 
 .titlebar-input-field {
+  --inputbox-height: var(--titlebar-field-height);
   width: 100%;
   height: var(--titlebar-field-height) !important;
   background: rgba(255, 255, 255, 0.6) !important;
@@ -212,7 +206,7 @@
   background: var(--titlebar-field-bg-focus) !important;
 }
 
-.titlebar-input-field .input-field {
+.titlebar-input-field .input {
   height: var(--titlebar-field-height);
   font-size: 12px;
   padding: 0 10px;
@@ -410,7 +404,7 @@
     flex-basis: 220px;
   }
 
-  .titlebar-input-field .input-field {
+  .titlebar-input-field .input {
     text-align: left;
   }
 

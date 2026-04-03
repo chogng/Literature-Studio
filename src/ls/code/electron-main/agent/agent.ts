@@ -879,6 +879,8 @@ export async function runMainAgentTurn(
     apiKey: llmRoute.apiKey,
     baseUrl: llmRoute.baseUrl,
     model: llmRoute.model,
+    reasoningEffort: llmRoute.reasoningEffort,
+    serviceTier: llmRoute.serviceTier,
   });
   const availableTools = normalizeAvailableTools(payload.availableTools);
   const tools = createMainAgentTools(

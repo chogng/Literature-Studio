@@ -83,7 +83,7 @@ export type BatchSourceRowViewProps = {
   onMoveBatchSource: (index: number, direction: 'up' | 'down') => void;
 };
 
-export type BatchSourcesFieldViewProps = {
+export type BatchSourcesWidgetProps = {
   labels: SettingsPartLabels;
   batchSources: BatchSource[];
   isSettingsSaving: boolean;
@@ -144,8 +144,8 @@ class BatchSourceRowView {
   }
 }
 
-export class BatchSourcesFieldView {
-  private props: BatchSourcesFieldViewProps;
+export class BatchSourcesWidget {
+  private props: BatchSourcesWidgetProps;
   private readonly element = el('div', 'settings-field');
   private readonly title = el('span');
   private readonly list = el('div', 'settings-url-list');
@@ -153,7 +153,7 @@ export class BatchSourcesFieldView {
   private readonly addButton = buildButton({ label: '', className: 'settings-text-button', focusKey: 'settings.batch.add', onClick: () => this.props.onAddBatchSource() });
   private rowViews: BatchSourceRowView[] = [];
 
-  constructor(props: BatchSourcesFieldViewProps) {
+  constructor(props: BatchSourcesWidgetProps) {
     this.props = props;
     this.element.append(this.title, this.list, this.hint);
     this.setProps(props);
@@ -163,7 +163,7 @@ export class BatchSourcesFieldView {
     return this.element;
   }
 
-  setProps(props: BatchSourcesFieldViewProps) {
+  setProps(props: BatchSourcesWidgetProps) {
     this.props = props;
     this.title.textContent = props.labels.settingsPageUrl;
     this.hint.textContent = props.labels.settingsPageUrlHint;

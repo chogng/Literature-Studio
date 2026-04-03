@@ -1,12 +1,12 @@
 import type { AssistantModelSnapshot } from 'ls/workbench/browser/assistantModel';
 import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
-import { AuxiliaryBar } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
-import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
+import { AgentChatWidget } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
+import type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
 
 import { createAuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
 
-export type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybar';
+export type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
 
 type CreateAuxiliaryBarPartPropsParams = {
   state: {
@@ -19,8 +19,6 @@ type CreateAuxiliaryBarPartPropsParams = {
     availableArticleCount: number;
     conversations: AssistantModelSnapshot['conversations'];
     activeConversationId: AssistantModelSnapshot['activeConversationId'];
-    isHistoryOpen: AssistantModelSnapshot['isHistoryOpen'];
-    isMoreMenuOpen: AssistantModelSnapshot['isMoreMenuOpen'];
     llmModelOptions: DropdownOption[];
     activeLlmModelOptionValue: string;
   };
@@ -32,9 +30,8 @@ type CreateAuxiliaryBarPartPropsParams = {
     onActivateConversation: (conversationId: string) => void;
     onCloseConversation: (conversationId: string) => void;
     onCloseAuxiliarySidebar: () => void;
-    onToggleHistory: () => void;
-    onToggleMoreMenu: () => void;
     onSelectLlmModel: (value: string) => void;
+    onOpenModelSettings: () => void;
   };
 };
 
@@ -60,8 +57,6 @@ export function createAuxiliaryBarPartProps({
     availableArticleCount,
     conversations,
     activeConversationId,
-    isHistoryOpen,
-    isMoreMenuOpen,
     llmModelOptions,
     activeLlmModelOptionValue,
   },
@@ -73,11 +68,10 @@ export function createAuxiliaryBarPartProps({
     onActivateConversation,
     onCloseConversation,
     onCloseAuxiliarySidebar,
-    onToggleHistory,
-    onToggleMoreMenu,
     onSelectLlmModel,
+    onOpenModelSettings,
   },
-}: CreateAuxiliaryBarPartPropsParams): AuxiliaryBarProps {
+}: CreateAuxiliaryBarPartPropsParams): AgentChatWidgetProps {
   return {
     labels: createAuxiliaryBarLabels(ui),
     isKnowledgeBaseModeEnabled,
@@ -91,17 +85,14 @@ export function createAuxiliaryBarPartProps({
     availableArticleCount,
     conversations,
     activeConversationId,
-    isHistoryOpen,
-    isMoreMenuOpen,
     llmModelOptions,
     activeLlmModelOptionValue,
     onCreateConversation,
     onActivateConversation,
     onCloseConversation,
     onCloseAuxiliarySidebar,
-    onToggleHistory,
-    onToggleMoreMenu,
     onSelectLlmModel,
+    onOpenModelSettings,
   };
 }
 
@@ -110,14 +101,14 @@ export class AuxiliaryBarPartView {
     'section',
     'panel sidebar-panel auxiliarybar-panel',
   );
-  private readonly sidebar: AuxiliaryBar;
+  private readonly sidebar: AgentChatWidget;
 
-  constructor(props: AuxiliaryBarProps) {
+  constructor(props: AgentChatWidgetProps) {
     registerWorkbenchPartDomNode(
       WORKBENCH_PART_IDS.auxiliarySidebar,
       this.element,
     );
-    this.sidebar = new AuxiliaryBar(props);
+    this.sidebar = new AgentChatWidget(props);
     this.element.append(this.sidebar.getElement());
   }
 
@@ -125,7 +116,7 @@ export class AuxiliaryBarPartView {
     return this.element;
   }
 
-  setProps(props: AuxiliaryBarProps) {
+  setProps(props: AgentChatWidgetProps) {
     this.sidebar.setProps(props);
   }
 
@@ -136,6 +127,6 @@ export class AuxiliaryBarPartView {
   }
 }
 
-export function createAuxiliaryBarPartView(props: AuxiliaryBarProps) {
+export function createAuxiliaryBarPartView(props: AgentChatWidgetProps) {
   return new AuxiliaryBarPartView(props);
 }

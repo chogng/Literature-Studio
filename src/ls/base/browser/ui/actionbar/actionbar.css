@@ -127,6 +127,30 @@
   height: 100%;
 }
 
+.action-dropdown-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.action-dropdown-item > .actionbar-item {
+  display: inline-flex;
+}
+
+.action-dropdown-item-separator {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 4px 0;
+}
+
+.action-dropdown-item-separator > div {
+  width: 1px;
+  border-radius: 999px;
+  background: var(--ls-actionbar-separator);
+  opacity: 0.9;
+}
+
 .actionbar-separator {
   width: 1px;
   height: 16px;

@@ -6,6 +6,7 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let createDropdownView: typeof import('ls/base/browser/ui/dropdown/dropdown').createDropdownView;
+let createDomDropdownMenuPresenter: typeof import('ls/base/browser/ui/dropdown/dropdown').createDomDropdownMenuPresenter;
 
 type RectInit = {
   x: number;
@@ -33,7 +34,10 @@ function createDomRect({ x, y, width, height }: RectInit) {
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
-  ({ createDropdownView } = await import('ls/base/browser/ui/dropdown/dropdown'));
+  ({
+    createDropdownView,
+    createDomDropdownMenuPresenter,
+  } = await import('ls/base/browser/ui/dropdown/dropdown'));
 });
 
 after(() => {
@@ -79,9 +83,9 @@ test('dropdown portal menu renders in document.body and follows the trigger rect
   });
 
   try {
+    const menuPresenter = createDomDropdownMenuPresenter({ layer: 'portal' });
     const dropdownView = createDropdownView({
-      menuMode: 'dom',
-      domMenuLayer: 'portal',
+      menuPresenter,
       value: 'nature',
       options: [
         { value: 'nature', label: 'Nature' },
@@ -103,6 +107,7 @@ test('dropdown portal menu renders in document.body and follows the trigger rect
     assert.equal(menu.style.minWidth, '96px');
     assert.equal(menu.classList.contains('dropdown-menu-bottom'), true);
 
+    menuPresenter.dispose();
     dropdownView.dispose();
   } finally {
     document.body.replaceChildren();
@@ -121,21 +126,141 @@ test('dropdown portal menu renders in document.body and follows the trigger rect
   }
 });
 
-test('dropdown external mode delegates menu lifecycle without rendering a DOM menu', () => {
-  const requests: Array<
-    | import('ls/base/browser/ui/dropdown/dropdown').DropdownExternalMenuRequest
-    | null
-  > = [];
+test('dropdown renders option icons in both trigger field and menu items', () => {
   const dropdownView = createDropdownView({
-    menuMode: 'external',
+    value: 'science',
+    options: [
+      { value: 'nature', label: 'Nature', icon: 'openai' },
+      { value: 'science', label: 'Science', icon: 'model' },
+    ],
+  });
+  const dropdown = dropdownView.getElement();
+  document.body.append(dropdown);
+
+  try {
+    const triggerIcon = dropdown.querySelector('.dropdown-field .dropdown-option-icon');
+    assert(triggerIcon instanceof HTMLElement);
+
+    dropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const menuIcon = dropdown.querySelector('.dropdown-menu .dropdown-option-icon');
+    assert(menuIcon instanceof HTMLElement);
+  } finally {
+    dropdownView.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('dropdown portal menu can opt out of matching the trigger width', () => {
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+  const originalOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+  const originalOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 1280,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: 720,
+  });
+  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+    configurable: true,
+    get() {
+      if (this.classList.contains('dropdown-menu')) {
+        return 180;
+      }
+      return 0;
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+    configurable: true,
+    get() {
+      if (this.classList.contains('dropdown-menu')) {
+        return 84;
+      }
+      return 0;
+    },
+  });
+
+  try {
+    const menuPresenter = createDomDropdownMenuPresenter({ layer: 'portal' });
+    const dropdownView = createDropdownView({
+      menuPresenter,
+      matchTriggerWidth: false,
+      value: 'nature',
+      options: [
+        { value: 'nature', label: 'Nature' },
+        { value: 'science', label: 'Science and research with a longer label' },
+      ],
+    });
+    const dropdown = dropdownView.getElement();
+    dropdown.getBoundingClientRect = () =>
+      createDomRect({ x: 40, y: 120, width: 96, height: 32 });
+    document.body.append(dropdown);
+
+    dropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const menu = document.body.querySelector('.dropdown-menu-portal');
+    assert(menu instanceof HTMLElement);
+    assert.equal(menu.style.minWidth, '0px');
+
+    menuPresenter.dispose();
+    dropdownView.dispose();
+  } finally {
+    document.body.replaceChildren();
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth);
+    }
+    if (originalInnerHeight) {
+      Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+    }
+    if (originalOffsetWidth) {
+      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', originalOffsetWidth);
+    }
+    if (originalOffsetHeight) {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', originalOffsetHeight);
+    }
+  }
+});
+
+test('dropdown delegates menu lifecycle to an injected presenter without rendering a DOM menu', () => {
+  const requests: import('ls/base/browser/ui/dropdown/dropdown').DropdownMenuRequest[] = [];
+  let visible = false;
+  let hideCount = 0;
+  const menuPresenter: import('ls/base/browser/ui/dropdown/dropdown').DropdownMenuPresenter = {
+    isDetached: true,
+    supportsActiveDescendant: false,
+    respondsToViewportChanges: true,
+    show(request) {
+      visible = true;
+      requests.push(request);
+    },
+    hide() {
+      if (!visible) {
+        return;
+      }
+      visible = false;
+      hideCount += 1;
+    },
+    isVisible() {
+      return visible;
+    },
+    containsTarget() {
+      return false;
+    },
+    dispose() {
+      visible = false;
+    },
+  };
+  const dropdownView = createDropdownView({
+    menuPresenter,
     value: 'nature',
     options: [
       { value: 'nature', label: 'Nature' },
       { value: 'science', label: 'Science' },
     ],
-    onExternalMenuChange: (request) => {
-      requests.push(request);
-    },
   });
   const dropdown = dropdownView.getElement();
   dropdown.getBoundingClientRect = () =>
@@ -146,35 +271,34 @@ test('dropdown external mode delegates menu lifecycle without rendering a DOM me
     dropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     assert.equal(document.body.querySelector('.dropdown-menu'), null);
-    assert.equal(requests.length > 0, true);
-    assert.deepEqual(requests.at(-1), {
-      source: 'open',
-      triggerRect: {
-        x: 80,
-        y: 60,
-        width: 120,
-        height: 32,
-      },
-      align: 'start',
-      options: [
-        { value: 'nature', label: 'Nature' },
-        { value: 'science', label: 'Science' },
-      ],
-      value: 'nature',
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]?.source, 'open');
+    assert.deepEqual(requests[0]?.triggerRect, {
+      x: 80,
+      y: 60,
+      width: 120,
+      height: 32,
     });
+    assert.equal(requests[0]?.align, 'start');
+    assert.deepEqual(requests[0]?.options, [
+      { value: 'nature', label: 'Nature' },
+      { value: 'science', label: 'Science' },
+    ]);
+    assert.equal(requests[0]?.value, 'nature');
 
     dropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    assert.equal(requests.at(-1), null);
+    assert.equal(hideCount, 1);
   } finally {
+    menuPresenter.dispose();
     dropdownView.dispose();
     document.body.replaceChildren();
   }
 });
 
 test('dropdown portal menu closes when focus moves to another control', async () => {
+  const menuPresenter = createDomDropdownMenuPresenter({ layer: 'portal' });
   const dropdownView = createDropdownView({
-    menuMode: 'dom',
-    domMenuLayer: 'portal',
+    menuPresenter,
     value: 'nature',
     options: [
       { value: 'nature', label: 'Nature' },
@@ -199,30 +323,7 @@ test('dropdown portal menu closes when focus moves to another control', async ()
     assert.equal(document.body.querySelector('.dropdown-menu-portal'), null);
     assert.equal(dropdown.getAttribute('aria-expanded'), 'false');
   } finally {
-    dropdownView.dispose();
-    document.body.replaceChildren();
-  }
-});
-
-test('dropdown external mode falls back to DOM rendering when no external host is provided', () => {
-  const dropdownView = createDropdownView({
-    menuMode: 'external',
-    value: 'nature',
-    options: [
-      { value: 'nature', label: 'Nature' },
-      { value: 'science', label: 'Science' },
-    ],
-  });
-  const dropdown = dropdownView.getElement();
-  document.body.append(dropdown);
-
-  try {
-    dropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-
-    const inlineMenu = dropdown.querySelector('.dropdown-menu');
-    assert(inlineMenu instanceof HTMLElement);
-    assert.equal(document.body.querySelector('.dropdown-menu-portal'), null);
-  } finally {
+    menuPresenter.dispose();
     dropdownView.dispose();
     document.body.replaceChildren();
   }
@@ -231,7 +332,6 @@ test('dropdown external mode falls back to DOM rendering when no external host i
 test('dropdown exposes basic aria metadata and keyboard selection for DOM menus', () => {
   const selections: string[] = [];
   const dropdownView = createDropdownView({
-    menuMode: 'dom',
     value: 'nature',
     options: [
       { value: 'nature', label: 'Nature' },

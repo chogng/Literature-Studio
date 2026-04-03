@@ -31,7 +31,7 @@ import {
   createSettingsPartProps,
 } from 'ls/workbench/contrib/preferences/browser/settingsEditor';
 import { createAuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
-import type { AuxiliaryBarProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import type { AgentChatWidgetProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
 
 import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
 import { createSecondarySidebarPartProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
@@ -44,6 +44,7 @@ import { createMenuOverlayWindowView } from 'ls/workbench/browser/menuOverlayWin
 import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
 import { createReaderPageView } from 'ls/workbench/browser/readerPageView';
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { createToastHost } from 'ls/base/browser/ui/toast/toastHost';
 import type { ToastHost } from 'ls/base/browser/ui/toast/toastHost';
 
@@ -80,12 +81,13 @@ import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentS
 import { getLocaleMessages } from 'language/i18n';
 import type { Article } from 'ls/workbench/services/article/articleFetch';
 import { normalizeUrl } from 'ls/workbench/common/url';
-import type { LibraryDocumentSummary, LlmProviderId } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { LibraryDocumentSummary, LlmProviderId, LlmProviderSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { getConfigBatchSourceSeed, normalizeBatchLimit } from 'ls/workbench/services/config/configSchema';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 import {
-  getEnabledLlmModelsForProvider,
   getLlmProviderDefinition,
+  getLlmModelOptionsForProvider,
+  parseLlmModelOptionValue,
 } from 'ls/workbench/services/llm/registry';
 import { reduceQuickAccessAction } from 'ls/workbench/services/quickAccess/quickAccessService';
 import type { QuickAccessAction, QuickAccessCommand } from 'ls/workbench/services/quickAccess/quickAccessService';
@@ -152,6 +154,19 @@ let activeOverlayView:
   | ReturnType<typeof createMenuOverlayWindowView>
   | ReturnType<typeof createArticleDetailsModalWindowView>
   | null = null;
+let activeAgentChatModelOptionValue: string | null = null;
+
+const llmProviderIconMap: Record<LlmProviderId, LxIconName> = {
+  glm: 'model',
+  kimi: 'kimi-color',
+  deepseek: 'deepseek-color',
+  anthropic: 'anthropic',
+  openai: 'openai',
+  gemini: 'gemini-color',
+  custom: 'model',
+};
+
+const AGENT_CHAT_AUTO_MODEL_OPTION_VALUE = 'auto';
 
 function emitWorkbenchStateChange() {
   for (const listener of workbenchStateListeners) {
@@ -207,6 +222,42 @@ function resolveRuntimeState() {
     electronRuntime,
     webContentRuntime,
     desktopRuntime: electronRuntime,
+  };
+}
+
+function createAgentChatLlmSettings(
+  activeProvider: LlmProviderId,
+  llmProviders: Record<LlmProviderId, LlmProviderSettings>,
+  selectedModelOptionValue: string | null,
+) {
+  if (
+    selectedModelOptionValue &&
+    selectedModelOptionValue !== AGENT_CHAT_AUTO_MODEL_OPTION_VALUE
+  ) {
+    const parsed = parseLlmModelOptionValue(selectedModelOptionValue);
+    if (parsed) {
+      return {
+        activeProvider: parsed.providerId,
+        providers: {
+          ...llmProviders,
+          [parsed.providerId]: {
+            ...llmProviders[parsed.providerId],
+            selectedModelOption: selectedModelOptionValue,
+          },
+        },
+      };
+    }
+  }
+
+  return {
+    activeProvider,
+    providers: {
+      ...llmProviders,
+      [activeProvider]: {
+        ...llmProviders[activeProvider],
+        selectedModelOption: '',
+      },
+    },
   };
 }
 
@@ -794,7 +845,7 @@ class WorkbenchHost {
     auxiliarySidebarSize: number;
     secondarySidebarProps: ReturnType<typeof createSecondarySidebarPartProps>;
     primaryBarProps: PrimaryBarProps;
-    auxiliarySidebarProps: AuxiliaryBarProps;
+    auxiliarySidebarProps: AgentChatWidgetProps;
     editorPartProps: EditorPartProps;
   }) {
     this.settingsView?.dispose();
@@ -924,25 +975,34 @@ class WorkbenchHost {
       batchEndDate: readerStateSnapshot.batchEndDate,
       ...selectReaderDerivedState(readerStateSnapshot, articles),
     };
-    const currentLlmSettings = {
-      activeProvider: activeLlmProvider,
-      providers: llmProviders,
-    };
-    const auxiliaryLlmModelOptions = (Object.entries(llmProviders) as Array<
+    const currentLlmSettings = createAgentChatLlmSettings(
+      activeLlmProvider,
+      llmProviders,
+      activeAgentChatModelOptionValue,
+    );
+    const auxiliaryLlmModelOptions = [{
+      value: AGENT_CHAT_AUTO_MODEL_OPTION_VALUE,
+      label: 'Auto',
+      icon: 'agent' as const,
+      title: 'Auto',
+    }, ...(Object.entries(llmProviders) as Array<
       [LlmProviderId, (typeof llmProviders)[LlmProviderId]]
     >).flatMap(([provider, providerSettings]) => {
       const providerLabel = getLlmProviderDefinition(provider).label;
-      const providerModels = getEnabledLlmModelsForProvider(
+      const providerOptions = getLlmModelOptionsForProvider(
         provider,
-        providerSettings.enabledModels,
+        providerSettings.enabledModelOptions,
+        { enabledOnly: true },
       );
-      return providerModels.map((model) => ({
-        value: `${provider}:${model.id}`,
-        label: `${providerLabel} / ${model.label}`,
-        title: `${providerLabel} / ${model.label}`,
+      return providerOptions.map((option) => ({
+        value: option.value,
+        label: option.label,
+        icon: llmProviderIconMap[provider],
+        title: `${providerLabel} / ${option.title}`,
       }));
-    });
-    const activeLlmModelOptionValue = `${activeLlmProvider}:${llmProviders[activeLlmProvider].model}`;
+    })];
+    const activeLlmModelOptionValue =
+      activeAgentChatModelOptionValue ?? AGENT_CHAT_AUTO_MODEL_OPTION_VALUE;
     const currentRagSettings = {
       enabled: knowledgeBaseModeEnabled,
       activeProvider: activeRagProvider,
@@ -1011,8 +1071,6 @@ class WorkbenchHost {
       errorMessage: assistantErrorMessage,
       conversations: assistantConversations,
       activeConversationId: activeAssistantConversationId,
-      isHistoryOpen: isAssistantHistoryOpen,
-      isMoreMenuOpen: isAssistantMoreMenuOpen,
     } = assistantSnapshot;
     const setAssistantQuestion = assistantModelInstance.setQuestion;
     const handleAssistantAsk = assistantModelInstance.handleAsk;
@@ -1022,10 +1080,6 @@ class WorkbenchHost {
       assistantModelInstance.handleActivateConversation;
     const handleAssistantCloseConversation =
       assistantModelInstance.handleCloseConversation;
-    const handleAssistantToggleHistory =
-      assistantModelInstance.handleToggleHistory;
-    const handleAssistantToggleMoreMenu =
-      assistantModelInstance.handleToggleMoreMenu;
     const handleAssistantApplyPatch =
       assistantModelInstance.handleApplyPatch;
 
@@ -1506,8 +1560,6 @@ class WorkbenchHost {
         availableArticleCount: filteredArticles.length,
         conversations: assistantConversations,
         activeConversationId: activeAssistantConversationId,
-        isHistoryOpen: isAssistantHistoryOpen,
-        isMoreMenuOpen: isAssistantMoreMenuOpen,
         llmModelOptions: auxiliaryLlmModelOptions,
         activeLlmModelOptionValue,
       },
@@ -1519,20 +1571,29 @@ class WorkbenchHost {
         onActivateConversation: handleAssistantActivateConversation,
         onCloseConversation: handleAssistantCloseConversation,
         onCloseAuxiliarySidebar: handleCloseAuxiliarySidebar,
-        onToggleHistory: handleAssistantToggleHistory,
-        onToggleMoreMenu: handleAssistantToggleMoreMenu,
         onSelectLlmModel: (value) => {
-          const separatorIndex = value.indexOf(':');
-          if (separatorIndex <= 0) {
+          activeAgentChatModelOptionValue =
+            value === AGENT_CHAT_AUTO_MODEL_OPTION_VALUE ? null : value;
+          if (value === AGENT_CHAT_AUTO_MODEL_OPTION_VALUE) {
+            this.requestRender();
             return;
           }
-          const provider = value.slice(0, separatorIndex);
-          const model = value.slice(separatorIndex + 1);
-          if (!model) {
+          this.requestRender();
+          const parsed = parseLlmModelOptionValue(value);
+          if (!parsed) {
             return;
           }
-          settingsControllerInstance.setActiveLlmProvider(provider as LlmProviderId);
-          settingsControllerInstance.setLlmProviderModel(provider as LlmProviderId, model);
+          settingsControllerInstance.setActiveLlmProvider(parsed.providerId);
+          settingsControllerInstance.setLlmProviderSelectedModelOption(parsed.providerId, value);
+        },
+        onOpenModelSettings: () => {
+          const selectedOption = activeAgentChatModelOptionValue
+            ? parseLlmModelOptionValue(activeAgentChatModelOptionValue)
+            : null;
+          settingsControllerInstance.setActiveLlmProvider(
+            selectedOption?.providerId ?? activeLlmProvider,
+          );
+          setWorkbenchActivePage('settings');
         },
       },
     });
@@ -1664,8 +1725,14 @@ class WorkbenchHost {
         onActiveLlmProviderChange: settingsControllerInstance.setActiveLlmProvider,
         onLlmProviderApiKeyChange: settingsControllerInstance.setLlmProviderApiKey,
         onLlmProviderModelChange: settingsControllerInstance.setLlmProviderModel,
+        onLlmProviderSelectedModelOption:
+          settingsControllerInstance.setLlmProviderSelectedModelOption,
+        onLlmProviderReasoningEffortChange:
+          settingsControllerInstance.setLlmProviderReasoningEffort,
         onLlmProviderModelEnabledChange:
           settingsControllerInstance.setLlmProviderModelEnabled,
+        onLlmProviderUseMaxContextWindowChange:
+          settingsControllerInstance.setLlmProviderUseMaxContextWindow,
         onActiveTranslationProviderChange:
           settingsControllerInstance.setActiveTranslationProvider,
         onTranslationProviderApiKeyChange:

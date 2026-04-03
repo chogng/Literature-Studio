@@ -30,13 +30,21 @@ export interface BatchSource {
   preferredExtractorId?: string | null;
 }
 
-export type LlmProviderId = 'glm' | 'kimi' | 'deepseek';
+export type LlmProviderId =
+  | 'glm'
+  | 'kimi'
+  | 'deepseek'
+  | 'anthropic'
+  | 'openai'
+  | 'gemini'
+  | 'custom';
 
 export interface LlmProviderSettings {
   apiKey: string;
   baseUrl: string;
-  model: string;
-  enabledModels?: string[];
+  selectedModelOption: string;
+  enabledModelOptions?: string[];
+  useMaxContextWindow?: boolean;
 }
 
 export interface LlmSettings {
@@ -311,11 +319,14 @@ export interface TestLlmConnectionPayload {
   apiKey?: string;
   baseUrl?: string;
   model?: string;
+  reasoningEffort?: import('ls/workbench/services/llm/types').LlmReasoningEffort;
+  serviceTier?: import('ls/workbench/services/llm/types').LlmServiceTier;
 }
 
 export interface LlmConnectionTestResult {
   provider: LlmProviderId;
   model: string;
+  reasoningEffort?: import('ls/workbench/services/llm/types').LlmReasoningEffort;
   baseUrl: string;
   responsePreview: string;
 }

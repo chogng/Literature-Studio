@@ -1,0 +1,32 @@
+.inputbox {
+  --inputbox-height: 28px;
+  position: relative;
+  width: 100%;
+  border-radius: 6px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.inputbox > .ibwrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.inputbox > .ibwrapper > .input {
+  width: 100%;
+  height: var(--inputbox-height);
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: #1a2530;
+  font: inherit;
+  line-height: normal;
+  font-size: 15px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.inputbox > .ibwrapper > .input::placeholder {
+  color: #94a3b8;
+}

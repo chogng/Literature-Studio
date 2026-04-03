@@ -31,8 +31,12 @@ import {
 } from 'ls/workbench/services/settings/settingsEditing';
 import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config';
 import {
-  getEnabledLlmModelIdsForProvider,
+  getEnabledLlmModelOptionValuesForProvider,
+  getLlmModelByIdForProvider,
+  getPreferredReasoningEffort,
   isLlmModelIdForProvider,
+  parseLlmModelOptionValue,
+  serializeLlmModelOptionValue,
 } from 'ls/workbench/services/llm/registry';
 import { resolveLlmRoute } from 'ls/workbench/services/llm/routing';
 import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config';
@@ -76,6 +80,10 @@ type SettingsModelContext = {
 type SaveSettingsContext = SettingsModelContext & {
   locale: Locale;
 };
+
+function getSelectedProviderOptionValue(providerSettings: LlmProviderSettings) {
+  return providerSettings.selectedModelOption;
+}
 
 export type ChoosePdfDownloadDirResult =
   | {
@@ -474,65 +482,15 @@ export class SettingsModel {
     }));
   };
 
-  readonly setLlmProviderModel = (provider: LlmProviderId, model: string) => {
-    if (!isLlmModelIdForProvider(provider, model)) {
-      return;
-    }
-
-    this.updateSnapshot((snapshot) => ({
-      ...snapshot,
-      llmProviders: {
-        ...snapshot.llmProviders,
-        [provider]: {
-          ...snapshot.llmProviders[provider],
-          model: getEnabledLlmModelIdsForProvider(
-            provider,
-            snapshot.llmProviders[provider].enabledModels,
-          ).includes(model)
-            ? model
-            : (getEnabledLlmModelIdsForProvider(
-                provider,
-                snapshot.llmProviders[provider].enabledModels,
-              )[0] ?? snapshot.llmProviders[provider].model),
-        },
-      },
-    }));
-  };
-
-  readonly setLlmProviderModelEnabled = (
+  readonly setLlmProviderUseMaxContextWindow = (
     provider: LlmProviderId,
-    model: string,
-    enabled: boolean,
+    useMaxContextWindow: boolean,
   ) => {
-    if (!isLlmModelIdForProvider(provider, model)) {
-      return;
-    }
-
     this.updateSnapshot((snapshot) => {
       const providerSettings = snapshot.llmProviders[provider];
-      const currentEnabledModels = getEnabledLlmModelIdsForProvider(
-        provider,
-        providerSettings.enabledModels,
-      );
-      const isCurrentlyEnabled = currentEnabledModels.includes(model);
-      if (isCurrentlyEnabled === enabled) {
+      if ((providerSettings.useMaxContextWindow ?? false) === useMaxContextWindow) {
         return snapshot;
       }
-
-      if (!enabled && currentEnabledModels.length <= 1) {
-        return snapshot;
-      }
-
-      const currentEnabledSet = new Set(currentEnabledModels);
-      const nextEnabledModels = getEnabledLlmModelIdsForProvider(provider).filter(
-        (modelId) =>
-          enabled
-            ? currentEnabledSet.has(modelId) || modelId === model
-            : currentEnabledSet.has(modelId) && modelId !== model,
-      );
-      const nextModel = nextEnabledModels.includes(providerSettings.model)
-        ? providerSettings.model
-        : (nextEnabledModels[0] ?? providerSettings.model);
 
       return {
         ...snapshot,
@@ -540,8 +498,213 @@ export class SettingsModel {
           ...snapshot.llmProviders,
           [provider]: {
             ...providerSettings,
-            model: nextModel,
-            enabledModels: nextEnabledModels,
+            useMaxContextWindow,
+          },
+        },
+      };
+    });
+  };
+
+  readonly setLlmProviderModel = (provider: LlmProviderId, model: string) => {
+    if (!isLlmModelIdForProvider(provider, model)) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => {
+      const providerSettings = snapshot.llmProviders[provider];
+      const enabledModelOptions = getEnabledLlmModelOptionValuesForProvider(
+        provider,
+        providerSettings.enabledModelOptions,
+      );
+      const currentSelection = getSelectedProviderOptionValue(providerSettings)
+        ? parseLlmModelOptionValue(getSelectedProviderOptionValue(providerSettings))
+        : null;
+      const currentRequestedEffort =
+        currentSelection?.providerId === provider && currentSelection.modelId === model
+          ? currentSelection.reasoningEffort
+          : undefined;
+      const currentServiceTier =
+        currentSelection?.providerId === provider && currentSelection.modelId === model
+          ? currentSelection.serviceTier
+          : undefined;
+      const nextModelOptions = enabledModelOptions
+        .map((value) => parseLlmModelOptionValue(value))
+        .filter((option): option is NonNullable<typeof option> =>
+          Boolean(option && option.providerId === provider && option.modelId === model),
+        );
+      const nextReasoningEffort = getPreferredReasoningEffort(
+        getLlmModelByIdForProvider(provider, model) ?? {
+          id: model,
+          label: model,
+          description: model,
+          provider,
+          apiStyle: 'openai-compatible',
+          recommendedTasks: [],
+          enabled: true,
+        },
+        currentRequestedEffort,
+      );
+      const preferredOption = nextModelOptions.find(
+        (option) => option.reasoningEffort === nextReasoningEffort,
+      );
+      const nextSelectedModelOption =
+        preferredOption
+          ? serializeLlmModelOptionValue(
+              provider,
+              preferredOption.modelId,
+              preferredOption.reasoningEffort,
+              preferredOption.serviceTier ?? currentServiceTier,
+            )
+          : nextModelOptions[0]
+            ? serializeLlmModelOptionValue(
+                provider,
+                nextModelOptions[0].modelId,
+                nextModelOptions[0].reasoningEffort,
+                nextModelOptions[0].serviceTier ?? currentServiceTier,
+              )
+            : '';
+
+      if (providerSettings.selectedModelOption === nextSelectedModelOption) {
+        return snapshot;
+      }
+
+      return {
+        ...snapshot,
+        llmProviders: {
+          ...snapshot.llmProviders,
+          [provider]: {
+            ...providerSettings,
+            selectedModelOption: nextSelectedModelOption,
+          },
+        },
+      };
+    });
+  };
+
+  readonly setLlmProviderReasoningEffort = (
+    provider: LlmProviderId,
+    reasoningEffort: import('ls/workbench/services/llm/types').LlmReasoningEffort | undefined,
+  ) => {
+    this.updateSnapshot((snapshot) => {
+      const providerSettings = snapshot.llmProviders[provider];
+      const selectedOption = getSelectedProviderOptionValue(providerSettings)
+        ? parseLlmModelOptionValue(getSelectedProviderOptionValue(providerSettings))
+        : null;
+      if (!selectedOption || selectedOption.providerId !== provider) {
+        return snapshot;
+      }
+
+      const model = getLlmModelByIdForProvider(provider, selectedOption.modelId);
+      if (!model) {
+        return snapshot;
+      }
+      const nextReasoningEffort = getPreferredReasoningEffort(model, reasoningEffort);
+      const nextSelectedModelOption = serializeLlmModelOptionValue(
+        provider,
+        selectedOption.modelId,
+        nextReasoningEffort,
+        selectedOption.serviceTier,
+      );
+      if (providerSettings.selectedModelOption === nextSelectedModelOption) {
+        return snapshot;
+      }
+
+      return {
+        ...snapshot,
+        llmProviders: {
+          ...snapshot.llmProviders,
+          [provider]: {
+            ...providerSettings,
+            selectedModelOption: nextSelectedModelOption,
+          },
+        },
+      };
+    });
+  };
+
+  readonly setLlmProviderSelectedModelOption = (
+    provider: LlmProviderId,
+    optionValue: string,
+  ) => {
+    const parsedOption = parseLlmModelOptionValue(optionValue);
+    if (!parsedOption || parsedOption.providerId !== provider) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => {
+      const providerSettings = snapshot.llmProviders[provider];
+      const enabledModelOptions = getEnabledLlmModelOptionValuesForProvider(
+        provider,
+        providerSettings.enabledModelOptions,
+      );
+      const nextSelectedModelOption = enabledModelOptions.includes(optionValue) ? optionValue : '';
+      if (providerSettings.selectedModelOption === nextSelectedModelOption) {
+        return snapshot;
+      }
+
+      return {
+        ...snapshot,
+        llmProviders: {
+          ...snapshot.llmProviders,
+          [provider]: {
+            ...providerSettings,
+            selectedModelOption: nextSelectedModelOption,
+          },
+        },
+      };
+    });
+  };
+
+  readonly setLlmProviderModelEnabled = (
+    provider: LlmProviderId,
+    optionValue: string,
+    enabled: boolean,
+  ) => {
+    const parsedOption = parseLlmModelOptionValue(optionValue);
+    if (!parsedOption || parsedOption.providerId !== provider) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => {
+      const providerSettings = snapshot.llmProviders[provider];
+      const currentEnabledModels = getEnabledLlmModelOptionValuesForProvider(
+        provider,
+        providerSettings.enabledModelOptions,
+      );
+      const isCurrentlyEnabled = currentEnabledModels.includes(optionValue);
+      if (isCurrentlyEnabled === enabled) {
+        return snapshot;
+      }
+
+      const currentEnabledSet = new Set(currentEnabledModels);
+      const nextEnabledModels = getEnabledLlmModelOptionValuesForProvider(provider).filter(
+        (value) =>
+          enabled
+            ? currentEnabledSet.has(value) || value === optionValue
+            : currentEnabledSet.has(value) && value !== optionValue,
+      );
+      const currentSelectionValue = providerSettings.selectedModelOption;
+      const nextSelection =
+        (currentSelectionValue && nextEnabledModels.includes(currentSelectionValue)
+          ? parseLlmModelOptionValue(currentSelectionValue)
+          : null) ??
+        (nextEnabledModels[0] ? parseLlmModelOptionValue(nextEnabledModels[0]) : null);
+
+      return {
+        ...snapshot,
+        llmProviders: {
+          ...snapshot.llmProviders,
+          [provider]: {
+            ...providerSettings,
+            selectedModelOption: nextSelection
+              ? serializeLlmModelOptionValue(
+                  provider,
+                  nextSelection.modelId,
+                  nextSelection.reasoningEffort,
+                  nextSelection.serviceTier,
+                )
+              : '',
+            enabledModelOptions: nextEnabledModels,
           },
         },
       };
@@ -999,6 +1162,7 @@ export class SettingsModel {
         apiKey: route.apiKey,
         baseUrl: route.baseUrl,
         model: route.model,
+        reasoningEffort: route.reasoningEffort,
       });
     } finally {
       this.updateSnapshot((snapshot) => ({

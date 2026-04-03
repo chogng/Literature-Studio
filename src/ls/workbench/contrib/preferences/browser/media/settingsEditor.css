@@ -88,8 +88,7 @@
   align-content: start;
   min-height: 0;
   overflow: auto;
-  background:
-    linear-gradient(180deg, #fcfdff 0%, #f7fbfe 100%);
+  background: #fff;
 }
 
 .settings-section {

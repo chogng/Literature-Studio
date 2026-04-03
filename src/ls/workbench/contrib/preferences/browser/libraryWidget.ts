@@ -136,7 +136,7 @@ function resolveLibraryDocumentStatusLabel(labels: SettingsPartLabels, document:
   return labels.settingsLibraryDocumentRegistered;
 }
 
-export type LibraryFieldViewProps = {
+export type LibraryWidgetProps = {
   labels: SettingsPartLabels;
   knowledgeBaseEnabled: boolean;
   autoIndexDownloadedPdf: boolean;
@@ -164,11 +164,11 @@ export type LibraryFieldViewProps = {
   onMaxConcurrentIndexJobsChange: (value: string) => void;
 };
 
-export class LibraryFieldView {
-  private props: LibraryFieldViewProps;
+export class LibraryWidget {
+  private props: LibraryWidgetProps;
   private readonly element = el('div', 'settings-field');
 
-  constructor(props: LibraryFieldViewProps) {
+  constructor(props: LibraryWidgetProps) {
     this.props = props;
     this.setProps(props);
   }
@@ -177,7 +177,7 @@ export class LibraryFieldView {
     return this.element;
   }
 
-  setProps(props: LibraryFieldViewProps) {
+  setProps(props: LibraryWidgetProps) {
     this.props = props;
     this.element.replaceChildren(this.render());
   }
