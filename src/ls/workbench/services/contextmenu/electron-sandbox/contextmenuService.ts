@@ -1,303 +1,240 @@
 import type {
+  ContextMenuAction,
+  ContextMenuDelegate,
+  ContextMenuService as BaseContextMenuService,
+} from 'ls/base/browser/contextmenu';
+import type {
   NativeMenuCoverage,
-  NativeMenuRect,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import type {
+  ContextMenuItem,
+  PopupOptions,
+} from 'ls/base/parts/contextmenu/common/contextmenu';
+import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
 import {
-  createDomDropdownMenuPresenter,
-  type DropdownDomMenuLayer,
-  type DropdownMenuPresenter,
-} from 'ls/base/browser/ui/dropdown/dropdown';
+  createElectronOverlayContextMenuHandler,
+} from 'ls/base/parts/contextmenu/electron-overlay/overlayContextmenu';
 import {
-  createDomDropdownMenuActionPresenter,
-  type DropdownMenuActionOption,
-  type DropdownMenuActionOverlayContext,
-  type DropdownMenuActionPresenter,
-} from 'ls/base/browser/ui/dropdown/dropdownMenuActionViewItem';
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+  close as closeNativePopupContextMenu,
+  popup as popupNativePopupContextMenu,
+} from 'ls/base/parts/contextmenu/native-popup-sandbox/contextmenu';
 import {
-  createElectronOverlayMenuController,
-} from 'ls/workbench/browser/contextmenu/electronOverlayMenuController';
-import {
-  createElectronOverlayDropdownMenuActionPresenter,
-  type ElectronOverlayDropdownMenuActionPresenterOptions,
-} from 'ls/workbench/browser/contextmenu/electronOverlayDropdownMenuActionPresenter';
-import {
-  createElectronOverlayDropdownMenuPresenter,
-  type ElectronOverlayDropdownMenuPresenterOptions,
-} from 'ls/workbench/browser/contextmenu/electronOverlayDropdownMenuPresenter';
-import {
-  resolveWorkbenchContextMenuBackend,
+  resolveWorkbenchContextMenuRouting,
   type WorkbenchContextMenuBackendPreference,
-} from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuBackend';
+} from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuRouting';
 
-export type ContextMenuAnchor = HTMLElement | NativeMenuRect;
-export type ContextMenuAlignment = 'start' | 'center' | 'end';
-
-export type ContextMenuRequest = {
-  anchor: ContextMenuAnchor;
-  options: readonly DropdownMenuActionOption[];
+export type WorkbenchContextMenuRouteOptions = {
   backend?: WorkbenchContextMenuBackendPreference;
   value?: string;
-  align?: ContextMenuAlignment;
   coverage?: NativeMenuCoverage;
   requestIdPrefix?: string;
-  className?: string;
-  minWidth?: number;
-  onSelect?: (value: string) => void;
-  onHide?: () => void;
 };
 
+export type WorkbenchContextMenuDelegate =
+  ContextMenuDelegate & WorkbenchContextMenuRouteOptions;
+
+type WorkbenchContextMenuAlignment = ContextMenuDelegate['alignment'];
+
 export type WorkbenchContextMenuService = {
-  showContextMenu: (request: ContextMenuRequest) => void;
+  showContextMenu: (delegate: WorkbenchContextMenuDelegate) => void;
   hideContextMenu: () => void;
   isVisible: () => boolean;
   dispose: () => void;
-};
+} & BaseContextMenuService;
 
 export type WorkbenchContextMenuServiceOptions = {
   backend?: WorkbenchContextMenuBackendPreference;
+  coverage?: NativeMenuCoverage;
+  requestIdPrefix?: string;
 };
 
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tagName: K,
-  className?: string,
-  textContent?: string,
-) {
-  const element = document.createElement(tagName);
-  if (className) {
-    element.className = className;
-  }
-  if (textContent !== undefined) {
-    element.textContent = textContent;
-  }
-  return element;
-}
+// DOM menus stay in platform/contextview. The only non-DOM backends surfaced to
+// workbench code are:
+// - `native-popup`: native popup menu semantics
+// - `electron-overlay`: a dedicated WebContentsView overlay surface that can
+//   cover other WebContentsView instances
+// Only backend routing and workbench-specific preferences stay in this file.
 
-function composeClassName(parts: Array<string | undefined | null | false>) {
-  return parts.filter(Boolean).join(' ');
-}
-
-function createCheckSlot(isSelected: boolean) {
-  const slot = createElement('span', 'dropdown-menu-item-check');
-  slot.setAttribute('aria-hidden', 'true');
-  if (!isSelected) {
-    slot.classList.add('placeholder');
-  }
-  return slot;
-}
-
-function createMenuContent(option: DropdownMenuActionOption) {
-  const content = createElement('div', 'dropdown-option-content');
-  if (option.icon) {
-    content.append(createLxIcon(option.icon, 'dropdown-option-icon'));
-  }
-  content.append(createElement('div', 'dropdown-menu-item-content', option.label));
-  return content;
-}
-
-function resolveDomAlignment(align?: ContextMenuAlignment) {
+function resolveDomAlignment(align?: WorkbenchContextMenuAlignment) {
   return align === 'end' ? 'end' : 'start';
 }
 
-function createTransientAnchor(anchor: NativeMenuRect) {
-  const element = createElement('div');
-  element.setAttribute('aria-hidden', 'true');
-  element.style.position = 'fixed';
-  element.style.left = `${anchor.x}px`;
-  element.style.top = `${anchor.y}px`;
-  element.style.width = `${anchor.width}px`;
-  element.style.height = `${anchor.height}px`;
-  element.style.pointerEvents = 'none';
-  element.style.opacity = '0';
-  document.body.append(element);
-  return element;
+function resolveNativePopupOptions(
+  anchor: ReturnType<ContextMenuDelegate['getAnchor']>,
+  align?: WorkbenchContextMenuAlignment,
+): PopupOptions {
+  if (anchor instanceof HTMLElement) {
+    const rect = anchor.getBoundingClientRect();
+    return {
+      x: Math.round(align === 'end' ? rect.right : rect.left),
+      y: Math.round(rect.bottom),
+    };
+  }
+
+  return {
+    x: Math.round((align === 'end' ? anchor.x + (anchor.width ?? 0) : anchor.x) + 1),
+    y: Math.round(anchor.y + (anchor.height ?? 0)),
+  };
 }
 
-function isNativeMenuRect(anchor: ContextMenuAnchor): anchor is NativeMenuRect {
-  return !(anchor instanceof HTMLElement);
+function resolveNativePopupPositioningItem(
+  options: readonly ContextMenuAction[],
+  value?: string,
+) {
+  const selectedValue = value ?? options.find((option) => option.checked)?.value;
+  if (!selectedValue) {
+    return undefined;
+  }
+
+  const index = options.findIndex((option) => option.value === selectedValue);
+  return index >= 0 ? index : undefined;
+}
+
+function createNativePopupContextMenuItems(
+  options: readonly ContextMenuAction[],
+  onSelect?: (value: string) => void,
+): ContextMenuItem[] {
+  return options.map((option) => ({
+    label: option.label,
+    enabled: !option.disabled,
+    checked: option.checked,
+    type: option.checked ? 'checkbox' : 'normal',
+    click: () => {
+      onSelect?.(option.value);
+    },
+  }));
 }
 
 class ContextMenuService implements WorkbenchContextMenuService {
-  private readonly electronOverlayMenuController = createElectronOverlayMenuController();
-  private readonly domContextMenu = createDomDropdownMenuActionPresenter();
-  private transientAnchor: HTMLElement | null = null;
-  private activeRequest: ContextMenuRequest | null = null;
-  private closingRequest: ContextMenuRequest | null = null;
+  private readonly electronOverlayContextMenu = createElectronOverlayContextMenuHandler();
+  private readonly domContextMenu = createPlatformContextMenuService();
+  private activeDomDelegate: WorkbenchContextMenuDelegate | null = null;
+  private activeNativePopupRequestId: string | null = null;
+  private readonly nativePopupDelegates = new Map<string, WorkbenchContextMenuDelegate>();
 
   constructor(
     private readonly options: WorkbenchContextMenuServiceOptions = {},
   ) {}
 
-  showContextMenu = (request: ContextMenuRequest) => {
+  showContextMenu = (delegate: WorkbenchContextMenuDelegate) => {
     this.hideContextMenu();
 
-    const backend = resolveWorkbenchContextMenuBackend({
-      backend: request.backend ?? this.options.backend,
+    const backend = resolveWorkbenchContextMenuRouting({
+      backend: delegate.backend ?? this.options.backend,
     });
 
     if (backend === 'electron-overlay') {
-      this.activeRequest = request;
-      this.electronOverlayMenuController.show({
-        anchor: request.anchor,
-        options: request.options.map((option) => ({
-          value: option.value,
-          label: option.label,
-          title: option.title,
-          disabled: option.disabled,
-        })),
-        value: request.value ?? request.options.find((option) => option.checked)?.value,
-        align: request.align,
-        coverage: request.coverage,
-        requestIdPrefix: request.requestIdPrefix,
-        onHide: this.handleElectronOverlayHide,
-        onSelect: this.handleElectronOverlaySelect,
+      this.electronOverlayContextMenu.show({
+        anchor: delegate.getAnchor(),
+        options: delegate.getActions(),
+        value: delegate.value,
+        align: delegate.alignment,
+        coverage: delegate.coverage ?? this.options.coverage,
+        requestIdPrefix: delegate.requestIdPrefix ?? this.options.requestIdPrefix,
+        onSelect: delegate.onSelect,
+        onHide: () => {
+          delegate.onHide?.(true);
+        },
       });
       return;
     }
 
-    const anchor = isNativeMenuRect(request.anchor)
-      ? (this.transientAnchor = createTransientAnchor(request.anchor))
-      : request.anchor;
-    this.activeRequest = request;
-    this.domContextMenu.show({
-      anchor,
-      className: composeClassName(['actionbar-context-view', request.className]),
-      minWidth: request.minWidth,
-      alignment: resolveDomAlignment(request.align),
-      options: request.options,
-      render: ({ hide }) => this.renderDomMenu(request.options, hide),
-      onHide: () => {
-        const activeRequest = this.activeRequest;
-        this.activeRequest = null;
-        this.disposeTransientAnchor();
-        activeRequest?.onHide?.();
-      },
-      onSelectOption: (value: string) => {
-        request.onSelect?.(value);
-      },
-    });
+    if (
+      backend === 'native-popup' &&
+      this.showNativePopupContextMenu(delegate)
+    ) {
+      return;
+    }
+
+    this.handleDomContextMenu(delegate);
   };
 
   hideContextMenu = () => {
-    this.electronOverlayMenuController.hide();
-    this.domContextMenu.hide();
-    this.disposeTransientAnchor();
-    this.activeRequest = null;
-    this.closingRequest = null;
+    this.electronOverlayContextMenu.hide();
+    this.hideNativePopupContextMenu();
+    this.domContextMenu.hideContextMenu();
   };
 
   isVisible = () =>
-    this.electronOverlayMenuController.isVisible() || this.domContextMenu.isVisible();
+    this.electronOverlayContextMenu.isVisible()
+    || this.domContextMenu.isVisible()
+    || this.activeNativePopupRequestId !== null;
 
   dispose = () => {
     this.hideContextMenu();
-    this.electronOverlayMenuController.dispose();
+    this.electronOverlayContextMenu.dispose();
     this.domContextMenu.dispose();
   };
 
-  private renderDomMenu(
-    options: readonly DropdownMenuActionOption[],
-    hide: DropdownMenuActionOverlayContext['hide'],
-  ) {
-    const menu = createElement('div', 'dropdown-menu dropdown-menu-bottom');
-    menu.setAttribute('role', 'menu');
-    menu.append(
-      ...options.map((option) => {
-        const item = createElement(
-          'div',
-          composeClassName([
-            'dropdown-menu-item',
-            option.checked ? 'selected' : '',
-            option.disabled ? 'disabled' : '',
-          ]),
-        );
-        item.setAttribute('role', 'menuitem');
-        item.setAttribute('aria-disabled', option.disabled ? 'true' : 'false');
-        if (option.title) {
-          item.title = option.title;
-        }
-        item.append(createMenuContent(option), createCheckSlot(Boolean(option.checked)));
-        item.addEventListener('click', (event) => {
-          event.stopPropagation();
-          if (option.disabled) {
-            return;
-          }
-          this.activeRequest?.onSelect?.(option.value);
-          hide();
-        });
-        return item;
-      }),
-    );
-    return menu;
-  }
-
-  private disposeTransientAnchor() {
-    this.transientAnchor?.remove();
-    this.transientAnchor = null;
-  }
-
-  private readonly handleElectronOverlayHide = () => {
-    const request = this.activeRequest;
-    this.activeRequest = null;
-    this.closingRequest = request;
-    queueMicrotask(() => {
-      if (this.closingRequest === request) {
-        this.closingRequest = null;
-      }
+  private handleDomContextMenu(delegate: WorkbenchContextMenuDelegate) {
+    this.activeDomDelegate = delegate;
+    this.domContextMenu.showContextMenu({
+      getAnchor: delegate.getAnchor,
+      getActions: delegate.getActions,
+      getMenuClassName: delegate.getMenuClassName,
+      alignment: resolveDomAlignment(delegate.alignment),
+      minWidth: delegate.minWidth,
+      onHide: () => {
+        const activeDelegate = this.activeDomDelegate;
+        this.activeDomDelegate = null;
+        activeDelegate?.onHide?.(true);
+      },
+      onSelect: (value: string) => {
+        delegate.onSelect?.(value);
+      },
     });
-    request?.onHide?.();
-  };
+  }
 
-  private readonly handleElectronOverlaySelect = ({ value }: { value: string }) => {
-    const request = this.closingRequest;
-    this.closingRequest = null;
-    request?.onSelect?.(value);
-  };
-}
+  private showNativePopupContextMenu(delegate: WorkbenchContextMenuDelegate) {
+    const actions = delegate.getActions();
+    const requestId = popupNativePopupContextMenu(
+      createNativePopupContextMenuItems(actions, delegate.onSelect),
+      {
+        ...resolveNativePopupOptions(delegate.getAnchor(), delegate.alignment),
+        positioningItem: resolveNativePopupPositioningItem(actions, delegate.value),
+      },
+      () => {
+        if (requestId) {
+          this.handleNativePopupHide(requestId);
+        }
+      },
+    );
 
-export function canUseElectronOverlayContextMenus() {
-  return resolveWorkbenchContextMenuBackend({
-    backend: 'electron-overlay',
-  }) === 'electron-overlay';
+    if (!requestId) {
+      return false;
+    }
+
+    this.activeNativePopupRequestId = requestId;
+    this.nativePopupDelegates.set(requestId, delegate);
+    return true;
+  }
+
+  private hideNativePopupContextMenu() {
+    if (!this.activeNativePopupRequestId) {
+      return;
+    }
+
+    const requestId = this.activeNativePopupRequestId;
+    this.activeNativePopupRequestId = null;
+    closeNativePopupContextMenu(requestId);
+  }
+
+  private handleNativePopupHide(requestId: string) {
+    const delegate = this.nativePopupDelegates.get(requestId);
+    if (!delegate) {
+      return;
+    }
+
+    this.nativePopupDelegates.delete(requestId);
+    if (this.activeNativePopupRequestId === requestId) {
+      this.activeNativePopupRequestId = null;
+    }
+    delegate.onHide?.(true);
+  }
 }
 
 export function createContextMenuService(
   options?: WorkbenchContextMenuServiceOptions,
 ): WorkbenchContextMenuService {
   return new ContextMenuService(options);
-}
-
-export function createWorkbenchDropdownMenuPresenter(options?: {
-  backend?: WorkbenchContextMenuBackendPreference;
-  domLayer?: DropdownDomMenuLayer;
-  electronOverlay?: ElectronOverlayDropdownMenuPresenterOptions;
-}): DropdownMenuPresenter {
-  if (
-    resolveWorkbenchContextMenuBackend({
-      backend: options?.backend,
-    }) === 'electron-overlay'
-  ) {
-    return createElectronOverlayDropdownMenuPresenter(options?.electronOverlay);
-  }
-
-  return createDomDropdownMenuPresenter({
-    layer: options?.domLayer ?? 'inline',
-  });
-}
-
-export function createWorkbenchDropdownMenuActionPresenter(options?: {
-  backend?: WorkbenchContextMenuBackendPreference;
-  electronOverlay?: ElectronOverlayDropdownMenuActionPresenterOptions;
-  supportsCustomOverlay?: boolean;
-}): DropdownMenuActionPresenter {
-  if (
-    resolveWorkbenchContextMenuBackend({
-      backend: options?.backend,
-      supportsCustomOverlay: options?.supportsCustomOverlay,
-    }) === 'electron-overlay'
-  ) {
-    return createElectronOverlayDropdownMenuActionPresenter(options?.electronOverlay);
-  }
-
-  return createDomDropdownMenuActionPresenter();
 }

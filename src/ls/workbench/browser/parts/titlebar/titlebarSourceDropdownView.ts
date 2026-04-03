@@ -1,9 +1,14 @@
-import { createDropdownView } from 'ls/base/browser/ui/dropdown/dropdown';
-import type { DropdownProps } from 'ls/base/browser/ui/dropdown/dropdown';
-import { createWorkbenchDropdownMenuPresenter } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
+import {
+  canUseElectronOverlayContextMenus,
+  createElectronOverlayDropdownMenuPresenter,
+} from 'ls/base/parts/contextmenu/electron-overlay/overlayContextmenu';
+import {
+  createDomDropdownMenuPresenter,
+  createDropdownView,
+  type DropdownMenuPresenter,
+  type DropdownProps,
+} from 'ls/base/browser/ui/dropdown/dropdown';
 
-// Keep this wrapper in the titlebar layer: it owns titlebar-specific wiring while
-// delegating reusable menu backend routing to the workbench context menu layer.
 export type TitlebarSourceDropdownView = {
   getElement: () => HTMLElement;
   setProps: (props: DropdownProps) => void;
@@ -14,16 +19,21 @@ export type TitlebarSourceDropdownView = {
   dispose: () => void;
 };
 
+function createTitlebarDropdownMenuPresenter(): DropdownMenuPresenter {
+  if (canUseElectronOverlayContextMenus()) {
+    return createElectronOverlayDropdownMenuPresenter({
+      coverage: 'trigger-band',
+      requestIdPrefix: 'electron-overlay-titlebar-dropdown',
+    });
+  }
+
+  return createDomDropdownMenuPresenter({ layer: 'inline' });
+}
+
 export function createTitlebarSourceDropdownView(
   props: DropdownProps,
 ): TitlebarSourceDropdownView {
-  const menuPresenter = createWorkbenchDropdownMenuPresenter({
-    backend: 'electron-overlay',
-    electronOverlay: {
-      coverage: 'trigger-band',
-      requestIdPrefix: 'electron-overlay-titlebar-dropdown',
-    },
-  });
+  const menuPresenter = createTitlebarDropdownMenuPresenter();
 
   const applyProps = (nextProps: DropdownProps) => {
     view.setProps({

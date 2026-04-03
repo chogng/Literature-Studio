@@ -1,34 +1,27 @@
+import type {
+  ContextMenuAction,
+  ContextMenuDelegate,
+  ContextMenuService,
+} from 'ls/base/browser/contextmenu';
 import {
   ActionViewItem,
   BaseActionViewItem,
 } from 'ls/base/browser/ui/actionbar/actionViewItems';
-import {
-  createDomDropdownMenuActionPresenter,
-  type DropdownMenuActionAlignment,
-  type DropdownMenuActionOverlayContext,
-  type DropdownMenuActionPosition,
-  type DropdownMenuActionPresenter,
-  type DropdownMenuActionPresenterRequest,
-} from 'ls/base/browser/ui/dropdown/dropdownMenuActionPresenter';
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { createContextViewController } from 'ls/base/browser/ui/contextview/contextview';
 import type {
   ActionBarActionItem,
   ActionBarActionMode,
   ActionBarMenuItem,
   ActionBarRenderable,
 } from 'ls/base/browser/ui/actionbar/actionbar';
+import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
 
-export {
-  createDomDropdownMenuActionPresenter,
-} from 'ls/base/browser/ui/dropdown/dropdownMenuActionPresenter';
-export type {
-  DropdownMenuActionAlignment,
-  DropdownMenuActionOverlayContext,
-  DropdownMenuActionOption,
-  DropdownMenuActionPosition,
-  DropdownMenuActionPresenter,
-  DropdownMenuActionPresenterRequest,
-} from 'ls/base/browser/ui/dropdown/dropdownMenuActionPresenter';
+export type DropdownMenuActionAlignment = 'start' | 'end';
+export type DropdownMenuActionPosition = 'auto' | 'above' | 'below';
+
+export type DropdownMenuActionOverlayContext = {
+  hide: () => void;
+};
 
 export type DropdownMenuActionViewItemOptions = {
   id?: string;
@@ -48,12 +41,12 @@ export type DropdownMenuActionViewItemOptions = {
   overlayRole?: string;
   menuClassName?: string;
   minWidth?: number;
-  menuPresenter?: DropdownMenuActionPresenter;
+  contextMenuService?: ContextMenuService;
   overlayAlignment?: DropdownMenuActionAlignment;
   overlayPosition?: DropdownMenuActionPosition;
 };
 
-export type ActionWithDropdownMenuActionViewItemOptions = {
+export type ActionWithDropdownActionViewItemOptions = {
   primary: Omit<
     ActionBarActionItem,
     | 'menu'
@@ -61,12 +54,22 @@ export type ActionWithDropdownMenuActionViewItemOptions = {
     | 'overlayRole'
     | 'menuClassName'
     | 'minWidth'
-    | 'menuPresenter'
+    | 'contextMenuService'
     | 'overlayAlignment'
     | 'overlayPosition'
   >;
   dropdown: DropdownMenuActionViewItemOptions;
   className?: string;
+};
+
+type DropdownActionOverlayRequest = {
+  anchor: HTMLElement;
+  className?: string;
+  minWidth?: number;
+  alignment?: DropdownMenuActionAlignment;
+  position?: DropdownMenuActionPosition;
+  render: (context: DropdownMenuActionOverlayContext) => HTMLElement;
+  onHide: () => void;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -92,8 +95,51 @@ function createMenuOptionValue(menuItem: ActionBarMenuItem, index: number) {
   return menuItem.id ?? `dropdown-menu-action-option-${index}`;
 }
 
+class DomDropdownActionOverlayController {
+  private readonly contextView = createContextViewController();
+  private overlayView: HTMLElement | null = null;
+  private currentRequest: DropdownActionOverlayRequest | null = null;
+
+  show(request: DropdownActionOverlayRequest) {
+    this.currentRequest = request;
+    const overlay = request.render({
+      hide: () => this.hide(),
+    });
+    this.overlayView?.remove();
+    this.overlayView = overlay;
+    this.contextView.show({
+      anchor: request.anchor,
+      className: request.className,
+      render: () => overlay,
+      onHide: this.handleHide,
+      position: request.position ?? 'below',
+      alignment: request.alignment ?? 'end',
+      minWidth: request.minWidth ?? 180,
+    });
+  }
+
+  hide = () => {
+    this.contextView.hide();
+  };
+
+  dispose() {
+    this.overlayView?.remove();
+    this.overlayView = null;
+    this.currentRequest = null;
+    this.contextView.dispose();
+  }
+
+  private readonly handleHide = () => {
+    const request = this.currentRequest;
+    this.overlayView = null;
+    this.currentRequest = null;
+    request?.onHide();
+  };
+}
+
 export class DropdownMenuActionViewItem extends ActionViewItem {
-  private readonly defaultMenuPresenter = createDomDropdownMenuActionPresenter();
+  private defaultContextMenuService: ContextMenuService | null = null;
+  private readonly overlayController = new DomDropdownActionOverlayController();
   private isOpen = false;
 
   private get options(): DropdownMenuActionViewItemOptions {
@@ -107,11 +153,16 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
   }
 
   setOptions(options: DropdownMenuActionViewItemOptions) {
-    const previousPresenter = this.getMenuPresenter();
+    const previousOptions = this.options;
+    const previousContextMenuService = this.resolveContextMenuService(previousOptions);
+    const usedCustomOverlay = Boolean(previousOptions.renderOverlay);
     this.setItem(options);
-    const nextPresenter = this.getMenuPresenter();
-    if (previousPresenter !== nextPresenter) {
-      previousPresenter.hide();
+    const nextContextMenuService = this.resolveContextMenuService(this.options);
+    if (previousContextMenuService && previousContextMenuService !== nextContextMenuService) {
+      previousContextMenuService.hideContextMenu();
+    }
+    if (usedCustomOverlay || this.options.renderOverlay) {
+      this.overlayController.hide();
     }
     this.render();
   }
@@ -131,13 +182,30 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
       return;
     }
 
+    if (this.options.renderOverlay) {
+      this.isOpen = true;
+      this.button.setAttribute('aria-expanded', 'true');
+      this.overlayController.show(this.createOverlayRequest());
+      return;
+    }
+
+    const menuOptions = this.createMenuOptions();
+    if (menuOptions.length === 0) {
+      return;
+    }
+
     this.isOpen = true;
     this.button.setAttribute('aria-expanded', 'true');
-    this.getMenuPresenter().show(this.createMenuRequest());
+    this.getOrCreateContextMenuService().showContextMenu(this.createContextMenuRequest(menuOptions));
   }
 
   hide() {
-    this.getMenuPresenter().hide();
+    if (this.options.renderOverlay) {
+      this.overlayController.hide();
+      return;
+    }
+
+    this.resolveContextMenuService(this.options)?.hideContextMenu();
   }
 
   override dispose() {
@@ -145,8 +213,10 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
       return;
     }
 
-    this.getMenuPresenter().hide();
-    this.defaultMenuPresenter.dispose();
+    this.hide();
+    this.overlayController.dispose();
+    this.defaultContextMenuService?.dispose?.();
+    this.defaultContextMenuService = null;
     this.button.removeEventListener('keydown', this.handleKeyDown);
     super.dispose();
   }
@@ -155,44 +225,33 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     return createDropdownMenuActionViewItem(this.options);
   }
 
-  private renderOverlay() {
-    if (this.options.renderOverlay) {
-      return this.options.renderOverlay({
-        hide: () => this.hide(),
-      });
+  private getOrCreateContextMenuService() {
+    if (this.options.contextMenuService) {
+      return this.options.contextMenuService;
     }
 
-    return this.renderMenu();
+    this.defaultContextMenuService ??= createPlatformContextMenuService();
+    return this.defaultContextMenuService;
   }
 
-  private getMenuPresenter() {
-    return this.options.menuPresenter ?? this.defaultMenuPresenter;
+  private resolveContextMenuService(options: DropdownMenuActionViewItemOptions) {
+    return options.contextMenuService ?? this.defaultContextMenuService;
   }
 
-  private createMenuRequest(): DropdownMenuActionPresenterRequest {
-    const menuOptions = this.options.menu?.map((menuItem, index) => ({
-      value: createMenuOptionValue(menuItem, index),
-      label: menuItem.label,
-      title: menuItem.title,
-      icon: menuItem.icon,
-      disabled: menuItem.disabled,
-      checked: menuItem.checked,
-    }));
-
+  private createContextMenuRequest(options: readonly ContextMenuAction[]): ContextMenuDelegate {
+    const menuClassName = this.options.menuClassName;
     return {
-      anchor: this.button,
-      className: composeClassName(['actionbar-context-view', this.options.menuClassName]),
-      minWidth: this.options.minWidth,
+      getAnchor: () => this.button,
+      getActions: () => options,
+      getMenuClassName: menuClassName ? () => menuClassName : undefined,
       alignment: this.options.overlayAlignment ?? 'end',
-      position: this.options.overlayPosition ?? 'below',
-      options: menuOptions,
-      render: () => this.renderOverlay(),
+      minWidth: this.options.minWidth,
       onHide: () => {
         this.isOpen = false;
         this.button.setAttribute('aria-expanded', 'false');
       },
-      onSelectOption: (value: string) => {
-        const menuItemIndex = menuOptions?.findIndex((option) => option.value === value) ?? -1;
+      onSelect: (value: string) => {
+        const menuItemIndex = options.findIndex((option) => option.value === value);
         const menuItem = menuItemIndex >= 0 ? this.options.menu?.[menuItemIndex] : null;
         if (!menuItem || menuItem.disabled) {
           return;
@@ -202,51 +261,30 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     };
   }
 
-  private renderMenu() {
-    const menu = createElement('div', 'dropdown-menu dropdown-menu-bottom');
-    menu.setAttribute('role', this.options.overlayRole ?? 'menu');
-    menu.append(
-      ...(this.options.menu ?? []).map((menuItem) => {
-        const item = createElement(
-          'div',
-          composeClassName([
-            'dropdown-menu-item',
-            menuItem.checked ? 'selected' : '',
-            menuItem.disabled ? 'disabled' : '',
-          ]),
-        );
-        item.setAttribute('role', 'menuitem');
-        item.setAttribute('aria-disabled', menuItem.disabled ? 'true' : 'false');
-        if (menuItem.title) {
-          item.title = menuItem.title;
-        }
+  private createOverlayRequest(): DropdownActionOverlayRequest {
+    return {
+      anchor: this.button,
+      className: composeClassName(['actionbar-context-view', this.options.menuClassName]),
+      minWidth: this.options.minWidth,
+      alignment: this.options.overlayAlignment ?? 'end',
+      position: this.options.overlayPosition ?? 'below',
+      render: (context) => this.options.renderOverlay?.(context) ?? createElement('div'),
+      onHide: () => {
+        this.isOpen = false;
+        this.button.setAttribute('aria-expanded', 'false');
+      },
+    };
+  }
 
-        const content = createElement('div', 'dropdown-option-content');
-        if (menuItem.icon) {
-          content.append(createLxIcon(menuItem.icon, 'dropdown-option-icon'));
-        }
-        content.append(createElement('div', 'dropdown-menu-item-content', menuItem.label));
-        item.append(content);
-
-        const checkSlot = createElement('span', 'dropdown-menu-item-check');
-        checkSlot.setAttribute('aria-hidden', 'true');
-        if (!menuItem.checked) {
-          checkSlot.classList.add('placeholder');
-        }
-        item.append(checkSlot);
-
-        item.addEventListener('click', (event) => {
-          event.stopPropagation();
-          if (menuItem.disabled) {
-            return;
-          }
-          menuItem.onClick?.(event);
-          this.hide();
-        });
-        return item;
-      }),
-    );
-    return menu;
+  private createMenuOptions(): ContextMenuAction[] {
+    return (this.options.menu ?? []).map((menuItem, index) => ({
+      value: createMenuOptionValue(menuItem, index),
+      label: menuItem.label,
+      title: menuItem.title,
+      icon: menuItem.icon,
+      disabled: menuItem.disabled,
+      checked: menuItem.checked,
+    }));
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent) => {
@@ -269,12 +307,12 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
   };
 }
 
-export class ActionWithDropdownMenuActionViewItem extends BaseActionViewItem {
+export class ActionWithDropdownActionViewItem extends BaseActionViewItem {
   private readonly primaryItem: ActionViewItem;
   protected readonly dropdownMenuActionViewItem: DropdownMenuActionViewItem;
   private readonly separator = createElement('div', 'action-dropdown-item-separator');
 
-  constructor(options: ActionWithDropdownMenuActionViewItemOptions) {
+  constructor(options: ActionWithDropdownActionViewItemOptions) {
     super(createElement('div', 'actionbar-item is-action action-dropdown-item'));
     this.primaryItem = new ActionViewItem(options.primary);
     this.dropdownMenuActionViewItem = new DropdownMenuActionViewItem(options.dropdown);
@@ -362,14 +400,14 @@ export function createDropdownMenuActionViewItem(
     overlayRole: options.overlayRole,
     menuClassName: options.menuClassName,
     minWidth: options.minWidth,
-    menuPresenter: options.menuPresenter,
+    contextMenuService: options.contextMenuService,
     overlayAlignment: options.overlayAlignment,
     overlayPosition: options.overlayPosition,
   };
 }
 
-export function createActionWithDropdownMenuActionViewItem(
-  options: ActionWithDropdownMenuActionViewItemOptions,
-): ActionWithDropdownMenuActionViewItem {
-  return new ActionWithDropdownMenuActionViewItem(options);
+export function createActionWithDropdownActionViewItem(
+  options: ActionWithDropdownActionViewItemOptions,
+): ActionWithDropdownActionViewItem {
+  return new ActionWithDropdownActionViewItem(options);
 }

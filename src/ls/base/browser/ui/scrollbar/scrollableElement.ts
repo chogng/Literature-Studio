@@ -2,37 +2,15 @@ import { ScrollbarVisibility, resolveScrollableElementOptions } from 'ls/base/br
 import type { ScrollableElementChangeOptions, ScrollableElementCreationOptions, ScrollableElementResolvedOptions } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
 import { HorizontalScrollbarState, VerticalScrollbarState } from 'ls/base/browser/ui/scrollbar/scrollbarState';
 import { ScrollbarVisibilityController } from 'ls/base/browser/ui/scrollbar/scrollbarVisibilityController';
+import type {
+  INewScrollDimensions,
+  INewScrollPosition,
+  IScrollDimensions,
+  IScrollPosition,
+  ScrollEvent,
+} from 'ls/base/common/scrollable';
 
 import 'ls/base/browser/ui/scrollbar/media/verticalScrollbar.css';
-
-export interface IScrollDimensions {
-  width: number;
-  height: number;
-  scrollWidth: number;
-  scrollHeight: number;
-}
-
-export interface IScrollPosition {
-  scrollLeft: number;
-  scrollTop: number;
-}
-
-export interface INewScrollDimensions {
-  width?: number;
-  height?: number;
-  scrollWidth?: number;
-  scrollHeight?: number;
-}
-
-export interface INewScrollPosition {
-  scrollLeft?: number;
-  scrollTop?: number;
-}
-
-export interface ScrollEvent extends IScrollPosition {
-  scrollLeftChanged: boolean;
-  scrollTopChanged: boolean;
-}
 
 type Listener<T> = (event: T) => void;
 

@@ -56,7 +56,13 @@ import {
   getMenuOverlayState,
   openMenuOverlay,
   selectMenuOption,
-} from 'ls/platform/window/electron-main/menuOverlayView';
+} from 'ls/base/parts/contextmenu/electron-overlay-main/contextmenu';
+import {
+  NATIVE_POPUP_CONTEXT_MENU_CLOSE_CHANNEL,
+  NATIVE_POPUP_CONTEXT_MENU_EVENT_CHANNEL,
+  NATIVE_POPUP_CONTEXT_MENU_OPEN_CHANNEL,
+} from 'ls/base/parts/contextmenu/common/contextmenu';
+import { registerNativePopupContextMenuIpc } from 'ls/base/parts/contextmenu/native-popup-main/contextmenu';
 import {
   fetchArticle,
   fetchLatestArticles,
@@ -277,6 +283,16 @@ async function invokeCommand<TCommand extends AppCommand>(
 }
 
 export function registerAppIpc(storage: StorageService) {
+  registerNativePopupContextMenuIpc({
+    ipcMain,
+    resolveWindowFromWebContents,
+    channels: {
+      open: NATIVE_POPUP_CONTEXT_MENU_OPEN_CHANNEL,
+      close: NATIVE_POPUP_CONTEXT_MENU_CLOSE_CHANNEL,
+      event: NATIVE_POPUP_CONTEXT_MENU_EVENT_CHANNEL,
+    },
+  });
+
   ipcMain.handle('app:invoke', async (_event, command: AppCommand, payload: AppCommandPayloadMap[AppCommand]) => {
     try {
       if (command === 'open_article_details_modal') {

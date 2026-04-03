@@ -7,7 +7,7 @@ export type ContextViewOptions = {
   anchor: HTMLElement;
   render: () => Node;
   className?: string;
-  onHide?: () => void;
+  onHide?: (data?: unknown) => void;
   alignment?: ContextViewAlignment;
   position?: ContextViewPosition;
   offset?: number;
@@ -17,8 +17,9 @@ export type ContextViewOptions = {
 
 export type ContextViewHandle = {
   show: (options: ContextViewOptions) => void;
-  hide: () => void;
+  hide: (data?: unknown) => void;
   isVisible: () => boolean;
+  getViewElement: () => HTMLElement;
   dispose: () => void;
 };
 
@@ -64,7 +65,7 @@ export class ContextViewController implements ContextViewHandle {
     this.layout();
   }
 
-  hide = () => {
+  hide = (data?: unknown) => {
     if (!this.visible) {
       this.options = null;
       return;
@@ -74,10 +75,12 @@ export class ContextViewController implements ContextViewHandle {
     this.visible = false;
     this.options = null;
     this.unmount();
-    onHide?.();
+    onHide?.(data);
   };
 
   isVisible = () => this.visible;
+
+  getViewElement = () => this.element;
 
   dispose = () => {
     if (this.disposed) {
@@ -115,7 +118,7 @@ export class ContextViewController implements ContextViewHandle {
     window.removeEventListener('resize', this.handleWindowResize);
   }
 
-  private layout() {
+  layout() {
     if (!this.options) {
       return;
     }

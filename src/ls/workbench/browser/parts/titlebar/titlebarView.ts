@@ -5,8 +5,7 @@ import {
 } from 'ls/base/browser/ui/actionbar/actionbar';
 import type {
   DropdownMenuActionOverlayContext,
-  DropdownMenuActionPresenter,
-} from 'ls/base/browser/ui/dropdown/dropdownMenuActionViewItem';
+} from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -15,7 +14,7 @@ import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { getWindowChromeLayout } from 'ls/platform/window/common/window';
 import { createTitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/titlebarSourceDropdownView';
 import type { TitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/titlebarSourceDropdownView';
-import { createWorkbenchDropdownMenuActionPresenter } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
+import { createContextMenuService } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
 
 import {
   requestExportTitlebarDocx,
@@ -183,7 +182,6 @@ type TitlebarIconActionItem = {
   overlayRole?: string;
   menuClassName?: string;
   minWidth?: number;
-  menuPresenter?: DropdownMenuActionPresenter;
 };
 
 function createTitlebarActionBar(params: {
@@ -191,16 +189,14 @@ function createTitlebarActionBar(params: {
   ariaLabel?: string;
   items: readonly TitlebarIconActionItem[];
 }) {
-  const shouldUseMenuPresenter = params.items.some(
-    (item) => item.menu && !item.renderOverlay && !item.menuPresenter,
+  const shouldUseContextMenuService = params.items.some(
+    (item) => item.menu && !item.renderOverlay,
   );
-  const electronOverlayMenuPresenter = shouldUseMenuPresenter
-    ? createWorkbenchDropdownMenuActionPresenter({
+  const electronOverlayContextMenuService = shouldUseContextMenuService
+    ? createContextMenuService({
         backend: 'electron-overlay',
-        electronOverlay: {
-          coverage: 'trigger-band',
-          requestIdPrefix: 'electron-overlay-titlebar-action-menu',
-        },
+        coverage: 'trigger-band',
+        requestIdPrefix: 'electron-overlay-titlebar-action-menu',
       })
     : null;
 
@@ -208,6 +204,7 @@ function createTitlebarActionBar(params: {
     className: composeClassName(['titlebar-actionbar', params.className]),
     ariaRole: 'group',
     ariaLabel: params.ariaLabel,
+    contextMenuService: electronOverlayContextMenuService ?? undefined,
     items: params.items.map((item) => ({
       label: item.label,
       title: item.title ?? item.label,
@@ -220,15 +217,6 @@ function createTitlebarActionBar(params: {
       overlayRole: item.overlayRole,
       menuClassName: item.menuClassName,
       minWidth: item.minWidth,
-      menuPresenter:
-        item.menuPresenter ??
-        (
-          electronOverlayMenuPresenter &&
-          item.menu &&
-          !item.renderOverlay
-            ? electronOverlayMenuPresenter
-            : undefined
-        ),
     })),
   });
 
@@ -236,7 +224,7 @@ function createTitlebarActionBar(params: {
     getElement: () => actionBarView.getElement(),
     dispose: () => {
       actionBarView.dispose();
-      electronOverlayMenuPresenter?.dispose();
+      electronOverlayContextMenuService?.dispose();
     },
   };
 }

@@ -1,3 +1,8 @@
+import type {
+  ContextMenuPopupEvent,
+  ContextMenuPopupPayload,
+} from 'ls/base/parts/contextmenu/common/contextmenu';
+
 export type Locale = 'zh' | 'en';
 
 export interface ArticleFigure {
@@ -743,13 +748,19 @@ export interface ElectronToastApi {
   setHovering: (hovering: boolean) => void;
 }
 
-export interface ElectronMenuApi {
+export interface ElectronOverlayMenuApi {
   open: (payload: NativeMenuOpenPayload) => void;
   close: (requestId: string) => void;
   select: (requestId: string, value: string) => void;
   getState: () => Promise<NativeMenuState | null>;
   onStateChange: (listener: (state: NativeMenuState | null) => void) => () => void;
   onEvent: (listener: (event: NativeMenuEvent) => void) => () => void;
+}
+
+export interface ContextMenuPopupApi {
+  open: (payload: ContextMenuPopupPayload) => void;
+  close: (requestId: string) => void;
+  onEvent: (listener: (event: ContextMenuPopupEvent) => void) => () => void;
 }
 
 export interface ElectronAPI {
@@ -759,5 +770,6 @@ export interface ElectronAPI {
   fetch?: ElectronFetchApi;
   modal?: ElectronModalApi;
   toast?: ElectronToastApi;
-  menu?: ElectronMenuApi;
+  overlayMenu?: ElectronOverlayMenuApi;
+  nativePopupContextMenu?: ContextMenuPopupApi;
 }

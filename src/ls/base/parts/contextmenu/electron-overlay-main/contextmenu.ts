@@ -1,3 +1,6 @@
+// Main-process host for the Electron overlay context-menu branch. This owns
+// the dedicated WebContentsView carrier used to cover WebContentsView content.
+
 import { BrowserWindow, WebContentsView, webContents } from 'electron';
 
 import type {
@@ -9,7 +12,7 @@ import type {
 import {
   resolvePreloadScriptPath,
   resolveWorkbenchRendererFilePath,
-} from 'ls/platform/window/electron-main/window';
+} from 'ls/platform/window/electron-main/windowPaths';
 
 const menuStateChannel = 'app:native-menu-state';
 const menuEventChannel = 'app:native-menu-event';

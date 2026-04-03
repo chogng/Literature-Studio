@@ -1,12 +1,8 @@
-import type {
-  NativeMenuOption,
-  NativeMenuState,
-} from 'ls/base/parts/sandbox/common/desktopTypes';
+import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
+import { Menu } from 'ls/base/browser/ui/menu/menu';
+import type { NativeMenuState } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
-import 'ls/base/browser/ui/dropdown/dropdown.css';
 import 'ls/workbench/browser/media/menuOverlayWindow.css';
-
-const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -25,39 +21,6 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.textContent = textContent;
   }
   return element;
-}
-
-function createCheckIcon() {
-  const icon = document.createElementNS(SVG_NS, 'svg');
-  icon.setAttribute('viewBox', '0 0 16 16');
-  icon.setAttribute('width', '12');
-  icon.setAttribute('height', '12');
-  icon.setAttribute('aria-hidden', 'true');
-  icon.classList.add('dropdown-menu-item-check');
-
-  const path = document.createElementNS(SVG_NS, 'path');
-  path.setAttribute('d', 'M3.5 8.2l2.4 2.4 6-6');
-  path.setAttribute('fill', 'none');
-  path.setAttribute('stroke', 'currentColor');
-  path.setAttribute('stroke-width', '1.6');
-  path.setAttribute('stroke-linecap', 'round');
-  path.setAttribute('stroke-linejoin', 'round');
-  icon.append(path);
-
-  return icon;
-}
-
-function createCheckSlot(isSelected: boolean) {
-  const slot = createElement('span', 'dropdown-menu-item-check');
-  slot.setAttribute('aria-hidden', 'true');
-
-  if (isSelected) {
-    slot.append(createCheckIcon());
-  } else {
-    slot.classList.add('placeholder');
-  }
-
-  return slot;
 }
 
 function normalizeMenuState(
@@ -123,7 +86,7 @@ function resolveMenuLayout(
     width,
     left,
     maxHeight,
-    placement: openUpwards ? 'top' : 'bottom',
+    placement: openUpwards ? 'top' as const : 'bottom' as const,
     top: openUpwards
       ? undefined
       : state.triggerRect.y + state.triggerRect.height + menuOffset,
@@ -133,35 +96,39 @@ function resolveMenuLayout(
   };
 }
 
+function toMenuActions(state: NativeMenuState): ContextMenuAction[] {
+  return state.options.map((option) => ({
+    value: option.value,
+    label: option.label,
+    title: option.title,
+    disabled: option.disabled,
+    checked: state.value === option.value,
+  }));
+}
+
 export class MenuOverlayWindowView {
   private readonly element = createElement('main', 'native-menu-overlay-page');
-  private readonly menuSurface = createElement('div');
+  private readonly menu = new Menu({
+    items: [],
+    className: 'native-menu-overlay-menu',
+    onSelect: ({ value }) => {
+      this.handleSelect(value);
+    },
+    onCancel: () => {
+      this.handleCancel();
+    },
+  });
   private normalizedMenuState: NativeMenuState | null = null;
   private measuredMenuWidth: number | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  private hoveredValue: string | null = null;
-  private lastPointerPosition: { x: number; y: number } | null = null;
-  private readonly menuApi = nativeHostService.menu;
+  private focusedRequestId: string | null = null;
+  private readonly menuApi = nativeHostService.overlayMenu;
   private readonly handleWindowResize = () => {
     if (!this.normalizedMenuState) {
       return;
     }
 
     this.render();
-  };
-  private readonly handlePointerMove = (event: MouseEvent) => {
-    this.lastPointerPosition = { x: event.clientX, y: event.clientY };
-    this.syncHoveredItemFromPoint();
-  };
-  private readonly handlePointerLeave = () => {
-    this.lastPointerPosition = null;
-    this.updateHoveredValue(null);
-  };
-  private readonly handleWindowKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && this.normalizedMenuState) {
-      event.preventDefault();
-      this.menuApi?.close(this.normalizedMenuState.requestId);
-    }
   };
   private readonly disposeListener =
     typeof this.menuApi?.onStateChange === 'function'
@@ -181,15 +148,8 @@ export class MenuOverlayWindowView {
         this.menuApi?.close(this.normalizedMenuState.requestId);
       }
     });
-    this.menuSurface.addEventListener('mousedown', (event) => {
-      event.stopPropagation();
-    });
-    this.menuSurface.addEventListener('mousemove', this.handlePointerMove);
-    this.menuSurface.addEventListener('mouseleave', this.handlePointerLeave);
-    this.element.append(this.menuSurface);
+    this.element.append(this.menu.getElement());
     window.addEventListener('resize', this.handleWindowResize);
-    window.addEventListener('keydown', this.handleWindowKeydown);
-    window.addEventListener('mousemove', this.handlePointerMove);
 
     if (typeof this.menuApi?.getState === 'function') {
       void this.menuApi
@@ -216,137 +176,101 @@ export class MenuOverlayWindowView {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     window.removeEventListener('resize', this.handleWindowResize);
-    window.removeEventListener('keydown', this.handleWindowKeydown);
-    window.removeEventListener('mousemove', this.handlePointerMove);
-    this.menuSurface.removeEventListener('mousemove', this.handlePointerMove);
-    this.menuSurface.removeEventListener('mouseleave', this.handlePointerLeave);
+    this.menu.dispose();
     this.element.replaceChildren();
   }
 
   private measureMenuWidth() {
-    const nextWidth = Math.ceil(this.menuSurface.getBoundingClientRect().width);
+    const nextWidth = Math.ceil(this.menu.getElement().getBoundingClientRect().width);
     if (nextWidth > 0 && nextWidth !== this.measuredMenuWidth) {
       this.measuredMenuWidth = nextWidth;
       this.render();
     }
   }
 
-  private renderMenuItem(
-    item: NativeMenuOption,
-    isSelected: boolean,
-    requestId: string,
-  ) {
-    const itemElement = createElement(
-      'div',
-      `dropdown-menu-item${isSelected ? ' selected' : ''}${
-        this.hoveredValue === item.value ? ' hovered' : ''
-      }${
-        item.disabled ? ' disabled' : ''
-      }`,
-    );
-    itemElement.dataset.value = item.value;
-    if (item.title) {
-      itemElement.title = item.title;
+  private handleSelect(value: string) {
+    const requestId = this.normalizedMenuState?.requestId;
+    if (!requestId) {
+      return;
     }
-    itemElement.append(
-      createElement('div', 'dropdown-menu-item-content', item.label),
-    );
-    itemElement.append(createCheckSlot(isSelected));
-    itemElement.addEventListener('click', () => {
-      if (item.disabled) {
-        return;
-      }
-      this.menuApi?.select(requestId, item.value);
-      this.menuApi?.close(requestId);
-    });
-    return itemElement;
+
+    this.menuApi?.select(requestId, value);
+    this.menuApi?.close(requestId);
   }
 
-  private updateHoveredValue(nextValue: string | null) {
-    if (this.hoveredValue === nextValue) {
+  private handleCancel() {
+    const requestId = this.normalizedMenuState?.requestId;
+    if (!requestId) {
       return;
     }
 
-    this.hoveredValue = nextValue;
-    for (const element of this.menuSurface.querySelectorAll<HTMLElement>('.dropdown-menu-item')) {
-      element.classList.toggle('hovered', element.dataset.value === nextValue);
-    }
-  }
-
-  private syncHoveredItemFromPoint() {
-    if (!this.normalizedMenuState) {
-      this.updateHoveredValue(null);
-      return;
-    }
-
-    const point = this.lastPointerPosition;
-    if (!point) {
-      this.updateHoveredValue(null);
-      return;
-    }
-
-    const target = document.elementFromPoint(point.x, point.y);
-    const itemElement = target instanceof HTMLElement
-      ? target.closest<HTMLElement>('.dropdown-menu-item')
-      : null;
-    if (!itemElement || !this.menuSurface.contains(itemElement) || itemElement.classList.contains('disabled')) {
-      this.updateHoveredValue(null);
-      return;
-    }
-
-    this.updateHoveredValue(itemElement.dataset.value ?? null);
+    this.menuApi?.close(requestId);
   }
 
   private render() {
+    const menuElement = this.menu.getElement();
     const layout = resolveMenuLayout(
       this.normalizedMenuState,
       this.measuredMenuWidth,
     );
 
     if (!this.normalizedMenuState || !layout) {
-      this.hoveredValue = null;
-      this.menuSurface.className = '';
-      this.menuSurface.replaceChildren();
-      this.menuSurface.removeAttribute('style');
+      this.focusedRequestId = null;
+      this.resizeObserver?.disconnect();
+      this.resizeObserver = null;
+      menuElement.style.display = 'none';
+      menuElement.style.removeProperty('left');
+      menuElement.style.removeProperty('top');
+      menuElement.style.removeProperty('bottom');
+      menuElement.style.removeProperty('maxHeight');
+      menuElement.style.removeProperty('--native-menu-min-width');
       return;
     }
 
-    this.menuSurface.className = `dropdown-menu dropdown-menu-${layout.placement} native-menu-overlay-surface`;
-    this.menuSurface.style.left = `${layout.left}px`;
-    this.menuSurface.style.maxHeight = `${layout.maxHeight}px`;
-    this.menuSurface.style.setProperty(
+    const shouldFocus = this.focusedRequestId !== this.normalizedMenuState.requestId;
+    this.focusedRequestId = this.normalizedMenuState.requestId;
+
+    this.menu.setOptions({
+      items: toMenuActions(this.normalizedMenuState),
+      className: 'native-menu-overlay-menu',
+      placement: layout.placement,
+      value: this.normalizedMenuState.value,
+      onSelect: ({ value }) => {
+        this.handleSelect(value);
+      },
+      onCancel: () => {
+        this.handleCancel();
+      },
+    });
+
+    menuElement.style.display = '';
+    menuElement.style.left = `${layout.left}px`;
+    menuElement.style.maxHeight = `${layout.maxHeight}px`;
+    menuElement.style.setProperty(
       '--native-menu-min-width',
       `${Math.max(120, this.normalizedMenuState.triggerRect.width)}px`,
     );
     if (layout.top === undefined) {
-      this.menuSurface.style.removeProperty('top');
+      menuElement.style.removeProperty('top');
     } else {
-      this.menuSurface.style.top = `${layout.top}px`;
+      menuElement.style.top = `${layout.top}px`;
     }
     if (layout.bottom === undefined) {
-      this.menuSurface.style.removeProperty('bottom');
+      menuElement.style.removeProperty('bottom');
     } else {
-      this.menuSurface.style.bottom = `${layout.bottom}px`;
+      menuElement.style.bottom = `${layout.bottom}px`;
     }
-
-    this.menuSurface.replaceChildren(
-      ...this.normalizedMenuState.options.map((option) =>
-        this.renderMenuItem(
-          option,
-          this.normalizedMenuState?.value === option.value,
-          this.normalizedMenuState!.requestId,
-        ),
-      ),
-    );
 
     this.resizeObserver?.disconnect();
     this.resizeObserver = new ResizeObserver(() => {
       this.measureMenuWidth();
     });
-    this.resizeObserver.observe(this.menuSurface);
+    this.resizeObserver.observe(menuElement);
     queueMicrotask(() => {
       this.measureMenuWidth();
-      this.syncHoveredItemFromPoint();
+      if (shouldFocus) {
+        this.menu.focusSelectedOrFirstEnabled();
+      }
     });
   }
 }
