@@ -106,3 +106,103 @@ test('simple tree dispose clears the DOM and ignores later updates', () => {
     document.body.replaceChildren();
   }
 });
+
+test('simple tree arrow navigation expands and collapses parents', () => {
+  const root: TreeNode = {
+    id: 'root',
+    label: 'Root',
+    children: [
+      {
+        id: 'folder',
+        label: 'Folder',
+        children: [{ id: 'leaf', label: 'Leaf' }],
+      },
+    ],
+  };
+  const tree = new SimpleTree<TreeNode>(
+    {
+      hasChildren: (node) => (node.children?.length ?? 0) > 0,
+      getChildren: (node) => node.children ?? [],
+    },
+    {
+      renderElement: (node) => {
+        const element = document.createElement('div');
+        element.textContent = node.label;
+        return element;
+      },
+    },
+    {
+      getId: (node) => node.id,
+      getLabel: (node) => node.label,
+      isRoot: (node) => node.id === 'root',
+      hideRoot: true,
+    },
+  );
+  document.body.append(tree.getElement());
+  tree.setInput(root);
+
+  try {
+    tree.getElement().dispatchEvent(new window.FocusEvent('focus'));
+
+    const folderNode = tree.getElement().querySelector<HTMLElement>(
+      '[data-simple-tree-node-id="folder"]',
+    );
+    assert(folderNode instanceof HTMLElement);
+    assert.equal(folderNode.getAttribute('aria-expanded'), 'false');
+
+    tree.getElement().dispatchEvent(new window.KeyboardEvent('keydown', {
+      bubbles: true,
+      key: 'Enter',
+    }));
+
+    const expandedFolderNode = tree.getElement().querySelector<HTMLElement>(
+      '[data-simple-tree-node-id="folder"]',
+    );
+    const leafNode = tree.getElement().querySelector<HTMLElement>(
+      '[data-simple-tree-node-id="leaf"]',
+    );
+    assert(expandedFolderNode instanceof HTMLElement);
+    assert.equal(expandedFolderNode.getAttribute('aria-expanded'), 'true');
+    assert(leafNode instanceof HTMLElement);
+
+    tree.getElement().dispatchEvent(new window.KeyboardEvent('keydown', {
+      bubbles: true,
+      key: 'ArrowRight',
+    }));
+
+    const focusedLeafNode = tree.getElement().querySelector<HTMLElement>(
+      '[data-simple-tree-node-id="leaf"]',
+    );
+    assert(focusedLeafNode instanceof HTMLElement);
+    assert.equal(focusedLeafNode.classList.contains('is-focused'), true);
+
+    tree.getElement().dispatchEvent(new window.KeyboardEvent('keydown', {
+      bubbles: true,
+      key: 'ArrowLeft',
+    }));
+
+    const refocusedFolderNode = tree.getElement().querySelector<HTMLElement>(
+      '[data-simple-tree-node-id="folder"]',
+    );
+    assert(refocusedFolderNode instanceof HTMLElement);
+    assert.equal(refocusedFolderNode.classList.contains('is-focused'), true);
+
+    tree.getElement().dispatchEvent(new window.KeyboardEvent('keydown', {
+      bubbles: true,
+      key: 'ArrowLeft',
+    }));
+
+    const collapsedFolderNode = tree.getElement().querySelector<HTMLElement>(
+      '[data-simple-tree-node-id="folder"]',
+    );
+    const collapsedLeafNode = tree.getElement().querySelector<HTMLElement>(
+      '[data-simple-tree-node-id="leaf"]',
+    );
+    assert(collapsedFolderNode instanceof HTMLElement);
+    assert.equal(collapsedFolderNode.getAttribute('aria-expanded'), 'false');
+    assert.equal(collapsedLeafNode, null);
+  } finally {
+    tree.dispose();
+    document.body.replaceChildren();
+  }
+});

@@ -45,6 +45,7 @@ import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articl
 import { createReaderPageView } from 'ls/workbench/browser/readerPageView';
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import { setARIAContainer } from 'ls/base/browser/ui/aria/aria';
 import { createToastHost } from 'ls/base/browser/ui/toast/toastHost';
 import type { ToastHost } from 'ls/base/browser/ui/toast/toastHost';
 
@@ -1916,6 +1917,8 @@ export function renderWorkbench() {
   if (!rootElement) {
     throw new Error('Root element #root was not found.');
   }
+
+  setARIAContainer(document.body);
 
   activeWorkbenchHost?.dispose();
   activeWorkbenchHost = null;

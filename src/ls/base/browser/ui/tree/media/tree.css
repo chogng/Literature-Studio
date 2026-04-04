@@ -3,15 +3,7 @@
   outline: none;
 }
 
-.simple-tree-list,
-.simple-tree-children {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.simple-tree-list > li,
-.simple-tree-children > li {
+.simple-tree .list-view-row {
   min-width: 0;
 }
 

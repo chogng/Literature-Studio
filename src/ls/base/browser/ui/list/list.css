@@ -1,0 +1,24 @@
+.list-view {
+  min-height: 0;
+  outline: none;
+}
+
+.list-view-row {
+  min-width: 0;
+}
+
+.list-view-row {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.list-view-row.is-selected {
+  background: #e8f1fc;
+}
+
+.list-view-row.is-focused {
+  outline: 1px solid #8cb4ea;
+  outline-offset: -1px;
+}
