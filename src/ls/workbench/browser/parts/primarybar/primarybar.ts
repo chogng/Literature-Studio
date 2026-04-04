@@ -23,7 +23,7 @@ import {
 } from 'ls/base/common/lifecycle';
 import { LibraryView } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryView';
 import {
-  BatchFetchContentView,
+  FetchPaneContentView,
   type SecondarySidebarProps,
   type SidebarLabels,
 } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
@@ -117,16 +117,16 @@ export class PrimaryBar {
   });
   private readonly fetchToolbar = createElement(
     'div',
-    'actionbar pane-header-actionbar pane-header-fetch-actionbar',
+    'actionbar pane-header-actionbar pane-header-fetch-pane-actionbar fetch-pane-actionbar',
   );
   private readonly fetchDateRangePicker: DateRangePickerView;
   private readonly fetchSelectionActionsView = createActionBarView({
-    className: 'batch-fetch-selection-actionbar',
+    className: 'fetch-pane-selection-actionbar',
     ariaRole: 'group',
   });
   private readonly fetchButton = createElement('button');
   private readonly libraryView: LibraryView;
-  private readonly batchFetchView: BatchFetchContentView;
+  private readonly fetchContentView: FetchPaneContentView;
   private readonly libraryPane: ContentPane;
   private readonly fetchPane: ContentPane;
   private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
@@ -144,7 +144,7 @@ export class PrimaryBar {
       onDocumentEditSourceUrl: props.onDocumentEditSourceUrl,
       onDocumentDelete: props.onDocumentDelete,
     });
-    this.batchFetchView = new BatchFetchContentView({
+    this.fetchContentView = new FetchPaneContentView({
       ...props.batchFetchProps,
       labels: props.labels,
     });
@@ -157,7 +157,7 @@ export class PrimaryBar {
       },
       onStartDateChange: (value) => this.props.batchFetchProps.onBatchStartDateChange(value),
       onEndDateChange: (value) => this.props.batchFetchProps.onBatchEndDateChange(value),
-      className: 'sidebar-date-picker batch-fetch-date-picker',
+      className: 'sidebar-date-picker fetch-pane-date-picker',
       triggerIcon: createLxIcon('calendar'),
       triggerMode: 'icon',
     });
@@ -166,7 +166,7 @@ export class PrimaryBar {
       'actionbar-action',
       'is-icon',
       'sidebar-fetch-btn',
-      'batch-fetch-trigger-btn',
+      'fetch-pane-trigger-btn',
     ].join(' ');
     this.fetchButton.addEventListener('click', () => {
       this.props.batchFetchProps.onFetchLatestBatch();
@@ -188,7 +188,7 @@ export class PrimaryBar {
     );
     this.fetchPane = new ContentPane(
       props.labels.fetchTitle,
-      this.batchFetchView.getElement(),
+      this.fetchContentView.getElement(),
       260,
       35,
       this.fetchToolbar,
@@ -224,7 +224,7 @@ export class PrimaryBar {
       onDocumentEditSourceUrl: props.onDocumentEditSourceUrl,
       onDocumentDelete: props.onDocumentDelete,
     });
-    this.batchFetchView.setProps({
+    this.fetchContentView.setProps({
       ...props.batchFetchProps,
       labels: props.labels,
     });
@@ -242,7 +242,7 @@ export class PrimaryBar {
     this.fetchDateRangePicker.dispose();
     this.fetchSelectionActionsView.dispose();
     this.libraryView.dispose();
-    this.batchFetchView.dispose();
+    this.fetchContentView.dispose();
     this.paneView.dispose();
     this.element.replaceChildren();
   }
@@ -291,12 +291,12 @@ export class PrimaryBar {
       },
       onStartDateChange: (value) => this.props.batchFetchProps.onBatchStartDateChange(value),
       onEndDateChange: (value) => this.props.batchFetchProps.onBatchEndDateChange(value),
-      className: 'sidebar-date-picker batch-fetch-date-picker',
+      className: 'sidebar-date-picker fetch-pane-date-picker',
       triggerIcon: createLxIcon('calendar'),
       triggerMode: 'icon',
     });
     this.fetchSelectionActionsView.setProps({
-      className: 'batch-fetch-selection-actionbar',
+      className: 'fetch-pane-selection-actionbar',
       ariaRole: 'group',
       items: [
         {
@@ -308,7 +308,7 @@ export class PrimaryBar {
           disabled:
             !this.props.batchFetchProps.articles.length &&
             !this.props.batchFetchProps.isSelectionModeEnabled,
-          buttonClassName: 'batch-fetch-select-action',
+          buttonClassName: 'fetch-pane-select-action',
           content: createLxIcon(lxIconSemanticMap.sidebar.selectionMode),
           onClick: () => this.props.batchFetchProps.onToggleSelectionMode(),
         },

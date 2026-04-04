@@ -107,18 +107,18 @@ export class ArticleCard extends LifecycleOwner {
   private readonly element = createElement('li');
   private readonly mainElement = createElement(
     'div',
-    'batch-fetch-article-card-main',
+    'fetch-pane-article-card-main',
   );
   private readonly titleElement = createElement(
     'h3',
-    'batch-fetch-article-card-title',
+    'fetch-pane-article-card-title',
   );
   private readonly metaElement = createElement(
     'span',
-    'batch-fetch-article-card-meta',
+    'fetch-pane-article-card-meta',
   );
   private readonly toolbarView = createActionBarView({
-    className: 'batch-fetch-article-card-toolbar-actions',
+    className: 'fetch-pane-article-card-toolbar-actions',
     ariaRole: 'group',
   });
   private disposed = false;
@@ -172,7 +172,7 @@ export class ArticleCard extends LifecycleOwner {
     const hasDownloaded = downloadStatus.hasSucceeded;
 
     this.element.className = [
-      'batch-fetch-article-card',
+      'fetch-pane-article-card',
       isSelectionModeEnabled ? 'is-selection-mode' : '',
       isSelected ? 'is-selected' : '',
     ]
@@ -194,7 +194,7 @@ export class ArticleCard extends LifecycleOwner {
     this.metaElement.textContent = metaText;
 
     this.toolbarView.setProps({
-      className: 'batch-fetch-article-card-toolbar-actions',
+      className: 'fetch-pane-article-card-toolbar-actions',
       ariaRole: 'group',
       items: [
         {
@@ -219,7 +219,7 @@ export class ArticleCard extends LifecycleOwner {
             ],
           },
           buttonClassName: [
-            'batch-fetch-article-card-icon-btn',
+            'fetch-pane-article-card-icon-btn',
             hasDownloaded ? 'is-downloaded' : '',
           ]
             .filter(Boolean)
@@ -233,7 +233,7 @@ export class ArticleCard extends LifecycleOwner {
           label: MORE_ACTIONS_LABEL,
           title: MORE_ACTIONS_LABEL,
           content: createLxIcon('more'),
-          buttonClassName: 'batch-fetch-article-card-icon-btn',
+          buttonClassName: 'fetch-pane-article-card-icon-btn',
           menu: [
             {
               label: VIEW_DETAILS_LABEL,

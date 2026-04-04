@@ -321,9 +321,9 @@ function createArticleCardLabels(
   };
 }
 
-export class BatchFetchContentView extends LifecycleOwner {
+export class FetchPaneContentView extends LifecycleOwner {
   private props: SecondarySidebarProps;
-  private readonly element = createElement('div', 'batch-fetch-content');
+  private readonly element = createElement('div', 'fetch-pane-content');
   private readonly contentElement = createElement('div');
   private readonly renderDisposables = new LifecycleStore();
   private cards = new Map<string, ArticleCard>();
@@ -388,7 +388,7 @@ export class BatchFetchContentView extends LifecycleOwner {
 
     if (this.props.articles.length > 0) {
       const articleCardLabels = createArticleCardLabels(this.props.labels);
-      const list = createElement('ul', 'batch-fetch-article-list');
+      const list = createElement('ul', 'fetch-pane-article-list');
       this.props.articles.forEach((article, index) => {
         const key = `${article.sourceUrl}-${article.fetchedAt}-${index}`;
         const isSelected = this.props.selectedArticleKeys.has(
@@ -425,7 +425,7 @@ export class BatchFetchContentView extends LifecycleOwner {
       return;
     }
 
-    const empty = createElement('div', 'batch-fetch-empty-state');
+    const empty = createElement('div', 'fetch-pane-empty-state');
     if (this.props.hasData) {
       empty.textContent = this.props.labels.emptyFiltered;
       this.contentElement.replaceChildren(empty);
@@ -434,7 +434,7 @@ export class BatchFetchContentView extends LifecycleOwner {
 
     const quickSource = createElement(
       'button',
-      'batch-fetch-empty-state-action',
+      'fetch-pane-empty-state-action',
     );
     quickSource.type = 'button';
     quickSource.textContent = this.props.labels.emptyAllQuickSourceAction;
@@ -444,7 +444,7 @@ export class BatchFetchContentView extends LifecycleOwner {
 
     const inputLink = createElement(
       'button',
-      'batch-fetch-empty-state-action',
+      'fetch-pane-empty-state-action',
     );
     inputLink.type = 'button';
     inputLink.textContent = this.props.labels.emptyAllInputLinkAction;
