@@ -64,6 +64,7 @@ class ContentPane extends Pane {
     title: string,
     private readonly content: HTMLElement,
     minimumBodySize: number,
+    headerSize?: number,
     headerContent?: HTMLElement,
     classNames?: Partial<PaneClassNames>,
   ) {
@@ -71,6 +72,7 @@ class ContentPane extends Pane {
       title,
       minimumBodySize,
       expanded: true,
+      headerSize,
       headerContent,
       classNames,
     });
@@ -110,12 +112,12 @@ export class PrimaryBar {
     'sidebar-workbench-header primarybar-pane-toolbar',
   );
   private readonly actionsView = createActionBarView({
-    className: 'sidebar-action-bar',
+    className: 'pane-header-actionbar',
     ariaRole: 'group',
   });
   private readonly fetchToolbar = createElement(
     'div',
-    'actionbar batch-fetch-action-bar',
+    'actionbar pane-header-actionbar pane-header-fetch-actionbar',
   );
   private readonly fetchDateRangePicker: DateRangePickerView;
   private readonly fetchSelectionActionsView = createActionBarView({
@@ -180,6 +182,7 @@ export class PrimaryBar {
       props.labels.libraryTitle,
       this.librarySection,
       220,
+      35,
       this.libraryToolbar,
       createPrimaryBarPaneClassNames('library'),
     );
@@ -187,6 +190,7 @@ export class PrimaryBar {
       props.labels.fetchTitle,
       this.batchFetchView.getElement(),
       260,
+      35,
       this.fetchToolbar,
       createPrimaryBarPaneClassNames('fetch'),
     );
@@ -246,7 +250,7 @@ export class PrimaryBar {
   private render() {
     const { labels, isLibraryLoading } = this.props;
     this.actionsView.setProps({
-      className: 'sidebar-action-bar',
+      className: 'pane-header-actionbar',
       ariaRole: 'group',
       items: [
         {

@@ -70,6 +70,7 @@ export type PaneOptions = {
   expanded?: boolean;
   minimumBodySize?: number;
   maximumBodySize?: number;
+  headerSize?: number;
   headerContent?: HTMLElement;
   classNames?: Partial<PaneClassNames>;
 };
@@ -95,6 +96,7 @@ export class Pane implements IView {
   private expandedValue: boolean;
   private minimumBodySizeValue: number;
   private maximumBodySizeValue: number;
+  private readonly headerSizeValue: number;
   private currentSize = 0;
   private expandedSize: number | undefined;
 
@@ -105,7 +107,9 @@ export class Pane implements IView {
     this.minimumBodySizeValue = options.minimumBodySize ?? 160;
     this.maximumBodySizeValue =
       options.maximumBodySize ?? Number.POSITIVE_INFINITY;
+    this.headerSizeValue = options.headerSize ?? Pane.HEADER_SIZE;
     this.titleElement = createElement('span', 'pane-header-title', options.title);
+    this.element.style.setProperty('--ls-pane-header-size', `${this.headerSizeValue}px`);
     appendClassNames(
       this.element,
       options.classNames?.pane,
@@ -154,11 +158,11 @@ export class Pane implements IView {
   }
 
   get minimumSize() {
-    return Pane.HEADER_SIZE + (this.expandedValue ? this.minimumBodySizeValue : 0);
+    return this.headerSizeValue + (this.expandedValue ? this.minimumBodySizeValue : 0);
   }
 
   get maximumSize() {
-    return Pane.HEADER_SIZE + (this.expandedValue ? this.maximumBodySizeValue : 0);
+    return this.headerSizeValue + (this.expandedValue ? this.maximumBodySizeValue : 0);
   }
 
   isExpanded() {
@@ -174,7 +178,7 @@ export class Pane implements IView {
       return;
     }
 
-    if (!expanded && this.currentSize > Pane.HEADER_SIZE) {
+    if (!expanded && this.currentSize > this.headerSizeValue) {
       this.expandedSize = this.currentSize;
     }
 
@@ -184,7 +188,7 @@ export class Pane implements IView {
     this.headerButtonElement.setAttribute('aria-expanded', String(expanded));
     const preferredSize = expanded
       ? Math.max(this.expandedSize ?? this.minimumSize, this.minimumSize)
-      : Pane.HEADER_SIZE;
+      : this.headerSizeValue;
     this.onDidChangeEmitter.fire({
       expanded,
       preferredSize,
@@ -200,9 +204,9 @@ export class Pane implements IView {
     }
 
     this.expandedSize = Math.max(size, this.minimumSize);
-    const bodySize = Math.max(0, size - Pane.HEADER_SIZE);
+    const bodySize = Math.max(0, size - this.headerSizeValue);
     this.bodyElement.style.height = `${bodySize}px`;
-    this.layoutBody(bodySize, Pane.HEADER_SIZE);
+    this.layoutBody(bodySize, this.headerSizeValue);
   }
 
   dispose() {
