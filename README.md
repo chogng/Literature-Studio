@@ -202,3 +202,4 @@ npm run check:i18n
 ## Writing Editor Notes
 
 - [`docs/prosemirror-writing-editor.md`](/c:/Users/lanxi/Desktop/Literature-Studio/docs/prosemirror-writing-editor.md) records the current ProseMirror document contract and the lightweight regression test entry point.
+- [`docs/typescript-type-style.md`](/Users/lance/Desktop/Literature-Studio/docs/typescript-type-style.md) defines when this repo should use `type` versus `interface`.

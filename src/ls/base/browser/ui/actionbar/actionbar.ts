@@ -1,20 +1,14 @@
 import 'ls/base/browser/ui/actionbar/actionbar.css';
-import type { ContextMenuService } from 'ls/base/browser/contextmenu';
+import * as DOM from 'ls/base/browser/dom';
 import type { BaseAction } from 'ls/base/common/actions';
-import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
+import { LifecycleOwner } from 'ls/base/common/lifecycle';
 import {
   ActionViewItem,
-  type ActionViewItemLike,
+  BaseActionViewItem,
+  type ActionViewItemOptions,
 } from 'ls/base/browser/ui/actionbar/actionViewItems';
-import {
-  DropdownMenuActionViewItem,
-  type DropdownMenuActionAlignment,
-  type DropdownMenuActionOverlayContext,
-  type DropdownMenuActionPosition,
-} from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import type { HoverInput, HoverService } from 'ls/base/browser/ui/hover/hover';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
-import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
 
 export type ActionBarOrientation = 'horizontal' | 'vertical';
 export type ActionBarActionMode = 'icon' | 'text' | 'custom';
@@ -24,7 +18,14 @@ export type ActionBarMenuItem = BaseAction & {
   onClick?: (event: MouseEvent) => void;
 };
 
-export type ActionBarViewItem = ActionViewItemLike;
+export interface ActionView {
+  render: (container?: HTMLElement) => void;
+  getElement: () => HTMLElement;
+  dispose: () => void;
+  focus?: () => void;
+  blur?: () => void;
+  getFocusableElement?: () => HTMLElement | null;
+}
 
 export type ActionBarActionItem = BaseAction & {
   type?: 'action';
@@ -36,15 +37,7 @@ export type ActionBarActionItem = BaseAction & {
   buttonClassName?: string;
   buttonAttributes?: Record<string, string | null | undefined | false>;
   onClick?: (event: MouseEvent) => void;
-  menu?: readonly ActionBarMenuItem[];
-  renderOverlay?: (context: DropdownMenuActionOverlayContext) => HTMLElement;
-  overlayRole?: string;
-  menuClassName?: string;
-  minWidth?: number;
-  contextMenuService?: ContextMenuService;
   hoverService?: HoverService;
-  overlayAlignment?: DropdownMenuActionAlignment;
-  overlayPosition?: DropdownMenuActionPosition;
 };
 
 export type ActionBarSeparatorItem = {
@@ -53,7 +46,7 @@ export type ActionBarSeparatorItem = {
   className?: string;
 };
 
-export type ActionBarItem = ActionBarActionItem | ActionBarSeparatorItem | ActionBarViewItem;
+export type ActionBarItem = ActionBarActionItem | ActionBarSeparatorItem | ActionView;
 
 export type ActionBarProps = {
   items?: readonly ActionBarItem[];
@@ -61,31 +54,18 @@ export type ActionBarProps = {
   orientation?: ActionBarOrientation;
   ariaLabel?: string;
   ariaRole?: string;
-  contextMenuService?: ContextMenuService;
   hoverService?: HoverService;
 };
 
-function composeClassName(parts: Array<string | undefined | null | false>) {
-  return parts.filter(Boolean).join(' ');
-}
-
-function addDisposableListener<K extends keyof HTMLElementEventMap>(
-  target: HTMLElement,
-  type: K,
-  listener: (event: HTMLElementEventMap[K]) => void,
-  options?: boolean | AddEventListenerOptions,
-) {
-  target.addEventListener(type, listener, options);
-  return toDisposable(() => {
-    target.removeEventListener(type, listener, options);
-  });
-}
-
 function isActionItem(item: ActionBarItem): item is ActionBarActionItem {
-  return !isActionBarViewItem(item) && item.type !== 'separator';
+  return !isViewItem(item) && item.type !== 'separator';
 }
 
-function isActionBarViewItem(item: ActionBarItem): item is ActionBarViewItem {
+function isViewItem(item: ActionBarItem): item is ActionView {
+  if (item instanceof BaseActionViewItem) {
+    return true;
+  }
+
   return (
     typeof item === 'object' &&
     item !== null &&
@@ -98,41 +78,19 @@ function isActionBarViewItem(item: ActionBarItem): item is ActionBarViewItem {
   );
 }
 
-function createActionViewItem(
+function createDefaultActionViewItem(
   item: ActionBarActionItem,
-  contextMenuService?: ContextMenuService,
   hoverService?: HoverService,
-): ActionBarViewItem {
-  if (item.menu || item.renderOverlay) {
-    return new DropdownMenuActionViewItem({
-      id: item.id,
-      label: item.label,
-      title: item.title,
-      content: item.content,
-      disabled: item.disabled,
-      active: item.active,
-      checked: item.checked,
-      mode: item.mode,
-      className: item.className,
-      buttonClassName: item.buttonClassName,
-      buttonAttributes: item.buttonAttributes,
-      hover: item.hover,
-      menu: item.menu,
-      renderOverlay: item.renderOverlay,
-      overlayRole: item.overlayRole,
-      menuClassName: item.menuClassName,
-      minWidth: item.minWidth,
-      contextMenuService: item.contextMenuService ?? contextMenuService,
-      hoverService: item.hoverService ?? hoverService,
-      overlayAlignment: item.overlayAlignment,
-      overlayPosition: item.overlayPosition,
-    });
-  }
+): ActionView {
+  // Plain actionbar items are rendered with the default action view implementation.
+  const options: ActionViewItemOptions = {
+    hoverService: item.hoverService ?? hoverService,
+  };
 
-  return new ActionViewItem(item, item.hoverService ?? hoverService);
+  return new ActionViewItem(item, options);
 }
 
-type RenderedAction = {
+type RenderedItem = {
   button: HTMLElement;
   dispose: () => void;
 };
@@ -141,8 +99,7 @@ export class ActionBarView extends LifecycleOwner {
   private props: ActionBarProps;
   private readonly element = document.createElement('div');
   private readonly actionsContainer = document.createElement('div');
-  private readonly renderedActions: RenderedAction[] = [];
-  private fallbackContextMenuService: ContextMenuService | null = null;
+  private readonly renderedItems: RenderedItem[] = [];
   private disposed = false;
 
   constructor(props: ActionBarProps = {}) {
@@ -150,7 +107,7 @@ export class ActionBarView extends LifecycleOwner {
     this.props = this.normalizeProps(props);
     this.actionsContainer.className = 'actionbar-actions-container';
     this.element.append(this.actionsContainer);
-    this.register(addDisposableListener(this.element, 'keydown', this.handleKeyDown));
+    this.register(DOM.addDisposableListener(this.element, 'keydown', this.handleKeyDown));
     this.render();
   }
 
@@ -179,9 +136,7 @@ export class ActionBarView extends LifecycleOwner {
       return;
     }
     this.disposed = true;
-    this.clearRenderedActions();
-    this.fallbackContextMenuService?.dispose?.();
-    this.fallbackContextMenuService = null;
+    this.clearRenderedItems();
     super.dispose();
     this.element.replaceChildren();
   }
@@ -193,14 +148,13 @@ export class ActionBarView extends LifecycleOwner {
       orientation: props.orientation ?? 'horizontal',
       ariaLabel: props.ariaLabel,
       ariaRole: props.ariaRole ?? 'toolbar',
-      contextMenuService: props.contextMenuService,
       hoverService: props.hoverService,
     };
   }
 
   private render() {
-    this.clearRenderedActions();
-    this.element.className = composeClassName([
+    this.clearRenderedItems();
+    this.element.className = DOM.composeClassName([
       'actionbar',
       this.props.orientation === 'vertical' ? 'is-vertical' : 'is-horizontal',
       this.props.className,
@@ -223,18 +177,18 @@ export class ActionBarView extends LifecycleOwner {
     this.actionsContainer.replaceChildren(...nodes);
   }
 
-  private clearRenderedActions() {
-    while (this.renderedActions.length) {
-      this.renderedActions.pop()?.dispose();
+  private clearRenderedItems() {
+    while (this.renderedItems.length) {
+      this.renderedItems.pop()?.dispose();
     }
     this.actionsContainer.replaceChildren();
   }
 
   private renderItem(item: ActionBarItem) {
-    if (isActionBarViewItem(item)) {
+    if (isViewItem(item)) {
       item.render();
       const element = item.getElement();
-      this.renderedActions.push({
+      this.renderedItems.push({
         button: item.getFocusableElement?.() ?? element,
         dispose: () => {
           item.dispose();
@@ -245,7 +199,7 @@ export class ActionBarView extends LifecycleOwner {
 
     if (!isActionItem(item)) {
       const itemElement = document.createElement('div');
-      itemElement.className = composeClassName([
+      itemElement.className = DOM.composeClassName([
         'actionbar-item',
         'is-separator',
         item.className,
@@ -260,17 +214,13 @@ export class ActionBarView extends LifecycleOwner {
       return itemElement;
     }
 
-    const viewItem = createActionViewItem(
-      item,
-      item.menu ? this.getContextMenuService() : undefined,
-      item.hoverService ?? this.props.hoverService,
-    );
+    const viewItem = createDefaultActionViewItem(item, item.hoverService ?? this.props.hoverService);
     viewItem.render();
     const element = viewItem.getElement();
     if (item.id) {
       element.dataset.actionbarItemId = item.id;
     }
-    this.renderedActions.push({
+    this.renderedItems.push({
       button: viewItem.getFocusableElement?.() ?? element,
       dispose: () => {
         viewItem.dispose();
@@ -279,17 +229,8 @@ export class ActionBarView extends LifecycleOwner {
     return element;
   }
 
-  private getContextMenuService() {
-    if (this.props.contextMenuService) {
-      return this.props.contextMenuService;
-    }
-
-    this.fallbackContextMenuService ??= createPlatformContextMenuService();
-    return this.fallbackContextMenuService;
-  }
-
   private getFocusableButtons() {
-    return this.renderedActions
+    return this.renderedItems
       .map((action) => action.button)
       .filter((button) => {
         if (!(button instanceof HTMLElement)) {

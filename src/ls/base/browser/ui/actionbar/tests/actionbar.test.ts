@@ -179,59 +179,6 @@ test('actionbar forwards custom button attributes', () => {
   }
 });
 
-test('actionbar action can open a dropdown-style menu', async () => {
-  let selected = '';
-  const actionBarView = createActionBarView({
-    items: [
-      {
-        label: 'More',
-        content: createLxIcon('more'),
-        menu: [
-          {
-            label: 'Rename',
-            onClick: () => {
-              selected = 'rename';
-            },
-          },
-          {
-            label: 'Delete',
-            disabled: true,
-          },
-        ],
-      },
-    ],
-  });
-  const element = actionBarView.getElement();
-  document.body.append(element);
-
-  try {
-    const button = element.querySelector('.actionbar-action');
-    if (!(button instanceof HTMLButtonElement)) {
-      throw new Error('Expected actionbar button.');
-    }
-
-    button.click();
-    await delay(0);
-
-    const menu = document.body.querySelector('.dropdown-menu');
-    assert(menu instanceof HTMLElement);
-    assert.equal(button.getAttribute('aria-expanded'), 'true');
-
-    const renameItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
-      (node) => node.textContent?.includes('Rename'),
-    );
-    assert(renameItem instanceof HTMLElement);
-    renameItem.click();
-    await delay(0);
-
-    assert.equal(selected, 'rename');
-    assert.equal(button.getAttribute('aria-expanded'), 'false');
-  } finally {
-    actionBarView.dispose();
-    document.body.replaceChildren();
-  }
-});
-
 test('actionbar can render a dropdown action view item instance', async () => {
   let selected = '';
   const dropdownItem = new DropdownMenuActionViewItem({
@@ -278,11 +225,11 @@ test('actionbar can render a dropdown action view item instance', async () => {
   }
 });
 
-test('actionbar action can render a custom overlay declaratively', async () => {
+test('actionbar can render a custom overlay action view item instance', async () => {
   let closeCount = 0;
   const actionBarView = createActionBarView({
     items: [
-      {
+      new DropdownMenuActionViewItem({
         label: 'History',
         content: createLxIcon('history'),
         overlayRole: 'dialog',
@@ -299,7 +246,7 @@ test('actionbar action can render a custom overlay declaratively', async () => {
           overlay.append(close);
           return overlay;
         },
-      },
+      }),
     ],
   });
   const element = actionBarView.getElement();

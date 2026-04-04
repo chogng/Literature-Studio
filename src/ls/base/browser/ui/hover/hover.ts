@@ -28,6 +28,11 @@ export type HoverServiceOptions = {
   delegate: HoverDelegate;
 };
 
+export type HoverBinding = {
+  update: (input: HoverInput | null | undefined) => void;
+  dispose: () => void;
+};
+
 type ManagedHoverHandle = {
   handle: HoverHandle;
   service: HoverService;
@@ -55,6 +60,29 @@ export function createHoverService(options: HoverServiceOptions): HoverService {
 
 export function getHoverService(): HoverService {
   return hoverService;
+}
+
+export function bindHover(
+  target: HTMLElement,
+  initialInput?: HoverInput | null,
+  hoverService: HoverService = getHoverService(),
+): HoverBinding {
+  const handle = hoverService.createHover(target, null);
+  target.removeAttribute('title');
+
+  if (initialInput !== undefined) {
+    handle.update(initialInput);
+  }
+
+  return {
+    update: (input) => {
+      handle.update(input ?? null);
+      target.removeAttribute('title');
+    },
+    dispose: () => {
+      dispose(handle);
+    },
+  };
 }
 
 export function applyHover(

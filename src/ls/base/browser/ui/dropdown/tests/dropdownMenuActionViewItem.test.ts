@@ -25,7 +25,7 @@ after(() => {
   cleanupDomEnvironment = null;
 });
 
-test('createDropdownMenuActionViewItem returns an actionbar item with menu metadata', () => {
+test('createDropdownMenuActionViewItem returns a dropdown action view item', () => {
   const item = createDropdownMenuActionViewItem({
     label: 'More',
     buttonClassName: 'example-action',
@@ -36,13 +36,7 @@ test('createDropdownMenuActionViewItem returns an actionbar item with menu metad
     ],
   });
 
-  assert.equal(item.label, 'More');
-  assert.equal(item.buttonClassName, 'example-action');
-  assert.equal(item.menuClassName, 'example-menu');
-  assert.deepEqual(item.menu, [
-    { label: 'Rename' },
-    { label: 'Delete', disabled: true },
-  ]);
+  assert(item instanceof DropdownMenuActionViewItem);
 });
 
 test('DropdownMenuActionViewItem renders and opens a menu overlay', async () => {

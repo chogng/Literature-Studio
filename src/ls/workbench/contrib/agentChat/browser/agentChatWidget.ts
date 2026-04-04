@@ -4,7 +4,10 @@ import {
   type ActionBarActionItem,
   type ActionBarItem,
 } from 'ls/base/browser/ui/actionbar/actionbar';
-import { DropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
+import {
+  createDropdownMenuActionViewItem,
+  DropdownMenuActionViewItem,
+} from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
@@ -623,8 +626,8 @@ export class AgentChatWidget {
     };
   }
 
-  private createTopbarMoreActionItem(): ActionBarActionItem {
-    return {
+  private createTopbarMoreActionItem(): ActionBarItem {
+    return createDropdownMenuActionViewItem({
       label: this.props.labels.assistantMore,
       title: this.props.labels.assistantMore,
       content: createLxIcon(lxIconSemanticMap.assistant.more),
@@ -638,11 +641,11 @@ export class AgentChatWidget {
           },
         },
       ],
-    };
+    });
   }
 
-  private createTopbarHistoryActionItem(): ActionBarActionItem {
-    return {
+  private createTopbarHistoryActionItem(): ActionBarItem {
+    return createDropdownMenuActionViewItem({
       label: this.props.labels.assistantHistory,
       title: this.props.labels.assistantHistory,
       content: createLxIcon(lxIconSemanticMap.assistant.history),
@@ -657,7 +660,7 @@ export class AgentChatWidget {
         }
         return popover;
       },
-    };
+    });
   }
 
   private disposeRenderDisposables() {
