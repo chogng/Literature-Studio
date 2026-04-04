@@ -1,9 +1,11 @@
 import 'ls/base/browser/ui/dropdown/dropdown.css';
 import { createContextViewController } from 'ls/base/browser/ui/contextview/contextview';
 import {
-  createHoverController,
+  applyHover,
+  getHoverService,
   type HoverHandle,
   type HoverInput,
+  type HoverService,
 } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -62,6 +64,7 @@ export type DropdownProps = {
   className?: string;
   title?: string;
   hover?: HoverInput;
+  hoverService?: HoverService;
   menuPresenter?: DropdownMenuPresenter;
   menuAlign?: DropdownMenuAlign;
   onChange?: (event: { target: { value: string } }) => void;
@@ -299,7 +302,7 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
         item.setAttribute('aria-selected', String(selectedValue === option.value));
         item.setAttribute('aria-disabled', option.disabled ? 'true' : 'false');
         if (option.title) {
-          item.title = option.title;
+          applyHover(item, option.title);
         }
         item.append(createOptionContent(option), createCheckSlot(selectedValue === option.value));
         item.addEventListener('click', (event) => {
@@ -399,7 +402,8 @@ export class DropdownView {
 
   constructor(props: DropdownProps) {
     this.props = this.normalizeProps(props);
-    this.hoverController = createHoverController(this.element, null);
+    const hoverService = this.props.hoverService ?? getHoverService();
+    this.hoverController = hoverService.createHover(this.element, null);
     this.iconWrapper.append(this.chevronIcon);
     this.element.append(this.field, this.iconWrapper);
 

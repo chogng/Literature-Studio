@@ -1,0 +1,1 @@
+这里外层用于底层通用逻辑，不依赖dom，且要被node electron main 无dom环境复用，dom类型使用会污染底层边界

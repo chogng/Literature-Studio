@@ -1,3 +1,4 @@
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -58,7 +59,7 @@ function buildButton(config: {
   } else {
     button.textContent = config.label;
   }
-  button.title = config.title ?? config.label;
+  applyHover(button, config.title ?? config.label);
   button.ariaLabel = config.title ?? config.label;
   button.disabled = Boolean(config.disabled);
   button.addEventListener('click', () => config.onClick());
@@ -120,12 +121,12 @@ class BatchSourceRowView {
   setProps(props: BatchSourceRowViewProps) {
     this.props = props;
     setFocusKey(this.upButton, `settings.batch.${props.index}.up`);
-    this.upButton.title = props.labels.moveBatchUrlUp;
+    applyHover(this.upButton, props.labels.moveBatchUrlUp);
     this.upButton.ariaLabel = props.labels.moveBatchUrlUp;
     this.upButton.disabled = props.index === 0 || props.isSettingsSaving;
 
     setFocusKey(this.downButton, `settings.batch.${props.index}.down`);
-    this.downButton.title = props.labels.moveBatchUrlDown;
+    applyHover(this.downButton, props.labels.moveBatchUrlDown);
     this.downButton.ariaLabel = props.labels.moveBatchUrlDown;
     this.downButton.disabled = props.index === props.total - 1 || props.isSettingsSaving;
 
@@ -138,7 +139,7 @@ class BatchSourceRowView {
     this.journalInput.placeholder = props.labels.batchJournalTitlePlaceholder;
 
     setFocusKey(this.removeButton, `settings.batch.${props.index}.remove`);
-    this.removeButton.title = props.labels.removeBatchUrl;
+    applyHover(this.removeButton, props.labels.removeBatchUrl);
     this.removeButton.ariaLabel = props.labels.removeBatchUrl;
     this.removeButton.disabled = props.total === 1 || props.isSettingsSaving;
   }

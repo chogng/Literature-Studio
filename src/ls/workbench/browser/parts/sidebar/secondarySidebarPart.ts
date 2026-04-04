@@ -6,6 +6,7 @@ import {
   createDateRangePickerView,
   type DateRangePickerView,
 } from 'ls/base/browser/ui/dateRangePicker/dateRangePicker';
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { Locale } from 'language/i18n';
@@ -436,7 +437,7 @@ export class SecondarySidebarPartView {
       ),
     );
     this.fetchButton.setAttribute('aria-label', fetchButtonLabel);
-    this.fetchButton.title = fetchButtonLabel;
+    applyHover(this.fetchButton, fetchButtonLabel);
     this.fetchButton.disabled = this.props.isBatchLoading;
 
     this.renderContent();

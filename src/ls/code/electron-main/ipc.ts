@@ -56,13 +56,13 @@ import {
   getMenuOverlayState,
   openMenuOverlay,
   selectMenuOption,
-} from 'ls/base/parts/contextmenu/electron-overlay-main/contextmenu';
+} from 'ls/base/parts/contextmenu/electron-main/overlayContextmenu';
 import {
   NATIVE_POPUP_CONTEXT_MENU_CLOSE_CHANNEL,
   NATIVE_POPUP_CONTEXT_MENU_EVENT_CHANNEL,
   NATIVE_POPUP_CONTEXT_MENU_OPEN_CHANNEL,
 } from 'ls/base/parts/contextmenu/common/contextmenu';
-import { registerNativePopupContextMenuIpc } from 'ls/base/parts/contextmenu/native-popup-main/contextmenu';
+import { registerNativePopupContextMenuIpc } from 'ls/base/parts/contextmenu/electron-main/nativeContextmenu';
 import {
   fetchArticle,
   fetchLatestArticles,

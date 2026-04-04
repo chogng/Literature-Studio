@@ -1,3 +1,4 @@
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import type { EditorStatusState } from 'ls/workbench/browser/parts/editor/editorStatus';
 import { createStatusbarItemElement } from 'ls/workbench/browser/parts/statusbar/statusbarItem';
 import 'ls/workbench/browser/parts/statusbar/media/statusbar.css';
@@ -7,7 +8,7 @@ function createTextElement(className: string, text: string, title?: string) {
   element.className = className;
   element.textContent = text;
   if (title) {
-    element.title = title;
+    applyHover(element, title);
   }
 
   return element;

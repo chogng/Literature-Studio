@@ -1,3 +1,4 @@
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -55,7 +56,7 @@ function buildButton(config: {
   } else {
     button.textContent = config.label;
   }
-  button.title = config.title ?? config.label;
+  applyHover(button, config.title ?? config.label);
   button.ariaLabel = config.title ?? config.label;
   button.disabled = Boolean(config.disabled);
   button.addEventListener('click', () => config.onClick());
@@ -113,11 +114,11 @@ export class ApiKeyWidget {
     this.input.placeholder = props.placeholder;
     setFocusKey(this.toggle, props.toggleKey);
     this.toggle.textContent = props.show ? props.toggleLabelHide : props.toggleLabelShow;
-    this.toggle.title = props.show ? props.toggleLabelHide : props.toggleLabelShow;
+    applyHover(this.toggle, props.show ? props.toggleLabelHide : props.toggleLabelShow);
     this.toggle.ariaLabel = props.show ? props.toggleLabelHide : props.toggleLabelShow;
     setFocusKey(this.testButton, props.testButtonKey);
     this.testButton.textContent = props.testButtonLabel;
-    this.testButton.title = props.testButtonLabel;
+    applyHover(this.testButton, props.testButtonLabel);
     this.testButton.ariaLabel = props.testButtonLabel;
     this.testButton.disabled = props.testButtonDisabled;
   }

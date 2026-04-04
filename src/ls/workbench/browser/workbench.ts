@@ -40,7 +40,7 @@ import { createTitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebar
 import type { TitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
 
 import { createToastOverlayWindowView } from 'ls/workbench/browser/toastOverlayWindow';
-import { createMenuOverlayWindowView } from 'ls/workbench/browser/menuOverlayWindow';
+import { createOverlayMenuView } from 'ls/base/parts/contextmenu/electron-sandbox/overlayMenu';
 import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
 import { createReaderPageView } from 'ls/workbench/browser/readerPageView';
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
@@ -151,7 +151,7 @@ let batchFetchController: BatchFetchController | null = null;
 let activeWorkbenchHost: WorkbenchHost | null = null;
 let activeOverlayView:
   | ReturnType<typeof createToastOverlayWindowView>
-  | ReturnType<typeof createMenuOverlayWindowView>
+  | ReturnType<typeof createOverlayMenuView>
   | ReturnType<typeof createArticleDetailsModalWindowView>
   | null = null;
 let activeAgentChatModelOptionValue: string | null = null;
@@ -1940,7 +1940,7 @@ export function renderWorkbench() {
   }
 
   if (nativeOverlayKind === 'menu') {
-    activeOverlayView = createMenuOverlayWindowView();
+    activeOverlayView = createOverlayMenuView();
     rootElement.replaceChildren(activeOverlayView.getElement());
     return;
   }

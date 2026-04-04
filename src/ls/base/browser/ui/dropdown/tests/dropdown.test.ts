@@ -7,6 +7,7 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 let cleanupDomEnvironment: (() => void) | null = null;
 let createDropdownView: typeof import('ls/base/browser/ui/dropdown/dropdown').createDropdownView;
 let createDomDropdownMenuPresenter: typeof import('ls/base/browser/ui/dropdown/dropdown').createDomDropdownMenuPresenter;
+let DropdownMenuActionViewItem: typeof import('ls/base/browser/ui/dropdown/dropdownActionViewItem').DropdownMenuActionViewItem;
 
 type RectInit = {
   x: number;
@@ -38,6 +39,7 @@ before(async () => {
     createDropdownView,
     createDomDropdownMenuPresenter,
   } = await import('ls/base/browser/ui/dropdown/dropdown'));
+  ({ DropdownMenuActionViewItem } = await import('ls/base/browser/ui/dropdown/dropdownActionViewItem'));
 });
 
 after(() => {
@@ -365,6 +367,50 @@ test('dropdown exposes basic aria metadata and keyboard selection for DOM menus'
     assert.equal(dropdown.querySelector('.dropdown-menu'), null);
   } finally {
     dropdownView.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('dropdown menu actions fall back to run when onClick is omitted', async () => {
+  let runs = 0;
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    menu: [
+      {
+        id: 'archive',
+        label: 'Archive',
+        run: () => {
+          runs += 1;
+        },
+      },
+    ],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(menu instanceof HTMLElement);
+
+    const archiveItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.includes('Archive'),
+    );
+    assert(archiveItem instanceof HTMLElement);
+    archiveItem.click();
+    await delay(0);
+
+    assert.equal(runs, 1);
+    assert.equal(button.getAttribute('aria-expanded'), 'false');
+  } finally {
+    item.dispose();
     document.body.replaceChildren();
   }
 });

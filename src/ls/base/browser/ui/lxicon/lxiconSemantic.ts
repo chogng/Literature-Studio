@@ -4,8 +4,8 @@ export const lxIconSemanticMap = {
   titlebar: {
     fetchSidebarOpen: 'layout-sidebar-left',
     fetchSidebarClosed: 'layout-sidebar-left-off',
-    primarySidebarOpen: 'layout-panel',
-    primarySidebarClosed: 'layout-panel-off',
+    primarySidebarOpen: 'projects-filled',
+    primarySidebarClosed: 'projects',
     auxiliaryOpen: 'agent-filled',
     auxiliaryClosed: 'agent',
     navigateBack: 'arrow-left',

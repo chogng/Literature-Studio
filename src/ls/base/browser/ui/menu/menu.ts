@@ -1,6 +1,7 @@
 import 'ls/base/browser/ui/menu/menu.css';
 
 import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 
 export type MenuSelectionSource = 'keyboard' | 'pointer';
@@ -221,7 +222,7 @@ export class Menu {
       node.setAttribute('role', 'menuitem');
       node.setAttribute('aria-disabled', item.disabled ? 'true' : 'false');
       if (item.title) {
-        node.title = item.title;
+        applyHover(node, item.title);
       }
       node.append(createMenuItemContent(item), createCheckSlot(selected));
       node.addEventListener('mouseenter', () => {

@@ -6,6 +6,7 @@ import {
 } from 'ls/base/browser/ui/actionbar/actionbar';
 import { DropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -107,7 +108,7 @@ export class AgentChatWidget {
       );
       button.type = 'button';
       button.textContent = conversation.title;
-      button.title = conversation.title;
+      applyHover(button, conversation.title);
       if (conversation.id === this.props.activeConversationId) {
         activeTabButton = button;
       }

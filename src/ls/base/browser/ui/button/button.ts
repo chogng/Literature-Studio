@@ -1,8 +1,9 @@
 import 'ls/base/browser/ui/button/button.css';
 import {
-  createHoverController,
+  getHoverService,
   type HoverHandle,
   type HoverInput,
+  type HoverService,
 } from 'ls/base/browser/ui/hover/hover';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
@@ -28,6 +29,7 @@ export interface ButtonProps {
   hover?: HoverInput;
   ariaLabel?: string;
   type?: 'button' | 'submit' | 'reset';
+  hoverService?: HoverService;
   onClick?: (event: MouseEvent) => void;
   onFocus?: (event: FocusEvent) => void;
   onBlur?: (event: FocusEvent) => void;
@@ -109,7 +111,8 @@ export class ButtonView {
 
   constructor(props: ButtonProps = {}) {
     this.props = props;
-    this.hoverController = createHoverController(this.element, null);
+    const hoverService = props.hoverService ?? getHoverService();
+    this.hoverController = hoverService.createHover(this.element, null);
     this.element.addEventListener('click', this.handleClick);
     this.element.addEventListener('focus', this.handleFocus);
     this.element.addEventListener('blur', this.handleBlur);

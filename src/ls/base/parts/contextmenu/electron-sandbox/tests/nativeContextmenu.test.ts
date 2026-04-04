@@ -8,7 +8,7 @@ import type {
 import {
   close,
   popup,
-} from 'ls/base/parts/contextmenu/native-popup-sandbox/contextmenu';
+} from 'ls/base/parts/contextmenu/electron-sandbox/nativeContextmenu';
 
 function createFakeContextMenuApi() {
   let listener: ((event: Parameters<ContextMenuPopupApi['onEvent']>[0] extends (event: infer T) => void ? T : never) => void) | undefined;

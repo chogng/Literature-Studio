@@ -1,4 +1,8 @@
 import 'ls/base/browser/ui/inputbox/inputBox.css';
+import {
+  getHoverService,
+  type HoverHandle,
+} from 'ls/base/browser/ui/hover/hover';
 
 export interface IInputBoxOptions {
   readonly placeholder?: string;
@@ -12,6 +16,7 @@ export interface IInputBoxOptions {
 export class InputBox {
   readonly element: HTMLElement;
   readonly inputElement: HTMLInputElement;
+  private readonly hoverController: HoverHandle;
   private placeholder = '';
   private tooltip = '';
   private disposed = false;
@@ -38,6 +43,7 @@ export class InputBox {
     wrapper.append(this.inputElement);
     this.element.append(wrapper);
     container.append(this.element);
+    this.hoverController = getHoverService().createHover(this.element, null);
 
     if (options.ariaLabel) {
       this.inputElement.setAttribute('aria-label', options.ariaLabel);
@@ -84,15 +90,12 @@ export class InputBox {
   setPlaceHolder(placeholder: string) {
     this.placeholder = placeholder;
     this.inputElement.placeholder = placeholder;
+    this.syncHover();
   }
 
   setTooltip(tooltip: string) {
     this.tooltip = tooltip;
-    if (tooltip) {
-      this.element.title = tooltip;
-    } else {
-      this.element.removeAttribute('title');
-    }
+    this.syncHover();
   }
 
   dispose() {
@@ -105,6 +108,7 @@ export class InputBox {
     this.inputElement.removeEventListener('input', this.handleInput);
     this.inputElement.removeEventListener('focus', this.handleFocus);
     this.inputElement.removeEventListener('blur', this.handleBlur);
+    this.hoverController.dispose();
     this.element.remove();
   }
 
@@ -126,8 +130,10 @@ export class InputBox {
   private syncEmptyState() {
     this.element.classList.toggle('empty', this.inputElement.value.length === 0);
     this.inputElement.classList.toggle('empty', this.inputElement.value.length === 0);
-    if (!this.tooltip && this.placeholder) {
-      this.element.title = this.placeholder;
-    }
+  }
+
+  private syncHover() {
+    this.hoverController.update(this.tooltip || this.placeholder || null);
+    this.element.removeAttribute('title');
   }
 }

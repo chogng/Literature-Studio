@@ -1,4 +1,8 @@
 import 'ls/base/browser/ui/switch/switch.css';
+import {
+  getHoverService,
+  type HoverHandle,
+} from 'ls/base/browser/ui/hover/hover';
 
 export interface SwitchProps {
   checked?: boolean;
@@ -51,10 +55,12 @@ export class SwitchView {
   private readonly inputElement = createElement('input', 'switch-input');
   private readonly sliderElement = createElement('span', 'switch-slider');
   private readonly labelElement = createElement('span', 'switch-label');
+  private readonly hoverController: HoverHandle;
   private disposed = false;
 
   constructor(props: SwitchProps = {}) {
     this.props = props;
+    this.hoverController = getHoverService().createHover(this.element, null);
     this.inputElement.type = 'checkbox';
     this.inputElement.addEventListener('change', this.handleChange);
     this.sliderElement.setAttribute('aria-hidden', 'true');
@@ -89,6 +95,7 @@ export class SwitchView {
 
     this.disposed = true;
     this.inputElement.removeEventListener('change', this.handleChange);
+    this.hoverController.dispose();
     this.element.replaceChildren();
     this.labelElement.replaceChildren();
   }
@@ -129,10 +136,11 @@ export class SwitchView {
     this.inputElement.disabled = disabled;
 
     if (title) {
-      this.element.title = title;
+      this.hoverController.update(title);
+      this.element.removeAttribute('title');
       this.inputElement.setAttribute('aria-label', title);
     } else {
-      this.element.removeAttribute('title');
+      this.hoverController.update(null);
       if (typeof label === 'string' && label.length > 0) {
         this.inputElement.removeAttribute('aria-label');
       } else {

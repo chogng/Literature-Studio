@@ -1,5 +1,6 @@
 import type { WindowControlAction } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { createButtonView } from 'ls/base/browser/ui/button/button';
+import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 
@@ -80,6 +81,7 @@ export class WindowControlsView {
       ...DEFAULT_CONTROL_LABELS,
       ...labels,
     };
+    const hoverService = getHoverService();
 
     this.element.className = className;
     this.element.setAttribute('role', 'group');
@@ -97,6 +99,7 @@ export class WindowControlsView {
         mode: 'icon',
         ariaLabel: resolvedLabels.minimizeLabel,
         title: resolvedLabels.minimizeLabel,
+        hoverService,
         content: '-',
         onClick: () => onWindowControl('minimize'),
       }),
@@ -113,6 +116,7 @@ export class WindowControlsView {
         title: isWindowMaximized
           ? resolvedLabels.restoreLabel
           : resolvedLabels.maximizeLabel,
+        hoverService,
         content: isWindowMaximized ? 'o' : '[]',
         onClick: () => onWindowControl('toggle-maximize'),
       }),
@@ -125,6 +129,7 @@ export class WindowControlsView {
         mode: 'icon',
         ariaLabel: resolvedLabels.closeLabel,
         title: resolvedLabels.closeLabel,
+        hoverService,
         content: createLxIcon(lxIconSemanticMap.windowControls.close),
         onClick: () => onWindowControl('close'),
       }),

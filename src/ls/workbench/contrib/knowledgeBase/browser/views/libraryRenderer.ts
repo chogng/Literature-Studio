@@ -1,4 +1,5 @@
 import type { LibraryDocumentsResult } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import type { SimpleTreeRenderContext } from 'ls/base/browser/ui/tree/simpleTree';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
@@ -134,11 +135,11 @@ export class LibraryRenderer {
 
     const titleElement = createElement('span', 'library-tree-document-title');
     titleElement.textContent = title;
-    titleElement.title = title;
+    applyHover(titleElement, title);
 
     const metaElement = createElement('span', 'library-tree-document-meta');
     metaElement.textContent = authors;
-    metaElement.title = authors;
+    applyHover(metaElement, authors);
 
     const statusElement = createElement(
       'span',

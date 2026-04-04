@@ -1,3 +1,4 @@
+import type { BaseAction } from 'ls/base/common/actions';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 export type ContextMenuAnchor = HTMLElement | {
@@ -13,13 +14,9 @@ export type ContextMenuAlignment = 'start' | 'end';
 // workbench, and native menu bridges. It is intentionally smaller than the
 // upstream IAction-based system and can be expanded later if the action stack
 // is introduced.
-export interface ContextMenuAction {
+export interface ContextMenuAction extends BaseAction {
   value: string;
-  label: string;
-  title?: string;
   icon?: LxIconName;
-  disabled?: boolean;
-  checked?: boolean;
 }
 
 export interface ContextMenuDelegate {

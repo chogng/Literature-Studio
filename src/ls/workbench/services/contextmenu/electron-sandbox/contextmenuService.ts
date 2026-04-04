@@ -13,11 +13,11 @@ import type {
 import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
 import {
   createElectronOverlayContextMenuHandler,
-} from 'ls/base/parts/contextmenu/electron-overlay/overlayContextmenu';
+} from 'ls/base/parts/contextmenu/electron-sandbox/overlayContextmenu';
 import {
   close as closeNativePopupContextMenu,
   popup as popupNativePopupContextMenu,
-} from 'ls/base/parts/contextmenu/native-popup-sandbox/contextmenu';
+} from 'ls/base/parts/contextmenu/electron-sandbox/nativeContextmenu';
 import {
   resolveWorkbenchContextMenuRouting,
   type WorkbenchContextMenuBackendPreference,

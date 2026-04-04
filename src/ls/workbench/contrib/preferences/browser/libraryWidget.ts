@@ -2,6 +2,7 @@ import type {
   LibraryDocumentSummary,
   LibraryStorageMode,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -92,7 +93,7 @@ function buildButton(config: {
   } else {
     button.textContent = config.label;
   }
-  button.title = config.title ?? config.label;
+  applyHover(button, config.title ?? config.label);
   button.ariaLabel = config.title ?? config.label;
   button.disabled = Boolean(config.disabled);
   button.addEventListener('click', () => config.onClick());

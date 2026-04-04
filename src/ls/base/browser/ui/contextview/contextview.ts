@@ -1,4 +1,9 @@
 import 'ls/base/browser/ui/contextview/contextview.css';
+import {
+  resolveAnchoredHorizontalLeft,
+  resolveAnchoredVerticalPlacement,
+  resolveAnchoredVerticalTop,
+} from 'ls/base/browser/ui/contextview/anchoredLayout';
 
 export type ContextViewAlignment = 'start' | 'end';
 export type ContextViewPosition = 'auto' | 'above' | 'below';
@@ -143,40 +148,46 @@ export class ContextViewController implements ContextViewHandle {
     this.content.style.minWidth = `${Math.max(minWidth ?? 0, matchAnchorWidth ? anchorRect.width : 0)}px`;
 
     const overlayRect = this.element.getBoundingClientRect();
-    const canFitBelow =
-      anchorRect.bottom + offset + overlayRect.height + VIEWPORT_MARGIN_PX <=
-      viewportHeight;
-    const canFitAbove =
-      anchorRect.top - offset - overlayRect.height - VIEWPORT_MARGIN_PX >= 0;
-    const resolvedPosition =
-      position === 'above'
-        ? 'above'
-        : position === 'below'
-          ? 'below'
-          : canFitBelow || !canFitAbove
-            ? 'below'
-            : 'above';
+    const resolvedPosition = resolveAnchoredVerticalPlacement({
+      anchorRect: {
+        x: anchorRect.x,
+        y: anchorRect.y,
+        width: anchorRect.width,
+        height: anchorRect.height,
+      },
+      overlayHeight: overlayRect.height,
+      viewportHeight,
+      viewportMargin: VIEWPORT_MARGIN_PX,
+      offset,
+      preference: position,
+    }).placement;
 
-    const nextTop =
-      resolvedPosition === 'above'
-        ? anchorRect.top - overlayRect.height - offset
-        : anchorRect.bottom + offset;
-    const top = Math.max(
-      VIEWPORT_MARGIN_PX,
-      Math.min(nextTop, viewportHeight - overlayRect.height - VIEWPORT_MARGIN_PX),
-    );
+    const top = resolveAnchoredVerticalTop({
+      anchorRect: {
+        x: anchorRect.x,
+        y: anchorRect.y,
+        width: anchorRect.width,
+        height: anchorRect.height,
+      },
+      overlayHeight: overlayRect.height,
+      viewportHeight,
+      viewportMargin: VIEWPORT_MARGIN_PX,
+      offset,
+      placement: resolvedPosition,
+    });
 
-    const preferredLeft =
-      alignment === 'end'
-        ? anchorRect.right - overlayRect.width
-        : anchorRect.left;
-    const left = Math.max(
-      VIEWPORT_MARGIN_PX,
-      Math.min(
-        preferredLeft,
-        viewportWidth - overlayRect.width - VIEWPORT_MARGIN_PX,
-      ),
-    );
+    const left = resolveAnchoredHorizontalLeft({
+      anchorRect: {
+        x: anchorRect.x,
+        y: anchorRect.y,
+        width: anchorRect.width,
+        height: anchorRect.height,
+      },
+      overlayWidth: overlayRect.width,
+      viewportWidth,
+      viewportMargin: VIEWPORT_MARGIN_PX,
+      alignment,
+    });
 
     this.element.style.left = `${Math.round(left)}px`;
     this.element.style.top = `${Math.round(top)}px`;

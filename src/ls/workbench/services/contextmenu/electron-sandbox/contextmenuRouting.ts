@@ -1,4 +1,4 @@
-import { canUseElectronOverlayContextMenus } from 'ls/base/parts/contextmenu/electron-overlay/overlayContextmenu';
+import { canUseElectronOverlayContextMenus } from 'ls/base/parts/contextmenu/electron-sandbox/overlayContextmenu';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 
 // The workbench keeps only the backend choices that matter to product code:
