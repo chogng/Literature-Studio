@@ -15,6 +15,7 @@ import type {
   ActionBarRenderable,
 } from 'ls/base/browser/ui/actionbar/actionbar';
 import type { HoverService } from 'ls/base/browser/ui/hover/hover';
+import { toDisposable } from 'ls/base/common/lifecycle';
 import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
 
 export type DropdownMenuActionAlignment = 'start' | 'end';
@@ -93,6 +94,18 @@ function composeClassName(parts: Array<string | undefined | null | false>) {
   return parts.filter(Boolean).join(' ');
 }
 
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
 function createContextMenuValue(action: Pick<ActionBarMenuItem, 'id'>, index: number) {
   return action.id ?? `dropdown-menu-action-option-${index}`;
 }
@@ -150,7 +163,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
 
   constructor(options: DropdownMenuActionViewItemOptions) {
     super(options, options.hoverService);
-    this.button.addEventListener('keydown', this.handleKeyDown);
+    this.register(addDisposableListener(this.button, 'keydown', this.handleKeyDown));
     this.render();
   }
 
@@ -219,7 +232,6 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     this.overlayController.dispose();
     this.defaultContextMenuService?.dispose?.();
     this.defaultContextMenuService = null;
-    this.button.removeEventListener('keydown', this.handleKeyDown);
     super.dispose();
   }
 
@@ -335,7 +347,7 @@ export class ActionWithDropdownActionViewItem extends BaseActionViewItem {
     this.primaryItem.render(this.element);
     this.element.append(this.separator);
     this.dropdownMenuActionViewItem.render(this.element);
-    this.element.addEventListener('keydown', this.handleKeyDown);
+    this.register(addDisposableListener(this.element, 'keydown', this.handleKeyDown));
   }
 
   override render(container?: HTMLElement) {
@@ -355,7 +367,6 @@ export class ActionWithDropdownActionViewItem extends BaseActionViewItem {
 
     this.primaryItem.dispose();
     this.dropdownMenuActionViewItem.dispose();
-    this.element.removeEventListener('keydown', this.handleKeyDown);
     super.dispose();
   }
 

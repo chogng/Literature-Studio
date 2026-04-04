@@ -1,3 +1,4 @@
+import { EventEmitter } from 'ls/base/common/event';
 import type { Article } from 'ls/workbench/services/article/articleFetch';
 import { buildDefaultBatchDateRange } from 'ls/workbench/common/dateRange';
 
@@ -24,13 +25,7 @@ const DEFAULT_READER_STATE_SNAPSHOT: ReaderStateSnapshot = {
 };
 
 let readerStateSnapshot = DEFAULT_READER_STATE_SNAPSHOT;
-const readerStateListeners = new Set<() => void>();
-
-function emitReaderStateChange() {
-  for (const listener of readerStateListeners) {
-    listener();
-  }
-}
+const onDidChangeReaderStateEmitter = new EventEmitter<void>();
 
 function updateReaderState(updater: ReaderStateUpdater) {
   const nextSnapshot = updater(readerStateSnapshot);
@@ -39,14 +34,11 @@ function updateReaderState(updater: ReaderStateUpdater) {
   }
 
   readerStateSnapshot = nextSnapshot;
-  emitReaderStateChange();
+  onDidChangeReaderStateEmitter.fire();
 }
 
 export function subscribeReaderState(listener: () => void) {
-  readerStateListeners.add(listener);
-  return () => {
-    readerStateListeners.delete(listener);
-  };
+  return onDidChangeReaderStateEmitter.event(listener);
 }
 
 export function getReaderStateSnapshot() {

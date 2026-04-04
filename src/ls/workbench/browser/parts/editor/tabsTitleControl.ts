@@ -4,6 +4,12 @@ import {
 } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
+import {
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 import type { EditorGroupTabItem } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 import { TitleControl } from 'ls/workbench/browser/parts/editor/titleControl';
 
@@ -29,6 +35,18 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
 function getTabKindLabel(kind: 'draft' | 'web' | 'pdf') {
   if (kind === 'draft') {
     return 'D';
@@ -42,26 +60,30 @@ function getTabKindLabel(kind: 'draft' | 'web' | 'pdf') {
 }
 
 export class TabsTitleControl extends TitleControl {
+  private readonly disposables = new LifecycleStore();
+  private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
+  private readonly layoutAnimationFrame = new MutableLifecycle<DisposableLike>();
   private container: HTMLDivElement | null = null;
   private readonly tabViews = new Map<string, TabView>();
-  private resizeObserver?: ResizeObserver;
-  private layoutAnimationFrame: number | null = null;
   private shouldRevealActiveTab = false;
   private readonly hoverService = getHoverService();
 
   protected override create() {
     this.container = createElement('div', 'editor-tabs-container');
     this.container.setAttribute('role', 'tablist');
-    this.container.addEventListener('scroll', this.handleContainerScroll, {
+    this.disposables.add(addDisposableListener(this.container, 'scroll', this.handleContainerScroll, {
       passive: true,
-    });
+    }));
     if (typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(() => {
+      const resizeObserver = new ResizeObserver(() => {
         this.scheduleLayoutSync(false);
       });
-      this.resizeObserver.observe(this.container);
+      resizeObserver.observe(this.container);
+      this.resizeObserver.value = toDisposable(() => {
+        resizeObserver.disconnect();
+      });
     } else {
-      window.addEventListener('resize', this.handleWindowResize);
+      this.disposables.add(addDisposableListener(window, 'resize', this.handleWindowResize));
     }
     this.redraw();
 
@@ -73,16 +95,9 @@ export class TabsTitleControl extends TitleControl {
   }
 
   override dispose() {
-    if (this.layoutAnimationFrame !== null) {
-      window.cancelAnimationFrame(this.layoutAnimationFrame);
-      this.layoutAnimationFrame = null;
-    }
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = undefined;
-    this.container?.removeEventListener('scroll', this.handleContainerScroll);
-    if (typeof ResizeObserver === 'undefined') {
-      window.removeEventListener('resize', this.handleWindowResize);
-    }
+    this.layoutAnimationFrame.dispose();
+    this.resizeObserver.dispose();
+    this.disposables.dispose();
     for (const tabView of this.tabViews.values()) {
       tabView.dispose();
     }
@@ -234,12 +249,19 @@ export class TabsTitleControl extends TitleControl {
 
   private scheduleLayoutSync(revealActiveTab = true) {
     this.shouldRevealActiveTab = this.shouldRevealActiveTab || revealActiveTab;
-    if (this.layoutAnimationFrame !== null) {
+    if (this.layoutAnimationFrame.value) {
       return;
     }
 
-    this.layoutAnimationFrame = window.requestAnimationFrame(() => {
-      this.layoutAnimationFrame = null;
+    let animationFrameHandle = 0;
+    const animationFrameDisposable = toDisposable(() => {
+      window.cancelAnimationFrame(animationFrameHandle);
+    });
+    this.layoutAnimationFrame.value = animationFrameDisposable;
+    animationFrameHandle = window.requestAnimationFrame(() => {
+      if (this.layoutAnimationFrame.value === animationFrameDisposable) {
+        this.layoutAnimationFrame.clearAndLeak();
+      }
       this.syncOverflowState();
       if (this.shouldRevealActiveTab) {
         this.revealActiveTab();

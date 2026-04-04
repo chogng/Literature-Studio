@@ -1,4 +1,5 @@
 import { toast } from 'ls/base/browser/ui/toast/toast';
+import { EventEmitter } from 'ls/base/common/event';
 import type { LocaleMessages } from 'language/locales';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
@@ -133,13 +134,11 @@ function getWebContentNavigationQuickAccessProvider(): WebContentNavigationQuick
 
 export class WebContentNavigationModel {
   private snapshot: WebContentNavigationSnapshot = DEFAULT_WEB_CONTENT_NAVIGATION_SNAPSHOT;
-  private readonly listeners = new Set<() => void>();
+  private readonly onDidChangeEmitter = new EventEmitter<void>();
   private activeTargetId: string | null = null;
 
   private emitChange() {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.onDidChangeEmitter.fire();
   }
 
   private setSnapshot(nextSnapshot: WebContentNavigationSnapshot) {
@@ -192,10 +191,7 @@ export class WebContentNavigationModel {
   }
 
   readonly subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.onDidChangeEmitter.event(listener);
   };
 
   readonly getSnapshot = () => this.snapshot;

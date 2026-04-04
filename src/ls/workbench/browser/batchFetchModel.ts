@@ -1,4 +1,6 @@
 import { toast } from 'ls/base/browser/ui/toast/toast';
+import { EventEmitter } from 'ls/base/common/event';
+import { MutableLifecycle } from 'ls/base/common/lifecycle';
 import type {
   ElectronInvoke,
   FetchStatus,
@@ -122,21 +124,18 @@ export class BatchFetchController {
   private context: BatchFetchControllerContext;
   private machineState = INITIAL_BATCH_FETCH_MACHINE_STATE;
   private snapshot = createBatchFetchSnapshot(this.machineState);
-  private readonly listeners = new Set<() => void>();
+  private readonly onDidChangeEmitter = new EventEmitter<void>();
+  private readonly fetchStatusListener = new MutableLifecycle<() => void>();
   private requestId = 0;
   private started = false;
   private disposed = false;
-  private disposeFetchStatusListener: (() => void) | null = null;
 
   constructor(context: BatchFetchControllerContext) {
     this.context = context;
   }
 
   readonly subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.onDidChangeEmitter.event(listener);
   };
 
   readonly getSnapshot = () => this.snapshot;
@@ -161,10 +160,13 @@ export class BatchFetchController {
   };
 
   readonly dispose = () => {
+    if (this.disposed) {
+      return;
+    }
+
     this.disposed = true;
-    this.disposeFetchStatusListener?.();
-    this.disposeFetchStatusListener = null;
-    this.listeners.clear();
+    this.fetchStatusListener.dispose();
+    this.onDidChangeEmitter.dispose();
   };
 
   readonly clearFetchStatus = () => {
@@ -280,15 +282,14 @@ export class BatchFetchController {
   };
 
   private connectFetchStatus() {
-    this.disposeFetchStatusListener?.();
-    this.disposeFetchStatusListener = null;
+    this.fetchStatusListener.clear();
 
     if (!this.context.desktopRuntime || !nativeHostService.fetch) {
       this.dispatch({ type: 'FETCH_STATUS_CLEARED' });
       return;
     }
 
-    this.disposeFetchStatusListener =
+    this.fetchStatusListener.value =
       nativeHostService.fetch.onFetchStatus((status) => {
         this.dispatch({ type: 'FETCH_STATUS_UPDATED', status });
       });
@@ -306,9 +307,7 @@ export class BatchFetchController {
   }
 
   private emitChange() {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.onDidChangeEmitter.fire();
   }
 }
 

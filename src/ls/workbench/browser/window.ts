@@ -3,6 +3,8 @@ import type {
   WindowState,
   WindowStateListener,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { EventEmitter } from 'ls/base/common/event';
+import { combineDisposables, toDisposable } from 'ls/base/common/lifecycle';
 
 export type WorkbenchWindowControlAction = 'minimize' | 'toggle-maximize' | 'close';
 
@@ -25,7 +27,19 @@ const DEFAULT_WINDOW_STATE: WindowStateSnapshot = {
 let workbenchWindowControlsProvider: WorkbenchWindowControlsProvider | null = null;
 
 let windowStateSnapshot = DEFAULT_WINDOW_STATE;
-const windowStateListeners = new Set<() => void>();
+const onDidChangeWindowStateEmitter = new EventEmitter<void>();
+
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
 
 function setWindowState(nextState: WindowStateSnapshot) {
   if (
@@ -36,9 +50,7 @@ function setWindowState(nextState: WindowStateSnapshot) {
   }
 
   windowStateSnapshot = nextState;
-  for (const listener of windowStateListeners) {
-    listener();
-  }
+  onDidChangeWindowStateEmitter.fire();
 }
 
 export function registerWorkbenchWindowControlsProvider(
@@ -56,10 +68,7 @@ export function hasWorkbenchWindowControlsProvider() {
 }
 
 export function subscribeWindowState(listener: () => void) {
-  windowStateListeners.add(listener);
-  return () => {
-    windowStateListeners.delete(listener);
-  };
+  return onDidChangeWindowStateEmitter.event(listener);
 }
 
 export function getWindowStateSnapshot() {
@@ -136,14 +145,14 @@ export function connectWorkbenchWindowControls(electronRuntime: boolean) {
     };
 
     syncBrowserWindowState();
-    document.addEventListener('fullscreenchange', syncBrowserWindowState);
-    document.addEventListener('webkitfullscreenchange', syncBrowserWindowState);
-    window.addEventListener('resize', syncBrowserWindowState);
+    const listeners = combineDisposables(
+      addDisposableListener(document, 'fullscreenchange', syncBrowserWindowState),
+      addDisposableListener(document, 'webkitfullscreenchange', syncBrowserWindowState),
+      addDisposableListener(window, 'resize', syncBrowserWindowState),
+    );
 
     return () => {
-      document.removeEventListener('fullscreenchange', syncBrowserWindowState);
-      document.removeEventListener('webkitfullscreenchange', syncBrowserWindowState);
-      window.removeEventListener('resize', syncBrowserWindowState);
+      listeners.dispose();
       setWindowState(DEFAULT_WINDOW_STATE);
     };
   }

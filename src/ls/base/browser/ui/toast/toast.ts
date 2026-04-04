@@ -1,4 +1,11 @@
 import 'ls/base/browser/ui/toast/toast.css';
+import { EventEmitter } from 'ls/base/common/event';
+import {
+  LifecycleOwner,
+  LifecycleStore,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 
 export type ToastType = 'info' | 'success' | 'error' | 'warning';
 
@@ -7,6 +14,12 @@ export interface ToastOptions {
   type?: ToastType;
   duration?: number;
 }
+
+type ResolvedToastOptions = {
+  message: string;
+  type: ToastType;
+  duration: number;
+};
 
 export type ToastBridge = {
   canHandle: () => boolean;
@@ -19,22 +32,19 @@ interface ToastItem extends ToastOptions {
   isExiting?: boolean;
 }
 
-type ToastObserver = (toasts: ToastItem[]) => void;
-
 type ToastContainerOptions = {
   closeLabel?: string;
 };
 
 let toastId = 0;
-let observers: ToastObserver[] = [];
 let toasts: ToastItem[] = [];
 const TOAST_EXIT_DURATION = 200;
 let toastBridge: ToastBridge | null = null;
+const onDidChangeToastsEmitter = new EventEmitter<ToastItem[]>();
+const toastTimers = new Map<number, LifecycleStore>();
 
 function notify() {
-  for (const observer of observers) {
-    observer([...toasts]);
-  }
+  onDidChangeToastsEmitter.fire([...toasts]);
 }
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -52,12 +62,60 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-function createToastOptions(options: ToastOptions | string): ToastOptions {
+function createToastOptions(options: ToastOptions | string): ResolvedToastOptions {
   return {
     message: typeof options === 'string' ? options : options.message,
     type: typeof options === 'string' ? 'info' : options.type || 'info',
     duration: typeof options === 'string' ? 3000 : options.duration || 3000,
   };
+}
+
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+function createTimeoutDisposable(callback: () => void, delay: number): DisposableLike {
+  let handle: number | null = window.setTimeout(() => {
+    handle = null;
+    callback();
+  }, delay);
+
+  return toDisposable(() => {
+    if (handle === null) {
+      return;
+    }
+
+    window.clearTimeout(handle);
+    handle = null;
+  });
+}
+
+function getToastTimerStore(id: number) {
+  let store = toastTimers.get(id);
+  if (!store) {
+    store = new LifecycleStore();
+    toastTimers.set(id, store);
+  }
+
+  return store;
+}
+
+function clearToastTimerStore(id: number) {
+  const store = toastTimers.get(id);
+  if (!store) {
+    return;
+  }
+
+  store.dispose();
+  toastTimers.delete(id);
 }
 
 export function registerToastBridge(bridge: ToastBridge | null) {
@@ -83,15 +141,18 @@ function dismissToast(id: number) {
     return;
   }
 
+  const timerStore = getToastTimerStore(id);
+  timerStore.clear();
   toasts = toasts.map((item) =>
     item.id === id ? { ...item, isExiting: true } : item,
   );
   notify();
 
-  setTimeout(() => {
+  timerStore.add(createTimeoutDisposable(() => {
+    clearToastTimerStore(id);
     toasts = toasts.filter((item) => item.id !== id);
     notify();
-  }, TOAST_EXIT_DURATION);
+  }, TOAST_EXIT_DURATION));
 }
 
 export const toast = {
@@ -107,9 +168,9 @@ export const toast = {
     notify();
 
     if (defaultOptions.duration !== Infinity) {
-      setTimeout(() => {
+      getToastTimerStore(id).add(createTimeoutDisposable(() => {
         dismissToast(id);
-      }, defaultOptions.duration);
+      }, defaultOptions.duration));
     }
 
     return id;
@@ -145,22 +206,24 @@ function renderToastItem(item: ToastItem, closeLabel: string) {
   );
   closeButton.type = 'button';
   closeButton.setAttribute('aria-label', closeLabel);
-  closeButton.addEventListener('click', () => dismissToast(item.id));
   toastElement.append(icon, content, closeButton);
-  return toastElement;
+  return {
+    element: toastElement,
+    closeButton,
+  };
 }
 
-export class ToastContainerView {
+export class ToastContainerView extends LifecycleOwner {
   private readonly element = createElement('div', 'toast-container');
+  private readonly renderDisposables = new LifecycleStore();
   private closeLabel: string;
-  private readonly observer: ToastObserver;
+  private disposed = false;
 
   constructor({ closeLabel = 'Close' }: ToastContainerOptions = {}) {
+    super();
     this.closeLabel = closeLabel;
-    this.observer = (updatedToasts) => {
-      this.render(updatedToasts);
-    };
-    observers.push(this.observer);
+    this.register(this.renderDisposables);
+    this.register(onDidChangeToastsEmitter.event(this.render));
     this.render(toasts);
   }
 
@@ -169,6 +232,10 @@ export class ToastContainerView {
   }
 
   setCloseLabel(closeLabel: string) {
+    if (this.disposed) {
+      return;
+    }
+
     if (this.closeLabel === closeLabel) {
       return;
     }
@@ -177,15 +244,28 @@ export class ToastContainerView {
   }
 
   dispose() {
-    observers = observers.filter((item) => item !== this.observer);
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    super.dispose();
     this.element.replaceChildren();
   }
 
-  private render(currentToasts: ToastItem[]) {
-    this.element.replaceChildren(
-      ...currentToasts.map((item) => renderToastItem(item, this.closeLabel)),
-    );
-  }
+  private readonly render = (currentToasts: ToastItem[]) => {
+    this.renderDisposables.clear();
+
+    const nodes = currentToasts.map((item) => {
+      const rendered = renderToastItem(item, this.closeLabel);
+      this.renderDisposables.add(
+        addDisposableListener(rendered.closeButton, 'click', () => dismissToast(item.id)),
+      );
+      return rendered.element;
+    });
+
+    this.element.replaceChildren(...nodes);
+  };
 }
 
 export function createToastContainerView(options?: ToastContainerOptions) {

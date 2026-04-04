@@ -8,6 +8,7 @@ import type {
   TranslationProviderId,
   TranslationProviderSettings,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { EventEmitter } from 'ls/base/common/event';
 import type { Locale } from 'language/i18n';
 import { defaultBatchLimit, defaultSameDomainOnly } from 'ls/workbench/services/config/configSchema';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
@@ -184,16 +185,14 @@ function createInitialSettingsModelSnapshot(
 
 export class SettingsModel {
   private snapshot: SettingsModelSnapshot;
-  private readonly listeners = new Set<() => void>();
+  private readonly onDidChangeEmitter = new EventEmitter<void>();
 
   constructor(initialBatchSources: BatchSource[]) {
     this.snapshot = createInitialSettingsModelSnapshot(initialBatchSources);
   }
 
   private emitChange() {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.onDidChangeEmitter.fire();
   }
 
   private setSnapshot(nextSnapshot: SettingsModelSnapshot) {
@@ -215,10 +214,7 @@ export class SettingsModel {
   }
 
   readonly subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.onDidChangeEmitter.event(listener);
   };
 
   readonly getSnapshot = () => this.snapshot;

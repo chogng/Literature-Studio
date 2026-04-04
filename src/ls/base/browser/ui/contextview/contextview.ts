@@ -4,6 +4,13 @@ import {
   resolveAnchoredVerticalPlacement,
   resolveAnchoredVerticalTop,
 } from 'ls/base/browser/ui/contextview/anchoredLayout';
+import {
+  LifecycleOwner,
+  MutableLifecycle,
+  combineDisposables,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 
 export type ContextViewAlignment = 'start' | 'end';
 export type ContextViewPosition = 'auto' | 'above' | 'below';
@@ -42,17 +49,52 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-export class ContextViewController implements ContextViewHandle {
+function addDisposableListener<K extends keyof DocumentEventMap>(
+  target: Document,
+  type: K,
+  listener: (event: DocumentEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof WindowEventMap>(
+  target: Window,
+  type: K,
+  listener: (event: WindowEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener(
+  target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export class ContextViewController extends LifecycleOwner implements ContextViewHandle {
   private readonly element = createElement('div', 'ls-context-view');
   private readonly content = createElement('div', 'ls-context-view-content');
+  private readonly mountedListeners = new MutableLifecycle<DisposableLike>();
   private options: ContextViewOptions | null = null;
   private visible = false;
   private disposed = false;
   private suppressHide = false;
 
   constructor() {
+    super();
     this.element.append(this.content);
-    this.content.addEventListener('mousedown', this.handleContentMouseDown, true);
+    this.register(this.mountedListeners);
+    this.register(
+      addDisposableListener(this.content, 'mousedown', this.handleContentMouseDown, true),
+    );
   }
 
   show(options: ContextViewOptions) {
@@ -87,7 +129,7 @@ export class ContextViewController implements ContextViewHandle {
 
   getViewElement = () => this.element;
 
-  dispose = () => {
+  dispose() {
     if (this.disposed) {
       return;
     }
@@ -96,17 +138,19 @@ export class ContextViewController implements ContextViewHandle {
     this.options = null;
     this.visible = false;
     this.unmount();
-    this.content.removeEventListener('mousedown', this.handleContentMouseDown, true);
-  };
+    super.dispose();
+  }
 
   private mount() {
     if (!this.visible) {
       this.visible = true;
       document.body.append(this.element);
-      document.addEventListener('mousedown', this.handleDocumentMouseDown, true);
-      document.addEventListener('keydown', this.handleDocumentKeyDown, true);
-      document.addEventListener('scroll', this.handleDocumentScroll, true);
-      window.addEventListener('resize', this.handleWindowResize);
+      this.mountedListeners.value = combineDisposables(
+        addDisposableListener(document, 'mousedown', this.handleDocumentMouseDown, true),
+        addDisposableListener(document, 'keydown', this.handleDocumentKeyDown, true),
+        addDisposableListener(document, 'scroll', this.handleDocumentScroll, true),
+        addDisposableListener(window, 'resize', this.handleWindowResize),
+      );
       return;
     }
 
@@ -117,10 +161,7 @@ export class ContextViewController implements ContextViewHandle {
 
   private unmount() {
     this.element.remove();
-    document.removeEventListener('mousedown', this.handleDocumentMouseDown, true);
-    document.removeEventListener('keydown', this.handleDocumentKeyDown, true);
-    document.removeEventListener('scroll', this.handleDocumentScroll, true);
-    window.removeEventListener('resize', this.handleWindowResize);
+    this.mountedListeners.clear();
   }
 
   layout() {

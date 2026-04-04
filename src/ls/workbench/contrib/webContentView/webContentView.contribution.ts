@@ -3,6 +3,13 @@ import {
   subscribeWorkbenchPartDom,
   WORKBENCH_PART_IDS,
 } from 'ls/workbench/browser/layout';
+import {
+  combineDisposables,
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import type { Disposable } from 'ls/workbench/contrib/workbench/workbench.contribution';
 
@@ -102,6 +109,18 @@ function syncWebContentViewBounds(
   return nextSnapshot;
 }
 
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
 export function createWorkbenchWebContentViewContribution(): Disposable | void {
   if (
     typeof window === 'undefined' ||
@@ -113,28 +132,31 @@ export function createWorkbenchWebContentViewContribution(): Disposable | void {
 
   let webContentViewHostElement =
     getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.webContentViewHost];
-  let resizeObserver: ResizeObserver | null = null;
-  let mutationObserver: MutationObserver | null = null;
-  let frameId: number | null = null;
+  const contributionDisposables = new LifecycleStore();
+  const hostObservers = new MutableLifecycle<DisposableLike>();
+  const scheduledSync = new MutableLifecycle<DisposableLike>();
   let lastSnapshot: WebContentLayoutSnapshot | null = null;
   let layoutPhase: WebContentLayoutPhase = 'hidden';
   let measuringSnapshot: WebContentLayoutSnapshot | null = null;
   let lastEmittedLayoutPhase: WebContentLayoutPhase | null = null;
 
-  const cancelScheduledSync = () => {
-    if (frameId !== null) {
-      window.cancelAnimationFrame(frameId);
-      frameId = null;
-    }
-  };
+  contributionDisposables.add(hostObservers);
+  contributionDisposables.add(scheduledSync);
 
   const scheduleSync = () => {
-    if (frameId !== null) {
+    if (scheduledSync.value) {
       return;
     }
 
+    let frameId = 0;
+    const frameDisposable = toDisposable(() => {
+      window.cancelAnimationFrame(frameId);
+    });
+    scheduledSync.value = frameDisposable;
     frameId = window.requestAnimationFrame(() => {
-      frameId = null;
+      if (scheduledSync.value === frameDisposable) {
+        scheduledSync.clearAndLeak();
+      }
       const nextSnapshot = readWebContentViewLayout(webContentViewHostElement);
 
       if (!nextSnapshot.visible) {
@@ -189,22 +211,13 @@ export function createWorkbenchWebContentViewContribution(): Disposable | void {
   };
 
   const resetObserver = () => {
-    if (resizeObserver) {
-      resizeObserver.disconnect();
-      resizeObserver = null;
-    }
-    if (mutationObserver) {
-      mutationObserver.disconnect();
-      mutationObserver = null;
-    }
+    hostObservers.clear();
 
     if (!webContentViewHostElement) {
       return;
     }
 
-    resizeObserver = new ResizeObserver(() => scheduleSync());
-    resizeObserver.observe(webContentViewHostElement);
-    mutationObserver = new MutationObserver(() => {
+    const mutationObserver = new MutationObserver(() => {
       layoutPhase = 'hidden';
       measuringSnapshot = null;
       scheduleSync();
@@ -213,6 +226,23 @@ export function createWorkbenchWebContentViewContribution(): Disposable | void {
       attributes: true,
       attributeFilter: ['data-webcontent-active'],
     });
+    const observerDisposables: DisposableLike[] = [
+      toDisposable(() => {
+        mutationObserver.disconnect();
+      }),
+    ];
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => scheduleSync());
+      resizeObserver.observe(webContentViewHostElement);
+      observerDisposables.push(
+        toDisposable(() => {
+          resizeObserver.disconnect();
+        }),
+      );
+    }
+
+    hostObservers.value = combineDisposables(...observerDisposables);
   };
 
   const syncFromPartDom = () => {
@@ -229,24 +259,17 @@ export function createWorkbenchWebContentViewContribution(): Disposable | void {
   };
 
   const handleWindowResize = () => scheduleSync();
-  const unsubscribeWorkbenchPartDom = subscribeWorkbenchPartDom(syncFromPartDom);
-  window.addEventListener('resize', handleWindowResize);
+  contributionDisposables.add(subscribeWorkbenchPartDom(syncFromPartDom));
+  contributionDisposables.add(
+    addDisposableListener(window, 'resize', handleWindowResize),
+  );
 
   resetObserver();
   scheduleSync();
 
   return {
     dispose: () => {
-      unsubscribeWorkbenchPartDom();
-      window.removeEventListener('resize', handleWindowResize);
-      cancelScheduledSync();
-
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-      if (mutationObserver) {
-        mutationObserver.disconnect();
-      }
+      contributionDisposables.dispose();
 
       layoutPhase = 'hidden';
       measuringSnapshot = null;

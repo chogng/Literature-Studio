@@ -3,30 +3,8 @@ import {
   Sash,
   SashState,
 } from 'ls/base/browser/ui/sash/sash';
-
-type Listener<T> = (event: T) => void;
-type Disposer = () => void;
-
-class Emitter<T> {
-  private readonly listeners = new Set<Listener<T>>();
-
-  event(listener: Listener<T>): Disposer {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  fire(event: T) {
-    for (const listener of this.listeners) {
-      listener(event);
-    }
-  }
-
-  dispose() {
-    this.listeners.clear();
-  }
-}
+import { EventEmitter } from 'ls/base/common/event';
+import { LifecycleStore } from 'ls/base/common/lifecycle';
 
 export type Dimension = {
   width: number;
@@ -62,8 +40,8 @@ function areDimensionsEqual(previous: Dimension, next: Dimension) {
 export class ResizableHTMLElement {
   readonly domNode = document.createElement('div');
 
-  private readonly onDidWillResizeEmitter = new Emitter<void>();
-  private readonly onDidResizeEmitter = new Emitter<ResizeEvent>();
+  private readonly onDidWillResizeEmitter = new EventEmitter<void>();
+  private readonly onDidResizeEmitter = new EventEmitter<ResizeEvent>();
   private readonly northSash = new Sash(this.domNode, Orientation.HORIZONTAL);
   private readonly eastSash = new Sash(this.domNode, Orientation.VERTICAL);
   private readonly southSash = new Sash(this.domNode, Orientation.HORIZONTAL);
@@ -85,7 +63,7 @@ export class ResizableHTMLElement {
   private deltaX = 0;
   private deltaY = 0;
   private resizing = false;
-  private readonly disposers: Disposer[] = [];
+  private readonly disposables = new LifecycleStore();
 
   readonly onDidWillResize = this.onDidWillResizeEmitter.event.bind(this.onDidWillResizeEmitter);
   readonly onDidResize = this.onDidResizeEmitter.event.bind(this.onDidResizeEmitter);
@@ -94,31 +72,39 @@ export class ResizableHTMLElement {
     this.domNode.classList.add('resizable-element');
     this.domNode.style.position = 'relative';
 
-    this.disposers.push(
-      this.northSash.onDidStart(this.handleResizeStart),
-      this.eastSash.onDidStart(this.handleResizeStart),
-      this.southSash.onDidStart(this.handleResizeStart),
-      this.westSash.onDidStart(this.handleResizeStart),
-      this.northSash.onDidEnd(this.handleResizeEnd),
-      this.eastSash.onDidEnd(this.handleResizeEnd),
-      this.southSash.onDidEnd(this.handleResizeEnd),
-      this.westSash.onDidEnd(this.handleResizeEnd),
+    this.disposables.add(this.northSash.onDidStart(this.handleResizeStart));
+    this.disposables.add(this.eastSash.onDidStart(this.handleResizeStart));
+    this.disposables.add(this.southSash.onDidStart(this.handleResizeStart));
+    this.disposables.add(this.westSash.onDidStart(this.handleResizeStart));
+    this.disposables.add(this.northSash.onDidEnd(this.handleResizeEnd));
+    this.disposables.add(this.eastSash.onDidEnd(this.handleResizeEnd));
+    this.disposables.add(this.southSash.onDidEnd(this.handleResizeEnd));
+    this.disposables.add(this.westSash.onDidEnd(this.handleResizeEnd));
+    this.disposables.add(
       this.eastSash.onDidChange((event) => {
         this.deltaX = event.currentX - event.startX;
         this.applyDrag('east');
       }),
+    );
+    this.disposables.add(
       this.westSash.onDidChange((event) => {
         this.deltaX = -(event.currentX - event.startX);
         this.applyDrag('west');
       }),
+    );
+    this.disposables.add(
       this.northSash.onDidChange((event) => {
         this.deltaY = -(event.currentY - event.startY);
         this.applyDrag('north');
       }),
+    );
+    this.disposables.add(
       this.southSash.onDidChange((event) => {
         this.deltaY = event.currentY - event.startY;
         this.applyDrag('south');
       }),
+    );
+    this.disposables.add(
       this.eastSash.onDidReset(() => {
         if (!this.preferredSizeValue) {
           return;
@@ -131,6 +117,8 @@ export class ResizableHTMLElement {
           east: true,
         });
       }),
+    );
+    this.disposables.add(
       this.westSash.onDidReset(() => {
         if (!this.preferredSizeValue) {
           return;
@@ -143,6 +131,8 @@ export class ResizableHTMLElement {
           west: true,
         });
       }),
+    );
+    this.disposables.add(
       this.northSash.onDidReset(() => {
         if (!this.preferredSizeValue) {
           return;
@@ -155,6 +145,8 @@ export class ResizableHTMLElement {
           north: true,
         });
       }),
+    );
+    this.disposables.add(
       this.southSash.onDidReset(() => {
         if (!this.preferredSizeValue) {
           return;
@@ -242,10 +234,7 @@ export class ResizableHTMLElement {
   }
 
   dispose() {
-    for (const dispose of this.disposers) {
-      dispose();
-    }
-    this.disposers.length = 0;
+    this.disposables.dispose();
     this.northSash.dispose();
     this.eastSash.dispose();
     this.southSash.dispose();

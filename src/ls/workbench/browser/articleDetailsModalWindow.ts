@@ -1,4 +1,6 @@
 import type { NativeModalState } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { EventEmitter } from 'ls/base/common/event';
+import { LifecycleStore } from 'ls/base/common/lifecycle';
 import { detectInitialLocale, getLocaleMessages } from 'language/i18n';
 import {
   connectWorkbenchWindowControls,
@@ -114,35 +116,27 @@ function createDetailRows(modalState: ArticleDetailsModalWindowState): DetailRow
 }
 
 class ArticleDetailsModalController {
-  private readonly listeners = new Set<() => void>();
+  private readonly onDidChangeEmitter = new EventEmitter<void>();
+  private readonly disposables = new LifecycleStore();
   private snapshot: ArticleDetailsModalSnapshot = {
     isLoading: true,
     modalState: null,
     isWindowMaximized: getWindowStateSnapshot().isMaximized,
   };
   private disposed = false;
-  private disposeWindowControls = () => {};
-  private disposeWindowStateListener = () => {};
-  private disposeModalStateListener = () => {};
+  readonly onDidChange = this.onDidChangeEmitter.event;
 
   constructor() {
-    this.disposeWindowControls = connectWorkbenchWindowControls(
-      hasWindowControlsRuntime(),
+    this.disposables.add(
+      connectWorkbenchWindowControls(hasWindowControlsRuntime()),
     );
-    this.disposeWindowStateListener = subscribeWindowState(() => {
+    this.disposables.add(subscribeWindowState(() => {
       this.setSnapshot({
         isWindowMaximized: getWindowStateSnapshot().isMaximized,
       });
-    });
+    }));
     void this.initializeModalState();
   }
-
-  subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  };
 
   getSnapshot = () => this.snapshot;
 
@@ -150,17 +144,10 @@ class ArticleDetailsModalController {
     if (this.disposed) {
       return;
     }
-    this.disposed = true;
-    this.disposeModalStateListener();
-    this.disposeWindowStateListener();
-    this.disposeWindowControls();
-    this.listeners.clear();
-  }
 
-  private emit() {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.disposed = true;
+    this.disposables.dispose();
+    this.onDidChangeEmitter.dispose();
   }
 
   private setSnapshot(partial: Partial<ArticleDetailsModalSnapshot>) {
@@ -178,10 +165,14 @@ class ArticleDetailsModalController {
     }
 
     this.snapshot = nextSnapshot;
-    this.emit();
+    this.onDidChangeEmitter.fire();
   }
 
   private applyModalState(state: NativeModalState | null) {
+    if (this.disposed) {
+      return;
+    }
+
     if (state?.kind === 'article-details') {
       this.setSnapshot({
         modalState: state,
@@ -206,10 +197,11 @@ class ArticleDetailsModalController {
       return;
     }
 
-    this.disposeModalStateListener =
-      typeof modalApi.onStateChange === 'function'
-        ? modalApi.onStateChange((state) => this.applyModalState(state))
-        : () => {};
+    if (typeof modalApi.onStateChange === 'function') {
+      this.disposables.add(
+        modalApi.onStateChange((state) => this.applyModalState(state)),
+      );
+    }
 
     try {
       const state = await modalApi.getState();
@@ -229,17 +221,8 @@ class ArticleDetailsModalController {
   }
 }
 
-let articleDetailsModalController: ArticleDetailsModalController | null = null;
-
-function getArticleDetailsModalController() {
-  if (!articleDetailsModalController) {
-    articleDetailsModalController = new ArticleDetailsModalController();
-  }
-  return articleDetailsModalController;
-}
-
 export class ArticleDetailsModalWindowView {
-  private readonly controller = getArticleDetailsModalController();
+  private readonly controller = new ArticleDetailsModalController();
   private readonly element = createElement('main', 'child-window-shell-page');
   private readonly shellView = createChildWindowShellView({
     title: '',
@@ -256,7 +239,7 @@ export class ArticleDetailsModalWindowView {
     onWindowControl: performWorkbenchWindowControl,
     content: [],
   });
-  private readonly unsubscribe = this.controller.subscribe(() => this.render());
+  private readonly unsubscribe = this.controller.onDidChange(() => this.render());
 
   constructor() {
     this.render();
@@ -268,6 +251,7 @@ export class ArticleDetailsModalWindowView {
 
   dispose() {
     this.unsubscribe();
+    this.controller.dispose();
     this.shellView.dispose();
     this.element.replaceChildren();
   }

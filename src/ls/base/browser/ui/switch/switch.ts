@@ -3,6 +3,7 @@ import {
   getHoverService,
   type HoverHandle,
 } from 'ls/base/browser/ui/hover/hover';
+import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 
 export interface SwitchProps {
   checked?: boolean;
@@ -49,7 +50,19 @@ function setLabelContent(target: HTMLElement, label: string | Node) {
   target.textContent = label;
 }
 
-export class SwitchView {
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export class SwitchView extends LifecycleOwner {
   private props: SwitchProps;
   private readonly element = createElement('label', 'switch-root');
   private readonly inputElement = createElement('input', 'switch-input');
@@ -59,10 +72,12 @@ export class SwitchView {
   private disposed = false;
 
   constructor(props: SwitchProps = {}) {
+    super();
     this.props = props;
     this.hoverController = getHoverService().createHover(this.element, null);
+    this.register(this.hoverController);
     this.inputElement.type = 'checkbox';
-    this.inputElement.addEventListener('change', this.handleChange);
+    this.register(addDisposableListener(this.inputElement, 'change', this.handleChange));
     this.sliderElement.setAttribute('aria-hidden', 'true');
     this.render();
   }
@@ -94,8 +109,7 @@ export class SwitchView {
     }
 
     this.disposed = true;
-    this.inputElement.removeEventListener('change', this.handleChange);
-    this.hoverController.dispose();
+    super.dispose();
     this.element.replaceChildren();
     this.labelElement.replaceChildren();
   }

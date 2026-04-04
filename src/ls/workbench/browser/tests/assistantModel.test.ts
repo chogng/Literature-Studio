@@ -431,3 +431,17 @@ test('assistant applies a pending text patch to the current draft locally', asyn
     'Revised paragraph for the agent.',
   );
 });
+
+test('assistant subscriptions stop after disposal', () => {
+  const assistantModel = createAssistantModel(createAssistantContext('en'));
+  let notificationCount = 0;
+  const disposeListener = assistantModel.subscribe(() => {
+    notificationCount += 1;
+  });
+
+  assistantModel.handleCreateConversation();
+  disposeListener();
+  assistantModel.handleCreateConversation();
+
+  assert.equal(notificationCount, 1);
+});

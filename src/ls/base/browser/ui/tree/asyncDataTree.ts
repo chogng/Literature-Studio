@@ -13,6 +13,7 @@ export class AsyncDataTree<TInput, TNode> {
   private rootLoading = false;
   private rootError: unknown = null;
   private readonly tree: SimpleTree<TNode>;
+  private disposed = false;
 
   constructor(
     private readonly dataSource: AsyncDataTreeDataSource<TInput, TNode>,
@@ -47,26 +48,59 @@ export class AsyncDataTree<TInput, TNode> {
   }
 
   focus() {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.focus();
   }
 
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.tree.dispose();
+  }
+
   getSelection() {
+    if (this.disposed) {
+      return null;
+    }
+
     return this.tree.getSelection();
   }
 
   setSelection(node: TNode | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.setSelection(node);
   }
 
   getFocus() {
+    if (this.disposed) {
+      return null;
+    }
+
     return this.tree.getFocus();
   }
 
   setFocus(node: TNode | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.setFocus(node);
   }
 
   async setInput(input: TInput | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.input = input;
     this.childrenCache.clear();
     this.pendingChildren.clear();
@@ -86,10 +120,16 @@ export class AsyncDataTree<TInput, TNode> {
     this.tree.getElement().dataset['treeRootState'] = 'loading';
     try {
       this.root = await this.dataSource.getRoot(input);
+      if (this.disposed) {
+        return;
+      }
       this.rootLoading = false;
       this.tree.getElement().dataset['treeRootState'] = 'ready';
       this.tree.setInput(this.root);
     } catch (error) {
+      if (this.disposed) {
+        return;
+      }
       this.rootLoading = false;
       this.rootError = error;
       this.tree.getElement().dataset['treeRootState'] = 'error';
@@ -98,6 +138,10 @@ export class AsyncDataTree<TInput, TNode> {
   }
 
   async refresh(node?: TNode) {
+    if (this.disposed) {
+      return;
+    }
+
     if (!this.input) {
       return;
     }
@@ -131,6 +175,10 @@ export class AsyncDataTree<TInput, TNode> {
   }
 
   private getChildren(node: TNode): TNode[] {
+    if (this.disposed) {
+      return [];
+    }
+
     const nodeId = this.getId(node);
     const cached = this.childrenCache.get(nodeId);
     if (cached) {
@@ -142,12 +190,18 @@ export class AsyncDataTree<TInput, TNode> {
       this.loadErrors.delete(nodeId);
       const loadPromise = Promise.resolve(this.dataSource.getChildren(node))
         .then((children) => {
+          if (this.disposed) {
+            return;
+          }
           this.loadingIds.delete(nodeId);
           this.childrenCache.set(nodeId, children);
           this.pendingChildren.delete(nodeId);
           this.tree.rerender();
         })
         .catch((error) => {
+          if (this.disposed) {
+            return;
+          }
           this.loadingIds.delete(nodeId);
           this.loadErrors.set(nodeId, error);
           this.pendingChildren.delete(nodeId);

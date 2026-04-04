@@ -9,32 +9,26 @@ import type {
   IScrollPosition,
   ScrollEvent,
 } from 'ls/base/common/scrollable';
+import { EventEmitter, type Listener } from 'ls/base/common/event';
+import {
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 
 import 'ls/base/browser/ui/scrollbar/media/verticalScrollbar.css';
 
-type Listener<T> = (event: T) => void;
-
-class Emitter<T> {
-  private readonly listeners = new Set<Listener<T>>();
-
-  event(listener: Listener<T>) {
-    this.listeners.add(listener);
-    return {
-      dispose: () => {
-        this.listeners.delete(listener);
-      },
-    };
-  }
-
-  fire(event: T) {
-    for (const listener of this.listeners) {
-      listener(event);
-    }
-  }
-
-  clear() {
-    this.listeners.clear();
-  }
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
 }
 
 export class AbstractScrollableElement {
@@ -42,17 +36,16 @@ export class AbstractScrollableElement {
   protected readonly element: HTMLElement;
   protected readonly domNode: HTMLDivElement;
   protected options: ScrollableElementResolvedOptions;
-  private readonly onScrollEmitter = new Emitter<ScrollEvent>();
-  private readonly onWillScrollEmitter = new Emitter<ScrollEvent>();
-  private readonly resizeObserver?: ResizeObserver;
-  private readonly mutationObserver?: MutationObserver;
+  private readonly onScrollEmitter = new EventEmitter<ScrollEvent>();
+  private readonly onWillScrollEmitter = new EventEmitter<ScrollEvent>();
+  private readonly domDisposables = new LifecycleStore();
   private readonly horizontalScrollbarState: HorizontalScrollbarState;
   private readonly verticalScrollbarState: VerticalScrollbarState;
   private readonly horizontalVisibilityController: ScrollbarVisibilityController;
   private readonly verticalVisibilityController: ScrollbarVisibilityController;
   private scrollDimensions: IScrollDimensions;
   private scrollPosition: IScrollPosition;
-  private scrollbarHideTimeout: number | null = null;
+  private readonly scrollbarHideTimeout = new MutableLifecycle<DisposableLike>();
   private isHovered = false;
 
   constructor(
@@ -120,29 +113,47 @@ export class AbstractScrollableElement {
     this.verticalVisibilityController.setDomNode(this.domNode);
 
     this.applyOptions();
-
-    this.element.addEventListener('scroll', this.handleElementScroll, { passive: true });
-    this.domNode.addEventListener('mouseenter', this.handleMouseEnter);
-    this.domNode.addEventListener('mouseleave', this.handleMouseLeave);
+    this.domDisposables.add(this.scrollbarHideTimeout);
+    this.domDisposables.add(
+      addDisposableListener(this.element, 'scroll', this.handleElementScroll, {
+        passive: true,
+      }),
+    );
+    this.domDisposables.add(
+      addDisposableListener(this.domNode, 'mouseenter', this.handleMouseEnter),
+    );
+    this.domDisposables.add(
+      addDisposableListener(this.domNode, 'mouseleave', this.handleMouseLeave),
+    );
 
     if (typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(() => {
+      const resizeObserver = new ResizeObserver(() => {
         this.scanDomNode();
       });
-      this.resizeObserver.observe(this.element);
-      this.resizeObserver.observe(this.domNode);
+      resizeObserver.observe(this.element);
+      resizeObserver.observe(this.domNode);
+      this.domDisposables.add(
+        toDisposable(() => {
+          resizeObserver.disconnect();
+        }),
+      );
     }
 
     if (typeof MutationObserver !== 'undefined') {
-      this.mutationObserver = new MutationObserver(() => {
+      const mutationObserver = new MutationObserver(() => {
         this.scanDomNode();
       });
-      this.mutationObserver.observe(this.element, {
+      mutationObserver.observe(this.element, {
         childList: true,
         subtree: true,
         attributes: true,
         characterData: true,
       });
+      this.domDisposables.add(
+        toDisposable(() => {
+          mutationObserver.disconnect();
+        }),
+      );
     }
 
     this.scanDomNode();
@@ -235,15 +246,11 @@ export class AbstractScrollableElement {
 
   dispose() {
     this.clearScrollbarHideTimeout();
-    this.element.removeEventListener('scroll', this.handleElementScroll);
-    this.domNode.removeEventListener('mouseenter', this.handleMouseEnter);
-    this.domNode.removeEventListener('mouseleave', this.handleMouseLeave);
-    this.resizeObserver?.disconnect();
-    this.mutationObserver?.disconnect();
+    this.domDisposables.dispose();
     this.horizontalVisibilityController.dispose();
     this.verticalVisibilityController.dispose();
-    this.onScrollEmitter.clear();
-    this.onWillScrollEmitter.clear();
+    this.onScrollEmitter.dispose();
+    this.onWillScrollEmitter.dispose();
   }
 
   private readonly handleElementScroll = () => {
@@ -367,8 +374,16 @@ export class AbstractScrollableElement {
 
   private scheduleScrollbarHide() {
     this.clearScrollbarHideTimeout();
-    this.scrollbarHideTimeout = window.setTimeout(() => {
-      this.scrollbarHideTimeout = null;
+    let timeoutHandle: number | null = null;
+    this.scrollbarHideTimeout.value = toDisposable(() => {
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+    });
+    timeoutHandle = window.setTimeout(() => {
+      timeoutHandle = null;
+      this.scrollbarHideTimeout.clear();
       if (!this.isHovered) {
         this.setScrollbarsVisible(false);
       }
@@ -376,24 +391,19 @@ export class AbstractScrollableElement {
   }
 
   private clearScrollbarHideTimeout() {
-    if (this.scrollbarHideTimeout === null) {
-      return;
-    }
-
-    window.clearTimeout(this.scrollbarHideTimeout);
-    this.scrollbarHideTimeout = null;
+    this.scrollbarHideTimeout.clear();
   }
 
   private syncScrollbarVisibility() {
     if (this.options.horizontal === ScrollbarVisibility.Visible) {
       this.horizontalVisibilityController.setShouldBeVisible(true);
-    } else if (!this.isHovered && this.scrollbarHideTimeout === null) {
+    } else if (!this.isHovered && !this.scrollbarHideTimeout.value) {
       this.horizontalVisibilityController.setShouldBeVisible(false);
     }
 
     if (this.options.vertical === ScrollbarVisibility.Visible) {
       this.verticalVisibilityController.setShouldBeVisible(true);
-    } else if (!this.isHovered && this.scrollbarHideTimeout === null) {
+    } else if (!this.isHovered && !this.scrollbarHideTimeout.value) {
       this.verticalVisibilityController.setShouldBeVisible(false);
     }
   }

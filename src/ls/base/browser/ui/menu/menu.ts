@@ -3,6 +3,7 @@ import 'ls/base/browser/ui/menu/menu.css';
 import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { LifecycleOwner, LifecycleStore, toDisposable } from 'ls/base/common/lifecycle';
 
 export type MenuSelectionSource = 'keyboard' | 'pointer';
 
@@ -105,18 +106,33 @@ function resolvePlacement(options: MenuOptions) {
   return options.placement ?? 'bottom';
 }
 
-export class Menu {
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export class Menu extends LifecycleOwner {
   private readonly id = `ls-menu-${menuIdPool += 1}`;
   private readonly element = createElement('div');
+  private readonly renderDisposables = new LifecycleStore();
   private options: MenuOptions;
   private itemElements: HTMLDivElement[] = [];
   private activeIndex = -1;
   private disposed = false;
 
   constructor(options: MenuOptions) {
+    super();
+    this.register(this.renderDisposables);
     this.options = options;
     this.element.id = this.id;
-    this.element.addEventListener('keydown', this.handleKeyDown);
+    this.register(addDisposableListener(this.element, 'keydown', this.handleKeyDown));
     this.render();
   }
 
@@ -187,7 +203,7 @@ export class Menu {
     }
 
     this.disposed = true;
-    this.element.removeEventListener('keydown', this.handleKeyDown);
+    super.dispose();
     this.element.replaceChildren();
     this.itemElements = [];
     this.activeIndex = -1;
@@ -195,6 +211,7 @@ export class Menu {
   }
 
   private render() {
+    this.renderDisposables.clear();
     const selectedValue = resolveSelectedValue(this.options);
     this.element.className = composeClassName([
       'ls-menu',
@@ -222,19 +239,23 @@ export class Menu {
       node.setAttribute('role', 'menuitem');
       node.setAttribute('aria-disabled', item.disabled ? 'true' : 'false');
       if (item.title) {
-        applyHover(node, item.title);
+        this.renderDisposables.add(applyHover(node, item.title));
       }
       node.append(createMenuItemContent(item), createCheckSlot(selected));
-      node.addEventListener('mouseenter', () => {
-        if (item.disabled) {
-          return;
-        }
-        this.setActiveIndex(index, false);
-      });
-      node.addEventListener('click', (event) => {
-        event.stopPropagation();
-        this.selectByIndex(index, 'pointer');
-      });
+      this.renderDisposables.add(
+        addDisposableListener(node, 'mouseenter', () => {
+          if (item.disabled) {
+            return;
+          }
+          this.setActiveIndex(index, false);
+        }),
+      );
+      this.renderDisposables.add(
+        addDisposableListener(node, 'click', (event) => {
+          event.stopPropagation();
+          this.selectByIndex(index, 'pointer');
+        }),
+      );
       nodes.push(node);
     }
 

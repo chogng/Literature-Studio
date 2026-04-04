@@ -4,6 +4,12 @@ import type {
 } from 'ls/base/browser/ui/grid/gridview';
 import { GridBranchView, GridView, Orientation } from 'ls/base/browser/ui/grid/gridview';
 import {
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
+import {
   getWorkbenchContentClassName,
   setAuxiliarySidebarVisible,
   setFetchSidebarVisible,
@@ -84,6 +90,18 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.className = className;
   }
   return element;
+}
+
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
 }
 
 function syncElementContent(host: HTMLElement, content: HTMLElement | null) {
@@ -181,6 +199,9 @@ export class ReaderPageView {
   private props: ReaderPageViewProps;
   private readonly element = createElement('section', 'reader-layout');
   private readonly mainElement = createElement('main');
+  private readonly gridDisposables = new LifecycleStore();
+  private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
+  private readonly layoutAnimationFrame = new MutableLifecycle<DisposableLike>();
   private readonly fetchSidebarSlot = new ReaderSplitSlotView(
     'reader-layout-slot-leading-group reader-left-group-pane reader-left-group-pane-fetch',
     true,
@@ -202,10 +223,8 @@ export class ReaderPageView {
   private gridView: GridView | null = null;
   private rootGrid: GridBranchView | null = null;
   private gridOrientation: Orientation | null = null;
-  private gridDisposables: Array<() => void> = [];
-  private resizeObserver: ResizeObserver | null = null;
-  private layoutAnimationFrame: number | null = null;
   private splitConstraints = getReaderSplitConstraints(Orientation.VERTICAL);
+  private disposed = false;
 
   constructor(props: ReaderPageViewProps) {
     this.props = props;
@@ -231,25 +250,31 @@ export class ReaderPageView {
   }
 
   setProps(props: ReaderPageViewProps) {
+    if (this.disposed) {
+      return;
+    }
+
     this.props = props;
     this.render();
   }
 
   layout() {
+    if (this.disposed) {
+      return;
+    }
+
     this.handleContainerResize();
   }
 
   dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
     clearStatusbarCommandHandlers();
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    if (typeof ResizeObserver === 'undefined') {
-      window.removeEventListener('resize', this.handleWindowResize);
-    }
-    if (this.layoutAnimationFrame !== null) {
-      window.cancelAnimationFrame(this.layoutAnimationFrame);
-      this.layoutAnimationFrame = null;
-    }
+    this.resizeObserver.dispose();
+    this.layoutAnimationFrame.dispose();
     this.disposeGridView();
     this.fetchSidebarView?.dispose();
     this.primaryBarView?.dispose();
@@ -403,10 +428,8 @@ export class ReaderPageView {
     const gridView = new GridView(rootGrid);
     gridView.edgeSnapping = this.props.isLayoutEdgeSnappingEnabled;
 
-    this.gridDisposables = [
-      gridView.onDidSashSnap(this.handleGridSashSnap),
-      gridView.onDidSashEnd(this.handleGridSashEnd),
-    ];
+    this.gridDisposables.add(gridView.onDidSashSnap(this.handleGridSashSnap));
+    this.gridDisposables.add(gridView.onDidSashEnd(this.handleGridSashEnd));
     this.rootGrid = rootGrid;
     this.gridView = gridView;
     this.gridOrientation = orientation;
@@ -414,10 +437,7 @@ export class ReaderPageView {
   }
 
   private disposeGridView() {
-    for (const dispose of this.gridDisposables) {
-      dispose();
-    }
-    this.gridDisposables = [];
+    this.gridDisposables.clear();
     this.gridView?.dispose();
     this.gridView = null;
     this.layoutTree = null;
@@ -453,14 +473,17 @@ export class ReaderPageView {
 
   private installResizeObserver() {
     if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', this.handleWindowResize);
+      this.resizeObserver.value = addDisposableListener(window, 'resize', this.handleWindowResize);
       return;
     }
 
-    this.resizeObserver = new ResizeObserver(() => {
+    const resizeObserver = new ResizeObserver(() => {
       this.handleContainerResize();
     });
-    this.resizeObserver.observe(this.element);
+    resizeObserver.observe(this.element);
+    this.resizeObserver.value = toDisposable(() => {
+      resizeObserver.disconnect();
+    });
   }
 
   private readonly handleWindowResize = () => {
@@ -475,12 +498,21 @@ export class ReaderPageView {
   }
 
   private scheduleGridViewLayout() {
-    if (this.layoutAnimationFrame !== null) {
-      window.cancelAnimationFrame(this.layoutAnimationFrame);
+    if (this.disposed) {
+      return;
     }
 
-    this.layoutAnimationFrame = window.requestAnimationFrame(() => {
-      this.layoutAnimationFrame = null;
+    this.layoutAnimationFrame.clear();
+
+    let animationFrameHandle = 0;
+    const animationFrameDisposable = toDisposable(() => {
+      window.cancelAnimationFrame(animationFrameHandle);
+    });
+    this.layoutAnimationFrame.value = animationFrameDisposable;
+    animationFrameHandle = window.requestAnimationFrame(() => {
+      if (this.layoutAnimationFrame.value === animationFrameDisposable) {
+        this.layoutAnimationFrame.clearAndLeak();
+      }
       if (!this.gridView) {
         return;
       }

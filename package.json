@@ -17,6 +17,7 @@
     "dev:electron": "concurrently -k \"npm:dev:electron:build\" \"npm:dev:electron:run\"",
     "dev:web": "vite --config vite.web.config.ts",
     "check:i18n": "node scripts/check-i18n-keys.mjs",
+    "test:base-common": "node scripts/run-base-common-tests.mjs",
     "test:writing-editor": "node scripts/run-writing-editor-tests.mjs",
     "test:library-store": "node scripts/run-library-store-tests.mjs",
     "test:agent": "node scripts/run-agent-tests.mjs",

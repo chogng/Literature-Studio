@@ -2,6 +2,13 @@ import type {
   NativeToastState,
   NativeToastType,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import {
+  LifecycleOwner,
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 import { detectInitialLocale, getLocaleMessages } from 'language/i18n';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import 'ls/base/browser/ui/toast/toast.css';
@@ -24,6 +31,18 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.textContent = textContent;
   }
   return element;
+}
+
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
 }
 
 function normalizeToastState(
@@ -65,7 +84,7 @@ function getToastIconText(type: NativeToastType) {
   }
 }
 
-export class ToastOverlayWindowView {
+export class ToastOverlayWindowView extends LifecycleOwner {
   private readonly element = createElement('main', 'native-toast-overlay-page');
   private readonly stackElement = createElement(
     'div',
@@ -73,46 +92,67 @@ export class ToastOverlayWindowView {
   );
   private readonly ui = getLocaleMessages(detectInitialLocale());
   private readonly toastApi = nativeHostService.toast;
+  private readonly renderDisposables = new LifecycleStore();
+  private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
   private toastState: NativeToastState = fallbackToastState;
-  private resizeObserver: ResizeObserver | null = null;
+  private disposed = false;
   private readonly handleResize = () => {
     this.reportLayout();
   };
-  private readonly disposeListener =
-    typeof this.toastApi?.onStateChange === 'function'
-      ? this.toastApi.onStateChange((state) => {
-          this.toastState = normalizeToastState(state);
-          this.render();
-        })
-      : () => {};
 
   constructor() {
-    this.stackElement.addEventListener('mouseenter', () => {
+    super();
+    this.register(this.renderDisposables);
+    this.register(this.resizeObserver);
+    this.register(addDisposableListener(this.stackElement, 'mouseenter', () => {
       this.toastApi?.setHovering(true);
-    });
-    this.stackElement.addEventListener('mouseleave', () => {
+    }));
+    this.register(addDisposableListener(this.stackElement, 'mouseleave', () => {
       this.toastApi?.setHovering(false);
-    });
+    }));
     this.element.append(this.stackElement);
+    this.register(addDisposableListener(window, 'resize', this.handleResize));
+    if (typeof this.toastApi?.onStateChange === 'function') {
+      this.register(this.toastApi.onStateChange((state) => {
+        if (this.disposed) {
+          return;
+        }
+
+        this.toastState = normalizeToastState(state);
+        this.render();
+      }));
+    }
 
     if (typeof this.toastApi?.getState === 'function') {
       void this.toastApi
         .getState()
         .then((state) => {
+          if (this.disposed) {
+            return;
+          }
+
           this.toastState = normalizeToastState(state);
           this.render();
         })
         .catch(() => {
+          if (this.disposed) {
+            return;
+          }
+
           this.toastState = fallbackToastState;
           this.render();
         });
     }
 
-    this.resizeObserver = new ResizeObserver(() => {
-      this.reportLayout();
-    });
-    this.resizeObserver.observe(this.stackElement);
-    window.addEventListener('resize', this.handleResize);
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        this.reportLayout();
+      });
+      resizeObserver.observe(this.stackElement);
+      this.resizeObserver.value = toDisposable(() => {
+        resizeObserver.disconnect();
+      });
+    }
     this.render();
   }
 
@@ -121,15 +161,21 @@ export class ToastOverlayWindowView {
   }
 
   dispose() {
-    this.disposeListener();
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    window.removeEventListener('resize', this.handleResize);
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    super.dispose();
     this.toastApi?.setHovering(false);
     this.element.replaceChildren();
   }
 
   private reportLayout() {
+    if (this.disposed) {
+      return;
+    }
+
     if (typeof this.toastApi?.reportLayout !== 'function') {
       return;
     }
@@ -165,6 +211,11 @@ export class ToastOverlayWindowView {
   }
 
   private render() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.renderDisposables.clear();
     this.stackElement.className = `native-toast-overlay-stack${
       this.toastState.items.length === 0 ? ' native-toast-overlay-stack-empty' : ''
     }`;
@@ -192,9 +243,9 @@ export class ToastOverlayWindowView {
         );
         close.type = 'button';
         close.setAttribute('aria-label', this.ui.toastClose);
-        close.addEventListener('click', () => {
+        this.renderDisposables.add(addDisposableListener(close, 'click', () => {
           this.toastApi?.dismiss(item.id);
-        });
+        }));
         section.append(icon, content, close);
         return section;
       }),

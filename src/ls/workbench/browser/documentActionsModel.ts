@@ -1,4 +1,5 @@
 import { toast } from 'ls/base/browser/ui/toast/toast';
+import { EventEmitter } from 'ls/base/common/event';
 import type {
   ArticleDetailsModalLabels,
   ElectronInvoke,
@@ -131,7 +132,7 @@ function createSnapshot(
 export class DocumentActionsController {
   private context: DocumentActionsControllerContext;
   private snapshot: DocumentActionsControllerSnapshot;
-  private readonly listeners = new Set<() => void>();
+  private readonly onDidChangeEmitter = new EventEmitter<void>();
   private sciencePdfDownloadCount = 0;
 
   constructor(context: DocumentActionsControllerContext) {
@@ -140,10 +141,7 @@ export class DocumentActionsController {
   }
 
   readonly subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.onDidChangeEmitter.event(listener);
   };
 
   readonly getSnapshot = () => this.snapshot;
@@ -154,7 +152,7 @@ export class DocumentActionsController {
   };
 
   readonly dispose = () => {
-    this.listeners.clear();
+    this.onDidChangeEmitter.dispose();
   };
 
   readonly handleSharedPdfDownload = async (
@@ -374,9 +372,7 @@ export class DocumentActionsController {
   };
 
   private emitChange() {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.onDidChangeEmitter.fire();
   }
 
   private setSnapshot(nextSnapshot: DocumentActionsControllerSnapshot) {

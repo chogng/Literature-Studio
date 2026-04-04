@@ -1,0 +1,234 @@
+// Common lifecycle primitives shared by browser, node, and electron-main code.
+// Keep this module free of DOM dependencies.
+
+export interface DisposableLike {
+  dispose(): void;
+}
+
+export type Disposer = () => void;
+
+export type DisposableHandle = DisposableLike & Disposer;
+
+export type DisposableInput = DisposableLike | Disposer | null | undefined;
+
+type DisposableValue = Exclude<DisposableInput, null | undefined>;
+
+function throwDisposeErrors(errors: unknown[]) {
+  if (errors.length === 0) {
+    return;
+  }
+
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+
+  throw new AggregateError(errors, 'Encountered errors while disposing resources.');
+}
+
+function disposeValue(input: DisposableValue) {
+  if (typeof input === 'function') {
+    input();
+    return;
+  }
+
+  input.dispose();
+}
+
+function normalizeDisposable(input: DisposableValue) {
+  return typeof input === 'function' ? toDisposable(input) : input;
+}
+
+export function isDisposableLike(value: unknown): value is DisposableLike {
+  return (
+    (typeof value === 'object' || typeof value === 'function') &&
+    value !== null &&
+    'dispose' in value &&
+    typeof (value as { dispose?: unknown }).dispose === 'function'
+  );
+}
+
+export function toDisposable(disposer: Disposer): DisposableHandle {
+  let disposed = false;
+
+  const dispose = () => {
+    if (disposed) {
+      return;
+    }
+
+    disposed = true;
+    disposer();
+  };
+
+  const handle = dispose as DisposableHandle;
+  handle.dispose = () => {
+    dispose();
+  };
+  return handle;
+}
+
+export function dispose(input: DisposableInput): void {
+  if (!input) {
+    return;
+  }
+
+  disposeValue(input);
+}
+
+export function disposeAll(inputs: Iterable<DisposableInput>): void {
+  const values = Array.from(inputs).filter(
+    (input): input is DisposableValue => input !== null && input !== undefined,
+  );
+  const errors: unknown[] = [];
+
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    try {
+      disposeValue(values[index]);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  throwDisposeErrors(errors);
+}
+
+export function combineDisposables(...inputs: DisposableInput[]): DisposableHandle {
+  return toDisposable(() => {
+    disposeAll(inputs);
+  });
+}
+
+export class LifecycleStore implements DisposableLike {
+  private readonly entries = new Set<DisposableLike>();
+  private disposed = false;
+
+  get isDisposed() {
+    return this.disposed;
+  }
+
+  add<T extends null | undefined>(input: T): T;
+  add<T extends DisposableLike>(input: T): T;
+  add(input: Disposer): DisposableHandle;
+  add<T extends DisposableInput>(input: T): T | DisposableHandle {
+    if (!input) {
+      return input;
+    }
+
+    if (typeof input === 'function') {
+      const disposable = toDisposable(input);
+      if (this.disposed) {
+        disposable.dispose();
+        return disposable;
+      }
+
+      this.entries.add(disposable);
+      return disposable;
+    }
+
+    const disposable = normalizeDisposable(input);
+    if (disposable === this) {
+      throw new Error('Cannot register a lifecycle entry on itself.');
+    }
+
+    if (this.disposed) {
+      disposable.dispose();
+      return input;
+    }
+
+    this.entries.add(disposable);
+    return input;
+  }
+
+  clear(): void {
+    if (this.entries.size === 0) {
+      return;
+    }
+
+    const entries = Array.from(this.entries);
+    this.entries.clear();
+    disposeAll(entries);
+  }
+
+  dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.clear();
+  }
+}
+
+export class MutableLifecycle<T extends DisposableValue = DisposableLike>
+  implements DisposableLike
+{
+  private currentValue: T | undefined;
+  private disposed = false;
+
+  get value() {
+    return this.disposed ? undefined : this.currentValue;
+  }
+
+  set value(nextValue: T | undefined) {
+    if (this.disposed) {
+      dispose(nextValue);
+      return;
+    }
+
+    if (nextValue === this.currentValue) {
+      return;
+    }
+
+    const previousValue = this.currentValue;
+    this.currentValue = nextValue;
+    dispose(previousValue);
+  }
+
+  clear(): void {
+    this.value = undefined;
+  }
+
+  clearAndLeak() {
+    const leakedValue = this.currentValue;
+    this.currentValue = undefined;
+    return leakedValue;
+  }
+
+  dispose(): void {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    const currentValue = this.currentValue;
+    this.currentValue = undefined;
+    dispose(currentValue);
+  }
+}
+
+export abstract class LifecycleOwner implements DisposableLike {
+  private readonly store = new LifecycleStore();
+
+  protected register<T extends null | undefined>(input: T): T;
+  protected register<T extends DisposableLike>(input: T): T;
+  protected register(input: Disposer): DisposableHandle;
+  protected register<T extends DisposableInput>(input: T): T | DisposableHandle {
+    if (!input) {
+      return input;
+    }
+
+    if (typeof input === 'function') {
+      return this.store.add(input);
+    }
+
+    if (Object.is(input, this)) {
+      throw new Error('Cannot register a lifecycle owner on itself.');
+    }
+
+    this.store.add(input);
+    return input;
+  }
+
+  dispose(): void {
+    this.store.dispose();
+  }
+}

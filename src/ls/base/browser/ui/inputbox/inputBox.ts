@@ -3,6 +3,8 @@ import {
   getHoverService,
   type HoverHandle,
 } from 'ls/base/browser/ui/hover/hover';
+import { EventEmitter } from 'ls/base/common/event';
+import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 
 export interface IInputBoxOptions {
   readonly placeholder?: string;
@@ -13,16 +15,29 @@ export interface IInputBoxOptions {
   readonly className?: string;
 }
 
-export class InputBox {
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export class InputBox extends LifecycleOwner {
   readonly element: HTMLElement;
   readonly inputElement: HTMLInputElement;
   private readonly hoverController: HoverHandle;
+  private readonly changeEmitter = new EventEmitter<string>();
   private placeholder = '';
   private tooltip = '';
   private disposed = false;
-  private readonly changeListeners = new Set<(value: string) => void>();
 
   constructor(container: HTMLElement, _contextViewProvider: unknown, options: IInputBoxOptions = {}) {
+    super();
     this.element = document.createElement('div');
     this.element.className = ['inputbox', 'idle', options.className ?? '']
       .filter(Boolean)
@@ -44,6 +59,8 @@ export class InputBox {
     this.element.append(wrapper);
     container.append(this.element);
     this.hoverController = getHoverService().createHover(this.element, null);
+    this.register(this.hoverController);
+    this.register(this.changeEmitter);
 
     if (options.ariaLabel) {
       this.inputElement.setAttribute('aria-label', options.ariaLabel);
@@ -52,9 +69,9 @@ export class InputBox {
     this.setPlaceHolder(options.placeholder ?? '');
     this.setTooltip(options.tooltip ?? options.placeholder ?? '');
 
-    this.inputElement.addEventListener('input', this.handleInput);
-    this.inputElement.addEventListener('focus', this.handleFocus);
-    this.inputElement.addEventListener('blur', this.handleBlur);
+    this.register(addDisposableListener(this.inputElement, 'input', this.handleInput));
+    this.register(addDisposableListener(this.inputElement, 'focus', this.handleFocus));
+    this.register(addDisposableListener(this.inputElement, 'blur', this.handleBlur));
   }
 
   get value() {
@@ -67,12 +84,7 @@ export class InputBox {
   }
 
   onDidChange(listener: (value: string) => void) {
-    this.changeListeners.add(listener);
-    return {
-      dispose: () => {
-        this.changeListeners.delete(listener);
-      },
-    };
+    return this.changeEmitter.event(listener);
   }
 
   focus() {
@@ -104,19 +116,13 @@ export class InputBox {
     }
 
     this.disposed = true;
-    this.changeListeners.clear();
-    this.inputElement.removeEventListener('input', this.handleInput);
-    this.inputElement.removeEventListener('focus', this.handleFocus);
-    this.inputElement.removeEventListener('blur', this.handleBlur);
-    this.hoverController.dispose();
+    super.dispose();
     this.element.remove();
   }
 
   private readonly handleInput = () => {
     this.syncEmptyState();
-    for (const listener of this.changeListeners) {
-      listener(this.inputElement.value);
-    }
+    this.changeEmitter.fire(this.inputElement.value);
   };
 
   private readonly handleFocus = () => {

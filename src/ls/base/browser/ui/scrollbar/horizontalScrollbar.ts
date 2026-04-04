@@ -1,5 +1,12 @@
 import 'ls/base/browser/ui/scrollbar/media/horizontalScrollbar.css';
 import { HorizontalScrollbarState } from 'ls/base/browser/ui/scrollbar/scrollbarState';
+import {
+  LifecycleOwner,
+  MutableLifecycle,
+  combineDisposables,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 
 const MIN_THUMB_SIZE = 24;
 const ACTIVE_CLASS_TIMEOUT = 900;
@@ -22,7 +29,31 @@ export type HorizontalScrollbarOptions = {
   scrollPredominantAxis?: boolean;
 };
 
-export class HorizontalScrollbar {
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof WindowEventMap>(
+  target: Window,
+  type: K,
+  listener: (event: WindowEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener(
+  target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export class HorizontalScrollbar extends LifecycleOwner {
   private readonly host: HTMLElement;
   private readonly strip: HTMLElement;
   private readonly track: HTMLElement;
@@ -38,13 +69,14 @@ export class HorizontalScrollbar {
   private readonly mouseWheelScrollSensitivity: number;
   private readonly fastScrollSensitivity: number;
   private readonly scrollPredominantAxis: boolean;
-  private readonly resizeObserver?: ResizeObserver;
   private readonly scrollbarState: HorizontalScrollbarState;
-  private activeClassTimeout: number | null = null;
-  private animationFrame: number | null = null;
+  private readonly activeClassTimeout = new MutableLifecycle<DisposableLike>();
+  private readonly animationFrame = new MutableLifecycle<DisposableLike>();
+  private readonly dragListeners = new MutableLifecycle<DisposableLike>();
   private dragPointerId: number | null = null;
   private dragStartClientX = 0;
   private dragStartScrollLeft = 0;
+  private disposed = false;
 
   constructor(
     host: HTMLElement,
@@ -53,6 +85,7 @@ export class HorizontalScrollbar {
     thumb: HTMLElement,
     options: HorizontalScrollbarOptions = {},
   ) {
+    super();
     this.host = host;
     this.strip = strip;
     this.track = track;
@@ -85,78 +118,81 @@ export class HorizontalScrollbar {
       this.strip.scrollLeft = options.initialScrollLeft;
     }
 
-    this.track.addEventListener('pointerdown', this.handleTrackPointerDown);
-    this.thumb.addEventListener('pointerdown', this.handleThumbPointerDown);
-    this.strip.addEventListener('wheel', this.handleScrollbarWheel, {
-      passive: false,
-    });
-    this.track.addEventListener('wheel', this.handleScrollbarWheel, {
-      passive: false,
-    });
-    this.thumb.addEventListener('wheel', this.handleScrollbarWheel, {
-      passive: false,
-    });
-    this.strip.addEventListener('scroll', this.handleStripScroll, {
-      passive: true,
-    });
+    this.register(this.activeClassTimeout);
+    this.register(this.animationFrame);
+    this.register(this.dragListeners);
+    this.register(addDisposableListener(this.track, 'pointerdown', this.handleTrackPointerDown));
+    this.register(addDisposableListener(this.thumb, 'pointerdown', this.handleThumbPointerDown));
+    this.register(
+      addDisposableListener(this.strip, 'wheel', this.handleScrollbarWheel, {
+        passive: false,
+      }),
+    );
+    this.register(
+      addDisposableListener(this.track, 'wheel', this.handleScrollbarWheel, {
+        passive: false,
+      }),
+    );
+    this.register(
+      addDisposableListener(this.thumb, 'wheel', this.handleScrollbarWheel, {
+        passive: false,
+      }),
+    );
+    this.register(
+      addDisposableListener(this.strip, 'scroll', this.handleStripScroll, {
+        passive: true,
+      }),
+    );
 
     if (typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(() => {
+      const resizeObserver = new ResizeObserver(() => {
         this.scheduleRender();
       });
-      this.resizeObserver.observe(this.host);
-      this.resizeObserver.observe(this.strip);
-      this.resizeObserver.observe(this.track);
+      resizeObserver.observe(this.host);
+      resizeObserver.observe(this.strip);
+      resizeObserver.observe(this.track);
+      this.register(
+        toDisposable(() => {
+          resizeObserver.disconnect();
+        }),
+      );
     } else {
-      window.addEventListener('resize', this.scheduleRender);
+      this.register(addDisposableListener(window, 'resize', this.scheduleRender));
     }
 
     this.scheduleInitialLayout();
   }
 
   dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
     this.clearActiveClassTimeout();
-    if (this.animationFrame !== null) {
-      window.cancelAnimationFrame(this.animationFrame);
-      this.animationFrame = null;
-    }
-
+    this.animationFrame.clear();
     this.endDrag();
-    this.resizeObserver?.disconnect();
-    if (!this.resizeObserver) {
-      window.removeEventListener('resize', this.scheduleRender);
-    }
-
-    this.track.removeEventListener('pointerdown', this.handleTrackPointerDown);
-    this.thumb.removeEventListener('pointerdown', this.handleThumbPointerDown);
-    this.strip.removeEventListener('wheel', this.handleScrollbarWheel);
-    this.track.removeEventListener('wheel', this.handleScrollbarWheel);
-    this.thumb.removeEventListener('wheel', this.handleScrollbarWheel);
-    this.strip.removeEventListener('scroll', this.handleStripScroll);
+    super.dispose();
   }
 
   renderNow() {
-    if (this.animationFrame !== null) {
-      window.cancelAnimationFrame(this.animationFrame);
-      this.animationFrame = null;
-    }
+    this.animationFrame.clear();
     this.render();
   }
 
   private readonly scheduleInitialLayout = () => {
-    this.animationFrame = window.requestAnimationFrame(() => {
-      this.animationFrame = null;
+    this.scheduleAnimationFrame(() => {
       this.revealActiveItem();
       this.render();
     });
   };
 
   private readonly scheduleRender = () => {
-    if (this.animationFrame !== null) {
+    if (this.animationFrame.value) {
       return;
     }
-    this.animationFrame = window.requestAnimationFrame(() => {
-      this.animationFrame = null;
+
+    this.scheduleAnimationFrame(() => {
       this.render();
     });
   };
@@ -240,9 +276,11 @@ export class HorizontalScrollbar {
     this.host.classList.add('is-scrollbar-active');
     this.host.classList.add('is-scrollbar-dragging');
     this.thumb.setPointerCapture?.(event.pointerId);
-    window.addEventListener('pointermove', this.handleWindowPointerMove);
-    window.addEventListener('pointerup', this.handleWindowPointerUp);
-    window.addEventListener('pointercancel', this.handleWindowPointerUp);
+    this.dragListeners.value = combineDisposables(
+      addDisposableListener(window, 'pointermove', this.handleWindowPointerMove),
+      addDisposableListener(window, 'pointerup', this.handleWindowPointerUp),
+      addDisposableListener(window, 'pointercancel', this.handleWindowPointerUp),
+    );
   };
 
   private readonly handleWindowPointerMove = (event: PointerEvent) => {
@@ -276,9 +314,7 @@ export class HorizontalScrollbar {
       this.thumb.releasePointerCapture?.(this.dragPointerId);
     }
     this.dragPointerId = null;
-    window.removeEventListener('pointermove', this.handleWindowPointerMove);
-    window.removeEventListener('pointerup', this.handleWindowPointerUp);
-    window.removeEventListener('pointercancel', this.handleWindowPointerUp);
+    this.dragListeners.clear();
     this.host.classList.remove('is-scrollbar-dragging');
   }
 
@@ -384,21 +420,43 @@ export class HorizontalScrollbar {
 
     this.host.classList.add('is-scrollbar-active');
     this.clearActiveClassTimeout();
-    this.activeClassTimeout = window.setTimeout(() => {
-      this.activeClassTimeout = null;
+    let timeoutId = 0;
+    const timeoutHandle = toDisposable(() => {
+      window.clearTimeout(timeoutId);
+    });
+    timeoutId = window.setTimeout(() => {
+      if (this.activeClassTimeout.value === timeoutHandle) {
+        this.activeClassTimeout.clear();
+      }
       if (this.dragPointerId === null) {
         this.host.classList.remove('is-scrollbar-active');
       }
     }, ACTIVE_CLASS_TIMEOUT);
+    this.activeClassTimeout.value = timeoutHandle;
   }
 
   private clearActiveClassTimeout() {
-    if (this.activeClassTimeout === null) {
+    this.activeClassTimeout.clear();
+  }
+
+  private scheduleAnimationFrame(callback: () => void) {
+    if (this.disposed) {
       return;
     }
 
-    window.clearTimeout(this.activeClassTimeout);
-    this.activeClassTimeout = null;
+    let frameId = 0;
+    const frameHandle = toDisposable(() => {
+      window.cancelAnimationFrame(frameId);
+    });
+    frameId = window.requestAnimationFrame(() => {
+      if (this.animationFrame.value === frameHandle) {
+        this.animationFrame.clear();
+      }
+      if (!this.disposed) {
+        callback();
+      }
+    });
+    this.animationFrame.value = frameHandle;
   }
 }
 
