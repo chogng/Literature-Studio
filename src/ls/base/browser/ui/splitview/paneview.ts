@@ -1,0 +1,290 @@
+import { Orientation } from 'ls/base/browser/ui/sash/sash';
+import { EventEmitter } from 'ls/base/common/event';
+import {
+  LifecycleStore,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
+import {
+  SplitView,
+  type IView,
+} from 'ls/base/browser/ui/splitview/splitview';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+
+import 'ls/base/browser/ui/splitview/paneview.css';
+
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+  textContent?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  if (typeof textContent === 'string') {
+    element.textContent = textContent;
+  }
+  return element;
+}
+
+function appendClassNames(
+  element: HTMLElement,
+  ...classNames: Array<string | undefined>
+) {
+  for (const className of classNames) {
+    if (!className) {
+      continue;
+    }
+
+    const tokens = className.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
+      continue;
+    }
+
+    element.classList.add(...tokens);
+  }
+}
+
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export type PaneClassNames = {
+  pane: string;
+  header: string;
+  title: string;
+  body: string;
+};
+
+export type PaneOptions = {
+  title: string;
+  expanded?: boolean;
+  minimumBodySize?: number;
+  maximumBodySize?: number;
+  headerContent?: HTMLElement;
+  classNames?: Partial<PaneClassNames>;
+};
+
+type PaneChangeEvent = {
+  expanded: boolean;
+  preferredSize: number;
+};
+
+export class Pane implements IView {
+  static readonly HEADER_SIZE = 34;
+
+  readonly element = createElement('section', 'pane');
+  protected readonly headerElement = createElement('div', 'pane-header');
+  protected readonly headerButtonElement = createElement('button', 'pane-header-toggle');
+  protected readonly headerContentElement = createElement('span', 'pane-header-content');
+  protected readonly chevronElement = createLxIcon('chevron-down', 'pane-header-chevron');
+  protected readonly titleElement: HTMLSpanElement;
+  protected readonly headerActionsElement = createElement('div', 'pane-header-actions');
+  protected readonly bodyElement = createElement('div', 'pane-body');
+  private readonly onDidChangeEmitter = new EventEmitter<PaneChangeEvent>();
+  private readonly disposables = new LifecycleStore();
+  private expandedValue: boolean;
+  private minimumBodySizeValue: number;
+  private maximumBodySizeValue: number;
+  private currentSize = 0;
+  private expandedSize: number | undefined;
+
+  readonly onDidChange = this.onDidChangeEmitter.event;
+
+  constructor(options: PaneOptions) {
+    this.expandedValue = options.expanded !== false;
+    this.minimumBodySizeValue = options.minimumBodySize ?? 160;
+    this.maximumBodySizeValue =
+      options.maximumBodySize ?? Number.POSITIVE_INFINITY;
+    this.titleElement = createElement('span', 'pane-header-title', options.title);
+    appendClassNames(
+      this.element,
+      options.classNames?.pane,
+    );
+    appendClassNames(
+      this.headerElement,
+      options.classNames?.header,
+    );
+    appendClassNames(
+      this.titleElement,
+      options.classNames?.title,
+    );
+    appendClassNames(
+      this.bodyElement,
+      options.classNames?.body,
+    );
+
+    this.headerButtonElement.type = 'button';
+    this.headerButtonElement.setAttribute('aria-expanded', String(this.expandedValue));
+    this.headerContentElement.append(this.chevronElement, this.titleElement, this.headerActionsElement);
+    this.headerButtonElement.append(this.headerContentElement);
+    if (options.headerContent) {
+      this.headerActionsElement.append(options.headerContent);
+    }
+    this.renderHeader(this.headerActionsElement);
+    this.headerElement.append(this.headerButtonElement);
+    this.element.append(this.headerElement, this.bodyElement);
+    this.element.classList.toggle('expanded', this.expandedValue);
+    this.bodyElement.hidden = !this.expandedValue;
+
+    this.disposables.add(
+      addDisposableListener(this.headerButtonElement, 'click', () => {
+        this.setExpanded(!this.expandedValue);
+      }),
+    );
+    this.disposables.add(
+      addDisposableListener(this.headerButtonElement, 'keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return;
+        }
+
+        event.preventDefault();
+        this.setExpanded(!this.expandedValue);
+      }),
+    );
+  }
+
+  get minimumSize() {
+    return Pane.HEADER_SIZE + (this.expandedValue ? this.minimumBodySizeValue : 0);
+  }
+
+  get maximumSize() {
+    return Pane.HEADER_SIZE + (this.expandedValue ? this.maximumBodySizeValue : 0);
+  }
+
+  isExpanded() {
+    return this.expandedValue;
+  }
+
+  setTitle(title: string) {
+    this.titleElement.textContent = title;
+  }
+
+  setExpanded(expanded: boolean) {
+    if (this.expandedValue === expanded) {
+      return;
+    }
+
+    if (!expanded && this.currentSize > Pane.HEADER_SIZE) {
+      this.expandedSize = this.currentSize;
+    }
+
+    this.expandedValue = expanded;
+    this.element.classList.toggle('expanded', expanded);
+    this.bodyElement.hidden = !expanded;
+    this.headerButtonElement.setAttribute('aria-expanded', String(expanded));
+    const preferredSize = expanded
+      ? Math.max(this.expandedSize ?? this.minimumSize, this.minimumSize)
+      : Pane.HEADER_SIZE;
+    this.onDidChangeEmitter.fire({
+      expanded,
+      preferredSize,
+    });
+  }
+
+  layout(size: number) {
+    this.currentSize = size;
+
+    if (!this.expandedValue) {
+      this.layoutBody(0, 0);
+      return;
+    }
+
+    this.expandedSize = Math.max(size, this.minimumSize);
+    const bodySize = Math.max(0, size - Pane.HEADER_SIZE);
+    this.bodyElement.style.height = `${bodySize}px`;
+    this.layoutBody(bodySize, Pane.HEADER_SIZE);
+  }
+
+  dispose() {
+    this.disposables.dispose();
+    this.onDidChangeEmitter.dispose();
+    this.element.replaceChildren();
+  }
+
+  protected renderHeader(_container: HTMLElement) {
+    // Subclasses can append header affordances after the title.
+  }
+
+  protected layoutBody(_bodySize: number, _headerSize: number) {
+    // Subclasses can respond to body size updates if needed.
+  }
+}
+
+export type AddPaneOptions = {
+  index?: number;
+  flex?: boolean;
+};
+
+type PaneItem = {
+  pane: Pane;
+  changeListener: DisposableLike;
+};
+
+export type PaneViewOptions = {
+  orientation?: Orientation;
+  sashSize?: number;
+};
+
+export class PaneView {
+  readonly element = createElement('div', 'pane-view');
+  private readonly splitView: SplitView;
+  private readonly items: PaneItem[] = [];
+  private readonly disposables = new LifecycleStore();
+
+  constructor(options: PaneViewOptions = {}) {
+    const orientation = options.orientation ?? Orientation.HORIZONTAL;
+    this.element.classList.add(
+      orientation === Orientation.HORIZONTAL ? 'horizontal' : 'vertical',
+    );
+    this.splitView = new SplitView(orientation, options.sashSize ?? 8);
+    this.element.append(this.splitView.element);
+    this.disposables.add(this.splitView);
+  }
+
+  addPane(pane: Pane, size: number, options: AddPaneOptions = {}) {
+    const index = options.index ?? this.items.length;
+    const changeListener = pane.onDidChange((event) => {
+      const paneIndex = this.items.findIndex((item) => item.pane === pane);
+      if (paneIndex < 0) {
+        return;
+      }
+
+      this.splitView.resizeView(paneIndex, event.preferredSize);
+    });
+
+    this.items.splice(index, 0, {
+      pane,
+      changeListener,
+    });
+    this.splitView.addView(pane, size, {
+      index,
+      flex: options.flex === true,
+    });
+  }
+
+  layout(width: number, height: number) {
+    this.splitView.layout(Math.max(0, width), Math.max(0, height));
+  }
+
+  dispose() {
+    for (const item of this.items) {
+      item.changeListener.dispose();
+      item.pane.dispose();
+    }
+    this.items.length = 0;
+    this.disposables.dispose();
+    this.element.replaceChildren();
+  }
+}
+
+export { Orientation } from 'ls/base/browser/ui/sash/sash';

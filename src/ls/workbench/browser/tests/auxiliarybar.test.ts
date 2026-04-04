@@ -20,6 +20,8 @@ function createProps(): AgentChatWidgetProps {
       assistantNewConversation: 'New chat',
       assistantHistory: 'History',
       assistantMore: 'More',
+      assistantShowSecondarySidebar: 'Show secondary sidebar',
+      assistantHideSecondarySidebar: 'Hide secondary sidebar',
       assistantQuestion: 'Question',
       assistantQuestionPlaceholder: 'Ask something',
       assistantVoice: 'Voice',
@@ -60,6 +62,8 @@ function createProps(): AgentChatWidgetProps {
     onActivateConversation: () => {},
     onCloseConversation: () => {},
     onCloseAuxiliarySidebar: () => {},
+    isSecondarySidebarVisible: false,
+    onToggleSecondarySidebar: () => {},
     onSelectLlmModel: () => {},
     onOpenModelSettings: () => {},
   };
@@ -85,10 +89,10 @@ test('auxiliary bar action buttons expose labels and shared hover', async () => 
     const actionButtons = Array.from(
       element.querySelectorAll('.sidebar-action-bar .sidebar-action-btn'),
     );
-    assert.equal(actionButtons.length, 3);
+    assert.equal(actionButtons.length, 4);
     assert.deepEqual(
       actionButtons.map((button) => button.getAttribute('aria-label')),
-      ['New chat', 'History', 'More'],
+      ['New chat', 'History', 'More', 'Show secondary sidebar'],
     );
 
     const historyButton = actionButtons[1];
@@ -104,6 +108,35 @@ test('auxiliary bar action buttons expose labels and shared hover', async () => 
     const overlayContent = document.querySelector('.ls-hover-content');
     assert(overlayContent instanceof HTMLElement);
     assert.equal(overlayContent.textContent, 'History');
+  } finally {
+    auxiliaryBar.dispose();
+  }
+});
+
+test('auxiliary bar exposes a secondary sidebar toggle action', () => {
+  let toggleCount = 0;
+  const auxiliaryBar = createAgentChatWidget({
+    ...createProps(),
+    onToggleSecondarySidebar: () => {
+      toggleCount += 1;
+    },
+  });
+  const element = auxiliaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const actionButtons = Array.from(
+      element.querySelectorAll('.sidebar-action-bar .sidebar-action-btn'),
+    );
+    const secondarySidebarToggleButton = actionButtons[3];
+    assert(secondarySidebarToggleButton instanceof HTMLButtonElement);
+    assert.equal(
+      secondarySidebarToggleButton.getAttribute('aria-label'),
+      'Show secondary sidebar',
+    );
+
+    secondarySidebarToggleButton.click();
+    assert.equal(toggleCount, 1);
   } finally {
     auxiliaryBar.dispose();
   }

@@ -76,10 +76,10 @@ type SplitViewSizeSnapshot = {
   auxiliarySidebarSize: number;
 };
 
-const FETCH_SIDEBAR_INDEX = 0;
-const PRIMARY_SIDEBAR_INDEX = 1;
-const EDITOR_INDEX = 2;
-const AUXILIARY_SIDEBAR_INDEX = 3;
+const PRIMARY_SIDEBAR_INDEX = 0;
+const EDITOR_INDEX = 1;
+const AUXILIARY_SIDEBAR_INDEX = 2;
+const SECONDARY_SIDEBAR_INDEX = 3;
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -202,10 +202,6 @@ export class ReaderPageView {
   private readonly gridDisposables = new LifecycleStore();
   private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
   private readonly layoutAnimationFrame = new MutableLifecycle<DisposableLike>();
-  private readonly fetchSidebarSlot = new ReaderSplitSlotView(
-    'reader-layout-slot-leading-group reader-left-group-pane reader-left-group-pane-fetch',
-    true,
-  );
   private readonly primarySidebarSlot = new ReaderSplitSlotView(
     'reader-layout-slot-leading-group reader-left-group-pane reader-left-group-pane-primary',
     true,
@@ -215,7 +211,11 @@ export class ReaderPageView {
     'reader-layout-slot-auxiliary',
     true,
   );
-  private fetchSidebarView: SecondarySidebarPartView | null = null;
+  private readonly secondarySidebarSlot = new ReaderSplitSlotView(
+    'reader-layout-slot-secondary',
+    true,
+  );
+  private secondarySidebarView: SecondarySidebarPartView | null = null;
   private primaryBarView: PrimaryBarPartView | null = null;
   private auxiliarySidebarView: AuxiliaryBarPartView | null = null;
   private editorView: ReturnType<typeof createEditorPartView> | null = null;
@@ -276,11 +276,11 @@ export class ReaderPageView {
     this.resizeObserver.dispose();
     this.layoutAnimationFrame.dispose();
     this.disposeGridView();
-    this.fetchSidebarView?.dispose();
+    this.secondarySidebarView?.dispose();
     this.primaryBarView?.dispose();
     this.auxiliarySidebarView?.dispose();
     this.editorView?.dispose();
-    this.fetchSidebarView = null;
+    this.secondarySidebarView = null;
     this.primaryBarView = null;
     this.auxiliarySidebarView = null;
     this.editorView = null;
@@ -300,30 +300,30 @@ export class ReaderPageView {
       isAuxiliarySidebarVisible: this.props.isAuxiliarySidebarVisible,
     });
 
-    this.renderFetchSidebar();
     this.renderPrimarySidebar();
     this.renderEditor();
     this.renderAuxiliarySidebar();
+    this.renderSecondarySidebar();
     this.syncGridView();
   }
 
-  private renderFetchSidebar() {
+  private renderSecondarySidebar() {
     if (!this.props.isFetchSidebarVisible) {
-      this.fetchSidebarView?.dispose();
-      this.fetchSidebarView = null;
-      this.fetchSidebarSlot.setContent(null);
+      this.secondarySidebarView?.dispose();
+      this.secondarySidebarView = null;
+      this.secondarySidebarSlot.setContent(null);
       return;
     }
 
-    if (!this.fetchSidebarView) {
-      this.fetchSidebarView = createSecondarySidebarPartView(
+    if (!this.secondarySidebarView) {
+      this.secondarySidebarView = createSecondarySidebarPartView(
         this.props.secondarySidebarProps,
       );
     } else {
-      this.fetchSidebarView.setProps(this.props.secondarySidebarProps);
+      this.secondarySidebarView.setProps(this.props.secondarySidebarProps);
     }
 
-    this.fetchSidebarSlot.setContent(this.fetchSidebarView.getElement());
+    this.secondarySidebarSlot.setContent(this.secondarySidebarView.getElement());
   }
 
   private renderPrimarySidebar() {
@@ -390,10 +390,6 @@ export class ReaderPageView {
 
     this.gridView.edgeSnapping = this.props.isLayoutEdgeSnappingEnabled;
     this.gridView.setViewVisible(
-      [FETCH_SIDEBAR_INDEX],
-      this.props.isFetchSidebarVisible,
-    );
-    this.gridView.setViewVisible(
       [PRIMARY_SIDEBAR_INDEX],
       this.props.isPrimarySidebarVisible,
     );
@@ -401,6 +397,10 @@ export class ReaderPageView {
     this.gridView.setViewVisible(
       [AUXILIARY_SIDEBAR_INDEX],
       this.props.isAuxiliarySidebarVisible,
+    );
+    this.gridView.setViewVisible(
+      [SECONDARY_SIDEBAR_INDEX],
+      this.props.isFetchSidebarVisible,
     );
     this.applySidebarSizesToGridView();
     this.scheduleGridViewLayout();
@@ -451,14 +451,14 @@ export class ReaderPageView {
     }
 
     switch (event.itemIndex) {
-      case FETCH_SIDEBAR_INDEX:
-        setFetchSidebarVisible(event.visible);
-        break;
       case PRIMARY_SIDEBAR_INDEX:
         setPrimarySidebarVisible(event.visible);
         break;
       case AUXILIARY_SIDEBAR_INDEX:
         setAuxiliarySidebarVisible(event.visible);
+        break;
+      case SECONDARY_SIDEBAR_INDEX:
+        setFetchSidebarVisible(event.visible);
         break;
     }
   };
@@ -542,7 +542,6 @@ export class ReaderPageView {
   private syncSplitSlotConstraints(orientation: Orientation) {
     this.splitConstraints = getReaderSplitConstraints(orientation);
 
-    this.fetchSidebarSlot.setConstraints(orientation, this.splitConstraints.fetchSidebar);
     this.primarySidebarSlot.setConstraints(
       orientation,
       this.splitConstraints.primarySidebar,
@@ -552,6 +551,10 @@ export class ReaderPageView {
       orientation,
       this.splitConstraints.auxiliarySidebar,
     );
+    this.secondarySidebarSlot.setConstraints(
+      orientation,
+      this.splitConstraints.fetchSidebar,
+    );
   }
 
   private applySidebarSizesToGridView() {
@@ -560,16 +563,16 @@ export class ReaderPageView {
     }
 
     this.gridView.setViewSize(
-      [FETCH_SIDEBAR_INDEX],
-      this.props.fetchSidebarSize,
-    );
-    this.gridView.setViewSize(
       [PRIMARY_SIDEBAR_INDEX],
       this.props.primarySidebarSize,
     );
     this.gridView.setViewSize(
       [AUXILIARY_SIDEBAR_INDEX],
       this.props.auxiliarySidebarSize,
+    );
+    this.gridView.setViewSize(
+      [SECONDARY_SIDEBAR_INDEX],
+      this.props.fetchSidebarSize,
     );
   }
 
@@ -584,10 +587,10 @@ export class ReaderPageView {
     }
 
     return {
-      fetchSidebarSize: this.gridView.getViewSize([FETCH_SIDEBAR_INDEX]),
       primarySidebarSize: this.gridView.getViewSize([PRIMARY_SIDEBAR_INDEX]),
-      editorSize: this.gridView.getViewSize([EDITOR_INDEX]),
       auxiliarySidebarSize: this.gridView.getViewSize([AUXILIARY_SIDEBAR_INDEX]),
+      fetchSidebarSize: this.gridView.getViewSize([SECONDARY_SIDEBAR_INDEX]),
+      editorSize: this.gridView.getViewSize([EDITOR_INDEX]),
     };
   }
 
@@ -601,9 +604,9 @@ export class ReaderPageView {
       primarySidebarSize: number;
       auxiliarySidebarSize: number;
     }> = {
-      fetchSidebarSize: this.gridView.getViewSize([FETCH_SIDEBAR_INDEX]),
       primarySidebarSize: this.gridView.getViewSize([PRIMARY_SIDEBAR_INDEX]),
       auxiliarySidebarSize: this.gridView.getViewSize([AUXILIARY_SIDEBAR_INDEX]),
+      fetchSidebarSize: this.gridView.getViewSize([SECONDARY_SIDEBAR_INDEX]),
     };
 
     this.syncLayoutTreeFromGrid();
@@ -646,7 +649,7 @@ export class ReaderPageView {
   private getSlotView(id: ReaderLayoutLeafId) {
     switch (id) {
       case 'fetchSidebar':
-        return this.fetchSidebarSlot;
+        return this.secondarySidebarSlot;
       case 'primarySidebar':
         return this.primarySidebarSlot;
       case 'editor':
@@ -693,7 +696,7 @@ export class ReaderPageView {
     }
 
     let nextTree = updateLeaf(this.layoutTree, 'fetchSidebar', {
-      size: this.gridView.getViewSize([FETCH_SIDEBAR_INDEX]),
+      size: this.gridView.getViewSize([SECONDARY_SIDEBAR_INDEX]),
       visible: this.props.isFetchSidebarVisible,
     });
     nextTree = updateLeaf(nextTree, 'primarySidebar', {
@@ -711,7 +714,7 @@ export class ReaderPageView {
     });
 
     this.layoutTree = this.updateTreeBranchSizes(nextTree, {
-      fetchSidebarSize: this.gridView.getViewSize([FETCH_SIDEBAR_INDEX]),
+      fetchSidebarSize: this.gridView.getViewSize([SECONDARY_SIDEBAR_INDEX]),
       primarySidebarSize: this.gridView.getViewSize([PRIMARY_SIDEBAR_INDEX]),
       editorSize: this.gridView.getViewSize([EDITOR_INDEX]),
       auxiliarySidebarSize: this.gridView.getViewSize([AUXILIARY_SIDEBAR_INDEX]),

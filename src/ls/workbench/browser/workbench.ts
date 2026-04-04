@@ -1528,6 +1528,7 @@ class WorkbenchHost {
 
     const primaryBarProps: PrimaryBarProps = {
       labels: secondarySidebarProps.labels,
+      batchFetchProps: secondarySidebarProps,
       librarySnapshot,
       isLibraryLoading,
       onRefreshLibrary: () => void refreshLibrary(),
@@ -1558,6 +1559,7 @@ class WorkbenchHost {
         activeConversationId: activeAssistantConversationId,
         llmModelOptions: auxiliaryLlmModelOptions,
         activeLlmModelOptionValue,
+        isSecondarySidebarVisible: isFetchSidebarVisible,
       },
       actions: {
         onQuestionChange: setAssistantQuestion,
@@ -1567,6 +1569,7 @@ class WorkbenchHost {
         onActivateConversation: handleAssistantActivateConversation,
         onCloseConversation: handleAssistantCloseConversation,
         onCloseAuxiliarySidebar: handleCloseAuxiliarySidebar,
+        onToggleSecondarySidebar: toggleFetchSidebarVisibility,
         onSelectLlmModel: (value) => {
           activeAgentChatModelOptionValue =
             value === AGENT_CHAT_AUTO_MODEL_OPTION_VALUE ? null : value;
@@ -1593,6 +1596,9 @@ class WorkbenchHost {
         },
       },
     });
+
+    const effectiveSecondarySidebarVisible =
+      isAuxiliarySidebarVisible && isFetchSidebarVisible;
 
     const titlebarProps = createTitlebarPartProps({
       state: {
@@ -1754,7 +1760,7 @@ class WorkbenchHost {
 
     if (activePage === 'reader') {
       this.renderReaderPage({
-        isFetchSidebarVisible,
+        isFetchSidebarVisible: effectiveSecondarySidebarVisible,
         isPrimarySidebarVisible,
         isAuxiliarySidebarVisible,
         isLayoutEdgeSnappingEnabled: isWindowFullscreen,

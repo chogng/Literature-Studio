@@ -1,14 +1,6 @@
 import type {
   ArticleDetailsModalLabels,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
-import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
-import {
-  createDateRangePickerView,
-  type DateRangePickerView,
-} from 'ls/base/browser/ui/dateRangePicker/dateRangePicker';
-import { applyHover } from 'ls/base/browser/ui/hover/hover';
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { LifecycleOwner, LifecycleStore, toDisposable } from 'ls/base/common/lifecycle';
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
@@ -59,6 +51,7 @@ export type SidebarLabels = {
   endDate: string;
   fetchLatestBusy: string;
   fetchLatest: string;
+  fetchTitle: string;
   selectionModeEnterMulti: string;
   selectionModeSelectAll: string;
   selectionModeExit: string;
@@ -213,12 +206,13 @@ export function createSidebarPartLabels({
     endDate: ui.endDate,
     fetchLatestBusy: ui.fetchLatestBusy,
     fetchLatest: ui.fetchLatest,
+    fetchTitle: ui.sidebarFetchTitle,
     selectionModeEnterMulti: ui.sidebarSelectionModeEnterMulti,
     selectionModeSelectAll: ui.sidebarSelectionModeSelectAll,
     selectionModeExit: ui.sidebarSelectionModeExit,
     loading: ui.settingsLoading,
     refresh: ui.titlebarRefresh,
-    libraryTitle: ui.settingsLibraryTitle,
+    libraryTitle: ui.sidebarLibraryAction,
     libraryAction: ui.sidebarLibraryAction,
     pdfDownloadAction: ui.sidebarPdfDownloadAction,
     writingAction: ui.sidebarWritingAction,
@@ -327,20 +321,10 @@ function createArticleCardLabels(
   };
 }
 
-export class SecondarySidebarPartView extends LifecycleOwner {
+export class BatchFetchContentView extends LifecycleOwner {
   private props: SecondarySidebarProps;
-  private readonly element = createElement('section', 'panel sidebar-panel');
-  private readonly actionBarElement = createElement(
-    'div',
-    'actionbar secondary-sidebar-action-bar',
-  );
+  private readonly element = createElement('div', 'batch-fetch-content');
   private readonly contentElement = createElement('div');
-  private readonly dateRangePicker: DateRangePickerView;
-  private readonly selectionActionsView = createActionBarView({
-    className: 'secondary-sidebar-selection-actionbar',
-    ariaRole: 'group',
-  });
-  private readonly fetchButton = createElement('button');
   private readonly renderDisposables = new LifecycleStore();
   private cards = new Map<string, ArticleCard>();
   private disposed = false;
@@ -349,35 +333,7 @@ export class SecondarySidebarPartView extends LifecycleOwner {
     super();
     this.props = props;
     this.register(this.renderDisposables);
-    this.dateRangePicker = createDateRangePickerView({
-      startDate: this.props.batchStartDate,
-      endDate: this.props.batchEndDate,
-      labels: {
-        startDate: this.props.labels.startDate,
-        endDate: this.props.labels.endDate,
-      },
-      onStartDateChange: (value) => this.props.onBatchStartDateChange(value),
-      onEndDateChange: (value) => this.props.onBatchEndDateChange(value),
-      className: 'sidebar-date-picker',
-      triggerIcon: createLxIcon('calendar'),
-      triggerMode: 'icon',
-    });
-    this.register(this.dateRangePicker);
-    this.register(this.selectionActionsView);
-    this.fetchButton.type = 'button';
-    this.register(addDisposableListener(this.fetchButton, 'click', () =>
-      this.props.onFetchLatestBatch(),
-    ));
-    this.actionBarElement.append(
-      this.dateRangePicker.getElement(),
-      this.selectionActionsView.getElement(),
-      this.fetchButton,
-    );
-    this.element.append(this.actionBarElement, this.contentElement);
-    registerWorkbenchPartDomNode(
-      WORKBENCH_PART_IDS.secondarySidebar,
-      this.element,
-    );
+    this.element.append(this.contentElement);
     this.render();
   }
 
@@ -405,7 +361,6 @@ export class SecondarySidebarPartView extends LifecycleOwner {
       card.dispose();
     }
     this.cards.clear();
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.secondarySidebar, null);
     this.element.replaceChildren();
   }
 
@@ -413,63 +368,6 @@ export class SecondarySidebarPartView extends LifecycleOwner {
     if (this.disposed) {
       return;
     }
-
-    const selectionButtonLabel =
-      this.props.selectionModePhase === 'off'
-        ? this.props.labels.selectionModeEnterMulti
-        : this.props.selectionModePhase === 'multi'
-          ? this.props.labels.selectionModeSelectAll
-          : this.props.labels.selectionModeExit;
-
-    this.dateRangePicker.setProps({
-      startDate: this.props.batchStartDate,
-      endDate: this.props.batchEndDate,
-      labels: {
-        startDate: this.props.labels.startDate,
-        endDate: this.props.labels.endDate,
-      },
-      onStartDateChange: (value) => this.props.onBatchStartDateChange(value),
-      onEndDateChange: (value) => this.props.onBatchEndDateChange(value),
-      className: 'sidebar-date-picker',
-      triggerIcon: createLxIcon('calendar'),
-      triggerMode: 'icon',
-    });
-
-    this.selectionActionsView.setProps({
-      className: 'secondary-sidebar-selection-actionbar',
-      ariaRole: 'group',
-      items: [
-        {
-          label: selectionButtonLabel,
-          title: selectionButtonLabel,
-          mode: 'icon',
-          active: this.props.isSelectionModeEnabled,
-          checked: this.props.isSelectionModeEnabled,
-          disabled:
-            !this.props.articles.length && !this.props.isSelectionModeEnabled,
-          buttonClassName: 'secondary-sidebar-select-action',
-          content: createLxIcon(lxIconSemanticMap.sidebar.selectionMode),
-          onClick: () => this.props.onToggleSelectionMode(),
-        },
-      ],
-    });
-
-    this.fetchButton.className = [
-      'actionbar-action',
-      'is-icon',
-      'secondary-sidebar-fetch-btn',
-    ].join(' ');
-    const fetchButtonLabel = this.props.isBatchLoading
-      ? this.props.labels.fetchLatestBusy
-      : this.props.labels.fetchLatest;
-    this.fetchButton.replaceChildren(
-      createLxIcon(
-        this.props.isBatchLoading ? 'sync' : lxIconSemanticMap.library.downloadPdf,
-      ),
-    );
-    this.fetchButton.setAttribute('aria-label', fetchButtonLabel);
-    applyHover(this.fetchButton, fetchButtonLabel);
-    this.fetchButton.disabled = this.props.isBatchLoading;
 
     this.renderContent();
   }
@@ -490,7 +388,7 @@ export class SecondarySidebarPartView extends LifecycleOwner {
 
     if (this.props.articles.length > 0) {
       const articleCardLabels = createArticleCardLabels(this.props.labels);
-      const list = createElement('ul', 'secondary-sidebar-article-list');
+      const list = createElement('ul', 'batch-fetch-article-list');
       this.props.articles.forEach((article, index) => {
         const key = `${article.sourceUrl}-${article.fetchedAt}-${index}`;
         const isSelected = this.props.selectedArticleKeys.has(
@@ -527,7 +425,7 @@ export class SecondarySidebarPartView extends LifecycleOwner {
       return;
     }
 
-    const empty = createElement('div', 'secondary-sidebar-empty-state');
+    const empty = createElement('div', 'batch-fetch-empty-state');
     if (this.props.hasData) {
       empty.textContent = this.props.labels.emptyFiltered;
       this.contentElement.replaceChildren(empty);
@@ -536,7 +434,7 @@ export class SecondarySidebarPartView extends LifecycleOwner {
 
     const quickSource = createElement(
       'button',
-      'secondary-sidebar-empty-state-action',
+      'batch-fetch-empty-state-action',
     );
     quickSource.type = 'button';
     quickSource.textContent = this.props.labels.emptyAllQuickSourceAction;
@@ -546,7 +444,7 @@ export class SecondarySidebarPartView extends LifecycleOwner {
 
     const inputLink = createElement(
       'button',
-      'secondary-sidebar-empty-state-action',
+      'batch-fetch-empty-state-action',
     );
     inputLink.type = 'button';
     inputLink.textContent = this.props.labels.emptyAllInputLinkAction;
@@ -565,6 +463,49 @@ export class SecondarySidebarPartView extends LifecycleOwner {
       ),
     );
     this.contentElement.replaceChildren(empty);
+  }
+}
+
+export class SecondarySidebarPartView extends LifecycleOwner {
+  private readonly element = createElement(
+    'section',
+    'panel sidebar-panel secondary-sidebar-panel',
+  );
+  private readonly placeholder = createElement(
+    'div',
+    'secondary-sidebar-placeholder',
+  );
+  private disposed = false;
+
+  constructor(_props: SecondarySidebarProps) {
+    super();
+    this.element.append(this.placeholder);
+    registerWorkbenchPartDomNode(
+      WORKBENCH_PART_IDS.secondarySidebar,
+      this.element,
+    );
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: SecondarySidebarProps) {
+    if (this.disposed) {
+      return;
+    }
+    void props;
+  }
+
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    super.dispose();
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.secondarySidebar, null);
+    this.element.replaceChildren();
   }
 }
 

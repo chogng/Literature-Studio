@@ -44,7 +44,6 @@ export function createTitlebarPartProps({
     ui,
     webUrl,
     isWindowMaximized,
-    isFetchSidebarVisible,
     isPrimarySidebarVisible,
     isAuxiliarySidebarVisible,
     browserUrl,
@@ -55,7 +54,6 @@ export function createTitlebarPartProps({
   },
   actions: {
     handleWindowControl,
-    handleToggleFetchSidebar,
     handleTogglePrimarySidebar,
     handleToggleAuxiliarySidebar,
     handleWebContentBack,
@@ -87,12 +85,6 @@ export function createTitlebarPartProps({
     },
     isWindowMaximized,
     onWindowControl: handleWindowControl,
-    isFetchSidebarOpen: isFetchSidebarVisible,
-    fetchSidebarToggleLabel: isFetchSidebarVisible
-      ? ui.titlebarHideFetchSidebar
-      : ui.titlebarShowFetchSidebar,
-    onToggleFetchSidebar:
-      activePage === 'reader' ? handleToggleFetchSidebar : undefined,
     isPrimarySidebarOpen: isPrimarySidebarVisible,
     primarySidebarToggleLabel: isPrimarySidebarVisible
       ? ui.titlebarHidePrimarySidebar
