@@ -4,7 +4,7 @@ import {
   createDropdownView,
   type DropdownOption,
 } from 'ls/base/browser/ui/dropdown/dropdown';
-import { createHoverController } from 'ls/base/browser/ui/hover/hover';
+import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { EDITOR_NAMED_FONT_SIZE_PRESETS } from 'ls/base/common/editorFormat';
 
@@ -41,6 +41,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   }
   return element;
 }
+
+const hoverService = getHoverService();
 
 function normalizeFontFamilyValue(value: string) {
   return value
@@ -389,7 +391,7 @@ export class DraftEditorToolbar {
     button.type = 'button';
     button.disabled = Boolean(buttonConfig.disabled);
     button.setAttribute('aria-label', buttonConfig.label);
-    createHoverController(button, buttonConfig.label);
+    hoverService.createHover(button, buttonConfig.label);
     if (buttonConfig.isToggle) {
       button.setAttribute('aria-pressed', String(Boolean(buttonConfig.isActive)));
     }

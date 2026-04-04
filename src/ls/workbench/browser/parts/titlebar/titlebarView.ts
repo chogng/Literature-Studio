@@ -10,6 +10,7 @@ import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
+import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { getWindowChromeLayout } from 'ls/platform/window/common/window';
 import { createTitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/titlebarSourceDropdownView';
@@ -189,6 +190,7 @@ function createTitlebarActionBar(params: {
   ariaLabel?: string;
   items: readonly TitlebarIconActionItem[];
 }) {
+  const hoverService = getHoverService();
   const shouldUseContextMenuService = params.items.some(
     (item) => item.menu && !item.renderOverlay,
   );
@@ -205,6 +207,7 @@ function createTitlebarActionBar(params: {
     ariaRole: 'group',
     ariaLabel: params.ariaLabel,
     contextMenuService: electronOverlayContextMenuService ?? undefined,
+    hoverService,
     items: params.items.map((item) => ({
       label: item.label,
       title: item.title ?? item.label,

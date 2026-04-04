@@ -2,7 +2,7 @@ import { BrowserWindow } from 'electron';
 import type { BrowserWindowConstructorOptions, WebContents } from 'electron';
 
 import type { WindowControlAction, WindowState } from 'ls/base/parts/sandbox/common/desktopTypes';
-import { disposeMenuOverlay, prewarmMenuOverlay } from 'ls/base/parts/contextmenu/electron-overlay-main/contextmenu';
+import { disposeMenuOverlay, prewarmMenuOverlay } from 'ls/base/parts/contextmenu/electron-main/overlayContextmenu';
 import { disposeToastOverlay } from 'ls/platform/window/electron-main/toastOverlayView';
 import { disposeWebContentView, ensureWebContentView } from 'ls/platform/window/electron-main/webContentView';
 import {

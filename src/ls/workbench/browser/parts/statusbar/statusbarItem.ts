@@ -1,9 +1,11 @@
+import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import type { EditorStatusItem } from 'ls/workbench/browser/parts/editor/editorStatus';
-import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import {
   canRunStatusbarCommand,
   runStatusbarCommand,
 } from 'ls/workbench/browser/parts/statusbar/statusbarActions';
+
+const hoverService = getHoverService();
 
 export function createStatusbarItemElement(item: EditorStatusItem) {
   const itemElement = document.createElement('span');
@@ -24,7 +26,7 @@ export function createStatusbarItemElement(item: EditorStatusItem) {
   valueElement.className = 'editor-statusbar-item-value';
   valueElement.textContent = item.value;
 
-  createHoverController(itemElement, {
+  hoverService.createHover(itemElement, {
     content: item.label,
     subtitle: item.value,
     actions: canRunCommand

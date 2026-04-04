@@ -1,7 +1,8 @@
 import {
-  createHoverController,
+  getHoverService,
   type HoverHandle,
   type HoverInput,
+  type HoverService,
 } from 'ls/base/browser/ui/hover/hover';
 import type {
   ActionBarActionItem,
@@ -96,13 +97,16 @@ export class ActionViewItem extends BaseActionViewItem {
   protected item: ActionBarActionItem;
   protected readonly hoverController: HoverHandle;
 
-  constructor(item: ActionBarActionItem) {
+  constructor(
+    item: ActionBarActionItem,
+    hoverService: HoverService = getHoverService(),
+  ) {
     super(createElement('div', 'actionbar-item is-action'));
     this.item = item;
     this.button.type = 'button';
     this.button.append(this.content);
     this.element.append(this.button);
-    this.hoverController = createHoverController(this.button, null);
+    this.hoverController = hoverService.createHover(this.button, null);
     this.button.addEventListener('click', this.handleButtonClick);
     this.render();
   }
@@ -185,6 +189,11 @@ export class ActionViewItem extends BaseActionViewItem {
   };
 
   protected readonly handleClick = (event: MouseEvent) => {
-    this.item.onClick?.(event);
+    if (this.item.onClick) {
+      this.item.onClick(event);
+      return;
+    }
+
+    this.item.run?.();
   };
 }

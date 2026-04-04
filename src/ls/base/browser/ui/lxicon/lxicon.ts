@@ -47,6 +47,7 @@ import questionSvg from 'ls/base/browser/ui/lxicon/svg/question.svg?raw';
 import previewSvg from 'ls/base/browser/ui/lxicon/svg/preview.svg?raw';
 import previewOffSvg from 'ls/base/browser/ui/lxicon/svg/preview-off.svg?raw';
 import projectsSvg from 'ls/base/browser/ui/lxicon/svg/projects.svg?raw';
+import projectsFilledSvg from 'ls/base/browser/ui/lxicon/svg/projects-filled.svg?raw';
 import pinnedSvg from 'ls/base/browser/ui/lxicon/svg/pinned.svg?raw';
 import pdfSvg from 'ls/base/browser/ui/lxicon/svg/pdf.svg?raw';
 import pauseSvg from 'ls/base/browser/ui/lxicon/svg/pause.svg?raw';
@@ -222,6 +223,7 @@ export type LxIconName =
   | 'preview'
   | 'preview-off'
   | 'projects'
+  | 'projects-filled'
   | 'pinned'
   | 'pdf'
   | 'pause'
@@ -397,6 +399,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'preview': previewSvg,
   'preview-off': previewOffSvg,
   'projects': projectsSvg,
+  'projects-filled': projectsFilledSvg,
   'pinned': pinnedSvg,
   'pdf': pdfSvg,
   'pause': pauseSvg,

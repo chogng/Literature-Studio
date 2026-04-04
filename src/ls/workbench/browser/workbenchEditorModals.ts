@@ -1,3 +1,4 @@
+import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import type { LocaleMessages } from 'language/locales';
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createModalView } from 'ls/base/browser/ui/modal/modal';
@@ -27,6 +28,7 @@ export function showWorkbenchTextInputModal(params: {
   ui: LocaleMessages;
 }): Promise<string | null> {
   return new Promise((resolve) => {
+    const hoverService = getHoverService();
     const body = createElement('div', 'workbench-editor-modal-body');
     const label = createElement('label', 'workbench-editor-modal-label', params.label);
     const inputHost = createElement('div');
@@ -81,6 +83,7 @@ export function showWorkbenchTextInputModal(params: {
       closeLabel: params.ui.toastClose,
       onClose: () => finish(null),
       panelClassName: 'workbench-editor-modal-panel',
+      hoverService,
     });
 
     modal.open();
@@ -94,6 +97,7 @@ export function showWorkbenchCommandPaletteModal(params: {
   commands: ReadonlyArray<WorkbenchEditorCommandDefinition & { labelText: string }>;
   onSelect: (commandId: WorkbenchEditorCommandDefinition['id']) => void;
 }) {
+  const hoverService = getHoverService();
   const body = createElement('div', 'workbench-command-palette-body');
   const list = createElement('div', 'workbench-command-palette-list');
 
@@ -104,6 +108,7 @@ export function showWorkbenchCommandPaletteModal(params: {
     closeLabel: params.ui.toastClose,
     onClose: () => modal.dispose(),
     panelClassName: 'workbench-command-palette-panel',
+    hoverService,
   });
 
   for (const command of params.commands) {

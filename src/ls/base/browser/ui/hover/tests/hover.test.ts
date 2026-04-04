@@ -6,6 +6,7 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let createHoverController: typeof import('ls/base/browser/ui/hover/hover').createHoverController;
+let createHoverService: typeof import('ls/base/browser/ui/hover/hover').createHoverService;
 let createButtonView: typeof import('ls/base/browser/ui/button/button').createButtonView;
 let InputBox: typeof import('ls/base/browser/ui/inputbox/inputBox').InputBox;
 let createDropdownView: typeof import('ls/base/browser/ui/dropdown/dropdown').createDropdownView;
@@ -40,6 +41,7 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createHoverController } = await import('ls/base/browser/ui/hover/hover'));
+  ({ createHoverService } = await import('ls/base/browser/ui/hover/hover'));
   ({ createButtonView } = await import('ls/base/browser/ui/button/button'));
   ({ InputBox } = await import('ls/base/browser/ui/inputbox/inputBox'));
   ({ createDropdownView } = await import('ls/base/browser/ui/dropdown/dropdown'));
@@ -105,6 +107,45 @@ test('button view uses shared hover content instead of native title tooltips', a
     const overlayContent = document.querySelector('.ls-hover-content');
     assert(overlayContent instanceof HTMLElement);
     assert.equal(overlayContent.textContent, 'Settings');
+  } finally {
+    buttonView.dispose();
+  }
+});
+
+test('button view can use an injected hover service delegate', async () => {
+  let delegateCreateCalls = 0;
+  let lastHoverTarget: HTMLElement | null = null;
+  const hoverService = createHoverService({
+    delegate: {
+      createHover: (target, input) => {
+        delegateCreateCalls += 1;
+        lastHoverTarget = target;
+        return createHoverController(target, input);
+      },
+    },
+  });
+  const buttonView = createButtonView({
+    mode: 'icon',
+    content: document.createTextNode('H'),
+    hoverService,
+    hover: {
+      content: 'Injected hover',
+      delay: 0,
+    },
+  });
+  const button = buttonView.getElement();
+  document.body.append(button);
+
+  try {
+    assert.equal(delegateCreateCalls, 1);
+    assert.equal(lastHoverTarget, button);
+
+    button.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    await delay(0);
+
+    const overlayContent = document.querySelector('.ls-hover-content');
+    assert(overlayContent instanceof HTMLElement);
+    assert.equal(overlayContent.textContent, 'Injected hover');
   } finally {
     buttonView.dispose();
   }

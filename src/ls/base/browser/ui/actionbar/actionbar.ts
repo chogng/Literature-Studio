@@ -1,5 +1,6 @@
 import 'ls/base/browser/ui/actionbar/actionbar.css';
 import type { ContextMenuService } from 'ls/base/browser/contextmenu';
+import type { BaseAction } from 'ls/base/common/actions';
 import {
   ActionViewItem,
   type ActionViewItemLike,
@@ -10,35 +11,25 @@ import {
   type DropdownMenuActionOverlayContext,
   type DropdownMenuActionPosition,
 } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
-import type { HoverInput } from 'ls/base/browser/ui/hover/hover';
+import type { HoverInput, HoverService } from 'ls/base/browser/ui/hover/hover';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
 
 export type ActionBarOrientation = 'horizontal' | 'vertical';
 export type ActionBarActionMode = 'icon' | 'text' | 'custom';
 export type ActionBarRenderable = string | Node | (() => string | Node);
-export type ActionBarMenuItem = {
-  id?: string;
-  label: string;
-  title?: string;
+export type ActionBarMenuItem = BaseAction & {
   icon?: LxIconName;
-  disabled?: boolean;
-  checked?: boolean;
   onClick?: (event: MouseEvent) => void;
 };
 
 export type ActionBarViewItem = ActionViewItemLike;
 
-export type ActionBarActionItem = {
+export type ActionBarActionItem = BaseAction & {
   type?: 'action';
-  id?: string;
-  label: string;
   content?: ActionBarRenderable;
-  title?: string;
   hover?: HoverInput;
-  disabled?: boolean;
   active?: boolean;
-  checked?: boolean;
   mode?: ActionBarActionMode;
   className?: string;
   buttonClassName?: string;
@@ -50,6 +41,7 @@ export type ActionBarActionItem = {
   menuClassName?: string;
   minWidth?: number;
   contextMenuService?: ContextMenuService;
+  hoverService?: HoverService;
   overlayAlignment?: DropdownMenuActionAlignment;
   overlayPosition?: DropdownMenuActionPosition;
 };
@@ -69,6 +61,7 @@ export type ActionBarProps = {
   ariaLabel?: string;
   ariaRole?: string;
   contextMenuService?: ContextMenuService;
+  hoverService?: HoverService;
 };
 
 function composeClassName(parts: Array<string | undefined | null | false>) {
@@ -95,6 +88,7 @@ function isActionBarViewItem(item: ActionBarItem): item is ActionBarViewItem {
 function createActionViewItem(
   item: ActionBarActionItem,
   contextMenuService?: ContextMenuService,
+  hoverService?: HoverService,
 ): ActionBarViewItem {
   if (item.menu || item.renderOverlay) {
     return new DropdownMenuActionViewItem({
@@ -116,12 +110,13 @@ function createActionViewItem(
       menuClassName: item.menuClassName,
       minWidth: item.minWidth,
       contextMenuService: item.contextMenuService ?? contextMenuService,
+      hoverService: item.hoverService ?? hoverService,
       overlayAlignment: item.overlayAlignment,
       overlayPosition: item.overlayPosition,
     });
   }
 
-  return new ActionViewItem(item);
+  return new ActionViewItem(item, item.hoverService ?? hoverService);
 }
 
 type RenderedAction = {
@@ -185,6 +180,7 @@ export class ActionBarView {
       ariaLabel: props.ariaLabel,
       ariaRole: props.ariaRole ?? 'toolbar',
       contextMenuService: props.contextMenuService,
+      hoverService: props.hoverService,
     };
   }
 
@@ -253,6 +249,7 @@ export class ActionBarView {
     const viewItem = createActionViewItem(
       item,
       item.menu ? this.getContextMenuService() : undefined,
+      item.hoverService ?? this.props.hoverService,
     );
     viewItem.render();
     const element = viewItem.getElement();

@@ -1,8 +1,12 @@
 import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
 import { Menu } from 'ls/base/browser/ui/menu/menu';
+import {
+  resolveAnchoredHorizontalLeft,
+  resolveAnchoredVerticalPlacement,
+} from 'ls/base/browser/ui/contextview/anchoredLayout';
 import type { NativeMenuState } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
-import 'ls/workbench/browser/media/menuOverlayWindow.css';
+import 'ls/base/parts/contextmenu/electron-sandbox/overlayMenu.css';
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -52,35 +56,42 @@ function resolveMenuLayout(
 
   const viewportPadding = 8;
   const menuOffset = state.coverage === 'trigger-band' ? 8 : 4;
-  const maxWidth = Math.max(160, window.innerWidth - viewportPadding * 2);
+  const viewportWidth =
+    window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight =
+    window.innerHeight || document.documentElement.clientHeight || 0;
+  const maxWidth = Math.max(160, viewportWidth - viewportPadding * 2);
   const optionHeight = 36;
   const verticalPadding = 8;
   const estimatedHeight = Math.min(
     Math.max(1, state.options.length) * optionHeight + verticalPadding,
     320,
   );
-  const spaceBelow =
-    window.innerHeight - state.triggerRect.y - state.triggerRect.height - viewportPadding;
-  const spaceAbove = state.triggerRect.y - viewportPadding;
-  const openUpwards = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
-  const availableHeight = openUpwards ? spaceAbove : spaceBelow;
+  const verticalPlacement = resolveAnchoredVerticalPlacement({
+    anchorRect: state.triggerRect,
+    overlayHeight: estimatedHeight,
+    viewportHeight,
+    viewportMargin: viewportPadding,
+    offset: menuOffset,
+    preference: 'auto',
+  });
+  const openUpwards = verticalPlacement.placement === 'above';
+  const availableHeight = openUpwards
+    ? verticalPlacement.spaceAbove
+    : verticalPlacement.spaceBelow;
   const maxHeight = Math.max(120, availableHeight - menuOffset);
   const width = clamp(
     measuredMenuWidth ?? state.triggerRect.width,
     Math.max(120, state.triggerRect.width),
     maxWidth,
   );
-  const preferredLeft =
-    state.align === 'center'
-      ? state.triggerRect.x + (state.triggerRect.width - width) / 2
-      : state.align === 'end'
-        ? state.triggerRect.x + state.triggerRect.width - width
-        : state.triggerRect.x;
-  const left = clamp(
-    preferredLeft,
-    viewportPadding,
-    Math.max(viewportPadding, window.innerWidth - width - viewportPadding),
-  );
+  const left = resolveAnchoredHorizontalLeft({
+    anchorRect: state.triggerRect,
+    overlayWidth: width,
+    viewportWidth,
+    viewportMargin: viewportPadding,
+    alignment: state.align,
+  });
 
   return {
     width,
@@ -91,7 +102,7 @@ function resolveMenuLayout(
       ? undefined
       : state.triggerRect.y + state.triggerRect.height + menuOffset,
     bottom: openUpwards
-      ? window.innerHeight - state.triggerRect.y + menuOffset
+      ? viewportHeight - state.triggerRect.y + menuOffset
       : undefined,
   };
 }
@@ -106,7 +117,7 @@ function toMenuActions(state: NativeMenuState): ContextMenuAction[] {
   }));
 }
 
-export class MenuOverlayWindowView {
+export class OverlayMenuView {
   private readonly element = createElement('main', 'native-menu-overlay-page');
   private readonly menu = new Menu({
     items: [],
@@ -275,6 +286,6 @@ export class MenuOverlayWindowView {
   }
 }
 
-export function createMenuOverlayWindowView() {
-  return new MenuOverlayWindowView();
+export function createOverlayMenuView() {
+  return new OverlayMenuView();
 }

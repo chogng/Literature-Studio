@@ -1,5 +1,6 @@
 import 'ls/base/browser/ui/badge/badge.css';
 
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -36,7 +37,7 @@ export function createBadge(props: BadgeProps) {
   const content = createElement('span', 'ls-badge-content');
 
   if (props.title) {
-    badge.title = props.title;
+    applyHover(badge, props.title);
     badge.setAttribute('aria-label', props.title);
   } else {
     badge.setAttribute('aria-hidden', 'true');

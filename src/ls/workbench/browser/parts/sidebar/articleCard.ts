@@ -1,5 +1,6 @@
 import type { ArticleDetailsModalLabels } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import type { Locale } from 'language/i18n';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
@@ -163,7 +164,7 @@ export class ArticleCard {
     }
 
     this.titleElement.textContent = title;
-    this.titleElement.title = title;
+    applyHover(this.titleElement, title);
     this.metaElement.textContent = metaText;
 
     this.toolbarView.setProps({

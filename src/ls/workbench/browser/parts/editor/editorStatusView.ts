@@ -1,3 +1,4 @@
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import type {
   EditorStatusItem,
   EditorStatusState,
@@ -24,7 +25,7 @@ function renderStatusItem(item: EditorStatusItem) {
   const label = createElement('span', 'editor-statusbar-item-label');
   label.textContent = item.label;
   const value = createElement('span', 'editor-statusbar-item-value');
-  value.title = item.value;
+  applyHover(value, item.value);
   value.textContent = item.value;
   element.append(label, value);
   return element;
@@ -54,7 +55,7 @@ export class EditorStatusView {
     }
     if (status.summary) {
       const summary = createElement('span', 'editor-statusbar-summary');
-      summary.title = status.summary;
+      applyHover(summary, status.summary);
       summary.textContent = status.summary;
       primary.append(summary);
     }

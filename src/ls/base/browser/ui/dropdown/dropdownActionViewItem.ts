@@ -14,6 +14,7 @@ import type {
   ActionBarMenuItem,
   ActionBarRenderable,
 } from 'ls/base/browser/ui/actionbar/actionbar';
+import type { HoverService } from 'ls/base/browser/ui/hover/hover';
 import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
 
 export type DropdownMenuActionAlignment = 'start' | 'end';
@@ -41,6 +42,7 @@ export type DropdownMenuActionViewItemOptions = {
   overlayRole?: string;
   menuClassName?: string;
   minWidth?: number;
+  hoverService?: HoverService;
   contextMenuService?: ContextMenuService;
   overlayAlignment?: DropdownMenuActionAlignment;
   overlayPosition?: DropdownMenuActionPosition;
@@ -91,8 +93,8 @@ function composeClassName(parts: Array<string | undefined | null | false>) {
   return parts.filter(Boolean).join(' ');
 }
 
-function createMenuOptionValue(menuItem: ActionBarMenuItem, index: number) {
-  return menuItem.id ?? `dropdown-menu-action-option-${index}`;
+function createContextMenuValue(action: Pick<ActionBarMenuItem, 'id'>, index: number) {
+  return action.id ?? `dropdown-menu-action-option-${index}`;
 }
 
 class DomDropdownActionOverlayController {
@@ -147,7 +149,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
   }
 
   constructor(options: DropdownMenuActionViewItemOptions) {
-    super(options);
+    super(options, options.hoverService);
     this.button.addEventListener('keydown', this.handleKeyDown);
     this.render();
   }
@@ -256,7 +258,12 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
         if (!menuItem || menuItem.disabled) {
           return;
         }
-        menuItem.onClick?.(new MouseEvent('click'));
+        if (menuItem.onClick) {
+          menuItem.onClick(new MouseEvent('click'));
+          return;
+        }
+
+        menuItem.run?.();
       },
     };
   }
@@ -278,12 +285,13 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
 
   private createMenuOptions(): ContextMenuAction[] {
     return (this.options.menu ?? []).map((menuItem, index) => ({
-      value: createMenuOptionValue(menuItem, index),
+      value: createContextMenuValue(menuItem, index),
       label: menuItem.label,
       title: menuItem.title,
       icon: menuItem.icon,
       disabled: menuItem.disabled,
       checked: menuItem.checked,
+      run: menuItem.run,
     }));
   }
 
@@ -314,8 +322,12 @@ export class ActionWithDropdownActionViewItem extends BaseActionViewItem {
 
   constructor(options: ActionWithDropdownActionViewItemOptions) {
     super(createElement('div', 'actionbar-item is-action action-dropdown-item'));
-    this.primaryItem = new ActionViewItem(options.primary);
-    this.dropdownMenuActionViewItem = new DropdownMenuActionViewItem(options.dropdown);
+    const hoverService = options.primary.hoverService ?? options.dropdown.hoverService;
+    this.primaryItem = new ActionViewItem(options.primary, hoverService);
+    this.dropdownMenuActionViewItem = new DropdownMenuActionViewItem({
+      ...options.dropdown,
+      hoverService: options.dropdown.hoverService ?? hoverService,
+    });
     if (options.className) {
       this.element.classList.add(...options.className.split(/\s+/).filter(Boolean));
     }
@@ -400,6 +412,7 @@ export function createDropdownMenuActionViewItem(
     overlayRole: options.overlayRole,
     menuClassName: options.menuClassName,
     minWidth: options.minWidth,
+    hoverService: options.hoverService,
     contextMenuService: options.contextMenuService,
     overlayAlignment: options.overlayAlignment,
     overlayPosition: options.overlayPosition,

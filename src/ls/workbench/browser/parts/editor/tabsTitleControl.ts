@@ -1,5 +1,7 @@
-import type { HoverHandle } from 'ls/base/browser/ui/hover/hover';
-import { createHoverController } from 'ls/base/browser/ui/hover/hover';
+import {
+  getHoverService,
+  type HoverHandle,
+} from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { EditorGroupTabItem } from 'ls/workbench/browser/parts/editor/editorGroupModel';
@@ -8,6 +10,7 @@ import { TitleControl } from 'ls/workbench/browser/parts/editor/titleControl';
 type TabView = {
   element: HTMLDivElement;
   mainButton: HTMLButtonElement;
+  mainHover: HoverHandle;
   kindLabel: HTMLSpanElement;
   labelText: HTMLSpanElement;
   closeButton: HTMLButtonElement;
@@ -44,6 +47,7 @@ export class TabsTitleControl extends TitleControl {
   private resizeObserver?: ResizeObserver;
   private layoutAnimationFrame: number | null = null;
   private shouldRevealActiveTab = false;
+  private readonly hoverService = getHoverService();
 
   protected override create() {
     this.container = createElement('div', 'editor-tabs-container');
@@ -136,6 +140,7 @@ export class TabsTitleControl extends TitleControl {
     const labelText = createElement('span', 'editor-tab-label-text');
     label.append(kindLabel, labelText);
     mainButton.append(label);
+    const mainHover = this.hoverService.createHover(mainButton, null);
 
     const closeButton = createElement(
       'button',
@@ -143,18 +148,20 @@ export class TabsTitleControl extends TitleControl {
     );
     closeButton.type = 'button';
     closeButton.append(createLxIcon(lxIconSemanticMap.editor.closeTab));
-    const closeHover = createHoverController(closeButton, this.props.labels.close);
+    const closeHover = this.hoverService.createHover(closeButton, this.props.labels.close);
 
     tabElement.append(mainButton, closeButton);
 
     return {
       element: tabElement,
       mainButton,
+      mainHover,
       kindLabel,
       labelText,
       closeButton,
       closeHover,
       dispose: () => {
+        mainHover.dispose();
         closeHover.dispose();
         tabElement.remove();
       },
@@ -181,7 +188,7 @@ export class TabsTitleControl extends TitleControl {
     tabView.mainButton.setAttribute('aria-posinset', String(index + 1));
     tabView.mainButton.setAttribute('aria-setsize', String(totalTabs));
     tabView.mainButton.tabIndex = tab.state.isActive ? 0 : -1;
-    tabView.mainButton.title = tab.title;
+    tabView.mainHover.update(tab.title);
     tabView.mainButton.onclick = () => {
       this.props.onActivateTab(tab.id);
     };

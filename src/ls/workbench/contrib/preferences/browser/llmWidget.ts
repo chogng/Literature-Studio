@@ -1,7 +1,7 @@
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { createBadge } from 'ls/base/browser/ui/badge/badge';
-import { createHoverController } from 'ls/base/browser/ui/hover/hover';
 import { createSwitchView } from 'ls/base/browser/ui/switch/switch';
+import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -39,9 +39,7 @@ function normalizeModelLabel(value: string) {
 }
 
 function createHoverBadge(props: Parameters<typeof createBadge>[0]) {
-  const badge = createBadge(props);
-  createHoverController(badge, props.title ?? null);
-  return badge;
+  return createBadge(props);
 }
 
 function formatTokenCount(value: number) {
@@ -370,7 +368,7 @@ export class LlmWidget {
       item.dataset.modelEntryKey = nextEntry.option.value;
 
       nameButton.disabled = !isEnabled;
-      nameButton.title = nextEntry.model.description || displayLabel;
+      applyHover(nameButton, nextEntry.model.description || displayLabel);
       name.textContent = displayLabel;
       titleRow.replaceChildren(name);
       const metadataRow = this.renderMetadataRow(nextEntry);

@@ -1,7 +1,8 @@
+import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import {
   canUseElectronOverlayContextMenus,
   createElectronOverlayDropdownMenuPresenter,
-} from 'ls/base/parts/contextmenu/electron-overlay/overlayContextmenu';
+} from 'ls/base/parts/contextmenu/electron-sandbox/overlayContextmenu';
 import {
   createDomDropdownMenuPresenter,
   createDropdownView,
@@ -33,11 +34,13 @@ function createTitlebarDropdownMenuPresenter(): DropdownMenuPresenter {
 export function createTitlebarSourceDropdownView(
   props: DropdownProps,
 ): TitlebarSourceDropdownView {
+  const hoverService = getHoverService();
   const menuPresenter = createTitlebarDropdownMenuPresenter();
 
   const applyProps = (nextProps: DropdownProps) => {
     view.setProps({
       ...nextProps,
+      hoverService: nextProps.hoverService ?? hoverService,
       menuAlign: 'end',
       menuPresenter,
     });
@@ -45,6 +48,7 @@ export function createTitlebarSourceDropdownView(
 
   const view = createDropdownView({
     ...props,
+    hoverService: props.hoverService ?? hoverService,
     menuAlign: 'end',
     menuPresenter,
   });

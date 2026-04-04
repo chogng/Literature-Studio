@@ -1,5 +1,9 @@
 import 'ls/base/browser/ui/button/button.css';
-import { createHoverController } from 'ls/base/browser/ui/hover/hover';
+import {
+  getHoverService,
+  type HoverHandle,
+  type HoverService,
+} from 'ls/base/browser/ui/hover/hover';
 import 'ls/base/browser/ui/modal/modal.css';
 
 export type ModalContent =
@@ -23,6 +27,7 @@ export interface ModalProps {
   className?: string;
   panelClassName?: string;
   ariaLabel?: string;
+  hoverService?: HoverService;
 }
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -140,7 +145,7 @@ export class ModalView {
     'button',
     'modal-close-btn btn-base btn-ghost btn-mode-icon btn-md',
   ) as HTMLButtonElement;
-  private readonly closeHover = createHoverController(this.closeButton, null);
+  private readonly closeHover: HoverHandle;
   private readonly bodyElement = createElement('div', 'modal-body');
   private isAttached = false;
   private readonly titleId = `modal-title-${Math.random().toString(36).slice(2, 10)}`;
@@ -155,6 +160,8 @@ export class ModalView {
       panelClassName: '',
       ...props,
     };
+    const hoverService = this.props.hoverService ?? getHoverService();
+    this.closeHover = hoverService.createHover(this.closeButton, null);
 
     this.closeButton.type = 'button';
     this.closeButton.append(createCloseIcon());
