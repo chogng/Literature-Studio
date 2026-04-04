@@ -24,7 +24,7 @@
 
 .pane > .pane-header {
   width: 100%;
-  min-height: 34px;
+  min-height: var(--ls-pane-header-size, 34px);
   border-bottom: 1px solid #e5e5e5;
   background: #f6f7f9;
   color: #1f2d3a;
@@ -35,7 +35,7 @@
 .pane > .pane-header > .pane-header-toggle {
   appearance: none;
   width: 100%;
-  min-height: 34px;
+  min-height: var(--ls-pane-header-size, 34px);
   padding: 0 14px;
   border: 0;
   background: transparent;
@@ -82,8 +82,9 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  margin-left: 6px;
+  min-height: var(--ls-pane-header-size, 34px);
+  margin-left: auto;
+  padding-left: 6px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;

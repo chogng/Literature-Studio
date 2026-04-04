@@ -34,6 +34,15 @@
   margin-left: auto;
 }
 
+.primarybar-pane-header .pane-header-actionbar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
 .primarybar-library-pane-content > .library-tree {
   flex: 1;
   min-height: 0;
@@ -44,10 +53,4 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
-}
-
-.sidebar-action-bar {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
 }
