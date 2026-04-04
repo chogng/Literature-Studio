@@ -1,3 +1,4 @@
+import { EventEmitter } from 'ls/base/common/event';
 import type {
   EditorStatusLabels,
   EditorStatusItem,
@@ -64,19 +65,14 @@ function areStatusbarStatesEqual(previous: EditorStatusState, next: EditorStatus
 }
 
 let statusbarState: EditorStatusState = createEmptyStatusValue();
-const statusbarListeners = new Set<() => void>();
+const onDidChangeStatusbarStateEmitter = new EventEmitter<void>();
 
 function emitStatusbarStateChange() {
-  for (const listener of statusbarListeners) {
-    listener();
-  }
+  onDidChangeStatusbarStateEmitter.fire();
 }
 
 export function subscribeStatusbarState(listener: () => void) {
-  statusbarListeners.add(listener);
-  return () => {
-    statusbarListeners.delete(listener);
-  };
+  return onDidChangeStatusbarStateEmitter.event(listener);
 }
 
 export function getStatusbarStateSnapshot() {

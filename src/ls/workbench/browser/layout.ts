@@ -1,3 +1,4 @@
+import { EventEmitter } from 'ls/base/common/event';
 import type { WorkbenchPage } from 'ls/workbench/browser/workbench';
 
 export type WorkbenchLayoutStateSnapshot = {
@@ -128,20 +129,14 @@ const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement |
 };
 
 let workbenchLayoutState = DEFAULT_WORKBENCH_LAYOUT_STATE;
-const workbenchLayoutListeners = new Set<() => void>();
+const onDidChangeWorkbenchLayoutStateEmitter = new EventEmitter<void>();
 
 let workbenchPartDomSnapshot = DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT;
-const workbenchPartDomListeners = new Set<() => void>();
+const onDidChangeWorkbenchPartDomEmitter = new EventEmitter<void>();
 const workbenchPartRefCallbacks = new Map<
   WorkbenchPartId,
   WorkbenchPartRefCallback
 >();
-
-function emitListeners(listeners: Set<() => void>) {
-  for (const listener of listeners) {
-    listener();
-  }
-}
 
 function clampSidebarSize(target: 'fetchSidebar' | 'primaryBar' | 'auxiliarySidebar', size: number) {
   const limits =
@@ -263,10 +258,7 @@ function reduceWorkbenchLayoutState(
 }
 
 export function subscribeWorkbenchLayoutState(listener: () => void) {
-  workbenchLayoutListeners.add(listener);
-  return () => {
-    workbenchLayoutListeners.delete(listener);
-  };
+  return onDidChangeWorkbenchLayoutStateEmitter.event(listener);
 }
 
 export function getWorkbenchLayoutStateSnapshot() {
@@ -274,10 +266,7 @@ export function getWorkbenchLayoutStateSnapshot() {
 }
 
 export function subscribeWorkbenchPartDom(listener: () => void) {
-  workbenchPartDomListeners.add(listener);
-  return () => {
-    workbenchPartDomListeners.delete(listener);
-  };
+  return onDidChangeWorkbenchPartDomEmitter.event(listener);
 }
 
 export function getWorkbenchPartDomSnapshot() {
@@ -291,7 +280,7 @@ export function dispatchWorkbenchLayoutEvent(event: WorkbenchLayoutEvent) {
   }
 
   workbenchLayoutState = nextState;
-  emitListeners(workbenchLayoutListeners);
+  onDidChangeWorkbenchLayoutStateEmitter.fire();
 }
 
 export function setFetchSidebarVisible(visible: boolean) {
@@ -384,7 +373,7 @@ export function registerWorkbenchPartDomNode(
     ...workbenchPartDomSnapshot,
     [partId]: element,
   };
-  emitListeners(workbenchPartDomListeners);
+  onDidChangeWorkbenchPartDomEmitter.fire();
 }
 
 export function createWorkbenchPartRef(

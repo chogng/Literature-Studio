@@ -1,3 +1,4 @@
+import { EventEmitter } from 'ls/base/common/event';
 import { detectInitialLocale, toDocumentLang } from 'language/i18n';
 import type { Locale } from 'language/i18n';
 
@@ -31,13 +32,10 @@ function persistStoredLocale(locale: Locale) {
 
 class BrowserLocaleService implements ILocaleService {
   private currentLocale = readStoredLocale() ?? detectInitialLocale();
-  private readonly listeners = new Set<() => void>();
+  private readonly onDidChangeEmitter = new EventEmitter<void>();
 
   subscribe(listener: () => void) {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.onDidChangeEmitter.event(listener);
   }
 
   getLocale() {
@@ -54,9 +52,7 @@ class BrowserLocaleService implements ILocaleService {
 
     this.currentLocale = locale;
     this.syncDocumentLanguage();
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.onDidChangeEmitter.fire();
   }
 
   async updateLocalePreference(locale: Locale, context: LocaleServiceContext) {

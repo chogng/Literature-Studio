@@ -9,6 +9,13 @@ import {
 } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import {
+  LifecycleOwner,
+  MutableLifecycle,
+  combineDisposables,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 
 export type DropdownSize = 'sm' | 'md' | 'lg';
 export type DropdownMenuAlign = 'start' | 'center' | 'end';
@@ -162,6 +169,36 @@ function composeClassName(parts: Array<string | undefined | null | false>) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function addDisposableListener<K extends keyof DocumentEventMap>(
+  target: Document,
+  type: K,
+  listener: (event: DocumentEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof WindowEventMap>(
+  target: Window,
+  type: K,
+  listener: (event: WindowEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener(
+  target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
 }
 
 function areTriggerRectsEqual(
@@ -382,7 +419,7 @@ export function createDomDropdownMenuPresenter(options?: {
 
 let dropdownViewIdSequence = 0;
 
-export class DropdownView {
+export class DropdownView extends LifecycleOwner {
   private props: DropdownProps;
   private isOpen = false;
   private isFocused = false;
@@ -395,22 +432,24 @@ export class DropdownView {
   private readonly chevronIcon = createChevronIcon();
   private readonly hoverController: HoverHandle;
   private readonly defaultMenuPresenter = createDomDropdownMenuPresenter({ layer: 'inline' });
-  private removeDocumentMouseDown = () => {};
-  private removeDocumentFocusIn = () => {};
-  private removeViewportListeners = () => {};
+  private readonly openListeners = new MutableLifecycle<DisposableLike>();
   private disposed = false;
 
   constructor(props: DropdownProps) {
+    super();
     this.props = this.normalizeProps(props);
     const hoverService = this.props.hoverService ?? getHoverService();
     this.hoverController = hoverService.createHover(this.element, null);
+    this.register(this.hoverController);
+    this.register(this.defaultMenuPresenter);
+    this.register(this.openListeners);
     this.iconWrapper.append(this.chevronIcon);
     this.element.append(this.field, this.iconWrapper);
 
-    this.element.addEventListener('click', this.handleClick);
-    this.element.addEventListener('keydown', this.handleKeyDown);
-    this.element.addEventListener('focus', this.handleFocus);
-    this.element.addEventListener('blur', this.handleBlur);
+    this.register(addDisposableListener(this.element, 'click', this.handleClick));
+    this.register(addDisposableListener(this.element, 'keydown', this.handleKeyDown));
+    this.register(addDisposableListener(this.element, 'focus', this.handleFocus));
+    this.register(addDisposableListener(this.element, 'blur', this.handleBlur));
 
     this.render();
   }
@@ -470,12 +509,7 @@ export class DropdownView {
     }
     this.disposed = true;
     this.setOpen(false);
-    this.element.removeEventListener('click', this.handleClick);
-    this.element.removeEventListener('keydown', this.handleKeyDown);
-    this.element.removeEventListener('focus', this.handleFocus);
-    this.element.removeEventListener('blur', this.handleBlur);
-    this.defaultMenuPresenter.dispose();
-    this.hoverController.dispose();
+    super.dispose();
     this.element.replaceChildren();
   }
 
@@ -637,29 +671,16 @@ export class DropdownView {
   }
 
   private attachOpenListeners() {
-    document.addEventListener('mousedown', this.handleDocumentMouseDown);
-    this.removeDocumentMouseDown = () => {
-      document.removeEventListener('mousedown', this.handleDocumentMouseDown);
-    };
-    document.addEventListener('focusin', this.handleDocumentFocusIn);
-    this.removeDocumentFocusIn = () => {
-      document.removeEventListener('focusin', this.handleDocumentFocusIn);
-    };
-    window.addEventListener('resize', this.handleViewportChange);
-    window.addEventListener('scroll', this.handleViewportChange, true);
-    this.removeViewportListeners = () => {
-      window.removeEventListener('resize', this.handleViewportChange);
-      window.removeEventListener('scroll', this.handleViewportChange, true);
-    };
+    this.openListeners.value = combineDisposables(
+      addDisposableListener(document, 'mousedown', this.handleDocumentMouseDown),
+      addDisposableListener(document, 'focusin', this.handleDocumentFocusIn),
+      addDisposableListener(window, 'resize', this.handleViewportChange),
+      addDisposableListener(window, 'scroll', this.handleViewportChange, true),
+    );
   }
 
   private detachOpenListeners() {
-    this.removeDocumentMouseDown();
-    this.removeDocumentFocusIn();
-    this.removeViewportListeners();
-    this.removeDocumentMouseDown = () => {};
-    this.removeDocumentFocusIn = () => {};
-    this.removeViewportListeners = () => {};
+    this.openListeners.clear();
   }
 
   private normalizeProps(props: DropdownProps): DropdownProps {

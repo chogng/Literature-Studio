@@ -3,6 +3,7 @@
 
 import { BrowserWindow, WebContentsView, webContents } from 'electron';
 
+import { LifecycleStore, MutableLifecycle, toDisposable } from 'ls/base/common/lifecycle';
 import type {
   NativeMenuEvent,
   NativeMenuOpenPayload,
@@ -23,6 +24,34 @@ const hiddenBounds = { x: 0, y: 0, width: 0, height: 0 };
 let menuParentWindow: BrowserWindow | null = null;
 let menuOverlayView: WebContentsView | null = null;
 let menuState: NativeMenuState | null = null;
+const menuOverlayBindings = new MutableLifecycle<LifecycleStore>();
+
+type EventEmitterLike = {
+  on(event: string, listener: (...args: unknown[]) => void): unknown;
+  removeListener(event: string, listener: (...args: unknown[]) => void): unknown;
+};
+
+function addDisposableEmitterListener(
+  target: EventEmitterLike,
+  event: string,
+  listener: (...args: unknown[]) => void,
+) {
+  target.on(event, listener);
+  return toDisposable(() => {
+    target.removeListener(event, listener);
+  });
+}
+
+function resetMenuOverlay(view?: WebContentsView | null) {
+  if (view && menuOverlayView !== view) {
+    return;
+  }
+
+  menuOverlayBindings.clear();
+  menuParentWindow = null;
+  menuOverlayView = null;
+  menuState = null;
+}
 
 function bringMenuOverlayToFront() {
   if (
@@ -156,36 +185,44 @@ function applyMenuOverlayBounds() {
 }
 
 function bindParentWindow(parentWindow: BrowserWindow, view: WebContentsView) {
+  const bindings = new LifecycleStore();
   const sync = () => {
+    if (menuOverlayView !== view) {
+      return;
+    }
+
     applyMenuOverlayBounds();
   };
   const closeForParentStateChange = () => {
+    if (menuOverlayView !== view) {
+      return;
+    }
+
     closeMenuOverlay();
   };
 
-  parentWindow.on('resize', sync);
-  parentWindow.on('maximize', sync);
-  parentWindow.on('unmaximize', sync);
-  parentWindow.on('enter-full-screen', sync);
-  parentWindow.on('leave-full-screen', sync);
-  parentWindow.on('blur', closeForParentStateChange);
-  parentWindow.on('minimize', closeForParentStateChange);
-  parentWindow.on('hide', closeForParentStateChange);
-  parentWindow.on('closed', closeForParentStateChange);
-
-  view.webContents.once('destroyed', () => {
-    if (!parentWindow.isDestroyed()) {
-      parentWindow.removeListener('resize', sync);
-      parentWindow.removeListener('maximize', sync);
-      parentWindow.removeListener('unmaximize', sync);
-      parentWindow.removeListener('enter-full-screen', sync);
-      parentWindow.removeListener('leave-full-screen', sync);
-      parentWindow.removeListener('blur', closeForParentStateChange);
-      parentWindow.removeListener('minimize', closeForParentStateChange);
-      parentWindow.removeListener('hide', closeForParentStateChange);
-      parentWindow.removeListener('closed', closeForParentStateChange);
+  bindings.add(addDisposableEmitterListener(parentWindow, 'resize', sync));
+  bindings.add(addDisposableEmitterListener(parentWindow, 'maximize', sync));
+  bindings.add(addDisposableEmitterListener(parentWindow, 'unmaximize', sync));
+  bindings.add(addDisposableEmitterListener(parentWindow, 'enter-full-screen', sync));
+  bindings.add(addDisposableEmitterListener(parentWindow, 'leave-full-screen', sync));
+  bindings.add(addDisposableEmitterListener(parentWindow, 'blur', closeForParentStateChange));
+  bindings.add(addDisposableEmitterListener(parentWindow, 'minimize', closeForParentStateChange));
+  bindings.add(addDisposableEmitterListener(parentWindow, 'hide', closeForParentStateChange));
+  bindings.add(addDisposableEmitterListener(parentWindow, 'closed', closeForParentStateChange));
+  bindings.add(addDisposableEmitterListener(view.webContents, 'did-finish-load', () => {
+    if (menuOverlayView !== view) {
+      return;
     }
-  });
+
+    emitState();
+    applyMenuOverlayBounds();
+  }));
+  bindings.add(addDisposableEmitterListener(view.webContents, 'destroyed', () => {
+    resetMenuOverlay(view);
+  }));
+
+  return bindings;
 }
 
 function createMenuOverlayView(window: BrowserWindow) {
@@ -202,13 +239,7 @@ function createMenuOverlayView(window: BrowserWindow) {
   view.setVisible(false);
   view.setBounds(hiddenBounds);
   window.contentView.addChildView(view);
-
-  view.webContents.on('did-finish-load', () => {
-    emitState();
-    applyMenuOverlayBounds();
-  });
-
-  bindParentWindow(window, view);
+  menuOverlayBindings.value = bindParentWindow(window, view);
   return view;
 }
 
@@ -362,13 +393,15 @@ export function disposeMenuOverlay(window?: BrowserWindow | null) {
   }
 
   const view = menuOverlayView;
-  menuOverlayView = null;
+  const parentWindow = menuParentWindow;
 
-  if (menuParentWindow && !menuParentWindow.isDestroyed()) {
-    menuParentWindow.contentView.removeChildView(view);
+  resetMenuOverlay(view);
+
+  if (parentWindow && !parentWindow.isDestroyed()) {
+    parentWindow.contentView.removeChildView(view);
   }
 
-  menuParentWindow = null;
-  menuState = null;
-  view.webContents.close({ waitForBeforeUnload: false });
+  if (!view.webContents.isDestroyed()) {
+    view.webContents.close({ waitForBeforeUnload: false });
+  }
 }

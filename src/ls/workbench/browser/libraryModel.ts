@@ -1,3 +1,4 @@
+import { EventEmitter } from 'ls/base/common/event';
 import type {
   ElectronInvoke,
   LibraryDocumentSummary,
@@ -32,7 +33,7 @@ const DEFAULT_LIBRARY_MODEL_SNAPSHOT: LibraryModelSnapshot = {
 export class LibraryModel {
   private context: LibraryModelContext;
   private snapshot: LibraryModelSnapshot = DEFAULT_LIBRARY_MODEL_SNAPSHOT;
-  private listeners = new Set<() => void>();
+  private readonly onDidChangeEmitter = new EventEmitter<void>();
   private refreshSequence = 0;
   private started = false;
   private disposed = false;
@@ -45,10 +46,7 @@ export class LibraryModel {
   }
 
   readonly subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.onDidChangeEmitter.event(listener);
   };
 
   readonly getSnapshot = () => this.snapshot;
@@ -135,14 +133,16 @@ export class LibraryModel {
   };
 
   readonly dispose = () => {
+    if (this.disposed) {
+      return;
+    }
+
     this.disposed = true;
-    this.listeners.clear();
+    this.onDidChangeEmitter.dispose();
   };
 
   private emitChange() {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.onDidChangeEmitter.fire();
   }
 
   private shouldApplySnapshot(sequence: number) {

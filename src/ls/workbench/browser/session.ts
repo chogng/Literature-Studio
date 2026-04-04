@@ -1,3 +1,4 @@
+import { EventEmitter } from "ls/base/common/event";
 import type { Article } from "ls/workbench/services/article/articleFetch";
 
 export type SelectionModePhase = "off" | "multi" | "all";
@@ -19,13 +20,7 @@ const DEFAULT_WORKBENCH_SESSION: WorkbenchSessionSnapshot = {
 };
 
 let workbenchSessionState = DEFAULT_WORKBENCH_SESSION;
-const workbenchSessionListeners = new Set<() => void>();
-
-function emitWorkbenchSessionChange() {
-  for (const listener of workbenchSessionListeners) {
-    listener();
-  }
-}
+const onDidChangeWorkbenchSessionEmitter = new EventEmitter<void>();
 
 function updateWorkbenchSessionState(
   reducer: (current: WorkbenchSessionSnapshot) => WorkbenchSessionSnapshot,
@@ -36,14 +31,11 @@ function updateWorkbenchSessionState(
   }
 
   workbenchSessionState = nextState;
-  emitWorkbenchSessionChange();
+  onDidChangeWorkbenchSessionEmitter.fire();
 }
 
 export function subscribeWorkbenchSession(listener: () => void) {
-  workbenchSessionListeners.add(listener);
-  return () => {
-    workbenchSessionListeners.delete(listener);
-  };
+  return onDidChangeWorkbenchSessionEmitter.event(listener);
 }
 
 export function getWorkbenchSessionSnapshot() {

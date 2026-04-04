@@ -1,3 +1,4 @@
+import { EventEmitter } from 'ls/base/common/event';
 import { normalizeUrl } from 'ls/workbench/common/url';
 
 export type PdfDownloadMonitorStatus = {
@@ -26,10 +27,10 @@ const EMPTY_STATUS: PdfDownloadMonitorStatus = Object.freeze({
 });
 
 const entries = new Map<string, PdfDownloadMonitorStatus>();
-const listeners = new Set<() => void>();
+const onDidChangePdfDownloadStatusEmitter = new EventEmitter<void>();
 
 function emitChange() {
-  listeners.forEach((listener) => listener());
+  onDidChangePdfDownloadStatusEmitter.fire();
 }
 
 function toComparablePageUrl(input: string) {
@@ -129,8 +130,5 @@ export function getPdfDownloadStatus(pageUrl: string) {
 }
 
 export function subscribePdfDownloadStatus(listener: () => void) {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+  return onDidChangePdfDownloadStatusEmitter.event(listener);
 }

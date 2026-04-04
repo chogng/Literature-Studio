@@ -50,6 +50,59 @@ function createTabItem(
   };
 }
 
+function installResizeObserverSpy() {
+  let activeObservers = 0;
+  const previousResizeObserver = globalThis.ResizeObserver;
+
+  class FakeResizeObserver implements ResizeObserver {
+    private observing = false;
+
+    disconnect() {
+      if (!this.observing) {
+        return;
+      }
+
+      this.observing = false;
+      activeObservers -= 1;
+    }
+
+    observe() {
+      if (this.observing) {
+        return;
+      }
+
+      this.observing = true;
+      activeObservers += 1;
+    }
+
+    unobserve() {}
+  }
+
+  Object.defineProperty(globalThis, 'ResizeObserver', {
+    configurable: true,
+    writable: true,
+    value: FakeResizeObserver,
+  });
+
+  return {
+    getActiveObservers() {
+      return activeObservers;
+    },
+    restore() {
+      if (previousResizeObserver === undefined) {
+        Reflect.deleteProperty(globalThis, 'ResizeObserver');
+        return;
+      }
+
+      Object.defineProperty(globalThis, 'ResizeObserver', {
+        configurable: true,
+        writable: true,
+        value: previousResizeObserver,
+      });
+    },
+  };
+}
+
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
@@ -250,4 +303,37 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
   assert.equal(secondTab.classList.contains('has-local-history'), true);
 
   control.dispose();
+});
+
+test('TabsTitleControl disconnects resize observers on dispose', () => {
+  const resizeObserverSpy = installResizeObserverSpy();
+
+  try {
+    const control = new TabsTitleControl({
+      group: createGroupModel('draft-a', [
+        createTabItem({
+          id: 'draft-a',
+          kind: 'draft',
+          label: 'Draft A',
+          title: 'Draft A',
+          isActive: true,
+        }),
+      ]),
+      labels: {
+        close: 'Close',
+      },
+      onActivateTab: () => {},
+      onCloseTab: () => {},
+    });
+    document.body.append(control.getElement());
+
+    assert.equal(resizeObserverSpy.getActiveObservers(), 1);
+
+    control.dispose();
+
+    assert.equal(resizeObserverSpy.getActiveObservers(), 0);
+  } finally {
+    resizeObserverSpy.restore();
+    document.body.replaceChildren();
+  }
 });

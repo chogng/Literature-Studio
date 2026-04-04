@@ -1,4 +1,5 @@
 import { toast } from "ls/base/browser/ui/toast/toast";
+import { EventEmitter } from "ls/base/common/event";
 import type {
   AgentMessagePayload,
   Article,
@@ -216,7 +217,7 @@ export class AssistantModel {
   private context: AssistantModelContext;
   private state: AssistantModelState;
   private snapshot: AssistantModelSnapshot;
-  private readonly listeners = new Set<() => void>();
+  private readonly onDidChangeEmitter = new EventEmitter<void>();
 
   constructor(context: AssistantModelContext) {
     this.context = context;
@@ -230,10 +231,7 @@ export class AssistantModel {
   }
 
   readonly subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+    return this.onDidChangeEmitter.event(listener);
   };
 
   readonly getSnapshot = () => this.snapshot;
@@ -578,9 +576,7 @@ export class AssistantModel {
   };
 
   private emitChange() {
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.onDidChangeEmitter.fire();
   }
 
   private setState(nextState: AssistantModelState) {

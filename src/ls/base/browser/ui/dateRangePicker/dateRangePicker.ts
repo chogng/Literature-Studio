@@ -1,4 +1,12 @@
 import { formatDateInputValue, isDateRangeValid } from 'ls/base/common/date';
+import {
+  LifecycleOwner,
+  LifecycleStore,
+  MutableLifecycle,
+  combineDisposables,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 import 'ls/base/browser/ui/dateRangePicker/dateRangePicker.css';
 
 export type DateRangePickerLabels = {
@@ -41,6 +49,36 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.textContent = textContent;
   }
   return element;
+}
+
+function addDisposableListener<K extends keyof DocumentEventMap>(
+  target: Document,
+  type: K,
+  listener: (event: DocumentEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof WindowEventMap>(
+  target: Window,
+  type: K,
+  listener: (event: WindowEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener(
+  target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
 }
 
 function createChevronIcon(direction: 'left' | 'right') {
@@ -183,7 +221,7 @@ function orderDateValues(primaryValue: string, secondaryValue: string) {
   };
 }
 
-export class DateRangePickerView {
+export class DateRangePickerView extends LifecycleOwner {
   private props: DateRangePickerProps;
   private isOpen = false;
   private visibleMonth: Date;
@@ -194,24 +232,27 @@ export class DateRangePickerView {
   private readonly triggerContent = createElement('span', 'date-range-trigger-content');
   private readonly triggerIcon = createElement('span', 'date-range-trigger-icon');
   private readonly triggerText = createElement('span', 'date-range-trigger-text');
+  private readonly popupDisposables = new LifecycleStore();
   private popup: HTMLDivElement | null = null;
   private activeSlot: DateRangeSlot = 'primary';
   private draftPrimaryDate = '';
   private draftSecondaryDate = '';
   private pendingFocusDayValue: string | null = null;
-  private removeOutsideHandlers = () => {};
-  private removeWindowResizeHandler = () => {};
+  private readonly openListeners = new MutableLifecycle<DisposableLike>();
   private disposed = false;
 
   constructor(props: DateRangePickerProps) {
+    super();
     this.props = this.normalizeProps(props);
     this.syncDraftValuesFromProps();
     const now = new Date();
     this.visibleMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    this.register(this.openListeners);
+    this.register(this.popupDisposables);
 
     this.trigger.type = 'button';
     this.trigger.setAttribute('aria-haspopup', 'dialog');
-    this.trigger.addEventListener('click', this.handleTriggerClick);
+    this.register(addDisposableListener(this.trigger, 'click', this.handleTriggerClick));
     this.triggerContent.append(this.triggerIcon, this.triggerText);
     this.trigger.append(this.triggerContent);
     this.element.append(this.trigger);
@@ -241,7 +282,7 @@ export class DateRangePickerView {
     }
     this.disposed = true;
     this.setOpen(false);
-    this.trigger.removeEventListener('click', this.handleTriggerClick);
+    super.dispose();
     this.element.replaceChildren();
   }
 
@@ -376,6 +417,10 @@ export class DateRangePickerView {
   }
 
   private setOpen(nextOpen: boolean) {
+    if (this.disposed && nextOpen) {
+      return;
+    }
+
     if (this.isOpen === nextOpen) {
       return;
     }
@@ -385,22 +430,14 @@ export class DateRangePickerView {
       this.syncDraftValuesFromProps();
       this.activeSlot = 'primary';
       this.visibleMonth = this.resolveVisibleMonth();
-      document.addEventListener('mousedown', this.handlePointerDown);
-      document.addEventListener('keydown', this.handleEscape);
-      window.addEventListener('resize', this.handleWindowResize);
-      this.removeOutsideHandlers = () => {
-        document.removeEventListener('mousedown', this.handlePointerDown);
-        document.removeEventListener('keydown', this.handleEscape);
-      };
-      this.removeWindowResizeHandler = () => {
-        window.removeEventListener('resize', this.handleWindowResize);
-      };
+      this.openListeners.value = combineDisposables(
+        addDisposableListener(document, 'mousedown', this.handlePointerDown),
+        addDisposableListener(document, 'keydown', this.handleEscape),
+        addDisposableListener(window, 'resize', this.handleWindowResize),
+      );
     } else {
       this.syncDraftValuesFromProps();
-      this.removeOutsideHandlers();
-      this.removeOutsideHandlers = () => {};
-      this.removeWindowResizeHandler();
-      this.removeWindowResizeHandler = () => {};
+      this.openListeners.clear();
     }
 
     this.render();
@@ -463,7 +500,11 @@ export class DateRangePickerView {
     slotElement.type = 'button';
     slotElement.dataset.slot = slot;
     slotElement.setAttribute('aria-pressed', String(this.activeSlot === slot));
-    slotElement.addEventListener('click', () => this.setActiveSlot(slot));
+    this.popupDisposables.add(
+      addDisposableListener(slotElement, 'click', () => {
+        this.setActiveSlot(slot);
+      }),
+    );
     slotElement.append(
       createElement('span', 'date-range-slot-index', indexText),
       createElement('span', 'date-range-slot-value', this.getSlotValue(slot) || '--'),
@@ -472,6 +513,7 @@ export class DateRangePickerView {
   }
 
   private renderPopup() {
+    this.popupDisposables.clear();
     this.popup?.remove();
     this.popup = null;
 
@@ -498,7 +540,11 @@ export class DateRangePickerView {
     );
     prevButton.type = 'button';
     prevButton.append(createChevronIcon('left'));
-    prevButton.addEventListener('click', () => this.stepMonth(-1));
+    this.popupDisposables.add(
+      addDisposableListener(prevButton, 'click', () => {
+        this.stepMonth(-1);
+      }),
+    );
 
     const title = createElement('div', 'date-range-month-title', formatMonthTitle(this.visibleMonth));
 
@@ -508,7 +554,11 @@ export class DateRangePickerView {
     );
     nextButton.type = 'button';
     nextButton.append(createChevronIcon('right'));
-    nextButton.addEventListener('click', () => this.stepMonth(1));
+    this.popupDisposables.add(
+      addDisposableListener(nextButton, 'click', () => {
+        this.stepMonth(1);
+      }),
+    );
     header.append(prevButton, title, nextButton);
 
     const weekdays = createElement('div', 'date-range-weekdays');
@@ -562,7 +612,11 @@ export class DateRangePickerView {
         day.disabled = disabled;
         day.dataset.dateValue = cell.value;
         day.setAttribute('aria-pressed', String(isSelected));
-        day.addEventListener('click', () => this.handleSelectDate(cell.value));
+        this.popupDisposables.add(
+          addDisposableListener(day, 'click', () => {
+            this.handleSelectDate(cell.value);
+          }),
+        );
         return day;
       }),
     );

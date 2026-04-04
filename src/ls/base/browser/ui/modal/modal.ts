@@ -5,6 +5,12 @@ import {
   type HoverService,
 } from 'ls/base/browser/ui/hover/hover';
 import 'ls/base/browser/ui/modal/modal.css';
+import {
+  LifecycleOwner,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 
 export type ModalContent =
   | string
@@ -90,6 +96,30 @@ function createCloseIcon() {
   return svg;
 }
 
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof WindowEventMap>(
+  target: Window,
+  type: K,
+  listener: (event: WindowEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener(
+  target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
 function resolveTitleContent(props: ModalProps) {
   return props.title;
 }
@@ -134,7 +164,7 @@ function unlockBodyScroll() {
   }
 }
 
-export class ModalView {
+export class ModalView extends LifecycleOwner {
   private props: ModalProps;
   private readonly element = createElement('div', 'modal-backdrop');
   private readonly panelElement = createElement('section', 'modal-panel');
@@ -147,11 +177,13 @@ export class ModalView {
   ) as HTMLButtonElement;
   private readonly closeHover: HoverHandle;
   private readonly bodyElement = createElement('div', 'modal-body');
+  private readonly openListeners = new MutableLifecycle<DisposableLike>();
   private isAttached = false;
   private readonly titleId = `modal-title-${Math.random().toString(36).slice(2, 10)}`;
   private disposed = false;
 
   constructor(props: ModalProps) {
+    super();
     this.props = {
       closeLabel: 'Close',
       closeOnOverlayClick: true,
@@ -162,12 +194,14 @@ export class ModalView {
     };
     const hoverService = this.props.hoverService ?? getHoverService();
     this.closeHover = hoverService.createHover(this.closeButton, null);
+    this.register(this.closeHover);
+    this.register(this.openListeners);
 
     this.closeButton.type = 'button';
     this.closeButton.append(createCloseIcon());
-    this.closeButton.addEventListener('click', this.handleCloseClick);
-    this.element.addEventListener('click', this.handleOverlayClick);
-    this.panelElement.addEventListener('click', this.handlePanelClick);
+    this.register(addDisposableListener(this.closeButton, 'click', this.handleCloseClick));
+    this.register(addDisposableListener(this.element, 'click', this.handleOverlayClick));
+    this.register(addDisposableListener(this.panelElement, 'click', this.handlePanelClick));
     this.headerElement.append(this.titleSpacerElement, this.closeButton);
     this.panelElement.append(this.headerElement, this.bodyElement);
     this.element.append(this.panelElement);
@@ -197,18 +231,18 @@ export class ModalView {
 
     lockBodyScroll();
     document.body.append(this.element);
-    window.addEventListener('keydown', this.handleWindowKeyDown);
+    this.openListeners.value = addDisposableListener(window, 'keydown', this.handleWindowKeyDown);
     this.isAttached = true;
   }
 
   close() {
-    if (!this.isAttached || typeof document === 'undefined') {
+    if (!this.isAttached) {
       return;
     }
 
     this.element.remove();
     unlockBodyScroll();
-    window.removeEventListener('keydown', this.handleWindowKeyDown);
+    this.openListeners.clear();
     this.isAttached = false;
   }
 
@@ -219,10 +253,7 @@ export class ModalView {
 
     this.disposed = true;
     this.close();
-    this.closeButton.removeEventListener('click', this.handleCloseClick);
-    this.closeHover.dispose();
-    this.element.removeEventListener('click', this.handleOverlayClick);
-    this.panelElement.removeEventListener('click', this.handlePanelClick);
+    super.dispose();
     this.element.replaceChildren();
   }
 

@@ -1,6 +1,7 @@
 import 'ls/base/browser/ui/actionbar/actionbar.css';
 import type { ContextMenuService } from 'ls/base/browser/contextmenu';
 import type { BaseAction } from 'ls/base/common/actions';
+import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 import {
   ActionViewItem,
   type ActionViewItemLike,
@@ -68,6 +69,18 @@ function composeClassName(parts: Array<string | undefined | null | false>) {
   return parts.filter(Boolean).join(' ');
 }
 
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
 function isActionItem(item: ActionBarItem): item is ActionBarActionItem {
   return !isActionBarViewItem(item) && item.type !== 'separator';
 }
@@ -124,7 +137,7 @@ type RenderedAction = {
   dispose: () => void;
 };
 
-export class ActionBarView {
+export class ActionBarView extends LifecycleOwner {
   private props: ActionBarProps;
   private readonly element = document.createElement('div');
   private readonly actionsContainer = document.createElement('div');
@@ -133,10 +146,11 @@ export class ActionBarView {
   private disposed = false;
 
   constructor(props: ActionBarProps = {}) {
+    super();
     this.props = this.normalizeProps(props);
     this.actionsContainer.className = 'actionbar-actions-container';
     this.element.append(this.actionsContainer);
-    this.element.addEventListener('keydown', this.handleKeyDown);
+    this.register(addDisposableListener(this.element, 'keydown', this.handleKeyDown));
     this.render();
   }
 
@@ -168,7 +182,7 @@ export class ActionBarView {
     this.clearRenderedActions();
     this.fallbackContextMenuService?.dispose?.();
     this.fallbackContextMenuService = null;
-    this.element.removeEventListener('keydown', this.handleKeyDown);
+    super.dispose();
     this.element.replaceChildren();
   }
 

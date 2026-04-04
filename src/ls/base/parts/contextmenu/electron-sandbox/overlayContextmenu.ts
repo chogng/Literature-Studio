@@ -3,6 +3,7 @@ import type {
   ContextMenuAlignment,
   ContextMenuAnchor,
 } from 'ls/base/browser/contextmenu';
+import { LifecycleOwner } from 'ls/base/common/lifecycle';
 import type {
   NativeMenuAlign,
   NativeMenuCoverage,
@@ -97,18 +98,20 @@ function resolveTriggerRect(anchor: ElectronOverlayMenuAnchor): NativeMenuRect {
   return anchor;
 }
 
-export class ElectronOverlayMenuController implements ElectronOverlayMenuControllerHandle {
+export class ElectronOverlayMenuController
+  extends LifecycleOwner
+  implements ElectronOverlayMenuControllerHandle
+{
   private readonly menuApi = nativeHostService.overlayMenu;
   private activeRequestId: string | null = null;
   private activeOptions: ElectronOverlayMenuControllerOptions | null = null;
   private disposed = false;
-  private readonly removeMenuEventListener: () => void;
 
   constructor() {
-    this.removeMenuEventListener =
-      canUseElectronOverlayContextMenus() && typeof this.menuApi?.onEvent === 'function'
-        ? this.menuApi.onEvent((event) => this.handleMenuEvent(event))
-        : () => {};
+    super();
+    if (canUseElectronOverlayContextMenus() && typeof this.menuApi?.onEvent === 'function') {
+      this.register(this.menuApi.onEvent((event) => this.handleMenuEvent(event)));
+    }
   }
 
   show = (options: ElectronOverlayMenuControllerOptions) => {
@@ -155,9 +158,9 @@ export class ElectronOverlayMenuController implements ElectronOverlayMenuControl
       return;
     }
 
-    this.disposed = true;
     this.hide();
-    this.removeMenuEventListener();
+    this.disposed = true;
+    super.dispose();
   };
 
   private handleMenuEvent(event: NativeMenuEvent) {
@@ -185,7 +188,10 @@ export type ElectronOverlayDropdownMenuPresenterOptions = {
   requestIdPrefix?: string;
 };
 
-export class ElectronOverlayDropdownMenuPresenter implements DropdownMenuPresenter {
+export class ElectronOverlayDropdownMenuPresenter
+  extends LifecycleOwner
+  implements DropdownMenuPresenter
+{
   readonly isDetached = true;
   readonly supportsActiveDescendant = false;
   readonly respondsToViewportChanges = true;
@@ -193,12 +199,20 @@ export class ElectronOverlayDropdownMenuPresenter implements DropdownMenuPresent
   private activeRequest: DropdownMenuRequest | null = null;
   private closingRequest: DropdownMenuRequest | null = null;
   private activeTriggerRect: DropdownMenuRequest['triggerRect'] | null = null;
+  private disposed = false;
 
   constructor(
     private readonly options: ElectronOverlayDropdownMenuPresenterOptions = {},
-  ) {}
+  ) {
+    super();
+    this.register(this.electronOverlayMenuController);
+  }
 
   show = (request: DropdownMenuRequest) => {
+    if (this.disposed) {
+      return;
+    }
+
     if (
       request.source === 'props' &&
       this.activeRequest &&
@@ -226,6 +240,10 @@ export class ElectronOverlayDropdownMenuPresenter implements DropdownMenuPresent
   };
 
   hide = () => {
+    if (this.disposed) {
+      return;
+    }
+
     this.activeTriggerRect = null;
     this.electronOverlayMenuController.hide();
   };
@@ -235,10 +253,15 @@ export class ElectronOverlayDropdownMenuPresenter implements DropdownMenuPresent
   containsTarget = () => false;
 
   dispose = () => {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
     this.activeRequest = null;
     this.closingRequest = null;
     this.activeTriggerRect = null;
-    this.electronOverlayMenuController.dispose();
+    super.dispose();
   };
 
   private readonly handleHide = () => {
@@ -299,13 +322,24 @@ function resolveOverlayAnchor(anchor: ContextMenuAnchor) {
 }
 
 export class ElectronOverlayContextMenuHandlerImpl
+  extends LifecycleOwner
   implements ElectronOverlayContextMenuHandler
 {
   private readonly electronOverlayMenuController = createElectronOverlayMenuController();
   private activeRequest: ShowElectronOverlayContextMenuRequest | null = null;
   private closingRequest: ShowElectronOverlayContextMenuRequest | null = null;
+  private disposed = false;
+
+  constructor() {
+    super();
+    this.register(this.electronOverlayMenuController);
+  }
 
   show = (request: ShowElectronOverlayContextMenuRequest) => {
+    if (this.disposed) {
+      return;
+    }
+
     this.activeRequest = request;
     this.electronOverlayMenuController.show({
       anchor: resolveOverlayAnchor(request.anchor),
@@ -320,15 +354,24 @@ export class ElectronOverlayContextMenuHandlerImpl
   };
 
   hide = () => {
+    if (this.disposed) {
+      return;
+    }
+
     this.electronOverlayMenuController.hide();
   };
 
   isVisible = () => this.electronOverlayMenuController.isVisible();
 
   dispose = () => {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
     this.activeRequest = null;
     this.closingRequest = null;
-    this.electronOverlayMenuController.dispose();
+    super.dispose();
   };
 
   private readonly handleHide = () => {

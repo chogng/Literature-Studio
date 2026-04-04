@@ -5,6 +5,7 @@ import {
   type HoverInput,
   type HoverService,
 } from 'ls/base/browser/ui/hover/hover';
+import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
@@ -103,19 +104,33 @@ function resolveButtonContent(props: ButtonProps) {
   return props.content;
 }
 
-export class ButtonView {
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export class ButtonView extends LifecycleOwner {
   private props: ButtonProps;
   private readonly element = createElement('button');
   private readonly hoverController: HoverHandle;
   private disposed = false;
 
   constructor(props: ButtonProps = {}) {
+    super();
     this.props = props;
     const hoverService = props.hoverService ?? getHoverService();
     this.hoverController = hoverService.createHover(this.element, null);
-    this.element.addEventListener('click', this.handleClick);
-    this.element.addEventListener('focus', this.handleFocus);
-    this.element.addEventListener('blur', this.handleBlur);
+    this.register(this.hoverController);
+    this.register(addDisposableListener(this.element, 'click', this.handleClick));
+    this.register(addDisposableListener(this.element, 'focus', this.handleFocus));
+    this.register(addDisposableListener(this.element, 'blur', this.handleBlur));
     this.render();
   }
 
@@ -146,10 +161,7 @@ export class ButtonView {
     }
 
     this.disposed = true;
-    this.element.removeEventListener('click', this.handleClick);
-    this.element.removeEventListener('focus', this.handleFocus);
-    this.element.removeEventListener('blur', this.handleBlur);
-    this.hoverController.dispose();
+    super.dispose();
     this.element.replaceChildren();
   }
 

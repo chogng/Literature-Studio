@@ -1,4 +1,11 @@
 import 'ls/base/browser/ui/hover/hover.css';
+import {
+  LifecycleOwner,
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 
 export type HoverRenderable = string | Node | (() => string | Node);
 
@@ -24,11 +31,10 @@ export type HoverOptions = {
 
 export type HoverInput = HoverOptions | string | null | undefined;
 
-export type HoverHandle = {
+export type HoverHandle = DisposableLike & {
   show: () => void;
   hide: () => void;
   update: (input: HoverInput) => void;
-  dispose: () => void;
 };
 
 const DEFAULT_PLAIN_HOVER_DELAY_MS = 600;
@@ -65,10 +71,57 @@ function toHoverRect(rect: DOMRect | DOMRectReadOnly): HoverRect {
   };
 }
 
+function addDisposableListener<K extends keyof DocumentEventMap>(
+  target: Document,
+  type: K,
+  listener: (event: DocumentEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof WindowEventMap>(
+  target: Window,
+  type: K,
+  listener: (event: WindowEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener(
+  target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+function createTimeoutDisposable(callback: () => void, delay: number): DisposableLike {
+  let handle: number | null = window.setTimeout(() => {
+    handle = null;
+    callback();
+  }, delay);
+
+  return toDisposable(() => {
+    if (handle === null) {
+      return;
+    }
+
+    window.clearTimeout(handle);
+    handle = null;
+  });
+}
+
 class HoverInteractionPolicy {
   private inputModality: 'keyboard' | 'pointer' = 'pointer';
   private pointerSuppressedArea: HoverRect | null = null;
   private globalListenersInstalled = false;
+  private readonly globalListeners = new LifecycleStore();
 
   installGlobalListeners() {
     if (this.globalListenersInstalled || typeof document === 'undefined') {
@@ -76,11 +129,21 @@ class HoverInteractionPolicy {
     }
 
     this.globalListenersInstalled = true;
-    document.addEventListener('keydown', this.handleDocumentKeyDown, true);
-    document.addEventListener('pointerdown', this.handleDocumentPointerDown, true);
-    document.addEventListener('pointermove', this.handleDocumentPointerMove, true);
-    document.addEventListener('mousedown', this.handleDocumentMouseDown, true);
-    document.addEventListener('mousemove', this.handleDocumentMouseMove, true);
+    this.globalListeners.add(
+      addDisposableListener(document, 'keydown', this.handleDocumentKeyDown, true),
+    );
+    this.globalListeners.add(
+      addDisposableListener(document, 'pointerdown', this.handleDocumentPointerDown, true),
+    );
+    this.globalListeners.add(
+      addDisposableListener(document, 'pointermove', this.handleDocumentPointerMove, true),
+    );
+    this.globalListeners.add(
+      addDisposableListener(document, 'mousedown', this.handleDocumentMouseDown, true),
+    );
+    this.globalListeners.add(
+      addDisposableListener(document, 'mousemove', this.handleDocumentMouseMove, true),
+    );
   }
 
   notePointerHover() {
@@ -168,6 +231,21 @@ function cloneHoverRenderable(content: HoverRenderable): Node {
   return content.cloneNode(true);
 }
 
+function syncNativeHoverTitle(target: HTMLElement, input: HoverInput) {
+  if (typeof input === 'string') {
+    const title = input.trim();
+    if (title) {
+      target.title = title;
+      return;
+    }
+
+    target.removeAttribute('title');
+    return;
+  }
+
+  target.removeAttribute('title');
+}
+
 export function normalizeHoverInput(input: HoverInput): HoverOptions | null {
   if (typeof input === 'string') {
     if (!input.trim()) {
@@ -225,6 +303,9 @@ class HoverWidget {
     'ls-hover-pointer',
   );
   private readonly card = createElement('div', 'ls-hover-card');
+  private readonly domDisposables = new LifecycleStore();
+  private readonly mountDisposables = new LifecycleStore();
+  private readonly renderDisposables = new LifecycleStore();
   private owner: HoverController | null = null;
   private target: HTMLElement | null = null;
   private pointerInside = false;
@@ -232,9 +313,15 @@ class HoverWidget {
 
   constructor() {
     this.element.append(this.pointer, this.card);
-    this.card.addEventListener('mouseenter', this.handleMouseEnter);
-    this.card.addEventListener('mouseleave', this.handleMouseLeave);
-    this.card.addEventListener('pointerdown', this.handlePointerDown);
+    this.domDisposables.add(
+      addDisposableListener(this.card, 'mouseenter', this.handleMouseEnter),
+    );
+    this.domDisposables.add(
+      addDisposableListener(this.card, 'mouseleave', this.handleMouseLeave),
+    );
+    this.domDisposables.add(
+      addDisposableListener(this.card, 'pointerdown', this.handlePointerDown),
+    );
   }
 
   isPointerInside() {
@@ -254,6 +341,7 @@ class HoverWidget {
     this.owner = null;
     this.target = null;
     this.pointerInside = false;
+    this.renderDisposables.clear();
     this.unmount();
   }
 
@@ -264,10 +352,18 @@ class HoverWidget {
 
     this.mounted = true;
     document.body.append(this.element);
-    document.addEventListener('mousedown', this.handleDocumentMouseDown, true);
-    document.addEventListener('keydown', this.handleDocumentKeyDown, true);
-    document.addEventListener('scroll', this.handleDocumentScroll, true);
-    window.addEventListener('resize', this.handleWindowResize);
+    this.mountDisposables.add(
+      addDisposableListener(document, 'mousedown', this.handleDocumentMouseDown, true),
+    );
+    this.mountDisposables.add(
+      addDisposableListener(document, 'keydown', this.handleDocumentKeyDown, true),
+    );
+    this.mountDisposables.add(
+      addDisposableListener(document, 'scroll', this.handleDocumentScroll, true),
+    );
+    this.mountDisposables.add(
+      addDisposableListener(window, 'resize', this.handleWindowResize),
+    );
   }
 
   private unmount() {
@@ -277,13 +373,11 @@ class HoverWidget {
 
     this.mounted = false;
     this.element.remove();
-    document.removeEventListener('mousedown', this.handleDocumentMouseDown, true);
-    document.removeEventListener('keydown', this.handleDocumentKeyDown, true);
-    document.removeEventListener('scroll', this.handleDocumentScroll, true);
-    window.removeEventListener('resize', this.handleWindowResize);
+    this.mountDisposables.clear();
   }
 
   private render(options: HoverOptions) {
+    this.renderDisposables.clear();
     this.card.className = 'ls-hover-card';
     this.card.classList.toggle('compact', Boolean(options.compact));
     this.card.classList.remove('right-aligned');
@@ -344,7 +438,7 @@ class HoverWidget {
         button.append(document.createTextNode(action.label));
         actionContainer.append(button);
 
-        const runAction = (event?: Event) => {
+        const runAction = (event?: MouseEvent | KeyboardEvent) => {
           if (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -356,14 +450,18 @@ class HoverWidget {
           this.hide();
         };
 
-        actionContainer.addEventListener('click', runAction);
-        actionContainer.addEventListener('keyup', (event) => {
-          if (event.key !== 'Enter' && event.key !== ' ') {
-            return;
-          }
+        this.renderDisposables.add(
+          addDisposableListener(actionContainer, 'click', runAction),
+        );
+        this.renderDisposables.add(
+          addDisposableListener(actionContainer, 'keyup', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+              return;
+            }
 
-          runAction(event);
-        });
+            runAction(event);
+          }),
+        );
         actionsElement.append(actionContainer);
       }
       statusBarElement.append(actionsElement);
@@ -484,23 +582,29 @@ const sharedHoverWidget = new HoverWidget();
 let activeController: HoverController | null = null;
 let lastHoverHideAt = 0;
 
-class HoverController implements HoverHandle {
+class HoverController extends LifecycleOwner implements HoverHandle {
   private options: HoverOptions | null;
   private disposed = false;
-  private showTimer: number | null = null;
-  private hideTimer: number | null = null;
+  private readonly showTimer = new MutableLifecycle<DisposableLike>();
+  private readonly hideTimer = new MutableLifecycle<DisposableLike>();
 
   constructor(
     private readonly target: HTMLElement,
     input: HoverInput,
   ) {
+    super();
     hoverInteractionPolicy.installGlobalListeners();
+    syncNativeHoverTitle(this.target, input);
     this.options = normalizeHoverInput(input);
-    this.target.addEventListener('mouseenter', this.handleMouseEnter);
-    this.target.addEventListener('mouseleave', this.handleMouseLeave);
-    this.target.addEventListener('pointerdown', this.handlePointerDown, true);
-    this.target.addEventListener('focus', this.handleFocus, true);
-    this.target.addEventListener('blur', this.handleBlur, true);
+    this.register(this.showTimer);
+    this.register(this.hideTimer);
+    this.register(addDisposableListener(this.target, 'mouseenter', this.handleMouseEnter));
+    this.register(addDisposableListener(this.target, 'mouseleave', this.handleMouseLeave));
+    this.register(
+      addDisposableListener(this.target, 'pointerdown', this.handlePointerDown, true),
+    );
+    this.register(addDisposableListener(this.target, 'focus', this.handleFocus, true));
+    this.register(addDisposableListener(this.target, 'blur', this.handleBlur, true));
   }
 
   show = () => {
@@ -532,6 +636,7 @@ class HoverController implements HoverHandle {
   };
 
   update = (input: HoverInput) => {
+    syncNativeHoverTitle(this.target, input);
     this.options = normalizeHoverInput(input);
 
     if (!this.options) {
@@ -551,11 +656,7 @@ class HoverController implements HoverHandle {
 
     this.disposed = true;
     this.hide();
-    this.target.removeEventListener('mouseenter', this.handleMouseEnter);
-    this.target.removeEventListener('mouseleave', this.handleMouseLeave);
-    this.target.removeEventListener('pointerdown', this.handlePointerDown, true);
-    this.target.removeEventListener('focus', this.handleFocus, true);
-    this.target.removeEventListener('blur', this.handleBlur, true);
+    super.dispose();
   };
 
   handleOverlayEnter() {
@@ -611,14 +712,14 @@ class HoverController implements HoverHandle {
     );
     const nextDelay = Math.max(delay, remainingCooldown);
 
-    this.showTimer = window.setTimeout(() => {
+    this.showTimer.value = createTimeoutDisposable(() => {
       this.show();
     }, nextDelay);
   }
 
   private scheduleHide(delay = 0) {
     this.clearHideTimer();
-    this.hideTimer = window.setTimeout(() => {
+    this.hideTimer.value = createTimeoutDisposable(() => {
       if (!this.shouldHideOnHover() && sharedHoverWidget.isPointerInside()) {
         return;
       }
@@ -628,21 +729,11 @@ class HoverController implements HoverHandle {
   }
 
   private clearShowTimer() {
-    if (this.showTimer === null) {
-      return;
-    }
-
-    window.clearTimeout(this.showTimer);
-    this.showTimer = null;
+    this.showTimer.clear();
   }
 
   private clearHideTimer() {
-    if (this.hideTimer === null) {
-      return;
-    }
-
-    window.clearTimeout(this.hideTimer);
-    this.hideTimer = null;
+    this.hideTimer.clear();
   }
 
   private readonly handleMouseEnter = () => {

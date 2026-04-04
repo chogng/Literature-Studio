@@ -98,6 +98,7 @@ import {
   hasDesktopRuntime,
   hasWebContentRuntime,
 } from 'ls/base/common/platform';
+import { EventEmitter } from 'ls/base/common/event';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import 'ls/workbench/browser/media/workbench.css';
 
@@ -140,7 +141,7 @@ const DEFAULT_WORKBENCH_STATE: WorkbenchStateSnapshot = {
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
 
 let workbenchState = DEFAULT_WORKBENCH_STATE;
-const workbenchStateListeners = new Set<() => void>();
+const onDidChangeWorkbenchStateEmitter = new EventEmitter<void>();
 let settingsController: SettingsController | null = null;
 let libraryModel: LibraryModel | null = null;
 let webContentNavigationModel: WebContentNavigationModel | null = null;
@@ -167,12 +168,6 @@ const llmProviderIconMap: Record<LlmProviderId, LxIconName> = {
 };
 
 const AGENT_CHAT_AUTO_MODEL_OPTION_VALUE = 'auto';
-
-function emitWorkbenchStateChange() {
-  for (const listener of workbenchStateListeners) {
-    listener();
-  }
-}
 
 function getArticleSelectionKey(article: Pick<Article, 'sourceUrl' | 'fetchedAt'>) {
   return `${article.sourceUrl}::${article.fetchedAt}`;
@@ -1791,10 +1786,7 @@ class WorkbenchHost {
 }
 
 export function subscribeWorkbenchState(listener: () => void) {
-  workbenchStateListeners.add(listener);
-  return () => {
-    workbenchStateListeners.delete(listener);
-  };
+  return onDidChangeWorkbenchStateEmitter.event(listener);
 }
 
 export function getWorkbenchStateSnapshot() {
@@ -1808,7 +1800,7 @@ export function dispatchWorkbenchEvent(event: WorkbenchEvent) {
   }
 
   workbenchState = nextState;
-  emitWorkbenchStateChange();
+  onDidChangeWorkbenchStateEmitter.fire();
 }
 
 export function setWorkbenchActivePage(page: WorkbenchPage) {

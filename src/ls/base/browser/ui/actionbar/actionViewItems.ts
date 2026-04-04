@@ -4,6 +4,7 @@ import {
   type HoverInput,
   type HoverService,
 } from 'ls/base/browser/ui/hover/hover';
+import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 import type {
   ActionBarActionItem,
   ActionBarActionMode,
@@ -19,11 +20,27 @@ export type ActionViewItemLike = {
   getFocusableElement?: () => HTMLElement | null;
 };
 
-export abstract class BaseActionViewItem implements ActionViewItemLike {
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export abstract class BaseActionViewItem
+  extends LifecycleOwner
+  implements ActionViewItemLike
+{
   protected readonly element: HTMLElement;
   private disposed = false;
 
   constructor(element?: HTMLElement) {
+    super();
     this.element = element ?? document.createElement('div');
   }
 
@@ -48,6 +65,7 @@ export abstract class BaseActionViewItem implements ActionViewItemLike {
 
     this.disposed = true;
     this.element.remove();
+    super.dispose();
   }
 
   isDisposed() {
@@ -107,7 +125,8 @@ export class ActionViewItem extends BaseActionViewItem {
     this.button.append(this.content);
     this.element.append(this.button);
     this.hoverController = hoverService.createHover(this.button, null);
-    this.button.addEventListener('click', this.handleButtonClick);
+    this.register(this.hoverController);
+    this.register(addDisposableListener(this.button, 'click', this.handleButtonClick));
     this.render();
   }
 
@@ -160,16 +179,6 @@ export class ActionViewItem extends BaseActionViewItem {
     this.content.replaceChildren(
       resolveRenderable(this.item.content ?? this.item.label),
     );
-  }
-
-  override dispose() {
-    if (this.isDisposed()) {
-      return;
-    }
-
-    this.hoverController.dispose();
-    this.button.removeEventListener('click', this.handleButtonClick);
-    super.dispose();
   }
 
   focus() {

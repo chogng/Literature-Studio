@@ -1,4 +1,11 @@
 import 'ls/base/browser/ui/tree/media/tree.css';
+import {
+  LifecycleOwner,
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 
 export type SimpleTreeDataSource<T> = {
   hasChildren(node: T): boolean;
@@ -38,57 +45,108 @@ export type SimpleTreeOptions<T> = {
   onDidOpen?: (node: T) => void;
 };
 
-export class SimpleTree<T> {
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+function createTimeoutDisposable(callback: () => void, delay: number): DisposableLike {
+  let handle: number | null = window.setTimeout(() => {
+    handle = null;
+    callback();
+  }, delay);
+
+  return toDisposable(() => {
+    if (handle === null) {
+      return;
+    }
+
+    window.clearTimeout(handle);
+    handle = null;
+  });
+}
+
+function escapeAttributeSelectorValue(value: string) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(value);
+  }
+
+  return value.replace(/["\\]/g, '\\$&');
+}
+
+export class SimpleTree<T> extends LifecycleOwner {
   private readonly element = document.createElement('div');
+  private readonly renderDisposables = new LifecycleStore();
+  private readonly typeaheadReset = new MutableLifecycle<DisposableLike>();
   private input: T | null = null;
   private expandedIds: Set<string>;
   private selectedId: string | null = null;
   private focusedId: string | null = null;
   private typeaheadBuffer = '';
-  private typeaheadResetHandle: number | null = null;
+  private disposed = false;
 
   constructor(
     private readonly dataSource: SimpleTreeDataSource<T>,
     private readonly renderer: SimpleTreeRenderer<T>,
     private readonly options: SimpleTreeOptions<T>,
   ) {
+    super();
     this.expandedIds = new Set(options.defaultExpandedIds ?? []);
+    this.register(this.renderDisposables);
+    this.register(this.typeaheadReset);
     this.element.className = 'simple-tree';
     this.element.setAttribute('role', 'tree');
     this.element.tabIndex = 0;
     if (options.ariaLabel) {
       this.element.setAttribute('aria-label', options.ariaLabel);
     }
-    this.element.addEventListener('keydown', (event) => {
-      this.onKeyDown(event);
-    });
-    this.element.addEventListener('focus', () => {
-      if (!this.focusedId) {
-        const firstNode = this.getVisibleNodes()[0];
-        if (firstNode) {
-          this.focusedId = this.options.getId(firstNode.node);
-          this.rerender();
-        }
-      } else {
-        this.focusRenderedNode();
-      }
-    });
+    this.register(addDisposableListener(this.element, 'keydown', this.handleKeyDown));
+    this.register(addDisposableListener(this.element, 'focus', this.handleElementFocus));
   }
 
   getElement() {
     return this.element;
   }
 
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.input = null;
+    this.selectedId = null;
+    this.focusedId = null;
+    this.typeaheadBuffer = '';
+    super.dispose();
+    this.element.replaceChildren();
+  }
+
   setAriaLabel(label: string) {
+    if (this.disposed) {
+      return;
+    }
+
     this.element.setAttribute('aria-label', label);
   }
 
   focus() {
+    if (this.disposed) {
+      return;
+    }
+
     this.element.focus();
   }
 
   getSelection() {
-    if (!this.input || !this.selectedId) {
+    if (this.disposed || !this.input || !this.selectedId) {
       return null;
     }
 
@@ -100,6 +158,10 @@ export class SimpleTree<T> {
   }
 
   setSelection(node: T | null) {
+    if (this.disposed) {
+      return;
+    }
+
     const nextSelectedId = node ? this.options.getId(node) : null;
     if (nextSelectedId && !this.hasVisibleNode(nextSelectedId)) {
       return;
@@ -111,7 +173,7 @@ export class SimpleTree<T> {
   }
 
   getFocus() {
-    if (!this.input || !this.focusedId) {
+    if (this.disposed || !this.input || !this.focusedId) {
       return null;
     }
 
@@ -123,6 +185,10 @@ export class SimpleTree<T> {
   }
 
   setFocus(node: T | null) {
+    if (this.disposed) {
+      return;
+    }
+
     const nextFocusedId = node ? this.options.getId(node) : null;
     if (nextFocusedId && !this.hasVisibleNode(nextFocusedId)) {
       return;
@@ -133,6 +199,10 @@ export class SimpleTree<T> {
   }
 
   setInput(input: T | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.input = input;
     if (!input) {
       const hadSelection = this.selectedId !== null;
@@ -168,10 +238,15 @@ export class SimpleTree<T> {
   }
 
   rerender() {
+    if (this.disposed) {
+      return;
+    }
+
     this.render();
   }
 
   private render() {
+    this.renderDisposables.clear();
     if (!this.input) {
       this.element.replaceChildren();
       return;
@@ -249,16 +324,20 @@ export class SimpleTree<T> {
     rendered.classList.toggle('is-focused', isFocused);
     rendered.classList.toggle('is-loading', Boolean(nodeState.loading));
     rendered.classList.toggle('has-error', Boolean(nodeState.error));
-    rendered.addEventListener('mousedown', () => {
-      this.focusedId = nodeId;
-    });
-    rendered.addEventListener('click', () => {
-      this.selectedId = nodeId;
-      this.focusedId = nodeId;
-      this.element.focus({ preventScroll: true });
-      this.options.onDidChangeSelection?.(node);
-      this.rerender();
-    });
+    this.renderDisposables.add(
+      addDisposableListener(rendered, 'mousedown', () => {
+        this.focusedId = nodeId;
+      }),
+    );
+    this.renderDisposables.add(
+      addDisposableListener(rendered, 'click', () => {
+        this.selectedId = nodeId;
+        this.focusedId = nodeId;
+        this.element.focus({ preventScroll: true });
+        this.options.onDidChangeSelection?.(node);
+        this.rerender();
+      }),
+    );
     item.append(rendered);
 
     if (hasChildren && isExpanded) {
@@ -274,7 +353,19 @@ export class SimpleTree<T> {
     return item;
   }
 
-  private onKeyDown(event: KeyboardEvent) {
+  private readonly handleElementFocus = () => {
+    if (!this.focusedId) {
+      const firstNode = this.getVisibleNodes()[0];
+      if (firstNode) {
+        this.focusedId = this.options.getId(firstNode.node);
+        this.rerender();
+      }
+    } else {
+      this.focusRenderedNode();
+    }
+  };
+
+  private readonly handleKeyDown = (event: KeyboardEvent) => {
     if (!this.input) {
       return;
     }
@@ -399,7 +490,7 @@ export class SimpleTree<T> {
         break;
       }
     }
-  }
+  };
 
   private getVisibleNodes(input: T | null = this.input): Array<{
     node: T;
@@ -462,7 +553,7 @@ export class SimpleTree<T> {
     }
 
     const activeNode = this.element.querySelector<HTMLElement>(
-      `[data-simple-tree-node-id="${CSS.escape(this.focusedId)}"]`,
+      `[data-simple-tree-node-id="${escapeAttributeSelectorValue(this.focusedId)}"]`,
     );
     if (activeNode && document.activeElement === this.element) {
       activeNode.focus();
@@ -504,13 +595,8 @@ export class SimpleTree<T> {
   }
 
   private scheduleTypeaheadReset() {
-    if (this.typeaheadResetHandle !== null) {
-      window.clearTimeout(this.typeaheadResetHandle);
-    }
-
-    this.typeaheadResetHandle = window.setTimeout(() => {
+    this.typeaheadReset.value = createTimeoutDisposable(() => {
       this.typeaheadBuffer = '';
-      this.typeaheadResetHandle = null;
     }, 700);
   }
 

@@ -3,33 +3,11 @@ import type {
   SplitViewSashChangeEvent,
   SplitViewSashSnapEvent,
 } from 'ls/base/browser/ui/splitview/splitview';
+import { EventEmitter } from 'ls/base/common/event';
+import { LifecycleStore } from 'ls/base/common/lifecycle';
 import { Orientation, SplitView } from 'ls/base/browser/ui/splitview/splitview';
 
 import 'ls/base/browser/ui/grid/gridview.css';
-
-type Listener<T> = (event: T) => void;
-type Disposer = () => void;
-
-class Emitter<T> {
-  private readonly listeners = new Set<Listener<T>>();
-
-  event(listener: Listener<T>): Disposer {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  fire(event: T) {
-    for (const listener of this.listeners) {
-      listener(event);
-    }
-  }
-
-  dispose() {
-    this.listeners.clear();
-  }
-}
 
 export { Orientation } from 'ls/base/browser/ui/splitview/splitview';
 
@@ -141,9 +119,9 @@ export class GridBranchView implements IGridView {
   private readonly splitView: SplitView;
   private readonly children: GridChild[] = [];
   private readonly adapters: GridChildAdapter[] = [];
-  private readonly onDidSashChangeEmitter = new Emitter<SplitViewSashChangeEvent>();
-  private readonly onDidSashSnapEmitter = new Emitter<SplitViewSashSnapEvent>();
-  private readonly onDidSashEndEmitter = new Emitter<number>();
+  private readonly onDidSashChangeEmitter = new EventEmitter<SplitViewSashChangeEvent>();
+  private readonly onDidSashSnapEmitter = new EventEmitter<SplitViewSashSnapEvent>();
+  private readonly onDidSashEndEmitter = new EventEmitter<number>();
   private readonly sashSize: number;
   private edgeSnappingValue = false;
   private widthValue = 0;
@@ -152,15 +130,11 @@ export class GridBranchView implements IGridView {
   private leftValue = 0;
   private rootWidthValue = 0;
   private rootHeightValue = 0;
-  private readonly splitViewDisposables: Disposer[] = [];
+  private readonly splitViewDisposables = new LifecycleStore();
 
-  readonly onDidSashChange = this.onDidSashChangeEmitter.event.bind(
-    this.onDidSashChangeEmitter,
-  );
-  readonly onDidSashSnap = this.onDidSashSnapEmitter.event.bind(
-    this.onDidSashSnapEmitter,
-  );
-  readonly onDidSashEnd = this.onDidSashEndEmitter.event.bind(this.onDidSashEndEmitter);
+  readonly onDidSashChange = this.onDidSashChangeEmitter.event;
+  readonly onDidSashSnap = this.onDidSashSnapEmitter.event;
+  readonly onDidSashEnd = this.onDidSashEndEmitter.event;
 
   constructor(
     readonly orientation: Orientation,
@@ -174,12 +148,12 @@ export class GridBranchView implements IGridView {
     ].join(' ');
     this.splitView = new SplitView(orientation, sashSize);
     this.element.append(this.splitView.element);
-    this.splitViewDisposables.push(
+    this.splitViewDisposables.add(
       this.splitView.onDidSashChange((event) => {
         this.onDidSashChangeEmitter.fire(event);
       }),
     );
-    this.splitViewDisposables.push(
+    this.splitViewDisposables.add(
       this.splitView.onDidSashSnap((event) => {
         const child = this.children[event.itemIndex];
         if (child) {
@@ -188,7 +162,7 @@ export class GridBranchView implements IGridView {
         this.onDidSashSnapEmitter.fire(event);
       }),
     );
-    this.splitViewDisposables.push(
+    this.splitViewDisposables.add(
       this.splitView.onDidSashEnd((index) => {
         this.onDidSashEndEmitter.fire(index);
       }),
@@ -421,10 +395,7 @@ export class GridBranchView implements IGridView {
   }
 
   dispose() {
-    for (const dispose of this.splitViewDisposables) {
-      dispose();
-    }
-    this.splitViewDisposables.length = 0;
+    this.splitViewDisposables.dispose();
     this.onDidSashChangeEmitter.dispose();
     this.onDidSashSnapEmitter.dispose();
     this.onDidSashEndEmitter.dispose();
@@ -460,19 +431,15 @@ export class GridBranchView implements IGridView {
 
 export class GridView implements IGridView {
   readonly element = document.createElement('div');
-  private readonly onDidSashChangeEmitter = new Emitter<GridSashChangeEvent>();
-  private readonly onDidSashSnapEmitter = new Emitter<GridSashSnapEvent>();
-  private readonly onDidSashEndEmitter = new Emitter<GridLocation>();
-  private readonly gridDisposables: Disposer[] = [];
+  private readonly onDidSashChangeEmitter = new EventEmitter<GridSashChangeEvent>();
+  private readonly onDidSashSnapEmitter = new EventEmitter<GridSashSnapEvent>();
+  private readonly onDidSashEndEmitter = new EventEmitter<GridLocation>();
+  private readonly gridDisposables = new LifecycleStore();
   private edgeSnappingValue = false;
 
-  readonly onDidSashChange = this.onDidSashChangeEmitter.event.bind(
-    this.onDidSashChangeEmitter,
-  );
-  readonly onDidSashSnap = this.onDidSashSnapEmitter.event.bind(
-    this.onDidSashSnapEmitter,
-  );
-  readonly onDidSashEnd = this.onDidSashEndEmitter.event.bind(this.onDidSashEndEmitter);
+  readonly onDidSashChange = this.onDidSashChangeEmitter.event;
+  readonly onDidSashSnap = this.onDidSashSnapEmitter.event;
+  readonly onDidSashEnd = this.onDidSashEndEmitter.event;
 
   constructor(readonly root: GridBranchView) {
     this.element.className = 'grid-view-root';
@@ -682,10 +649,7 @@ export class GridView implements IGridView {
   }
 
   dispose() {
-    for (const dispose of this.gridDisposables) {
-      dispose();
-    }
-    this.gridDisposables.length = 0;
+    this.gridDisposables.dispose();
     this.onDidSashChangeEmitter.dispose();
     this.onDidSashSnapEmitter.dispose();
     this.onDidSashEndEmitter.dispose();
@@ -694,15 +658,12 @@ export class GridView implements IGridView {
   }
 
   private rebindBranchEvents() {
-    for (const dispose of this.gridDisposables) {
-      dispose();
-    }
-    this.gridDisposables.length = 0;
+    this.gridDisposables.clear();
     this.bindBranchEvents(this.root, []);
   }
 
   private bindBranchEvents(branch: GridBranchView, path: GridLocation) {
-    this.gridDisposables.push(
+    this.gridDisposables.add(
       branch.onDidSashChange((event) => {
         this.onDidSashChangeEmitter.fire({
           ...event,
@@ -710,7 +671,7 @@ export class GridView implements IGridView {
         });
       }),
     );
-    this.gridDisposables.push(
+    this.gridDisposables.add(
       branch.onDidSashSnap((event) => {
         this.onDidSashSnapEmitter.fire({
           ...event,
@@ -718,7 +679,7 @@ export class GridView implements IGridView {
         });
       }),
     );
-    this.gridDisposables.push(
+    this.gridDisposables.add(
       branch.onDidSashEnd((index) => {
         this.onDidSashEndEmitter.fire([...path, index]);
       }),

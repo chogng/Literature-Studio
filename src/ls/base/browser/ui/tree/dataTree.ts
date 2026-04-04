@@ -6,6 +6,7 @@ import type { DataTreeDataSource } from 'ls/base/browser/ui/tree/treeTypes';
 export class DataTree<TInput, TNode> {
   private input: TInput | null = null;
   private readonly tree: SimpleTree<TNode>;
+  private disposed = false;
 
   constructor(
     private readonly dataSource: DataTreeDataSource<TInput, TNode>,
@@ -31,7 +32,20 @@ export class DataTree<TInput, TNode> {
   }
 
   focus() {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.focus();
+  }
+
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.tree.dispose();
   }
 
   getInput() {
@@ -39,22 +53,42 @@ export class DataTree<TInput, TNode> {
   }
 
   getSelection() {
+    if (this.disposed) {
+      return null;
+    }
+
     return this.tree.getSelection();
   }
 
   setSelection(node: TNode | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.setSelection(node);
   }
 
   getFocus() {
+    if (this.disposed) {
+      return null;
+    }
+
     return this.tree.getFocus();
   }
 
   setFocus(node: TNode | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.setFocus(node);
   }
 
   setInput(input: TInput | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.input = input;
     if (input === null) {
       this.tree.setInput(null);
@@ -65,11 +99,19 @@ export class DataTree<TInput, TNode> {
   }
 
   refresh(node?: TNode) {
+    if (this.disposed) {
+      return;
+    }
+
     void node;
     this.tree.rerender();
   }
 
   rerender() {
+    if (this.disposed) {
+      return;
+    }
+
     if (this.input === null) {
       return;
     }

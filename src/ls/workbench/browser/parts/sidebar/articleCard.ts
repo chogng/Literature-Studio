@@ -1,6 +1,7 @@
 import type { ArticleDetailsModalLabels } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
+import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 import type { Locale } from 'language/i18n';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
@@ -88,7 +89,19 @@ function createMetaText(
   return `${articleType || unknownLabel} | ${publishedDate}`;
 }
 
-export class ArticleCard {
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
+export class ArticleCard extends LifecycleOwner {
   private props: ArticleCardProps;
   private readonly element = createElement('li');
   private readonly mainElement = createElement(
@@ -107,15 +120,17 @@ export class ArticleCard {
     className: 'secondary-sidebar-article-card-toolbar-actions',
     ariaRole: 'group',
   });
-  private readonly unsubscribeDownloadStatus: () => void;
+  private disposed = false;
 
   constructor(props: ArticleCardProps) {
+    super();
     this.props = props;
     this.element.append(this.mainElement, this.toolbarView.getElement());
     this.mainElement.append(this.titleElement, this.metaElement);
-    this.element.addEventListener('click', this.handleCardClick);
-    this.element.addEventListener('keydown', this.handleCardKeyDown);
-    this.unsubscribeDownloadStatus = subscribePdfDownloadStatus(this.render);
+    this.register(this.toolbarView);
+    this.register(addDisposableListener(this.element, 'click', this.handleCardClick));
+    this.register(addDisposableListener(this.element, 'keydown', this.handleCardKeyDown));
+    this.register(subscribePdfDownloadStatus(this.render));
     this.render();
   }
 
@@ -124,19 +139,29 @@ export class ArticleCard {
   }
 
   setProps(props: ArticleCardProps) {
+    if (this.disposed) {
+      return;
+    }
+
     this.props = props;
     this.render();
   }
 
   dispose() {
-    this.unsubscribeDownloadStatus();
-    this.toolbarView.dispose();
-    this.element.removeEventListener('click', this.handleCardClick);
-    this.element.removeEventListener('keydown', this.handleCardKeyDown);
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    super.dispose();
     this.element.replaceChildren();
   }
 
   private readonly render = () => {
+    if (this.disposed) {
+      return;
+    }
+
     const { article, locale, labels, isSelectionModeEnabled, isSelected } =
       this.props;
     const title = article.title || labels.untitled;

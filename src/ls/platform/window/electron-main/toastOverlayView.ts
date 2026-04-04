@@ -7,6 +7,12 @@ import type {
   NativeToastState,
   NativeToastType,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import {
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 import { cleanText } from 'ls/base/common/strings';
 import {
   resolvePreloadScriptPath,
@@ -26,7 +32,7 @@ const maxEstimatedLines = 5;
 const hiddenBounds = { x: 0, y: 0, width: 0, height: 0 };
 
 type NativeToastTimerState = {
-  timeoutId: ReturnType<typeof setTimeout> | null;
+  timeout: MutableLifecycle<DisposableLike>;
   startedAt: number | null;
   remainingMs: number;
 };
@@ -37,7 +43,62 @@ let nativeToastState: NativeToastState = { items: [] };
 let nativeToastLayout: NativeToastLayout = { width: defaultToastWidth, height: 0 };
 let nativeToastId = 0;
 let nativeToastHovering = false;
+const nativeToastViewBindings = new MutableLifecycle<LifecycleStore>();
 const nativeToastTimers = new Map<number, NativeToastTimerState>();
+
+type EventEmitterLike = {
+  on(event: string, listener: (...args: unknown[]) => void): unknown;
+  removeListener(event: string, listener: (...args: unknown[]) => void): unknown;
+};
+
+function addDisposableEmitterListener(
+  target: EventEmitterLike,
+  event: string,
+  listener: (...args: unknown[]) => void,
+) {
+  target.on(event, listener);
+  return toDisposable(() => {
+    target.removeListener(event, listener);
+  });
+}
+
+function createTimeoutDisposable(callback: () => void, delay: number): DisposableLike {
+  let timeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+    timeoutId = null;
+    callback();
+  }, delay);
+
+  return toDisposable(() => {
+    if (timeoutId === null) {
+      return;
+    }
+
+    clearTimeout(timeoutId);
+    timeoutId = null;
+  });
+}
+
+function createNativeToastTimerState(remainingMs: number): NativeToastTimerState {
+  return {
+    timeout: new MutableLifecycle<DisposableLike>(),
+    startedAt: null,
+    remainingMs,
+  };
+}
+
+function resetNativeToastOverlay(view?: WebContentsView | null) {
+  if (view && nativeToastView !== view) {
+    return;
+  }
+
+  nativeToastViewBindings.clear();
+  clearNativeToastTimers();
+  nativeToastWindow = null;
+  nativeToastView = null;
+  nativeToastHovering = false;
+  nativeToastState = { items: [] };
+  nativeToastLayout = { width: defaultToastWidth, height: 0 };
+}
 
 function resolveRendererTarget() {
   const devUrl = process.env.ELECTRON_RENDERER_URL;
@@ -95,15 +156,17 @@ function clearNativeToastTimer(id: number) {
     return;
   }
 
-  if (timerState.timeoutId) {
-    clearTimeout(timerState.timeoutId);
-  }
-  timerState.timeoutId = null;
+  timerState.timeout.clear();
   timerState.startedAt = null;
 }
 
 function deleteNativeToastTimer(id: number) {
-  clearNativeToastTimer(id);
+  const timerState = nativeToastTimers.get(id);
+  if (!timerState) {
+    return;
+  }
+
+  timerState.timeout.dispose();
   nativeToastTimers.delete(id);
 }
 
@@ -121,7 +184,7 @@ function startNativeToastTimer(id: number) {
 
   clearNativeToastTimer(id);
   timerState.startedAt = Date.now();
-  timerState.timeoutId = setTimeout(() => {
+  timerState.timeout.value = createTimeoutDisposable(() => {
     dismissToast(id);
   }, timerState.remainingMs);
 }
@@ -248,10 +311,20 @@ function createNativeToastView(window: BrowserWindow) {
   view.setVisible(false);
   view.setBounds(hiddenBounds);
   window.contentView.addChildView(view);
-  view.webContents.on('did-finish-load', () => {
+
+  const bindings = new LifecycleStore();
+  bindings.add(addDisposableEmitterListener(view.webContents, 'did-finish-load', () => {
+    if (nativeToastView !== view) {
+      return;
+    }
+
     emitNativeToastState();
     applyNativeToastBounds();
-  });
+  }));
+  bindings.add(addDisposableEmitterListener(view.webContents, 'destroyed', () => {
+    resetNativeToastOverlay(view);
+  }));
+  nativeToastViewBindings.value = bindings;
 
   return view;
 }
@@ -319,11 +392,7 @@ export function showToast(window: BrowserWindow | null | undefined, options: Nat
   applyNativeToastBounds();
 
   if (normalizedOptions.duration !== Infinity) {
-    nativeToastTimers.set(id, {
-      timeoutId: null,
-      startedAt: null,
-      remainingMs: normalizedOptions.duration,
-    });
+    nativeToastTimers.set(id, createNativeToastTimerState(normalizedOptions.duration));
     startNativeToastTimer(id);
   }
 }
@@ -397,18 +466,16 @@ export function disposeToastOverlay(window?: BrowserWindow | null) {
     return;
   }
 
-  clearNativeToastTimers();
-
   const view = nativeToastView;
-  nativeToastView = null;
+  const parentWindow = nativeToastWindow;
 
-  if (nativeToastWindow && !nativeToastWindow.isDestroyed()) {
-    nativeToastWindow.contentView.removeChildView(view);
+  resetNativeToastOverlay(view);
+
+  if (parentWindow && !parentWindow.isDestroyed()) {
+    parentWindow.contentView.removeChildView(view);
   }
 
-  view.webContents.close({ waitForBeforeUnload: false });
-  nativeToastWindow = null;
-  nativeToastHovering = false;
-  nativeToastState = { items: [] };
-  nativeToastLayout = { width: defaultToastWidth, height: 0 };
+  if (!view.webContents.isDestroyed()) {
+    view.webContents.close({ waitForBeforeUnload: false });
+  }
 }

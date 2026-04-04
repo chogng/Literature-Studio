@@ -9,6 +9,7 @@ import {
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
+import { LifecycleOwner, LifecycleStore, toDisposable } from 'ls/base/common/lifecycle';
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
 import {
@@ -172,6 +173,18 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
 export function createSidebarPartLabels({
   ui,
 }: CreateSidebarPartLabelsParams): SidebarLabels {
@@ -314,7 +327,7 @@ function createArticleCardLabels(
   };
 }
 
-export class SecondarySidebarPartView {
+export class SecondarySidebarPartView extends LifecycleOwner {
   private props: SecondarySidebarProps;
   private readonly element = createElement('section', 'panel sidebar-panel');
   private readonly actionBarElement = createElement(
@@ -328,10 +341,14 @@ export class SecondarySidebarPartView {
     ariaRole: 'group',
   });
   private readonly fetchButton = createElement('button');
+  private readonly renderDisposables = new LifecycleStore();
   private cards = new Map<string, ArticleCard>();
+  private disposed = false;
 
   constructor(props: SecondarySidebarProps) {
+    super();
     this.props = props;
+    this.register(this.renderDisposables);
     this.dateRangePicker = createDateRangePickerView({
       startDate: this.props.batchStartDate,
       endDate: this.props.batchEndDate,
@@ -345,10 +362,12 @@ export class SecondarySidebarPartView {
       triggerIcon: createLxIcon('calendar'),
       triggerMode: 'icon',
     });
+    this.register(this.dateRangePicker);
+    this.register(this.selectionActionsView);
     this.fetchButton.type = 'button';
-    this.fetchButton.addEventListener('click', () =>
+    this.register(addDisposableListener(this.fetchButton, 'click', () =>
       this.props.onFetchLatestBatch(),
-    );
+    ));
     this.actionBarElement.append(
       this.dateRangePicker.getElement(),
       this.selectionActionsView.getElement(),
@@ -367,13 +386,21 @@ export class SecondarySidebarPartView {
   }
 
   setProps(props: SecondarySidebarProps) {
+    if (this.disposed) {
+      return;
+    }
+
     this.props = props;
     this.render();
   }
 
   dispose() {
-    this.dateRangePicker.dispose();
-    this.selectionActionsView.dispose();
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    super.dispose();
     for (const card of this.cards.values()) {
       card.dispose();
     }
@@ -383,6 +410,10 @@ export class SecondarySidebarPartView {
   }
 
   private render() {
+    if (this.disposed) {
+      return;
+    }
+
     const selectionButtonLabel =
       this.props.selectionModePhase === 'off'
         ? this.props.labels.selectionModeEnterMulti
@@ -444,6 +475,8 @@ export class SecondarySidebarPartView {
   }
 
   private renderContent() {
+    this.renderDisposables.clear();
+
     for (const [key, card] of this.cards) {
       if (
         !this.props.articles.some(
@@ -507,7 +540,9 @@ export class SecondarySidebarPartView {
     );
     quickSource.type = 'button';
     quickSource.textContent = this.props.labels.emptyAllQuickSourceAction;
-    quickSource.addEventListener('click', requestOpenAddressBarSourceMenu);
+    this.renderDisposables.add(
+      addDisposableListener(quickSource, 'click', requestOpenAddressBarSourceMenu),
+    );
 
     const inputLink = createElement(
       'button',
@@ -515,7 +550,9 @@ export class SecondarySidebarPartView {
     );
     inputLink.type = 'button';
     inputLink.textContent = this.props.labels.emptyAllInputLinkAction;
-    inputLink.addEventListener('click', requestFocusTitlebarWebUrlInput);
+    this.renderDisposables.add(
+      addDisposableListener(inputLink, 'click', requestFocusTitlebarWebUrlInput),
+    );
 
     empty.append(
       quickSource,

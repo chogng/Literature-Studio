@@ -4,6 +4,12 @@ import {
   resolveAnchoredHorizontalLeft,
   resolveAnchoredVerticalPlacement,
 } from 'ls/base/browser/ui/contextview/anchoredLayout';
+import {
+  LifecycleOwner,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
 import type { NativeMenuState } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import 'ls/base/parts/contextmenu/electron-sandbox/overlayMenu.css';
@@ -25,6 +31,18 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.textContent = textContent;
   }
   return element;
+}
+
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
 }
 
 function normalizeMenuState(
@@ -117,7 +135,7 @@ function toMenuActions(state: NativeMenuState): ContextMenuAction[] {
   }));
 }
 
-export class OverlayMenuView {
+export class OverlayMenuView extends LifecycleOwner {
   private readonly element = createElement('main', 'native-menu-overlay-page');
   private readonly menu = new Menu({
     items: [],
@@ -131,45 +149,62 @@ export class OverlayMenuView {
   });
   private normalizedMenuState: NativeMenuState | null = null;
   private measuredMenuWidth: number | null = null;
-  private resizeObserver: ResizeObserver | null = null;
+  private readonly menuResizeObserver = new MutableLifecycle<DisposableLike>();
   private focusedRequestId: string | null = null;
   private readonly menuApi = nativeHostService.overlayMenu;
+  private disposed = false;
   private readonly handleWindowResize = () => {
-    if (!this.normalizedMenuState) {
+    if (this.disposed || !this.normalizedMenuState) {
       return;
     }
 
     this.render();
   };
-  private readonly disposeListener =
-    typeof this.menuApi?.onStateChange === 'function'
-      ? this.menuApi.onStateChange((state) => {
-          this.normalizedMenuState = normalizeMenuState(state);
-          this.measuredMenuWidth = null;
-          this.render();
-        })
-      : () => {};
 
   constructor() {
-    this.element.addEventListener('mousedown', (event) => {
-      if (
-        this.normalizedMenuState &&
-        event.target === this.element
-      ) {
-        this.menuApi?.close(this.normalizedMenuState.requestId);
-      }
-    });
+    super();
+    this.register(this.menu);
+    this.register(this.menuResizeObserver);
+    this.register(
+      addDisposableListener(this.element, 'mousedown', (event) => {
+        if (
+          this.normalizedMenuState &&
+          event.target === this.element
+        ) {
+          this.menuApi?.close(this.normalizedMenuState.requestId);
+        }
+      }),
+    );
     this.element.append(this.menu.getElement());
-    window.addEventListener('resize', this.handleWindowResize);
+    this.register(addDisposableListener(window, 'resize', this.handleWindowResize));
+    if (typeof this.menuApi?.onStateChange === 'function') {
+      this.register(this.menuApi.onStateChange((state) => {
+        if (this.disposed) {
+          return;
+        }
+
+        this.normalizedMenuState = normalizeMenuState(state);
+        this.measuredMenuWidth = null;
+        this.render();
+      }));
+    }
 
     if (typeof this.menuApi?.getState === 'function') {
       void this.menuApi
         .getState()
         .then((state) => {
+          if (this.disposed) {
+            return;
+          }
+
           this.normalizedMenuState = normalizeMenuState(state);
           this.render();
         })
         .catch(() => {
+          if (this.disposed) {
+            return;
+          }
+
           this.normalizedMenuState = null;
           this.render();
         });
@@ -183,15 +218,22 @@ export class OverlayMenuView {
   }
 
   dispose() {
-    this.disposeListener();
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    window.removeEventListener('resize', this.handleWindowResize);
-    this.menu.dispose();
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
     this.element.replaceChildren();
+    this.normalizedMenuState = null;
+    this.focusedRequestId = null;
+    super.dispose();
   }
 
   private measureMenuWidth() {
+    if (this.disposed) {
+      return;
+    }
+
     const nextWidth = Math.ceil(this.menu.getElement().getBoundingClientRect().width);
     if (nextWidth > 0 && nextWidth !== this.measuredMenuWidth) {
       this.measuredMenuWidth = nextWidth;
@@ -219,6 +261,10 @@ export class OverlayMenuView {
   }
 
   private render() {
+    if (this.disposed) {
+      return;
+    }
+
     const menuElement = this.menu.getElement();
     const layout = resolveMenuLayout(
       this.normalizedMenuState,
@@ -227,8 +273,7 @@ export class OverlayMenuView {
 
     if (!this.normalizedMenuState || !layout) {
       this.focusedRequestId = null;
-      this.resizeObserver?.disconnect();
-      this.resizeObserver = null;
+      this.menuResizeObserver.clear();
       menuElement.style.display = 'none';
       menuElement.style.removeProperty('left');
       menuElement.style.removeProperty('top');
@@ -272,12 +317,23 @@ export class OverlayMenuView {
       menuElement.style.bottom = `${layout.bottom}px`;
     }
 
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = new ResizeObserver(() => {
-      this.measureMenuWidth();
-    });
-    this.resizeObserver.observe(menuElement);
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        this.measureMenuWidth();
+      });
+      resizeObserver.observe(menuElement);
+      this.menuResizeObserver.value = toDisposable(() => {
+        resizeObserver.disconnect();
+      });
+    } else {
+      this.menuResizeObserver.clear();
+    }
+
     queueMicrotask(() => {
+      if (this.disposed) {
+        return;
+      }
+
       this.measureMenuWidth();
       if (shouldFocus) {
         this.menu.focusSelectedOrFirstEnabled();

@@ -6,30 +6,7 @@ import {
 } from 'ls/base/browser/ui/sash/sash';
 
 import 'ls/base/browser/ui/splitview/splitview.css';
-
-type Listener<T> = (event: T) => void;
-type Disposer = () => void;
-
-class Emitter<T> {
-  private readonly listeners = new Set<Listener<T>>();
-
-  event(listener: Listener<T>): Disposer {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  fire(event: T) {
-    for (const listener of this.listeners) {
-      listener(event);
-    }
-  }
-
-  dispose() {
-    this.listeners.clear();
-  }
-}
+import { EventEmitter } from 'ls/base/common/event';
 
 export { Orientation } from 'ls/base/browser/ui/sash/sash';
 
@@ -131,9 +108,9 @@ export class SplitView<TLayoutContext = undefined> {
   private readonly viewContainer = document.createElement('div');
   private readonly sashContainer = document.createElement('div');
   private readonly items: ViewItem<TLayoutContext>[] = [];
-  private readonly onDidSashChangeEmitter = new Emitter<SplitViewSashChangeEvent>();
-  private readonly onDidSashSnapEmitter = new Emitter<SplitViewSashSnapEvent>();
-  private readonly onDidSashEndEmitter = new Emitter<number>();
+  private readonly onDidSashChangeEmitter = new EventEmitter<SplitViewSashChangeEvent>();
+  private readonly onDidSashSnapEmitter = new EventEmitter<SplitViewSashSnapEvent>();
+  private readonly onDidSashEndEmitter = new EventEmitter<number>();
   private sashItems: SashItem[] = [];
   private dragState: SashDragState | null = null;
   private width = 0;
@@ -142,15 +119,9 @@ export class SplitView<TLayoutContext = undefined> {
   private startSnappingEnabledValue = true;
   private endSnappingEnabledValue = true;
 
-  readonly onDidSashChange = this.onDidSashChangeEmitter.event.bind(
-    this.onDidSashChangeEmitter,
-  );
-  readonly onDidSashSnap = this.onDidSashSnapEmitter.event.bind(
-    this.onDidSashSnapEmitter,
-  );
-  readonly onDidSashEnd = this.onDidSashEndEmitter.event.bind(
-    this.onDidSashEndEmitter,
-  );
+  readonly onDidSashChange = this.onDidSashChangeEmitter.event;
+  readonly onDidSashSnap = this.onDidSashSnapEmitter.event;
+  readonly onDidSashEnd = this.onDidSashEndEmitter.event;
 
   get startSnappingEnabled() {
     return this.startSnappingEnabledValue;

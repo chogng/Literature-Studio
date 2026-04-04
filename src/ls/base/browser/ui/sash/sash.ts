@@ -1,27 +1,37 @@
 import 'ls/base/browser/ui/sash/sash.css';
+import {
+  combineDisposables,
+  LifecycleStore,
+  MutableLifecycle,
+  toDisposable,
+  type DisposableLike,
+} from 'ls/base/common/lifecycle';
+import { EventEmitter } from 'ls/base/common/event';
 
 type Listener<T> = (event: T) => void;
-type Disposer = () => void;
 
-class Emitter<T> {
-  private readonly listeners = new Set<Listener<T>>();
-
-  event(listener: Listener<T>): Disposer {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  fire(event: T) {
-    for (const listener of this.listeners) {
-      listener(event);
-    }
-  }
-
-  dispose() {
-    this.listeners.clear();
-  }
+function addDisposableListener<K extends keyof HTMLElementEventMap>(
+  target: HTMLElement,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener<K extends keyof WindowEventMap>(
+  target: Window,
+  type: K,
+  listener: (event: WindowEventMap[K]) => void,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike;
+function addDisposableListener(
+  target: Pick<EventTarget, 'addEventListener' | 'removeEventListener'>,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+): DisposableLike {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
 }
 
 export const enum Orientation {
@@ -66,16 +76,17 @@ function getPointerPosition(event: MouseEvent | PointerEvent) {
 
 export class Sash {
   private readonly element = document.createElement('div');
-  private readonly onDidStartEmitter = new Emitter<ISashEvent>();
-  private readonly onDidChangeEmitter = new Emitter<ISashEvent>();
-  private readonly onDidResetEmitter = new Emitter<void>();
-  private readonly onDidEndEmitter = new Emitter<void>();
+  private readonly onDidStartEmitter = new EventEmitter<ISashEvent>();
+  private readonly onDidChangeEmitter = new EventEmitter<ISashEvent>();
+  private readonly onDidResetEmitter = new EventEmitter<void>();
+  private readonly onDidEndEmitter = new EventEmitter<void>();
   private readonly size: number;
   private readonly prefersPointerEvents =
     typeof window !== 'undefined' && typeof window.PointerEvent !== 'undefined';
   private state = SashState.Enabled;
   private active = false;
-  private removeDragListeners: Disposer | null = null;
+  private readonly disposables = new LifecycleStore();
+  private readonly dragListeners = new MutableLifecycle<DisposableLike>();
 
   constructor(
     private readonly container: HTMLElement,
@@ -90,14 +101,24 @@ export class Sash {
     this.container.append(this.element);
 
     if (this.prefersPointerEvents) {
-      this.element.addEventListener('pointerdown', this.handlePointerDown);
+      this.disposables.add(
+        addDisposableListener(this.element, 'pointerdown', this.handlePointerDown),
+      );
     } else {
-      this.element.addEventListener('mousedown', this.handleMouseDown);
+      this.disposables.add(
+        addDisposableListener(this.element, 'mousedown', this.handleMouseDown),
+      );
     }
 
-    this.element.addEventListener('mouseenter', this.handleMouseEnter);
-    this.element.addEventListener('mouseleave', this.handleMouseLeave);
-    this.element.addEventListener('dblclick', this.handleDoubleClick);
+    this.disposables.add(
+      addDisposableListener(this.element, 'mouseenter', this.handleMouseEnter),
+    );
+    this.disposables.add(
+      addDisposableListener(this.element, 'mouseleave', this.handleMouseLeave),
+    );
+    this.disposables.add(
+      addDisposableListener(this.element, 'dblclick', this.handleDoubleClick),
+    );
   }
 
   getElement() {
@@ -145,18 +166,10 @@ export class Sash {
   }
 
   dispose() {
-    this.removeDragListeners?.();
-    this.removeDragListeners = null;
+    this.dragListeners.clear();
 
-    if (this.prefersPointerEvents) {
-      this.element.removeEventListener('pointerdown', this.handlePointerDown);
-    } else {
-      this.element.removeEventListener('mousedown', this.handleMouseDown);
-    }
-
-    this.element.removeEventListener('mouseenter', this.handleMouseEnter);
-    this.element.removeEventListener('mouseleave', this.handleMouseLeave);
-    this.element.removeEventListener('dblclick', this.handleDoubleClick);
+    this.dragListeners.dispose();
+    this.disposables.dispose();
     this.element.remove();
     this.onDidStartEmitter.dispose();
     this.onDidChangeEmitter.dispose();
@@ -204,7 +217,7 @@ export class Sash {
     }
 
     const { x: startX, y: startY } = getPointerPosition(event);
-    this.removeDragListeners?.();
+    this.dragListeners.clear();
     this.active = true;
     this.element.classList.remove('hover');
     this.element.classList.add('active');
@@ -230,8 +243,7 @@ export class Sash {
     };
 
     const handleEnd = () => {
-      this.removeDragListeners?.();
-      this.removeDragListeners = null;
+      this.dragListeners.clear();
       this.active = false;
       this.element.classList.remove('active');
       this.onDidEndEmitter.fire();
@@ -245,14 +257,11 @@ export class Sash {
         handleEnd();
       };
 
-      window.addEventListener('pointermove', pointerMoveListener);
-      window.addEventListener('pointerup', pointerUpListener);
-      window.addEventListener('pointercancel', pointerUpListener);
-      this.removeDragListeners = () => {
-        window.removeEventListener('pointermove', pointerMoveListener);
-        window.removeEventListener('pointerup', pointerUpListener);
-        window.removeEventListener('pointercancel', pointerUpListener);
-      };
+      this.dragListeners.value = combineDisposables(
+        addDisposableListener(window, 'pointermove', pointerMoveListener),
+        addDisposableListener(window, 'pointerup', pointerUpListener),
+        addDisposableListener(window, 'pointercancel', pointerUpListener),
+      );
       return;
     }
 
@@ -263,12 +272,10 @@ export class Sash {
       handleEnd();
     };
 
-    window.addEventListener('mousemove', mouseMoveListener);
-    window.addEventListener('mouseup', mouseUpListener);
-    this.removeDragListeners = () => {
-      window.removeEventListener('mousemove', mouseMoveListener);
-      window.removeEventListener('mouseup', mouseUpListener);
-    };
+    this.dragListeners.value = combineDisposables(
+      addDisposableListener(window, 'mousemove', mouseMoveListener),
+      addDisposableListener(window, 'mouseup', mouseUpListener),
+    );
   }
 }
 

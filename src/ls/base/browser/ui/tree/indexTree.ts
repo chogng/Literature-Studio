@@ -37,6 +37,7 @@ function cloneLocation(location: number[]) {
 export class IndexTree<T> {
   private readonly root: IndexTreeNode<T>;
   private readonly tree: SimpleTree<IndexTreeNode<T>>;
+  private disposed = false;
 
   constructor(
     rootElement: T,
@@ -98,22 +99,51 @@ export class IndexTree<T> {
   }
 
   focus() {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.focus();
   }
 
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.tree.dispose();
+  }
+
   getSelection() {
+    if (this.disposed) {
+      return null;
+    }
+
     return this.tree.getSelection()?.element ?? null;
   }
 
   setSelection(element: T | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.setSelection(element ? this.findNode(element) : null);
   }
 
   getFocus() {
+    if (this.disposed) {
+      return null;
+    }
+
     return this.tree.getFocus()?.element ?? null;
   }
 
   setFocus(element: T | null) {
+    if (this.disposed) {
+      return;
+    }
+
     this.tree.setFocus(element ? this.findNode(element) : null);
   }
 
@@ -122,6 +152,10 @@ export class IndexTree<T> {
     deleteCount: number,
     toInsert: Iterable<IndexTreeElement<T>> = [],
   ) {
+    if (this.disposed) {
+      return;
+    }
+
     if (location.length === 0) {
       throw new Error('IndexTree splice requires a non-empty location');
     }
@@ -142,6 +176,10 @@ export class IndexTree<T> {
   }
 
   rerender(location?: number[]) {
+    if (this.disposed) {
+      return;
+    }
+
     void location;
     this.tree.rerender();
   }

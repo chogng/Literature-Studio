@@ -1,3 +1,5 @@
+import { dispose } from 'ls/base/common/lifecycle';
+
 export {
   createHoverController,
   normalizeHoverInput,
@@ -62,7 +64,7 @@ export function applyHover(
 ): HoverHandle {
   const current = managedHoverHandles.get(target);
   if (current && current.service !== hoverService) {
-    current.handle.dispose();
+    dispose(current.handle);
     managedHoverHandles.delete(target);
   }
 
