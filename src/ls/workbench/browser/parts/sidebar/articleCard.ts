@@ -107,18 +107,18 @@ export class ArticleCard extends LifecycleOwner {
   private readonly element = createElement('li');
   private readonly mainElement = createElement(
     'div',
-    'secondary-sidebar-article-card-main',
+    'batch-fetch-article-card-main',
   );
   private readonly titleElement = createElement(
     'h3',
-    'secondary-sidebar-article-card-title',
+    'batch-fetch-article-card-title',
   );
   private readonly metaElement = createElement(
     'span',
-    'secondary-sidebar-article-card-meta',
+    'batch-fetch-article-card-meta',
   );
   private readonly toolbarView = createActionBarView({
-    className: 'secondary-sidebar-article-card-toolbar-actions',
+    className: 'batch-fetch-article-card-toolbar-actions',
     ariaRole: 'group',
   });
   private disposed = false;
@@ -172,7 +172,7 @@ export class ArticleCard extends LifecycleOwner {
     const hasDownloaded = downloadStatus.hasSucceeded;
 
     this.element.className = [
-      'secondary-sidebar-article-card',
+      'batch-fetch-article-card',
       isSelectionModeEnabled ? 'is-selection-mode' : '',
       isSelected ? 'is-selected' : '',
     ]
@@ -194,7 +194,7 @@ export class ArticleCard extends LifecycleOwner {
     this.metaElement.textContent = metaText;
 
     this.toolbarView.setProps({
-      className: 'secondary-sidebar-article-card-toolbar-actions',
+      className: 'batch-fetch-article-card-toolbar-actions',
       ariaRole: 'group',
       items: [
         {
@@ -219,7 +219,7 @@ export class ArticleCard extends LifecycleOwner {
             ],
           },
           buttonClassName: [
-            'secondary-sidebar-article-card-icon-btn',
+            'batch-fetch-article-card-icon-btn',
             hasDownloaded ? 'is-downloaded' : '',
           ]
             .filter(Boolean)
@@ -233,7 +233,7 @@ export class ArticleCard extends LifecycleOwner {
           label: MORE_ACTIONS_LABEL,
           title: MORE_ACTIONS_LABEL,
           content: createLxIcon('more'),
-          buttonClassName: 'secondary-sidebar-article-card-icon-btn',
+          buttonClassName: 'batch-fetch-article-card-icon-btn',
           menu: [
             {
               label: VIEW_DETAILS_LABEL,

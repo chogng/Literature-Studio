@@ -21,6 +21,7 @@ type CreateAuxiliaryBarPartPropsParams = {
     activeConversationId: AssistantModelSnapshot['activeConversationId'];
     llmModelOptions: DropdownOption[];
     activeLlmModelOptionValue: string;
+    isSecondarySidebarVisible: boolean;
   };
   actions: {
     onQuestionChange: (value: string) => void;
@@ -30,6 +31,7 @@ type CreateAuxiliaryBarPartPropsParams = {
     onActivateConversation: (conversationId: string) => void;
     onCloseConversation: (conversationId: string) => void;
     onCloseAuxiliarySidebar: () => void;
+    onToggleSecondarySidebar: () => void;
     onSelectLlmModel: (value: string) => void;
     onOpenModelSettings: () => void;
   };
@@ -59,6 +61,7 @@ export function createAuxiliaryBarPartProps({
     activeConversationId,
     llmModelOptions,
     activeLlmModelOptionValue,
+    isSecondarySidebarVisible,
   },
   actions: {
     onQuestionChange,
@@ -68,6 +71,7 @@ export function createAuxiliaryBarPartProps({
     onActivateConversation,
     onCloseConversation,
     onCloseAuxiliarySidebar,
+    onToggleSecondarySidebar,
     onSelectLlmModel,
     onOpenModelSettings,
   },
@@ -91,6 +95,8 @@ export function createAuxiliaryBarPartProps({
     onActivateConversation,
     onCloseConversation,
     onCloseAuxiliarySidebar,
+    isSecondarySidebarVisible,
+    onToggleSecondarySidebar,
     onSelectLlmModel,
     onOpenModelSettings,
   };

@@ -14,6 +14,7 @@ const zh = {
   endDate: '结束日期',
   fetchLatestBusy: '批量抓取中...',
   fetchLatest: '抓取',
+  sidebarFetchTitle: '文献抓取',
   journalFilterPlaceholder: '期刊/来源过滤（URL片段）',
   resetFilter: '重置过滤',
   showing: '显示',
@@ -140,6 +141,8 @@ const zh = {
   assistantSidebarNewConversation: '新对话',
   assistantSidebarHistory: '历史记录',
   assistantSidebarMore: '更多',
+  assistantSidebarShowSecondarySidebar: '展开次侧边栏',
+  assistantSidebarHideSecondarySidebar: '收起次侧边栏',
   assistantSidebarQuestion: '问题',
   assistantSidebarQuestionPlaceholder:
     '可以提问某个主题、比较几篇文献的结论，或者让它生成一段带证据的短回答。',

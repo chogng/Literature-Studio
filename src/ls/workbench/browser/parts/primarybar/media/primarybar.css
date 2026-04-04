@@ -1,8 +1,42 @@
-.primarybar-content {
+.primarybar-root {
   min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+.primarybar-content {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+}
+
+.primarybar-content .pane-view {
+  flex: 1;
+  min-height: 0;
+}
+
+.primarybar-pane-content {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.primarybar-pane-toolbar {
+  min-height: 0;
+  padding: 0;
+  justify-content: flex-end;
+}
+
+.primarybar-fetch-pane-header .pane-header-actions {
+  margin-left: auto;
+}
+
+.primarybar-library-pane-content > .library-tree {
+  flex: 1;
+  min-height: 0;
 }
 
 .sidebar-workbench-header {
@@ -10,7 +44,6 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
-  padding: 4px 12px;
 }
 
 .sidebar-action-bar {

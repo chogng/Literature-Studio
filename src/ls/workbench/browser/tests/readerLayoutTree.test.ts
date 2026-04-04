@@ -36,13 +36,14 @@ test('reader layout tree creates the current reader shell topology', () => {
   assert.equal(tree.orientation, Orientation.VERTICAL);
   assert.equal(tree.size, 1530);
   assert.equal(tree.children.length, 4);
+  assert.equal(tree.children[0]?.type, 'leaf');
   assert.equal(tree.children[1]?.type, 'leaf');
   assert.equal(tree.children[2]?.type, 'leaf');
   assert.equal(tree.children[3]?.type, 'leaf');
-  assert.deepEqual(findLeafPath(tree, 'fetchSidebar'), [0]);
-  assert.deepEqual(findLeafPath(tree, 'primarySidebar'), [1]);
-  assert.deepEqual(findLeafPath(tree, 'editor'), [2]);
-  assert.deepEqual(findLeafPath(tree, 'auxiliarySidebar'), [3]);
+  assert.deepEqual(findLeafPath(tree, 'primarySidebar'), [0]);
+  assert.deepEqual(findLeafPath(tree, 'editor'), [1]);
+  assert.deepEqual(findLeafPath(tree, 'auxiliarySidebar'), [2]);
+  assert.deepEqual(findLeafPath(tree, 'fetchSidebar'), [3]);
 });
 
 test('reader layout tree clone and serialize do not mutate the source tree', () => {
@@ -60,11 +61,11 @@ test('reader layout tree clone and serialize do not mutate the source tree', () 
     visible: false,
   });
 
-  assert.deepEqual(findLeafPath(updatedTree, 'primarySidebar'), [1]);
+  assert.deepEqual(findLeafPath(updatedTree, 'primarySidebar'), [0]);
   assert.equal(tree.type, 'branch');
-  assert.equal(tree.children[1]?.type, 'leaf');
-  assert.equal(tree.children[1].size, 320);
-  assert.equal(tree.children[1].visible, true);
+  assert.equal(tree.children[0]?.type, 'leaf');
+  assert.equal(tree.children[0].size, 320);
+  assert.equal(tree.children[0].visible, true);
 });
 
 test('reader layout tree can split a leaf into a new branch', () => {
@@ -85,19 +86,19 @@ test('reader layout tree can split a leaf into a new branch', () => {
   });
 
   assert.equal(splitTree.type, 'branch');
-  assert.equal(splitTree.children[2]?.type, 'branch');
-  if (splitTree.children[2]?.type !== 'branch') {
+  assert.equal(splitTree.children[1]?.type, 'branch');
+  if (splitTree.children[1]?.type !== 'branch') {
     throw new Error('Expected editor split branch');
   }
-  assert.equal(splitTree.children[2].orientation, Orientation.HORIZONTAL);
-  assert.equal(splitTree.children[2].children.length, 2);
-  assert.equal(splitTree.children[2].children[0]?.type, 'leaf');
-  assert.equal(splitTree.children[2].children[1]?.type, 'leaf');
-  assert.equal(splitTree.children[2].children[0].id, 'auxiliarySidebar');
-  assert.equal(splitTree.children[2].children[0].size, 220);
-  assert.equal(splitTree.children[2].children[1].id, 'editor');
-  assert.equal(splitTree.children[2].children[1].size, 420);
-  assert.deepEqual(findLeafPath(splitTree, 'editor'), [2, 1]);
+  assert.equal(splitTree.children[1].orientation, Orientation.HORIZONTAL);
+  assert.equal(splitTree.children[1].children.length, 2);
+  assert.equal(splitTree.children[1].children[0]?.type, 'leaf');
+  assert.equal(splitTree.children[1].children[1]?.type, 'leaf');
+  assert.equal(splitTree.children[1].children[0].id, 'auxiliarySidebar');
+  assert.equal(splitTree.children[1].children[0].size, 220);
+  assert.equal(splitTree.children[1].children[1].id, 'editor');
+  assert.equal(splitTree.children[1].children[1].size, 420);
+  assert.deepEqual(findLeafPath(splitTree, 'editor'), [1, 1]);
 });
 
 test('reader layout tree removes leaves and collapses redundant branches', () => {
@@ -145,14 +146,14 @@ test('reader layout tree updates leaf data immutably', () => {
   });
 
   assert.equal(updatedTree.type, 'branch');
-  const updatedAuxiliary = updatedTree.children[3];
+  const updatedAuxiliary = updatedTree.children[2];
   assert(updatedAuxiliary);
   assert.equal(updatedAuxiliary.type, 'leaf');
   assert.equal(updatedAuxiliary.size, 300);
   assert.equal(updatedAuxiliary.visible, false);
   assert.equal(updatedAuxiliary.flex, true);
 
-  const originalAuxiliary = tree.children[3];
+  const originalAuxiliary = tree.children[2];
   assert(originalAuxiliary);
   assert.equal(originalAuxiliary.type, 'leaf');
   assert.equal(originalAuxiliary.size, 260);
@@ -204,8 +205,8 @@ test('reader layout tree can insert a sibling leaf next to editor without wrappi
   );
 
   assert.equal(nextTree.type, 'branch');
-  assert.deepEqual(findLeafPath(nextTree, 'editor'), [2]);
-  assert.deepEqual(findLeafPath(nextTree, 'auxiliarySidebar'), [3]);
+  assert.deepEqual(findLeafPath(nextTree, 'editor'), [1]);
+  assert.deepEqual(findLeafPath(nextTree, 'auxiliarySidebar'), [2]);
 });
 
 test('reader layout tree reconcile keeps four top-level panes and updates visibility', () => {
@@ -223,15 +224,15 @@ test('reader layout tree reconcile keeps four top-level panes and updates visibi
 
   assert.equal(hiddenTree.type, 'branch');
   assert.equal(hiddenTree.children.length, 4);
-  assert.deepEqual(findLeafPath(hiddenTree, 'fetchSidebar'), [0]);
-  assert.deepEqual(findLeafPath(hiddenTree, 'primarySidebar'), [1]);
-  assert.deepEqual(findLeafPath(hiddenTree, 'editor'), [2]);
-  assert.deepEqual(findLeafPath(hiddenTree, 'auxiliarySidebar'), [3]);
+  assert.deepEqual(findLeafPath(hiddenTree, 'primarySidebar'), [0]);
+  assert.deepEqual(findLeafPath(hiddenTree, 'editor'), [1]);
+  assert.deepEqual(findLeafPath(hiddenTree, 'auxiliarySidebar'), [2]);
+  assert.deepEqual(findLeafPath(hiddenTree, 'fetchSidebar'), [3]);
   assert.equal(hiddenTree.children[0]?.type, 'leaf');
-  assert.equal(hiddenTree.children[1]?.type, 'leaf');
+  assert.equal(hiddenTree.children[2]?.type, 'leaf');
   assert.equal(hiddenTree.children[3]?.type, 'leaf');
-  assert.equal(hiddenTree.children[0].visible, false);
-  assert.equal(hiddenTree.children[1].visible, true);
+  assert.equal(hiddenTree.children[0].visible, true);
+  assert.equal(hiddenTree.children[2].visible, false);
   assert.equal(hiddenTree.children[3].visible, false);
 
   const restoredTree = reconcileReaderLayoutTree(hiddenTree, {
@@ -245,17 +246,17 @@ test('reader layout tree reconcile keeps four top-level panes and updates visibi
     editorSize: 700,
   });
 
-  assert.deepEqual(findLeafPath(restoredTree, 'fetchSidebar'), [0]);
-  assert.deepEqual(findLeafPath(restoredTree, 'primarySidebar'), [1]);
-  assert.deepEqual(findLeafPath(restoredTree, 'editor'), [2]);
-  assert.deepEqual(findLeafPath(restoredTree, 'auxiliarySidebar'), [3]);
+  assert.deepEqual(findLeafPath(restoredTree, 'primarySidebar'), [0]);
+  assert.deepEqual(findLeafPath(restoredTree, 'editor'), [1]);
+  assert.deepEqual(findLeafPath(restoredTree, 'auxiliarySidebar'), [2]);
+  assert.deepEqual(findLeafPath(restoredTree, 'fetchSidebar'), [3]);
   assert.equal(restoredTree.type, 'branch');
   assert.equal(restoredTree.orientation, Orientation.HORIZONTAL);
   assert.equal(restoredTree.children.length, 4);
   assert.equal(restoredTree.children[0]?.type, 'leaf');
-  assert.equal(restoredTree.children[1]?.type, 'leaf');
+  assert.equal(restoredTree.children[2]?.type, 'leaf');
   assert.equal(restoredTree.children[3]?.type, 'leaf');
   assert.equal(restoredTree.children[0].visible, true);
-  assert.equal(restoredTree.children[1].visible, true);
+  assert.equal(restoredTree.children[2].visible, true);
   assert.equal(restoredTree.children[3].visible, true);
 });

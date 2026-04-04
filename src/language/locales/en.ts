@@ -14,6 +14,7 @@ const en = {
   endDate: 'End date',
   fetchLatestBusy: 'Batch fetching...',
   fetchLatest: 'Fetch',
+  sidebarFetchTitle: 'Literature fetch',
   journalFilterPlaceholder: 'Journal/source filter (URL fragment)',
   resetFilter: 'Reset filters',
   showing: 'Showing',
@@ -140,6 +141,8 @@ const en = {
   assistantSidebarNewConversation: 'New chat',
   assistantSidebarHistory: 'History',
   assistantSidebarMore: 'More',
+  assistantSidebarShowSecondarySidebar: 'Show secondary sidebar',
+  assistantSidebarHideSecondarySidebar: 'Hide secondary sidebar',
   assistantSidebarQuestion: 'Question',
   assistantSidebarQuestionPlaceholder:
     'Ask about the fetched literature, compare findings, or draft a short evidence-backed answer.',

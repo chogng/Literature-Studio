@@ -159,12 +159,6 @@ export function createReaderLayoutTree({
     children: [
       {
         type: 'leaf',
-        id: 'fetchSidebar',
-        size: fetchSidebarSize,
-        visible: isFetchSidebarVisible,
-      },
-      {
-        type: 'leaf',
         id: 'primarySidebar',
         size: primarySidebarSize,
         visible: isPrimarySidebarVisible,
@@ -181,6 +175,12 @@ export function createReaderLayoutTree({
         id: 'auxiliarySidebar',
         size: auxiliarySidebarSize,
         visible: isAuxiliarySidebarVisible,
+      },
+      {
+        type: 'leaf',
+        id: 'fetchSidebar',
+        size: fetchSidebarSize,
+        visible: isFetchSidebarVisible,
       },
     ],
   };

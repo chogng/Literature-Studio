@@ -68,7 +68,7 @@ export const WORKBENCH_PART_IDS = {
   container: 'workbench.container',
   titlebar: 'workbench.titlebar',
   fetchSidebar: 'workbench.fetchSidebar',
-  secondarySidebar: 'workbench.fetchSidebar',
+  secondarySidebar: 'workbench.secondarySidebar',
   primaryBar: 'workbench.primaryBar',
   auxiliarySidebar: 'workbench.auxiliarySidebar',
   statusbar: 'workbench.statusbar',
@@ -107,8 +107,8 @@ export type WorkbenchPartId =
 export type WorkbenchPartRefCallback = (element: HTMLElement | null) => void;
 
 const DEFAULT_WORKBENCH_LAYOUT_STATE: WorkbenchLayoutStateSnapshot = {
-  isFetchSidebarVisible: true,
-  isPrimarySidebarVisible: false,
+  isFetchSidebarVisible: false,
+  isPrimarySidebarVisible: true,
   isAuxiliarySidebarVisible: false,
   fetchSidebarSize: WORKBENCH_SPLITVIEW_LIMITS.fetchSidebar.defaultSize,
   primarySidebarSize: WORKBENCH_SPLITVIEW_LIMITS.primaryBar.defaultSize,
@@ -119,6 +119,7 @@ const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement |
   [WORKBENCH_PART_IDS.container]: null,
   [WORKBENCH_PART_IDS.titlebar]: null,
   [WORKBENCH_PART_IDS.fetchSidebar]: null,
+  [WORKBENCH_PART_IDS.secondarySidebar]: null,
   [WORKBENCH_PART_IDS.primaryBar]: null,
   [WORKBENCH_PART_IDS.auxiliarySidebar]: null,
   [WORKBENCH_PART_IDS.statusbar]: null,
@@ -418,19 +419,19 @@ export function getWorkbenchContentStyle({
   isAuxiliarySidebarVisible,
 }: WorkbenchContentLayoutParams) {
   const desktopColumns = [
-    isFetchSidebarVisible ? 'minmax(248px, 280px)' : null,
     isPrimarySidebarVisible ? 'minmax(280px, 320px)' : null,
     'minmax(0, 1fr)',
     isAuxiliarySidebarVisible ? 'minmax(332px, 380px)' : null,
+    isFetchSidebarVisible ? 'minmax(248px, 280px)' : null,
   ]
     .filter((value): value is string => Boolean(value))
     .join(' ');
 
   const mobileRows = [
-    isFetchSidebarVisible ? 'minmax(208px, 22%)' : null,
     isPrimarySidebarVisible ? 'minmax(220px, 28%)' : null,
     'minmax(0, 1fr)',
     isAuxiliarySidebarVisible ? 'minmax(208px, 30%)' : null,
+    isFetchSidebarVisible ? 'minmax(208px, 22%)' : null,
   ]
     .filter((value): value is string => Boolean(value))
     .join(' ');
