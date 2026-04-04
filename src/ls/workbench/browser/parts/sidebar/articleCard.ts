@@ -1,5 +1,6 @@
 import type { ArticleDetailsModalLabels } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
+import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 import type { Locale } from 'language/i18n';
@@ -228,7 +229,7 @@ export class ArticleCard extends LifecycleOwner {
             void this.startPdfDownload();
           },
         },
-        {
+        createDropdownMenuActionViewItem({
           label: MORE_ACTIONS_LABEL,
           title: MORE_ACTIONS_LABEL,
           content: createLxIcon('more'),
@@ -268,7 +269,7 @@ export class ArticleCard extends LifecycleOwner {
                   ]
                 : [],
           },
-        },
+        }),
       ],
     });
   };

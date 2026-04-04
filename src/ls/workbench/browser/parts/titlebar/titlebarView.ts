@@ -1,10 +1,12 @@
 import type { QuickAccessSourceOption } from 'ls/workbench/services/quickAccess/quickAccessService';
 import {
   createActionBarView,
+  type ActionBarItem,
   type ActionBarMenuItem,
 } from 'ls/base/browser/ui/actionbar/actionbar';
-import type {
-  DropdownMenuActionOverlayContext,
+import {
+  createDropdownMenuActionViewItem,
+  type DropdownMenuActionOverlayContext,
 } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -206,21 +208,34 @@ function createTitlebarActionBar(params: {
     className: composeClassName(['titlebar-actionbar', params.className]),
     ariaRole: 'group',
     ariaLabel: params.ariaLabel,
-    contextMenuService: electronOverlayContextMenuService ?? undefined,
     hoverService,
-    items: params.items.map((item) => ({
-      label: item.label,
-      title: item.title ?? item.label,
-      content: createLxIcon(item.icon),
-      disabled: item.disabled,
-      buttonClassName: composeClassName(['titlebar-btn', item.className]),
-      onClick: item.onClick ? () => item.onClick?.() : undefined,
-      menu: item.menu,
-      renderOverlay: item.renderOverlay,
-      overlayRole: item.overlayRole,
-      menuClassName: item.menuClassName,
-      minWidth: item.minWidth,
-    })),
+    items: params.items.map<ActionBarItem>((item) => {
+      const baseOptions = {
+        label: item.label,
+        title: item.title ?? item.label,
+        content: createLxIcon(item.icon),
+        disabled: item.disabled,
+        buttonClassName: composeClassName(['titlebar-btn', item.className]),
+      };
+
+      if (item.menu || item.renderOverlay) {
+        return createDropdownMenuActionViewItem({
+          ...baseOptions,
+          menu: item.menu,
+          renderOverlay: item.renderOverlay,
+          overlayRole: item.overlayRole,
+          menuClassName: item.menuClassName,
+          minWidth: item.minWidth,
+          contextMenuService: electronOverlayContextMenuService ?? undefined,
+          hoverService,
+        });
+      }
+
+      return {
+        ...baseOptions,
+        onClick: item.onClick ? () => item.onClick?.() : undefined,
+      };
+    }),
   });
 
   return {

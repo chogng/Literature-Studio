@@ -1,41 +1,36 @@
+import * as DOM from 'ls/base/browser/dom';
 import {
+  bindHover,
   getHoverService,
-  type HoverHandle,
+  type HoverBinding,
   type HoverInput,
   type HoverService,
 } from 'ls/base/browser/ui/hover/hover';
-import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
+import { LifecycleOwner } from 'ls/base/common/lifecycle';
 import type {
   ActionBarActionItem,
-  ActionBarActionMode,
-  ActionBarRenderable,
+  ActionView,
 } from 'ls/base/browser/ui/actionbar/actionbar';
 
-export type ActionViewItemLike = {
-  render: (container?: HTMLElement) => void;
-  getElement: () => HTMLElement;
-  dispose: () => void;
-  focus?: () => void;
-  blur?: () => void;
-  getFocusableElement?: () => HTMLElement | null;
+// Actionbar treats icon-only labels as hover/tooltip content, not as an IconLabel
+// display primitive. The rendered button can stay icon-only while hover resolves
+// from item.hover -> item.title -> item.label, and aria-label still comes from label.
+
+export type BaseActionViewItemOptions = {
+  hoverService?: HoverService;
 };
 
-function addDisposableListener<K extends keyof HTMLElementEventMap>(
-  target: HTMLElement,
-  type: K,
-  listener: (event: HTMLElementEventMap[K]) => void,
-  options?: boolean | AddEventListenerOptions,
-) {
-  target.addEventListener(type, listener, options);
-  return toDisposable(() => {
-    target.removeEventListener(type, listener, options);
-  });
-}
+export type ActionViewItemOptions = BaseActionViewItemOptions;
+
+type ActionViewRenderable = NonNullable<ActionBarActionItem['content']>;
+type ActionViewMode = NonNullable<ActionBarActionItem['mode']>;
 
 export abstract class BaseActionViewItem
   extends LifecycleOwner
-  implements ActionViewItemLike
+  implements ActionView
 {
+  // Shared lifecycle and DOM ownership live in the base class so concrete items
+  // only implement their specific rendering and interaction behavior.
   protected readonly element: HTMLElement;
   private disposed = false;
 
@@ -79,22 +74,17 @@ export abstract class BaseActionViewItem
   getFocusableElement?(): HTMLElement | null;
 }
 
-function createElement<K extends keyof HTMLElementTagNameMap>(
-  tagName: K,
-  className?: string,
-) {
-  const element = document.createElement(tagName);
-  if (className) {
-    element.className = className;
+function resolveHoverService(
+  optionsOrHoverService: ActionViewItemOptions | HoverService,
+): HoverService {
+  if (isHoverService(optionsOrHoverService)) {
+    return optionsOrHoverService;
   }
-  return element;
+
+  return optionsOrHoverService.hoverService ?? getHoverService();
 }
 
-function composeClassName(parts: Array<string | undefined | null | false>) {
-  return parts.filter(Boolean).join(' ');
-}
-
-function resolveRenderable(renderable: ActionBarRenderable): Node {
+function resolveRenderable(renderable: ActionViewRenderable): Node {
   const resolved = typeof renderable === 'function' ? renderable() : renderable;
   if (typeof resolved === 'string') {
     return document.createTextNode(resolved);
@@ -102,31 +92,61 @@ function resolveRenderable(renderable: ActionBarRenderable): Node {
   return resolved.cloneNode(true);
 }
 
-function resolveMode(item: ActionBarActionItem): ActionBarActionMode {
+function resolveMode(item: ActionBarActionItem): ActionViewMode {
   if (item.mode) {
     return item.mode;
   }
   return 'icon';
 }
 
-export class ActionViewItem extends BaseActionViewItem {
-  protected readonly button = createElement('button', 'actionbar-action');
-  protected readonly content = createElement('span', 'actionbar-content');
-  protected item: ActionBarActionItem;
-  protected readonly hoverController: HoverHandle;
+function resolveHoverInput(item: ActionBarActionItem): HoverInput {
+  return item.hover === undefined ? item.title ?? item.label : item.hover;
+}
 
+function applyPressedState(button: HTMLButtonElement, checked?: boolean) {
+  if (checked !== undefined) {
+    button.setAttribute('aria-pressed', String(Boolean(checked)));
+    return;
+  }
+
+  button.removeAttribute('aria-pressed');
+}
+
+function applyButtonAttributes(
+  button: HTMLButtonElement,
+  attributes: ActionBarActionItem['buttonAttributes'],
+) {
+  for (const [name, value] of Object.entries(attributes ?? {})) {
+    if (value === false || value === null || value === undefined) {
+      button.removeAttribute(name);
+      continue;
+    }
+    button.setAttribute(name, value);
+  }
+}
+
+export class ActionViewItem extends BaseActionViewItem {
+  protected readonly button = DOM.createElement('button', 'actionbar-action');
+  protected readonly content = DOM.createElement('span', 'actionbar-content');
+  protected item: ActionBarActionItem;
+  protected readonly hoverBinding: HoverBinding;
+
+  constructor(item: ActionBarActionItem, options?: ActionViewItemOptions);
+  constructor(item: ActionBarActionItem, hoverService?: HoverService);
   constructor(
     item: ActionBarActionItem,
-    hoverService: HoverService = getHoverService(),
+    optionsOrHoverService: ActionViewItemOptions | HoverService = getHoverService(),
   ) {
-    super(createElement('div', 'actionbar-item is-action'));
+    const hoverService = resolveHoverService(optionsOrHoverService);
+
+    super(DOM.createElement('div', 'actionbar-item is-action'));
     this.item = item;
     this.button.type = 'button';
     this.button.append(this.content);
     this.element.append(this.button);
-    this.hoverController = hoverService.createHover(this.button, null);
-    this.register(this.hoverController);
-    this.register(addDisposableListener(this.button, 'click', this.handleButtonClick));
+    this.hoverBinding = bindHover(this.button, null, hoverService);
+    this.register(this.hoverBinding);
+    this.register(DOM.addDisposableListener(this.button, 'click', this.handleButtonClick));
     this.render();
   }
 
@@ -141,44 +161,11 @@ export class ActionViewItem extends BaseActionViewItem {
     }
 
     super.render(container);
-    this.element.className = composeClassName([
-      'actionbar-item',
-      'is-action',
-      this.item.disabled ? 'is-disabled' : '',
-      this.item.active ? 'is-active' : '',
-      this.item.checked ? 'is-checked' : '',
-      this.item.className,
-    ]);
-
-    const mode = resolveMode(this.item);
-    this.button.className = composeClassName([
-      'actionbar-action',
-      `is-${mode}`,
-      this.item.buttonClassName,
-    ]);
-    this.button.disabled = Boolean(this.item.disabled);
-    this.button.setAttribute('aria-label', this.item.label);
-    if (this.item.checked !== undefined) {
-      this.button.setAttribute('aria-pressed', String(Boolean(this.item.checked)));
-    } else {
-      this.button.removeAttribute('aria-pressed');
-    }
-
-    for (const [name, value] of Object.entries(this.item.buttonAttributes ?? {})) {
-      if (value === false || value === null || value === undefined) {
-        this.button.removeAttribute(name);
-        continue;
-      }
-      this.button.setAttribute(name, value);
-    }
-
-    const hoverInput: HoverInput =
-      this.item.hover === undefined ? this.item.title ?? this.item.label : this.item.hover;
-    this.hoverController.update(hoverInput);
-
-    this.content.replaceChildren(
-      resolveRenderable(this.item.content ?? this.item.label),
-    );
+    this.updateContainerClassName();
+    this.updateButtonState();
+    this.updateAccessibility();
+    this.updateTooltip();
+    this.updateContent();
   }
 
   focus() {
@@ -205,4 +192,47 @@ export class ActionViewItem extends BaseActionViewItem {
 
     this.item.run?.();
   };
+
+  protected updateContainerClassName() {
+    this.element.className = DOM.composeClassName([
+      'actionbar-item',
+      'is-action',
+      this.item.disabled ? 'is-disabled' : '',
+      this.item.active ? 'is-active' : '',
+      this.item.checked ? 'is-checked' : '',
+      this.item.className,
+    ]);
+  }
+
+  protected updateButtonState() {
+    const mode = resolveMode(this.item);
+    this.button.className = DOM.composeClassName([
+      'actionbar-action',
+      `is-${mode}`,
+      this.item.buttonClassName,
+    ]);
+    this.button.disabled = Boolean(this.item.disabled);
+    applyPressedState(this.button, this.item.checked);
+    applyButtonAttributes(this.button, this.item.buttonAttributes);
+  }
+
+  protected updateAccessibility() {
+    this.button.setAttribute('aria-label', this.item.label);
+  }
+
+  protected updateTooltip() {
+    this.hoverBinding.update(resolveHoverInput(this.item));
+  }
+
+  protected updateContent() {
+    this.content.replaceChildren(
+      resolveRenderable(this.item.content ?? this.item.label),
+    );
+  }
+}
+
+function isHoverService(
+  value: ActionViewItemOptions | HoverService,
+): value is HoverService {
+  return typeof (value as HoverService).createHover === 'function';
 }
