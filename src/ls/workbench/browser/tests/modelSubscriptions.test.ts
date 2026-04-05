@@ -32,7 +32,6 @@ import {
   getWorkbenchPartDomSnapshot,
   registerWorkbenchPartDomNode,
   setAgentSidebarVisible,
-  setFetchSidebarVisible,
   setPrimarySidebarVisible,
   setWorkbenchSidebarSizes,
   subscribeWorkbenchLayoutState,
@@ -165,11 +164,9 @@ function createWebContentState(
 }
 
 function restoreWorkbenchLayoutState() {
-  setFetchSidebarVisible(originalWorkbenchLayoutState.isFetchSidebarVisible);
   setPrimarySidebarVisible(originalWorkbenchLayoutState.isPrimarySidebarVisible);
   setAgentSidebarVisible(originalWorkbenchLayoutState.isAgentSidebarVisible);
   setWorkbenchSidebarSizes({
-    fetchSidebarSize: originalWorkbenchLayoutState.fetchSidebarSize,
     primarySidebarSize: originalWorkbenchLayoutState.primarySidebarSize,
     agentSidebarSize: originalWorkbenchLayoutState.agentSidebarSize,
   });
@@ -527,14 +524,14 @@ test('workbenchLayout subscriptions stop after disposal', () => {
     notificationCount += 1;
   });
 
-  setFetchSidebarVisible(!originalWorkbenchLayoutState.isFetchSidebarVisible);
+  setPrimarySidebarVisible(!originalWorkbenchLayoutState.isPrimarySidebarVisible);
   disposeListener();
-  setFetchSidebarVisible(originalWorkbenchLayoutState.isFetchSidebarVisible);
+  setPrimarySidebarVisible(originalWorkbenchLayoutState.isPrimarySidebarVisible);
 
   assert.equal(notificationCount, 1);
   assert.equal(
-    getWorkbenchLayoutStateSnapshot().isFetchSidebarVisible,
-    originalWorkbenchLayoutState.isFetchSidebarVisible,
+    getWorkbenchLayoutStateSnapshot().isPrimarySidebarVisible,
+    originalWorkbenchLayoutState.isPrimarySidebarVisible,
   );
 });
 

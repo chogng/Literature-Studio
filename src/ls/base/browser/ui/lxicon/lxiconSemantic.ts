@@ -2,8 +2,6 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 export const lxIconSemanticMap = {
   titlebar: {
-    fetchSidebarOpen: 'layout-sidebar-left',
-    fetchSidebarClosed: 'layout-sidebar-left-off',
     primarySidebarOpen: 'projects-filled',
     primarySidebarClosed: 'projects',
     agentSidebarOpen: 'agent-filled',
@@ -19,8 +17,6 @@ export const lxIconSemanticMap = {
     newConversation: 'add',
     history: 'history',
     more: 'more',
-    secondarySidebarOpen: 'layout-sidebar-right',
-    secondarySidebarClosed: 'layout-sidebar-right-off',
     voice: 'mic',
     image: 'image',
     send: 'enter',

@@ -24,7 +24,6 @@ import {
   requestTitlebarNavigateBack,
   requestTitlebarNavigateForward,
   requestTitlebarNavigateWeb,
-  requestToggleTitlebarFetchSidebar,
   requestToggleTitlebarPrimarySidebar,
   requestToggleTitlebarAgentSidebar,
   requestToggleTitlebarSettings,
@@ -47,8 +46,6 @@ export type TitlebarLabels = {
   backLabel: string;
   forwardLabel: string;
   refreshLabel: string;
-  showFetchSidebarLabel: string;
-  hideFetchSidebarLabel: string;
   showPrimarySidebarLabel: string;
   hidePrimarySidebarLabel: string;
   showAssistantLabel: string;
@@ -62,9 +59,6 @@ export type TitlebarProps = {
   labels: TitlebarLabels;
   isWindowMaximized: boolean;
   onWindowControl: (action: TitlebarAction) => void;
-  isFetchSidebarOpen?: boolean;
-  fetchSidebarToggleLabel?: string;
-  onToggleFetchSidebar?: () => void;
   isPrimarySidebarOpen?: boolean;
   primarySidebarToggleLabel?: string;
   onTogglePrimarySidebar?: () => void;
@@ -100,8 +94,6 @@ const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
   backLabel: '',
   forwardLabel: '',
   refreshLabel: '',
-  showFetchSidebarLabel: '',
-  hideFetchSidebarLabel: '',
   showPrimarySidebarLabel: '',
   hidePrimarySidebarLabel: '',
   showAssistantLabel: '',
@@ -323,7 +315,6 @@ export class TitlebarView {
       canExportDocx: this.props.canExportDocx ?? false,
       addressBarSourceOptions: this.props.addressBarSourceOptions ?? [],
       selectedAddressBarSourceId: this.props.selectedAddressBarSourceId ?? '',
-      isFetchSidebarOpen: this.props.isFetchSidebarOpen ?? true,
       isPrimarySidebarOpen: this.props.isPrimarySidebarOpen ?? false,
       isAgentSidebarOpen: this.props.isAgentSidebarOpen ?? false,
       onWindowControl: this.props.onWindowControl,
@@ -363,27 +354,6 @@ export class TitlebarView {
 
   private renderStart(props: TitlebarProps) {
     this.startElement.replaceChildren();
-    if (!props.onToggleFetchSidebar || !props.fetchSidebarToggleLabel) {
-      return;
-    }
-
-    const fetchSidebarActionBar = this.trackView(
-      createTitlebarActionBar({
-        className: 'titlebar-start-group',
-        items: [
-          {
-            className: 'titlebar-btn-fetch',
-            label: props.fetchSidebarToggleLabel,
-            icon: props.isFetchSidebarOpen
-              ? lxIconSemanticMap.titlebar.fetchSidebarOpen
-              : lxIconSemanticMap.titlebar.fetchSidebarClosed,
-            onClick: requestToggleTitlebarFetchSidebar,
-          },
-        ],
-      }),
-    );
-
-    this.startElement.append(fetchSidebarActionBar.getElement());
   }
 
   private renderCenter(props: TitlebarProps & { labels: TitlebarLabels }) {

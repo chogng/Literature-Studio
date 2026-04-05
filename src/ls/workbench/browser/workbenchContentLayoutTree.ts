@@ -1,7 +1,6 @@
 import { Orientation } from 'ls/base/browser/ui/grid/gridview';
 
 export type WorkbenchContentLayoutLeafId =
-  | 'fetchSidebar'
   | 'primarySidebar'
   | 'editor'
   | 'agentSidebar';
@@ -27,11 +26,9 @@ export type WorkbenchContentLayoutNode =
 
 export type WorkbenchContentLayoutTreeParams = {
   orientation: Orientation;
-  isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
   isEditorVisible: boolean;
   isAgentSidebarVisible: boolean;
-  fetchSidebarSize: number;
   primarySidebarSize: number;
   agentSidebarSize: number;
   editorSize: number;
@@ -120,7 +117,6 @@ export function serializeWorkbenchContentLayoutTree(tree: WorkbenchContentLayout
 
 function getRootSize(params: WorkbenchContentLayoutTreeParams) {
   return (
-    (params.isFetchSidebarVisible ? params.fetchSidebarSize : 0) +
     (params.isPrimarySidebarVisible ? params.primarySidebarSize : 0) +
     (params.isEditorVisible ? params.editorSize : 0) +
     (params.isAgentSidebarVisible ? params.agentSidebarSize : 0)
@@ -129,11 +125,9 @@ function getRootSize(params: WorkbenchContentLayoutTreeParams) {
 
 export function createWorkbenchContentLayoutTree({
   orientation,
-  isFetchSidebarVisible,
   isPrimarySidebarVisible,
   isEditorVisible,
   isAgentSidebarVisible,
-  fetchSidebarSize,
   primarySidebarSize,
   agentSidebarSize,
   editorSize,
@@ -143,11 +137,9 @@ export function createWorkbenchContentLayoutTree({
     orientation,
     size: getRootSize({
       orientation,
-      isFetchSidebarVisible,
       isPrimarySidebarVisible,
       isEditorVisible,
       isAgentSidebarVisible,
-      fetchSidebarSize,
       primarySidebarSize,
       agentSidebarSize,
       editorSize,
@@ -171,12 +163,6 @@ export function createWorkbenchContentLayoutTree({
         size: editorSize,
         visible: isEditorVisible,
         flex: true,
-      },
-      {
-        type: 'leaf',
-        id: 'fetchSidebar',
-        size: fetchSidebarSize,
-        visible: isFetchSidebarVisible,
       },
     ],
   };

@@ -5,7 +5,6 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let createWorkbenchContentView: typeof import('ls/workbench/browser/workbenchContentView').createWorkbenchContentView;
-let resolveWorkbenchLeadingPaneSizes: typeof import('ls/workbench/browser/workbenchContentLayoutSizing').resolveWorkbenchLeadingPaneSizes;
 
 function installResizeObserverSpy() {
   let activeObservers = 0;
@@ -271,11 +270,9 @@ function createWorkbenchContentViewProps() {
   };
 
   return {
-    isFetchSidebarVisible: false,
     isPrimarySidebarVisible: false,
     isAgentSidebarVisible: false,
     isLayoutEdgeSnappingEnabled: false,
-    fetchSidebarSize: 280,
     primarySidebarSize: 320,
     agentSidebarSize: 360,
     fetchPaneProps,
@@ -298,8 +295,6 @@ function createWorkbenchContentViewProps() {
         assistantHistory: 'History',
         assistantNewConversation: 'New conversation',
         assistantMore: 'More',
-        assistantShowSecondarySidebar: 'Show secondary sidebar',
-        assistantHideSecondarySidebar: 'Hide secondary sidebar',
         assistantCloseSidebar: 'Close sidebar',
         assistantModel: 'Model',
         assistantModelSettings: 'Model settings',
@@ -340,8 +335,6 @@ function createWorkbenchContentViewProps() {
       onActivateConversation: () => {},
       onCloseConversation: () => {},
       onCloseAgentBar: () => {},
-      isSecondarySidebarVisible: false,
-      onToggleSecondarySidebar: () => {},
       onSelectLlmModel: () => {},
       onOpenModelSettings: () => {},
     },
@@ -435,7 +428,6 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createWorkbenchContentView } = await import('ls/workbench/browser/workbenchContentView'));
-  ({ resolveWorkbenchLeadingPaneSizes } = await import('ls/workbench/browser/workbenchContentLayoutSizing'));
 });
 
 after(() => {
@@ -445,50 +437,6 @@ after(() => {
 
 afterEach(() => {
   document.body.replaceChildren();
-});
-
-test('leading group growth keeps primary bar width and expands secondary sidebar', () => {
-  const sizes = resolveWorkbenchLeadingPaneSizes({
-    totalSize: 660,
-    isFetchSidebarVisible: true,
-    isPrimarySidebarVisible: true,
-    primarySidebarSize: 320,
-    fetchSidebarConstraints: {
-      minimum: 248,
-      maximum: 420,
-    },
-    primarySidebarConstraints: {
-      minimum: 280,
-      maximum: 420,
-    },
-  });
-
-  assert.deepEqual(sizes, {
-    fetchSize: 330,
-    primarySize: 320,
-  });
-});
-
-test('leading group resolves the actual primary size under tighter active constraints', () => {
-  const sizes = resolveWorkbenchLeadingPaneSizes({
-    totalSize: 660,
-    isFetchSidebarVisible: true,
-    isPrimarySidebarVisible: true,
-    primarySidebarSize: 420,
-    fetchSidebarConstraints: {
-      minimum: 140,
-      maximum: 320,
-    },
-    primarySidebarConstraints: {
-      minimum: 160,
-      maximum: 360,
-    },
-  });
-
-  assert.deepEqual(sizes, {
-    fetchSize: 290,
-    primarySize: 360,
-  });
 });
 
 test('WorkbenchContentView mounts primary topbar actions into auxiliary topbar when the primary sidebar is hidden', () => {
@@ -583,6 +531,46 @@ test('WorkbenchContentView mounts the editor collapse action into auxiliary topb
       view
         .getElement()
         .querySelector('.editor-topbar .editor-topbar-toggle-editor-btn'),
+      null,
+    );
+  } finally {
+    view.dispose();
+  }
+});
+
+test('WorkbenchContentView mounts the editor collapse action into agentbar topbar even when the primary sidebar is visible', () => {
+  const props = createWorkbenchContentViewProps();
+  props.isPrimarySidebarVisible = true;
+  props.isAgentSidebarVisible = true;
+  props.sidebarTopbarActionsProps = {
+    ...props.sidebarTopbarActionsProps,
+    isPrimarySidebarVisible: true,
+    primarySidebarToggleLabel: 'Hide primary sidebar',
+    commandPaletteLabel: 'Quick access',
+    onTogglePrimarySidebar: () => {},
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    const editorToggleButton = view
+      .getElement()
+      .querySelector('.editor-topbar .editor-topbar-toggle-editor-btn');
+    assert(editorToggleButton instanceof HTMLButtonElement);
+    assert.equal(editorToggleButton.getAttribute('aria-label'), 'Collapse editor');
+
+    editorToggleButton.click();
+
+    const auxiliaryToggleButton = view
+      .getElement()
+      .querySelector('.agentbar-topbar .editor-topbar-toggle-editor-btn');
+    assert(auxiliaryToggleButton instanceof HTMLButtonElement);
+    assert.equal(auxiliaryToggleButton.getAttribute('aria-label'), 'Expand editor');
+    assert.equal(
+      view
+        .getElement()
+        .querySelector('.primarybar-topbar .editor-topbar-toggle-editor-btn'),
       null,
     );
   } finally {

@@ -1,7 +1,6 @@
 export type TitlebarUiAction =
   | { type: 'OPEN_ADDRESS_BAR_SOURCE_MENU' }
   | { type: 'FOCUS_WEB_URL_INPUT' }
-  | { type: 'TOGGLE_FETCH_SIDEBAR' }
   | { type: 'TOGGLE_PRIMARY_SIDEBAR' }
   | { type: 'TOGGLE_AGENT_SIDEBAR' }
   | { type: 'NAVIGATE_BACK' }
@@ -34,10 +33,6 @@ export function requestOpenAddressBarSourceMenu() {
 
 export function requestFocusTitlebarWebUrlInput() {
   emitTitlebarUiAction({ type: 'FOCUS_WEB_URL_INPUT' });
-}
-
-export function requestToggleTitlebarFetchSidebar() {
-  emitTitlebarUiAction({ type: 'TOGGLE_FETCH_SIDEBAR' });
 }
 
 export function requestToggleTitlebarPrimarySidebar() {

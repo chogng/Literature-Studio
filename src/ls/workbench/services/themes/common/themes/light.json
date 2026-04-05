@@ -25,7 +25,6 @@
     "sideBar.statusNeutralBackground": "#f4f6f9",
     "sideBar.statusNeutralForeground": "#536576",
     "primaryBar.background": "#fafafa",
-    "secondarySidebar.background": "#ffffff",
     "primaryBar.fetchCardBorder": "#ebebeb",
     "primaryBar.fetchCardHoverBackground": "#f3f3f3",
     "primaryBar.fetchCardFocusBorder": "#0078d4",

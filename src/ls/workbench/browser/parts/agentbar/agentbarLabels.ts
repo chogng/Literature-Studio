@@ -9,8 +9,6 @@ export type AgentBarLabels = {
   assistantNewConversation: string;
   assistantHistory: string;
   assistantMore: string;
-  assistantShowSecondarySidebar: string;
-  assistantHideSecondarySidebar: string;
   assistantQuestion: string;
   assistantQuestionPlaceholder: string;
   assistantVoice: string;
@@ -31,8 +29,6 @@ export function createAgentBarLabels(ui: LocaleMessages): AgentBarLabels {
     assistantNewConversation: ui.assistantSidebarNewConversation,
     assistantHistory: ui.assistantSidebarHistory,
     assistantMore: ui.assistantSidebarMore,
-    assistantShowSecondarySidebar: ui.assistantSidebarShowSecondarySidebar,
-    assistantHideSecondarySidebar: ui.assistantSidebarHideSecondarySidebar,
     assistantQuestion: ui.assistantSidebarQuestion,
     assistantQuestionPlaceholder: ui.assistantSidebarQuestionPlaceholder,
     assistantVoice: ui.assistantSidebarVoice,

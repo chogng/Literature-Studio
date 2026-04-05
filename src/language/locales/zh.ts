@@ -146,8 +146,6 @@ const zh = {
   assistantSidebarNewConversation: '新对话',
   assistantSidebarHistory: '历史记录',
   assistantSidebarMore: '更多',
-  assistantSidebarShowSecondarySidebar: '展开次侧边栏',
-  assistantSidebarHideSecondarySidebar: '收起次侧边栏',
   assistantSidebarQuestion: '问题',
   assistantSidebarQuestionPlaceholder:
     '可以提问某个主题、比较几篇文献的结论，或者让它生成一段带证据的短回答。',
@@ -369,8 +367,6 @@ const zh = {
   titlebarBack: '后退',
   titlebarForward: '前进',
   titlebarRefresh: '刷新',
-  titlebarShowFetchSidebar: '展开抓取栏',
-  titlebarHideFetchSidebar: '收起抓取栏',
   titlebarShowPrimarySidebar: '展开主侧栏',
   titlebarHidePrimarySidebar: '收起主侧栏',
   titlebarShowAssistant: '展开助手栏',

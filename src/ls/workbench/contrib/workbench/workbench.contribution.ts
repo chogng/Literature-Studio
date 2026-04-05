@@ -78,7 +78,6 @@ export function createWorkbenchContainerStateContribution(): Disposable {
     }
 
     delete container.dataset.workbenchPage;
-    delete container.dataset.fetchSidebarVisible;
     delete container.dataset.primarySidebarVisible;
     delete container.dataset.agentSidebarVisible;
     delete container.dataset.workbenchParts;
@@ -102,9 +101,6 @@ export function createWorkbenchContainerStateContribution(): Disposable {
       .join(' ');
 
     lastContainer.dataset.workbenchPage = getWorkbenchStateSnapshot().activePage;
-    lastContainer.dataset.fetchSidebarVisible = String(
-      getWorkbenchLayoutStateSnapshot().isFetchSidebarVisible,
-    );
     lastContainer.dataset.primarySidebarVisible = String(
       getWorkbenchLayoutStateSnapshot().isPrimarySidebarVisible,
     );
@@ -194,11 +190,6 @@ export function createWorkbenchTitlebarActionContribution(): Disposable {
   const unsubscribeTitlebarUiActions = subscribeTitlebarUiActions((action) => {
     const handlers = getWorkbenchTitlebarCommandHandlers();
     if (!handlers) {
-      return;
-    }
-
-    if (action.type === 'TOGGLE_FETCH_SIDEBAR') {
-      handlers.onToggleFetchSidebar();
       return;
     }
 

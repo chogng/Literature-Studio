@@ -28,7 +28,6 @@ type CreateAgentBarPartPropsParams = {
     activeConversationId: AssistantModelSnapshot['activeConversationId'];
     llmModelOptions: DropdownOption[];
     activeLlmModelOptionValue: string;
-    isSecondarySidebarVisible: boolean;
   };
   actions: {
     onQuestionChange: (value: string) => void;
@@ -38,7 +37,6 @@ type CreateAgentBarPartPropsParams = {
     onActivateConversation: (conversationId: string) => void;
     onCloseConversation: (conversationId: string) => void;
     onCloseAgentBar: () => void;
-    onToggleSecondarySidebar: () => void;
     onSelectLlmModel: (value: string) => void;
     onOpenModelSettings: () => void;
   };
@@ -68,7 +66,6 @@ export function createAgentBarPartProps({
     activeConversationId,
     llmModelOptions,
     activeLlmModelOptionValue,
-    isSecondarySidebarVisible,
   },
   actions: {
     onQuestionChange,
@@ -78,7 +75,6 @@ export function createAgentBarPartProps({
     onActivateConversation,
     onCloseConversation,
     onCloseAgentBar,
-    onToggleSecondarySidebar,
     onSelectLlmModel,
     onOpenModelSettings,
   },
@@ -102,8 +98,6 @@ export function createAgentBarPartProps({
     onActivateConversation,
     onCloseConversation,
     onCloseAgentBar,
-    isSecondarySidebarVisible,
-    onToggleSecondarySidebar,
     onSelectLlmModel,
     onOpenModelSettings,
     isPrimarySidebarVisible: true,
@@ -158,10 +152,9 @@ export class AgentBarPartView {
   }
 
   private renderTopbar(props: AgentBarPartProps) {
-    const shouldMountPrimaryTopbarActions =
-      !props.isPrimarySidebarVisible && !!props.topbarActionsElement;
+    const shouldMountTopbarActions = !!props.topbarActionsElement;
 
-    if (shouldMountPrimaryTopbarActions) {
+    if (shouldMountTopbarActions) {
       const topbarActionsElement = props.topbarActionsElement!;
       if (this.topbarElement.lastElementChild !== topbarActionsElement) {
         this.topbarElement.append(topbarActionsElement);

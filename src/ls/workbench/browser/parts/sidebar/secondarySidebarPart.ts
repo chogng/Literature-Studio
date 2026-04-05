@@ -8,9 +8,7 @@ import {
   requestFocusTitlebarWebUrlInput,
   requestOpenAddressBarSourceMenu,
 } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
-import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
 import { ArticleCard } from 'ls/workbench/browser/parts/sidebar/articleCard';
-import 'ls/workbench/browser/parts/sidebar/media/secondarySidebar.css';
 
 export type SidebarArticle = {
   title: string;
@@ -464,51 +462,4 @@ export class FetchPaneContentView extends LifecycleOwner {
     );
     this.contentElement.replaceChildren(empty);
   }
-}
-
-export class SecondarySidebarPartView extends LifecycleOwner {
-  private readonly element = createElement(
-    'section',
-    'panel sidebar-panel secondary-sidebar-panel',
-  );
-  private readonly placeholder = createElement(
-    'div',
-    'secondary-sidebar-placeholder',
-  );
-  private disposed = false;
-
-  constructor(_props: FetchPaneProps) {
-    super();
-    this.element.append(this.placeholder);
-    registerWorkbenchPartDomNode(
-      WORKBENCH_PART_IDS.secondarySidebar,
-      this.element,
-    );
-  }
-
-  getElement() {
-    return this.element;
-  }
-
-  setProps(props: FetchPaneProps) {
-    if (this.disposed) {
-      return;
-    }
-    void props;
-  }
-
-  dispose() {
-    if (this.disposed) {
-      return;
-    }
-
-    this.disposed = true;
-    super.dispose();
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.secondarySidebar, null);
-    this.element.replaceChildren();
-  }
-}
-
-export function createSecondarySidebarPartView(props: FetchPaneProps) {
-  return new SecondarySidebarPartView(props);
 }

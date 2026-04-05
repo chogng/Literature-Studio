@@ -7,17 +7,12 @@ export type SplitViewConstraints = {
 };
 
 export type WorkbenchContentSplitConstraints = {
-  fetchSidebar: SplitViewConstraints;
   primarySidebar: SplitViewConstraints;
   editor: SplitViewConstraints;
   agentSidebar: SplitViewConstraints;
 };
 
 const MOBILE_SPLITVIEW_LIMITS = {
-  fetchSidebar: {
-    minimum: 140,
-    maximum: Number.POSITIVE_INFINITY,
-  },
   primaryBar: {
     minimum: 160,
     maximum: Number.POSITIVE_INFINITY,
@@ -32,10 +27,6 @@ const MOBILE_SPLITVIEW_LIMITS = {
   },
 } as const;
 
-function clamp(value: number, minimum: number, maximum: number) {
-  return Math.max(minimum, Math.min(maximum, value));
-}
-
 export function getWorkbenchContentSplitConstraints(
   orientation: Orientation,
 ): WorkbenchContentSplitConstraints {
@@ -43,14 +34,6 @@ export function getWorkbenchContentSplitConstraints(
   const isHorizontal = orientation === Orientation.HORIZONTAL;
 
   return {
-    fetchSidebar: {
-      minimum: isHorizontal
-        ? MOBILE_SPLITVIEW_LIMITS.fetchSidebar.minimum
-        : desktop.fetchSidebar.minimum,
-      maximum: isHorizontal
-        ? MOBILE_SPLITVIEW_LIMITS.fetchSidebar.maximum
-        : desktop.fetchSidebar.maximum,
-    },
     primarySidebar: {
       minimum: isHorizontal
         ? MOBILE_SPLITVIEW_LIMITS.primaryBar.minimum
@@ -73,93 +56,5 @@ export function getWorkbenchContentSplitConstraints(
         ? MOBILE_SPLITVIEW_LIMITS.agentSidebar.maximum
         : desktop.agentSidebar.maximum,
     },
-  };
-}
-
-export function resolveWorkbenchLeadingPaneSizes({
-  totalSize,
-  isFetchSidebarVisible,
-  isPrimarySidebarVisible,
-  primarySidebarSize,
-  fetchSidebarConstraints,
-  primarySidebarConstraints,
-}: {
-  totalSize: number;
-  isFetchSidebarVisible: boolean;
-  isPrimarySidebarVisible: boolean;
-  primarySidebarSize: number;
-  fetchSidebarConstraints: SplitViewConstraints;
-  primarySidebarConstraints: SplitViewConstraints;
-}) {
-  if (!isFetchSidebarVisible && !isPrimarySidebarVisible) {
-    return { fetchSize: 0, primarySize: 0 };
-  }
-
-  const availableSize = Math.max(
-    0,
-    totalSize,
-  );
-
-  if (isFetchSidebarVisible && !isPrimarySidebarVisible) {
-    return {
-      fetchSize: clamp(
-        availableSize,
-        fetchSidebarConstraints.minimum,
-        fetchSidebarConstraints.maximum,
-      ),
-      primarySize: 0,
-    };
-  }
-
-  if (!isFetchSidebarVisible && isPrimarySidebarVisible) {
-    return {
-      fetchSize: 0,
-      primarySize: clamp(
-        availableSize,
-        primarySidebarConstraints.minimum,
-        primarySidebarConstraints.maximum,
-      ),
-    };
-  }
-
-  let primarySize = clamp(
-    primarySidebarSize,
-    primarySidebarConstraints.minimum,
-    primarySidebarConstraints.maximum,
-  );
-  let fetchSize = availableSize - primarySize;
-
-  if (fetchSize < fetchSidebarConstraints.minimum) {
-    fetchSize = fetchSidebarConstraints.minimum;
-    primarySize = availableSize - fetchSize;
-  } else if (fetchSize > fetchSidebarConstraints.maximum) {
-    fetchSize = fetchSidebarConstraints.maximum;
-    primarySize = availableSize - fetchSize;
-  }
-
-  primarySize = clamp(
-    primarySize,
-    primarySidebarConstraints.minimum,
-    primarySidebarConstraints.maximum,
-  );
-  fetchSize = clamp(
-    availableSize - primarySize,
-    fetchSidebarConstraints.minimum,
-    fetchSidebarConstraints.maximum,
-  );
-
-  const normalizedPrimarySize = availableSize - fetchSize;
-  if (normalizedPrimarySize !== primarySize) {
-    primarySize = clamp(
-      normalizedPrimarySize,
-      primarySidebarConstraints.minimum,
-      primarySidebarConstraints.maximum,
-    );
-    fetchSize = availableSize - primarySize;
-  }
-
-  return {
-    fetchSize,
-    primarySize,
   };
 }

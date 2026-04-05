@@ -16,7 +16,6 @@ import {
   setPrimarySidebarVisible,
   subscribeWorkbenchLayoutState,
   toggleAgentSidebarVisibility,
-  toggleFetchSidebarVisibility,
   togglePrimarySidebarVisibility,
   WORKBENCH_PART_IDS,
 } from 'ls/workbench/browser/layout';
@@ -733,7 +732,6 @@ class WorkbenchHost {
     } = params;
 
     setWorkbenchTitlebarCommandHandlers({
-      onToggleFetchSidebar: toggleFetchSidebarVisibility,
       onTogglePrimarySidebar: togglePrimarySidebarVisibility,
       onToggleAgentSidebar: toggleAgentSidebarVisibility,
       onNavigateBack,
@@ -808,11 +806,9 @@ class WorkbenchHost {
   }
 
   private renderWorkbenchContentPage(props: {
-    isFetchSidebarVisible: boolean;
     isPrimarySidebarVisible: boolean;
     isAgentSidebarVisible: boolean;
     isLayoutEdgeSnappingEnabled: boolean;
-    fetchSidebarSize: number;
     primarySidebarSize: number;
     agentSidebarSize: number;
     fetchPaneProps: ReturnType<typeof createFetchPaneProps>;
@@ -871,10 +867,8 @@ class WorkbenchHost {
     } = getWorkbenchSessionSnapshot();
     const { activePage } = getWorkbenchStateSnapshot();
     const {
-      isFetchSidebarVisible,
       isPrimarySidebarVisible,
       isAgentSidebarVisible,
-      fetchSidebarSize,
       primarySidebarSize,
       agentSidebarSize,
     } = getWorkbenchLayoutStateSnapshot();
@@ -1489,7 +1483,6 @@ class WorkbenchHost {
         activeConversationId: activeAssistantConversationId,
         llmModelOptions: agentLlmModelOptions,
         activeLlmModelOptionValue,
-        isSecondarySidebarVisible: isFetchSidebarVisible,
       },
       actions: {
         onQuestionChange: setAssistantQuestion,
@@ -1499,7 +1492,6 @@ class WorkbenchHost {
         onActivateConversation: handleAssistantActivateConversation,
         onCloseConversation: handleAssistantCloseConversation,
         onCloseAgentBar: handleCloseAgentSidebar,
-        onToggleSecondarySidebar: toggleFetchSidebarVisibility,
         onSelectLlmModel: (value) => {
           activeAgentChatModelOptionValue =
             value === AGENT_CHAT_AUTO_MODEL_OPTION_VALUE ? null : value;
@@ -1534,8 +1526,6 @@ class WorkbenchHost {
       commandPaletteLabel: ui.addressBarSourcePlaceholder,
       onTogglePrimarySidebar: togglePrimarySidebarVisibility,
     };
-    const effectiveSecondarySidebarVisible =
-      isAgentSidebarVisible && isFetchSidebarVisible;
 
     const settingsPartProps = createSettingsPartProps({
       state: {
@@ -1675,11 +1665,9 @@ class WorkbenchHost {
 
     if (activePage === 'content') {
       this.renderWorkbenchContentPage({
-        isFetchSidebarVisible: effectiveSecondarySidebarVisible,
         isPrimarySidebarVisible,
         isAgentSidebarVisible,
         isLayoutEdgeSnappingEnabled: isWindowFullscreen,
-        fetchSidebarSize,
         primarySidebarSize,
         agentSidebarSize,
         fetchPaneProps,

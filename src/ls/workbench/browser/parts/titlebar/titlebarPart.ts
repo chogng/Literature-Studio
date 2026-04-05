@@ -11,7 +11,6 @@ export type TitlebarPartState = {
   ui: LocaleMessages;
   webUrl: string;
   isWindowMaximized: boolean;
-  isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
   isAgentSidebarVisible: boolean;
   browserUrl: string;
@@ -23,7 +22,6 @@ export type TitlebarPartState = {
 
 export type TitlebarPartActions = {
   handleWindowControl: (action: TitlebarAction) => void;
-  handleToggleFetchSidebar: () => void;
   handleTogglePrimarySidebar: () => void;
   handleToggleAgentSidebar: () => void;
   handleWebContentBack: () => void;
@@ -74,8 +72,6 @@ export function createTitlebarPartProps({
       backLabel: ui.titlebarBack,
       forwardLabel: ui.titlebarForward,
       refreshLabel: ui.titlebarRefresh,
-      showFetchSidebarLabel: ui.titlebarShowFetchSidebar,
-      hideFetchSidebarLabel: ui.titlebarHideFetchSidebar,
       showPrimarySidebarLabel: ui.titlebarShowPrimarySidebar,
       hidePrimarySidebarLabel: ui.titlebarHidePrimarySidebar,
       showAssistantLabel: ui.titlebarShowAssistant,

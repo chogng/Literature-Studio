@@ -40,7 +40,6 @@ export type ColorIdentifier =
   | 'primaryBar.emptyStateForeground'
   | 'primaryBar.linkForeground'
   | 'primaryBar.linkHoverForeground'
-  | 'secondarySidebar.background'
   | 'agentBar.background'
   | 'agentBar.inputBorder'
   | 'agentBar.inputBackground'

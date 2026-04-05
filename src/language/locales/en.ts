@@ -146,8 +146,6 @@ const en = {
   assistantSidebarNewConversation: 'New chat',
   assistantSidebarHistory: 'History',
   assistantSidebarMore: 'More',
-  assistantSidebarShowSecondarySidebar: 'Show secondary sidebar',
-  assistantSidebarHideSecondarySidebar: 'Hide secondary sidebar',
   assistantSidebarQuestion: 'Question',
   assistantSidebarQuestionPlaceholder:
     'Ask about the fetched literature, compare findings, or draft a short evidence-backed answer.',
@@ -365,8 +363,6 @@ const en = {
   titlebarBack: 'Back',
   titlebarForward: 'Forward',
   titlebarRefresh: 'Refresh',
-  titlebarShowFetchSidebar: 'Show fetch sidebar',
-  titlebarHideFetchSidebar: 'Hide fetch sidebar',
   titlebarShowPrimarySidebar: 'Show main sidebar',
   titlebarHidePrimarySidebar: 'Hide main sidebar',
   titlebarShowAssistant: 'Show assistant',
