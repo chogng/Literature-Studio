@@ -1,7 +1,6 @@
 import 'ls/base/browser/ui/dropdown/dropdown.css';
 import { createContextViewController } from 'ls/base/browser/ui/contextview/contextview';
 import {
-  applyHover,
   getHoverService,
   type HoverHandle,
   type HoverInput,
@@ -17,7 +16,6 @@ import {
   type DisposableLike,
 } from 'ls/base/common/lifecycle';
 
-export type DropdownSize = 'sm' | 'md' | 'lg';
 export type DropdownMenuAlign = 'start' | 'center' | 'end';
 export type DropdownDomMenuLayer = 'inline' | 'portal';
 export type DropdownMenuChangeSource = 'open' | 'props' | 'viewport';
@@ -63,7 +61,6 @@ export type DropdownMenuPresenter = {
 
 export type DropdownProps = {
   options: DropdownOption[];
-  size?: DropdownSize;
   value?: string;
   placeholder?: string;
   matchTriggerWidth?: boolean;
@@ -338,9 +335,6 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
         item.setAttribute('role', 'option');
         item.setAttribute('aria-selected', String(selectedValue === option.value));
         item.setAttribute('aria-disabled', option.disabled ? 'true' : 'false');
-        if (option.title) {
-          applyHover(item, option.title);
-        }
         item.append(createOptionContent(option), createCheckSlot(selectedValue === option.value));
         item.addEventListener('click', (event) => {
           event.stopPropagation();
@@ -687,7 +681,6 @@ export class DropdownView extends LifecycleOwner {
     return {
       ...props,
       options: Array.isArray(props.options) ? props.options : [],
-      size: props.size ?? 'md',
       className: props.className ?? '',
       matchTriggerWidth: props.matchTriggerWidth ?? true,
       menuAlign: props.menuAlign ?? 'start',
@@ -788,7 +781,6 @@ export class DropdownView extends LifecycleOwner {
     const selectedOption = resolveSelectedOption(this.props);
     this.element.className = composeClassName([
       'dropdown-wrapper',
-      `dropdown-${this.props.size ?? 'md'}`,
       this.isOpen || this.isFocused ? 'dropdown-focused' : '',
       this.props.disabled ? 'dropdown-disabled' : '',
       this.props.className,

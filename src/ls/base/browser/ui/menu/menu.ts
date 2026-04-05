@@ -1,7 +1,6 @@
 import 'ls/base/browser/ui/menu/menu.css';
 
 import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
-import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import { LifecycleOwner, LifecycleStore, toDisposable } from 'ls/base/common/lifecycle';
 
@@ -238,9 +237,6 @@ export class Menu extends LifecycleOwner {
       node.dataset.index = String(index);
       node.setAttribute('role', 'menuitem');
       node.setAttribute('aria-disabled', item.disabled ? 'true' : 'false');
-      if (item.title) {
-        this.renderDisposables.add(applyHover(node, item.title));
-      }
       node.append(createMenuItemContent(item), createCheckSlot(selected));
       this.renderDisposables.add(
         addDisposableListener(node, 'mouseenter', () => {

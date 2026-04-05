@@ -1,6 +1,6 @@
 :root {
-  --sash-size: 10px;
-  --sash-hover-size: 16px;
+  --sash-size: 1px;
+  --sash-hover-size: 4px;
   --sash-hover-border: rgba(46, 109, 179, 0.28);
 }
 
@@ -58,15 +58,15 @@
 .sash.vertical::before {
   top: 0;
   bottom: 0;
-  width: 4px;
-  left: calc(50% - 2px);
+  width: var(--sash-hover-size);
+  left: calc(50% - (var(--sash-hover-size) / 2));
 }
 
 .sash.horizontal::before {
   left: 0;
   right: 0;
-  height: 4px;
-  top: calc(50% - 2px);
+  height: var(--sash-hover-size);
+  top: calc(50% - (var(--sash-hover-size) / 2));
 }
 
 .sash.hover::before,
