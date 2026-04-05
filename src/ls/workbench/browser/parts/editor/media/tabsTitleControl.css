@@ -15,7 +15,7 @@
   height: var(--editor-tabs-strip-height);
   box-sizing: border-box;
   padding: 0;
-  background: var(--vscode-editor-tabsHeaderBackground, #f3f6f9);
+  background: transparent;
   overflow: hidden;
   -webkit-app-region: drag;
 }
@@ -48,6 +48,7 @@
   min-width: 0;
   height: var(--editor-tabs-strip-height);
   position: relative;
+  background: transparent;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0;
@@ -87,7 +88,7 @@
 }
 
 .editor-tab.is-active {
-  background: var(--vscode-editor-tabActiveBackground, #fbfcfd);
+  background: transparent;
   box-shadow: none;
 }
 
