@@ -117,7 +117,7 @@ export class AuxiliaryBarPartView {
   );
   private readonly topbarElement = createElement(
     'div',
-    'auxiliarybar-shell-topbar titlebar-segment titlebar-segment-auxiliary',
+    'auxiliarybar-shell-topbar topbar-segment topbar-segment-auxiliary',
   );
   private readonly leadingWindowControlsSpacer = createElement(
     'div',

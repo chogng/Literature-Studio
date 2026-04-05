@@ -5,7 +5,7 @@
   min-height: 0;
   border: 0;
   border-radius: 0;
-  background: var(--vscode-sideBar-background, #ffffff);
+  background: var(--vscode-secondarySidebar-background, #ffffff);
 }
 
 .secondary-sidebar-panel {
@@ -211,7 +211,7 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: var(--vscode-sideBar-background, #ffffff);
+  background: var(--vscode-secondarySidebar-background, #ffffff);
   border: 1px solid var(--vscode-sideBar-cardBorder, #e2e9f1);
 }
 

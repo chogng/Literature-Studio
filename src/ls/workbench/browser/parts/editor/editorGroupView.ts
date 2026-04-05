@@ -218,7 +218,7 @@ export class EditorGroupView {
   private readonly element = createElement('div', 'editor-shell');
   private readonly headerElement = createElement(
     'div',
-    'editor-tabs-header titlebar-segment titlebar-segment-editor',
+    'editor-tabs-header topbar-segment topbar-segment-editor',
   );
   private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div');

@@ -99,7 +99,7 @@ export class PrimaryBar {
   private readonly element = createElement('div', 'primarybar-root');
   private readonly topbarElement = createElement(
     'div',
-    'primarybar-topbar titlebar-segment titlebar-segment-primary',
+    'primarybar-topbar topbar-segment topbar-segment-primary',
   );
   private readonly leadingWindowControlsSpacer = createElement(
     'div',

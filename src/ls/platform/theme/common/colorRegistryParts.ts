@@ -15,11 +15,10 @@ export const sideBarBorder = registerColor('sideBar.border', {
   light: '#e5e5e5',
 });
 
-export const sideBarBackground = registerColor('sideBar.background', {
+export const secondarySidebarBackground = registerColor('secondarySidebar.background', {
   dark: '#18222c',
   light: '#ffffff',
 });
-
 export const sideBarCardBackground = registerColor('sideBar.cardBackground', {
   dark: '#1f2a35',
   light: '#f7fafc',
@@ -102,7 +101,7 @@ export const sideBarStatusNeutralForeground = registerColor('sideBar.statusNeutr
 
 export const primaryBarBackground = registerColor('primaryBar.background', {
   dark: '#18222c',
-  light: '#f3f3f3',
+  light: '#fafafa',
 });
 
 export const primaryBarFetchCardBorder = registerColor('primaryBar.fetchCardBorder', {
@@ -168,6 +167,11 @@ export const primaryBarLinkForeground = registerColor('primaryBar.linkForeground
 export const primaryBarLinkHoverForeground = registerColor('primaryBar.linkHoverForeground', {
   dark: '#9cc8ff',
   light: '#0d6ed8',
+});
+
+export const auxiliaryBarBackground = registerColor('auxiliaryBar.background', {
+  dark: '#18222c',
+  light: '#f8f8f8',
 });
 
 export const auxiliaryBarInputBorder = registerColor('auxiliaryBar.inputBorder', {

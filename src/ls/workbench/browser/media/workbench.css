@@ -102,9 +102,9 @@ button:disabled {
   color: var(--vscode-workbench-panelTitleForeground, #203040);
 }
 
-/* The titlebar is split across the three top segments of
+/* The topbar is split across the three top segments of
    primarybar, editor, and auxiliarybar rather than rendered as one strip. */
-.titlebar-segment {
+.topbar-segment {
   flex: 0 0 36px;
   height: 36px;
   min-height: 36px;
@@ -112,9 +112,9 @@ button:disabled {
   user-select: none;
 }
 
-.titlebar-segment-primary,
-.titlebar-segment-editor,
-.titlebar-segment-auxiliary {
+.topbar-segment-primary,
+.topbar-segment-editor,
+.topbar-segment-auxiliary {
   min-width: 0;
 }
 
