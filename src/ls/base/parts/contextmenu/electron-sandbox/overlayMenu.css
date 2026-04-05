@@ -10,3 +10,7 @@
   min-width: var(--native-menu-min-width, 120px);
   max-width: min(560px, calc(100vw - 16px));
 }
+
+.native-menu-overlay-menu.ls-menu:focus-visible {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+}

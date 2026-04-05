@@ -80,7 +80,6 @@ export class Sash {
   private readonly onDidChangeEmitter = new EventEmitter<ISashEvent>();
   private readonly onDidResetEmitter = new EventEmitter<void>();
   private readonly onDidEndEmitter = new EventEmitter<void>();
-  private readonly size: number;
   private readonly prefersPointerEvents =
     typeof window !== 'undefined' && typeof window.PointerEvent !== 'undefined';
   private state = SashState.Enabled;
@@ -93,11 +92,13 @@ export class Sash {
     private readonly orientation: Orientation,
     options: SashOptions = {},
   ) {
-    this.size = options.size ?? 10;
     this.element.className = [
       'sash',
       this.orientation === Orientation.VERTICAL ? 'vertical' : 'horizontal',
     ].join(' ');
+    if (typeof options.size === 'number') {
+      this.element.style.setProperty('--sash-size', `${options.size}px`);
+    }
     this.container.append(this.element);
 
     if (this.prefersPointerEvents) {
@@ -154,7 +155,6 @@ export class Sash {
     if (this.orientation === Orientation.VERTICAL) {
       this.element.style.left = `${offset}px`;
       this.element.style.top = '0';
-      this.element.style.width = `${this.size}px`;
       this.element.style.height = `${orthogonalSize}px`;
       return;
     }
@@ -162,7 +162,6 @@ export class Sash {
     this.element.style.left = '0';
     this.element.style.top = `${offset}px`;
     this.element.style.width = `${orthogonalSize}px`;
-    this.element.style.height = `${this.size}px`;
   }
 
   dispose() {

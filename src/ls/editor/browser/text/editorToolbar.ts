@@ -353,7 +353,6 @@ export class DraftEditorToolbar {
   private createToolbarDropdown(dropdownConfig: WritingEditorToolbarDropdownConfig) {
     const menuPresenter = createDomDropdownMenuPresenter({ layer: 'portal' });
     const dropdown = createDropdownView({
-      size: 'sm',
       className: 'pm-toolbar-dropdown',
       menuPresenter,
       title: dropdownConfig.title,
