@@ -1,6 +1,7 @@
 import type { ThemeColorDefaults } from 'ls/platform/theme/common/theme';
 
 export type ColorIdentifier =
+  | 'sash.background'
   | 'sash.hoverBorder'
   | 'scrollbar.shadow'
   | 'scrollbarSlider.background'
@@ -26,6 +27,7 @@ export type ColorIdentifier =
   | 'sideBar.statusErrorForeground'
   | 'sideBar.statusNeutralBackground'
   | 'sideBar.statusNeutralForeground'
+  | 'primaryBar.background'
   | 'primaryBar.fetchCardBorder'
   | 'primaryBar.fetchCardHoverBackground'
   | 'primaryBar.fetchCardFocusBorder'

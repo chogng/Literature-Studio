@@ -1,4 +1,3 @@
-import { getGlobalSashSize } from 'ls/base/browser/ui/sash/sash';
 import { Orientation } from 'ls/base/browser/ui/splitview/splitview';
 import { WORKBENCH_SPLITVIEW_LIMITS } from 'ls/workbench/browser/layout';
 
@@ -35,15 +34,6 @@ const MOBILE_SPLITVIEW_LIMITS = {
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.max(minimum, Math.min(maximum, value));
-}
-
-function getLeadingGroupSashSize(
-  isFetchSidebarVisible: boolean,
-  isPrimarySidebarVisible: boolean,
-) {
-  return isFetchSidebarVisible && isPrimarySidebarVisible
-    ? getGlobalSashSize()
-    : 0;
 }
 
 export function getWorkbenchContentSplitConstraints(
@@ -107,7 +97,7 @@ export function resolveWorkbenchLeadingPaneSizes({
 
   const availableSize = Math.max(
     0,
-    totalSize - getLeadingGroupSashSize(isFetchSidebarVisible, isPrimarySidebarVisible),
+    totalSize,
   );
 
   if (isFetchSidebarVisible && !isPrimarySidebarVisible) {

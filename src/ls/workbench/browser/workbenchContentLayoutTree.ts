@@ -1,4 +1,3 @@
-import { getGlobalSashSize } from 'ls/base/browser/ui/sash/sash';
 import { Orientation } from 'ls/base/browser/ui/grid/gridview';
 
 export type WorkbenchContentLayoutLeafId =
@@ -118,22 +117,12 @@ export function serializeWorkbenchContentLayoutTree(tree: WorkbenchContentLayout
   return JSON.parse(JSON.stringify(tree)) as WorkbenchContentLayoutNode;
 }
 
-function getRootVisibleChildCount(params: WorkbenchContentLayoutTreeParams) {
-  return [
-    params.isFetchSidebarVisible,
-    params.isPrimarySidebarVisible,
-    true,
-    params.isAuxiliarySidebarVisible,
-  ].filter(Boolean).length;
-}
-
 function getRootSize(params: WorkbenchContentLayoutTreeParams) {
   return (
     (params.isFetchSidebarVisible ? params.fetchSidebarSize : 0) +
     (params.isPrimarySidebarVisible ? params.primarySidebarSize : 0) +
     params.editorSize +
-    (params.isAuxiliarySidebarVisible ? params.auxiliarySidebarSize : 0) +
-    Math.max(0, getRootVisibleChildCount(params) - 1) * getGlobalSashSize()
+    (params.isAuxiliarySidebarVisible ? params.auxiliarySidebarSize : 0)
   );
 }
 

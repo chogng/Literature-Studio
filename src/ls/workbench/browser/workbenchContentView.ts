@@ -3,7 +3,6 @@ import type {
   IGridView,
 } from 'ls/base/browser/ui/grid/gridview';
 import { GridBranchView, GridView, Orientation } from 'ls/base/browser/ui/grid/gridview';
-import { getGlobalSashSize } from 'ls/base/browser/ui/sash/sash';
 import {
   LifecycleStore,
   MutableLifecycle,
@@ -128,15 +127,6 @@ function syncElementContent(host: HTMLElement, content: HTMLElement | null) {
   }
 }
 
-function getVisibleRootPaneCount(props: WorkbenchContentViewProps) {
-  return [
-    props.isFetchSidebarVisible,
-    props.isPrimarySidebarVisible,
-    true,
-    props.isAuxiliarySidebarVisible,
-  ].filter(Boolean).length;
-}
-
 function getRootSplitSize(
   props: WorkbenchContentViewProps,
   sizes: SplitViewSizeSnapshot,
@@ -145,10 +135,7 @@ function getRootSplitSize(
     (props.isFetchSidebarVisible ? sizes.fetchSidebarSize : 0) +
     (props.isPrimarySidebarVisible ? sizes.primarySidebarSize : 0) +
     sizes.editorSize +
-    (props.isAuxiliarySidebarVisible ? sizes.auxiliarySidebarSize : 0) +
-    (WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE
-      ? Math.max(0, getVisibleRootPaneCount(props) - 1) * getGlobalSashSize()
-      : 0)
+    (props.isAuxiliarySidebarVisible ? sizes.auxiliarySidebarSize : 0)
   );
 }
 

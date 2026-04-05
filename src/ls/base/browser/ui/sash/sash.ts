@@ -46,11 +46,13 @@ export const enum SashState {
   Enabled,
 }
 
-export const DEFAULT_SASH_SIZE = 10;
-export const DEFAULT_SASH_HOVER_SIZE = 10;
+export const DEFAULT_SASH_SIZE = 4;
+export const DEFAULT_SASH_HOVER_SIZE = 4;
+export const DEFAULT_SASH_HOVER_DELAY = 300;
 
 let globalSashSize = DEFAULT_SASH_SIZE;
 let globalSashHoverSize = DEFAULT_SASH_HOVER_SIZE;
+let globalSashHoverDelay = DEFAULT_SASH_HOVER_DELAY;
 
 function applyGlobalSashStyles() {
   if (typeof document === 'undefined') {
@@ -64,13 +66,12 @@ function applyGlobalSashStyles() {
   );
 }
 
-function parseCssPixelValue(value: string, fallback: number) {
-  const parsed = Number.parseFloat(value.trim());
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 export function getGlobalSashSize() {
   return globalSashSize;
+}
+
+export function getGlobalSashHoverDelay() {
+  return globalSashHoverDelay;
 }
 
 export function setGlobalSashSize(
@@ -82,32 +83,12 @@ export function setGlobalSashSize(
   applyGlobalSashStyles();
 }
 
-export function syncGlobalSashSizeFromCss() {
-  if (typeof document === 'undefined') {
-    return;
-  }
-
-  const styles = getComputedStyle(document.documentElement);
-  globalSashSize = parseCssPixelValue(
-    styles.getPropertyValue('--sash-size'),
-    DEFAULT_SASH_SIZE,
-  );
-  globalSashHoverSize = parseCssPixelValue(
-    styles.getPropertyValue('--sash-hover-size'),
-    globalSashSize,
-  );
+export function setGlobalSashHoverDelay(delay: number) {
+  globalSashHoverDelay = delay;
 }
 
-export function resetGlobalSashSize() {
-  globalSashSize = DEFAULT_SASH_SIZE;
-  globalSashHoverSize = DEFAULT_SASH_HOVER_SIZE;
-
-  if (typeof document === 'undefined') {
-    return;
-  }
-
-  document.documentElement.style.removeProperty('--sash-size');
-  document.documentElement.style.removeProperty('--sash-hover-size');
+export function initializeGlobalSashStyles() {
+  applyGlobalSashStyles();
 }
 
 export type ISashEvent = {
@@ -151,6 +132,8 @@ export class Sash {
     typeof window !== 'undefined' && typeof window.PointerEvent !== 'undefined';
   private state = SashState.Enabled;
   private active = false;
+  private hoverDelay = globalSashHoverDelay;
+  private hoverTimeout: number | undefined;
   private readonly disposables = new LifecycleStore();
   private readonly dragListeners = new MutableLifecycle<DisposableLike>();
 
@@ -217,6 +200,9 @@ export class Sash {
     }
 
     this.state = state;
+    if (state === SashState.Disabled) {
+      this.clearHoverState();
+    }
     this.renderState();
   }
 
@@ -237,6 +223,7 @@ export class Sash {
   }
 
   dispose() {
+    this.clearHoverState();
     this.dragListeners.clear();
 
     this.dragListeners.dispose();
@@ -275,15 +262,28 @@ export class Sash {
   }
 
   private readonly handleMouseEnter = () => {
-    if (!this.active && this.state !== SashState.Disabled) {
-      this.element.classList.add('hover');
+    if (this.state === SashState.Disabled) {
+      return;
     }
+
+    this.clearHoverTimeout();
+
+    if (this.active) {
+      this.element.classList.add('hover');
+      return;
+    }
+
+    this.hoverTimeout = window.setTimeout(() => {
+      this.hoverTimeout = undefined;
+
+      if (!this.active && this.state !== SashState.Disabled) {
+        this.element.classList.add('hover');
+      }
+    }, this.hoverDelay);
   };
 
   private readonly handleMouseLeave = () => {
-    if (!this.active) {
-      this.element.classList.remove('hover');
-    }
+    this.clearHoverState();
   };
 
   private readonly handleDoubleClick = () => {
@@ -310,7 +310,7 @@ export class Sash {
     const { x: startX, y: startY } = getPointerPosition(event);
     this.dragListeners.clear();
     this.active = true;
-    this.element.classList.remove('hover');
+    this.clearHoverState();
     this.element.classList.add('active');
     event.preventDefault();
 
@@ -367,6 +367,18 @@ export class Sash {
       addDisposableListener(window, 'mousemove', mouseMoveListener),
       addDisposableListener(window, 'mouseup', mouseUpListener),
     );
+  }
+
+  private clearHoverTimeout() {
+    if (typeof this.hoverTimeout === 'number') {
+      window.clearTimeout(this.hoverTimeout);
+      this.hoverTimeout = undefined;
+    }
+  }
+
+  private clearHoverState() {
+    this.clearHoverTimeout();
+    this.element.classList.remove('hover');
   }
 }
 

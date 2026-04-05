@@ -100,6 +100,11 @@ export const sideBarStatusNeutralForeground = registerColor('sideBar.statusNeutr
   light: '#536576',
 });
 
+export const primaryBarBackground = registerColor('primaryBar.background', {
+  dark: '#18222c',
+  light: '#f3f3f3',
+});
+
 export const primaryBarFetchCardBorder = registerColor('primaryBar.fetchCardBorder', {
   dark: '#3a3f45',
   light: '#ebebeb',

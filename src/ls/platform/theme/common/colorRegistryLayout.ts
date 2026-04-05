@@ -1,5 +1,10 @@
 import { registerColor } from 'ls/platform/theme/common/colorRegistryCore';
 
+export const sashBackground = registerColor('sash.background', {
+  dark: '#f8f8f8',
+  light: '#f8f8f8',
+});
+
 export const sashHoverBorder = registerColor('sash.hoverBorder', {
   dark: 'rgba(46, 109, 179, 0.28)',
   light: 'rgba(46, 109, 179, 0.28)',
