@@ -34,7 +34,7 @@ import { createAuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliar
 import type { AgentChatWidgetProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
 
 import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
-import { createSecondarySidebarPartProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+import { createFetchPaneProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
 import { createTitlebarPartProps } from 'ls/workbench/browser/parts/titlebar/titlebarPart';
 import { createTitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
 import type { TitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
@@ -839,7 +839,7 @@ class WorkbenchHost {
     fetchSidebarSize: number;
     primarySidebarSize: number;
     auxiliarySidebarSize: number;
-    secondarySidebarProps: ReturnType<typeof createSecondarySidebarPartProps>;
+    fetchPaneProps: ReturnType<typeof createFetchPaneProps>;
     primaryBarProps: PrimaryBarProps;
     auxiliarySidebarProps: AgentChatWidgetProps;
     editorPartProps: EditorPartProps;
@@ -1502,23 +1502,23 @@ class WorkbenchHost {
       onExportDocx: handleExportDocx,
     });
 
-    const secondarySidebarProps = createSecondarySidebarPartProps({
+    const fetchPaneProps = createFetchPaneProps({
       state: {
         ui,
         locale,
         articles: filteredArticles,
         hasData,
-        batchStartDate,
-        batchEndDate,
-        isBatchLoading,
+        fetchStartDate: batchStartDate,
+        fetchEndDate: batchEndDate,
+        isFetchLoading: isBatchLoading,
         isSelectionModeEnabled: selectionModePhase !== 'off',
         selectionModePhase,
         selectedArticleKeys,
       },
       actions: {
-        onBatchStartDateChange: setBatchStartDate,
-        onBatchEndDateChange: setBatchEndDate,
-        onFetchLatestBatch: () => void handleFetchLatestBatch(),
+        onFetchStartDateChange: setBatchStartDate,
+        onFetchEndDateChange: setBatchEndDate,
+        onFetch: () => void handleFetchLatestBatch(),
         onDownloadPdf: handleSharedPdfDownload,
         onOpenArticleDetails: handleOpenArticleDetails,
         onToggleSelectionMode: handleToggleSelectionMode,
@@ -1527,8 +1527,8 @@ class WorkbenchHost {
     });
 
     const primaryBarProps: PrimaryBarProps = {
-      labels: secondarySidebarProps.labels,
-      batchFetchProps: secondarySidebarProps,
+      labels: fetchPaneProps.labels,
+      fetchPaneProps,
       librarySnapshot,
       isLibraryLoading,
       onRefreshLibrary: () => void refreshLibrary(),
@@ -1635,6 +1635,8 @@ class WorkbenchHost {
         batchSources,
         batchLimit,
         sameDomainOnly,
+        fetchStartDate: batchStartDate,
+        fetchEndDate: batchEndDate,
         useMica,
         knowledgeBaseEnabled,
         autoIndexDownloadedPdf,
@@ -1677,6 +1679,8 @@ class WorkbenchHost {
         onBatchLimitChange: (value) =>
           settingsControllerInstance.setBatchLimit(normalizeBatchLimit(value, 1)),
         onSameDomainOnlyChange: settingsControllerInstance.setSameDomainOnly,
+        onFetchStartDateChange: setBatchStartDate,
+        onFetchEndDateChange: setBatchEndDate,
         onUseMicaChange: settingsControllerInstance.setUseMica,
         onKnowledgeBaseEnabledChange: settingsControllerInstance.setKnowledgeBaseEnabled,
         onAutoIndexDownloadedPdfChange:
@@ -1767,7 +1771,7 @@ class WorkbenchHost {
         fetchSidebarSize,
         primarySidebarSize,
         auxiliarySidebarSize,
-        secondarySidebarProps,
+        fetchPaneProps,
         primaryBarProps,
         auxiliarySidebarProps,
         editorPartProps: contentAwareEditorPartProps,

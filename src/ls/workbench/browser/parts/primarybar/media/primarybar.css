@@ -231,11 +231,6 @@ html[lang="en"] .fetch-pane-empty-state {
   padding: 8px;
 }
 
-.fetch-pane-date-picker {
-  min-width: 0;
-  flex: 1;
-}
-
 .fetch-pane-trigger-btn {
   flex-shrink: 0;
 }

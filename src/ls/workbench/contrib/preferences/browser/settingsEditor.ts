@@ -40,7 +40,7 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
     settingsTitle: ui.settingsTitle, settingsLoading: ui.settingsLoading, settingsLanguage: ui.settingsLanguage, languageChinese: ui.languageChinese, languageEnglish: ui.languageEnglish, settingsLanguageHint: ui.settingsLanguageHint,
     settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
     settingsPageUrl: ui.settingsPageUrl, settingsPageUrlHint: ui.settingsPageUrlHint, pageUrlPlaceholder: ui.pageUrlPlaceholder, settingsBatchJournalTitle: ui.settingsBatchJournalTitle, batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
-    addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly,
+    addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly, startDate: ui.startDate, endDate: ui.endDate,
     settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
     settingsKnowledgeBaseModeHint: ui.settingsKnowledgeBaseModeHint, settingsKnowledgeBaseModeDisabledHint: ui.settingsKnowledgeBaseModeDisabledHint, settingsKnowledgeBaseAutoIndex: ui.settingsKnowledgeBaseAutoIndex, settingsKnowledgeBaseAutoIndexHint: ui.settingsKnowledgeBaseAutoIndexHint,
     settingsKnowledgeBasePdfDownloadDir: ui.settingsKnowledgeBasePdfDownloadDir, settingsKnowledgeBasePdfDownloadDirPlaceholder: ui.settingsKnowledgeBasePdfDownloadDirPlaceholder, settingsKnowledgeBasePdfDownloadDirHint: ui.settingsKnowledgeBasePdfDownloadDirHint,
@@ -520,9 +520,13 @@ export class SettingsPartView {
       !previousProps ||
       previousProps.batchLimit !== this.props.batchLimit ||
       previousProps.sameDomainOnly !== this.props.sameDomainOnly ||
+      previousProps.fetchStartDate !== this.props.fetchStartDate ||
+      previousProps.fetchEndDate !== this.props.fetchEndDate ||
       previousProps.labels.settingsBatchOptions !== this.props.labels.settingsBatchOptions ||
       previousProps.labels.batchCount !== this.props.labels.batchCount ||
       previousProps.labels.sameDomainOnly !== this.props.labels.sameDomainOnly ||
+      previousProps.labels.startDate !== this.props.labels.startDate ||
+      previousProps.labels.endDate !== this.props.labels.endDate ||
       previousProps.labels.settingsBatchHint !== this.props.labels.settingsBatchHint
     );
   }
@@ -702,8 +706,32 @@ export class SettingsPartView {
       buildCheckbox({ checked: this.props.sameDomainOnly, className: 'radix-checkbox', focusKey: 'settings.batch.sameDomain', onChange: this.props.onSameDomainOnlyChange }),
       text(this.props.labels.sameDomainOnly),
     );
+    const dateRow = el('div', 'settings-batch-date-row');
+    const startDateField = el('label', 'settings-field settings-batch-date-field');
+    startDateField.append(
+      text(this.props.labels.startDate),
+      buildInput({
+        type: 'date',
+        value: this.props.fetchStartDate,
+        className: 'settings-input-control',
+        focusKey: 'settings.batch.startDate',
+        onInput: this.props.onFetchStartDateChange,
+      }),
+    );
+    const endDateField = el('label', 'settings-field settings-batch-date-field');
+    endDateField.append(
+      text(this.props.labels.endDate),
+      buildInput({
+        type: 'date',
+        value: this.props.fetchEndDate,
+        className: 'settings-input-control',
+        focusKey: 'settings.batch.endDate',
+        onInput: this.props.onFetchEndDateChange,
+      }),
+    );
+    dateRow.append(startDateField, endDateField);
     row.append(limitLabel, checkboxLabel);
-    field.append(title, row, buildHint(this.props.labels.settingsBatchHint));
+    field.append(title, row, dateRow, buildHint(this.props.labels.settingsBatchHint));
     return field;
   }
 

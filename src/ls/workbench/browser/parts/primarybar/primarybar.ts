@@ -3,11 +3,6 @@ import type {
   LibraryDocumentsResult,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
-import {
-  createDateRangePickerView,
-  type DateRangePickerView,
-} from 'ls/base/browser/ui/dateRangePicker/dateRangePicker';
-import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import {
   Pane,
@@ -24,7 +19,7 @@ import {
 import { LibraryView } from 'ls/workbench/contrib/knowledgeBase/browser/views/libraryView';
 import {
   FetchPaneContentView,
-  type SecondarySidebarProps,
+  type FetchPaneProps,
   type SidebarLabels,
 } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
 
@@ -34,7 +29,7 @@ export type PrimaryBarLabels = SidebarLabels;
 
 export type PrimaryBarProps = {
   labels: PrimaryBarLabels;
-  batchFetchProps: SecondarySidebarProps;
+  fetchPaneProps: FetchPaneProps;
   librarySnapshot: LibraryDocumentsResult;
   isLibraryLoading: boolean;
   onRefreshLibrary?: () => void;
@@ -115,16 +110,10 @@ export class PrimaryBar {
     className: 'pane-header-actionbar',
     ariaRole: 'group',
   });
-  private readonly fetchToolbar = createElement(
-    'div',
-    'actionbar pane-header-actionbar fetch-pane-actionbar',
-  );
-  private readonly fetchDateRangePicker: DateRangePickerView;
-  private readonly fetchSelectionActionsView = createActionBarView({
-    className: 'fetch-pane-selection-actionbar',
+  private readonly fetchActionsView = createActionBarView({
+    className: 'pane-header-actionbar fetch-pane-actionbar',
     ariaRole: 'group',
   });
-  private readonly fetchButton = createElement('button');
   private readonly libraryView: LibraryView;
   private readonly fetchContentView: FetchPaneContentView;
   private readonly libraryPane: ContentPane;
@@ -145,37 +134,9 @@ export class PrimaryBar {
       onDocumentDelete: props.onDocumentDelete,
     });
     this.fetchContentView = new FetchPaneContentView({
-      ...props.batchFetchProps,
+      ...props.fetchPaneProps,
       labels: props.labels,
     });
-    this.fetchDateRangePicker = createDateRangePickerView({
-      startDate: props.batchFetchProps.batchStartDate,
-      endDate: props.batchFetchProps.batchEndDate,
-      labels: {
-        startDate: props.labels.startDate,
-        endDate: props.labels.endDate,
-      },
-      onStartDateChange: (value) => this.props.batchFetchProps.onBatchStartDateChange(value),
-      onEndDateChange: (value) => this.props.batchFetchProps.onBatchEndDateChange(value),
-      className: 'sidebar-date-picker fetch-pane-date-picker',
-      triggerIcon: createLxIcon('calendar'),
-      triggerMode: 'icon',
-    });
-    this.fetchButton.type = 'button';
-    this.fetchButton.className = [
-      'actionbar-action',
-      'is-icon',
-      'sidebar-fetch-btn',
-      'fetch-pane-trigger-btn',
-    ].join(' ');
-    this.fetchButton.addEventListener('click', () => {
-      this.props.batchFetchProps.onFetchLatestBatch();
-    });
-    this.fetchToolbar.append(
-      this.fetchDateRangePicker.getElement(),
-      this.fetchSelectionActionsView.getElement(),
-      this.fetchButton,
-    );
     this.libraryToolbar.append(this.actionsView.getElement());
     this.librarySection.append(this.libraryView.getElement());
     this.libraryPane = new ContentPane(
@@ -191,7 +152,7 @@ export class PrimaryBar {
       this.fetchContentView.getElement(),
       260,
       35,
-      this.fetchToolbar,
+      this.fetchActionsView.getElement(),
       createPrimaryBarPaneClassNames('fetch'),
     );
     this.paneView.addPane(this.libraryPane, 280, { flex: true });
@@ -225,7 +186,7 @@ export class PrimaryBar {
       onDocumentDelete: props.onDocumentDelete,
     });
     this.fetchContentView.setProps({
-      ...props.batchFetchProps,
+      ...props.fetchPaneProps,
       labels: props.labels,
     });
     this.render();
@@ -239,8 +200,7 @@ export class PrimaryBar {
     this.disposed = true;
     this.resizeObserver.dispose();
     this.actionsView.dispose();
-    this.fetchDateRangePicker.dispose();
-    this.fetchSelectionActionsView.dispose();
+    this.fetchActionsView.dispose();
     this.libraryView.dispose();
     this.fetchContentView.dispose();
     this.paneView.dispose();
@@ -248,25 +208,11 @@ export class PrimaryBar {
   }
 
   private render() {
-    const { labels, isLibraryLoading } = this.props;
+    const { labels } = this.props;
     this.actionsView.setProps({
       className: 'pane-header-actionbar',
       ariaRole: 'group',
       items: [
-        {
-          label: labels.libraryAction,
-          content: createLxIcon(lxIconSemanticMap.library.refresh),
-          disabled: isLibraryLoading || !this.props.onRefreshLibrary,
-          buttonClassName: 'sidebar-action-btn',
-          onClick: () => this.props.onRefreshLibrary?.(),
-        },
-        {
-          label: labels.pdfDownloadAction,
-          content: createLxIcon(lxIconSemanticMap.library.downloadPdf),
-          disabled: !this.props.onDownloadPdf,
-          buttonClassName: 'sidebar-action-btn',
-          onClick: () => this.props.onDownloadPdf?.(),
-        },
         {
           label: labels.writingAction,
           content: createLxIcon(lxIconSemanticMap.library.createDraft),
@@ -277,54 +223,45 @@ export class PrimaryBar {
       ],
     });
     const selectionButtonLabel =
-      this.props.batchFetchProps.selectionModePhase === 'off'
+      this.props.fetchPaneProps.selectionModePhase === 'off'
         ? labels.selectionModeEnterMulti
-        : this.props.batchFetchProps.selectionModePhase === 'multi'
+        : this.props.fetchPaneProps.selectionModePhase === 'multi'
           ? labels.selectionModeSelectAll
           : labels.selectionModeExit;
-    this.fetchDateRangePicker.setProps({
-      startDate: this.props.batchFetchProps.batchStartDate,
-      endDate: this.props.batchFetchProps.batchEndDate,
-      labels: {
-        startDate: labels.startDate,
-        endDate: labels.endDate,
-      },
-      onStartDateChange: (value) => this.props.batchFetchProps.onBatchStartDateChange(value),
-      onEndDateChange: (value) => this.props.batchFetchProps.onBatchEndDateChange(value),
-      className: 'sidebar-date-picker fetch-pane-date-picker',
-      triggerIcon: createLxIcon('calendar'),
-      triggerMode: 'icon',
-    });
-    this.fetchSelectionActionsView.setProps({
-      className: 'fetch-pane-selection-actionbar',
+    this.fetchActionsView.setProps({
+      className: 'pane-header-actionbar fetch-pane-actionbar',
       ariaRole: 'group',
       items: [
         {
           label: selectionButtonLabel,
           title: selectionButtonLabel,
           mode: 'icon',
-          active: this.props.batchFetchProps.isSelectionModeEnabled,
-          checked: this.props.batchFetchProps.isSelectionModeEnabled,
+          active: this.props.fetchPaneProps.isSelectionModeEnabled,
+          checked: this.props.fetchPaneProps.isSelectionModeEnabled,
           disabled:
-            !this.props.batchFetchProps.articles.length &&
-            !this.props.batchFetchProps.isSelectionModeEnabled,
+            !this.props.fetchPaneProps.articles.length &&
+            !this.props.fetchPaneProps.isSelectionModeEnabled,
           buttonClassName: 'fetch-pane-select-action',
           content: createLxIcon(lxIconSemanticMap.sidebar.selectionMode),
-          onClick: () => this.props.batchFetchProps.onToggleSelectionMode(),
+          onClick: () => this.props.fetchPaneProps.onToggleSelectionMode(),
+        },
+        {
+          label: this.props.fetchPaneProps.isFetchLoading
+            ? labels.fetchLatestBusy
+            : labels.fetchLatest,
+          title: this.props.fetchPaneProps.isFetchLoading
+            ? labels.fetchLatestBusy
+            : labels.fetchLatest,
+          mode: 'icon',
+          disabled: this.props.fetchPaneProps.isFetchLoading,
+          buttonClassName: 'sidebar-fetch-btn fetch-pane-trigger-btn',
+          content: createLxIcon(
+            this.props.fetchPaneProps.isFetchLoading ? 'sync' : lxIconSemanticMap.fetch.batchDownload,
+          ),
+          onClick: () => this.props.fetchPaneProps.onFetch(),
         },
       ],
     });
-    const fetchButtonLabel = this.props.batchFetchProps.isBatchLoading
-      ? labels.fetchLatestBusy
-      : labels.fetchLatest;
-    this.fetchButton.replaceChildren(
-      createLxIcon(
-        this.props.batchFetchProps.isBatchLoading ? 'sync' : lxIconSemanticMap.library.downloadPdf,
-      ),
-    );
-    this.fetchButton.setAttribute('aria-label', fetchButtonLabel);
-    applyHover(this.fetchButton, fetchButtonLabel);
-    this.fetchButton.disabled = this.props.batchFetchProps.isBatchLoading;
     this.layoutPanes();
   }
 
