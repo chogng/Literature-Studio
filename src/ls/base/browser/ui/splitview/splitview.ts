@@ -152,6 +152,7 @@ export class SplitView<TLayoutContext = undefined> {
   constructor(
     readonly orientation: Orientation = Orientation.VERTICAL,
     private readonly sashSize = 10,
+    private readonly reserveSashSpace = true,
   ) {
     this.element.className = [
       'split-view',
@@ -343,6 +344,7 @@ export class SplitView<TLayoutContext = undefined> {
       const rightItemIndex = index + 1;
       const sash = new Sash(this.sashContainer, this.orientation, {
         size: this.sashSize,
+        offsetMode: this.reserveSashSpace ? 'start' : 'end',
       });
       const disposeStart = sash.onDidStart((event) => {
         this.handleSashStart(index, leftItemIndex, rightItemIndex, event);
@@ -770,6 +772,10 @@ export class SplitView<TLayoutContext = undefined> {
   }
 
   private hasReservedGapAfter(index: number) {
+    if (!this.reserveSashSpace) {
+      return false;
+    }
+
     return this.items[index]?.visible === true && this.items[index + 1]?.visible === true;
   }
 

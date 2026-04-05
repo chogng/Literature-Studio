@@ -4,6 +4,7 @@ import test, { after, before } from 'node:test';
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 import { Orientation, SplitView } from 'ls/base/browser/ui/splitview/splitview';
 import type { IView } from 'ls/base/browser/ui/splitview/splitview';
+import { Pane, PaneView } from 'ls/base/browser/ui/splitview/paneview';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 
@@ -238,6 +239,48 @@ test('splitview re-expands a snapped view only after crossing the reopen hystere
     disposeSnapListener();
     splitView.dispose();
     splitView.element.remove();
+  }
+});
+
+test('paneview bottom pane header remains clickable without reserved sash space', () => {
+  const paneView = new PaneView({
+    orientation: Orientation.HORIZONTAL,
+    reserveSashSpace: false,
+  });
+  const topPane = new Pane({
+    title: 'Top',
+    minimumBodySize: 120,
+    expanded: true,
+  });
+  const bottomPane = new Pane({
+    title: 'Bottom',
+    minimumBodySize: 120,
+    expanded: true,
+  });
+  paneView.addPane(topPane, 200, { flex: true });
+  paneView.addPane(bottomPane, 200, { flex: true });
+  document.body.append(paneView.element);
+
+  try {
+    paneView.layout(320, 400);
+
+    const toggle = bottomPane.element.querySelector<HTMLButtonElement>('.pane-header-toggle');
+    assert(toggle);
+    const body = bottomPane.element.querySelector<HTMLElement>('.pane-body');
+    assert(body);
+
+    toggle.click();
+
+    assert.equal(bottomPane.isExpanded(), false);
+    assert.equal(body.isConnected, false);
+
+    toggle.click();
+
+    assert.equal(bottomPane.isExpanded(), true);
+    assert.equal(body.isConnected, true);
+  } finally {
+    paneView.dispose();
+    paneView.element.remove();
   }
 });
 

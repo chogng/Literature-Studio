@@ -1,7 +1,6 @@
 import * as DOM from 'ls/base/browser/dom';
 import type {
   ContextMenuAction,
-  ContextMenuDelegate,
   ContextMenuService,
 } from 'ls/base/browser/contextmenu';
 import {
@@ -80,7 +79,38 @@ function createContextMenuValue(action: Pick<ActionBarMenuItem, 'id'>, index: nu
   return action.id ?? `dropdown-menu-action-option-${index}`;
 }
 
-class DomDropdownActionOverlayController {
+function toContextMenuActions(menuItems: readonly ActionBarMenuItem[]): ContextMenuAction[] {
+  return menuItems.map((menuItem, index) => ({
+    value: createContextMenuValue(menuItem, index),
+    label: menuItem.label,
+    title: menuItem.title,
+    icon: menuItem.icon,
+    disabled: menuItem.disabled,
+    checked: menuItem.checked,
+    run: menuItem.run,
+  }));
+}
+
+function runContextMenuAction(
+  menuItems: readonly ActionBarMenuItem[] | undefined,
+  menuActions: readonly ContextMenuAction[],
+  value: string,
+) {
+  const menuItemIndex = menuActions.findIndex((option) => option.value === value);
+  const menuItem = menuItemIndex >= 0 ? menuItems?.[menuItemIndex] : null;
+  if (!menuItem || menuItem.disabled) {
+    return;
+  }
+
+  if (menuItem.onClick) {
+    menuItem.onClick(new MouseEvent('click'));
+    return;
+  }
+
+  menuItem.run?.();
+}
+
+class DomDropdownActionOverlayPresenter {
   private readonly contextView = createContextViewController();
   private overlayView: HTMLElement | null = null;
   private currentRequest: DropdownActionOverlayRequest | null = null;
@@ -122,9 +152,79 @@ class DomDropdownActionOverlayController {
   };
 }
 
-export class DropdownMenuActionViewItem extends ActionViewItem {
+class ContextMenuDropdownActionPresenter {
   private defaultContextMenuService: ContextMenuService | null = null;
-  private readonly overlayController = new DomDropdownActionOverlayController();
+
+  constructor(
+    private readonly getOptions: () => DropdownMenuActionViewItemOptions,
+    private readonly getAnchor: () => HTMLElement,
+    private readonly onHide: () => void,
+  ) {}
+
+  show = () => {
+    const options = this.getOptions();
+    const menuItems = options.menu ?? [];
+    const menuActions = toContextMenuActions(menuItems);
+    if (menuActions.length === 0) {
+      return;
+    }
+
+    this.getOrCreateContextMenuService().showContextMenu({
+      getAnchor: this.getAnchor,
+      getActions: () => menuActions,
+      getMenuClassName: options.menuClassName ? () => options.menuClassName! : undefined,
+      alignment: options.overlayAlignment ?? 'end',
+      minWidth: options.minWidth,
+      onHide: this.onHide,
+      onSelect: (value: string) => {
+        runContextMenuAction(options.menu, menuActions, value);
+      },
+    });
+  };
+
+  hide = () => {
+    this.resolveContextMenuService(this.getOptions())?.hideContextMenu();
+  };
+
+  dispose = () => {
+    this.hide();
+    this.defaultContextMenuService?.dispose?.();
+    this.defaultContextMenuService = null;
+  };
+
+  syncOptions(previousOptions: DropdownMenuActionViewItemOptions) {
+    const previousContextMenuService = this.resolveContextMenuService(previousOptions);
+    const nextContextMenuService = this.resolveContextMenuService(this.getOptions());
+    if (previousContextMenuService && previousContextMenuService !== nextContextMenuService) {
+      previousContextMenuService.hideContextMenu();
+    }
+  }
+
+  private getOrCreateContextMenuService() {
+    const options = this.getOptions();
+    if (options.contextMenuService) {
+      return options.contextMenuService;
+    }
+
+    this.defaultContextMenuService ??= createPlatformContextMenuService();
+    return this.defaultContextMenuService;
+  }
+
+  private resolveContextMenuService(options: DropdownMenuActionViewItemOptions) {
+    return options.contextMenuService ?? this.defaultContextMenuService;
+  }
+}
+
+export class DropdownMenuActionViewItem extends ActionViewItem {
+  private readonly overlayPresenter = new DomDropdownActionOverlayPresenter();
+  private readonly menuPresenter = new ContextMenuDropdownActionPresenter(
+    () => this.options,
+    () => this.button,
+    () => {
+      this.isOpen = false;
+      this.button.setAttribute('aria-expanded', 'false');
+    },
+  );
   private isOpen = false;
 
   private get options(): DropdownMenuActionViewItemOptions {
@@ -139,15 +239,11 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
 
   setOptions(options: DropdownMenuActionViewItemOptions) {
     const previousOptions = this.options;
-    const previousContextMenuService = this.resolveContextMenuService(previousOptions);
     const usedCustomOverlay = Boolean(previousOptions.renderOverlay);
     this.setItem(options);
-    const nextContextMenuService = this.resolveContextMenuService(this.options);
-    if (previousContextMenuService && previousContextMenuService !== nextContextMenuService) {
-      previousContextMenuService.hideContextMenu();
-    }
+    this.menuPresenter.syncOptions(previousOptions);
     if (usedCustomOverlay || this.options.renderOverlay) {
-      this.overlayController.hide();
+      this.overlayPresenter.hide();
     }
     this.render();
   }
@@ -170,27 +266,26 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     if (this.options.renderOverlay) {
       this.isOpen = true;
       this.button.setAttribute('aria-expanded', 'true');
-      this.overlayController.show(this.createOverlayRequest());
+      this.overlayPresenter.show(this.createOverlayRequest());
       return;
     }
 
-    const menuOptions = this.createMenuOptions();
-    if (menuOptions.length === 0) {
+    if ((this.options.menu?.length ?? 0) === 0) {
       return;
     }
 
     this.isOpen = true;
     this.button.setAttribute('aria-expanded', 'true');
-    this.getOrCreateContextMenuService().showContextMenu(this.createContextMenuRequest(menuOptions));
+    this.menuPresenter.show();
   }
 
   hide() {
     if (this.options.renderOverlay) {
-      this.overlayController.hide();
+      this.overlayPresenter.hide();
       return;
     }
 
-    this.resolveContextMenuService(this.options)?.hideContextMenu();
+    this.menuPresenter.hide();
   }
 
   override dispose() {
@@ -199,51 +294,9 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     }
 
     this.hide();
-    this.overlayController.dispose();
-    this.defaultContextMenuService?.dispose?.();
-    this.defaultContextMenuService = null;
+    this.overlayPresenter.dispose();
+    this.menuPresenter.dispose();
     super.dispose();
-  }
-
-  private getOrCreateContextMenuService() {
-    if (this.options.contextMenuService) {
-      return this.options.contextMenuService;
-    }
-
-    this.defaultContextMenuService ??= createPlatformContextMenuService();
-    return this.defaultContextMenuService;
-  }
-
-  private resolveContextMenuService(options: DropdownMenuActionViewItemOptions) {
-    return options.contextMenuService ?? this.defaultContextMenuService;
-  }
-
-  private createContextMenuRequest(options: readonly ContextMenuAction[]): ContextMenuDelegate {
-    const menuClassName = this.options.menuClassName;
-    return {
-      getAnchor: () => this.button,
-      getActions: () => options,
-      getMenuClassName: menuClassName ? () => menuClassName : undefined,
-      alignment: this.options.overlayAlignment ?? 'end',
-      minWidth: this.options.minWidth,
-      onHide: () => {
-        this.isOpen = false;
-        this.button.setAttribute('aria-expanded', 'false');
-      },
-      onSelect: (value: string) => {
-        const menuItemIndex = options.findIndex((option) => option.value === value);
-        const menuItem = menuItemIndex >= 0 ? this.options.menu?.[menuItemIndex] : null;
-        if (!menuItem || menuItem.disabled) {
-          return;
-        }
-        if (menuItem.onClick) {
-          menuItem.onClick(new MouseEvent('click'));
-          return;
-        }
-
-        menuItem.run?.();
-      },
-    };
   }
 
   private createOverlayRequest(): DropdownActionOverlayRequest {
@@ -259,18 +312,6 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
         this.button.setAttribute('aria-expanded', 'false');
       },
     };
-  }
-
-  private createMenuOptions(): ContextMenuAction[] {
-    return (this.options.menu ?? []).map((menuItem, index) => ({
-      value: createContextMenuValue(menuItem, index),
-      label: menuItem.label,
-      title: menuItem.title,
-      icon: menuItem.icon,
-      disabled: menuItem.disabled,
-      checked: menuItem.checked,
-      run: menuItem.run,
-    }));
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent) => {

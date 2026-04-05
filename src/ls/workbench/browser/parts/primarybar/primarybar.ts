@@ -96,7 +96,7 @@ export class PrimaryBar {
   private readonly contentElement = createElement('div', 'primarybar-content');
   private readonly paneView = new PaneView({
     orientation: Orientation.HORIZONTAL,
-    sashSize: 8,
+    reserveSashSpace: false,
   });
   private readonly librarySection = createElement(
     'div',

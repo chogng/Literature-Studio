@@ -56,6 +56,7 @@ export type ISashEvent = {
 
 type SashOptions = {
   size?: number;
+  offsetMode?: 'start' | 'center' | 'end';
 };
 
 function getPointerPosition(event: MouseEvent | PointerEvent) {
@@ -80,6 +81,8 @@ export class Sash {
   private readonly onDidChangeEmitter = new EventEmitter<ISashEvent>();
   private readonly onDidResetEmitter = new EventEmitter<void>();
   private readonly onDidEndEmitter = new EventEmitter<void>();
+  private readonly explicitSize: number | undefined;
+  private readonly offsetMode: 'start' | 'center' | 'end';
   private readonly prefersPointerEvents =
     typeof window !== 'undefined' && typeof window.PointerEvent !== 'undefined';
   private state = SashState.Enabled;
@@ -92,6 +95,8 @@ export class Sash {
     private readonly orientation: Orientation,
     options: SashOptions = {},
   ) {
+    this.explicitSize = options.size;
+    this.offsetMode = options.offsetMode ?? 'start';
     this.element.className = [
       'sash',
       this.orientation === Orientation.VERTICAL ? 'vertical' : 'horizontal',
@@ -152,15 +157,18 @@ export class Sash {
   }
 
   layout(offset: number, orthogonalSize: number) {
+    const size = this.getLayoutSize();
+    const positionedOffset = this.getPositionedOffset(offset, size);
+
     if (this.orientation === Orientation.VERTICAL) {
-      this.element.style.left = `${offset}px`;
+      this.element.style.left = `${positionedOffset}px`;
       this.element.style.top = '0';
       this.element.style.height = `${orthogonalSize}px`;
       return;
     }
 
     this.element.style.left = '0';
-    this.element.style.top = `${offset}px`;
+    this.element.style.top = `${positionedOffset}px`;
     this.element.style.width = `${orthogonalSize}px`;
   }
 
@@ -180,6 +188,28 @@ export class Sash {
     this.element.classList.toggle('disabled', this.state === SashState.Disabled);
     this.element.classList.toggle('minimum', this.state === SashState.AtMinimum);
     this.element.classList.toggle('maximum', this.state === SashState.AtMaximum);
+  }
+
+  private getLayoutSize() {
+    if (typeof this.explicitSize === 'number') {
+      return this.explicitSize;
+    }
+
+    const value = getComputedStyle(this.element).getPropertyValue('--sash-size').trim();
+    const size = Number.parseFloat(value);
+    return Number.isFinite(size) ? size : 0;
+  }
+
+  private getPositionedOffset(offset: number, size: number) {
+    if (this.offsetMode === 'center') {
+      return offset - size / 2;
+    }
+
+    if (this.offsetMode === 'end') {
+      return offset - size;
+    }
+
+    return offset;
   }
 
   private readonly handleMouseEnter = () => {
