@@ -1,10 +1,15 @@
+import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
+
 export const SCIENCE_VALIDATION_TIMEOUT_MS = 3 * 60 * 1000;
 export const SCIENCE_VALIDATION_POLL_MS = 600;
 export const SCIENCE_VALIDATION_BOOT_TIMEOUT_MS = 4000;
 export const SCIENCE_VALIDATION_REVEAL_DELAY_MS = 1200;
 export const SCIENCE_VALIDATION_READY_SETTLE_MS = 2500;
 export const SCIENCE_VALIDATION_PROGRESS_LOG_INTERVAL_MS = 10 * 1000;
-export const SCIENCE_VALIDATION_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+export const SCIENCE_VALIDATION_LOG_ENABLED = isCompatFetchEnvEnabled(
+  'LS_FETCH_TIMING',
+  'READER_FETCH_TIMING',
+);
 export const SCIENCE_VALIDATION_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 export const SCIENCE_VALIDATION_ACCEPT =

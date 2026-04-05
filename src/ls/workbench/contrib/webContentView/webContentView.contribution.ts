@@ -17,9 +17,9 @@ import type {
   WebContentState,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
+import { WORKBENCH_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
 import type { Disposable } from 'ls/workbench/contrib/workbench/workbench.contribution';
 
-const READER_SHARED_WEB_PARTITION = 'persist:reader-web';
 const DEFAULT_WEB_CONTENT_TARGET_ID = '__shared__';
 const WEB_CONTENT_BRIDGE_KEY = '__lsWebContentBridge';
 const WEB_CONTENT_ROOT_ID = 'ls-webcontent-root';
@@ -470,7 +470,7 @@ class WebContentDomManager {
   private createWebviewElement() {
     const webview = document.createElement('webview') as ManagedWebviewElement;
     webview.className = 'web-frame web-frame-webview';
-    webview.setAttribute('partition', READER_SHARED_WEB_PARTITION);
+    webview.setAttribute('partition', WORKBENCH_SHARED_WEB_PARTITION);
     webview.setAttribute(
       'webpreferences',
       'contextIsolation=yes, nodeIntegration=no, sandbox=yes',

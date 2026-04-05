@@ -4,7 +4,7 @@
   min-height: 0;
   overflow: hidden;
   padding: 0;
-  background: #fff;
+  background: var(--vscode-editor-webContentBackground, #fff);
   display: flex;
   flex-direction: column;
   border-radius: inherit;
@@ -16,7 +16,7 @@
   width: 100%;
   min-height: 0;
   overflow: hidden;
-  background: #fff;
+  background: var(--vscode-editor-webContentBackground, #fff);
   display: flex;
   flex-direction: column;
   border-radius: inherit;
@@ -29,7 +29,7 @@
   height: 100%;
   overflow: auto;
   border: none;
-  background: #fff;
+  background: var(--vscode-editor-webContentBackground, #fff);
   border-radius: inherit;
 }
 
@@ -44,7 +44,7 @@
 .empty-state {
   flex: 1;
   padding: 16px;
-  color: #667788;
+  color: var(--vscode-editor-webContentForeground, #667788);
 }
 
 .webcontent-runtime-warning {
@@ -62,7 +62,7 @@
   display: none;
   border-radius: inherit;
   overflow: hidden;
-  background: #fff;
+  background: var(--vscode-editor-webContentBackground, #fff);
 }
 
 .webcontent-overlay.visible {

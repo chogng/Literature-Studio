@@ -6,8 +6,8 @@ import { buildPdfFileName } from 'ls/platform/download/common/pdfFileName';
 import { cleanText } from 'ls/base/common/strings';
 import { appError, isAppError } from 'ls/base/common/errors';
 import {
-  READER_SHARED_WEB_PARTITION,
-  resolveReaderSharedSession,
+  WORKBENCH_SHARED_WEB_PARTITION,
+  resolveWorkbenchSharedSession,
 } from 'ls/platform/native/electron-main/sharedWebSession';
 
 const PDF_FETCH_USER_AGENT =
@@ -165,7 +165,7 @@ export async function assertDownloadedFileIsPdf({
 
 async function resolveBrowserDownloadSession() {
   try {
-    const chromiumSession = await resolveReaderSharedSession();
+    const chromiumSession = await resolveWorkbenchSharedSession();
     if (!chromiumSession || typeof chromiumSession.downloadURL !== 'function') {
       return null;
     }
@@ -325,7 +325,7 @@ async function resolveBrowserPdfFetch() {
   if (!browserPdfFetchPromise) {
     browserPdfFetchPromise = (async () => {
       try {
-        const chromiumSession = await resolveReaderSharedSession();
+        const chromiumSession = await resolveWorkbenchSharedSession();
         if (!chromiumSession || typeof chromiumSession.fetch !== 'function') {
           browserPdfFetchUnsupported = true;
           return null;
@@ -333,7 +333,7 @@ async function resolveBrowserPdfFetch() {
 
         return {
           fetch: chromiumSession.fetch.bind(chromiumSession),
-          partition: READER_SHARED_WEB_PARTITION,
+          partition: WORKBENCH_SHARED_WEB_PARTITION,
         } satisfies BrowserPdfFetch;
       } catch {
         browserPdfFetchUnsupported = true;
@@ -682,4 +682,3 @@ export async function persistDownloadedPdf(
     sourceUrl: downloaded.finalUrl,
   };
 }
-

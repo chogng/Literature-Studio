@@ -90,13 +90,13 @@ export function createTitlebarPartProps({
       ? ui.titlebarHidePrimarySidebar
       : ui.titlebarShowPrimarySidebar,
     onTogglePrimarySidebar:
-      activePage === 'reader' ? handleTogglePrimarySidebar : undefined,
+      activePage === 'content' ? handleTogglePrimarySidebar : undefined,
     isAuxiliarySidebarOpen: isAuxiliarySidebarVisible,
     auxiliarySidebarToggleLabel: isAuxiliarySidebarVisible
       ? ui.titlebarHideAssistant
       : ui.titlebarShowAssistant,
     onToggleAuxiliarySidebar:
-      activePage === 'reader' ? handleToggleAuxiliarySidebar : undefined,
+      activePage === 'content' ? handleToggleAuxiliarySidebar : undefined,
     browserUrl,
     canGoBack: webContentState.canGoBack,
     canGoForward: webContentState.canGoForward,

@@ -4,6 +4,7 @@ import type {
 } from 'ls/base/parts/contextmenu/common/contextmenu';
 
 export type Locale = 'zh' | 'en';
+export type AppTheme = 'light' | 'dark';
 
 export interface ArticleFigure {
   id: string | null;
@@ -115,6 +116,7 @@ export interface StoredAppSettings {
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
   useMica: boolean;
+  theme: AppTheme;
   locale: Locale;
   llm: LlmSettings;
   translation: TranslationSettings;

@@ -17,7 +17,7 @@ import { collectCandidateDescriptorsFromSeeds as collectListingCandidateDescript
 import { buildArticleFromHtml } from 'ls/code/electron-main/fetch/parser';
 import { isProbablyArticle } from 'ls/code/electron-main/fetch/acceptance';
 import { hasArticlePathSignal } from 'ls/code/electron-main/fetch/articleUrlRules';
-import { READER_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
+import { WORKBENCH_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
 import {
   renderHtmlWithBrowserWindow,
   requestWithPreferredTransport,
@@ -27,7 +27,13 @@ import {
   batchLimitMin,
   defaultBatchLimit,
 } from 'ls/platform/config/common/defaultBatchSources';
-import { createFetchTraceId, elapsedMs, shortenForLog, timingLog } from 'ls/code/electron-main/fetchTiming';
+import {
+  createFetchTraceId,
+  elapsedMs,
+  getCompatFetchEnvValueOrDefault,
+  shortenForLog,
+  timingLog,
+} from 'ls/code/electron-main/fetchTiming';
 import { buildPageHtmlFetchPlan, normalizeFetchStrategy } from 'ls/code/electron-main/fetch/fetchStrategy';
 import type { WebContentExtractionSnapshot } from 'ls/code/electron-main/fetch/fetchStrategy';
 import { attemptNetworkHtml, resolveNetworkAttemptResult } from 'ls/code/electron-main/fetch/networkChannel';
@@ -76,9 +82,19 @@ const IN_RANGE_DATE_HINT_SCORE_BOOST = 40;
 const HTML_FETCH_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 const HTML_FETCH_ACCEPT = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8';
-const BROWSER_FETCH_PARTITION = READER_SHARED_WEB_PARTITION;
-const PREFER_BROWSER_FETCH = process.env.READER_FETCH_TRANSPORT !== 'node';
-const ENABLE_BROWSER_RENDER_FALLBACK = process.env.READER_FETCH_RENDER_FALLBACK !== '0';
+const BROWSER_FETCH_PARTITION = WORKBENCH_SHARED_WEB_PARTITION;
+const PREFER_BROWSER_FETCH =
+  getCompatFetchEnvValueOrDefault(
+    'LS_FETCH_TRANSPORT',
+    'READER_FETCH_TRANSPORT',
+    'browser',
+  ) !== 'node';
+const ENABLE_BROWSER_RENDER_FALLBACK =
+  getCompatFetchEnvValueOrDefault(
+    'LS_FETCH_RENDER_FALLBACK',
+    'READER_FETCH_RENDER_FALLBACK',
+    '1',
+  ) !== '0';
 const ARTICLE_RENDER_TIMEOUT_MS = 4500;
 const PAGE_RENDER_TIMEOUT_MS = 4500;
 const BROWSER_RENDER_DOM_SETTLE_MS = 180;

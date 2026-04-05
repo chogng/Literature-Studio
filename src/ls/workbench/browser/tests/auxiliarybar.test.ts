@@ -8,6 +8,8 @@ import type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browse
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let createAgentChatWidget: typeof import('ls/workbench/contrib/agentChat/browser/agentChatWidget').createAgentChatWidget;
+let createAuxiliaryBarPartView: typeof import('ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart').createAuxiliaryBarPartView;
+let SidebarTopbarActionsView: typeof import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions').SidebarTopbarActionsView;
 
 function createProps(): AgentChatWidgetProps {
   return {
@@ -73,6 +75,8 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createAgentChatWidget } = await import('ls/workbench/contrib/agentChat/browser/agentChatWidget'));
+  ({ createAuxiliaryBarPartView } = await import('ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart'));
+  ({ SidebarTopbarActionsView } = await import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions'));
 });
 
 after(() => {
@@ -139,6 +143,69 @@ test('auxiliary bar exposes a secondary sidebar toggle action', () => {
     assert.equal(toggleCount, 1);
   } finally {
     auxiliaryBar.dispose();
+  }
+});
+
+test('auxiliary bar topbar exposes a primary sidebar toggle when the primary sidebar is hidden', () => {
+  let toggleCount = 0;
+  const topbarActionsView = new SidebarTopbarActionsView({
+    isPrimarySidebarVisible: false,
+    primarySidebarToggleLabel: 'Show primary sidebar',
+    commandPaletteLabel: 'Quick access',
+    onTogglePrimarySidebar: () => {
+      toggleCount += 1;
+    },
+  });
+  const auxiliaryBar = createAuxiliaryBarPartView({
+    ...createProps(),
+    isPrimarySidebarVisible: false,
+    topbarActionsElement: topbarActionsView.getElement(),
+  });
+  const element = auxiliaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const toggleButton = element.querySelector(
+      '.auxiliarybar-shell-topbar .sidebar-topbar-toggle-btn',
+    );
+    assert(toggleButton instanceof HTMLButtonElement);
+    assert.equal(
+      toggleButton.getAttribute('aria-label'),
+      'Show primary sidebar',
+    );
+
+    toggleButton.click();
+    assert.equal(toggleCount, 1);
+  } finally {
+    auxiliaryBar.dispose();
+    topbarActionsView.dispose();
+  }
+});
+
+test('auxiliary bar topbar exposes a quick access action', () => {
+  const topbarActionsView = new SidebarTopbarActionsView({
+    isPrimarySidebarVisible: false,
+    primarySidebarToggleLabel: 'Show primary sidebar',
+    commandPaletteLabel: 'Quick access',
+    onTogglePrimarySidebar: () => {},
+  });
+  const auxiliaryBar = createAuxiliaryBarPartView({
+    ...createProps(),
+    isPrimarySidebarVisible: false,
+    topbarActionsElement: topbarActionsView.getElement(),
+  });
+  const element = auxiliaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const searchButton = element.querySelector(
+      '.auxiliarybar-shell-topbar .sidebar-topbar-search-btn',
+    );
+    assert(searchButton instanceof HTMLButtonElement);
+    assert.equal(searchButton.getAttribute('aria-label'), 'Quick access');
+  } finally {
+    auxiliaryBar.dispose();
+    topbarActionsView.dispose();
   }
 });
 

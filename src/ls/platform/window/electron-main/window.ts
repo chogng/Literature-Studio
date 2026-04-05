@@ -3,6 +3,7 @@ import type { BrowserWindowConstructorOptions, WebContents } from 'electron';
 
 import type { WindowControlAction, WindowState } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { disposeMenuOverlay, prewarmMenuOverlay } from 'ls/base/parts/contextmenu/electron-main/overlayContextmenu';
+import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
 import { disposeToastOverlay } from 'ls/platform/window/electron-main/toastOverlayView';
 import { disposeWebContentView, ensureWebContentView } from 'ls/platform/window/electron-main/webContentView';
 import {
@@ -15,7 +16,7 @@ let mainWindow: BrowserWindow | null = null;
 const auxiliaryWindows = new Set<BrowserWindow>();
 const autoMinimizedAuxiliaryWindowIds = new Set<number>();
 let currentUseMica = true;
-const AUX_WINDOW_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const AUX_WINDOW_LOG_ENABLED = isCompatFetchEnvEnabled('LS_FETCH_TIMING', 'READER_FETCH_TIMING');
 const RENDERER_DEBUG_LOG_ENABLED = process.env.LS_RENDERER_DEBUG === '1';
 
 function logAuxiliaryWindow(stage: string, details: Record<string, unknown>) {
@@ -240,7 +241,7 @@ function wireRendererDiagnostics(window: BrowserWindow) {
             root: describe('#root'),
             appWindow: describe('.app-window'),
             appShell: describe('.app-shell'),
-            readerLayout: describe('.reader-layout'),
+            workbenchContentLayout: describe('.workbench-content-layout'),
             contentGrid: describe('.content-grid'),
             editorPanel: describe('.panel.web-panel'),
             webFrameContainer: describe('.web-frame-container'),

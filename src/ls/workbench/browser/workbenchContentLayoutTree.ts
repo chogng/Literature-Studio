@@ -1,30 +1,32 @@
 import { Orientation } from 'ls/base/browser/ui/grid/gridview';
 import { WORKBENCH_SPLITVIEW_SASH_SIZE } from 'ls/workbench/browser/layout';
 
-export type ReaderLayoutLeafId =
+export type WorkbenchContentLayoutLeafId =
   | 'fetchSidebar'
   | 'primarySidebar'
   | 'editor'
   | 'auxiliarySidebar';
 
-export type ReaderLayoutLeafNode = {
+export type WorkbenchContentLayoutLeafNode = {
   type: 'leaf';
-  id: ReaderLayoutLeafId;
+  id: WorkbenchContentLayoutLeafId;
   size: number;
   visible: boolean;
   flex?: boolean;
 };
 
-export type ReaderLayoutBranchNode = {
+export type WorkbenchContentLayoutBranchNode = {
   type: 'branch';
   orientation: Orientation;
   size: number;
-  children: ReaderLayoutNode[];
+  children: WorkbenchContentLayoutNode[];
 };
 
-export type ReaderLayoutNode = ReaderLayoutBranchNode | ReaderLayoutLeafNode;
+export type WorkbenchContentLayoutNode =
+  | WorkbenchContentLayoutBranchNode
+  | WorkbenchContentLayoutLeafNode;
 
-export type ReaderLayoutTreeParams = {
+export type WorkbenchContentLayoutTreeParams = {
   orientation: Orientation;
   isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
@@ -36,15 +38,15 @@ export type ReaderLayoutTreeParams = {
 };
 
 export type SplitLeafParams = {
-  targetId: ReaderLayoutLeafId;
+  targetId: WorkbenchContentLayoutLeafId;
   orientation: Orientation;
-  newLeaf: ReaderLayoutLeafNode;
+  newLeaf: WorkbenchContentLayoutLeafNode;
   side?: 'before' | 'after';
   targetSize?: number;
   newSize?: number;
 };
 
-function cloneNode(node: ReaderLayoutNode): ReaderLayoutNode {
+function cloneNode(node: WorkbenchContentLayoutNode): WorkbenchContentLayoutNode {
   if (node.type === 'leaf') {
     return { ...node };
   }
@@ -58,9 +60,9 @@ function cloneNode(node: ReaderLayoutNode): ReaderLayoutNode {
 }
 
 function mapNode(
-  node: ReaderLayoutNode,
-  visit: (node: ReaderLayoutNode) => ReaderLayoutNode | null,
-): ReaderLayoutNode | null {
+  node: WorkbenchContentLayoutNode,
+  visit: (node: WorkbenchContentLayoutNode) => WorkbenchContentLayoutNode | null,
+): WorkbenchContentLayoutNode | null {
   const nextNode =
     node.type === 'branch'
       ? {
@@ -69,14 +71,16 @@ function mapNode(
           size: node.size,
           children: node.children
             .map((child) => mapNode(child, visit))
-            .filter((child): child is ReaderLayoutNode => Boolean(child)),
+            .filter((child): child is WorkbenchContentLayoutNode => Boolean(child)),
         }
       : { ...node };
 
   return visit(nextNode);
 }
 
-function normalizeNode(node: ReaderLayoutNode | null): ReaderLayoutNode | null {
+function normalizeNode(
+  node: WorkbenchContentLayoutNode | null,
+): WorkbenchContentLayoutNode | null {
   if (!node) {
     return null;
   }
@@ -87,7 +91,7 @@ function normalizeNode(node: ReaderLayoutNode | null): ReaderLayoutNode | null {
 
   const children = node.children
     .map((child) => normalizeNode(child))
-    .filter((child): child is ReaderLayoutNode => Boolean(child));
+    .filter((child): child is WorkbenchContentLayoutNode => Boolean(child));
   if (children.length === 0) {
     return null;
   }
@@ -106,15 +110,15 @@ function normalizeNode(node: ReaderLayoutNode | null): ReaderLayoutNode | null {
   };
 }
 
-export function cloneReaderLayoutTree(tree: ReaderLayoutNode) {
+export function cloneWorkbenchContentLayoutTree(tree: WorkbenchContentLayoutNode) {
   return cloneNode(tree);
 }
 
-export function serializeReaderLayoutTree(tree: ReaderLayoutNode) {
-  return JSON.parse(JSON.stringify(tree)) as ReaderLayoutNode;
+export function serializeWorkbenchContentLayoutTree(tree: WorkbenchContentLayoutNode) {
+  return JSON.parse(JSON.stringify(tree)) as WorkbenchContentLayoutNode;
 }
 
-function getRootVisibleChildCount(params: ReaderLayoutTreeParams) {
+function getRootVisibleChildCount(params: WorkbenchContentLayoutTreeParams) {
   return [
     params.isFetchSidebarVisible,
     params.isPrimarySidebarVisible,
@@ -123,7 +127,7 @@ function getRootVisibleChildCount(params: ReaderLayoutTreeParams) {
   ].filter(Boolean).length;
 }
 
-function getRootSize(params: ReaderLayoutTreeParams) {
+function getRootSize(params: WorkbenchContentLayoutTreeParams) {
   return (
     (params.isFetchSidebarVisible ? params.fetchSidebarSize : 0) +
     (params.isPrimarySidebarVisible ? params.primarySidebarSize : 0) +
@@ -133,7 +137,7 @@ function getRootSize(params: ReaderLayoutTreeParams) {
   );
 }
 
-export function createReaderLayoutTree({
+export function createWorkbenchContentLayoutTree({
   orientation,
   isFetchSidebarVisible,
   isPrimarySidebarVisible,
@@ -142,7 +146,7 @@ export function createReaderLayoutTree({
   primarySidebarSize,
   auxiliarySidebarSize,
   editorSize,
-}: ReaderLayoutTreeParams): ReaderLayoutNode {
+}: WorkbenchContentLayoutTreeParams): WorkbenchContentLayoutNode {
   return {
     type: 'branch',
     orientation,
@@ -165,16 +169,16 @@ export function createReaderLayoutTree({
       },
       {
         type: 'leaf',
+        id: 'auxiliarySidebar',
+        size: auxiliarySidebarSize,
+        visible: isAuxiliarySidebarVisible,
+      },
+      {
+        type: 'leaf',
         id: 'editor',
         size: editorSize,
         visible: true,
         flex: true,
-      },
-      {
-        type: 'leaf',
-        id: 'auxiliarySidebar',
-        size: auxiliarySidebarSize,
-        visible: isAuxiliarySidebarVisible,
       },
       {
         type: 'leaf',
@@ -187,8 +191,8 @@ export function createReaderLayoutTree({
 }
 
 export function findLeafPath(
-  tree: ReaderLayoutNode,
-  targetId: ReaderLayoutLeafId,
+  tree: WorkbenchContentLayoutNode,
+  targetId: WorkbenchContentLayoutLeafId,
 ): number[] | null {
   if (tree.type === 'leaf') {
     return tree.id === targetId ? [] : null;
@@ -205,10 +209,10 @@ export function findLeafPath(
 }
 
 export function getNodeAtPath(
-  tree: ReaderLayoutNode,
+  tree: WorkbenchContentLayoutNode,
   path: readonly number[],
-): ReaderLayoutNode | null {
-  let current: ReaderLayoutNode = tree;
+): WorkbenchContentLayoutNode | null {
+  let current: WorkbenchContentLayoutNode = tree;
 
   for (const index of path) {
     if (current.type !== 'branch') {
@@ -226,10 +230,10 @@ export function getNodeAtPath(
 }
 
 export function updateNodeAtPath(
-  tree: ReaderLayoutNode,
+  tree: WorkbenchContentLayoutNode,
   path: readonly number[],
-  updater: (node: ReaderLayoutNode) => ReaderLayoutNode,
-): ReaderLayoutNode {
+  updater: (node: WorkbenchContentLayoutNode) => WorkbenchContentLayoutNode,
+): WorkbenchContentLayoutNode {
   if (path.length === 0) {
     return updater(cloneNode(tree));
   }
@@ -248,11 +252,11 @@ export function updateNodeAtPath(
 }
 
 export function insertLeaf(
-  tree: ReaderLayoutNode,
-  targetId: ReaderLayoutLeafId,
-  newLeaf: ReaderLayoutLeafNode,
+  tree: WorkbenchContentLayoutNode,
+  targetId: WorkbenchContentLayoutLeafId,
+  newLeaf: WorkbenchContentLayoutLeafNode,
   side: 'before' | 'after',
-): ReaderLayoutNode {
+): WorkbenchContentLayoutNode {
   const targetPath = findLeafPath(tree, targetId);
   if (!targetPath || targetPath.length === 0) {
     return tree;
@@ -278,7 +282,7 @@ export function insertLeaf(
 }
 
 export function splitLeaf(
-  tree: ReaderLayoutNode,
+  tree: WorkbenchContentLayoutNode,
   {
     targetId,
     orientation,
@@ -287,7 +291,7 @@ export function splitLeaf(
     targetSize,
     newSize,
   }: SplitLeafParams,
-): ReaderLayoutNode {
+): WorkbenchContentLayoutNode {
   return normalizeNode(
     mapNode(tree, (node) => {
       if (node.type !== 'leaf' || node.id !== targetId) {
@@ -319,13 +323,13 @@ export function splitLeaf(
             : [currentLeaf, insertedLeaf],
       };
     }),
-  ) as ReaderLayoutNode;
+  ) as WorkbenchContentLayoutNode;
 }
 
 export function removeLeaf(
-  tree: ReaderLayoutNode,
-  targetId: ReaderLayoutLeafId,
-): ReaderLayoutNode | null {
+  tree: WorkbenchContentLayoutNode,
+  targetId: WorkbenchContentLayoutLeafId,
+): WorkbenchContentLayoutNode | null {
   return normalizeNode(
     mapNode(tree, (node) => {
       if (node.type === 'leaf' && node.id === targetId) {
@@ -337,10 +341,10 @@ export function removeLeaf(
 }
 
 export function updateLeaf(
-  tree: ReaderLayoutNode,
-  targetId: ReaderLayoutLeafId,
-  patch: Partial<Omit<ReaderLayoutLeafNode, 'type' | 'id'>>,
-): ReaderLayoutNode {
+  tree: WorkbenchContentLayoutNode,
+  targetId: WorkbenchContentLayoutLeafId,
+  patch: Partial<Omit<WorkbenchContentLayoutLeafNode, 'type' | 'id'>>,
+): WorkbenchContentLayoutNode {
   return mapNode(tree, (node) => {
     if (node.type === 'leaf' && node.id === targetId) {
       return {
@@ -349,16 +353,16 @@ export function updateLeaf(
       };
     }
     return node;
-  }) as ReaderLayoutNode;
+  }) as WorkbenchContentLayoutNode;
 }
 
-export function reconcileReaderLayoutTree(
-  tree: ReaderLayoutNode | null,
-  params: ReaderLayoutTreeParams,
-): ReaderLayoutNode {
+export function reconcileWorkbenchContentLayoutTree(
+  tree: WorkbenchContentLayoutNode | null,
+  params: WorkbenchContentLayoutTreeParams,
+): WorkbenchContentLayoutNode {
   if (!tree) {
-    return createReaderLayoutTree(params);
+    return createWorkbenchContentLayoutTree(params);
   }
 
-  return createReaderLayoutTree(params);
+  return createWorkbenchContentLayoutTree(params);
 }

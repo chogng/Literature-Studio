@@ -5,7 +5,7 @@
   min-height: 0;
   border: 0;
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--vscode-sideBar-background, #ffffff);
 }
 
 .secondary-sidebar-panel {
@@ -23,18 +23,18 @@
   align-items: center;
   gap: 6px;
   background: transparent;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--vscode-sideBar-border, #e5e5e5);
 }
 
 .sidebar-date-picker {
   --ls-actionbar-item-size: 26px;
   --ls-actionbar-icon-size: 16px;
   --ls-actionbar-radius: 6px;
-  --ls-actionbar-foreground: #1f2d3a;
-  --ls-actionbar-hover-foreground: #1f2d3a;
-  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
-  --ls-actionbar-active-foreground: #1f2d3a;
-  --ls-actionbar-active-background: rgba(0, 0, 0, 0.1);
+  --ls-actionbar-foreground: var(--vscode-sideBar-foreground, #1f2d3a);
+  --ls-actionbar-hover-foreground: var(--vscode-sideBar-foreground, #1f2d3a);
+  --ls-actionbar-hover-background: var(--vscode-sideBar-actionHoverBackground, rgba(0, 0, 0, 0.05));
+  --ls-actionbar-active-foreground: var(--vscode-sideBar-foreground, #1f2d3a);
+  --ls-actionbar-active-background: var(--vscode-sideBar-actionActiveBackground, rgba(0, 0, 0, 0.1));
   --ls-actionbar-focus-outline: transparent;
   --date-range-trigger-min-width: 26px;
   --date-range-trigger-min-height: 26px;
@@ -44,7 +44,7 @@
 
 .sidebar-date-picker .date-range-trigger {
   background: transparent;
-  color: #1f2d3a;
+  color: var(--vscode-sideBar-foreground, #1f2d3a);
   border: none;
   box-shadow: none;
   padding: 0;
@@ -70,27 +70,27 @@
 }
 
 .sidebar-date-picker .date-range-trigger:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.05);
-  color: #1f2d3a;
+  background: var(--vscode-sideBar-actionHoverBackground, rgba(0, 0, 0, 0.05));
+  color: var(--vscode-sideBar-foreground, #1f2d3a);
   border: none;
   box-shadow: none;
 }
 
 .sidebar-date-picker .date-range-trigger:active:not(:disabled),
 .sidebar-date-picker .date-range-trigger.is-active {
-  background: rgba(0, 0, 0, 0.1);
-  color: #1f2d3a;
+  background: var(--vscode-sideBar-actionActiveBackground, rgba(0, 0, 0, 0.1));
+  color: var(--vscode-sideBar-foreground, #1f2d3a);
   border: none;
   box-shadow: none;
   transform: none;
 }
 
 .sidebar-fetch-btn {
-  --ls-actionbar-foreground: #1f2d3a;
-  --ls-actionbar-hover-foreground: #1f2d3a;
-  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
-  --ls-actionbar-active-foreground: #1f2d3a;
-  --ls-actionbar-active-background: rgba(0, 0, 0, 0.1);
+  --ls-actionbar-foreground: var(--vscode-sideBar-foreground, #1f2d3a);
+  --ls-actionbar-hover-foreground: var(--vscode-sideBar-foreground, #1f2d3a);
+  --ls-actionbar-hover-background: var(--vscode-sideBar-actionHoverBackground, rgba(0, 0, 0, 0.05));
+  --ls-actionbar-active-foreground: var(--vscode-sideBar-foreground, #1f2d3a);
+  --ls-actionbar-active-background: var(--vscode-sideBar-actionActiveBackground, rgba(0, 0, 0, 0.1));
   --ls-actionbar-focus-outline: transparent;
   margin-left: auto;
   border-radius: 6px;
@@ -131,7 +131,7 @@
 
 .sidebar-panel > .panel-title {
   flex-shrink: 0;
-  border-top: 1px solid #e5e5e5;
+  border-top: 1px solid var(--vscode-sideBar-border, #e5e5e5);
 }
 
 .primarybar-panel,
@@ -162,12 +162,12 @@
   gap: 4px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: #f7fafc;
-  border: 1px solid #e4ebf1;
+  background: var(--vscode-sideBar-cardBackground, #f7fafc);
+  border: 1px solid var(--vscode-sideBar-cardBorder, #e4ebf1);
 }
 
 .sidebar-stat-card span {
-  color: #66798f;
+  color: var(--vscode-sideBar-secondaryForeground, #66798f);
   font-size: 11px;
   line-height: 1.2;
 }
@@ -175,14 +175,14 @@
 .sidebar-stat-card strong {
   font-size: 18px;
   line-height: 1.1;
-  color: #1f2d3a;
+  color: var(--vscode-sideBar-foreground, #1f2d3a);
 }
 
 .sidebar-path-stack {
   display: grid;
   gap: 6px;
   padding: 0 12px 10px;
-  color: #415366;
+  color: var(--vscode-sideBar-secondaryForeground, #415366);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -195,8 +195,8 @@
 .sidebar-path-stack code {
   padding: 1px 4px;
   border-radius: 4px;
-  background: #eef3f8;
-  color: #223140;
+  background: var(--vscode-sideBar-codeBackground, #eef3f8);
+  color: var(--vscode-sideBar-codeForeground, #223140);
 }
 
 .library-doc-list {
@@ -216,8 +216,8 @@
   gap: 8px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: #ffffff;
-  border: 1px solid #e2e9f1;
+  background: var(--vscode-sideBar-background, #ffffff);
+  border: 1px solid var(--vscode-sideBar-cardBorder, #e2e9f1);
 }
 
 .library-doc-card-main {
@@ -231,7 +231,7 @@
   font-size: 13px;
   line-height: 1.4;
   font-weight: 600;
-  color: #1f2d3a;
+  color: var(--vscode-sideBar-foreground, #1f2d3a);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -239,7 +239,7 @@
 
 .library-doc-card-meta {
   margin: 0;
-  color: #66798f;
+  color: var(--vscode-sideBar-secondaryForeground, #66798f);
   font-size: 11px;
   line-height: 1.35;
   overflow: hidden;
@@ -265,28 +265,28 @@
 }
 
 .library-doc-status {
-  background: #eef4ff;
-  color: #1d4d8f;
+  background: var(--vscode-sideBar-statusInfoBackground, #eef4ff);
+  color: var(--vscode-sideBar-statusInfoForeground, #1d4d8f);
 }
 
 .library-doc-status-registered,
 .library-doc-status-ready {
-  background: #eaf6ef;
-  color: #1f6a3a;
+  background: var(--vscode-sideBar-statusSuccessBackground, #eaf6ef);
+  color: var(--vscode-sideBar-statusSuccessForeground, #1f6a3a);
 }
 
 .library-doc-status-queued,
 .library-doc-status-indexing {
-  background: #fff7e6;
-  color: #986100;
+  background: var(--vscode-sideBar-statusWarningBackground, #fff7e6);
+  color: var(--vscode-sideBar-statusWarningForeground, #986100);
 }
 
 .library-doc-status-failed {
-  background: #fdecec;
-  color: #a53333;
+  background: var(--vscode-sideBar-statusErrorBackground, #fdecec);
+  color: var(--vscode-sideBar-statusErrorForeground, #a53333);
 }
 
 .library-doc-count {
-  background: #f4f6f9;
-  color: #536576;
+  background: var(--vscode-sideBar-statusNeutralBackground, #f4f6f9);
+  color: var(--vscode-sideBar-statusNeutralForeground, #536576);
 }

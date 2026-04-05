@@ -123,6 +123,7 @@ export class GridBranchView implements IGridView {
   private readonly onDidSashSnapEmitter = new EventEmitter<SplitViewSashSnapEvent>();
   private readonly onDidSashEndEmitter = new EventEmitter<number>();
   private readonly sashSize: number;
+  private readonly reserveSashSpace: boolean;
   private edgeSnappingValue = false;
   private widthValue = 0;
   private heightValue = 0;
@@ -139,14 +140,22 @@ export class GridBranchView implements IGridView {
   constructor(
     readonly orientation: Orientation,
     sashSize: number,
-    children: GridChild[] = [],
+    reserveSashSpaceOrChildren: boolean | GridChild[] = true,
+    childrenArg: GridChild[] = [],
   ) {
+    const reserveSashSpace = Array.isArray(reserveSashSpaceOrChildren)
+      ? true
+      : reserveSashSpaceOrChildren;
+    const children = Array.isArray(reserveSashSpaceOrChildren)
+      ? reserveSashSpaceOrChildren
+      : childrenArg;
     this.sashSize = sashSize;
+    this.reserveSashSpace = reserveSashSpace;
     this.element.className = [
       'grid-view-branch',
       this.orientation === Orientation.VERTICAL ? 'vertical' : 'horizontal',
     ].join(' ');
-    this.splitView = new SplitView(orientation, sashSize);
+    this.splitView = new SplitView(orientation, sashSize, reserveSashSpace);
     this.element.append(this.splitView.element);
     this.splitViewDisposables.add(
       this.splitView.onDidSashChange((event) => {
@@ -368,6 +377,10 @@ export class GridBranchView implements IGridView {
     return this.sashSize;
   }
 
+  getReserveSashSpace() {
+    return this.reserveSashSpace;
+  }
+
   layout(width: number, height: number) {
     this.layoutBounds(width, height, 0, 0, width, height);
   }
@@ -408,6 +421,10 @@ export class GridBranchView implements IGridView {
   }
 
   private getVisibleSashSpan() {
+    if (!this.reserveSashSpace) {
+      return 0;
+    }
+
     return Math.max(0, this.getVisibleChildren().length - 1) * this.sashSize;
   }
 
@@ -519,7 +536,12 @@ export class GridView implements IGridView {
     const availableSize = Math.max(0, parentSize - parent.branch.getSashSize());
     const newChildSize = Math.min(size, availableSize);
     const existingSize = Math.max(0, availableSize - newChildSize);
-    const branch = new GridBranchView(options.splitOrientation, parent.branch.getSashSize(), []);
+    const branch = new GridBranchView(
+      options.splitOrientation,
+      parent.branch.getSashSize(),
+      parent.branch.getReserveSashSpace(),
+      [],
+    );
     branch.edgeSnapping = parent.branch.edgeSnapping;
     const nextChildren =
       index === 0

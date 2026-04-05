@@ -2,8 +2,12 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { app } from 'electron';
 
-export type ReaderEnvironmentPaths = {
+const LEGACY_APP_ROOT_DIR_NAME = '.reader';
+const APP_ROOT_DIR_NAME = '.literature-studio';
+
+export type AppEnvironmentPaths = {
   previousUserDataDir: string;
+  legacyRootDir: string;
   rootDir: string;
   configDir: string;
   dataDir: string;
@@ -33,12 +37,12 @@ function resolvePortableExecutableDir() {
   return null;
 }
 
-export function resolveEnvironmentMainPaths(): ReaderEnvironmentPaths {
+export function resolveEnvironmentMainPaths(): AppEnvironmentPaths {
   const previousUserDataDir = app.getPath('userData');
   const portableExecutableDir = resolvePortableExecutableDir();
-  const rootDir = portableExecutableDir
-    ? path.join(portableExecutableDir, '.reader')
-    : path.join(app.getPath('home'), '.reader');
+  const rootBaseDir = portableExecutableDir ?? app.getPath('home');
+  const legacyRootDir = path.join(rootBaseDir, LEGACY_APP_ROOT_DIR_NAME);
+  const rootDir = path.join(rootBaseDir, APP_ROOT_DIR_NAME);
   const configDir = path.join(rootDir, 'config');
   const dataDir = path.join(rootDir, 'data');
   const cacheDir = path.join(rootDir, 'cache');
@@ -48,6 +52,7 @@ export function resolveEnvironmentMainPaths(): ReaderEnvironmentPaths {
 
   return {
     previousUserDataDir,
+    legacyRootDir,
     rootDir,
     configDir,
     dataDir,
@@ -79,7 +84,7 @@ export function configureDevelopmentEnvironmentMain() {
   }
 }
 
-export function configureEnvironmentMainPaths(paths: ReaderEnvironmentPaths) {
+export function configureEnvironmentMainPaths(paths: AppEnvironmentPaths) {
   app.setPath('userData', paths.rootDir);
   app.setPath('cache', paths.cacheDir);
   app.setPath('sessionData', paths.sessionDir);
@@ -95,7 +100,7 @@ async function removeFileIfExists(filePath: string) {
   }
 }
 
-async function cleanupLegacyStorageFiles(paths: ReaderEnvironmentPaths) {
+async function cleanupLegacyStorageFiles(paths: AppEnvironmentPaths) {
   const staleFiles = [
     path.join(paths.previousUserDataDir, 'settings.json'),
     path.join(paths.rootDir, 'settings.json'),
@@ -106,7 +111,72 @@ async function cleanupLegacyStorageFiles(paths: ReaderEnvironmentPaths) {
   await Promise.all(staleFiles.map((filePath) => removeFileIfExists(filePath)));
 }
 
-export async function prepareEnvironmentMain(paths: ReaderEnvironmentPaths) {
+async function pathExists(targetPath: string) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function copyDirectoryContents(sourceDir: string, targetDir: string) {
+  const entries = await fs.readdir(sourceDir, { withFileTypes: true });
+  await fs.mkdir(targetDir, { recursive: true });
+
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirectoryContents(sourcePath, targetPath);
+      continue;
+    }
+
+    if (entry.isSymbolicLink()) {
+      const linkTarget = await fs.readlink(sourcePath);
+      try {
+        await fs.symlink(linkTarget, targetPath);
+      } catch {
+        // Ignore duplicate symlink failures during best-effort migration.
+      }
+      continue;
+    }
+
+    await fs.copyFile(sourcePath, targetPath);
+  }
+}
+
+async function migrateLegacyRootDir(paths: AppEnvironmentPaths) {
+  if (paths.legacyRootDir === paths.rootDir) {
+    return;
+  }
+
+  const [legacyExists, nextExists] = await Promise.all([
+    pathExists(paths.legacyRootDir),
+    pathExists(paths.rootDir),
+  ]);
+  if (!legacyExists || nextExists) {
+    return;
+  }
+
+  try {
+    await fs.rename(paths.legacyRootDir, paths.rootDir);
+    return;
+  } catch {
+    // Fall back to copy/remove when rename is unavailable.
+  }
+
+  await copyDirectoryContents(paths.legacyRootDir, paths.rootDir);
+  try {
+    await fs.rm(paths.legacyRootDir, { recursive: true, force: true });
+  } catch {
+    // Ignore cleanup failures after a successful copy.
+  }
+}
+
+export async function prepareEnvironmentMain(paths: AppEnvironmentPaths) {
+  await migrateLegacyRootDir(paths);
+
   await Promise.all([
     fs.mkdir(paths.rootDir, { recursive: true }),
     fs.mkdir(paths.configDir, { recursive: true }),

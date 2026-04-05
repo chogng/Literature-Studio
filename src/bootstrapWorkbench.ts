@@ -154,8 +154,8 @@ const workbenchDependencyModules = [
     load: () => import('ls/workbench/browser/articleDetailsModalWindow'),
   },
   {
-    label: 'ls/workbench/browser/readerPageView',
-    load: () => import('ls/workbench/browser/readerPageView'),
+    label: 'ls/workbench/browser/workbenchContentView',
+    load: () => import('ls/workbench/browser/workbenchContentView'),
   },
   {
     label: 'ls/workbench/contrib/localization/browser/localeService',
@@ -174,8 +174,8 @@ const workbenchDependencyModules = [
     load: () => import('ls/workbench/browser/window'),
   },
   {
-    label: 'ls/workbench/browser/readerState',
-    load: () => import('ls/workbench/browser/readerState'),
+    label: 'ls/workbench/browser/workbenchContentState',
+    load: () => import('ls/workbench/browser/workbenchContentState'),
   },
   {
     label: 'ls/workbench/browser/webContentSurfaceState',

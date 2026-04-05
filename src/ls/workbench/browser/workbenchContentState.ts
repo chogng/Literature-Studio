@@ -2,51 +2,51 @@ import { EventEmitter } from 'ls/base/common/event';
 import type { Article } from 'ls/workbench/services/article/articleFetch';
 import { buildDefaultBatchDateRange } from 'ls/workbench/common/dateRange';
 
-export type ReaderStateSnapshot = {
+export type WorkbenchContentStateSnapshot = {
   batchStartDate: string;
   batchEndDate: string;
   filterJournal: string;
 };
 
-export type ReaderDerivedState = {
+export type WorkbenchContentDerivedState = {
   filteredArticles: Article[];
   hasData: boolean;
 };
 
-type ReaderStateUpdater = (
-  current: ReaderStateSnapshot,
-) => ReaderStateSnapshot;
+type WorkbenchContentStateUpdater = (
+  current: WorkbenchContentStateSnapshot,
+) => WorkbenchContentStateSnapshot;
 
 const defaultBatchDateRange = buildDefaultBatchDateRange();
-const DEFAULT_READER_STATE_SNAPSHOT: ReaderStateSnapshot = {
+const DEFAULT_WORKBENCH_CONTENT_STATE_SNAPSHOT: WorkbenchContentStateSnapshot = {
   batchStartDate: defaultBatchDateRange.startDate,
   batchEndDate: defaultBatchDateRange.endDate,
   filterJournal: '',
 };
 
-let readerStateSnapshot = DEFAULT_READER_STATE_SNAPSHOT;
-const onDidChangeReaderStateEmitter = new EventEmitter<void>();
+let workbenchContentStateSnapshot = DEFAULT_WORKBENCH_CONTENT_STATE_SNAPSHOT;
+const onDidChangeWorkbenchContentStateEmitter = new EventEmitter<void>();
 
-function updateReaderState(updater: ReaderStateUpdater) {
-  const nextSnapshot = updater(readerStateSnapshot);
-  if (Object.is(nextSnapshot, readerStateSnapshot)) {
+function updateWorkbenchContentState(updater: WorkbenchContentStateUpdater) {
+  const nextSnapshot = updater(workbenchContentStateSnapshot);
+  if (Object.is(nextSnapshot, workbenchContentStateSnapshot)) {
     return;
   }
 
-  readerStateSnapshot = nextSnapshot;
-  onDidChangeReaderStateEmitter.fire();
+  workbenchContentStateSnapshot = nextSnapshot;
+  onDidChangeWorkbenchContentStateEmitter.fire();
 }
 
-export function subscribeReaderState(listener: () => void) {
-  return onDidChangeReaderStateEmitter.event(listener);
+export function subscribeWorkbenchContentState(listener: () => void) {
+  return onDidChangeWorkbenchContentStateEmitter.event(listener);
 }
 
-export function getReaderStateSnapshot() {
-  return readerStateSnapshot;
+export function getWorkbenchContentStateSnapshot() {
+  return workbenchContentStateSnapshot;
 }
 
 export function setBatchStartDate(nextBatchStartDate: string) {
-  updateReaderState((current) => {
+  updateWorkbenchContentState((current) => {
     if (current.batchStartDate === nextBatchStartDate) {
       return current;
     }
@@ -59,7 +59,7 @@ export function setBatchStartDate(nextBatchStartDate: string) {
 }
 
 export function setBatchEndDate(nextBatchEndDate: string) {
-  updateReaderState((current) => {
+  updateWorkbenchContentState((current) => {
     if (current.batchEndDate === nextBatchEndDate) {
       return current;
     }
@@ -72,7 +72,7 @@ export function setBatchEndDate(nextBatchEndDate: string) {
 }
 
 export function setFilterJournal(nextFilterJournal: string) {
-  updateReaderState((current) => {
+  updateWorkbenchContentState((current) => {
     if (current.filterJournal === nextFilterJournal) {
       return current;
     }
@@ -84,12 +84,12 @@ export function setFilterJournal(nextFilterJournal: string) {
   });
 }
 
-export function resetReaderFilters() {
+export function resetWorkbenchContentFilters() {
   setFilterJournal('');
 }
 
 export function selectFilteredArticles(
-  snapshot: ReaderStateSnapshot,
+  snapshot: WorkbenchContentStateSnapshot,
   articles: ReadonlyArray<Article>,
 ) {
   const journal = snapshot.filterJournal.trim().toLowerCase();
@@ -110,10 +110,10 @@ export function selectHasData(articles: ReadonlyArray<Article>) {
   return articles.length > 0;
 }
 
-export function selectReaderDerivedState(
-  snapshot: ReaderStateSnapshot,
+export function selectWorkbenchContentDerivedState(
+  snapshot: WorkbenchContentStateSnapshot,
   articles: ReadonlyArray<Article>,
-): ReaderDerivedState {
+): WorkbenchContentDerivedState {
   return {
     filteredArticles: selectFilteredArticles(snapshot, articles),
     hasData: selectHasData(articles),

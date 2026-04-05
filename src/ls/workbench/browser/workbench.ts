@@ -31,18 +31,15 @@ import {
   createSettingsPartProps,
 } from 'ls/workbench/contrib/preferences/browser/settingsEditor';
 import { createAuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
-import type { AgentChatWidgetProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import type { AuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
 
 import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
 import { createFetchPaneProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
-import { createTitlebarPartProps } from 'ls/workbench/browser/parts/titlebar/titlebarPart';
-import { createTitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
-import type { TitlebarView } from 'ls/workbench/browser/parts/titlebar/titlebarView';
 
 import { createToastOverlayWindowView } from 'ls/workbench/browser/toastOverlayWindow';
 import { createOverlayMenuView } from 'ls/base/parts/contextmenu/electron-sandbox/overlayMenu';
 import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
-import { createReaderPageView } from 'ls/workbench/browser/readerPageView';
+import { createWorkbenchContentView } from 'ls/workbench/browser/workbenchContentView';
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { setARIAContainer } from 'ls/base/browser/ui/aria/aria';
@@ -66,16 +63,15 @@ import { setWorkbenchTitlebarCommandHandlers } from 'ls/workbench/browser/titleb
 import { handleWorkbenchEditorShortcut } from 'ls/workbench/browser/workbenchEditorShortcuts';
 import {
   getWindowStateSnapshot,
-  performWorkbenchWindowControl,
   subscribeWindowState,
 } from 'ls/workbench/browser/window';
 import {
-  getReaderStateSnapshot,
-  selectReaderDerivedState,
+  getWorkbenchContentStateSnapshot,
+  selectWorkbenchContentDerivedState,
   setBatchEndDate,
   setBatchStartDate,
-  subscribeReaderState,
-} from 'ls/workbench/browser/readerState';
+  subscribeWorkbenchContentState,
+} from 'ls/workbench/browser/workbenchContentState';
 import { resolveContentSourceUrl, shouldSyncActiveContentTabFromBrowserUrl } from 'ls/workbench/browser/webContentSurfaceState';
 import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
 
@@ -90,8 +86,6 @@ import {
   getLlmModelOptionsForProvider,
   parseLlmModelOptionValue,
 } from 'ls/workbench/services/llm/registry';
-import { reduceQuickAccessAction } from 'ls/workbench/services/quickAccess/quickAccessService';
-import type { QuickAccessAction, QuickAccessCommand } from 'ls/workbench/services/quickAccess/quickAccessService';
 
 import type { WritingWorkspaceTab } from 'ls/workbench/browser/writingEditorModel';
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
@@ -101,9 +95,10 @@ import {
 } from 'ls/base/common/platform';
 import { EventEmitter } from 'ls/base/common/event';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
+import { applyWorkbenchTheme } from 'ls/workbench/services/themes/browser/workbenchThemeService';
 import 'ls/workbench/browser/media/workbench.css';
 
-export type WorkbenchPage = 'reader' | 'settings';
+export type WorkbenchPage = 'content' | 'settings';
 
 export type WorkbenchStateSnapshot = {
   activePage: WorkbenchPage;
@@ -136,7 +131,7 @@ type WorkbenchEvent =
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const DEFAULT_WORKBENCH_STATE: WorkbenchStateSnapshot = {
-  activePage: 'reader',
+  activePage: 'content',
 };
 
 const INITIAL_BATCH_SOURCES = getConfigBatchSourceSeed();
@@ -289,7 +284,7 @@ function reduceWorkbenchState(
     case 'TOGGLE_SETTINGS':
       return {
         ...state,
-        activePage: state.activePage === 'settings' ? 'reader' : 'settings',
+        activePage: state.activePage === 'settings' ? 'content' : 'settings',
       };
     default:
       return state;
@@ -390,8 +385,7 @@ class WorkbenchHost {
   private readonly toastMount: HTMLDivElement;
   private readonly statusbarElement: HTMLElement;
   private readonly toastHost: ToastHost;
-  private titlebarView: TitlebarView | null = null;
-  private readerPageView: ReturnType<typeof createReaderPageView> | null = null;
+  private workbenchContentView: ReturnType<typeof createWorkbenchContentView> | null = null;
   private settingsView: ReturnType<typeof createSettingsPartView> | null = null;
   private readonly globalDisposables: Array<() => void> = [];
   private webContentStateDisposable: (() => void) | null = null;
@@ -437,7 +431,7 @@ class WorkbenchHost {
       subscribeWorkbenchState(this.requestRender),
       subscribeWorkbenchLayoutState(this.requestRender),
       subscribeWindowState(this.requestRender),
-      subscribeReaderState(this.requestRender),
+      subscribeWorkbenchContentState(this.requestRender),
     );
 
     this.requestRender();
@@ -458,13 +452,12 @@ class WorkbenchHost {
 
     setWorkbenchTitlebarCommandHandlers(null);
     setWorkbenchEditorCommandHandlers(null);
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.titlebar, null);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.statusbar, null);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.container, null);
 
-    this.titlebarView?.dispose();
-    this.titlebarView = null;
-    this.readerPageView?.dispose();
-    this.readerPageView = null;
+    this.workbenchContentView?.dispose();
+    this.workbenchContentView = null;
     this.settingsView?.dispose();
     this.settingsView = null;
     this.toastHost.dispose();
@@ -705,40 +698,23 @@ class WorkbenchHost {
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.statusbar, null);
   }
 
-  private syncTitlebar(
-    titlebarProps: ReturnType<typeof createTitlebarPartProps>,
-  ) {
-    if (!this.titlebarView) {
-      this.titlebarView = createTitlebarView(titlebarProps);
-      this.containerElement.prepend(this.titlebarView.getElement());
-      registerWorkbenchPartDomNode(
-        WORKBENCH_PART_IDS.titlebar,
-        this.titlebarView.getElement(),
-      );
-    } else {
-      this.titlebarView.setProps(titlebarProps);
-    }
-  }
-
   private syncWorkbenchChrome(params: {
     electronRuntime: boolean;
     useMica: boolean;
     activePage: WorkbenchPage;
-    titlebarProps: ReturnType<typeof createTitlebarPartProps>;
   }) {
-    const { electronRuntime, useMica, activePage, titlebarProps } = params;
+    const { electronRuntime, useMica, activePage } = params;
 
     this.containerElement.className = [
       'app-window',
-      'has-titlebar',
       electronRuntime && useMica ? 'is-mica-enabled' : '',
-      activePage === 'reader' ? 'has-statusbar' : '',
+      activePage === 'content' ? 'has-statusbar' : '',
     ]
       .filter(Boolean)
       .join(' ');
     this.shellElement.className = getWorkbenchShellClassName({ activePage });
-    this.syncStatusbarVisibility(activePage === 'reader');
-    this.syncTitlebar(titlebarProps);
+    this.syncStatusbarVisibility(activePage === 'content');
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.titlebar, null);
   }
 
   private syncTitlebarCommandHandlers(params: {
@@ -774,11 +750,11 @@ class WorkbenchHost {
   private syncEditorCommandHandlers() {
     setWorkbenchEditorCommandHandlers({
       executeActiveDraftCommand: (commandId) =>
-        this.readerPageView?.executeActiveDraftCommand(commandId) ?? false,
+        this.workbenchContentView?.executeActiveDraftCommand(commandId) ?? false,
       canExecuteActiveDraftCommand: (commandId) =>
-        this.readerPageView?.canExecuteActiveDraftCommand(commandId) ?? false,
+        this.workbenchContentView?.canExecuteActiveDraftCommand(commandId) ?? false,
       getActiveDraftStableSelectionTarget: () =>
-        this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null,
+        this.workbenchContentView?.getActiveDraftStableSelectionTarget() ?? null,
     });
   }
 
@@ -831,7 +807,7 @@ class WorkbenchHost {
     });
   }
 
-  private renderReaderPage(props: {
+  private renderWorkbenchContentPage(props: {
     isFetchSidebarVisible: boolean;
     isPrimarySidebarVisible: boolean;
     isAuxiliarySidebarVisible: boolean;
@@ -841,30 +817,36 @@ class WorkbenchHost {
     auxiliarySidebarSize: number;
     fetchPaneProps: ReturnType<typeof createFetchPaneProps>;
     primaryBarProps: PrimaryBarProps;
-    auxiliarySidebarProps: AgentChatWidgetProps;
+    auxiliarySidebarProps: AuxiliaryBarPartProps;
+    sidebarTopbarActionsProps: {
+      isPrimarySidebarVisible: boolean;
+      primarySidebarToggleLabel: string;
+      commandPaletteLabel: string;
+      onTogglePrimarySidebar: () => void;
+    };
     editorPartProps: EditorPartProps;
   }) {
     this.settingsView?.dispose();
     this.settingsView = null;
-    if (!this.readerPageView) {
-      this.readerPageView = createReaderPageView(props);
+    if (!this.workbenchContentView) {
+      this.workbenchContentView = createWorkbenchContentView(props);
     } else {
-      this.readerPageView.setProps(props);
+      this.workbenchContentView.setProps(props);
     }
     this.syncEditorCommandHandlers();
 
-    const readerElement = this.readerPageView.getElement();
-    if (this.pageMount.firstChild !== readerElement) {
-      this.pageMount.replaceChildren(readerElement);
+    const workbenchContentElement = this.workbenchContentView.getElement();
+    if (this.pageMount.firstChild !== workbenchContentElement) {
+      this.pageMount.replaceChildren(workbenchContentElement);
     }
-    this.readerPageView.layout();
+    this.workbenchContentView.layout();
   }
 
   private renderSettingsPage(
     settingsPartProps: ReturnType<typeof createSettingsPartProps>,
   ) {
-    this.readerPageView?.dispose();
-    this.readerPageView = null;
+    this.workbenchContentView?.dispose();
+    this.workbenchContentView = null;
     setWorkbenchEditorCommandHandlers(null);
     if (!this.settingsView) {
       this.settingsView = createSettingsPartView(settingsPartProps);
@@ -898,11 +880,7 @@ class WorkbenchHost {
     } = getWorkbenchLayoutStateSnapshot();
     const { electronRuntime, webContentRuntime, desktopRuntime } =
       resolveRuntimeState();
-    const {
-      isMaximized: isWindowMaximized,
-      isFullscreen: isWindowFullscreen,
-    } = getWindowStateSnapshot();
-    const handleWindowControl = performWorkbenchWindowControl;
+    const { isFullscreen: isWindowFullscreen } = getWindowStateSnapshot();
 
     const invokeDesktop = async <T>(
       command: string,
@@ -924,6 +902,7 @@ class WorkbenchHost {
       batchLimit,
       sameDomainOnly,
       useMica,
+      theme,
       knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       knowledgeBasePdfDownloadDir,
@@ -947,6 +926,7 @@ class WorkbenchHost {
       isTestingLlmConnection,
       isTestingTranslationConnection,
     } = settingsSnapshot;
+    applyWorkbenchTheme(theme);
     const knowledgeBaseModeEnabled = knowledgeBaseEnabled;
     this.syncKnowledgeBaseLayout(knowledgeBaseModeEnabled);
 
@@ -960,16 +940,16 @@ class WorkbenchHost {
       void libraryModelInstance.refresh();
     };
 
-    const readerStateSnapshot = getReaderStateSnapshot();
+    const workbenchContentStateSnapshot = getWorkbenchContentStateSnapshot();
     const {
       batchStartDate,
       batchEndDate,
       filteredArticles,
       hasData,
     } = {
-      batchStartDate: readerStateSnapshot.batchStartDate,
-      batchEndDate: readerStateSnapshot.batchEndDate,
-      ...selectReaderDerivedState(readerStateSnapshot, articles),
+      batchStartDate: workbenchContentStateSnapshot.batchStartDate,
+      batchEndDate: workbenchContentStateSnapshot.batchEndDate,
+      ...selectWorkbenchContentDerivedState(workbenchContentStateSnapshot, articles),
     };
     const currentLlmSettings = createAgentChatLlmSettings(
       activeLlmProvider,
@@ -1009,8 +989,7 @@ class WorkbenchHost {
 
     const webContentNavigationModelInstance = getWorkbenchWebContentNavigationModel();
     this.syncWebContentRuntime(webContentNavigationModelInstance, webContentRuntime);
-    const { browserUrl, webContentState } =
-      webContentNavigationModelInstance.getSnapshot();
+    const { browserUrl } = webContentNavigationModelInstance.getSnapshot();
     const viewPartProps = {
       browserUrl,
       electronRuntime,
@@ -1138,7 +1117,6 @@ class WorkbenchHost {
           libraryModelInstance.upsertDocumentSummary,
         onLibraryUpdated: refreshLibrary,
       });
-    const { canExportDocx } = documentActionsControllerInstance.getSnapshot();
     const handleSharedPdfDownload =
       documentActionsControllerInstance.handleSharedPdfDownload;
     const handleOpenArticleDetails =
@@ -1282,55 +1260,6 @@ class WorkbenchHost {
       });
     };
 
-    const addressBarSourceOptions =
-      webContentNavigationModelInstance.createAddressBarSourceOptions(batchSources);
-    const selectedAddressBarSourceId =
-      webContentNavigationModelInstance.resolveSelectedAddressBarSourceId(
-        fetchSeedUrl,
-        webUrl,
-        batchSources,
-      );
-
-    const executeQuickAccessCommand = (command: QuickAccessCommand | null) => {
-      if (!command) {
-        return;
-      }
-
-      if (command.type === 'UPDATE_URL_INPUT') {
-        webContentNavigationModelInstance.handleWebUrlChange(
-          command.url,
-          setWorkbenchWebUrl,
-          setWorkbenchFetchSeedUrl,
-        );
-        return;
-      }
-
-      const normalizedNextUrl = normalizeUrl(command.url);
-      if (!normalizedNextUrl) {
-        return;
-      }
-
-      if (command.openInEditorTab) {
-        handleCreateWebTab(normalizedNextUrl);
-        return;
-      }
-
-      navigateToAddressBarUrl(normalizedNextUrl, false);
-    };
-
-    const dispatchQuickAccessAction = (action: QuickAccessAction) => {
-      executeQuickAccessCommand(
-        reduceQuickAccessAction(
-          {
-            addressBarSourceOptions,
-            selectedAddressBarSourceId,
-            openQuickSourceInEditorTab: true,
-          },
-          action,
-        ),
-      );
-    };
-
     const contentAwareEditorPartProps = this.createContentAwareEditorPartProps({
       tabs: editorTabs,
       activateTab: editorPartControllerInstance.onActivateTab,
@@ -1405,7 +1334,7 @@ class WorkbenchHost {
     };
 
     const activeDraftStableSelectionTarget =
-      this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null;
+      this.workbenchContentView?.getActiveDraftStableSelectionTarget() ?? null;
     const assistantWritingContext = formatStableSelectionWritingContext(
       activeDraftStableSelectionTarget,
       draftBody,
@@ -1443,7 +1372,7 @@ class WorkbenchHost {
         fallbackWritingContext: assistantWritingContext,
         getFallbackWritingContext: () =>
           formatStableSelectionWritingContext(
-            this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null,
+            this.workbenchContentView?.getActiveDraftStableSelectionTarget() ?? null,
             editorPartControllerInstance.getDraftBody(),
           ),
         getDraftBody: () => editorPartControllerInstance.getDraftBody(),
@@ -1451,7 +1380,7 @@ class WorkbenchHost {
         setDraftDocument: (value) =>
           editorPartControllerInstance.setDraftDocument(value),
         getActiveDraftStableSelectionTarget: () =>
-          this.readerPageView?.getActiveDraftStableSelectionTarget() ?? null,
+          this.workbenchContentView?.getActiveDraftStableSelectionTarget() ?? null,
       },
       documentActionsController: documentActionsControllerInstance,
       documentActionsContext: {
@@ -1596,36 +1525,16 @@ class WorkbenchHost {
         },
       },
     });
-
+    const sidebarTopbarActionsProps = {
+      isPrimarySidebarVisible,
+      primarySidebarToggleLabel: isPrimarySidebarVisible
+        ? ui.titlebarHidePrimarySidebar
+        : ui.titlebarShowPrimarySidebar,
+      commandPaletteLabel: ui.addressBarSourcePlaceholder,
+      onTogglePrimarySidebar: togglePrimarySidebarVisibility,
+    };
     const effectiveSecondarySidebarVisible =
       isAuxiliarySidebarVisible && isFetchSidebarVisible;
-
-    const titlebarProps = createTitlebarPartProps({
-      state: {
-        activePage,
-        ui,
-        webUrl,
-        isWindowMaximized,
-        isFetchSidebarVisible,
-        isPrimarySidebarVisible,
-        isAuxiliarySidebarVisible,
-        browserUrl,
-        webContentState,
-        canExportDocx,
-        addressBarSourceOptions,
-        selectedAddressBarSourceId,
-      },
-      actions: {
-        handleWindowControl,
-        handleToggleFetchSidebar: toggleFetchSidebarVisibility,
-        handleTogglePrimarySidebar: togglePrimarySidebarVisibility,
-        handleToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
-        handleWebContentBack,
-        handleWebContentForward,
-        handleWebContentRefresh,
-        dispatchQuickAccessAction,
-      },
-    });
 
     const settingsPartProps = createSettingsPartProps({
       state: {
@@ -1638,6 +1547,7 @@ class WorkbenchHost {
         fetchStartDate: batchStartDate,
         fetchEndDate: batchEndDate,
         useMica,
+        theme,
         knowledgeBaseEnabled,
         autoIndexDownloadedPdf,
         knowledgeBasePdfDownloadDir,
@@ -1682,6 +1592,7 @@ class WorkbenchHost {
         onFetchStartDateChange: setBatchStartDate,
         onFetchEndDateChange: setBatchEndDate,
         onUseMicaChange: settingsControllerInstance.setUseMica,
+        onThemeChange: settingsControllerInstance.setTheme,
         onKnowledgeBaseEnabledChange: settingsControllerInstance.setKnowledgeBaseEnabled,
         onAutoIndexDownloadedPdfChange:
           settingsControllerInstance.setAutoIndexDownloadedPdf,
@@ -1759,11 +1670,10 @@ class WorkbenchHost {
       electronRuntime,
       useMica,
       activePage,
-      titlebarProps,
     });
 
-    if (activePage === 'reader') {
-      this.renderReaderPage({
+    if (activePage === 'content') {
+      this.renderWorkbenchContentPage({
         isFetchSidebarVisible: effectiveSecondarySidebarVisible,
         isPrimarySidebarVisible,
         isAuxiliarySidebarVisible,
@@ -1774,6 +1684,7 @@ class WorkbenchHost {
         fetchPaneProps,
         primaryBarProps,
         auxiliarySidebarProps,
+        sidebarTopbarActionsProps,
         editorPartProps: contentAwareEditorPartProps,
       });
     } else {
@@ -1928,6 +1839,7 @@ export function renderWorkbench() {
     throw new Error('Root element #root was not found.');
   }
 
+  applyWorkbenchTheme();
   setARIAContainer(document.body);
 
   activeWorkbenchHost?.dispose();

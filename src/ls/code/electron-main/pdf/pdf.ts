@@ -8,6 +8,7 @@ import { cleanText } from 'ls/base/common/strings';
 import { normalizeUrl } from 'ls/base/common/url';
 import { appError } from 'ls/base/common/errors';
 import { fetchHtml } from 'ls/code/electron-main/fetch/dispatch';
+import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
 import {
   buildNatureResearchPdfDownloadCandidates,
   extractNatureResearchPdfDownloadCandidatesFromHtml,
@@ -21,7 +22,10 @@ import { sciencePdfStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/scie
 import type { PdfDownloadContext, PdfDownloadStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/pdfStrategyTypes';
 import { buildScienceDirectPdfDownloadCandidates } from 'ls/code/electron-main/pdf/sciencePdf';
 
-const PDF_STRATEGY_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const PDF_STRATEGY_LOG_ENABLED = isCompatFetchEnvEnabled(
+  'LS_FETCH_TIMING',
+  'READER_FETCH_TIMING',
+);
 
 function logPdfStrategy(stage: string, details: Record<string, unknown>) {
   if (!PDF_STRATEGY_LOG_ENABLED) return;
@@ -462,4 +466,3 @@ export async function previewDownloadPdf(
   });
   return await previewDownloadPdfWithResolvedRequest(request);
 }
-

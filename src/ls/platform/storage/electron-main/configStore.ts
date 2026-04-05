@@ -2,6 +2,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 
 import type {
+  AppTheme,
   AppSettings,
   BatchSource,
   KnowledgeBaseSettings,
@@ -135,6 +136,10 @@ function normalizeLocale(value: unknown, defaultLocale: 'zh' | 'en'): 'zh' | 'en
   return defaultLocale;
 }
 
+function normalizeTheme(value: unknown): AppTheme {
+  return value === 'dark' ? 'dark' : 'light';
+}
+
 function buildSourceId(seed: unknown, index: number) {
   const cleaned = cleanText(seed);
   if (cleaned) return cleaned;
@@ -239,6 +244,7 @@ function normalizeSettings(
         ? payload.defaultSameDomainOnly
         : defaultSameDomainOnly,
     useMica: typeof payload.useMica === 'boolean' ? payload.useMica : true,
+    theme: normalizeTheme(payload.theme),
     locale: normalizeLocale(payload.locale, defaultLocale),
     llm: normalizeLlmSettings(payload.llm),
     translation: normalizeTranslationSettings(payload.translation),

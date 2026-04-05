@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import type { PdfDownloadResult } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { cleanText } from 'ls/base/common/strings';
 import { appError } from 'ls/base/common/errors';
+import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
 import { buildPdfFileName } from 'ls/platform/download/common/pdfFileName';
 import {
   getWebContentState,
@@ -12,7 +13,10 @@ import {
   waitForWebContentPrintLayout,
 } from 'ls/platform/window/electron-main/webContentView';
 
-const WEB_PAGE_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const WEB_PAGE_PDF_LOG_ENABLED = isCompatFetchEnvEnabled(
+  'LS_FETCH_TIMING',
+  'READER_FETCH_TIMING',
+);
 const WEB_PAGE_PDF_STABILIZE_MS = 1200;
 
 function logWebPagePdf(stage: string, details: Record<string, unknown>) {

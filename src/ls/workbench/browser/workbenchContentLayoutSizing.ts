@@ -9,7 +9,7 @@ export type SplitViewConstraints = {
   maximum: number;
 };
 
-export type ReaderSplitConstraints = {
+export type WorkbenchContentSplitConstraints = {
   fetchSidebar: SplitViewConstraints;
   primarySidebar: SplitViewConstraints;
   editor: SplitViewConstraints;
@@ -48,9 +48,9 @@ function getLeadingGroupSashSize(
     : 0;
 }
 
-export function getReaderSplitConstraints(
+export function getWorkbenchContentSplitConstraints(
   orientation: Orientation,
-): ReaderSplitConstraints {
+): WorkbenchContentSplitConstraints {
   const desktop = WORKBENCH_SPLITVIEW_LIMITS;
   const isHorizontal = orientation === Orientation.HORIZONTAL;
 
@@ -88,7 +88,7 @@ export function getReaderSplitConstraints(
   };
 }
 
-export function resolveLeadingGroupPaneSizes({
+export function resolveWorkbenchLeadingPaneSizes({
   totalSize,
   isFetchSidebarVisible,
   isPrimarySidebarVisible,

@@ -4,10 +4,14 @@ import type { PdfDownloadResult } from 'ls/base/parts/sandbox/common/desktopType
 import { cleanText } from 'ls/base/common/strings';
 import { isNatureMainSiteUrl } from 'ls/base/common/url';
 import { fetchHtml } from 'ls/code/electron-main/fetch/dispatch';
+import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
 import type { PdfDownloadContext } from 'ls/code/electron-main/pdf/pdfStrategies/pdfStrategyTypes';
 import { printWebPageToPdf } from 'ls/code/electron-main/pdf/webPagePdf';
 
-const NATURE_LATEST_NEWS_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const NATURE_LATEST_NEWS_PDF_LOG_ENABLED = isCompatFetchEnvEnabled(
+  'LS_FETCH_TIMING',
+  'READER_FETCH_TIMING',
+);
 
 function logNatureLatestNewsPdf(stage: string, details: Record<string, unknown>) {
   if (!NATURE_LATEST_NEWS_PDF_LOG_ENABLED) return;

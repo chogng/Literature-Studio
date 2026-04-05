@@ -12,12 +12,12 @@ import { createLibraryModel } from 'ls/workbench/browser/libraryModel';
 import { WebContentNavigationModel } from 'ls/workbench/browser/webContentNavigationModel';
 import { localeService } from 'ls/workbench/contrib/localization/browser/localeService';
 import {
-  getReaderStateSnapshot,
+  getWorkbenchContentStateSnapshot,
   setBatchEndDate,
   setBatchStartDate,
   setFilterJournal,
-  subscribeReaderState,
-} from 'ls/workbench/browser/readerState';
+  subscribeWorkbenchContentState,
+} from 'ls/workbench/browser/workbenchContentState';
 import {
   getWorkbenchSessionSnapshot,
   setWorkbenchArticles,
@@ -59,7 +59,7 @@ import { locales } from 'language/locales';
 let cleanupDomEnvironment: (() => void) | null = null;
 let originalDocumentLanguage = '';
 let originalLocale: 'zh' | 'en';
-let originalReaderState = getReaderStateSnapshot();
+let originalWorkbenchContentState = getWorkbenchContentStateSnapshot();
 let originalWorkbenchSession = getWorkbenchSessionSnapshot();
 let originalWorkbenchLayoutState = getWorkbenchLayoutStateSnapshot();
 let originalWorkbenchPartDomSnapshot = getWorkbenchPartDomSnapshot();
@@ -195,7 +195,7 @@ before(() => {
   cleanupDomEnvironment = domEnvironment.cleanup;
   originalDocumentLanguage = document.documentElement.lang;
   originalLocale = localeService.getLocale();
-  originalReaderState = getReaderStateSnapshot();
+  originalWorkbenchContentState = getWorkbenchContentStateSnapshot();
   originalWorkbenchSession = getWorkbenchSessionSnapshot();
   originalWorkbenchLayoutState = getWorkbenchLayoutStateSnapshot();
   originalWorkbenchPartDomSnapshot = getWorkbenchPartDomSnapshot();
@@ -210,9 +210,9 @@ after(() => {
 afterEach(() => {
   localeService.applyLocale(originalLocale);
   document.documentElement.lang = originalDocumentLanguage;
-  setBatchStartDate(originalReaderState.batchStartDate);
-  setBatchEndDate(originalReaderState.batchEndDate);
-  setFilterJournal(originalReaderState.filterJournal);
+  setBatchStartDate(originalWorkbenchContentState.batchStartDate);
+  setBatchEndDate(originalWorkbenchContentState.batchEndDate);
+  setFilterJournal(originalWorkbenchContentState.filterJournal);
   setWorkbenchWebUrl(originalWorkbenchSession.webUrl);
   setWorkbenchFetchSeedUrl(originalWorkbenchSession.fetchSeedUrl);
   setWorkbenchArticles(originalWorkbenchSession.articles);
@@ -239,9 +239,9 @@ test('localeService subscriptions can be disposed independently', () => {
   assert.equal(receivedLocales.length, 1);
 });
 
-test('readerState subscriptions stop after disposal', () => {
+test('workbenchContentState subscriptions stop after disposal', () => {
   let notificationCount = 0;
-  const disposeListener = subscribeReaderState(() => {
+  const disposeListener = subscribeWorkbenchContentState(() => {
     notificationCount += 1;
   });
 
@@ -250,7 +250,7 @@ test('readerState subscriptions stop after disposal', () => {
   setFilterJournal('');
 
   assert.equal(notificationCount, 1);
-  assert.equal(getReaderStateSnapshot().filterJournal, '');
+  assert.equal(getWorkbenchContentStateSnapshot().filterJournal, '');
 });
 
 test('workbenchSession subscriptions stop after disposal', () => {
@@ -561,7 +561,7 @@ test('workbenchState subscriptions stop after disposal', async () => {
   } = await import('ls/workbench/browser/workbench');
   const originalWorkbenchState = getWorkbenchStateSnapshot();
   let notificationCount = 0;
-  const nextPage = originalWorkbenchState.activePage === 'reader' ? 'settings' : 'reader';
+  const nextPage = originalWorkbenchState.activePage === 'content' ? 'settings' : 'content';
 
   try {
     const disposeListener = subscribeWorkbenchState(() => {

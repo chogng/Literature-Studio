@@ -1,4 +1,5 @@
 import type {
+  AppTheme,
   AppSettings as DesktopAppSettings,
   ElectronInvoke,
   KnowledgeBaseSettings,
@@ -30,6 +31,7 @@ export type ResolvedSettingsState = {
   batchLimit: number;
   sameDomainOnly: boolean;
   useMica: boolean;
+  theme: AppTheme;
   locale: Locale | null;
   configPath: string;
   llm: LlmSettings;
@@ -46,6 +48,7 @@ export type SaveSettingsDraft = {
   batchLimit: number;
   sameDomainOnly: boolean;
   useMica: boolean;
+  theme: AppTheme;
   locale: Locale;
   llm: LlmSettings;
   translation: TranslationSettings;
@@ -90,6 +93,7 @@ export function resolveSettingsState(
         ? loaded.defaultSameDomainOnly
         : defaultSameDomainOnly,
     useMica: typeof loaded.useMica === 'boolean' ? loaded.useMica : true,
+    theme: loaded.theme === 'dark' ? 'dark' : 'light',
     locale: loadedLocale,
     configPath: loadedConfigPath,
     llm: cloneLlmSettings(loaded.llm ?? createDefaultLlmSettings()),
@@ -118,6 +122,7 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: draft.sameDomainOnly,
       useMica: draft.useMica,
+      theme: draft.theme,
       locale: draft.locale,
       llm: cloneLlmSettings(draft.llm),
       translation: cloneTranslationSettings(draft.translation),

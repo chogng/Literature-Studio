@@ -1,4 +1,5 @@
 import type {
+  AppTheme,
   ElectronInvoke,
   LibraryStorageMode,
   LlmProviderId,
@@ -52,6 +53,7 @@ export type SettingsModelSnapshot = {
   batchLimit: number;
   sameDomainOnly: boolean;
   useMica: boolean;
+  theme: AppTheme;
   knowledgeBaseEnabled: boolean;
   autoIndexDownloadedPdf: boolean;
   libraryStorageMode: LibraryStorageMode;
@@ -122,6 +124,7 @@ function areSettingsModelSnapshotsEqual(
     previous.batchLimit === next.batchLimit &&
     previous.sameDomainOnly === next.sameDomainOnly &&
     previous.useMica === next.useMica &&
+    previous.theme === next.theme &&
     previous.knowledgeBaseEnabled === next.knowledgeBaseEnabled &&
     previous.autoIndexDownloadedPdf === next.autoIndexDownloadedPdf &&
     previous.libraryStorageMode === next.libraryStorageMode &&
@@ -161,6 +164,7 @@ function createInitialSettingsModelSnapshot(
     batchLimit: defaultBatchLimit,
     sameDomainOnly: defaultSameDomainOnly,
     useMica: true,
+    theme: 'light',
     knowledgeBaseEnabled: defaultKnowledgeBaseSettings.enabled,
     autoIndexDownloadedPdf: defaultKnowledgeBaseSettings.autoIndexDownloadedPdf,
     libraryStorageMode: defaultKnowledgeBaseSettings.libraryStorageMode,
@@ -249,6 +253,17 @@ export class SettingsModel {
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       useMica,
+    }));
+  };
+
+  readonly setTheme = (theme: AppTheme) => {
+    if (this.snapshot.theme === theme) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      theme,
     }));
   };
 
@@ -799,6 +814,7 @@ export class SettingsModel {
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
         useMica: resolved.useMica,
+        theme: resolved.theme,
         knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
         autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
         libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
@@ -920,6 +936,7 @@ export class SettingsModel {
       batchLimit,
       sameDomainOnly,
       useMica,
+      theme,
       knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       libraryStorageMode,
@@ -944,6 +961,7 @@ export class SettingsModel {
       batchLimit,
       sameDomainOnly,
       useMica,
+      theme,
       locale,
       knowledgeBase: {
         enabled: knowledgeBaseEnabled,
@@ -995,6 +1013,7 @@ export class SettingsModel {
       batchLimit: resolved.batchLimit,
       sameDomainOnly: resolved.sameDomainOnly,
       useMica: resolved.useMica,
+      theme: resolved.theme,
       knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
       autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
       libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
@@ -1030,6 +1049,7 @@ export class SettingsModel {
       batchLimit,
       sameDomainOnly,
       useMica,
+      theme,
       knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       libraryStorageMode,
@@ -1054,6 +1074,7 @@ export class SettingsModel {
       batchLimit,
       sameDomainOnly,
       useMica,
+      theme,
       locale,
       knowledgeBase: {
         enabled: knowledgeBaseEnabled,
@@ -1107,6 +1128,7 @@ export class SettingsModel {
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
         useMica: resolved.useMica,
+        theme: resolved.theme,
         knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
         autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
         libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,

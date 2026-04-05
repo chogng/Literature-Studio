@@ -1,8 +1,8 @@
 import type { Session } from 'electron';
 
-export const READER_SHARED_WEB_PARTITION = 'persist:reader-web';
+export const WORKBENCH_SHARED_WEB_PARTITION = 'persist:literature-studio-web';
 
-const defaultReaderSharedSessionStorages = [
+const defaultWorkbenchSharedSessionStorages = [
   'cookies',
   'localstorage',
   'indexdb',
@@ -10,9 +10,10 @@ const defaultReaderSharedSessionStorages = [
   'serviceworkers',
 ] as const;
 
-export type ReaderSharedSessionStorage = typeof defaultReaderSharedSessionStorages[number];
+export type WorkbenchSharedSessionStorage =
+  typeof defaultWorkbenchSharedSessionStorages[number];
 
-export async function resolveReaderSharedSession(): Promise<Session | null> {
+export async function resolveWorkbenchSharedSession(): Promise<Session | null> {
   try {
     const electronModule = (await import('electron')) as {
       app?: { isReady?: () => boolean };
@@ -30,24 +31,24 @@ export async function resolveReaderSharedSession(): Promise<Session | null> {
       return null;
     }
 
-    return electronSession.fromPartition(READER_SHARED_WEB_PARTITION);
+    return electronSession.fromPartition(WORKBENCH_SHARED_WEB_PARTITION);
   } catch {
     return null;
   }
 }
 
-export async function clearReaderSharedSessionOrigins(
+export async function clearWorkbenchSharedSessionOrigins(
   origins: readonly string[],
-  storages: readonly ReaderSharedSessionStorage[] = defaultReaderSharedSessionStorages,
+  storages: readonly WorkbenchSharedSessionStorage[] = defaultWorkbenchSharedSessionStorages,
 ) {
-  const readerSession = await resolveReaderSharedSession();
-  if (!readerSession) {
+  const workbenchSession = await resolveWorkbenchSharedSession();
+  if (!workbenchSession) {
     return false;
   }
 
   try {
     for (const origin of origins) {
-      await readerSession.clearStorageData({
+      await workbenchSession.clearStorageData({
         origin,
         storages: [...storages],
       });
@@ -57,13 +58,13 @@ export async function clearReaderSharedSessionOrigins(
   }
 
   try {
-    await readerSession.clearAuthCache();
+    await workbenchSession.clearAuthCache();
   } catch {
     // Ignore auth-cache cleanup failures.
   }
 
   try {
-    await readerSession.clearCache();
+    await workbenchSession.clearCache();
   } catch {
     // Ignore HTTP cache cleanup failures.
   }

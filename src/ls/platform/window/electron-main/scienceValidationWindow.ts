@@ -7,7 +7,7 @@ import {
 import { createAuxiliaryWindow } from 'ls/platform/window/electron-main/window';
 import { appError, isAppError } from 'ls/base/common/errors';
 import { cleanText } from 'ls/base/common/strings';
-import { READER_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
+import { WORKBENCH_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
 import {
   SCIENCE_DOWNLOAD_CONTROL_SELECTORS,
   SCIENCE_VALIDATION_ACCEPT,
@@ -152,7 +152,7 @@ function createScienceValidationWindow() {
     autoHideMenuBar: true,
     backgroundColor: '#f3f6fb',
     webPreferences: {
-      partition: READER_SHARED_WEB_PARTITION,
+      partition: WORKBENCH_SHARED_WEB_PARTITION,
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,

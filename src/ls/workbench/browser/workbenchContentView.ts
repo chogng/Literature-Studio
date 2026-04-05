@@ -15,17 +15,23 @@ import {
   setFetchSidebarVisible,
   setPrimarySidebarVisible,
   setWorkbenchSidebarSizes,
-  WORKBENCH_READER_LAYOUT_BREAKPOINT,
+  WORKBENCH_CONTENT_LAYOUT_BREAKPOINT,
+  WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE,
   WORKBENCH_SPLITVIEW_LIMITS,
   WORKBENCH_SPLITVIEW_SASH_SIZE,
 } from 'ls/workbench/browser/layout';
-import { getReaderSplitConstraints } from 'ls/workbench/browser/readerLayoutSizing';
-import type { SplitViewConstraints } from 'ls/workbench/browser/readerLayoutSizing';
+import {
+  getWorkbenchContentSplitConstraints,
+  type SplitViewConstraints,
+} from 'ls/workbench/browser/workbenchContentLayoutSizing';
 import type {
-  ReaderLayoutLeafId,
-  ReaderLayoutNode,
-} from 'ls/workbench/browser/readerLayoutTree';
-import { reconcileReaderLayoutTree, updateLeaf } from 'ls/workbench/browser/readerLayoutTree';
+  WorkbenchContentLayoutLeafId,
+  WorkbenchContentLayoutNode,
+} from 'ls/workbench/browser/workbenchContentLayoutTree';
+import {
+  reconcileWorkbenchContentLayoutTree,
+  updateLeaf,
+} from 'ls/workbench/browser/workbenchContentLayoutTree';
 
 import type { EditorStatusState } from 'ls/workbench/browser/parts/editor/editorStatus';
 import { createEditorPartView } from 'ls/workbench/browser/parts/editor/editorPartView';
@@ -46,7 +52,11 @@ import {
   createAuxiliaryBarPartView,
   AuxiliaryBarPartView,
 } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
-import type { AgentChatWidgetProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import type { AuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import {
+  SidebarTopbarActionsView,
+  type SidebarTopbarActionsProps,
+} from 'ls/workbench/browser/parts/sidebar/sidebarTopbarActions';
 
 import {
   clearStatusbarCommandHandlers,
@@ -55,7 +65,7 @@ import {
   updateStatusbarState,
 } from 'ls/workbench/browser/parts/statusbar/statusbarActions';
 
-type ReaderPageViewProps = {
+type WorkbenchContentViewProps = {
   isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
   isAuxiliarySidebarVisible: boolean;
@@ -65,7 +75,8 @@ type ReaderPageViewProps = {
   auxiliarySidebarSize: number;
   fetchPaneProps: FetchPaneProps;
   primaryBarProps: PrimaryBarProps;
-  auxiliarySidebarProps: AgentChatWidgetProps;
+  auxiliarySidebarProps: AuxiliaryBarPartProps;
+  sidebarTopbarActionsProps: SidebarTopbarActionsProps;
   editorPartProps: EditorPartProps;
 };
 
@@ -77,8 +88,8 @@ type SplitViewSizeSnapshot = {
 };
 
 const PRIMARY_SIDEBAR_INDEX = 0;
-const EDITOR_INDEX = 1;
-const AUXILIARY_SIDEBAR_INDEX = 2;
+const AUXILIARY_SIDEBAR_INDEX = 1;
+const EDITOR_INDEX = 2;
 const SECONDARY_SIDEBAR_INDEX = 3;
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -117,7 +128,7 @@ function syncElementContent(host: HTMLElement, content: HTMLElement | null) {
   }
 }
 
-function getVisibleRootPaneCount(props: ReaderPageViewProps) {
+function getVisibleRootPaneCount(props: WorkbenchContentViewProps) {
   return [
     props.isFetchSidebarVisible,
     props.isPrimarySidebarVisible,
@@ -127,7 +138,7 @@ function getVisibleRootPaneCount(props: ReaderPageViewProps) {
 }
 
 function getRootSplitSize(
-  props: ReaderPageViewProps,
+  props: WorkbenchContentViewProps,
   sizes: SplitViewSizeSnapshot,
 ) {
   return (
@@ -135,11 +146,13 @@ function getRootSplitSize(
     (props.isPrimarySidebarVisible ? sizes.primarySidebarSize : 0) +
     sizes.editorSize +
     (props.isAuxiliarySidebarVisible ? sizes.auxiliarySidebarSize : 0) +
-    Math.max(0, getVisibleRootPaneCount(props) - 1) * WORKBENCH_SPLITVIEW_SASH_SIZE
+    (WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE
+      ? Math.max(0, getVisibleRootPaneCount(props) - 1) * WORKBENCH_SPLITVIEW_SASH_SIZE
+      : 0)
   );
 }
 
-class ReaderSplitSlotView implements IGridView {
+class WorkbenchContentSlotView implements IGridView {
   readonly element: HTMLElement;
   readonly snap: boolean;
   private minimumWidthValue = 0;
@@ -149,7 +162,7 @@ class ReaderSplitSlotView implements IGridView {
 
   constructor(className: string, snap = false) {
     this.snap = snap;
-    this.element = createElement('div', `reader-layout-slot ${className}`.trim());
+    this.element = createElement('div', `workbench-content-slot ${className}`.trim());
   }
 
   get minimumWidth() {
@@ -195,38 +208,39 @@ class ReaderSplitSlotView implements IGridView {
   }
 }
 
-export class ReaderPageView {
-  private props: ReaderPageViewProps;
-  private readonly element = createElement('section', 'reader-layout');
+export class WorkbenchContentView {
+  private props: WorkbenchContentViewProps;
+  private readonly element = createElement('section', 'workbench-content-layout');
   private readonly mainElement = createElement('main');
   private readonly gridDisposables = new LifecycleStore();
   private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
   private readonly layoutAnimationFrame = new MutableLifecycle<DisposableLike>();
-  private readonly primarySidebarSlot = new ReaderSplitSlotView(
-    'reader-layout-slot-leading-group reader-left-group-pane reader-left-group-pane-primary',
+  private readonly primarySidebarSlot = new WorkbenchContentSlotView(
+    'workbench-content-slot-leading-group workbench-leading-pane workbench-leading-pane-primary',
     true,
   );
-  private readonly editorSlot = new ReaderSplitSlotView('reader-layout-slot-editor');
-  private readonly auxiliarySidebarSlot = new ReaderSplitSlotView(
-    'reader-layout-slot-auxiliary',
+  private readonly editorSlot = new WorkbenchContentSlotView('workbench-content-slot-editor');
+  private readonly auxiliarySidebarSlot = new WorkbenchContentSlotView(
+    'workbench-content-slot-auxiliary',
     true,
   );
-  private readonly secondarySidebarSlot = new ReaderSplitSlotView(
-    'reader-layout-slot-secondary',
+  private readonly secondarySidebarSlot = new WorkbenchContentSlotView(
+    'workbench-content-slot-secondary',
     true,
   );
   private secondarySidebarView: SecondarySidebarPartView | null = null;
   private primaryBarView: PrimaryBarPartView | null = null;
   private auxiliarySidebarView: AuxiliaryBarPartView | null = null;
   private editorView: ReturnType<typeof createEditorPartView> | null = null;
-  private layoutTree: ReaderLayoutNode | null = null;
+  private readonly sidebarTopbarActionsView = new SidebarTopbarActionsView();
+  private layoutTree: WorkbenchContentLayoutNode | null = null;
   private gridView: GridView | null = null;
   private rootGrid: GridBranchView | null = null;
   private gridOrientation: Orientation | null = null;
-  private splitConstraints = getReaderSplitConstraints(Orientation.VERTICAL);
+  private splitConstraints = getWorkbenchContentSplitConstraints(Orientation.VERTICAL);
   private disposed = false;
 
-  constructor(props: ReaderPageViewProps) {
+  constructor(props: WorkbenchContentViewProps) {
     this.props = props;
     this.element.append(this.mainElement);
     this.installResizeObserver();
@@ -249,7 +263,7 @@ export class ReaderPageView {
     return this.editorView?.getActiveDraftStableSelectionTarget() ?? null;
   }
 
-  setProps(props: ReaderPageViewProps) {
+  setProps(props: WorkbenchContentViewProps) {
     if (this.disposed) {
       return;
     }
@@ -280,6 +294,7 @@ export class ReaderPageView {
     this.primaryBarView?.dispose();
     this.auxiliarySidebarView?.dispose();
     this.editorView?.dispose();
+    this.sidebarTopbarActionsView.dispose();
     this.secondarySidebarView = null;
     this.primaryBarView = null;
     this.auxiliarySidebarView = null;
@@ -327,6 +342,8 @@ export class ReaderPageView {
   }
 
   private renderPrimarySidebar() {
+    this.sidebarTopbarActionsView.setProps(this.props.sidebarTopbarActionsProps);
+
     if (!this.props.isPrimarySidebarVisible) {
       this.primaryBarView?.dispose();
       this.primaryBarView = null;
@@ -335,9 +352,15 @@ export class ReaderPageView {
     }
 
     if (!this.primaryBarView) {
-      this.primaryBarView = createPrimaryBarPartView(this.props.primaryBarProps);
+      this.primaryBarView = createPrimaryBarPartView({
+        ...this.props.primaryBarProps,
+        topbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+      });
     } else {
-      this.primaryBarView.setProps(this.props.primaryBarProps);
+      this.primaryBarView.setProps({
+        ...this.props.primaryBarProps,
+        topbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+      });
     }
 
     this.primarySidebarSlot.setContent(this.primaryBarView.getElement());
@@ -370,10 +393,18 @@ export class ReaderPageView {
 
     if (!this.auxiliarySidebarView) {
       this.auxiliarySidebarView = createAuxiliaryBarPartView(
-        this.props.auxiliarySidebarProps,
+        {
+          ...this.props.auxiliarySidebarProps,
+          isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
+          topbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+        },
       );
     } else {
-      this.auxiliarySidebarView.setProps(this.props.auxiliarySidebarProps);
+      this.auxiliarySidebarView.setProps({
+        ...this.props.auxiliarySidebarProps,
+        isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
+        topbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+      });
     }
 
     this.auxiliarySidebarSlot.setContent(this.auxiliarySidebarView.getElement());
@@ -534,13 +565,13 @@ export class ReaderPageView {
   private resolveSplitOrientation() {
     const containerWidth =
       this.mainElement.clientWidth || this.element.clientWidth || window.innerWidth;
-    return containerWidth <= WORKBENCH_READER_LAYOUT_BREAKPOINT
+    return containerWidth <= WORKBENCH_CONTENT_LAYOUT_BREAKPOINT
       ? Orientation.HORIZONTAL
       : Orientation.VERTICAL;
   }
 
   private syncSplitSlotConstraints(orientation: Orientation) {
-    this.splitConstraints = getReaderSplitConstraints(orientation);
+    this.splitConstraints = getWorkbenchContentSplitConstraints(orientation);
 
     this.primarySidebarSlot.setConstraints(
       orientation,
@@ -624,14 +655,15 @@ export class ReaderPageView {
     });
   }
 
-  private buildBranchFromTree(node: ReaderLayoutNode): GridBranchView {
+  private buildBranchFromTree(node: WorkbenchContentLayoutNode): GridBranchView {
     if (node.type !== 'branch') {
-      throw new Error('Root reader layout node must be a branch.');
+      throw new Error('Root workbench content layout node must be a branch.');
     }
 
     const branch = new GridBranchView(
       node.orientation,
       WORKBENCH_SPLITVIEW_SASH_SIZE,
+      WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE,
       node.children.map((child) => ({
         view:
           child.type === 'branch'
@@ -646,7 +678,7 @@ export class ReaderPageView {
     return branch;
   }
 
-  private getSlotView(id: ReaderLayoutLeafId) {
+  private getSlotView(id: WorkbenchContentLayoutLeafId) {
     switch (id) {
       case 'fetchSidebar':
         return this.secondarySidebarSlot;
@@ -659,7 +691,7 @@ export class ReaderPageView {
     }
   }
 
-  private isNodeVisible(node: ReaderLayoutNode): boolean {
+  private isNodeVisible(node: WorkbenchContentLayoutNode): boolean {
     return node.type === 'leaf'
       ? node.visible
       : node.children.some((child) => this.isNodeVisible(child));
@@ -669,7 +701,7 @@ export class ReaderPageView {
     orientation: Orientation,
     cachedSizes: SplitViewSizeSnapshot,
   ) {
-    let nextTree = reconcileReaderLayoutTree(this.layoutTree, {
+    let nextTree = reconcileWorkbenchContentLayoutTree(this.layoutTree, {
       orientation,
       isFetchSidebarVisible: this.props.isFetchSidebarVisible,
       isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
@@ -722,7 +754,7 @@ export class ReaderPageView {
   }
 
   private updateTreeBranchSizes(
-    tree: ReaderLayoutNode,
+    tree: WorkbenchContentLayoutNode,
     sizes: SplitViewSizeSnapshot,
   ) {
     if (tree.type !== 'branch') {
@@ -736,8 +768,8 @@ export class ReaderPageView {
   }
 }
 
-export function createReaderPageView(props: ReaderPageViewProps) {
-  return new ReaderPageView(props);
+export function createWorkbenchContentView(props: WorkbenchContentViewProps) {
+  return new WorkbenchContentView(props);
 }
 
-export default ReaderPageView;
+export default WorkbenchContentView;

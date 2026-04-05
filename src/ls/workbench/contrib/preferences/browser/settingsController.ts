@@ -1,5 +1,6 @@
 import { toast } from 'ls/base/browser/ui/toast/toast';
 import type {
+  AppTheme,
   ElectronInvoke,
   LlmProviderId,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
@@ -151,6 +152,11 @@ export class SettingsController {
 
   readonly setUseMica = (nextUseMica: boolean) => {
     this.settingsModel.setUseMica(nextUseMica);
+    this.scheduleImmediateAutoSave();
+  };
+
+  readonly setTheme = (nextTheme: AppTheme) => {
+    this.settingsModel.setTheme(nextTheme);
     this.scheduleImmediateAutoSave();
   };
 

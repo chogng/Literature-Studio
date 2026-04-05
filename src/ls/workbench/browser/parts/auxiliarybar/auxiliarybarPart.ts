@@ -3,10 +3,17 @@ import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
 import { AgentChatWidget } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
 import type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
+import { getWindowChromeLayout } from 'ls/platform/window/common/window';
 
 import { createAuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
 
+const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
+
 export type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
+export type AuxiliaryBarPartProps = AgentChatWidgetProps & {
+  isPrimarySidebarVisible?: boolean;
+  topbarActionsElement?: HTMLElement | null;
+};
 
 type CreateAuxiliaryBarPartPropsParams = {
   state: {
@@ -75,7 +82,7 @@ export function createAuxiliaryBarPartProps({
     onSelectLlmModel,
     onOpenModelSettings,
   },
-}: CreateAuxiliaryBarPartPropsParams): AgentChatWidgetProps {
+}: CreateAuxiliaryBarPartPropsParams): AuxiliaryBarPartProps {
   return {
     labels: createAuxiliaryBarLabels(ui),
     isKnowledgeBaseModeEnabled,
@@ -99,6 +106,7 @@ export function createAuxiliaryBarPartProps({
     onToggleSecondarySidebar,
     onSelectLlmModel,
     onOpenModelSettings,
+    isPrimarySidebarVisible: true,
   };
 }
 
@@ -107,23 +115,40 @@ export class AuxiliaryBarPartView {
     'section',
     'panel sidebar-panel auxiliarybar-panel',
   );
+  private readonly topbarElement = createElement(
+    'div',
+    'auxiliarybar-shell-topbar titlebar-segment titlebar-segment-auxiliary',
+  );
+  private readonly leadingWindowControlsSpacer = createElement(
+    'div',
+    'auxiliarybar-shell-topbar-window-controls-spacer',
+  );
   private readonly sidebar: AgentChatWidget;
 
-  constructor(props: AgentChatWidgetProps) {
+  constructor(props: AuxiliaryBarPartProps) {
     registerWorkbenchPartDomNode(
       WORKBENCH_PART_IDS.auxiliarySidebar,
       this.element,
     );
     this.sidebar = new AgentChatWidget(props);
-    this.element.append(this.sidebar.getElement());
+    if (WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx > 0) {
+      this.leadingWindowControlsSpacer.style.setProperty(
+        '--window-controls-width',
+        `${WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx}px`,
+      );
+      this.topbarElement.append(this.leadingWindowControlsSpacer);
+    }
+    this.element.append(this.topbarElement, this.sidebar.getElement());
+    this.renderTopbar(props);
   }
 
   getElement() {
     return this.element;
   }
 
-  setProps(props: AgentChatWidgetProps) {
+  setProps(props: AuxiliaryBarPartProps) {
     this.sidebar.setProps(props);
+    this.renderTopbar(props);
   }
 
   dispose() {
@@ -131,8 +156,28 @@ export class AuxiliaryBarPartView {
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.auxiliarySidebar, null);
     this.element.replaceChildren();
   }
+
+  private renderTopbar(props: AuxiliaryBarPartProps) {
+    const shouldMountPrimaryTopbarActions =
+      !props.isPrimarySidebarVisible && !!props.topbarActionsElement;
+
+    if (shouldMountPrimaryTopbarActions) {
+      const topbarActionsElement = props.topbarActionsElement!;
+      if (this.topbarElement.lastElementChild !== topbarActionsElement) {
+        this.topbarElement.append(topbarActionsElement);
+      }
+      return;
+    }
+
+    const currentTopbarActionsElement = this.topbarElement.querySelector(
+      '.sidebar-topbar-actions-host',
+    );
+    if (currentTopbarActionsElement) {
+      currentTopbarActionsElement.remove();
+    }
+  }
 }
 
-export function createAuxiliaryBarPartView(props: AgentChatWidgetProps) {
+export function createAuxiliaryBarPartView(props: AuxiliaryBarPartProps) {
   return new AuxiliaryBarPartView(props);
 }

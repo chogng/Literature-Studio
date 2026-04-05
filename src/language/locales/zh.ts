@@ -1,5 +1,5 @@
 const zh = {
-  appName: 'Journal Reader',
+  appName: 'Literature Studio',
   articleUrlPlaceholder: '文章链接',
   addressBarSourcePlaceholder: '\u5feb\u901f\u8bbf\u95ee',
   addressBarSourceAriaLabel: '\u5730\u5740\u680f\u5feb\u901f\u8bbf\u95ee\u5207\u6362',
@@ -55,8 +55,13 @@ const zh = {
   batchJournalTitlePlaceholder: '该 URL 对应的期刊名（例如：Nature News）',
   settingsBatchOptions: '默认批量抓取选项',
   settingsBatchHint:
-    '在 Reader 页点击“抓取”时，如果地址栏不为空，会优先只抓地址栏中的 URL；只有地址栏为空时，才会使用这里配置的 URL。单次最大抓取数量会对每条 URL 分别生效。',
+    '在内容工作区点击“抓取”时，如果地址栏不为空，会优先只抓地址栏中的 URL；只有地址栏为空时，才会使用这里配置的 URL。单次最大抓取数量会对每条 URL 分别生效。',
   settingsAppearanceTitle: '\u7a97\u53e3\u5916\u89c2',
+  settingsTheme: '\u4e3b\u9898',
+  settingsThemeHint:
+    '\u5de5\u4f5c\u53f0\u914d\u8272\u76ee\u524d\u76f4\u63a5\u6765\u81ea JSON \u4e3b\u9898\u6587\u4ef6\uff0c\u5728\u8fd9\u91cc\u5207\u6362\u4f1a\u7acb\u5373\u5e94\u7528\u5230\u5f53\u524d\u7a97\u53e3\u3002',
+  settingsThemeLight: '\u6d45\u8272',
+  settingsThemeDark: '\u6df1\u8272',
   settingsUseMica: '透明背景',
   settingsUseMicaHint:
     '\u4ec5\u5728\u684c\u9762\u7aef\u751f\u6548\u3002Windows \u652f\u6301\u65f6\uff0c\u6807\u9898\u680f\u548c\u4e3b\u754c\u9762\u5e95\u5c42\u4f1a\u8ddf\u968f Mica \u6750\u8d28\u3002',

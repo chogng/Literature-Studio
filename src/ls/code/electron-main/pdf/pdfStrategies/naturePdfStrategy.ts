@@ -1,10 +1,14 @@
 import { appError } from 'ls/base/common/errors';
+import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
 import { persistDownloadedPdf, tryBrowserSessionDownloadCandidates, tryDownloadPdfCandidates } from 'ls/platform/download/electron-main/pdfDownload';
 import type { PdfDownloadAttemptFailure } from 'ls/platform/download/electron-main/pdfDownload';
 
 import type { PdfDownloadContext, PdfDownloadStrategy } from 'ls/code/electron-main/pdf/pdfStrategies/pdfStrategyTypes';
 
-const NATURE_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const NATURE_PDF_LOG_ENABLED = isCompatFetchEnvEnabled(
+  'LS_FETCH_TIMING',
+  'READER_FETCH_TIMING',
+);
 
 function logNaturePdf(stage: string, details: Record<string, unknown>) {
   if (!NATURE_PDF_LOG_ENABLED) return;

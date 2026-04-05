@@ -4,8 +4,8 @@ import test, { after, afterEach, before } from 'node:test';
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 
 let cleanupDomEnvironment: (() => void) | null = null;
-let createReaderPageView: typeof import('ls/workbench/browser/readerPageView').createReaderPageView;
-let resolveLeadingGroupPaneSizes: typeof import('ls/workbench/browser/readerLayoutSizing').resolveLeadingGroupPaneSizes;
+let createWorkbenchContentView: typeof import('ls/workbench/browser/workbenchContentView').createWorkbenchContentView;
+let resolveWorkbenchLeadingPaneSizes: typeof import('ls/workbench/browser/workbenchContentLayoutSizing').resolveWorkbenchLeadingPaneSizes;
 
 function installResizeObserverSpy() {
   let activeObservers = 0;
@@ -129,8 +129,8 @@ function setWindowInnerWidth(width: number) {
   });
 }
 
-function bindReaderLayoutSize(
-  view: ReturnType<typeof createReaderPageView>,
+function bindWorkbenchContentSize(
+  view: ReturnType<typeof createWorkbenchContentView>,
   initialWidth: number,
   initialHeight: number,
 ) {
@@ -176,7 +176,7 @@ function getEventEmitterListenerCount(
   return emitter?.listeners?.size ?? 0;
 }
 
-function createReaderPageViewProps() {
+function createWorkbenchContentViewProps() {
   const sidebarLabels = {
     untitled: 'Untitled',
     unknown: 'Unknown',
@@ -345,6 +345,12 @@ function createReaderPageViewProps() {
       onSelectLlmModel: () => {},
       onOpenModelSettings: () => {},
     },
+    sidebarTopbarActionsProps: {
+      isPrimarySidebarVisible: false,
+      primarySidebarToggleLabel: 'Show primary sidebar',
+      commandPaletteLabel: 'Quick access',
+      onTogglePrimarySidebar: () => {},
+    },
     editorPartProps: {
       labels: {
         draftMode: 'Draft',
@@ -420,14 +426,14 @@ function createReaderPageViewProps() {
       onCreatePdfTab: () => {},
       onDraftDocumentChange: () => {},
     },
-  } as unknown as Parameters<typeof createReaderPageView>[0];
+  } as unknown as Parameters<typeof createWorkbenchContentView>[0];
 }
 
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
-  ({ createReaderPageView } = await import('ls/workbench/browser/readerPageView'));
-  ({ resolveLeadingGroupPaneSizes } = await import('ls/workbench/browser/readerLayoutSizing'));
+  ({ createWorkbenchContentView } = await import('ls/workbench/browser/workbenchContentView'));
+  ({ resolveWorkbenchLeadingPaneSizes } = await import('ls/workbench/browser/workbenchContentLayoutSizing'));
 });
 
 after(() => {
@@ -440,7 +446,7 @@ afterEach(() => {
 });
 
 test('leading group growth keeps primary bar width and expands secondary sidebar', () => {
-  const sizes = resolveLeadingGroupPaneSizes({
+  const sizes = resolveWorkbenchLeadingPaneSizes({
     totalSize: 660,
     isFetchSidebarVisible: true,
     isPrimarySidebarVisible: true,
@@ -462,7 +468,7 @@ test('leading group growth keeps primary bar width and expands secondary sidebar
 });
 
 test('leading group resolves the actual primary size under tighter active constraints', () => {
-  const sizes = resolveLeadingGroupPaneSizes({
+  const sizes = resolveWorkbenchLeadingPaneSizes({
     totalSize: 660,
     isFetchSidebarVisible: true,
     isPrimarySidebarVisible: true,
@@ -483,13 +489,72 @@ test('leading group resolves the actual primary size under tighter active constr
   });
 });
 
-test('ReaderPageView dispose cancels a pending layout animation frame', () => {
+test('WorkbenchContentView mounts primary topbar actions into auxiliary topbar when the primary sidebar is hidden', () => {
+  const props = createWorkbenchContentViewProps();
+  props.isPrimarySidebarVisible = true;
+  props.isAuxiliarySidebarVisible = true;
+  props.sidebarTopbarActionsProps = {
+    ...props.sidebarTopbarActionsProps,
+    isPrimarySidebarVisible: true,
+    primarySidebarToggleLabel: 'Hide primary sidebar',
+    commandPaletteLabel: 'Quick access',
+    onTogglePrimarySidebar: () => {},
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    let primaryTopbarActionsHost = view
+      .getElement()
+      .querySelector('.primarybar-topbar .sidebar-topbar-actions-host');
+    assert(primaryTopbarActionsHost instanceof HTMLElement);
+    assert.equal(
+      view
+        .getElement()
+        .querySelector('.auxiliarybar-shell-topbar .sidebar-topbar-actions-host'),
+      null,
+    );
+
+    view.setProps({
+      ...props,
+      isPrimarySidebarVisible: false,
+      sidebarTopbarActionsProps: {
+        ...props.sidebarTopbarActionsProps,
+        isPrimarySidebarVisible: false,
+        primarySidebarToggleLabel: 'Show primary sidebar',
+      },
+    });
+
+    primaryTopbarActionsHost = view
+      .getElement()
+      .querySelector('.auxiliarybar-shell-topbar .sidebar-topbar-actions-host');
+    assert(primaryTopbarActionsHost instanceof HTMLElement);
+    assert.equal(
+      view
+        .getElement()
+        .querySelector('.auxiliarybar-shell-topbar .sidebar-topbar-toggle-btn')
+        ?.getAttribute('aria-label'),
+      'Show primary sidebar',
+    );
+    assert.equal(
+      view
+        .getElement()
+        .querySelector('.primarybar-topbar .sidebar-topbar-actions-host'),
+      null,
+    );
+  } finally {
+    view.dispose();
+  }
+});
+
+test('WorkbenchContentView dispose cancels a pending layout animation frame', () => {
   const animationFrameSpy = installAnimationFrameSpy();
   setWindowInnerWidth(1280);
 
   try {
-    const view = createReaderPageView(createReaderPageViewProps());
-    bindReaderLayoutSize(view, 1280, 720);
+    const view = createWorkbenchContentView(createWorkbenchContentViewProps());
+    bindWorkbenchContentSize(view, 1280, 720);
     document.body.append(view.getElement());
     const layoutAnimationFrame = (view as unknown as {
       layoutAnimationFrame: { value: unknown };
@@ -510,15 +575,15 @@ test('ReaderPageView dispose cancels a pending layout animation frame', () => {
   }
 });
 
-test('ReaderPageView dispose disconnects its resize observer', () => {
+test('WorkbenchContentView dispose disconnects its resize observer', () => {
   const resizeObserverSpy = installResizeObserverSpy();
   const animationFrameSpy = installAnimationFrameSpy();
   setWindowInnerWidth(1280);
 
   try {
     const observerIndex = resizeObserverSpy.getInstanceCount();
-    const view = createReaderPageView(createReaderPageViewProps());
-    bindReaderLayoutSize(view, 1280, 720);
+    const view = createWorkbenchContentView(createWorkbenchContentViewProps());
+    bindWorkbenchContentSize(view, 1280, 720);
     document.body.append(view.getElement());
     const resizeObserverState = (view as unknown as {
       resizeObserver: { value: unknown };
@@ -537,7 +602,7 @@ test('ReaderPageView dispose disconnects its resize observer', () => {
   }
 });
 
-test('ReaderPageView falls back to a disposable window resize listener without ResizeObserver', () => {
+test('WorkbenchContentView falls back to a disposable window resize listener without ResizeObserver', () => {
   const previousResizeObserver = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
   const animationFrameSpy = installAnimationFrameSpy();
   const addedResizeListeners: EventListenerOrEventListenerObject[] = [];
@@ -563,8 +628,8 @@ test('ReaderPageView falls back to a disposable window resize listener without R
   setWindowInnerWidth(1280);
 
   try {
-    const view = createReaderPageView(createReaderPageViewProps());
-    bindReaderLayoutSize(view, 1280, 720);
+    const view = createWorkbenchContentView(createWorkbenchContentViewProps());
+    bindWorkbenchContentSize(view, 1280, 720);
     document.body.append(view.getElement());
     const handleWindowResize = (view as unknown as {
       handleWindowResize: EventListenerOrEventListenerObject;
@@ -593,13 +658,13 @@ test('ReaderPageView falls back to a disposable window resize listener without R
   }
 });
 
-test('ReaderPageView replaces grid event subscriptions when the split orientation changes', () => {
+test('WorkbenchContentView replaces grid event subscriptions when the split orientation changes', () => {
   const animationFrameSpy = installAnimationFrameSpy();
   setWindowInnerWidth(1280);
 
   try {
-    const view = createReaderPageView(createReaderPageViewProps());
-    const size = bindReaderLayoutSize(view, 1280, 720);
+    const view = createWorkbenchContentView(createWorkbenchContentViewProps());
+    const size = bindWorkbenchContentSize(view, 1280, 720);
     document.body.append(view.getElement());
 
     const firstGridView = (view as unknown as {

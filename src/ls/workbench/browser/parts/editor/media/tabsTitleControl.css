@@ -13,8 +13,13 @@
   height: var(--editor-tabs-strip-height);
   box-sizing: border-box;
   padding: 0;
-  background: #f3f6f9;
+  background: var(--vscode-editor-tabsHeaderBackground, #f3f6f9);
   overflow: hidden;
+  -webkit-app-region: drag;
+}
+
+.editor-tabs-header.has-tabs {
+  -webkit-app-region: no-drag;
 }
 
 .editor-tabs-container {
@@ -59,11 +64,11 @@
 
 .editor-tab:hover {
   border-radius: 0;
-  background: rgba(223, 231, 239, 0.7);
+  background: var(--vscode-editor-tabHoverBackground, rgba(223, 231, 239, 0.7));
 }
 
 .editor-tab.is-active {
-  background: #fbfcfd;
+  background: var(--vscode-editor-tabActiveBackground, #fbfcfd);
   box-shadow: none;
 }
 
@@ -75,11 +80,11 @@
   right: 10px;
   height: 2px;
   border-radius: 999px;
-  background: rgba(111, 134, 156, 0.72);
+  background: var(--vscode-editor-tabHistoryBackground, rgba(111, 134, 156, 0.72));
 }
 
 .editor-tab.is-active.has-local-history::after {
-  background: rgba(78, 108, 136, 0.96);
+  background: var(--vscode-editor-tabHistoryActiveBackground, rgba(78, 108, 136, 0.96));
 }
 
 .editor-tab-main {
@@ -92,17 +97,17 @@
   padding: 0 6px 0 10px;
   border: 0;
   background: transparent;
-  color: #58697b;
+  color: var(--vscode-editor-tabForeground, #58697b);
   cursor: pointer;
   font: inherit;
 }
 
 .editor-tab:hover .editor-tab-main {
-  color: #304253;
+  color: var(--vscode-editor-tabHoverForeground, #304253);
 }
 
 .editor-tab.is-active .editor-tab-main {
-  color: #1d2f41;
+  color: var(--vscode-editor-tabActiveForeground, #1d2f41);
 }
 
 .editor-tab-close {
@@ -117,7 +122,7 @@
   border: 0;
   border-radius: 0 6px 0 0;
   background: transparent;
-  color: #58697b;
+  color: var(--vscode-editor-tabForeground, #58697b);
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
@@ -136,13 +141,13 @@
 }
 
 .editor-tab-close:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: #1f2d3a;
+  background: var(--vscode-editor-tabCloseHoverBackground, rgba(0, 0, 0, 0.05));
+  color: var(--vscode-editor-tabCloseHoverForeground, #1f2d3a);
 }
 
 .editor-tab-close:active {
-  background: rgba(0, 0, 0, 0.1);
-  color: #1f2d3a;
+  background: var(--vscode-editor-tabCloseActiveBackground, rgba(0, 0, 0, 0.1));
+  color: var(--vscode-editor-tabCloseActiveForeground, #1f2d3a);
 }
 
 .editor-tab-close:disabled {
@@ -169,23 +174,23 @@
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.04em;
-  color: #4d6276;
-  background: rgba(173, 187, 202, 0.24);
+  color: var(--vscode-editor-tabKindForeground, #4d6276);
+  background: var(--vscode-editor-tabKindBackground, rgba(173, 187, 202, 0.24));
 }
 
 .editor-tab[data-kind='draft'] .editor-tab-kind {
-  color: #35536f;
-  background: rgba(104, 149, 191, 0.18);
+  color: var(--vscode-editor-tabKindDraftForeground, #35536f);
+  background: var(--vscode-editor-tabKindDraftBackground, rgba(104, 149, 191, 0.18));
 }
 
 .editor-tab[data-kind='web'] .editor-tab-kind {
-  color: #5f572f;
-  background: rgba(187, 167, 83, 0.2);
+  color: var(--vscode-editor-tabKindWebForeground, #5f572f);
+  background: var(--vscode-editor-tabKindWebBackground, rgba(187, 167, 83, 0.2));
 }
 
 .editor-tab[data-kind='pdf'] .editor-tab-kind {
-  color: #6f3f35;
-  background: rgba(196, 116, 89, 0.18);
+  color: var(--vscode-editor-tabKindPdfForeground, #6f3f35);
+  background: var(--vscode-editor-tabKindPdfBackground, rgba(196, 116, 89, 0.18));
 }
 
 .editor-tab-label-text {

@@ -41,7 +41,7 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
     settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
     settingsPageUrl: ui.settingsPageUrl, settingsPageUrlHint: ui.settingsPageUrlHint, pageUrlPlaceholder: ui.pageUrlPlaceholder, settingsBatchJournalTitle: ui.settingsBatchJournalTitle, batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
     addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly, startDate: ui.startDate, endDate: ui.endDate,
-    settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
+    settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsTheme: ui.settingsTheme, settingsThemeHint: ui.settingsThemeHint, settingsThemeLight: ui.settingsThemeLight, settingsThemeDark: ui.settingsThemeDark, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
     settingsKnowledgeBaseModeHint: ui.settingsKnowledgeBaseModeHint, settingsKnowledgeBaseModeDisabledHint: ui.settingsKnowledgeBaseModeDisabledHint, settingsKnowledgeBaseAutoIndex: ui.settingsKnowledgeBaseAutoIndex, settingsKnowledgeBaseAutoIndexHint: ui.settingsKnowledgeBaseAutoIndexHint,
     settingsKnowledgeBasePdfDownloadDir: ui.settingsKnowledgeBasePdfDownloadDir, settingsKnowledgeBasePdfDownloadDirPlaceholder: ui.settingsKnowledgeBasePdfDownloadDirPlaceholder, settingsKnowledgeBasePdfDownloadDirHint: ui.settingsKnowledgeBasePdfDownloadDirHint,
     settingsLibraryStorageMode: ui.settingsLibraryStorageMode, settingsLibraryStorageModeLinkedOriginal: ui.settingsLibraryStorageModeLinkedOriginal, settingsLibraryStorageModeManagedCopy: ui.settingsLibraryStorageModeManagedCopy, settingsLibraryDirectory: ui.settingsLibraryDirectory,
@@ -205,6 +205,13 @@ function buildHint(value: string, className = 'settings-hint') {
   const hint = el('p', className);
   hint.textContent = value;
   return hint;
+}
+
+function createThemeOptions(labels: SettingsPartLabels): readonly SelectOption[] {
+  return [
+    { value: 'light', label: labels.settingsThemeLight },
+    { value: 'dark', label: labels.settingsThemeDark },
+  ];
 }
 
 export class SettingsPartView {
@@ -534,10 +541,15 @@ export class SettingsPartView {
   private shouldUpdateAppearanceSection(previousProps?: SettingsPartProps) {
     return (
       !previousProps ||
+      previousProps.theme !== this.props.theme ||
       previousProps.useMica !== this.props.useMica ||
       previousProps.desktopRuntime !== this.props.desktopRuntime ||
       previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
       previousProps.labels.settingsAppearanceTitle !== this.props.labels.settingsAppearanceTitle ||
+      previousProps.labels.settingsTheme !== this.props.labels.settingsTheme ||
+      previousProps.labels.settingsThemeHint !== this.props.labels.settingsThemeHint ||
+      previousProps.labels.settingsThemeLight !== this.props.labels.settingsThemeLight ||
+      previousProps.labels.settingsThemeDark !== this.props.labels.settingsThemeDark ||
       previousProps.labels.settingsUseMica !== this.props.labels.settingsUseMica ||
       previousProps.labels.settingsUseMicaHint !== this.props.labels.settingsUseMicaHint
     );
@@ -738,8 +750,22 @@ export class SettingsPartView {
   private renderAppearanceField() {
     const field = el('div', 'settings-field');
     const title = el('span'); title.textContent = this.props.labels.settingsAppearanceTitle;
+    const themeRow = el('div', 'settings-language-row');
+    const themeLabel = el('span');
+    themeLabel.textContent = this.props.labels.settingsTheme;
+    const themeSelect = buildSelect(
+      createThemeOptions(this.props.labels),
+      this.props.theme,
+      'settings.appearance.theme',
+      (value) => this.props.onThemeChange(value as 'light' | 'dark'),
+      'settings-language-toggle',
+    );
+    themeSelect.disabled = this.props.isSettingsSaving;
+    themeRow.append(themeLabel, themeSelect);
     field.append(
       title,
+      themeRow,
+      buildHint(this.props.labels.settingsThemeHint),
       this.renderToggleRow(
         'settings.appearance.useMica',
         this.props.labels.settingsUseMica,

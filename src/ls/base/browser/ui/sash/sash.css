@@ -1,7 +1,6 @@
 :root {
   --sash-size: 1px;
   --sash-hover-size: 4px;
-  --sash-hover-border: rgba(46, 109, 179, 0.28);
 }
 
 .sash {
@@ -71,5 +70,5 @@
 
 .sash.hover::before,
 .sash.active::before {
-  background: var(--sash-hover-border);
+  background: var(--vscode-sash-hoverBorder, rgba(46, 109, 179, 0.28));
 }

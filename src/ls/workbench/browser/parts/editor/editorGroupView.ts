@@ -216,7 +216,10 @@ export class EditorGroupView {
   private props: EditorGroupViewProps;
   private readonly controller: EditorGroupController;
   private readonly element = createElement('div', 'editor-shell');
-  private readonly headerElement = createElement('div', 'editor-tabs-header');
+  private readonly headerElement = createElement(
+    'div',
+    'editor-tabs-header titlebar-segment titlebar-segment-editor',
+  );
   private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div');
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
@@ -288,6 +291,7 @@ export class EditorGroupView {
     const { group, editorStatus } = this.controller.getSnapshot();
     this.props.onStatusChange?.(editorStatus);
     this.titleAreaControl.setProps(createTitleControlProps(this.props, group));
+    this.headerElement.classList.toggle('has-tabs', group.tabs.length > 0);
 
     this.contentElement.className = '';
     this.contentElement.removeAttribute('data-editor-pane');

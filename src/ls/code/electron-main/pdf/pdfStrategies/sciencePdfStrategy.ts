@@ -2,7 +2,8 @@ import type { BrowserWindow } from 'electron';
 
 import type { PdfDownloadResult } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { appError } from 'ls/base/common/errors';
-import { clearReaderSharedSessionOrigins } from 'ls/platform/native/electron-main/sharedWebSession';
+import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
+import { clearWorkbenchSharedSessionOrigins } from 'ls/platform/native/electron-main/sharedWebSession';
 import { persistDownloadedPdf, toPdfDownloadFailure, toPdfDownloadFailureFromError, tryBrowserSessionDownloadCandidates, tryPdfDownloadWithFetcherPolling, tryDownloadPdfCandidates, waitForPdfDownloadFromSession } from 'ls/platform/download/electron-main/pdfDownload';
 import type { BrowserSessionDownloadResult, PdfDownloadAttemptFailure } from 'ls/platform/download/electron-main/pdfDownload';
 
@@ -17,7 +18,10 @@ type ScienceValidatedPageDownloadOptions = {
   useWindowFetchProbe?: boolean;
 };
 
-const SCIENCE_PDF_LOG_ENABLED = process.env.READER_FETCH_TIMING !== '0';
+const SCIENCE_PDF_LOG_ENABLED = isCompatFetchEnvEnabled(
+  'LS_FETCH_TIMING',
+  'READER_FETCH_TIMING',
+);
 
 let sciencePdfDownloadQueueTail: Promise<void> = Promise.resolve();
 let sciencePdfDownloadQueueDepth = 0;
@@ -125,7 +129,7 @@ async function runSerializedSciencePdfDownload<T>(
 }
 
 async function clearScienceSessionState() {
-  return await clearReaderSharedSessionOrigins([
+  return await clearWorkbenchSharedSessionOrigins([
     'https://www.science.org',
     'https://science.org',
   ]);
@@ -494,4 +498,3 @@ export const sciencePdfStrategy: PdfDownloadStrategy = {
     return await downloadSciencePdf(request);
   },
 };
-

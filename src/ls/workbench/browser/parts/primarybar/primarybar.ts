@@ -22,8 +22,11 @@ import {
   type FetchPaneProps,
   type SidebarLabels,
 } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+import { getWindowChromeLayout } from 'ls/platform/window/common/window';
 
 import 'ls/workbench/browser/parts/primarybar/media/primarybar.css';
+
+const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
 
 export type PrimaryBarLabels = SidebarLabels;
 
@@ -41,6 +44,7 @@ export type PrimaryBarProps = {
   onDocumentRename?: (document: LibraryDocumentSummary) => void;
   onDocumentEditSourceUrl?: (document: LibraryDocumentSummary) => void;
   onDocumentDelete?: (document: LibraryDocumentSummary) => void;
+  topbarActionsElement?: HTMLElement | null;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -93,6 +97,14 @@ function createPrimaryBarPaneClassNames(
 export class PrimaryBar {
   private props: PrimaryBarProps;
   private readonly element = createElement('div', 'primarybar-root');
+  private readonly topbarElement = createElement(
+    'div',
+    'primarybar-topbar titlebar-segment titlebar-segment-primary',
+  );
+  private readonly leadingWindowControlsSpacer = createElement(
+    'div',
+    'primarybar-topbar-window-controls-spacer',
+  );
   private readonly contentElement = createElement('div', 'primarybar-content');
   private readonly paneView = new PaneView({
     orientation: Orientation.HORIZONTAL,
@@ -157,8 +169,15 @@ export class PrimaryBar {
     );
     this.paneView.addPane(this.libraryPane, 280, { flex: true });
     this.paneView.addPane(this.fetchPane, 360, { flex: true });
+    if (WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx > 0) {
+      this.leadingWindowControlsSpacer.style.setProperty(
+        '--window-controls-width',
+        `${WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx}px`,
+      );
+      this.topbarElement.append(this.leadingWindowControlsSpacer);
+    }
     this.contentElement.append(this.paneView.element);
-    this.element.append(this.contentElement);
+    this.element.append(this.topbarElement, this.contentElement);
     this.installResizeObserver();
     this.render();
   }
@@ -209,6 +228,7 @@ export class PrimaryBar {
 
   private render() {
     const { labels } = this.props;
+    this.syncTopbarActions(this.props.topbarActionsElement ?? null);
     this.actionsView.setProps({
       className: 'pane-header-actionbar',
       ariaRole: 'group',
@@ -263,6 +283,20 @@ export class PrimaryBar {
       ],
     });
     this.layoutPanes();
+  }
+
+  private syncTopbarActions(topbarActionsElement: HTMLElement | null) {
+    const currentTopbarActionsElement = this.topbarElement.querySelector(
+      '.sidebar-topbar-actions-host',
+    );
+    if (topbarActionsElement) {
+      if (currentTopbarActionsElement !== topbarActionsElement) {
+        this.topbarElement.append(topbarActionsElement);
+      }
+      return;
+    }
+
+    currentTopbarActionsElement?.remove();
   }
 
   private installResizeObserver() {
