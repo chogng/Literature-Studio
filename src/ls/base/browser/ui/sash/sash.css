@@ -1,13 +1,9 @@
-:root {
-  --sash-size: 4px;
-  --sash-hover-size: 4px;
-}
-
 .sash {
   position: absolute;
   z-index: 20;
   touch-action: none;
   user-select: none;
+  background: transparent;
 }
 
 .sash.vertical {
@@ -50,20 +46,36 @@
   position: absolute;
   pointer-events: none;
   border-radius: 999px;
-  transition: background-color 120ms ease-out;
+  transition:
+    background-color 120ms ease-out,
+    width 120ms ease-out,
+    height 120ms ease-out;
+  /* Match upstream: keep the sash visually transparent at rest and only show it on hover/drag. */
   background: transparent;
 }
 
 .sash.vertical::before {
   top: 0;
   bottom: 0;
-  width: var(--sash-hover-size);
-  left: calc(50% - (var(--sash-hover-size) / 2));
+  width: 1px;
+  left: calc(50% - 0.5px);
 }
 
 .sash.horizontal::before {
   left: 0;
   right: 0;
+  height: 1px;
+  top: calc(50% - 0.5px);
+}
+
+.sash.hover.vertical::before,
+.sash.active.vertical::before {
+  width: var(--sash-hover-size);
+  left: calc(50% - (var(--sash-hover-size) / 2));
+}
+
+.sash.hover.horizontal::before,
+.sash.active.horizontal::before {
   height: var(--sash-hover-size);
   top: calc(50% - (var(--sash-hover-size) / 2));
 }

@@ -1,3 +1,15 @@
+.panel.auxiliarybar-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  border: 0;
+  border-right: 1px solid var(--vscode-sideBar-border, #e5e5e5);
+  border-radius: 0;
+  background: var(--vscode-sideBar-background, #ffffff);
+  gap: 0;
+}
+
 .auxiliarybar-shell-topbar {
   display: flex;
   align-items: center;
