@@ -4,7 +4,6 @@
   overflow: hidden;
   min-height: 0;
   border: 0;
-  border-right: 1px solid var(--vscode-sideBar-border, #e5e5e5);
   border-radius: 0;
   background: var(--vscode-agentBar-background, #f8f8f8);
   gap: 0;

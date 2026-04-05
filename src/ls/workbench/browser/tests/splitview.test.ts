@@ -313,3 +313,35 @@ test('splitview disables snapped edge sash when start snapping is turned off', (
     splitView.element.remove();
   }
 });
+
+test('splitview separator is only visible when both adjacent views are visible', () => {
+  const splitView = new SplitView(Orientation.VERTICAL, 10);
+  const leadingView = new TestView(120, 420);
+  const centerView = new TestView(220, Number.POSITIVE_INFINITY);
+
+  splitView.addView(leadingView, 260);
+  splitView.addView(centerView, 500, { flex: true });
+  document.body.append(splitView.element);
+
+  try {
+    splitView.layout(900, 520);
+
+    const separator = splitView.element.querySelector<HTMLElement>(
+      '.split-view-separator.vertical',
+    );
+    assert(separator);
+    assert.equal(separator.classList.contains('visible'), true);
+
+    splitView.setViewVisible(1, false);
+
+    assert.equal(separator.classList.contains('visible'), false);
+
+    splitView.setViewVisible(1, true);
+    splitView.layout(900, 520);
+
+    assert.equal(separator.classList.contains('visible'), true);
+  } finally {
+    splitView.dispose();
+    splitView.element.remove();
+  }
+});

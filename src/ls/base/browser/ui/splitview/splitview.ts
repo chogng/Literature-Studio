@@ -39,6 +39,7 @@ type ViewItem<TLayoutContext> = {
 type SashItem = {
   leftItemIndex: number;
   rightItemIndex: number;
+  separator: HTMLElement;
   sash: Sash;
   dispose: () => void;
 };
@@ -345,6 +346,13 @@ export class SplitView<TLayoutContext = undefined> {
     for (let index = 0; index < this.items.length - 1; index += 1) {
       const leftItemIndex = index;
       const rightItemIndex = index + 1;
+      const separator = document.createElement('div');
+      separator.className = [
+        'split-view-separator',
+        this.orientation === Orientation.VERTICAL ? 'vertical' : 'horizontal',
+      ].join(' ');
+      separator.setAttribute('aria-hidden', 'true');
+      this.sashContainer.append(separator);
       const sash = new Sash(this.sashContainer, this.orientation, {
         size: this.explicitSashSize,
         offsetMode: this.reserveSashSpace ? 'start' : 'end',
@@ -362,11 +370,13 @@ export class SplitView<TLayoutContext = undefined> {
       this.sashItems.push({
         leftItemIndex,
         rightItemIndex,
+        separator,
         sash,
         dispose: () => {
           disposeStart();
           disposeChange();
           disposeEnd();
+          separator.remove();
           sash.dispose();
         },
       });
@@ -538,6 +548,7 @@ export class SplitView<TLayoutContext = undefined> {
       offset += item.size;
 
       if (index < this.sashItems.length) {
+        this.layoutSeparator(index, offset, orthogonalSize);
         this.sashItems[index].sash.layout(offset, orthogonalSize);
         if (this.hasReservedGapAfter(index)) {
           offset += this.getSashSize();
@@ -725,7 +736,11 @@ export class SplitView<TLayoutContext = undefined> {
 
     let position = 0;
     for (let index = 0; index < this.sashItems.length; index += 1) {
-      const sash = this.sashItems[index].sash;
+      const sashItem = this.sashItems[index];
+      const sash = sashItem.sash;
+      const leftVisible = this.items[sashItem.leftItemIndex]?.visible === true;
+      const rightVisible = this.items[sashItem.rightItemIndex]?.visible === true;
+      sashItem.separator.classList.toggle('visible', leftVisible && rightVisible);
       position += this.items[index].size;
 
       const min = !(collapsesDown[index] && expandsUp[index + 1]);
@@ -780,6 +795,34 @@ export class SplitView<TLayoutContext = undefined> {
     }
 
     return this.items[index]?.visible === true && this.items[index + 1]?.visible === true;
+  }
+
+  private layoutSeparator(
+    index: number,
+    offset: number,
+    orthogonalSize: number,
+  ) {
+    const separator = this.sashItems[index]?.separator;
+    if (!separator) {
+      return;
+    }
+
+    const dividerOffset = this.hasReservedGapAfter(index)
+      ? offset + this.getSashSize() / 2
+      : offset;
+
+    if (this.orientation === Orientation.VERTICAL) {
+      separator.style.left = `${dividerOffset - 0.5}px`;
+      separator.style.top = '0';
+      separator.style.width = '1px';
+      separator.style.height = `${orthogonalSize}px`;
+      return;
+    }
+
+    separator.style.left = '0';
+    separator.style.top = `${dividerOffset - 0.5}px`;
+    separator.style.width = `${orthogonalSize}px`;
+    separator.style.height = '1px';
   }
 
   private getReservedSashSpace() {

@@ -19,6 +19,17 @@
   pointer-events: auto;
 }
 
+.split-view > .sash-container > .split-view-separator {
+  position: absolute;
+  pointer-events: none;
+  background: var(--vscode-splitViewSeparatorBorder, var(--vscode-sideBar-border, #e5e5e5));
+  opacity: 0;
+}
+
+.split-view > .sash-container > .split-view-separator.visible {
+  opacity: 1;
+}
+
 .split-view > .split-view-container > .split-view-view {
   position: absolute;
   min-width: 0;
