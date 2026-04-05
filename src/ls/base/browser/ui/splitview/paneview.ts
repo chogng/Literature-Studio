@@ -136,9 +136,9 @@ export class Pane implements IView {
     }
     this.renderHeader(this.headerActionsElement);
     this.headerElement.append(this.headerButtonElement, this.headerActionsElement);
-    this.element.append(this.headerElement, this.bodyElement);
+    this.element.append(this.headerElement);
     this.element.classList.toggle('expanded', this.expandedValue);
-    this.bodyElement.hidden = !this.expandedValue;
+    this.updateBodyAttachment();
 
     this.disposables.add(
       addDisposableListener(this.headerButtonElement, 'click', () => {
@@ -184,7 +184,7 @@ export class Pane implements IView {
 
     this.expandedValue = expanded;
     this.element.classList.toggle('expanded', expanded);
-    this.bodyElement.hidden = !expanded;
+    this.updateBodyAttachment();
     this.headerButtonElement.setAttribute('aria-expanded', String(expanded));
     const preferredSize = expanded
       ? Math.max(this.expandedSize ?? this.minimumSize, this.minimumSize)
@@ -215,6 +215,17 @@ export class Pane implements IView {
     this.element.replaceChildren();
   }
 
+  private updateBodyAttachment() {
+    if (this.expandedValue) {
+      if (this.bodyElement.parentElement !== this.element) {
+        this.element.append(this.bodyElement);
+      }
+      return;
+    }
+
+    this.bodyElement.remove();
+  }
+
   protected renderHeader(_container: HTMLElement) {
     // Subclasses can append header affordances after the title.
   }
@@ -237,6 +248,7 @@ type PaneItem = {
 export type PaneViewOptions = {
   orientation?: Orientation;
   sashSize?: number;
+  reserveSashSpace?: boolean;
 };
 
 export class PaneView {
@@ -250,7 +262,11 @@ export class PaneView {
     this.element.classList.add(
       orientation === Orientation.HORIZONTAL ? 'horizontal' : 'vertical',
     );
-    this.splitView = new SplitView(orientation, options.sashSize ?? 8);
+    this.splitView = new SplitView(
+      orientation,
+      options.sashSize ?? 8,
+      options.reserveSashSpace ?? true,
+    );
     this.element.append(this.splitView.element);
     this.disposables.add(this.splitView);
   }
