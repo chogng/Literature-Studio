@@ -210,6 +210,29 @@ export interface WebContentSelectionSnapshot {
 }
 
 export type WebContentNavigationMode = 'browser' | 'strict';
+export type WebContentBridgeMethod =
+  | 'activateTarget'
+  | 'executeJavaScript'
+  | 'getState'
+  | 'goBack'
+  | 'goForward'
+  | 'navigateTo'
+  | 'printToPDF'
+  | 'releaseTarget'
+  | 'reload';
+
+export interface WebContentBridgeCommand {
+  requestId: string;
+  method: WebContentBridgeMethod;
+  args?: unknown[];
+}
+
+export interface WebContentBridgeResponse {
+  requestId: string;
+  ok: boolean;
+  result?: unknown;
+  error?: string;
+}
 
 export interface WebContentTargetPayload {
   targetId?: string | null;
@@ -728,6 +751,10 @@ export interface ElectronWebContentApi {
   goForward: (targetId?: string | null) => void;
   getSelection: (targetId?: string | null) => Promise<WebContentSelectionSnapshot | null>;
   onStateChange: (listener: (state: WebContentState) => void) => () => void;
+  onBridgeCommand?: (listener: (command: WebContentBridgeCommand) => void) => () => void;
+  respondToBridgeCommand?: (response: WebContentBridgeResponse) => void;
+  reportBridgeReady?: () => void;
+  reportState?: (state: WebContentState) => void;
 }
 
 export interface ElectronFetchApi {

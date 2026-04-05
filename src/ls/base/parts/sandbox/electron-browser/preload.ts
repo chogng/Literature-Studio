@@ -5,6 +5,8 @@ import type {
   AppErrorCode,
   AppCommandPayloadMap,
   AppCommandResultMap,
+  WebContentBridgeCommand,
+  WebContentBridgeResponse,
   ElectronAPI,
   FetchStatus,
   NativeMenuEvent,
@@ -186,6 +188,26 @@ const electronAPI: ElectronAPI = {
         isLoading: false,
         visible: false,
       });
+    },
+    onBridgeCommand(listener: (command: WebContentBridgeCommand) => void) {
+      return subscribeIpc<WebContentBridgeCommand>(
+        'app:web-content-bridge-command',
+        listener,
+        {
+          requestId: '',
+          method: 'getState',
+          args: [],
+        },
+      );
+    },
+    respondToBridgeCommand(response: WebContentBridgeResponse) {
+      sendIpc('app:web-content-bridge-response', response);
+    },
+    reportBridgeReady() {
+      sendIpc('app:web-content-bridge-ready');
+    },
+    reportState(state: WebContentState) {
+      sendIpc('app:web-content-report-state', state);
     },
   },
   fetch: {

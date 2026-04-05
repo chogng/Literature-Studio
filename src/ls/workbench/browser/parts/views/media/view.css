@@ -33,6 +33,10 @@
   border-radius: inherit;
 }
 
+.web-frame-webview {
+  display: flex;
+}
+
 .web-frame-placeholder {
   pointer-events: none;
 }

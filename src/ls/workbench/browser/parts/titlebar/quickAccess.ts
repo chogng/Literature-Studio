@@ -48,7 +48,7 @@ export function createTitlebarQuickAccessProps({
   | 'addressBarSourcePlaceholder'
   | 'addressBarSourceAriaLabel'
 > {
-  return {
+  const baseProps = {
     webUrl,
     onWebUrlChange: (url: string) =>
       dispatchQuickAccessAction({
@@ -56,6 +56,17 @@ export function createTitlebarQuickAccessProps({
         url,
       }),
     articleUrlPlaceholder: ui.pageUrlPlaceholder,
+  } satisfies Pick<
+    TitlebarProps,
+    'webUrl' | 'onWebUrlChange' | 'articleUrlPlaceholder'
+  >;
+
+  if (addressBarSourceOptions.length === 0) {
+    return baseProps;
+  }
+
+  return {
+    ...baseProps,
     addressBarSourceOptions,
     selectedAddressBarSourceId,
     onSelectAddressBarSource: (sourceId: string) =>

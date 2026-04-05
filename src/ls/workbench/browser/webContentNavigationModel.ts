@@ -126,7 +126,17 @@ export function registerWebContentNavigationQuickAccess(
 
 function getWebContentNavigationQuickAccessProvider(): WebContentNavigationQuickAccessProvider {
   if (!webContentNavigationQuickAccessProvider) {
-    throw new Error('Web content navigation quick access provider is not registered.');
+    return {
+      applyUrlInput: (nextUrl, setWebUrl, setFetchSeedUrl) => {
+        const normalized = nextUrl.trim();
+        setWebUrl(normalized);
+        setFetchSeedUrl(normalized);
+      },
+      createSourceOptions: () => [],
+      findSourceOption: () => undefined,
+      resolveNextSourceOption: () => null,
+      resolveSourceId: () => '',
+    };
   }
 
   return webContentNavigationQuickAccessProvider;

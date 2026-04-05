@@ -16,6 +16,7 @@ import type {
   WebContentPdfDownloadPayload,
   NativeModalState,
   WebContentBounds,
+  WebContentBridgeResponse,
   WebContentNavigatePayload,
   WebContentState,
   ReindexLibraryDocumentPayload,
@@ -34,8 +35,11 @@ import {
   goBackWebContent,
   goForwardWebContent,
   navigateWebContentTarget,
+  reportWebContentState,
+  reportWebContentRendererReady,
   releaseWebContentTarget,
   reloadWebContent,
+  resolveWebContentBridgeResponse,
   setWebContentBounds,
   setWebContentLayoutPhaseState,
   setWebContentVisible,
@@ -337,6 +341,31 @@ export function registerAppIpc(storage: StorageService) {
 
   ipcMain.handle('app:web-content-get-selection', async (_event, payload?: { targetId?: string | null }) => {
     return await getWebContentSelection(payload?.targetId);
+  });
+
+  ipcMain.on('app:web-content-report-state', (event, state: WebContentState) => {
+    if (event.sender.isDestroyed()) {
+      return;
+    }
+
+    reportWebContentState(state);
+    event.sender.send('app:web-content-state', state);
+  });
+
+  ipcMain.on('app:web-content-bridge-ready', (event) => {
+    if (event.sender.isDestroyed()) {
+      return;
+    }
+
+    reportWebContentRendererReady(event.sender);
+  });
+
+  ipcMain.on('app:web-content-bridge-response', (event, response: WebContentBridgeResponse) => {
+    if (event.sender.isDestroyed()) {
+      return;
+    }
+
+    resolveWebContentBridgeResponse(event.sender, response);
   });
 
   ipcMain.handle('app:modal-get-state', (event) => {

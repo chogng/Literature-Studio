@@ -5,6 +5,14 @@ import {
   sanitizeUrlInput as sanitizeSharedUrlInput,
 } from 'ls/base/common/url';
 
+function isSpecialWorkbenchUrl(value: string) {
+  return (
+    /^about:blank$/i.test(value) ||
+    /^file:\/\//i.test(value) ||
+    /^chrome-error:\/\//i.test(value)
+  );
+}
+
 export function sanitizeUrlInput(input: string) {
   return sanitizeSharedUrlInput(input);
 }
@@ -12,6 +20,9 @@ export function sanitizeUrlInput(input: string) {
 export function normalizeUrl(input: string): string {
   const trimmed = sanitizeUrlInput(input);
   if (!trimmed) return '';
+  if (isSpecialWorkbenchUrl(trimmed)) {
+    return trimmed;
+  }
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
     return trimmed;
   }
