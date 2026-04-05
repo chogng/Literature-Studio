@@ -11,7 +11,7 @@ import {
 } from 'ls/base/common/lifecycle';
 import {
   getWorkbenchContentClassName,
-  setAuxiliarySidebarVisible,
+  setAgentSidebarVisible,
   setFetchSidebarVisible,
   setPrimarySidebarVisible,
   setWorkbenchSidebarSizes,
@@ -48,14 +48,16 @@ import {
 } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
 import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
 import {
-  createAuxiliaryBarPartView,
-  AuxiliaryBarPartView,
-} from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
-import type { AuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+  createAgentBarPartView,
+  AgentBarPartView,
+} from 'ls/workbench/browser/parts/agentbar/agentbarPart';
+import type { AgentBarPartProps } from 'ls/workbench/browser/parts/agentbar/agentbarPart';
 import {
   SidebarTopbarActionsView,
   type SidebarTopbarActionsProps,
 } from 'ls/workbench/browser/parts/sidebar/sidebarTopbarActions';
+import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import {
   clearStatusbarCommandHandlers,
@@ -67,14 +69,14 @@ import {
 type WorkbenchContentViewProps = {
   isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
-  isAuxiliarySidebarVisible: boolean;
+  isAgentSidebarVisible: boolean;
   isLayoutEdgeSnappingEnabled: boolean;
   fetchSidebarSize: number;
   primarySidebarSize: number;
-  auxiliarySidebarSize: number;
+  agentSidebarSize: number;
   fetchPaneProps: FetchPaneProps;
   primaryBarProps: PrimaryBarProps;
-  auxiliarySidebarProps: AuxiliaryBarPartProps;
+  agentBarProps: AgentBarPartProps;
   sidebarTopbarActionsProps: SidebarTopbarActionsProps;
   editorPartProps: EditorPartProps;
 };
@@ -83,11 +85,11 @@ type SplitViewSizeSnapshot = {
   fetchSidebarSize: number;
   primarySidebarSize: number;
   editorSize: number;
-  auxiliarySidebarSize: number;
+  agentSidebarSize: number;
 };
 
 const PRIMARY_SIDEBAR_INDEX = 0;
-const AUXILIARY_SIDEBAR_INDEX = 1;
+const AGENT_SIDEBAR_INDEX = 1;
 const EDITOR_INDEX = 2;
 const SECONDARY_SIDEBAR_INDEX = 3;
 
@@ -135,7 +137,7 @@ function getRootSplitSize(
     (props.isFetchSidebarVisible ? sizes.fetchSidebarSize : 0) +
     (props.isPrimarySidebarVisible ? sizes.primarySidebarSize : 0) +
     sizes.editorSize +
-    (props.isAuxiliarySidebarVisible ? sizes.auxiliarySidebarSize : 0)
+    (props.isAgentSidebarVisible ? sizes.agentSidebarSize : 0)
   );
 }
 
@@ -197,6 +199,8 @@ class WorkbenchContentSlotView implements IGridView {
 
 export class WorkbenchContentView {
   private props: WorkbenchContentViewProps;
+  private isEditorCollapsed = false;
+  private expandedEditorSize: number = WORKBENCH_SPLITVIEW_LIMITS.editor.minimum;
   private readonly element = createElement('section', 'workbench-content-layout');
   private readonly mainElement = createElement('main');
   private readonly gridDisposables = new LifecycleStore();
@@ -207,8 +211,8 @@ export class WorkbenchContentView {
     true,
   );
   private readonly editorSlot = new WorkbenchContentSlotView('workbench-content-slot-editor');
-  private readonly auxiliarySidebarSlot = new WorkbenchContentSlotView(
-    'workbench-content-slot-auxiliary',
+  private readonly agentBarSlot = new WorkbenchContentSlotView(
+    'workbench-content-slot-agent',
     true,
   );
   private readonly secondarySidebarSlot = new WorkbenchContentSlotView(
@@ -217,9 +221,17 @@ export class WorkbenchContentView {
   );
   private secondarySidebarView: SecondarySidebarPartView | null = null;
   private primaryBarView: PrimaryBarPartView | null = null;
-  private auxiliarySidebarView: AuxiliaryBarPartView | null = null;
+  private agentBarView: AgentBarPartView | null = null;
   private editorView: ReturnType<typeof createEditorPartView> | null = null;
   private readonly sidebarTopbarActionsView = new SidebarTopbarActionsView();
+  private readonly editorTopbarActionsView = createActionBarView({
+    className: 'sidebar-topbar-actions',
+    ariaRole: 'group',
+  });
+  private readonly sharedTopbarActionsElement = createElement(
+    'div',
+    'sidebar-topbar-actions-host',
+  );
   private layoutTree: WorkbenchContentLayoutNode | null = null;
   private gridView: GridView | null = null;
   private rootGrid: GridBranchView | null = null;
@@ -279,12 +291,13 @@ export class WorkbenchContentView {
     this.disposeGridView();
     this.secondarySidebarView?.dispose();
     this.primaryBarView?.dispose();
-    this.auxiliarySidebarView?.dispose();
+    this.agentBarView?.dispose();
     this.editorView?.dispose();
     this.sidebarTopbarActionsView.dispose();
+    this.editorTopbarActionsView.dispose();
     this.secondarySidebarView = null;
     this.primaryBarView = null;
-    this.auxiliarySidebarView = null;
+    this.agentBarView = null;
     this.editorView = null;
     this.element.replaceChildren();
   }
@@ -293,20 +306,63 @@ export class WorkbenchContentView {
     updateStatusbarState(status);
   };
 
+  private readonly handleToggleEditorCollapse = () => {
+    if (!this.isEditorCollapsed && this.gridView) {
+      this.expandedEditorSize = Math.max(
+        WORKBENCH_SPLITVIEW_LIMITS.editor.minimum,
+        this.gridView.getViewSize([EDITOR_INDEX]),
+      );
+    }
+
+    this.isEditorCollapsed = !this.isEditorCollapsed;
+    this.render();
+  };
+
   private render() {
     initializeStatusbarState(this.props.editorPartProps.labels.status);
 
     this.mainElement.className = getWorkbenchContentClassName({
       isFetchSidebarVisible: this.props.isFetchSidebarVisible,
       isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
-      isAuxiliarySidebarVisible: this.props.isAuxiliarySidebarVisible,
+      isAgentSidebarVisible: this.props.isAgentSidebarVisible,
     });
 
+    this.renderTopbarActions();
     this.renderPrimarySidebar();
     this.renderEditor();
-    this.renderAuxiliarySidebar();
+    this.renderAgentBar();
     this.renderSecondarySidebar();
     this.syncGridView();
+  }
+
+  private renderTopbarActions() {
+    this.sidebarTopbarActionsView.setProps(this.props.sidebarTopbarActionsProps);
+    this.editorTopbarActionsView.setProps({
+      className: 'sidebar-topbar-actions',
+      ariaRole: 'group',
+      items: [{
+        label: this.isEditorCollapsed
+          ? this.props.editorPartProps.labels.expandEditor
+          : this.props.editorPartProps.labels.collapseEditor,
+        title: this.isEditorCollapsed
+          ? this.props.editorPartProps.labels.expandEditor
+          : this.props.editorPartProps.labels.collapseEditor,
+        mode: 'icon',
+        buttonClassName: 'editor-topbar-toggle-editor-btn',
+        content: createLxIcon(
+          this.isEditorCollapsed
+            ? 'layout-sidebar-right'
+            : 'layout-sidebar-right-off',
+        ),
+        onClick: this.handleToggleEditorCollapse,
+      }],
+    });
+
+    const sharedChildren = [this.sidebarTopbarActionsView.getElement()];
+    if (this.isEditorCollapsed) {
+      sharedChildren.push(this.editorTopbarActionsView.getElement());
+    }
+    this.sharedTopbarActionsElement.replaceChildren(...sharedChildren);
   }
 
   private renderSecondarySidebar() {
@@ -329,8 +385,6 @@ export class WorkbenchContentView {
   }
 
   private renderPrimarySidebar() {
-    this.sidebarTopbarActionsView.setProps(this.props.sidebarTopbarActionsProps);
-
     if (!this.props.isPrimarySidebarVisible) {
       this.primaryBarView?.dispose();
       this.primaryBarView = null;
@@ -341,12 +395,12 @@ export class WorkbenchContentView {
     if (!this.primaryBarView) {
       this.primaryBarView = createPrimaryBarPartView({
         ...this.props.primaryBarProps,
-        topbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+        topbarActionsElement: this.sharedTopbarActionsElement,
       });
     } else {
       this.primaryBarView.setProps({
         ...this.props.primaryBarProps,
-        topbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+        topbarActionsElement: this.sharedTopbarActionsElement,
       });
     }
 
@@ -357,11 +411,17 @@ export class WorkbenchContentView {
     if (!this.editorView) {
       this.editorView = createEditorPartView({
         ...this.props.editorPartProps,
+        topbarActionsElement: this.isEditorCollapsed
+          ? null
+          : this.editorTopbarActionsView.getElement(),
         onStatusChange: this.handleEditorStatusChange,
       });
     } else {
       this.editorView.setProps({
         ...this.props.editorPartProps,
+        topbarActionsElement: this.isEditorCollapsed
+          ? null
+          : this.editorTopbarActionsView.getElement(),
         onStatusChange: this.handleEditorStatusChange,
       });
     }
@@ -370,31 +430,31 @@ export class WorkbenchContentView {
     this.syncStatusbarCommandHandlers();
   }
 
-  private renderAuxiliarySidebar() {
-    if (!this.props.isAuxiliarySidebarVisible) {
-      this.auxiliarySidebarView?.dispose();
-      this.auxiliarySidebarView = null;
-      this.auxiliarySidebarSlot.setContent(null);
+  private renderAgentBar() {
+    if (!this.props.isAgentSidebarVisible) {
+      this.agentBarView?.dispose();
+      this.agentBarView = null;
+      this.agentBarSlot.setContent(null);
       return;
     }
 
-    if (!this.auxiliarySidebarView) {
-      this.auxiliarySidebarView = createAuxiliaryBarPartView(
+    if (!this.agentBarView) {
+      this.agentBarView = createAgentBarPartView(
         {
-          ...this.props.auxiliarySidebarProps,
+          ...this.props.agentBarProps,
           isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
-          topbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+          topbarActionsElement: this.sharedTopbarActionsElement,
         },
       );
     } else {
-      this.auxiliarySidebarView.setProps({
-        ...this.props.auxiliarySidebarProps,
+      this.agentBarView.setProps({
+        ...this.props.agentBarProps,
         isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
-        topbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+        topbarActionsElement: this.sharedTopbarActionsElement,
       });
     }
 
-    this.auxiliarySidebarSlot.setContent(this.auxiliarySidebarView.getElement());
+    this.agentBarSlot.setContent(this.agentBarView.getElement());
   }
 
   private syncGridView() {
@@ -411,10 +471,10 @@ export class WorkbenchContentView {
       [PRIMARY_SIDEBAR_INDEX],
       this.props.isPrimarySidebarVisible,
     );
-    this.gridView.setViewVisible([EDITOR_INDEX], true);
+    this.gridView.setViewVisible([EDITOR_INDEX], !this.isEditorCollapsed);
     this.gridView.setViewVisible(
-      [AUXILIARY_SIDEBAR_INDEX],
-      this.props.isAuxiliarySidebarVisible,
+      [AGENT_SIDEBAR_INDEX],
+      this.props.isAgentSidebarVisible,
     );
     this.gridView.setViewVisible(
       [SECONDARY_SIDEBAR_INDEX],
@@ -472,8 +532,8 @@ export class WorkbenchContentView {
       case PRIMARY_SIDEBAR_INDEX:
         setPrimarySidebarVisible(event.visible);
         break;
-      case AUXILIARY_SIDEBAR_INDEX:
-        setAuxiliarySidebarVisible(event.visible);
+      case AGENT_SIDEBAR_INDEX:
+        setAgentSidebarVisible(event.visible);
         break;
       case SECONDARY_SIDEBAR_INDEX:
         setFetchSidebarVisible(event.visible);
@@ -565,9 +625,9 @@ export class WorkbenchContentView {
       this.splitConstraints.primarySidebar,
     );
     this.editorSlot.setConstraints(orientation, this.splitConstraints.editor);
-    this.auxiliarySidebarSlot.setConstraints(
+    this.agentBarSlot.setConstraints(
       orientation,
-      this.splitConstraints.auxiliarySidebar,
+      this.splitConstraints.agentSidebar,
     );
     this.secondarySidebarSlot.setConstraints(
       orientation,
@@ -585,8 +645,8 @@ export class WorkbenchContentView {
       this.props.primarySidebarSize,
     );
     this.gridView.setViewSize(
-      [AUXILIARY_SIDEBAR_INDEX],
-      this.props.auxiliarySidebarSize,
+      [AGENT_SIDEBAR_INDEX],
+      this.props.agentSidebarSize,
     );
     this.gridView.setViewSize(
       [SECONDARY_SIDEBAR_INDEX],
@@ -599,16 +659,18 @@ export class WorkbenchContentView {
       return {
         fetchSidebarSize: this.props.fetchSidebarSize,
         primarySidebarSize: this.props.primarySidebarSize,
-        editorSize: WORKBENCH_SPLITVIEW_LIMITS.editor.minimum,
-        auxiliarySidebarSize: this.props.auxiliarySidebarSize,
+        editorSize: this.expandedEditorSize,
+        agentSidebarSize: this.props.agentSidebarSize,
       };
     }
 
     return {
       primarySidebarSize: this.gridView.getViewSize([PRIMARY_SIDEBAR_INDEX]),
-      auxiliarySidebarSize: this.gridView.getViewSize([AUXILIARY_SIDEBAR_INDEX]),
+      agentSidebarSize: this.gridView.getViewSize([AGENT_SIDEBAR_INDEX]),
       fetchSidebarSize: this.gridView.getViewSize([SECONDARY_SIDEBAR_INDEX]),
-      editorSize: this.gridView.getViewSize([EDITOR_INDEX]),
+      editorSize: this.isEditorCollapsed
+        ? this.expandedEditorSize
+        : this.gridView.getViewSize([EDITOR_INDEX]),
     };
   }
 
@@ -620,10 +682,10 @@ export class WorkbenchContentView {
     const nextSizes: Partial<{
       fetchSidebarSize: number;
       primarySidebarSize: number;
-      auxiliarySidebarSize: number;
+      agentSidebarSize: number;
     }> = {
       primarySidebarSize: this.gridView.getViewSize([PRIMARY_SIDEBAR_INDEX]),
-      auxiliarySidebarSize: this.gridView.getViewSize([AUXILIARY_SIDEBAR_INDEX]),
+      agentSidebarSize: this.gridView.getViewSize([AGENT_SIDEBAR_INDEX]),
       fetchSidebarSize: this.gridView.getViewSize([SECONDARY_SIDEBAR_INDEX]),
     };
 
@@ -673,8 +735,8 @@ export class WorkbenchContentView {
         return this.primarySidebarSlot;
       case 'editor':
         return this.editorSlot;
-      case 'auxiliarySidebar':
-        return this.auxiliarySidebarSlot;
+      case 'agentSidebar':
+        return this.agentBarSlot;
     }
   }
 
@@ -692,18 +754,19 @@ export class WorkbenchContentView {
       orientation,
       isFetchSidebarVisible: this.props.isFetchSidebarVisible,
       isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
-      isAuxiliarySidebarVisible: this.props.isAuxiliarySidebarVisible,
+      isEditorVisible: !this.isEditorCollapsed,
+      isAgentSidebarVisible: this.props.isAgentSidebarVisible,
       fetchSidebarSize: this.props.fetchSidebarSize,
       primarySidebarSize: this.props.primarySidebarSize,
-      auxiliarySidebarSize: this.props.auxiliarySidebarSize,
-      editorSize: cachedSizes.editorSize,
+      agentSidebarSize: this.props.agentSidebarSize,
+      editorSize: this.isEditorCollapsed ? this.expandedEditorSize : cachedSizes.editorSize,
     });
 
     nextTree = this.updateTreeBranchSizes(nextTree, {
       fetchSidebarSize: this.props.fetchSidebarSize,
       primarySidebarSize: this.props.primarySidebarSize,
-      editorSize: cachedSizes.editorSize,
-      auxiliarySidebarSize: this.props.auxiliarySidebarSize,
+      editorSize: this.isEditorCollapsed ? 0 : cachedSizes.editorSize,
+      agentSidebarSize: this.props.agentSidebarSize,
     });
 
     this.layoutTree = nextTree;
@@ -723,20 +786,24 @@ export class WorkbenchContentView {
       visible: this.props.isPrimarySidebarVisible,
     });
     nextTree = updateLeaf(nextTree, 'editor', {
-      size: this.gridView.getViewSize([EDITOR_INDEX]),
-      visible: true,
+      size: this.isEditorCollapsed
+        ? this.expandedEditorSize
+        : this.gridView.getViewSize([EDITOR_INDEX]),
+      visible: !this.isEditorCollapsed,
       flex: true,
     });
-    nextTree = updateLeaf(nextTree, 'auxiliarySidebar', {
-      size: this.gridView.getViewSize([AUXILIARY_SIDEBAR_INDEX]),
-      visible: this.props.isAuxiliarySidebarVisible,
+    nextTree = updateLeaf(nextTree, 'agentSidebar', {
+      size: this.gridView.getViewSize([AGENT_SIDEBAR_INDEX]),
+      visible: this.props.isAgentSidebarVisible,
     });
 
     this.layoutTree = this.updateTreeBranchSizes(nextTree, {
       fetchSidebarSize: this.gridView.getViewSize([SECONDARY_SIDEBAR_INDEX]),
       primarySidebarSize: this.gridView.getViewSize([PRIMARY_SIDEBAR_INDEX]),
-      editorSize: this.gridView.getViewSize([EDITOR_INDEX]),
-      auxiliarySidebarSize: this.gridView.getViewSize([AUXILIARY_SIDEBAR_INDEX]),
+      editorSize: this.isEditorCollapsed
+        ? 0
+        : this.gridView.getViewSize([EDITOR_INDEX]),
+      agentSidebarSize: this.gridView.getViewSize([AGENT_SIDEBAR_INDEX]),
     });
   }
 

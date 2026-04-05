@@ -31,7 +31,7 @@ import {
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchPartDomSnapshot,
   registerWorkbenchPartDomNode,
-  setAuxiliarySidebarVisible,
+  setAgentSidebarVisible,
   setFetchSidebarVisible,
   setPrimarySidebarVisible,
   setWorkbenchSidebarSizes,
@@ -167,11 +167,11 @@ function createWebContentState(
 function restoreWorkbenchLayoutState() {
   setFetchSidebarVisible(originalWorkbenchLayoutState.isFetchSidebarVisible);
   setPrimarySidebarVisible(originalWorkbenchLayoutState.isPrimarySidebarVisible);
-  setAuxiliarySidebarVisible(originalWorkbenchLayoutState.isAuxiliarySidebarVisible);
+  setAgentSidebarVisible(originalWorkbenchLayoutState.isAgentSidebarVisible);
   setWorkbenchSidebarSizes({
     fetchSidebarSize: originalWorkbenchLayoutState.fetchSidebarSize,
     primarySidebarSize: originalWorkbenchLayoutState.primarySidebarSize,
-    auxiliarySidebarSize: originalWorkbenchLayoutState.auxiliarySidebarSize,
+    agentSidebarSize: originalWorkbenchLayoutState.agentSidebarSize,
   });
 }
 

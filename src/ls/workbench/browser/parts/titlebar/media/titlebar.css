@@ -347,8 +347,8 @@
   -webkit-app-region: no-drag;
 }
 
-.titlebar-btn-auxiliary.btn-base,
-.titlebar-btn-auxiliary.actionbar-action {
+.titlebar-btn-agent.btn-base,
+.titlebar-btn-agent.actionbar-action {
   -webkit-app-region: no-drag;
 }
 

@@ -4,10 +4,10 @@ import type { WorkbenchPage } from 'ls/workbench/browser/workbench';
 export type WorkbenchLayoutStateSnapshot = {
   isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
-  isAuxiliarySidebarVisible: boolean;
+  isAgentSidebarVisible: boolean;
   fetchSidebarSize: number;
   primarySidebarSize: number;
-  auxiliarySidebarSize: number;
+  agentSidebarSize: number;
 };
 
 type WorkbenchLayoutEvent =
@@ -27,7 +27,7 @@ type WorkbenchLayoutEvent =
       sizes: Partial<
         Pick<
           WorkbenchLayoutStateSnapshot,
-          'fetchSidebarSize' | 'primarySidebarSize' | 'auxiliarySidebarSize'
+          'fetchSidebarSize' | 'primarySidebarSize' | 'agentSidebarSize'
         >
       >;
     }
@@ -43,14 +43,14 @@ type WorkbenchLayoutEvent =
       size: number;
     }
   | {
-      type: 'SET_AUXILIARY_SIDEBAR_VISIBLE';
+      type: 'SET_AGENT_SIDEBAR_VISIBLE';
       visible: boolean;
     }
   | {
-      type: 'TOGGLE_AUXILIARY_SIDEBAR_VISIBILITY';
+      type: 'TOGGLE_AGENT_SIDEBAR_VISIBILITY';
     }
   | {
-      type: 'SET_AUXILIARY_SIDEBAR_SIZE';
+      type: 'SET_AGENT_SIDEBAR_SIZE';
       size: number;
     };
 
@@ -61,7 +61,7 @@ type WorkbenchShellLayoutParams = {
 type WorkbenchContentLayoutParams = {
   isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
-  isAuxiliarySidebarVisible: boolean;
+  isAgentSidebarVisible: boolean;
 };
 
 export const WORKBENCH_PART_IDS = {
@@ -70,7 +70,7 @@ export const WORKBENCH_PART_IDS = {
   fetchSidebar: 'workbench.fetchSidebar',
   secondarySidebar: 'workbench.secondarySidebar',
   primaryBar: 'workbench.primaryBar',
-  auxiliarySidebar: 'workbench.auxiliarySidebar',
+  agentSidebar: 'workbench.agentSidebar',
   statusbar: 'workbench.statusbar',
   settings: 'workbench.settings',
   editor: 'workbench.editor',
@@ -95,7 +95,7 @@ export const WORKBENCH_SPLITVIEW_LIMITS = {
     minimum: 220,
     maximum: Number.POSITIVE_INFINITY,
   },
-  auxiliarySidebar: {
+  agentSidebar: {
     minimum: 332,
     maximum: Number.POSITIVE_INFINITY,
     defaultSize: 360,
@@ -109,10 +109,10 @@ export type WorkbenchPartRefCallback = (element: HTMLElement | null) => void;
 const DEFAULT_WORKBENCH_LAYOUT_STATE: WorkbenchLayoutStateSnapshot = {
   isFetchSidebarVisible: false,
   isPrimarySidebarVisible: true,
-  isAuxiliarySidebarVisible: false,
+  isAgentSidebarVisible: false,
   fetchSidebarSize: WORKBENCH_SPLITVIEW_LIMITS.fetchSidebar.defaultSize,
   primarySidebarSize: WORKBENCH_SPLITVIEW_LIMITS.primaryBar.defaultSize,
-  auxiliarySidebarSize: WORKBENCH_SPLITVIEW_LIMITS.auxiliarySidebar.defaultSize,
+  agentSidebarSize: WORKBENCH_SPLITVIEW_LIMITS.agentSidebar.defaultSize,
 };
 
 const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement | null> = {
@@ -121,7 +121,7 @@ const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement |
   [WORKBENCH_PART_IDS.fetchSidebar]: null,
   [WORKBENCH_PART_IDS.secondarySidebar]: null,
   [WORKBENCH_PART_IDS.primaryBar]: null,
-  [WORKBENCH_PART_IDS.auxiliarySidebar]: null,
+  [WORKBENCH_PART_IDS.agentSidebar]: null,
   [WORKBENCH_PART_IDS.statusbar]: null,
   [WORKBENCH_PART_IDS.settings]: null,
   [WORKBENCH_PART_IDS.editor]: null,
@@ -139,13 +139,13 @@ const workbenchPartRefCallbacks = new Map<
   WorkbenchPartRefCallback
 >();
 
-function clampSidebarSize(target: 'fetchSidebar' | 'primaryBar' | 'auxiliarySidebar', size: number) {
+function clampSidebarSize(target: 'fetchSidebar' | 'primaryBar' | 'agentSidebar', size: number) {
   const limits =
     target === 'fetchSidebar'
       ? WORKBENCH_SPLITVIEW_LIMITS.fetchSidebar
       : target === 'primaryBar'
         ? WORKBENCH_SPLITVIEW_LIMITS.primaryBar
-        : WORKBENCH_SPLITVIEW_LIMITS.auxiliarySidebar;
+        : WORKBENCH_SPLITVIEW_LIMITS.agentSidebar;
 
   return Math.max(limits.minimum, Math.min(limits.maximum, Math.round(size)));
 }
@@ -187,15 +187,15 @@ function reduceWorkbenchLayoutState(
         typeof event.sizes.primarySidebarSize === 'number'
           ? clampSidebarSize('primaryBar', event.sizes.primarySidebarSize)
           : state.primarySidebarSize;
-      const nextAuxiliarySidebarSize =
-        typeof event.sizes.auxiliarySidebarSize === 'number'
-          ? clampSidebarSize('auxiliarySidebar', event.sizes.auxiliarySidebarSize)
-          : state.auxiliarySidebarSize;
+      const nextAgentSidebarSize =
+        typeof event.sizes.agentSidebarSize === 'number'
+          ? clampSidebarSize('agentSidebar', event.sizes.agentSidebarSize)
+          : state.agentSidebarSize;
 
       if (
         state.fetchSidebarSize === nextFetchSidebarSize &&
         state.primarySidebarSize === nextPrimarySidebarSize &&
-        state.auxiliarySidebarSize === nextAuxiliarySidebarSize
+        state.agentSidebarSize === nextAgentSidebarSize
       ) {
         return state;
       }
@@ -204,7 +204,7 @@ function reduceWorkbenchLayoutState(
         ...state,
         fetchSidebarSize: nextFetchSidebarSize,
         primarySidebarSize: nextPrimarySidebarSize,
-        auxiliarySidebarSize: nextAuxiliarySidebarSize,
+        agentSidebarSize: nextAgentSidebarSize,
       };
     }
     case 'SET_PRIMARY_SIDEBAR_VISIBLE':
@@ -230,27 +230,27 @@ function reduceWorkbenchLayoutState(
         primarySidebarSize: nextSize,
       };
     }
-    case 'SET_AUXILIARY_SIDEBAR_VISIBLE':
-      if (state.isAuxiliarySidebarVisible === event.visible) {
+    case 'SET_AGENT_SIDEBAR_VISIBLE':
+      if (state.isAgentSidebarVisible === event.visible) {
         return state;
       }
       return {
         ...state,
-        isAuxiliarySidebarVisible: event.visible,
+        isAgentSidebarVisible: event.visible,
       };
-    case 'TOGGLE_AUXILIARY_SIDEBAR_VISIBILITY':
+    case 'TOGGLE_AGENT_SIDEBAR_VISIBILITY':
       return {
         ...state,
-        isAuxiliarySidebarVisible: !state.isAuxiliarySidebarVisible,
+        isAgentSidebarVisible: !state.isAgentSidebarVisible,
       };
-    case 'SET_AUXILIARY_SIDEBAR_SIZE': {
-      const nextSize = clampSidebarSize('auxiliarySidebar', event.size);
-      if (state.auxiliarySidebarSize === nextSize) {
+    case 'SET_AGENT_SIDEBAR_SIZE': {
+      const nextSize = clampSidebarSize('agentSidebar', event.size);
+      if (state.agentSidebarSize === nextSize) {
         return state;
       }
       return {
         ...state,
-        auxiliarySidebarSize: nextSize,
+        agentSidebarSize: nextSize,
       };
     }
     default:
@@ -302,7 +302,7 @@ export function setWorkbenchSidebarSizes(
   sizes: Partial<
     Pick<
       WorkbenchLayoutStateSnapshot,
-      'fetchSidebarSize' | 'primarySidebarSize' | 'auxiliarySidebarSize'
+      'fetchSidebarSize' | 'primarySidebarSize' | 'agentSidebarSize'
     >
   >,
 ) {
@@ -338,23 +338,23 @@ export function togglePrimarySidebarVisibility() {
   });
 }
 
-export function setAuxiliarySidebarVisible(visible: boolean) {
+export function setAgentSidebarVisible(visible: boolean) {
   dispatchWorkbenchLayoutEvent({
-    type: 'SET_AUXILIARY_SIDEBAR_VISIBLE',
+    type: 'SET_AGENT_SIDEBAR_VISIBLE',
     visible,
   });
 }
 
-export function setAuxiliarySidebarSize(size: number) {
+export function setAgentSidebarSize(size: number) {
   dispatchWorkbenchLayoutEvent({
-    type: 'SET_AUXILIARY_SIDEBAR_SIZE',
+    type: 'SET_AGENT_SIDEBAR_SIZE',
     size,
   });
 }
 
-export function toggleAuxiliarySidebarVisibility() {
+export function toggleAgentSidebarVisibility() {
   dispatchWorkbenchLayoutEvent({
-    type: 'TOGGLE_AUXILIARY_SIDEBAR_VISIBILITY',
+    type: 'TOGGLE_AGENT_SIDEBAR_VISIBILITY',
   });
 }
 
@@ -401,13 +401,13 @@ export function getWorkbenchShellClassName({
 export function getWorkbenchContentClassName({
   isFetchSidebarVisible,
   isPrimarySidebarVisible,
-  isAuxiliarySidebarVisible,
+  isAgentSidebarVisible,
 }: WorkbenchContentLayoutParams) {
   return [
     'content-grid',
     isFetchSidebarVisible ? 'is-fetch-sidebar-visible' : '',
     isPrimarySidebarVisible ? 'is-primary-sidebar-visible' : '',
-    isAuxiliarySidebarVisible ? 'is-auxiliary-sidebar-visible' : '',
+    isAgentSidebarVisible ? 'is-agent-sidebar-visible' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -416,12 +416,12 @@ export function getWorkbenchContentClassName({
 export function getWorkbenchContentStyle({
   isFetchSidebarVisible,
   isPrimarySidebarVisible,
-  isAuxiliarySidebarVisible,
+  isAgentSidebarVisible,
 }: WorkbenchContentLayoutParams) {
   const desktopColumns = [
     isPrimarySidebarVisible ? 'minmax(280px, 320px)' : null,
     'minmax(0, 1fr)',
-    isAuxiliarySidebarVisible ? 'minmax(332px, 380px)' : null,
+    isAgentSidebarVisible ? 'minmax(332px, 380px)' : null,
     isFetchSidebarVisible ? 'minmax(248px, 280px)' : null,
   ]
     .filter((value): value is string => Boolean(value))
@@ -430,7 +430,7 @@ export function getWorkbenchContentStyle({
   const mobileRows = [
     isPrimarySidebarVisible ? 'minmax(220px, 28%)' : null,
     'minmax(0, 1fr)',
-    isAuxiliarySidebarVisible ? 'minmax(208px, 30%)' : null,
+    isAgentSidebarVisible ? 'minmax(208px, 30%)' : null,
     isFetchSidebarVisible ? 'minmax(208px, 22%)' : null,
   ]
     .filter((value): value is string => Boolean(value))

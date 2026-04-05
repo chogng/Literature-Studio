@@ -32,6 +32,7 @@ export type EditorGroupViewProps = {
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  topbarActionsElement?: HTMLElement | null;
   onStatusChange?: (status: EditorStatusState) => void;
 };
 
@@ -216,10 +217,9 @@ export class EditorGroupView {
   private props: EditorGroupViewProps;
   private readonly controller: EditorGroupController;
   private readonly element = createElement('div', 'editor-shell');
-  private readonly headerElement = createElement(
-    'div',
-    'editor-tabs-header topbar-segment topbar-segment-editor',
-  );
+  private readonly headerElement = createElement('div', 'editor-topbar');
+  private readonly tabsElement = createElement('div', 'editor-topbar-tabs');
+  private readonly actionsElement = createElement('div', 'editor-topbar-actions');
   private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div');
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
@@ -240,7 +240,8 @@ export class EditorGroupView {
       labels: props.labels,
       onCreateDraftTab: props.onCreateDraftTab,
     });
-    this.headerElement.append(this.titleAreaControl.getElement());
+    this.tabsElement.append(this.titleAreaControl.getElement());
+    this.headerElement.append(this.tabsElement, this.actionsElement);
     this.element.append(this.headerElement, this.contentElement);
     this.render();
   }
@@ -292,6 +293,7 @@ export class EditorGroupView {
     this.props.onStatusChange?.(editorStatus);
     this.titleAreaControl.setProps(createTitleControlProps(this.props, group));
     this.headerElement.classList.toggle('has-tabs', group.tabs.length > 0);
+    this.syncTopbarActions(this.props.topbarActionsElement ?? null);
 
     this.contentElement.className = '';
     this.contentElement.removeAttribute('data-editor-pane');
@@ -333,6 +335,20 @@ export class EditorGroupView {
       ...resolvedPane.contentClassNames,
     ].join(' ');
     this.contentElement.dataset.editorPane = resolvedPane.paneId;
+  }
+
+  private syncTopbarActions(topbarActionsElement: HTMLElement | null) {
+    const currentTopbarActionsElement = this.actionsElement.firstElementChild;
+    if (topbarActionsElement) {
+      if (currentTopbarActionsElement !== topbarActionsElement) {
+        this.actionsElement.replaceChildren(topbarActionsElement);
+      }
+      return;
+    }
+
+    if (currentTopbarActionsElement) {
+      this.actionsElement.replaceChildren();
+    }
   }
 }
 

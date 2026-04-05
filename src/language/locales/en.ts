@@ -371,6 +371,8 @@ const en = {
   titlebarHidePrimarySidebar: 'Hide main sidebar',
   titlebarShowAssistant: 'Show assistant',
   titlebarHideAssistant: 'Hide assistant',
+  editorExpand: 'Expand editor',
+  editorCollapse: 'Collapse editor',
   titlebarDownloadPdf: 'Download PDF',
   titlebarExportDocx: 'Export DOCX',
   titlebarNoExportableArticles: 'No selected article cards to export',

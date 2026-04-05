@@ -54,7 +54,7 @@ The left-side knowledge base tree is now split into layered modules:
 
 ## What Is Not Implemented Yet
 
-- Drop targets in `auxiliarybar`
+- Drop targets in `agentbar`
 - Drop targets in editor area
 - Multi-selection
 - Virtualization
@@ -69,7 +69,7 @@ The drag source payload is already standardized through `libraryTreeModel.ts`, b
 
 Planned consumers:
 
-- `auxiliarybar`
+- `agentbar`
   - Drop a library item into conversation context as a reference
 - editor area
   - Drop a library item to open a document/PDF/detail surface
@@ -81,7 +81,7 @@ This work is intentionally postponed so the base tree interaction model can stab
 1. Stabilize `SimpleTree`
 2. Add explicit selection callbacks from `SimpleTree` into feature views
 3. Add optional tree item icons / open behavior for documents
-4. Wire `auxiliarybar` drop target to consume `application/vnd.literature-studio.library-documents`
+4. Wire `agentbar` drop target to consume `application/vnd.literature-studio.library-documents`
 5. Wire editor-area drop target to consume the same payload
 
 ## Design Constraint

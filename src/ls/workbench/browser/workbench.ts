@@ -12,10 +12,10 @@ import {
   getWorkbenchLayoutStateSnapshot,
   getWorkbenchShellClassName,
   registerWorkbenchPartDomNode,
-  setAuxiliarySidebarVisible,
+  setAgentSidebarVisible,
   setPrimarySidebarVisible,
   subscribeWorkbenchLayoutState,
-  toggleAuxiliarySidebarVisibility,
+  toggleAgentSidebarVisibility,
   toggleFetchSidebarVisibility,
   togglePrimarySidebarVisibility,
   WORKBENCH_PART_IDS,
@@ -30,8 +30,8 @@ import {
   createSettingsPartView,
   createSettingsPartProps,
 } from 'ls/workbench/contrib/preferences/browser/settingsEditor';
-import { createAuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
-import type { AuxiliaryBarPartProps } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart';
+import { createAgentBarPartProps } from 'ls/workbench/browser/parts/agentbar/agentbarPart';
+import type { AgentBarPartProps } from 'ls/workbench/browser/parts/agentbar/agentbarPart';
 
 import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
 import { createFetchPaneProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
@@ -542,7 +542,7 @@ class WorkbenchHost {
 
     this.appliedKnowledgeBaseModeEnabled = isKnowledgeBaseModeEnabled;
     setPrimarySidebarVisible(isKnowledgeBaseModeEnabled);
-    setAuxiliarySidebarVisible(isKnowledgeBaseModeEnabled);
+    setAgentSidebarVisible(isKnowledgeBaseModeEnabled);
   }
 
   private syncSelectionState(
@@ -735,7 +735,7 @@ class WorkbenchHost {
     setWorkbenchTitlebarCommandHandlers({
       onToggleFetchSidebar: toggleFetchSidebarVisibility,
       onTogglePrimarySidebar: togglePrimarySidebarVisibility,
-      onToggleAuxiliarySidebar: toggleAuxiliarySidebarVisibility,
+      onToggleAgentSidebar: toggleAgentSidebarVisibility,
       onNavigateBack,
       onNavigateForward,
       onNavigateRefresh,
@@ -810,14 +810,14 @@ class WorkbenchHost {
   private renderWorkbenchContentPage(props: {
     isFetchSidebarVisible: boolean;
     isPrimarySidebarVisible: boolean;
-    isAuxiliarySidebarVisible: boolean;
+    isAgentSidebarVisible: boolean;
     isLayoutEdgeSnappingEnabled: boolean;
     fetchSidebarSize: number;
     primarySidebarSize: number;
-    auxiliarySidebarSize: number;
+    agentSidebarSize: number;
     fetchPaneProps: ReturnType<typeof createFetchPaneProps>;
     primaryBarProps: PrimaryBarProps;
-    auxiliarySidebarProps: AuxiliaryBarPartProps;
+    agentBarProps: AgentBarPartProps;
     sidebarTopbarActionsProps: {
       isPrimarySidebarVisible: boolean;
       primarySidebarToggleLabel: string;
@@ -873,10 +873,10 @@ class WorkbenchHost {
     const {
       isFetchSidebarVisible,
       isPrimarySidebarVisible,
-      isAuxiliarySidebarVisible,
+      isAgentSidebarVisible,
       fetchSidebarSize,
       primarySidebarSize,
-      auxiliarySidebarSize,
+      agentSidebarSize,
     } = getWorkbenchLayoutStateSnapshot();
     const { electronRuntime, webContentRuntime, desktopRuntime } =
       resolveRuntimeState();
@@ -957,7 +957,7 @@ class WorkbenchHost {
       llmProviders,
       activeAgentChatModelOptionValue,
     );
-    const auxiliaryLlmModelOptions = [{
+    const agentLlmModelOptions = [{
       value: AGENT_CHAT_AUTO_MODEL_OPTION_VALUE,
       label: 'Auto',
       icon: 'agent' as const,
@@ -1330,8 +1330,8 @@ class WorkbenchHost {
       navigateToAddressBarUrl(webUrl, true);
     };
 
-    const handleCloseAuxiliarySidebar = () => {
-      setAuxiliarySidebarVisible(false);
+    const handleCloseAgentSidebar = () => {
+      setAgentSidebarVisible(false);
     };
 
     const activeDraftStableSelectionTarget =
@@ -1476,7 +1476,7 @@ class WorkbenchHost {
       },
     };
 
-    const auxiliarySidebarProps = createAuxiliaryBarPartProps({
+    const agentBarProps = createAgentBarPartProps({
       state: {
         ui,
         isKnowledgeBaseModeEnabled: knowledgeBaseModeEnabled,
@@ -1487,7 +1487,7 @@ class WorkbenchHost {
         availableArticleCount: filteredArticles.length,
         conversations: assistantConversations,
         activeConversationId: activeAssistantConversationId,
-        llmModelOptions: auxiliaryLlmModelOptions,
+        llmModelOptions: agentLlmModelOptions,
         activeLlmModelOptionValue,
         isSecondarySidebarVisible: isFetchSidebarVisible,
       },
@@ -1498,7 +1498,7 @@ class WorkbenchHost {
         onCreateConversation: handleAssistantCreateConversation,
         onActivateConversation: handleAssistantActivateConversation,
         onCloseConversation: handleAssistantCloseConversation,
-        onCloseAuxiliarySidebar: handleCloseAuxiliarySidebar,
+        onCloseAgentBar: handleCloseAgentSidebar,
         onToggleSecondarySidebar: toggleFetchSidebarVisibility,
         onSelectLlmModel: (value) => {
           activeAgentChatModelOptionValue =
@@ -1535,7 +1535,7 @@ class WorkbenchHost {
       onTogglePrimarySidebar: togglePrimarySidebarVisibility,
     };
     const effectiveSecondarySidebarVisible =
-      isAuxiliarySidebarVisible && isFetchSidebarVisible;
+      isAgentSidebarVisible && isFetchSidebarVisible;
 
     const settingsPartProps = createSettingsPartProps({
       state: {
@@ -1677,14 +1677,14 @@ class WorkbenchHost {
       this.renderWorkbenchContentPage({
         isFetchSidebarVisible: effectiveSecondarySidebarVisible,
         isPrimarySidebarVisible,
-        isAuxiliarySidebarVisible,
+        isAgentSidebarVisible,
         isLayoutEdgeSnappingEnabled: isWindowFullscreen,
         fetchSidebarSize,
         primarySidebarSize,
-        auxiliarySidebarSize,
+        agentSidebarSize,
         fetchPaneProps,
         primaryBarProps,
-        auxiliarySidebarProps,
+        agentBarProps,
         sidebarTopbarActionsProps,
         editorPartProps: contentAwareEditorPartProps,
       });

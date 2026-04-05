@@ -273,11 +273,11 @@ function createWorkbenchContentViewProps() {
   return {
     isFetchSidebarVisible: false,
     isPrimarySidebarVisible: false,
-    isAuxiliarySidebarVisible: false,
+    isAgentSidebarVisible: false,
     isLayoutEdgeSnappingEnabled: false,
     fetchSidebarSize: 280,
     primarySidebarSize: 320,
-    auxiliarySidebarSize: 360,
+    agentSidebarSize: 360,
     fetchPaneProps,
     primaryBarProps: {
       labels: sidebarLabels,
@@ -293,7 +293,7 @@ function createWorkbenchContentViewProps() {
       },
       isLibraryLoading: false,
     },
-    auxiliarySidebarProps: {
+    agentBarProps: {
       labels: {
         assistantHistory: 'History',
         assistantNewConversation: 'New conversation',
@@ -339,7 +339,7 @@ function createWorkbenchContentViewProps() {
       onCreateConversation: () => {},
       onActivateConversation: () => {},
       onCloseConversation: () => {},
-      onCloseAuxiliarySidebar: () => {},
+      onCloseAgentBar: () => {},
       isSecondarySidebarVisible: false,
       onToggleSecondarySidebar: () => {},
       onSelectLlmModel: () => {},
@@ -357,6 +357,8 @@ function createWorkbenchContentViewProps() {
         sourceMode: 'Source',
         pdfMode: 'PDF',
         close: 'Close',
+        expandEditor: 'Expand editor',
+        collapseEditor: 'Collapse editor',
         emptyWorkspaceTitle: 'Empty workspace',
         emptyWorkspaceBody: 'Create a draft to start.',
         draftBodyPlaceholder: 'Start writing',
@@ -492,7 +494,7 @@ test('leading group resolves the actual primary size under tighter active constr
 test('WorkbenchContentView mounts primary topbar actions into auxiliary topbar when the primary sidebar is hidden', () => {
   const props = createWorkbenchContentViewProps();
   props.isPrimarySidebarVisible = true;
-  props.isAuxiliarySidebarVisible = true;
+  props.isAgentSidebarVisible = true;
   props.sidebarTopbarActionsProps = {
     ...props.sidebarTopbarActionsProps,
     isPrimarySidebarVisible: true,
@@ -512,7 +514,7 @@ test('WorkbenchContentView mounts primary topbar actions into auxiliary topbar w
     assert.equal(
       view
         .getElement()
-        .querySelector('.auxiliarybar-shell-topbar .sidebar-topbar-actions-host'),
+        .querySelector('.agentbar-topbar .sidebar-topbar-actions-host'),
       null,
     );
 
@@ -528,12 +530,12 @@ test('WorkbenchContentView mounts primary topbar actions into auxiliary topbar w
 
     primaryTopbarActionsHost = view
       .getElement()
-      .querySelector('.auxiliarybar-shell-topbar .sidebar-topbar-actions-host');
+      .querySelector('.agentbar-topbar .sidebar-topbar-actions-host');
     assert(primaryTopbarActionsHost instanceof HTMLElement);
     assert.equal(
       view
         .getElement()
-        .querySelector('.auxiliarybar-shell-topbar .sidebar-topbar-toggle-btn')
+        .querySelector('.agentbar-topbar .sidebar-topbar-toggle-btn')
         ?.getAttribute('aria-label'),
       'Show primary sidebar',
     );
@@ -541,6 +543,46 @@ test('WorkbenchContentView mounts primary topbar actions into auxiliary topbar w
       view
         .getElement()
         .querySelector('.primarybar-topbar .sidebar-topbar-actions-host'),
+      null,
+    );
+  } finally {
+    view.dispose();
+  }
+});
+
+test('WorkbenchContentView mounts the editor collapse action into auxiliary topbar when the editor is collapsed', () => {
+  const props = createWorkbenchContentViewProps();
+  props.isPrimarySidebarVisible = false;
+  props.isAgentSidebarVisible = true;
+  props.sidebarTopbarActionsProps = {
+    ...props.sidebarTopbarActionsProps,
+    isPrimarySidebarVisible: false,
+    primarySidebarToggleLabel: 'Show primary sidebar',
+    commandPaletteLabel: 'Quick access',
+    onTogglePrimarySidebar: () => {},
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    const editorToggleButton = view
+      .getElement()
+      .querySelector('.editor-topbar .editor-topbar-toggle-editor-btn');
+    assert(editorToggleButton instanceof HTMLButtonElement);
+    assert.equal(editorToggleButton.getAttribute('aria-label'), 'Collapse editor');
+
+    editorToggleButton.click();
+
+    const auxiliaryToggleButton = view
+      .getElement()
+      .querySelector('.agentbar-topbar .editor-topbar-toggle-editor-btn');
+    assert(auxiliaryToggleButton instanceof HTMLButtonElement);
+    assert.equal(auxiliaryToggleButton.getAttribute('aria-label'), 'Expand editor');
+    assert.equal(
+      view
+        .getElement()
+        .querySelector('.editor-topbar .editor-topbar-toggle-editor-btn'),
       null,
     );
   } finally {

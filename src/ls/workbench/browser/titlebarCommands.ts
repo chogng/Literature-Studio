@@ -1,7 +1,7 @@
 export type WorkbenchTitlebarCommandHandlers = {
   onToggleFetchSidebar: () => void;
   onTogglePrimarySidebar: () => void;
-  onToggleAuxiliarySidebar: () => void;
+  onToggleAgentSidebar: () => void;
   onNavigateBack: () => void;
   onNavigateForward: () => void;
   onNavigateRefresh: () => void;

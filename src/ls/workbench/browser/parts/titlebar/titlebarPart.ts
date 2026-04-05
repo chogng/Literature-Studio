@@ -13,7 +13,7 @@ export type TitlebarPartState = {
   isWindowMaximized: boolean;
   isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
-  isAuxiliarySidebarVisible: boolean;
+  isAgentSidebarVisible: boolean;
   browserUrl: string;
   webContentState: Pick<WebContentState, 'canGoBack' | 'canGoForward'>;
   canExportDocx: boolean;
@@ -25,7 +25,7 @@ export type TitlebarPartActions = {
   handleWindowControl: (action: TitlebarAction) => void;
   handleToggleFetchSidebar: () => void;
   handleTogglePrimarySidebar: () => void;
-  handleToggleAuxiliarySidebar: () => void;
+  handleToggleAgentSidebar: () => void;
   handleWebContentBack: () => void;
   handleWebContentForward: () => void;
   handleWebContentRefresh: () => void;
@@ -45,7 +45,7 @@ export function createTitlebarPartProps({
     webUrl,
     isWindowMaximized,
     isPrimarySidebarVisible,
-    isAuxiliarySidebarVisible,
+    isAgentSidebarVisible,
     browserUrl,
     webContentState,
     canExportDocx,
@@ -55,7 +55,7 @@ export function createTitlebarPartProps({
   actions: {
     handleWindowControl,
     handleTogglePrimarySidebar,
-    handleToggleAuxiliarySidebar,
+    handleToggleAgentSidebar,
     handleWebContentBack,
     handleWebContentForward,
     handleWebContentRefresh,
@@ -91,12 +91,12 @@ export function createTitlebarPartProps({
       : ui.titlebarShowPrimarySidebar,
     onTogglePrimarySidebar:
       activePage === 'content' ? handleTogglePrimarySidebar : undefined,
-    isAuxiliarySidebarOpen: isAuxiliarySidebarVisible,
-    auxiliarySidebarToggleLabel: isAuxiliarySidebarVisible
+    isAgentSidebarOpen: isAgentSidebarVisible,
+    agentSidebarToggleLabel: isAgentSidebarVisible
       ? ui.titlebarHideAssistant
       : ui.titlebarShowAssistant,
-    onToggleAuxiliarySidebar:
-      activePage === 'content' ? handleToggleAuxiliarySidebar : undefined,
+    onToggleAgentSidebar:
+      activePage === 'content' ? handleToggleAgentSidebar : undefined,
     browserUrl,
     canGoBack: webContentState.canGoBack,
     canGoForward: webContentState.canGoForward,

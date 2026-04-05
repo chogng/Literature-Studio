@@ -1,6 +1,6 @@
 import type { LocaleMessages } from 'language/locales';
 
-export type AuxiliaryBarLabels = {
+export type AgentBarLabels = {
   assistantAnswerTitle: string;
   assistantEvidenceTitle: string;
   assistantPatchApply: string;
@@ -21,7 +21,7 @@ export type AuxiliaryBarLabels = {
   assistantRerankOff: string;
 };
 
-export function createAuxiliaryBarLabels(ui: LocaleMessages): AuxiliaryBarLabels {
+export function createAgentBarLabels(ui: LocaleMessages): AgentBarLabels {
   return {
     assistantAnswerTitle: ui.assistantSidebarAnswerTitle,
     assistantEvidenceTitle: ui.assistantSidebarEvidenceTitle,

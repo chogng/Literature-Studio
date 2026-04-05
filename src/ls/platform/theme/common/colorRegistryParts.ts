@@ -169,102 +169,102 @@ export const primaryBarLinkHoverForeground = registerColor('primaryBar.linkHover
   light: '#0d6ed8',
 });
 
-export const auxiliaryBarBackground = registerColor('auxiliaryBar.background', {
+export const agentBarBackground = registerColor('agentBar.background', {
   dark: '#18222c',
   light: '#f8f8f8',
 });
 
-export const auxiliaryBarInputBorder = registerColor('auxiliaryBar.inputBorder', {
+export const agentBarInputBorder = registerColor('agentBar.inputBorder', {
   dark: '#3a4652',
   light: '#d6e0e8',
 });
 
-export const auxiliaryBarInputBackground = registerColor('auxiliaryBar.inputBackground', {
+export const agentBarInputBackground = registerColor('agentBar.inputBackground', {
   dark: '#202b35',
   light: '#f9fbfd',
 });
 
-export const auxiliaryBarInputForeground = registerColor('auxiliaryBar.inputForeground', {
+export const agentBarInputForeground = registerColor('agentBar.inputForeground', {
   dark: '#d7e1ea',
   light: '#1f2d3a',
 });
 
-export const auxiliaryBarTabForeground = registerColor('auxiliaryBar.tabForeground', {
+export const agentBarTabForeground = registerColor('agentBar.tabForeground', {
   dark: '#93a4b5',
   light: '#415366',
 });
 
-export const auxiliaryBarTabActiveBackground = registerColor('auxiliaryBar.tabActiveBackground', {
+export const agentBarTabActiveBackground = registerColor('agentBar.tabActiveBackground', {
   dark: '#22344a',
   light: '#e8f1fc',
 });
 
-export const auxiliaryBarTabActiveForeground = registerColor('auxiliaryBar.tabActiveForeground', {
+export const agentBarTabActiveForeground = registerColor('agentBar.tabActiveForeground', {
   dark: '#8cb9ff',
   light: '#0a5fbf',
 });
 
-export const auxiliaryBarTabActiveHoverForeground = registerColor('auxiliaryBar.tabActiveHoverForeground', {
+export const agentBarTabActiveHoverForeground = registerColor('agentBar.tabActiveHoverForeground', {
   dark: '#a8ccff',
   light: '#084a96',
 });
 
-export const auxiliaryBarTabCloseForeground = registerColor('auxiliaryBar.tabCloseForeground', {
+export const agentBarTabCloseForeground = registerColor('agentBar.tabCloseForeground', {
   dark: '#93a4b5',
   light: '#66798f',
 });
 
-export const auxiliaryBarTabCloseHoverForeground = registerColor('auxiliaryBar.tabCloseHoverForeground', {
+export const agentBarTabCloseHoverForeground = registerColor('agentBar.tabCloseHoverForeground', {
   dark: '#d7e1ea',
   light: '#203040',
 });
 
-export const auxiliaryBarTabFocusBorder = registerColor('auxiliaryBar.tabFocusBorder', {
+export const agentBarTabFocusBorder = registerColor('agentBar.tabFocusBorder', {
   dark: 'rgba(90, 169, 255, 0.34)',
   light: 'rgba(10, 95, 191, 0.24)',
 });
 
-export const auxiliaryBarPopoverBackground = registerColor('auxiliaryBar.popoverBackground', {
+export const agentBarPopoverBackground = registerColor('agentBar.popoverBackground', {
   dark: '#1f2a35',
   light: '#f8fbfe',
 });
 
-export const auxiliaryBarPopoverBorder = registerColor('auxiliaryBar.popoverBorder', {
+export const agentBarPopoverBorder = registerColor('agentBar.popoverBorder', {
   dark: '#344150',
   light: '#d7e2ec',
 });
 
-export const auxiliaryBarPopoverTitleForeground = registerColor('auxiliaryBar.popoverTitleForeground', {
+export const agentBarPopoverTitleForeground = registerColor('agentBar.popoverTitleForeground', {
   dark: '#d7e1ea',
   light: '#203040',
 });
 
-export const auxiliaryBarItemBackground = registerColor('auxiliaryBar.itemBackground', {
+export const agentBarItemBackground = registerColor('agentBar.itemBackground', {
   dark: '#18222c',
   light: '#ffffff',
 });
 
-export const auxiliaryBarItemBorder = registerColor('auxiliaryBar.itemBorder', {
+export const agentBarItemBorder = registerColor('agentBar.itemBorder', {
   dark: '#344150',
   light: '#d7e2ec',
 });
 
-export const auxiliaryBarItemForeground = registerColor('auxiliaryBar.itemForeground', {
+export const agentBarItemForeground = registerColor('agentBar.itemForeground', {
   dark: '#d7e1ea',
   light: '#203040',
 });
 
-export const auxiliaryBarItemActiveBackground = registerColor('auxiliaryBar.itemActiveBackground', {
+export const agentBarItemActiveBackground = registerColor('agentBar.itemActiveBackground', {
   dark: '#22344a',
   light: '#eef5fd',
 });
 
-export const auxiliaryBarItemActiveBorder = registerColor('auxiliaryBar.itemActiveBorder', {
+export const agentBarItemActiveBorder = registerColor('agentBar.itemActiveBorder', {
   dark: '#5aa9ff',
   light: '#0a5fbf',
 });
 
-export const auxiliaryBarItemMetaForeground = registerColor('auxiliaryBar.itemMetaForeground', {
+export const agentBarItemMetaForeground = registerColor('agentBar.itemMetaForeground', {
   dark: '#93a4b5',
   light: '#66798f',
 });

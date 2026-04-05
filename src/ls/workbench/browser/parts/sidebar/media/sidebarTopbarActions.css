@@ -32,7 +32,8 @@
 }
 
 .sidebar-topbar-toggle-btn.actionbar-action,
-.sidebar-topbar-search-btn.actionbar-action {
+.sidebar-topbar-search-btn.actionbar-action,
+.editor-topbar-toggle-editor-btn.actionbar-action {
   border: none;
   background: transparent;
   color: var(--vscode-sideBar-foreground, #1f2d3a);

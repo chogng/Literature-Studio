@@ -8,7 +8,7 @@ import type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browse
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let createAgentChatWidget: typeof import('ls/workbench/contrib/agentChat/browser/agentChatWidget').createAgentChatWidget;
-let createAuxiliaryBarPartView: typeof import('ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart').createAuxiliaryBarPartView;
+let createAgentBarPartView: typeof import('ls/workbench/browser/parts/agentbar/agentbarPart').createAgentBarPartView;
 let SidebarTopbarActionsView: typeof import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions').SidebarTopbarActionsView;
 
 function createProps(): AgentChatWidgetProps {
@@ -63,7 +63,7 @@ function createProps(): AgentChatWidgetProps {
     onCreateConversation: () => {},
     onActivateConversation: () => {},
     onCloseConversation: () => {},
-    onCloseAuxiliarySidebar: () => {},
+    onCloseAgentBar: () => {},
     isSecondarySidebarVisible: false,
     onToggleSecondarySidebar: () => {},
     onSelectLlmModel: () => {},
@@ -75,7 +75,7 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createAgentChatWidget } = await import('ls/workbench/contrib/agentChat/browser/agentChatWidget'));
-  ({ createAuxiliaryBarPartView } = await import('ls/workbench/browser/parts/auxiliarybar/auxiliarybarPart'));
+  ({ createAgentBarPartView } = await import('ls/workbench/browser/parts/agentbar/agentbarPart'));
   ({ SidebarTopbarActionsView } = await import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions'));
 });
 
@@ -84,9 +84,9 @@ after(() => {
   cleanupDomEnvironment = null;
 });
 
-test('auxiliary bar action buttons expose labels and shared hover', async () => {
-  const auxiliaryBar = createAgentChatWidget(createProps());
-  const element = auxiliaryBar.getElement();
+test('agent bar action buttons expose labels and shared hover', async () => {
+  const agentBar = createAgentChatWidget(createProps());
+  const element = agentBar.getElement();
   document.body.append(element);
 
   try {
@@ -113,19 +113,19 @@ test('auxiliary bar action buttons expose labels and shared hover', async () => 
     assert(overlayContent instanceof HTMLElement);
     assert.equal(overlayContent.textContent, 'History');
   } finally {
-    auxiliaryBar.dispose();
+    agentBar.dispose();
   }
 });
 
-test('auxiliary bar exposes a secondary sidebar toggle action', () => {
+test('agent bar exposes a secondary sidebar toggle action', () => {
   let toggleCount = 0;
-  const auxiliaryBar = createAgentChatWidget({
+  const agentBar = createAgentChatWidget({
     ...createProps(),
     onToggleSecondarySidebar: () => {
       toggleCount += 1;
     },
   });
-  const element = auxiliaryBar.getElement();
+  const element = agentBar.getElement();
   document.body.append(element);
 
   try {
@@ -142,11 +142,11 @@ test('auxiliary bar exposes a secondary sidebar toggle action', () => {
     secondarySidebarToggleButton.click();
     assert.equal(toggleCount, 1);
   } finally {
-    auxiliaryBar.dispose();
+    agentBar.dispose();
   }
 });
 
-test('auxiliary bar topbar exposes a primary sidebar toggle when the primary sidebar is hidden', () => {
+test('agent bar topbar exposes a primary sidebar toggle when the primary sidebar is hidden', () => {
   let toggleCount = 0;
   const topbarActionsView = new SidebarTopbarActionsView({
     isPrimarySidebarVisible: false,
@@ -156,17 +156,17 @@ test('auxiliary bar topbar exposes a primary sidebar toggle when the primary sid
       toggleCount += 1;
     },
   });
-  const auxiliaryBar = createAuxiliaryBarPartView({
+  const agentBar = createAgentBarPartView({
     ...createProps(),
     isPrimarySidebarVisible: false,
     topbarActionsElement: topbarActionsView.getElement(),
   });
-  const element = auxiliaryBar.getElement();
+  const element = agentBar.getElement();
   document.body.append(element);
 
   try {
     const toggleButton = element.querySelector(
-      '.auxiliarybar-shell-topbar .sidebar-topbar-toggle-btn',
+      '.agentbar-topbar .sidebar-topbar-toggle-btn',
     );
     assert(toggleButton instanceof HTMLButtonElement);
     assert.equal(
@@ -177,47 +177,47 @@ test('auxiliary bar topbar exposes a primary sidebar toggle when the primary sid
     toggleButton.click();
     assert.equal(toggleCount, 1);
   } finally {
-    auxiliaryBar.dispose();
+    agentBar.dispose();
     topbarActionsView.dispose();
   }
 });
 
-test('auxiliary bar topbar exposes a quick access action', () => {
+test('agent bar topbar exposes a quick access action', () => {
   const topbarActionsView = new SidebarTopbarActionsView({
     isPrimarySidebarVisible: false,
     primarySidebarToggleLabel: 'Show primary sidebar',
     commandPaletteLabel: 'Quick access',
     onTogglePrimarySidebar: () => {},
   });
-  const auxiliaryBar = createAuxiliaryBarPartView({
+  const agentBar = createAgentBarPartView({
     ...createProps(),
     isPrimarySidebarVisible: false,
     topbarActionsElement: topbarActionsView.getElement(),
   });
-  const element = auxiliaryBar.getElement();
+  const element = agentBar.getElement();
   document.body.append(element);
 
   try {
     const searchButton = element.querySelector(
-      '.auxiliarybar-shell-topbar .sidebar-topbar-search-btn',
+      '.agentbar-topbar .sidebar-topbar-search-btn',
     );
     assert(searchButton instanceof HTMLButtonElement);
     assert.equal(searchButton.getAttribute('aria-label'), 'Quick access');
   } finally {
-    auxiliaryBar.dispose();
+    agentBar.dispose();
     topbarActionsView.dispose();
   }
 });
 
-test('auxiliary bar more action uses dropdown action view item', async () => {
+test('agent bar more action uses dropdown action view item', async () => {
   let createConversationCount = 0;
-  const auxiliaryBar = createAgentChatWidget({
+  const agentBar = createAgentChatWidget({
     ...createProps(),
     onCreateConversation: () => {
       createConversationCount += 1;
     },
   });
-  const element = auxiliaryBar.getElement();
+  const element = agentBar.getElement();
   document.body.append(element);
 
   try {
@@ -244,13 +244,13 @@ test('auxiliary bar more action uses dropdown action view item', async () => {
     assert.equal(createConversationCount, 1);
     assert.equal(moreButton.getAttribute('aria-expanded'), 'false');
   } finally {
-    auxiliaryBar.dispose();
+    agentBar.dispose();
   }
 });
 
-test('auxiliary bar history action uses custom dropdown overlay', async () => {
+test('agent bar history action uses custom dropdown overlay', async () => {
   let activatedConversationId = '';
-  const auxiliaryBar = createAgentChatWidget({
+  const agentBar = createAgentChatWidget({
     ...createProps(),
     conversations: [
       {
@@ -278,7 +278,7 @@ test('auxiliary bar history action uses custom dropdown overlay', async () => {
       activatedConversationId = conversationId;
     },
   });
-  const element = auxiliaryBar.getElement();
+  const element = agentBar.getElement();
   document.body.append(element);
 
   try {
@@ -291,11 +291,11 @@ test('auxiliary bar history action uses custom dropdown overlay', async () => {
     historyButton.click();
     await delay(0);
 
-    const popover = document.body.querySelector('.actionbar-context-view .auxiliarybar-popover');
+    const popover = document.body.querySelector('.actionbar-context-view .agentbar-popover');
     assert(popover instanceof HTMLElement);
     assert.equal(historyButton.getAttribute('aria-expanded'), 'true');
 
-    const historyItem = Array.from(popover.querySelectorAll('.auxiliarybar-history-item')).find(
+    const historyItem = Array.from(popover.querySelectorAll('.agentbar-history-item')).find(
       (node) => node.textContent?.includes('Conversation 2'),
     );
     assert(historyItem instanceof HTMLButtonElement);
@@ -305,7 +305,7 @@ test('auxiliary bar history action uses custom dropdown overlay', async () => {
     assert.equal(activatedConversationId, 'conversation-2');
     assert.equal(historyButton.getAttribute('aria-expanded'), 'false');
   } finally {
-    auxiliaryBar.dispose();
+    agentBar.dispose();
   }
 });
 
@@ -313,7 +313,7 @@ test('composer toolbar uses actionbar icon controls', () => {
   let askCount = 0;
   let selectedModelValue: string | null = null;
   let openedModelSettings = 0;
-  const auxiliaryBar = createAgentChatWidget({
+  const agentBar = createAgentChatWidget({
     ...createProps(),
     question: 'Explain this selection',
     llmModelOptions: [
@@ -331,13 +331,13 @@ test('composer toolbar uses actionbar icon controls', () => {
       openedModelSettings += 1;
     },
   });
-  const element = auxiliaryBar.getElement();
+  const element = agentBar.getElement();
   document.body.append(element);
 
   try {
     const toolButtons = Array.from(
       element.querySelectorAll(
-        '.auxiliarybar-composer-actions .auxiliarybar-composer-tool-action',
+        '.agentbar-composer-actions .agentbar-composer-tool-action',
       ),
     );
     assert.equal(toolButtons.length, 1);
@@ -347,7 +347,7 @@ test('composer toolbar uses actionbar icon controls', () => {
     );
 
     const sendButton = element.querySelector(
-      '.auxiliarybar-composer-actions .auxiliarybar-composer-send-action',
+      '.agentbar-composer-actions .agentbar-composer-send-action',
     );
     assert(sendButton instanceof HTMLButtonElement);
     assert.equal(sendButton.getAttribute('aria-label'), 'Send');
@@ -356,24 +356,24 @@ test('composer toolbar uses actionbar icon controls', () => {
     sendButton.click();
     assert.equal(askCount, 1);
 
-    const dropdownButton = element.querySelector('.auxiliarybar-model-switch-btn');
+    const dropdownButton = element.querySelector('.agentbar-model-switch-btn');
     assert(dropdownButton instanceof HTMLButtonElement);
     dropdownButton.click();
 
-    const menu = document.body.querySelector('.auxiliarybar-model-menu');
+    const menu = document.body.querySelector('.agentbar-model-menu');
     assert(menu instanceof HTMLElement);
     assert.equal(
-      menu.querySelectorAll('.auxiliarybar-model-menu-separator').length,
+      menu.querySelectorAll('.agentbar-model-menu-separator').length,
       2,
     );
 
-    const autoMode = Array.from(menu.querySelectorAll('.auxiliarybar-model-menu-item')).find(
+    const autoMode = Array.from(menu.querySelectorAll('.agentbar-model-menu-item')).find(
       (node) => node.textContent?.includes('Auto Max mode'),
     );
     assert(autoMode instanceof HTMLButtonElement);
     assert.equal(autoMode.getAttribute('aria-pressed'), 'true');
 
-    const option = Array.from(menu.querySelectorAll('.auxiliarybar-model-menu-item')).find(
+    const option = Array.from(menu.querySelectorAll('.agentbar-model-menu-item')).find(
       (node) => node.textContent?.includes('GPT-5.4 · medium'),
     );
     assert(option instanceof HTMLButtonElement);
@@ -382,17 +382,17 @@ test('composer toolbar uses actionbar icon controls', () => {
     assert.equal(selectedModelValue, 'openai:gpt-5.4:medium');
 
     dropdownButton.click();
-    const reopenedMenu = document.body.querySelector('.auxiliarybar-model-menu');
+    const reopenedMenu = document.body.querySelector('.agentbar-model-menu');
     assert(reopenedMenu instanceof HTMLElement);
     const addModels = Array.from(
-      reopenedMenu.querySelectorAll('.auxiliarybar-model-menu-item'),
+      reopenedMenu.querySelectorAll('.agentbar-model-menu-item'),
     ).find((node) => node.textContent?.includes('Add models'));
     assert(addModels instanceof HTMLButtonElement);
     addModels.click();
 
     assert.equal(openedModelSettings, 1);
   } finally {
-    auxiliaryBar.dispose();
+    agentBar.dispose();
   }
 });
 

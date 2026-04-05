@@ -48,6 +48,10 @@
   background: var(--vscode-primaryBar-background, #fafafa);
 }
 
+.primarybar-library-pane {
+  --ls-pane-header-toggle-padding: 0 8px;
+}
+
 .primarybar-pane-content {
   min-height: 0;
   height: 100%;

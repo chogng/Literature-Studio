@@ -80,7 +80,7 @@ export function createWorkbenchContainerStateContribution(): Disposable {
     delete container.dataset.workbenchPage;
     delete container.dataset.fetchSidebarVisible;
     delete container.dataset.primarySidebarVisible;
-    delete container.dataset.auxiliarySidebarVisible;
+    delete container.dataset.agentSidebarVisible;
     delete container.dataset.workbenchParts;
   };
 
@@ -108,8 +108,8 @@ export function createWorkbenchContainerStateContribution(): Disposable {
     lastContainer.dataset.primarySidebarVisible = String(
       getWorkbenchLayoutStateSnapshot().isPrimarySidebarVisible,
     );
-    lastContainer.dataset.auxiliarySidebarVisible = String(
-      getWorkbenchLayoutStateSnapshot().isAuxiliarySidebarVisible,
+    lastContainer.dataset.agentSidebarVisible = String(
+      getWorkbenchLayoutStateSnapshot().isAgentSidebarVisible,
     );
     lastContainer.dataset.workbenchParts = registeredPartIds;
   };
@@ -207,8 +207,8 @@ export function createWorkbenchTitlebarActionContribution(): Disposable {
       return;
     }
 
-    if (action.type === 'TOGGLE_AUXILIARY_SIDEBAR') {
-      handlers.onToggleAuxiliarySidebar();
+    if (action.type === 'TOGGLE_AGENT_SIDEBAR') {
+      handlers.onToggleAgentSidebar();
       return;
     }
 

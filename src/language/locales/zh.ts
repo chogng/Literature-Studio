@@ -375,6 +375,8 @@ const zh = {
   titlebarHidePrimarySidebar: '收起主侧栏',
   titlebarShowAssistant: '展开助手栏',
   titlebarHideAssistant: '收起助手栏',
+  editorExpand: '展开编辑区',
+  editorCollapse: '收起编辑区',
   titlebarDownloadPdf: '下载 PDF',
   titlebarExportDocx: '导出 DOCX',
   titlebarNoExportableArticles: '当前没有选中的文献卡片可导出',

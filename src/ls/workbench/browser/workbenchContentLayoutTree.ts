@@ -4,7 +4,7 @@ export type WorkbenchContentLayoutLeafId =
   | 'fetchSidebar'
   | 'primarySidebar'
   | 'editor'
-  | 'auxiliarySidebar';
+  | 'agentSidebar';
 
 export type WorkbenchContentLayoutLeafNode = {
   type: 'leaf';
@@ -29,10 +29,11 @@ export type WorkbenchContentLayoutTreeParams = {
   orientation: Orientation;
   isFetchSidebarVisible: boolean;
   isPrimarySidebarVisible: boolean;
-  isAuxiliarySidebarVisible: boolean;
+  isEditorVisible: boolean;
+  isAgentSidebarVisible: boolean;
   fetchSidebarSize: number;
   primarySidebarSize: number;
-  auxiliarySidebarSize: number;
+  agentSidebarSize: number;
   editorSize: number;
 };
 
@@ -121,8 +122,8 @@ function getRootSize(params: WorkbenchContentLayoutTreeParams) {
   return (
     (params.isFetchSidebarVisible ? params.fetchSidebarSize : 0) +
     (params.isPrimarySidebarVisible ? params.primarySidebarSize : 0) +
-    params.editorSize +
-    (params.isAuxiliarySidebarVisible ? params.auxiliarySidebarSize : 0)
+    (params.isEditorVisible ? params.editorSize : 0) +
+    (params.isAgentSidebarVisible ? params.agentSidebarSize : 0)
   );
 }
 
@@ -130,10 +131,11 @@ export function createWorkbenchContentLayoutTree({
   orientation,
   isFetchSidebarVisible,
   isPrimarySidebarVisible,
-  isAuxiliarySidebarVisible,
+  isEditorVisible,
+  isAgentSidebarVisible,
   fetchSidebarSize,
   primarySidebarSize,
-  auxiliarySidebarSize,
+  agentSidebarSize,
   editorSize,
 }: WorkbenchContentLayoutTreeParams): WorkbenchContentLayoutNode {
   return {
@@ -143,10 +145,11 @@ export function createWorkbenchContentLayoutTree({
       orientation,
       isFetchSidebarVisible,
       isPrimarySidebarVisible,
-      isAuxiliarySidebarVisible,
+      isEditorVisible,
+      isAgentSidebarVisible,
       fetchSidebarSize,
       primarySidebarSize,
-      auxiliarySidebarSize,
+      agentSidebarSize,
       editorSize,
     }),
     children: [
@@ -158,15 +161,15 @@ export function createWorkbenchContentLayoutTree({
       },
       {
         type: 'leaf',
-        id: 'auxiliarySidebar',
-        size: auxiliarySidebarSize,
-        visible: isAuxiliarySidebarVisible,
+        id: 'agentSidebar',
+        size: agentSidebarSize,
+        visible: isAgentSidebarVisible,
       },
       {
         type: 'leaf',
         id: 'editor',
         size: editorSize,
-        visible: true,
+        visible: isEditorVisible,
         flex: true,
       },
       {

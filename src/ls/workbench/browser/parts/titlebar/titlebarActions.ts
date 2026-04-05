@@ -3,7 +3,7 @@ export type TitlebarUiAction =
   | { type: 'FOCUS_WEB_URL_INPUT' }
   | { type: 'TOGGLE_FETCH_SIDEBAR' }
   | { type: 'TOGGLE_PRIMARY_SIDEBAR' }
-  | { type: 'TOGGLE_AUXILIARY_SIDEBAR' }
+  | { type: 'TOGGLE_AGENT_SIDEBAR' }
   | { type: 'NAVIGATE_BACK' }
   | { type: 'NAVIGATE_FORWARD' }
   | { type: 'NAVIGATE_REFRESH' }
@@ -44,8 +44,8 @@ export function requestToggleTitlebarPrimarySidebar() {
   emitTitlebarUiAction({ type: 'TOGGLE_PRIMARY_SIDEBAR' });
 }
 
-export function requestToggleTitlebarAuxiliarySidebar() {
-  emitTitlebarUiAction({ type: 'TOGGLE_AUXILIARY_SIDEBAR' });
+export function requestToggleTitlebarAgentSidebar() {
+  emitTitlebarUiAction({ type: 'TOGGLE_AGENT_SIDEBAR' });
 }
 
 export function requestTitlebarNavigateBack() {

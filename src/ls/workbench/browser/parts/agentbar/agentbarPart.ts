@@ -5,19 +5,19 @@ import { AgentChatWidget } from 'ls/workbench/contrib/agentChat/browser/agentCha
 import type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
 import { getWindowChromeLayout } from 'ls/platform/window/common/window';
 
-import { createAuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
+import { createAgentBarLabels } from 'ls/workbench/browser/parts/agentbar/agentbarLabels';
 
 const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
 
 export type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browser/agentChatWidget';
-export type AuxiliaryBarPartProps = AgentChatWidgetProps & {
+export type AgentBarPartProps = AgentChatWidgetProps & {
   isPrimarySidebarVisible?: boolean;
   topbarActionsElement?: HTMLElement | null;
 };
 
-type CreateAuxiliaryBarPartPropsParams = {
+type CreateAgentBarPartPropsParams = {
   state: {
-    ui: Parameters<typeof createAuxiliaryBarLabels>[0];
+    ui: Parameters<typeof createAgentBarLabels>[0];
     isKnowledgeBaseModeEnabled: boolean;
     question: string;
     messages: AssistantModelSnapshot['messages'];
@@ -37,7 +37,7 @@ type CreateAuxiliaryBarPartPropsParams = {
     onCreateConversation: () => void;
     onActivateConversation: (conversationId: string) => void;
     onCloseConversation: (conversationId: string) => void;
-    onCloseAuxiliarySidebar: () => void;
+    onCloseAgentBar: () => void;
     onToggleSecondarySidebar: () => void;
     onSelectLlmModel: (value: string) => void;
     onOpenModelSettings: () => void;
@@ -55,7 +55,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-export function createAuxiliaryBarPartProps({
+export function createAgentBarPartProps({
   state: {
     ui,
     isKnowledgeBaseModeEnabled,
@@ -77,14 +77,14 @@ export function createAuxiliaryBarPartProps({
     onCreateConversation,
     onActivateConversation,
     onCloseConversation,
-    onCloseAuxiliarySidebar,
+    onCloseAgentBar,
     onToggleSecondarySidebar,
     onSelectLlmModel,
     onOpenModelSettings,
   },
-}: CreateAuxiliaryBarPartPropsParams): AuxiliaryBarPartProps {
+}: CreateAgentBarPartPropsParams): AgentBarPartProps {
   return {
-    labels: createAuxiliaryBarLabels(ui),
+    labels: createAgentBarLabels(ui),
     isKnowledgeBaseModeEnabled,
     question,
     messages,
@@ -101,7 +101,7 @@ export function createAuxiliaryBarPartProps({
     onCreateConversation,
     onActivateConversation,
     onCloseConversation,
-    onCloseAuxiliarySidebar,
+    onCloseAgentBar,
     isSecondarySidebarVisible,
     onToggleSecondarySidebar,
     onSelectLlmModel,
@@ -110,24 +110,24 @@ export function createAuxiliaryBarPartProps({
   };
 }
 
-export class AuxiliaryBarPartView {
+export class AgentBarPartView {
   private readonly element = createElement(
     'section',
-    'panel sidebar-panel auxiliarybar-panel',
+    'panel sidebar-panel agentbar-panel',
   );
   private readonly topbarElement = createElement(
     'div',
-    'auxiliarybar-shell-topbar topbar-segment topbar-segment-auxiliary',
+    'agentbar-topbar topbar-segment',
   );
   private readonly leadingWindowControlsSpacer = createElement(
     'div',
-    'auxiliarybar-shell-topbar-window-controls-spacer',
+    'agentbar-topbar-window-controls-spacer',
   );
   private readonly sidebar: AgentChatWidget;
 
-  constructor(props: AuxiliaryBarPartProps) {
+  constructor(props: AgentBarPartProps) {
     registerWorkbenchPartDomNode(
-      WORKBENCH_PART_IDS.auxiliarySidebar,
+      WORKBENCH_PART_IDS.agentSidebar,
       this.element,
     );
     this.sidebar = new AgentChatWidget(props);
@@ -146,18 +146,18 @@ export class AuxiliaryBarPartView {
     return this.element;
   }
 
-  setProps(props: AuxiliaryBarPartProps) {
+  setProps(props: AgentBarPartProps) {
     this.sidebar.setProps(props);
     this.renderTopbar(props);
   }
 
   dispose() {
     this.sidebar.dispose();
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.auxiliarySidebar, null);
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.agentSidebar, null);
     this.element.replaceChildren();
   }
 
-  private renderTopbar(props: AuxiliaryBarPartProps) {
+  private renderTopbar(props: AgentBarPartProps) {
     const shouldMountPrimaryTopbarActions =
       !props.isPrimarySidebarVisible && !!props.topbarActionsElement;
 
@@ -178,6 +178,6 @@ export class AuxiliaryBarPartView {
   }
 }
 
-export function createAuxiliaryBarPartView(props: AuxiliaryBarPartProps) {
-  return new AuxiliaryBarPartView(props);
+export function createAgentBarPartView(props: AgentBarPartProps) {
+  return new AgentBarPartView(props);
 }

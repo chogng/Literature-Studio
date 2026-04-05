@@ -15,12 +15,12 @@ import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
-import type { AuxiliaryBarLabels } from 'ls/workbench/browser/parts/auxiliarybar/auxiliarybarLabels';
-import 'ls/workbench/browser/parts/auxiliarybar/media/auxiliarybar.css';
+import type { AgentBarLabels } from 'ls/workbench/browser/parts/agentbar/agentbarLabels';
+import 'ls/workbench/browser/parts/agentbar/media/agentbar.css';
 import 'ls/workbench/contrib/agentChat/browser/media/agentChatWidget.css';
 
 export type AgentChatWidgetProps = {
-  labels: AuxiliaryBarLabels;
+  labels: AgentBarLabels;
   isKnowledgeBaseModeEnabled: boolean;
   messages: AssistantChatMessage[];
   question: string;
@@ -37,7 +37,7 @@ export type AgentChatWidgetProps = {
   onCreateConversation: () => void;
   onActivateConversation: (conversationId: string) => void;
   onCloseConversation: (conversationId: string) => void;
-  onCloseAuxiliarySidebar: () => void;
+  onCloseAgentBar: () => void;
   isSecondarySidebarVisible: boolean;
   onToggleSecondarySidebar: () => void;
   onSelectLlmModel: (value: string) => void;
@@ -57,7 +57,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 
 export class AgentChatWidget {
   private props: AgentChatWidgetProps;
-  private readonly element = createElement('div', 'auxiliarybar-content');
+  private readonly element = createElement('div', 'agentbar-content');
   private readonly renderDisposables = new Set<() => void>();
   private tabStripScrollLeft = 0;
 
@@ -90,22 +90,22 @@ export class AgentChatWidget {
   }
 
   private renderTopbar() {
-    const topbar = createElement('div', 'auxiliarybar-topbar');
+    const topbar = createElement('div', 'agentbar-tabs-header');
     const stripHost = createElement(
       'div',
-      'auxiliarybar-tab-scroll-host horizontal-scrollbar-host',
+      'agentbar-tab-scroll-host horizontal-scrollbar-host',
     );
     const strip = createElement(
       'div',
-      'auxiliarybar-tab-strip horizontal-scrollbar-strip',
+      'agentbar-tab-strip horizontal-scrollbar-strip',
     );
     let activeTabButton: HTMLButtonElement | null = null;
     for (const conversation of this.props.conversations) {
-      const item = createElement('div', 'auxiliarybar-tab-item');
+      const item = createElement('div', 'agentbar-tab-item');
       const button = createElement(
         'button',
         [
-          'auxiliarybar-tab',
+          'agentbar-tab',
           conversation.id === this.props.activeConversationId ? 'is-active' : '',
         ]
           .filter(Boolean)
@@ -123,14 +123,14 @@ export class AgentChatWidget {
 
       const close = createElement(
         'button',
-        'auxiliarybar-tab-close btn-base btn-ghost btn-mode-icon',
+        'agentbar-tab-close btn-base btn-ghost btn-mode-icon',
       );
       close.type = 'button';
       close.append(createLxIcon(lxIconSemanticMap.assistant.closeConversation));
       close.addEventListener('click', (event) => {
         event.stopPropagation();
         if (this.props.conversations.length === 1) {
-          this.props.onCloseAuxiliarySidebar();
+          this.props.onCloseAgentBar();
           return;
         }
         this.props.onCloseConversation(conversation.id);
@@ -141,12 +141,12 @@ export class AgentChatWidget {
 
     const scrollbarTrack = createElement(
       'div',
-      'auxiliarybar-tab-scrollbar horizontal-scrollbar-track',
+      'agentbar-tab-scrollbar horizontal-scrollbar-track',
     );
     scrollbarTrack.setAttribute('aria-hidden', 'true');
     const scrollbarThumb = createElement(
       'div',
-      'auxiliarybar-tab-scrollbar-thumb horizontal-scrollbar-thumb',
+      'agentbar-tab-scrollbar-thumb horizontal-scrollbar-thumb',
     );
     scrollbarThumb.setAttribute('aria-hidden', 'true');
     scrollbarTrack.append(scrollbarThumb);
@@ -205,9 +205,9 @@ export class AgentChatWidget {
   }
 
   private renderShell(canSend: boolean) {
-    const shell = createElement('div', 'auxiliarybar-shell');
+    const shell = createElement('div', 'agentbar-shell');
     if (this.props.errorMessage) {
-      const error = createElement('div', 'auxiliarybar-error');
+      const error = createElement('div', 'agentbar-error');
       error.textContent = this.props.errorMessage;
       shell.append(error);
     }
@@ -216,16 +216,16 @@ export class AgentChatWidget {
   }
 
   private renderHistoryPopover() {
-    const popover = createElement('div', 'auxiliarybar-popover');
-    const section = createElement('div', 'auxiliarybar-popover-section');
-    const title = createElement('strong', 'auxiliarybar-popover-title');
+    const popover = createElement('div', 'agentbar-popover');
+    const section = createElement('div', 'agentbar-popover-section');
+    const title = createElement('strong', 'agentbar-popover-title');
     title.textContent = this.props.labels.assistantHistory;
-    const list = createElement('div', 'auxiliarybar-history-list');
+    const list = createElement('div', 'agentbar-history-list');
     for (const conversation of this.props.conversations) {
       const item = createElement(
         'button',
         [
-          'auxiliarybar-history-item',
+          'agentbar-history-item',
           conversation.id === this.props.activeConversationId ? 'is-active' : '',
         ]
           .filter(Boolean)
@@ -233,9 +233,9 @@ export class AgentChatWidget {
       );
       item.type = 'button';
       item.addEventListener('click', () => this.props.onActivateConversation(conversation.id));
-      const titleNode = createElement('span', 'auxiliarybar-history-item-title');
+      const titleNode = createElement('span', 'agentbar-history-item-title');
       titleNode.textContent = conversation.title;
-      const meta = createElement('span', 'auxiliarybar-history-item-meta');
+      const meta = createElement('span', 'agentbar-history-item-meta');
       meta.textContent = `${conversation.messages.length} messages`;
       item.append(titleNode, meta);
       list.append(item);
@@ -249,7 +249,7 @@ export class AgentChatWidget {
     const thread = createElement(
       'div',
       [
-        'auxiliarybar-thread',
+        'agentbar-thread',
         this.props.messages.length === 0 ? 'is-empty' : '',
       ]
         .filter(Boolean)
@@ -259,9 +259,9 @@ export class AgentChatWidget {
       if (message.role === 'user') {
         const item = createElement(
           'div',
-          'auxiliarybar-message auxiliarybar-message-user',
+          'agentbar-message agentbar-message-user',
         );
-        const text = createElement('p', 'auxiliarybar-message-text');
+        const text = createElement('p', 'agentbar-message-text');
         text.textContent = message.content;
         item.append(text);
         thread.append(item);
@@ -270,38 +270,38 @@ export class AgentChatWidget {
 
       const item = createElement(
         'div',
-        'auxiliarybar-message auxiliarybar-message-assistant',
+        'agentbar-message agentbar-message-assistant',
       );
-      const body = createElement('div', 'auxiliarybar-message-body');
-      const header = createElement('div', 'auxiliarybar-result-header');
+      const body = createElement('div', 'agentbar-message-body');
+      const header = createElement('div', 'agentbar-result-header');
       const strong = document.createElement('strong');
       strong.textContent = this.props.labels.assistantAnswerTitle;
       const pill = createElement(
         'span',
-        `auxiliarybar-mode-pill ${message.result.rerankApplied ? 'is-enabled' : 'is-disabled'}`,
+        `agentbar-mode-pill ${message.result.rerankApplied ? 'is-enabled' : 'is-disabled'}`,
       );
       pill.textContent = message.result.rerankApplied
         ? this.props.labels.assistantRerankOn
         : this.props.labels.assistantRerankOff;
       header.append(strong, pill);
-      const answer = createElement('p', 'auxiliarybar-answer');
+      const answer = createElement('p', 'agentbar-answer');
       answer.textContent = message.content;
       body.append(header, answer);
 
       if (message.result.evidence.length > 0) {
-        const evidence = createElement('div', 'auxiliarybar-evidence');
+        const evidence = createElement('div', 'agentbar-evidence');
         const title = document.createElement('strong');
         title.textContent = this.props.labels.assistantEvidenceTitle;
-        const list = createElement('ul', 'auxiliarybar-evidence-list');
+        const list = createElement('ul', 'agentbar-evidence-list');
         for (const evidenceItem of message.result.evidence) {
-          const li = createElement('li', 'auxiliarybar-evidence-item');
-          const titleNode = createElement('strong', 'auxiliarybar-evidence-title');
+          const li = createElement('li', 'agentbar-evidence-item');
+          const titleNode = createElement('strong', 'agentbar-evidence-title');
           titleNode.textContent = `[${evidenceItem.rank}] ${evidenceItem.title}`;
-          const meta = createElement('p', 'auxiliarybar-evidence-meta');
+          const meta = createElement('p', 'agentbar-evidence-meta');
           meta.textContent = [evidenceItem.journalTitle, evidenceItem.publishedAt]
             .filter(Boolean)
             .join(' | ');
-          const text = createElement('p', 'auxiliarybar-evidence-text');
+          const text = createElement('p', 'agentbar-evidence-text');
           text.textContent = evidenceItem.excerpt;
           li.append(titleNode, meta, text);
           list.append(li);
@@ -329,18 +329,18 @@ export class AgentChatWidget {
       return null;
     }
 
-    const card = createElement('div', 'auxiliarybar-patch-card');
-    const header = createElement('div', 'auxiliarybar-patch-header');
-    const label = createElement('strong', 'auxiliarybar-patch-label');
+    const card = createElement('div', 'agentbar-patch-card');
+    const header = createElement('div', 'agentbar-patch-header');
+    const label = createElement('strong', 'agentbar-patch-label');
     label.textContent = patchProposal.patch.label;
     header.append(label);
 
     if (patchProposal.isApplied) {
-      const status = createElement('span', 'auxiliarybar-mode-pill is-enabled');
+      const status = createElement('span', 'agentbar-mode-pill is-enabled');
       status.textContent = this.props.labels.assistantPatchApplied;
       header.append(status);
     } else if (patchProposal.requiresCustomExecutor) {
-      const status = createElement('span', 'auxiliarybar-mode-pill is-disabled');
+      const status = createElement('span', 'agentbar-mode-pill is-disabled');
       status.textContent = this.props.labels.assistantPatchRequiresExecutor;
       header.append(status);
     }
@@ -348,14 +348,14 @@ export class AgentChatWidget {
     card.append(header);
 
     if (patchProposal.patch.summary) {
-      const summary = createElement('p', 'auxiliarybar-patch-summary');
+      const summary = createElement('p', 'agentbar-patch-summary');
       summary.textContent = patchProposal.patch.summary;
       card.append(summary);
     }
 
     const errorText = patchProposal.validationError || patchProposal.applyError;
     if (errorText) {
-      const error = createElement('p', 'auxiliarybar-patch-error');
+      const error = createElement('p', 'agentbar-patch-error');
       error.textContent = errorText;
       card.append(error);
     }
@@ -366,10 +366,10 @@ export class AgentChatWidget {
       !patchProposal.validationError &&
       !patchProposal.isApplied
     ) {
-      const footer = createElement('div', 'auxiliarybar-patch-footer');
+      const footer = createElement('div', 'agentbar-patch-footer');
       const applyButton = createElement(
         'button',
-        'auxiliarybar-patch-btn btn-base btn-secondary btn-sm',
+        'agentbar-patch-btn btn-base btn-secondary btn-sm',
       );
       applyButton.type = 'button';
       applyButton.textContent = this.props.labels.assistantPatchApply;
@@ -393,10 +393,10 @@ export class AgentChatWidget {
       label: currentOption?.label ?? 'Switch model',
       title: 'Switch model',
       mode: 'custom',
-      buttonClassName: 'auxiliarybar-model-switch-btn',
-      className: 'auxiliarybar-model-switch',
+      buttonClassName: 'agentbar-model-switch-btn',
+      className: 'agentbar-model-switch',
       disabled: this.props.llmModelOptions.length === 0,
-      menuClassName: 'auxiliarybar-model-switch-context-view',
+      menuClassName: 'agentbar-model-switch-context-view',
       overlayRole: 'dialog',
       minWidth: 280,
       content: () => this.renderModelDropdownTrigger(currentOption),
@@ -405,13 +405,13 @@ export class AgentChatWidget {
   }
 
   private renderModelDropdownTrigger(currentOption: DropdownOption | null) {
-    const trigger = createElement('span', 'auxiliarybar-model-switch-trigger');
+    const trigger = createElement('span', 'agentbar-model-switch-trigger');
     const activeIcon = currentOption?.icon
-      ? createLxIcon(currentOption.icon, 'auxiliarybar-model-switch-icon')
+      ? createLxIcon(currentOption.icon, 'agentbar-model-switch-icon')
       : null;
-    const label = createElement('span', 'auxiliarybar-model-switch-label');
+    const label = createElement('span', 'agentbar-model-switch-label');
     label.textContent = currentOption?.label ?? 'Select model';
-    const chevron = createLxIcon('chevron-down', 'auxiliarybar-model-switch-chevron');
+    const chevron = createLxIcon('chevron-down', 'agentbar-model-switch-chevron');
 
     if (activeIcon) {
       trigger.append(activeIcon);
@@ -421,7 +421,7 @@ export class AgentChatWidget {
   }
 
   private renderModelDropdownMenu(hide: () => void) {
-    const menu = createElement('div', 'auxiliarybar-model-menu');
+    const menu = createElement('div', 'agentbar-model-menu');
     menu.setAttribute('role', 'group');
     menu.append(
       this.renderModelMenuSectionLabel('Mode'),
@@ -472,13 +472,13 @@ export class AgentChatWidget {
   }
 
   private renderModelMenuSectionLabel(label: string) {
-    const element = createElement('div', 'auxiliarybar-model-menu-section-label');
+    const element = createElement('div', 'agentbar-model-menu-section-label');
     element.textContent = label;
     return element;
   }
 
   private renderModelMenuSeparator() {
-    return createElement('div', 'auxiliarybar-model-menu-separator');
+    return createElement('div', 'agentbar-model-menu-separator');
   }
 
   private createModelMenuItem(options: {
@@ -492,7 +492,7 @@ export class AgentChatWidget {
     const item = createElement(
       'button',
       [
-        'auxiliarybar-model-menu-item',
+        'agentbar-model-menu-item',
         options.checked ? 'is-selected' : '',
       ]
         .filter(Boolean)
@@ -502,23 +502,23 @@ export class AgentChatWidget {
     item.disabled = Boolean(options.disabled);
     item.setAttribute('aria-pressed', String(Boolean(options.checked)));
 
-    const content = createElement('span', 'auxiliarybar-model-menu-item-content');
+    const content = createElement('span', 'agentbar-model-menu-item-content');
     if (options.icon) {
-      content.append(createLxIcon(options.icon, 'auxiliarybar-model-menu-item-icon'));
+      content.append(createLxIcon(options.icon, 'agentbar-model-menu-item-icon'));
     }
 
-    const copy = createElement('span', 'auxiliarybar-model-menu-item-copy');
-    const label = createElement('span', 'auxiliarybar-model-menu-item-label');
+    const copy = createElement('span', 'agentbar-model-menu-item-copy');
+    const label = createElement('span', 'agentbar-model-menu-item-label');
     label.textContent = options.label;
     copy.append(label);
     if (options.description) {
-      const description = createElement('span', 'auxiliarybar-model-menu-item-description');
+      const description = createElement('span', 'agentbar-model-menu-item-description');
       description.textContent = options.description;
       copy.append(description);
     }
     content.append(copy);
 
-    const check = createElement('span', 'auxiliarybar-model-menu-item-check');
+    const check = createElement('span', 'agentbar-model-menu-item-check');
     if (options.checked) {
       check.append(createLxIcon('check'));
     }
@@ -539,13 +539,13 @@ export class AgentChatWidget {
     const composer = createElement(
       'div',
       [
-        'auxiliarybar-composer',
+        'agentbar-composer',
         this.props.messages.length === 0 ? 'is-empty-state' : '',
       ]
         .filter(Boolean)
         .join(' '),
     );
-    const textarea = createElement('textarea', 'auxiliarybar-input');
+    const textarea = createElement('textarea', 'agentbar-input');
     textarea.rows = 2;
     textarea.value = this.props.question;
     textarea.placeholder = this.props.labels.assistantQuestionPlaceholder;
@@ -564,7 +564,7 @@ export class AgentChatWidget {
       }
     });
 
-    const toolbar = createElement('div', 'auxiliarybar-composer-toolbar');
+    const toolbar = createElement('div', 'agentbar-composer-toolbar');
     const modelDropdownView = this.createModelDropdownActionViewItem();
     modelDropdownView.render(toolbar);
     this.renderDisposables.add(() => {
@@ -574,13 +574,13 @@ export class AgentChatWidget {
       ? this.props.labels.assistantSendBusy
       : this.props.labels.assistantSend;
     const actionsView = createActionBarView({
-      className: 'auxiliarybar-composer-actions',
+      className: 'agentbar-composer-actions',
       ariaRole: 'group',
       items: [
         this.createComposerActionItem(
           this.props.labels.assistantImage,
           'image-filled',
-          'auxiliarybar-composer-tool-action',
+          'agentbar-composer-tool-action',
         ),
         {
           label: sendLabel,
@@ -590,7 +590,7 @@ export class AgentChatWidget {
               ? lxIconSemanticMap.assistant.busy
               : 'voice-circle-filled',
           ),
-          buttonClassName: 'auxiliarybar-composer-send-action',
+          buttonClassName: 'agentbar-composer-send-action',
           onClick: () => this.props.onAsk(),
         },
       ],
@@ -619,7 +619,7 @@ export class AgentChatWidget {
       active: isActive,
       buttonAttributes: triggerId
         ? {
-            'data-auxiliarybar-trigger': triggerId,
+            'data-agentbar-trigger': triggerId,
           }
         : undefined,
       onClick: onClick ? () => onClick() : undefined,
@@ -629,7 +629,7 @@ export class AgentChatWidget {
   private createComposerActionItem(
     label: string,
     icon: LxIconName,
-    buttonClassName = 'auxiliarybar-composer-tool-action',
+    buttonClassName = 'agentbar-composer-tool-action',
   ): ActionBarActionItem {
     return {
       label,
@@ -645,7 +645,7 @@ export class AgentChatWidget {
       title: this.props.labels.assistantMore,
       content: createLxIcon(lxIconSemanticMap.assistant.more),
       buttonClassName: 'sidebar-action-btn',
-      menuClassName: 'auxiliarybar-context-view',
+      menuClassName: 'agentbar-context-view',
       menu: [
         {
           label: this.props.labels.assistantNewConversation,
@@ -663,12 +663,12 @@ export class AgentChatWidget {
       title: this.props.labels.assistantHistory,
       content: createLxIcon(lxIconSemanticMap.assistant.history),
       buttonClassName: 'sidebar-action-btn',
-      menuClassName: 'auxiliarybar-context-view',
+      menuClassName: 'agentbar-context-view',
       overlayRole: 'dialog',
       minWidth: 280,
       renderOverlay: ({ hide }) => {
         const popover = this.renderHistoryPopover();
-        for (const button of popover.querySelectorAll<HTMLButtonElement>('.auxiliarybar-history-item')) {
+        for (const button of popover.querySelectorAll<HTMLButtonElement>('.agentbar-history-item')) {
           button.addEventListener('click', () => hide(), { once: true });
         }
         return popover;

@@ -21,10 +21,11 @@ function createDefaultTree() {
     orientation: Orientation.VERTICAL,
     isFetchSidebarVisible: true,
     isPrimarySidebarVisible: true,
-    isAuxiliarySidebarVisible: true,
+    isEditorVisible: true,
+    isAgentSidebarVisible: true,
     fetchSidebarSize: 280,
     primarySidebarSize: 320,
-    auxiliarySidebarSize: 260,
+    agentSidebarSize: 260,
     editorSize: 640,
   });
 }
@@ -34,14 +35,14 @@ test('workbench content layout tree creates the current shell topology', () => {
 
   assert.equal(tree.type, 'branch');
   assert.equal(tree.orientation, Orientation.VERTICAL);
-  assert.equal(tree.size, 1530);
+  assert.equal(tree.size, 1500);
   assert.equal(tree.children.length, 4);
   assert.equal(tree.children[0]?.type, 'leaf');
   assert.equal(tree.children[1]?.type, 'leaf');
   assert.equal(tree.children[2]?.type, 'leaf');
   assert.equal(tree.children[3]?.type, 'leaf');
   assert.deepEqual(findLeafPath(tree, 'primarySidebar'), [0]);
-  assert.deepEqual(findLeafPath(tree, 'auxiliarySidebar'), [1]);
+  assert.deepEqual(findLeafPath(tree, 'agentSidebar'), [1]);
   assert.deepEqual(findLeafPath(tree, 'editor'), [2]);
   assert.deepEqual(findLeafPath(tree, 'fetchSidebar'), [3]);
 });
@@ -69,7 +70,7 @@ test('workbench content layout tree clone and serialize do not mutate the source
 });
 
 test('workbench content layout tree can split a leaf into a new branch', () => {
-  const tree = removeLeaf(createDefaultTree(), 'auxiliarySidebar');
+  const tree = removeLeaf(createDefaultTree(), 'agentSidebar');
   assert(tree);
 
   const splitTree = splitLeaf(tree, {
@@ -79,7 +80,7 @@ test('workbench content layout tree can split a leaf into a new branch', () => {
     targetSize: 420,
     newLeaf: {
       type: 'leaf',
-      id: 'auxiliarySidebar',
+      id: 'agentSidebar',
       size: 220,
       visible: true,
     },
@@ -94,7 +95,7 @@ test('workbench content layout tree can split a leaf into a new branch', () => {
   assert.equal(splitTree.children[1].children.length, 2);
   assert.equal(splitTree.children[1].children[0]?.type, 'leaf');
   assert.equal(splitTree.children[1].children[1]?.type, 'leaf');
-  assert.equal(splitTree.children[1].children[0].id, 'auxiliarySidebar');
+  assert.equal(splitTree.children[1].children[0].id, 'agentSidebar');
   assert.equal(splitTree.children[1].children[0].size, 220);
   assert.equal(splitTree.children[1].children[1].id, 'editor');
   assert.equal(splitTree.children[1].children[1].size, 420);
@@ -118,10 +119,11 @@ test('workbench content layout tree removes leaves and collapses redundant branc
       orientation: Orientation.VERTICAL,
       isFetchSidebarVisible: false,
       isPrimarySidebarVisible: false,
-      isAuxiliarySidebarVisible: false,
+      isEditorVisible: true,
+      isAgentSidebarVisible: false,
       fetchSidebarSize: 0,
       primarySidebarSize: 0,
-      auxiliarySidebarSize: 0,
+      agentSidebarSize: 0,
       editorSize: 640,
     }),
     'fetchSidebar',
@@ -129,7 +131,7 @@ test('workbench content layout tree removes leaves and collapses redundant branc
   assert(treeWithoutFetch);
   const treeWithoutPrimary = removeLeaf(treeWithoutFetch, 'primarySidebar');
   assert(treeWithoutPrimary);
-  const onlyEditor = removeLeaf(treeWithoutPrimary, 'auxiliarySidebar');
+  const onlyEditor = removeLeaf(treeWithoutPrimary, 'agentSidebar');
 
   assert(onlyEditor);
   assert.equal(onlyEditor.type, 'leaf');
@@ -139,7 +141,7 @@ test('workbench content layout tree removes leaves and collapses redundant branc
 test('workbench content layout tree updates leaf data immutably', () => {
   const tree = createDefaultTree();
   assert.equal(tree.type, 'branch');
-  const updatedTree = updateLeaf(tree, 'auxiliarySidebar', {
+  const updatedTree = updateLeaf(tree, 'agentSidebar', {
     size: 300,
     visible: false,
     flex: true,
@@ -167,7 +169,7 @@ test('workbench content layout tree can read and update the root branch by path'
 
   assert(rootBranch);
   assert.equal(rootBranch.type, 'branch');
-  assert.equal(rootBranch.size, 1530);
+  assert.equal(rootBranch.size, 1500);
 
   const updatedTree = updateNodeAtPath(tree, [], (node) => {
     assert.equal(node.type, 'branch');
@@ -185,11 +187,11 @@ test('workbench content layout tree can read and update the root branch by path'
   const originalRootBranch = getNodeAtPath(tree, []);
   assert(originalRootBranch);
   assert.equal(originalRootBranch.type, 'branch');
-  assert.equal(originalRootBranch.size, 1530);
+  assert.equal(originalRootBranch.size, 1500);
 });
 
 test('workbench content layout tree can insert a sibling leaf next to editor without wrapping a new branch', () => {
-  const tree = removeLeaf(createDefaultTree(), 'auxiliarySidebar');
+  const tree = removeLeaf(createDefaultTree(), 'agentSidebar');
   assert(tree);
 
   const nextTree = insertLeaf(
@@ -197,7 +199,7 @@ test('workbench content layout tree can insert a sibling leaf next to editor wit
     'editor',
     {
       type: 'leaf',
-      id: 'auxiliarySidebar',
+      id: 'agentSidebar',
       size: 280,
       visible: true,
     },
@@ -206,7 +208,7 @@ test('workbench content layout tree can insert a sibling leaf next to editor wit
 
   assert.equal(nextTree.type, 'branch');
   assert.deepEqual(findLeafPath(nextTree, 'editor'), [1]);
-  assert.deepEqual(findLeafPath(nextTree, 'auxiliarySidebar'), [2]);
+  assert.deepEqual(findLeafPath(nextTree, 'agentSidebar'), [2]);
 });
 
 test('workbench content layout tree reconcile keeps four top-level panes and updates visibility', () => {
@@ -215,17 +217,18 @@ test('workbench content layout tree reconcile keeps four top-level panes and upd
     orientation: Orientation.VERTICAL,
     isFetchSidebarVisible: false,
     isPrimarySidebarVisible: true,
-    isAuxiliarySidebarVisible: false,
+    isEditorVisible: true,
+    isAgentSidebarVisible: false,
     fetchSidebarSize: 280,
     primarySidebarSize: 320,
-    auxiliarySidebarSize: 260,
+    agentSidebarSize: 260,
     editorSize: 640,
   });
 
   assert.equal(hiddenTree.type, 'branch');
   assert.equal(hiddenTree.children.length, 4);
   assert.deepEqual(findLeafPath(hiddenTree, 'primarySidebar'), [0]);
-  assert.deepEqual(findLeafPath(hiddenTree, 'auxiliarySidebar'), [1]);
+  assert.deepEqual(findLeafPath(hiddenTree, 'agentSidebar'), [1]);
   assert.deepEqual(findLeafPath(hiddenTree, 'editor'), [2]);
   assert.deepEqual(findLeafPath(hiddenTree, 'fetchSidebar'), [3]);
   assert.equal(hiddenTree.children[0]?.type, 'leaf');
@@ -240,15 +243,16 @@ test('workbench content layout tree reconcile keeps four top-level panes and upd
     orientation: Orientation.HORIZONTAL,
     isFetchSidebarVisible: true,
     isPrimarySidebarVisible: true,
-    isAuxiliarySidebarVisible: true,
+    isEditorVisible: true,
+    isAgentSidebarVisible: true,
     fetchSidebarSize: 300,
     primarySidebarSize: 340,
-    auxiliarySidebarSize: 280,
+    agentSidebarSize: 280,
     editorSize: 700,
   });
 
   assert.deepEqual(findLeafPath(restoredTree, 'primarySidebar'), [0]);
-  assert.deepEqual(findLeafPath(restoredTree, 'auxiliarySidebar'), [1]);
+  assert.deepEqual(findLeafPath(restoredTree, 'agentSidebar'), [1]);
   assert.deepEqual(findLeafPath(restoredTree, 'editor'), [2]);
   assert.deepEqual(findLeafPath(restoredTree, 'fetchSidebar'), [3]);
   assert.equal(restoredTree.type, 'branch');

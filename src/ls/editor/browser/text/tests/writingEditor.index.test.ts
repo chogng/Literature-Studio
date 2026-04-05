@@ -15,7 +15,7 @@ import 'ls/editor/browser/text/tests/editorDom.test';
 import 'ls/editor/browser/text/tests/sync.test';
 import 'ls/workbench/browser/tests/articleDetailsModalWindow.test';
 import 'ls/workbench/browser/tests/assistantModel.test';
-import 'ls/workbench/browser/tests/auxiliarybar.test';
+import 'ls/workbench/browser/tests/agentbar.test';
 import 'ls/workbench/browser/tests/gridview.test';
 import 'ls/workbench/browser/tests/modelSubscriptions.test';
 import 'ls/workbench/browser/tests/workbenchContentLayoutTree.test';

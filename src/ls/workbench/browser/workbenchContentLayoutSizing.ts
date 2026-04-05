@@ -10,7 +10,7 @@ export type WorkbenchContentSplitConstraints = {
   fetchSidebar: SplitViewConstraints;
   primarySidebar: SplitViewConstraints;
   editor: SplitViewConstraints;
-  auxiliarySidebar: SplitViewConstraints;
+  agentSidebar: SplitViewConstraints;
 };
 
 const MOBILE_SPLITVIEW_LIMITS = {
@@ -26,7 +26,7 @@ const MOBILE_SPLITVIEW_LIMITS = {
     minimum: 180,
     maximum: Number.POSITIVE_INFINITY,
   },
-  auxiliarySidebar: {
+  agentSidebar: {
     minimum: 160,
     maximum: Number.POSITIVE_INFINITY,
   },
@@ -65,13 +65,13 @@ export function getWorkbenchContentSplitConstraints(
         : desktop.editor.minimum,
       maximum: desktop.editor.maximum,
     },
-    auxiliarySidebar: {
+    agentSidebar: {
       minimum: isHorizontal
-        ? MOBILE_SPLITVIEW_LIMITS.auxiliarySidebar.minimum
-        : desktop.auxiliarySidebar.minimum,
+        ? MOBILE_SPLITVIEW_LIMITS.agentSidebar.minimum
+        : desktop.agentSidebar.minimum,
       maximum: isHorizontal
-        ? MOBILE_SPLITVIEW_LIMITS.auxiliarySidebar.maximum
-        : desktop.auxiliarySidebar.maximum,
+        ? MOBILE_SPLITVIEW_LIMITS.agentSidebar.maximum
+        : desktop.agentSidebar.maximum,
     },
   };
 }

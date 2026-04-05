@@ -26,7 +26,7 @@ import {
   requestTitlebarNavigateWeb,
   requestToggleTitlebarFetchSidebar,
   requestToggleTitlebarPrimarySidebar,
-  requestToggleTitlebarAuxiliarySidebar,
+  requestToggleTitlebarAgentSidebar,
   requestToggleTitlebarSettings,
   subscribeTitlebarUiActions,
 } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
@@ -68,9 +68,9 @@ export type TitlebarProps = {
   isPrimarySidebarOpen?: boolean;
   primarySidebarToggleLabel?: string;
   onTogglePrimarySidebar?: () => void;
-  isAuxiliarySidebarOpen?: boolean;
-  auxiliarySidebarToggleLabel?: string;
-  onToggleAuxiliarySidebar?: () => void;
+  isAgentSidebarOpen?: boolean;
+  agentSidebarToggleLabel?: string;
+  onToggleAgentSidebar?: () => void;
   onToggleSettings?: () => void;
   browserUrl?: string;
   canGoBack?: boolean;
@@ -325,7 +325,7 @@ export class TitlebarView {
       selectedAddressBarSourceId: this.props.selectedAddressBarSourceId ?? '',
       isFetchSidebarOpen: this.props.isFetchSidebarOpen ?? true,
       isPrimarySidebarOpen: this.props.isPrimarySidebarOpen ?? false,
-      isAuxiliarySidebarOpen: this.props.isAuxiliarySidebarOpen ?? false,
+      isAgentSidebarOpen: this.props.isAgentSidebarOpen ?? false,
       onWindowControl: this.props.onWindowControl,
     };
 
@@ -537,14 +537,14 @@ export class TitlebarView {
       });
     }
 
-    if (props.onToggleAuxiliarySidebar && props.auxiliarySidebarToggleLabel) {
+    if (props.onToggleAgentSidebar && props.agentSidebarToggleLabel) {
       actionItems.push({
-        className: 'titlebar-btn-auxiliary',
-        label: props.auxiliarySidebarToggleLabel,
-        icon: props.isAuxiliarySidebarOpen
-          ? lxIconSemanticMap.titlebar.auxiliaryOpen
-          : lxIconSemanticMap.titlebar.auxiliaryClosed,
-        onClick: requestToggleTitlebarAuxiliarySidebar,
+        className: 'titlebar-btn-agent',
+        label: props.agentSidebarToggleLabel,
+        icon: props.isAgentSidebarOpen
+          ? lxIconSemanticMap.titlebar.agentSidebarOpen
+          : lxIconSemanticMap.titlebar.agentSidebarClosed,
+        onClick: requestToggleTitlebarAgentSidebar,
       });
     }
 

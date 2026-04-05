@@ -102,20 +102,13 @@ button:disabled {
   color: var(--vscode-workbench-panelTitleForeground, #203040);
 }
 
-/* The topbar is split across the three top segments of
-   primarybar, editor, and auxiliarybar rather than rendered as one strip. */
+/* Shared topbar sizing for the side segments around the editor area. */
 .topbar-segment {
   flex: 0 0 36px;
   height: 36px;
   min-height: 36px;
   -webkit-app-region: drag;
   user-select: none;
-}
-
-.topbar-segment-primary,
-.topbar-segment-editor,
-.topbar-segment-auxiliary {
-  min-width: 0;
 }
 
 .workbench-content-layout {

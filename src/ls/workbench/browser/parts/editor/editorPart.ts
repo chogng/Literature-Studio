@@ -100,6 +100,8 @@ export function createEditorPartProps({
       sourceMode: ui.editorSourceMode,
       pdfMode: ui.editorPdfMode,
       close: ui.toastClose,
+      expandEditor: ui.editorExpand,
+      collapseEditor: ui.editorCollapse,
       emptyWorkspaceTitle: ui.editorEmptyWorkspaceTitle,
       emptyWorkspaceBody: ui.editorEmptyWorkspaceBody,
       draftBodyPlaceholder: ui.editorDraftBodyPlaceholder,

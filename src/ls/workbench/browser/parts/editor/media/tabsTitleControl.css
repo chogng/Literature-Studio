@@ -4,11 +4,13 @@
   --editor-tab-max-width: 260px;
 }
 
-.editor-tabs-header {
+.editor-topbar {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
   height: var(--editor-tabs-strip-height);
   box-sizing: border-box;
@@ -18,8 +20,25 @@
   -webkit-app-region: drag;
 }
 
-.editor-tabs-header.has-tabs {
+.editor-topbar-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
   -webkit-app-region: no-drag;
+}
+
+.editor-topbar-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-right: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.editor-topbar-actions .sidebar-topbar-actions {
+  margin-left: 0;
 }
 
 .editor-tabs-container {
@@ -203,8 +222,11 @@
 }
 
 @media (max-width: 760px) {
-  .editor-tabs-header {
+  .editor-topbar {
     padding-left: 10px;
+  }
+
+  .editor-topbar-actions {
     padding-right: 10px;
   }
 

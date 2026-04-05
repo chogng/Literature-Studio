@@ -20,6 +20,8 @@ export type EditorPartLabels = {
   sourceMode: string;
   pdfMode: string;
   close: string;
+  expandEditor: string;
+  collapseEditor: string;
   emptyWorkspaceTitle: string;
   emptyWorkspaceBody: string;
   draftBodyPlaceholder: string;
@@ -39,6 +41,7 @@ export type EditorPartProps = {
   onCreateDraftTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  topbarActionsElement?: HTMLElement | null;
   onStatusChange?: (status: EditorStatusState) => void;
 };
 
