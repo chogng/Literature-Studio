@@ -332,8 +332,8 @@ export class WorkbenchContentView {
         buttonClassName: 'editor-topbar-toggle-editor-btn',
         content: createLxIcon(
           this.isEditorCollapsed
-            ? 'layout-sidebar-right'
-            : 'layout-sidebar-right-off',
+            ? 'layout-sidebar-right-off'
+            : 'layout-sidebar-right',
         ),
         onClick: this.handleToggleEditorCollapse,
       }],

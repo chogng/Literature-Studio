@@ -153,6 +153,7 @@ import chevronDownSvg from 'ls/base/browser/ui/lxicon/svg/chevron-down.svg?raw';
 import calendarSvg from 'ls/base/browser/ui/lxicon/svg/calendar.svg?raw';
 import checklistSvg from 'ls/base/browser/ui/lxicon/svg/checklist.svg?raw';
 import checkSvg from 'ls/base/browser/ui/lxicon/svg/check.svg?raw';
+import broswer1Svg from 'ls/base/browser/ui/lxicon/svg/broswer-1.svg?raw';
 import broswerSvg from 'ls/base/browser/ui/lxicon/svg/broswer.svg?raw';
 import brainSvg from 'ls/base/browser/ui/lxicon/svg/brain.svg?raw';
 import bracketSvg from 'ls/base/browser/ui/lxicon/svg/bracket.svg?raw';
@@ -330,6 +331,7 @@ export type LxIconName =
   | 'calendar'
   | 'checklist'
   | 'check'
+  | 'broswer-1'
   | 'broswer'
   | 'brain'
   | 'bracket'
@@ -507,6 +509,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'calendar': calendarSvg,
   'checklist': checklistSvg,
   'check': checkSvg,
+  'broswer-1': broswer1Svg,
   'broswer': broswerSvg,
   'brain': brainSvg,
   'bracket': bracketSvg,
