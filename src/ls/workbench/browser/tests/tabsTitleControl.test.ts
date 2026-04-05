@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
 
+import { createEmptyWritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 import type {
   EditorGroupModel,
   EditorGroupTabItem,
 } from 'ls/workbench/browser/parts/editor/editorGroupModel';
+import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let TabsTitleControl: typeof import('ls/workbench/browser/parts/editor/tabsTitleControl').TabsTitleControl;
+let createEditorGroupModel: typeof import('ls/workbench/browser/parts/editor/editorGroupModel').createEditorGroupModel;
 
 function waitForAnimationFrame() {
   return new Promise<void>((resolve) => {
@@ -33,6 +36,7 @@ function createTabItem(
   tab: Pick<EditorGroupTabItem, 'id' | 'kind' | 'label' | 'title'> & {
     isActive?: boolean;
     hasLocalHistory?: boolean;
+    targetTabId?: string | null;
   },
 ): EditorGroupTabItem {
   return {
@@ -40,9 +44,13 @@ function createTabItem(
     kind: tab.kind,
     label: tab.label,
     title: tab.title,
+    targetTabId:
+      Object.prototype.hasOwnProperty.call(tab, 'targetTabId')
+        ? tab.targetTabId ?? null
+        : tab.id,
     state: {
       isActive: Boolean(tab.isActive),
-      isClosable: true,
+      isClosable: false,
       hasLocalHistory: Boolean(tab.hasLocalHistory),
       canUndo: Boolean(tab.hasLocalHistory),
       canRedo: false,
@@ -107,6 +115,7 @@ before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ TabsTitleControl } = await import('ls/workbench/browser/parts/editor/tabsTitleControl'));
+  ({ createEditorGroupModel } = await import('ls/workbench/browser/parts/editor/editorGroupModel'));
 });
 
 after(() => {
@@ -114,9 +123,14 @@ after(() => {
   cleanupDomEnvironment = null;
 });
 
+const editorLabels = {
+  draftMode: 'Draft',
+  sourceMode: 'Browser',
+  pdfMode: 'PDF',
+} as EditorPartLabels;
+
 test('TabsTitleControl reuses tab nodes across prop updates', () => {
   const activatedTabIds: string[] = [];
-  const closedTabIds: string[] = [];
   const control = new TabsTitleControl({
     group: createGroupModel('draft-a', [
       createTabItem({
@@ -127,8 +141,8 @@ test('TabsTitleControl reuses tab nodes across prop updates', () => {
         isActive: true,
       }),
       createTabItem({
-        id: 'web-b',
-        kind: 'web',
+        id: 'browser-b',
+        kind: 'browser',
         label: 'Web B',
         title: 'Web B',
       }),
@@ -139,21 +153,20 @@ test('TabsTitleControl reuses tab nodes across prop updates', () => {
     onActivateTab: (tabId) => {
       activatedTabIds.push(tabId);
     },
-    onCloseTab: (tabId) => {
-      closedTabIds.push(tabId);
-    },
+    onCloseTab: () => {},
+    onOpenKind: () => {},
   });
   const container = control.getElement();
   document.body.append(container);
 
   const draftTab = container.children[0];
-  const webTab = container.children[1];
+  const browserTab = container.children[1];
 
   control.setProps({
-    group: createGroupModel('web-b', [
+    group: createGroupModel('browser-b', [
       createTabItem({
-        id: 'web-b',
-        kind: 'web',
+        id: 'browser-b',
+        kind: 'browser',
         label: 'Web B Updated',
         title: 'Web B Updated',
         isActive: true,
@@ -171,31 +184,125 @@ test('TabsTitleControl reuses tab nodes across prop updates', () => {
     onActivateTab: (tabId) => {
       activatedTabIds.push(tabId);
     },
-    onCloseTab: (tabId) => {
-      closedTabIds.push(tabId);
-    },
+    onCloseTab: () => {},
+    onOpenKind: () => {},
   });
 
   assert.equal(container.children.length, 2);
-  assert.equal(container.children[0], webTab);
+  assert.equal(container.children[0], browserTab);
   assert.equal(container.children[1].querySelector('.editor-tab-label-text')?.textContent, 'PDF C');
   assert.equal(draftTab.isConnected, false);
 
-  const updatedMainButton = webTab.querySelector('.editor-tab-main');
-  const updatedCloseButton = webTab.querySelector('.editor-tab-close');
+  const updatedMainButton = browserTab.querySelector('.editor-tab-main');
   assert(updatedMainButton instanceof HTMLButtonElement);
-  assert(updatedCloseButton instanceof HTMLButtonElement);
   assert.equal(updatedMainButton.title, 'Web B Updated');
   assert.equal(updatedMainButton.getAttribute('aria-selected'), 'true');
   assert.equal(updatedMainButton.getAttribute('aria-posinset'), '1');
   assert.equal(updatedMainButton.getAttribute('aria-setsize'), '2');
-  assert.equal(updatedCloseButton.getAttribute('aria-label'), 'Remove');
 
   updatedMainButton.click();
-  updatedCloseButton.click();
 
-  assert.deepEqual(activatedTabIds, ['web-b']);
-  assert.deepEqual(closedTabIds, ['web-b']);
+  assert.deepEqual(activatedTabIds, ['browser-b']);
+
+  control.dispose();
+});
+
+test('createEditorGroupModel always returns three fixed tabs and prefers the active tab for each kind', () => {
+  const model = createEditorGroupModel({
+    tabs: [
+      {
+        id: 'draft-a',
+        kind: 'draft',
+        title: 'Draft A',
+        document: createEmptyWritingEditorDocument(),
+        viewMode: 'draft',
+      },
+      {
+        id: 'draft-b',
+        kind: 'draft',
+        title: 'Draft B',
+        document: createEmptyWritingEditorDocument(),
+        viewMode: 'draft',
+      },
+      {
+        id: 'browser-a',
+        kind: 'browser',
+        title: 'Example A',
+        url: 'https://a.test',
+      },
+      {
+        id: 'pdf-a',
+        kind: 'pdf',
+        title: 'Paper A',
+        url: 'https://a.test/paper.pdf',
+      },
+    ],
+    activeTabId: 'draft-a',
+    activeTab: {
+      id: 'draft-a',
+      kind: 'draft',
+      title: 'Draft A',
+      document: createEmptyWritingEditorDocument(),
+      viewMode: 'draft',
+    },
+    labels: editorLabels,
+    draftStatusByTabId: {},
+  });
+
+  assert.deepEqual(
+    model.tabs.map((tab) => tab.kind),
+    ['draft', 'browser', 'pdf'],
+  );
+  assert.equal(model.tabs[0]?.targetTabId, 'draft-a');
+  assert.equal(model.tabs[0]?.label, 'Draft A');
+  assert.equal(model.tabs[1]?.targetTabId, 'browser-a');
+  assert.equal(model.tabs[2]?.targetTabId, 'pdf-a');
+});
+
+test('TabsTitleControl opens a kind when its fixed tab has no target tab yet', () => {
+  const openedKinds: string[] = [];
+  const control = new TabsTitleControl({
+    group: createGroupModel(null, [
+      createTabItem({
+        id: 'draft-entry',
+        kind: 'draft',
+        label: '',
+        title: 'Draft',
+        targetTabId: null,
+      }),
+      createTabItem({
+        id: 'browser-entry',
+        kind: 'browser',
+        label: '',
+        title: 'Browser',
+        targetTabId: null,
+      }),
+      createTabItem({
+        id: 'pdf-entry',
+        kind: 'pdf',
+        label: '',
+        title: 'PDF',
+        targetTabId: null,
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenKind: (kind) => {
+      openedKinds.push(kind);
+    },
+  });
+  const container = control.getElement();
+  document.body.append(container);
+
+  const browserButton = container.children[1]?.querySelector('.editor-tab-main');
+  assert(browserButton instanceof HTMLButtonElement);
+
+  browserButton.click();
+
+  assert.deepEqual(openedKinds, ['browser']);
 
   control.dispose();
 });
@@ -211,8 +318,8 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
         isActive: true,
       }),
       createTabItem({
-        id: 'web-b',
-        kind: 'web',
+        id: 'browser-b',
+        kind: 'browser',
         label: 'Web B',
         title: 'Web B',
       }),
@@ -228,6 +335,7 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
     },
     onActivateTab: () => {},
     onCloseTab: () => {},
+    onOpenKind: () => {},
   });
   const container = control.getElement();
   document.body.append(container);
@@ -274,8 +382,8 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
         title: 'Draft A',
       }),
       createTabItem({
-        id: 'web-b',
-        kind: 'web',
+        id: 'browser-b',
+        kind: 'browser',
         label: 'Web B',
         title: 'Web B',
         hasLocalHistory: true,
@@ -293,6 +401,7 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
     },
     onActivateTab: () => {},
     onCloseTab: () => {},
+    onOpenKind: () => {},
   });
 
   await waitForAnimationFrame();
@@ -324,6 +433,7 @@ test('TabsTitleControl disconnects resize observers on dispose', () => {
       },
       onActivateTab: () => {},
       onCloseTab: () => {},
+      onOpenKind: () => {},
     });
     document.body.append(control.getElement());
 

@@ -32,6 +32,7 @@
 }
 
 .editor-content.is-mode-web,
+.editor-content.is-mode-browser,
 .editor-content.is-mode-pdf {
   grid-template-columns: minmax(0, 1fr);
 }

@@ -498,7 +498,7 @@ test('statusbarModel subscriptions stop after disposal', () => {
 
   setStatusbarState({
     ariaLabel: 'Status',
-    kind: 'web',
+    kind: 'browser',
     modeLabel: 'Source',
     summary: 'Ready',
     leftItems: [],

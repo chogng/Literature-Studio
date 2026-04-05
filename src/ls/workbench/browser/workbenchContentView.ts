@@ -244,6 +244,8 @@ export class WorkbenchContentView {
     className: 'editor-browser-toolbar-actions',
     ariaRole: 'group',
   });
+  private readonly editorPdfToolbarElement = createElement('div', 'editor-pdf-toolbar');
+  private readonly editorPdfToolbarLabel = createElement('span', 'editor-pdf-toolbar-label');
   private readonly editorToolbarAddressInput = new InputBox(
     this.editorToolbarAddressHost,
     undefined,
@@ -279,6 +281,7 @@ export class WorkbenchContentView {
       this.editorToolbarAddressHost,
       this.editorToolbarTrailingHost,
     );
+    this.editorPdfToolbarElement.append(this.editorPdfToolbarLabel);
     this.element.append(this.mainElement);
     this.installResizeObserver();
     this.render();
@@ -392,7 +395,7 @@ export class WorkbenchContentView {
             {
               label: this.props.editorPartProps.labels.createBrowser,
               icon: 'link-external',
-              onClick: () => this.props.editorPartProps.onCreateWebTab(),
+              onClick: () => this.props.editorPartProps.onCreateBrowserTab(),
             },
             {
               label: this.props.editorPartProps.labels.createFile,
@@ -463,7 +466,7 @@ export class WorkbenchContentView {
           title: this.props.editorPartProps.labels.toolbarFavorite,
           mode: 'icon',
           buttonClassName: 'editor-browser-toolbar-btn',
-          content: createLxIcon('start'),
+          content: createLxIcon('favorite'),
           disabled: !this.props.editorPartProps.viewPartProps.browserUrl,
         },
       ],
@@ -493,6 +496,7 @@ export class WorkbenchContentView {
     this.editorToolbarAddressInput.setPlaceHolder(
       'Journal listing / latest article page URL',
     );
+    this.editorPdfToolbarLabel.textContent = `${this.props.editorPartProps.labels.pdfTitle} toolbar coming soon`;
   }
 
   private shouldMountPrimarySidebarActionsInAgentBar() {
@@ -531,6 +535,7 @@ export class WorkbenchContentView {
   }
 
   private renderEditor() {
+    const editorTopbarToolbarElement = this.getEditorTopbarToolbarElement();
     if (!this.editorView) {
       this.editorView = createEditorPartView({
         ...this.props.editorPartProps,
@@ -539,7 +544,7 @@ export class WorkbenchContentView {
           : this.editorTopbarActionsView.getElement(),
         topbarToolbarElement: this.isEditorCollapsed
           ? null
-          : this.editorToolbarElement,
+          : editorTopbarToolbarElement,
         onStatusChange: this.handleEditorStatusChange,
       });
     } else {
@@ -550,13 +555,27 @@ export class WorkbenchContentView {
           : this.editorTopbarActionsView.getElement(),
         topbarToolbarElement: this.isEditorCollapsed
           ? null
-          : this.editorToolbarElement,
+          : editorTopbarToolbarElement,
         onStatusChange: this.handleEditorStatusChange,
       });
     }
 
     this.editorSlot.setContent(this.editorView.getElement());
     this.syncStatusbarCommandHandlers();
+  }
+
+  private getEditorTopbarToolbarElement() {
+    const activeKind = this.props.editorPartProps.activeTab?.kind ?? null;
+
+    if (activeKind === 'browser') {
+      return this.editorToolbarElement;
+    }
+
+    if (activeKind === 'pdf') {
+      return this.editorPdfToolbarElement;
+    }
+
+    return null;
   }
 
   private renderAgentBar() {

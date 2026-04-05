@@ -3,6 +3,7 @@ import type { EditorGroupModel } from 'ls/workbench/browser/parts/editor/editorG
 export type TitleControlCallbacks = {
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onOpenKind: (kind: EditorGroupModel['tabs'][number]['kind']) => void;
 };
 
 export type TitleControlLabels = {

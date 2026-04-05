@@ -16,9 +16,9 @@ export type WritingWorkspaceDraftTab = {
   viewMode: WritingEditorViewMode;
 };
 
-export type WritingWorkspaceWebTab = {
+export type WritingWorkspaceBrowserTab = {
   id: string;
-  kind: 'web';
+  kind: 'browser';
   title: string;
   url: string;
 };
@@ -33,7 +33,7 @@ export type WritingWorkspacePdfTab = {
 // Content tabs only store editor input metadata. The active content tab temporarily owns one shared
 // web-content surface instead of spawning a dedicated browser/view instance per tab.
 export type WritingWorkspaceContentTab =
-  | WritingWorkspaceWebTab
+  | WritingWorkspaceBrowserTab
   | WritingWorkspacePdfTab;
 
 export type WritingWorkspaceTab =
@@ -57,7 +57,7 @@ type WritingEditorModelListener = () => void;
 
 const DEFAULT_VIEW_MODE: WritingEditorViewMode = 'draft';
 
-function createWorkspaceTabId(prefix: 'draft' | 'web' | 'pdf') {
+function createWorkspaceTabId(prefix: 'draft' | 'browser' | 'pdf') {
   const randomPart = Math.random().toString(36).slice(2, 8);
   return `ls-${prefix}-tab-${Date.now().toString(36)}-${randomPart}`;
 }
@@ -112,11 +112,11 @@ function createContentTab<K extends WritingWorkspaceContentTab['kind']>(
   } as Extract<WritingWorkspaceContentTab, { kind: K }>;
 }
 
-function createWebTab(
+function createBrowserTab(
   url: string,
-  initial?: Partial<Pick<WritingWorkspaceWebTab, 'id' | 'title'>>,
-): WritingWorkspaceWebTab {
-  return createContentTab('web', url, initial);
+  initial?: Partial<Pick<WritingWorkspaceBrowserTab, 'id' | 'title'>>,
+): WritingWorkspaceBrowserTab {
+  return createContentTab('browser', url, initial);
 }
 
 function createPdfTab(
@@ -128,6 +128,8 @@ function createPdfTab(
 
 function normalizeWorkspaceTab(value: unknown): WritingWorkspaceTab | null {
   const candidate = value as Partial<WritingWorkspaceTab> | null | undefined;
+  const rawCandidate = value as { kind?: unknown; url?: unknown } | null | undefined;
+  const legacyKind = rawCandidate?.kind;
   if (!candidate || typeof candidate !== 'object' || typeof candidate.id !== 'string') {
     return null;
   }
@@ -141,8 +143,11 @@ function normalizeWorkspaceTab(value: unknown): WritingWorkspaceTab | null {
     });
   }
 
-  if (candidate.kind === 'web' && typeof candidate.url === 'string') {
-    return createWebTab(candidate.url, {
+  if (
+    (candidate.kind === 'browser' || legacyKind === 'web') &&
+    typeof rawCandidate?.url === 'string'
+  ) {
+    return createBrowserTab(rawCandidate.url, {
       id: candidate.id,
       title: typeof candidate.title === 'string' ? candidate.title : '',
     });
@@ -329,7 +334,7 @@ export class WritingEditorModel {
     }));
   };
 
-  readonly createWebTab = (url: string) => {
+  readonly createBrowserTab = (url: string) => {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       return;
@@ -339,7 +344,7 @@ export class WritingEditorModel {
       // Mirror upstream open-editor behavior: the same web content resource re-activates its tab
       // instead of creating duplicate entries in the strip.
       const existingTab = state.tabs.find(
-        (tab) => tab.kind === 'web' && tab.url === normalizedUrl,
+        (tab) => tab.kind === 'browser' && tab.url === normalizedUrl,
       );
       if (existingTab) {
         return {
@@ -349,7 +354,7 @@ export class WritingEditorModel {
         };
       }
 
-      const nextTab = createWebTab(normalizedUrl);
+      const nextTab = createBrowserTab(normalizedUrl);
       return {
         tabs: [...state.tabs, nextTab],
         activeTabId: nextTab.id,

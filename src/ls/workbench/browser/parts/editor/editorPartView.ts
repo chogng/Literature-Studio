@@ -36,8 +36,6 @@ export type EditorPartLabels = {
   emptyWorkspaceTitle: string;
   emptyWorkspaceBody: string;
   draftBodyPlaceholder: string;
-  sourceTitle: string;
-  sourceUrlPrompt: string;
   pdfTitle: string;
   status: EditorStatusLabels;
 } & WritingEditorSurfaceLabels;
@@ -51,7 +49,7 @@ export type EditorPartProps = {
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
-  onCreateWebTab: () => void;
+  onCreateBrowserTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   topbarActionsElement?: HTMLElement | null;

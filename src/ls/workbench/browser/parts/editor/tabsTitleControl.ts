@@ -3,7 +3,6 @@ import {
   type HoverHandle,
 } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import {
   LifecycleStore,
   MutableLifecycle,
@@ -17,10 +16,8 @@ type TabView = {
   element: HTMLDivElement;
   mainButton: HTMLButtonElement;
   mainHover: HoverHandle;
-  kindLabel: HTMLSpanElement;
+  kindIcon: HTMLSpanElement;
   labelText: HTMLSpanElement;
-  closeButton: HTMLButtonElement;
-  closeHover: HoverHandle;
   dispose: () => void;
 };
 
@@ -47,16 +44,16 @@ function addDisposableListener(
   });
 }
 
-function getTabKindLabel(kind: 'draft' | 'web' | 'pdf') {
+function getTabKindIconName(kind: 'draft' | 'browser' | 'pdf') {
   if (kind === 'draft') {
-    return 'D';
+    return 'write';
   }
 
   if (kind === 'pdf') {
-    return 'P';
+    return 'pdf';
   }
 
-  return 'W';
+  return 'broswer-1';
 }
 
 export class TabsTitleControl extends TitleControl {
@@ -151,33 +148,21 @@ export class TabsTitleControl extends TitleControl {
     mainButton.setAttribute('role', 'tab');
 
     const label = createElement('span', 'editor-tab-label');
-    const kindLabel = createElement('span', 'editor-tab-kind');
+    const kindIcon = createElement('span', 'editor-tab-kind');
     const labelText = createElement('span', 'editor-tab-label-text');
-    label.append(kindLabel, labelText);
+    label.append(kindIcon, labelText);
     mainButton.append(label);
     const mainHover = this.hoverService.createHover(mainButton, null);
-
-    const closeButton = createElement(
-      'button',
-      'editor-tab-close btn-base btn-ghost btn-mode-icon btn-sm',
-    );
-    closeButton.type = 'button';
-    closeButton.append(createLxIcon(lxIconSemanticMap.editor.closeTab));
-    const closeHover = this.hoverService.createHover(closeButton, this.props.labels.close);
-
-    tabElement.append(mainButton, closeButton);
+    tabElement.append(mainButton);
 
     return {
       element: tabElement,
       mainButton,
       mainHover,
-      kindLabel,
+      kindIcon,
       labelText,
-      closeButton,
-      closeHover,
       dispose: () => {
         mainHover.dispose();
-        closeHover.dispose();
         tabElement.remove();
       },
     };
@@ -194,7 +179,8 @@ export class TabsTitleControl extends TitleControl {
       'has-local-history',
       tab.state.hasLocalHistory,
     );
-    tabView.element.classList.toggle('is-closable', tab.state.isClosable);
+    tabView.element.classList.toggle('has-title', Boolean(tab.label.trim()));
+    tabView.element.classList.toggle('is-available', Boolean(tab.targetTabId));
     tabView.element.dataset.kind = tab.kind;
     tabView.element.dataset.hasLocalHistory = String(tab.state.hasLocalHistory);
     tabView.element.dataset.tabId = tab.id;
@@ -202,27 +188,20 @@ export class TabsTitleControl extends TitleControl {
     tabView.mainButton.setAttribute('aria-selected', String(tab.state.isActive));
     tabView.mainButton.setAttribute('aria-posinset', String(index + 1));
     tabView.mainButton.setAttribute('aria-setsize', String(totalTabs));
-    tabView.mainButton.tabIndex = tab.state.isActive ? 0 : -1;
+    tabView.mainButton.tabIndex = tab.state.isActive ? 0 : 0;
     tabView.mainHover.update(tab.title);
+    tabView.mainButton.disabled = false;
     tabView.mainButton.onclick = () => {
-      this.props.onActivateTab(tab.id);
+      if (tab.targetTabId) {
+        this.props.onActivateTab(tab.targetTabId);
+        return;
+      }
+
+      this.props.onOpenKind(tab.kind);
     };
 
-    tabView.kindLabel.textContent = getTabKindLabel(tab.kind);
+    tabView.kindIcon.replaceChildren(createLxIcon(getTabKindIconName(tab.kind)));
     tabView.labelText.textContent = tab.label;
-
-    tabView.closeButton.setAttribute('aria-label', this.props.labels.close);
-    tabView.closeButton.disabled = !tab.state.isClosable;
-    tabView.closeButton.tabIndex = tab.state.isClosable ? 0 : -1;
-    tabView.closeButton.onclick = tab.state.isClosable
-      ? (event) => {
-          event.stopPropagation();
-          this.props.onCloseTab(tab.id);
-        }
-      : null;
-    tabView.closeHover.update(
-      tab.state.isClosable ? this.props.labels.close : null,
-    );
   }
 
   private syncTabOrder(nextTabElements: HTMLDivElement[]) {

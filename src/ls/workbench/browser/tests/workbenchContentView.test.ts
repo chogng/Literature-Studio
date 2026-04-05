@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { after, afterEach, before } from 'node:test';
 
+import { createEmptyWritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 
 let cleanupDomEnvironment: (() => void) | null = null;
@@ -366,8 +367,6 @@ function createWorkbenchContentViewProps() {
         emptyWorkspaceTitle: 'Empty workspace',
         emptyWorkspaceBody: 'Create a draft to start.',
         draftBodyPlaceholder: 'Start writing',
-        sourceTitle: 'Source',
-        sourceUrlPrompt: 'Enter a source URL',
         pdfTitle: 'PDF',
         textGroup: 'Text',
         formatGroup: 'Format',
@@ -430,7 +429,7 @@ function createWorkbenchContentViewProps() {
       onActivateTab: () => {},
       onCloseTab: () => {},
       onCreateDraftTab: () => {},
-      onCreateWebTab: () => {},
+      onCreateBrowserTab: () => {},
       onCreatePdfTab: () => {},
       onDraftDocumentChange: () => {},
     },
@@ -557,7 +556,7 @@ test('WorkbenchContentView renders an add dropdown before the collapse action an
   props.editorPartProps = {
     ...props.editorPartProps,
     onCreateDraftTab: () => calls.push('write'),
-    onCreateWebTab: () => calls.push('browser'),
+    onCreateBrowserTab: () => calls.push('browser'),
     onCreatePdfTab: () => calls.push('file'),
   };
 
@@ -612,6 +611,21 @@ test('WorkbenchContentView renders the browser toolbar below the editor topbar',
   const props = createWorkbenchContentViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-1',
+        kind: 'browser',
+        title: 'Example',
+        url: 'https://example.com/current',
+      },
+    ],
+    activeTabId: 'browser-tab-1',
+    activeTab: {
+      id: 'browser-tab-1',
+      kind: 'browser',
+      title: 'Example',
+      url: 'https://example.com/current',
+    },
     viewPartProps: {
       ...props.editorPartProps.viewPartProps,
       browserUrl: 'https://example.com/current',
@@ -652,6 +666,73 @@ test('WorkbenchContentView renders the browser toolbar below the editor topbar',
       trailingButtons.map((button) => button.getAttribute('aria-label')),
       ['More'],
     );
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('WorkbenchContentView hides the top toolbar for draft tabs and shows a placeholder toolbar for pdf tabs', () => {
+  const props = createWorkbenchContentViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'draft-tab-1',
+        kind: 'draft',
+        title: 'Draft',
+        document: createEmptyWritingEditorDocument(),
+        viewMode: 'draft',
+      },
+    ],
+    activeTabId: 'draft-tab-1',
+    activeTab: {
+      id: 'draft-tab-1',
+      kind: 'draft',
+      title: 'Draft',
+      document: createEmptyWritingEditorDocument(),
+      viewMode: 'draft',
+    },
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    assert.equal(
+      view.getElement().querySelector('.editor-toolbar .editor-browser-toolbar'),
+      null,
+    );
+    assert.equal(
+      view.getElement().querySelector('.editor-toolbar .editor-pdf-toolbar'),
+      null,
+    );
+
+    view.setProps({
+      ...props,
+      editorPartProps: {
+        ...props.editorPartProps,
+        tabs: [
+          {
+            id: 'pdf-tab-1',
+            kind: 'pdf',
+            title: 'Paper.pdf',
+            url: 'https://example.com/paper.pdf',
+          },
+        ],
+        activeTabId: 'pdf-tab-1',
+        activeTab: {
+          id: 'pdf-tab-1',
+          kind: 'pdf',
+          title: 'Paper.pdf',
+          url: 'https://example.com/paper.pdf',
+        },
+      },
+    });
+
+    const pdfToolbar = view.getElement().querySelector('.editor-toolbar .editor-pdf-toolbar');
+    assert(pdfToolbar instanceof HTMLElement);
+    assert.match(pdfToolbar.textContent ?? '', /PDF toolbar coming soon/i);
   } finally {
     view.dispose();
     document.body.replaceChildren();

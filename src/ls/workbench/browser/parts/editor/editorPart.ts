@@ -23,7 +23,7 @@ export type EditorPartActions = {
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
-  onCreateWebTab: () => void;
+  onCreateBrowserTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
 };
@@ -91,7 +91,7 @@ export function createEditorPartProps({
     onActivateTab,
     onCloseTab,
     onCreateDraftTab,
-    onCreateWebTab,
+    onCreateBrowserTab,
     onCreatePdfTab,
     onDraftDocumentChange,
   },
@@ -118,8 +118,6 @@ export function createEditorPartProps({
       emptyWorkspaceTitle: ui.editorEmptyWorkspaceTitle,
       emptyWorkspaceBody: ui.editorEmptyWorkspaceBody,
       draftBodyPlaceholder: ui.editorDraftBodyPlaceholder,
-      sourceTitle: ui.editorSourceTitle,
-      sourceUrlPrompt: ui.editorSourceUrlPrompt,
       pdfTitle: ui.editorPdfTitle,
       status: {
         statusbarAriaLabel: ui.editorStatusbarAriaLabel,
@@ -174,7 +172,7 @@ export function createEditorPartProps({
     onActivateTab,
     onCloseTab,
     onCreateDraftTab,
-    onCreateWebTab,
+    onCreateBrowserTab,
     onCreatePdfTab,
     onDraftDocumentChange,
   };
@@ -188,6 +186,20 @@ function looksLikePdfUrl(url: string) {
     normalized.includes('format=pdf') ||
     normalized.includes('download=pdf')
   );
+}
+
+function resolveNewBrowserTabUrl(params: {
+  webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
+  browserUrl: string;
+  webUrl: string;
+}) {
+  const seedUrl = resolveContentSourceUrl(
+    params.webContentSurfaceSnapshot,
+    params.browserUrl,
+    params.webUrl,
+  );
+
+  return normalizeUrl(seedUrl) || normalizeUrl(params.browserUrl) || normalizeUrl(params.webUrl) || 'about:blank';
 }
 
 function createEditorPartControllerSnapshot(
@@ -253,7 +265,7 @@ export class EditorPartController {
       onActivateTab: this.onActivateTab,
       onCloseTab: this.onCloseTab,
       onCreateDraftTab: this.createDraftTab,
-      onCreateWebTab: this.handleCreateWebTab,
+      onCreateBrowserTab: this.handleCreateBrowserTab,
       onCreatePdfTab: this.handleCreatePdfTab,
       onDraftDocumentChange: this.setDraftDocument,
     };
@@ -295,8 +307,8 @@ export class EditorPartController {
     this.writingEditorModel.createDraftTab();
   };
 
-  readonly createWebTab = (url: string) => {
-    this.writingEditorModel.createWebTab(url);
+  readonly createBrowserTab = (url: string) => {
+    this.writingEditorModel.createBrowserTab(url);
   };
 
   readonly createPdfTab = (url: string) => {
@@ -351,31 +363,16 @@ export class EditorPartController {
     this.writingEditorModel.createPdfTab(normalizedPdfUrl);
   };
 
-  private readonly handleCreateWebTab = async () => {
-    const { browserUrl, webUrl, ui } = this.context;
+  private readonly handleCreateBrowserTab = async () => {
+    const { browserUrl, webUrl } = this.context;
     const { webContentSurfaceSnapshot } = this.snapshot;
-    const seedUrl = resolveContentSourceUrl(
-      webContentSurfaceSnapshot,
-      browserUrl,
-      webUrl,
+    this.writingEditorModel.createBrowserTab(
+      resolveNewBrowserTabUrl({
+        webContentSurfaceSnapshot,
+        browserUrl,
+        webUrl,
+      }),
     );
-    const nextInput = (
-      await showWorkbenchTextInputModal({
-        title: ui.editorSourceTitle,
-        label: ui.editorSourceUrlPrompt,
-        defaultValue:
-          seedUrl && !looksLikePdfUrl(seedUrl)
-            ? seedUrl
-            : browserUrl || webUrl || 'https://',
-        ui,
-      })
-    ) ?? '';
-    const normalizedUrl = normalizeUrl(nextInput);
-    if (!normalizedUrl) {
-      return;
-    }
-
-    this.writingEditorModel.createWebTab(normalizedUrl);
   };
 
   private emitChange(reason: EditorPartChangeReason) {

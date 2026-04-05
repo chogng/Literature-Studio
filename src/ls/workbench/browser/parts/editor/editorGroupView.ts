@@ -31,6 +31,8 @@ export type EditorGroupViewProps = {
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
+  onCreateBrowserTab: () => void;
+  onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   topbarActionsElement?: HTMLElement | null;
   topbarToolbarElement?: HTMLElement | null;
@@ -54,7 +56,15 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 }
 
 function createTitleControlProps(
-  props: Pick<EditorGroupViewProps, 'labels' | 'onActivateTab' | 'onCloseTab'>,
+  props: Pick<
+    EditorGroupViewProps,
+    | 'labels'
+    | 'onActivateTab'
+    | 'onCloseTab'
+    | 'onCreateDraftTab'
+    | 'onCreateBrowserTab'
+    | 'onCreatePdfTab'
+  >,
   group: EditorGroupModel,
 ): TitleControlProps {
   return {
@@ -64,11 +74,32 @@ function createTitleControlProps(
     },
     onActivateTab: props.onActivateTab,
     onCloseTab: props.onCloseTab,
+    onOpenKind: (kind) => {
+      if (kind === 'draft') {
+        props.onCreateDraftTab();
+        return;
+      }
+
+      if (kind === 'browser') {
+        props.onCreateBrowserTab();
+        return;
+      }
+
+      props.onCreatePdfTab();
+    },
   };
 }
 
 function createTitleControl(
-  props: Pick<EditorGroupViewProps, 'labels' | 'onActivateTab' | 'onCloseTab'>,
+  props: Pick<
+    EditorGroupViewProps,
+    | 'labels'
+    | 'onActivateTab'
+    | 'onCloseTab'
+    | 'onCreateDraftTab'
+    | 'onCreateBrowserTab'
+    | 'onCreatePdfTab'
+  >,
   group: EditorGroupModel,
 ): TitleControl {
   return new TabsTitleControl(createTitleControlProps(props, group));

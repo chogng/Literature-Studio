@@ -1006,7 +1006,7 @@ class WorkbenchHost {
       activeTab: activeEditorTab,
       draftBody,
       createDraftTab: handleCreateDraftTab,
-      createWebTab: handleCreateWebTab,
+      createBrowserTab: handleCreateBrowserTab,
       createPdfTab: handleCreatePdfTab,
       webContentSurfaceSnapshot,
       updateActiveContentTabUrl,
@@ -1014,7 +1014,7 @@ class WorkbenchHost {
     } = {
       ...editorPartSnapshot,
       createDraftTab: editorPartControllerInstance.createDraftTab,
-      createWebTab: editorPartControllerInstance.createWebTab,
+      createBrowserTab: editorPartControllerInstance.createBrowserTab,
       createPdfTab: editorPartControllerInstance.createPdfTab,
       updateActiveContentTabUrl:
         editorPartControllerInstance.updateActiveContentTabUrl,
@@ -1153,7 +1153,7 @@ class WorkbenchHost {
           handleCreatePdfTab(sourceUrl);
           return;
         }
-        handleCreateWebTab(sourceUrl);
+        handleCreateBrowserTab(sourceUrl);
       }
     };
 

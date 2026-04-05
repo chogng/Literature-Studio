@@ -65,7 +65,7 @@ export type EditorStatusItem = {
 
 export type EditorStatusState = {
   ariaLabel: string;
-  kind: 'empty' | 'draft' | 'web' | 'pdf';
+  kind: 'empty' | 'draft' | 'browser' | 'pdf';
   modeLabel?: string;
   summary?: string;
   leftItems: readonly EditorStatusItem[];
@@ -210,12 +210,12 @@ function createDraftEditorStatus(
 }
 
 function createContentEditorStatus(
-  tab: Extract<WritingWorkspaceTab, { kind: 'web' | 'pdf' }>,
+  tab: Extract<WritingWorkspaceTab, { kind: 'browser' | 'pdf' }>,
   labels: EditorStatusContextLabels,
 ): EditorStatusState {
   return {
     ariaLabel: labels.statusbarAriaLabel,
-    kind: tab.kind === 'pdf' ? 'pdf' : 'web',
+    kind: tab.kind === 'pdf' ? 'pdf' : 'browser',
     modeLabel: tab.kind === 'pdf' ? labels.pdfMode : labels.sourceMode,
     leftItems: [],
     rightItems: [

@@ -1,9 +1,9 @@
 import type {
   WritingEditorDocument,
+  WritingWorkspaceBrowserTab,
   WritingWorkspaceDraftTab,
   WritingWorkspacePdfTab,
   WritingWorkspaceTab,
-  WritingWorkspaceWebTab,
 } from 'ls/workbench/browser/writingEditorModel';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
@@ -35,9 +35,9 @@ export type EditorPaneInput =
       tab: WritingWorkspaceDraftTab;
     }
   | {
-      paneId: 'web';
-      contentClassNames: readonly ['is-mode-web'];
-      tab: WritingWorkspaceWebTab;
+      paneId: 'browser';
+      contentClassNames: readonly ['is-mode-browser'];
+      tab: WritingWorkspaceBrowserTab;
     }
   | {
       paneId: 'pdf';
@@ -71,8 +71,8 @@ function createEditorPaneInput(activeTab: WritingWorkspaceTab): EditorPaneInput 
   }
 
   return {
-    paneId: 'web',
-    contentClassNames: ['is-mode-web'],
+    paneId: 'browser',
+    contentClassNames: ['is-mode-browser'],
     tab: activeTab,
   };
 }
@@ -91,7 +91,7 @@ function createDraftPaneProps(
 }
 
 function createContentPaneProps(
-  input: Extract<EditorPaneInput, { paneId: 'web' | 'pdf' }>,
+  input: Extract<EditorPaneInput, { paneId: 'browser' | 'pdf' }>,
   context: EditorPaneResolverContext,
 ): ContentEditorPaneProps {
   return {
@@ -131,11 +131,11 @@ export function resolveEditorPane(
         },
       };
     }
-    case 'web': {
+    case 'browser': {
       const paneProps = createContentPaneProps(input, context);
       return {
-        paneId: 'web',
-        paneKey: `web:${input.tab.id}`,
+        paneId: 'browser',
+        paneKey: `browser:${input.tab.id}`,
         contentClassNames: input.contentClassNames,
         createRenderer: () => new ContentEditorPane(paneProps),
         updateRenderer: (renderer) => {
