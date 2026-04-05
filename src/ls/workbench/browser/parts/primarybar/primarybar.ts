@@ -109,7 +109,7 @@ export class PrimaryBar {
   );
   private readonly libraryToolbar = createElement(
     'div',
-    'sidebar-workbench-header primarybar-pane-toolbar',
+    'primarybar-pane-toolbar',
   );
   private readonly actionsView = createActionBarView({
     className: 'pane-header-actionbar',
@@ -117,7 +117,7 @@ export class PrimaryBar {
   });
   private readonly fetchToolbar = createElement(
     'div',
-    'actionbar pane-header-actionbar pane-header-fetch-pane-actionbar fetch-pane-actionbar',
+    'actionbar pane-header-actionbar fetch-pane-actionbar',
   );
   private readonly fetchDateRangePicker: DateRangePickerView;
   private readonly fetchSelectionActionsView = createActionBarView({

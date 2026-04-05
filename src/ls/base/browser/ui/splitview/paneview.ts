@@ -129,13 +129,13 @@ export class Pane implements IView {
 
     this.headerButtonElement.type = 'button';
     this.headerButtonElement.setAttribute('aria-expanded', String(this.expandedValue));
-    this.headerContentElement.append(this.chevronElement, this.titleElement, this.headerActionsElement);
+    this.headerContentElement.append(this.chevronElement, this.titleElement);
     this.headerButtonElement.append(this.headerContentElement);
     if (options.headerContent) {
       this.headerActionsElement.append(options.headerContent);
     }
     this.renderHeader(this.headerActionsElement);
-    this.headerElement.append(this.headerButtonElement);
+    this.headerElement.append(this.headerButtonElement, this.headerActionsElement);
     this.element.append(this.headerElement, this.bodyElement);
     this.element.classList.toggle('expanded', this.expandedValue);
     this.bodyElement.hidden = !this.expandedValue;

@@ -30,11 +30,13 @@
   color: #1f2d3a;
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 
 .pane > .pane-header > .pane-header-toggle {
   appearance: none;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   min-height: var(--ls-pane-header-size, 34px);
   padding: 0 14px;
   border: 0;
@@ -78,13 +80,13 @@
   line-height: 1.2;
 }
 
-.pane > .pane-header > .pane-header-toggle .pane-header-actions {
+.pane > .pane-header > .pane-header-actions {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   min-height: var(--ls-pane-header-size, 34px);
   margin-left: auto;
-  padding-left: 6px;
+  padding: 0 14px 0 6px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
