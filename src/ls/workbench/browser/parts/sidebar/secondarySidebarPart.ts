@@ -101,22 +101,22 @@ export type SidebarLabels = {
 };
 
 export type SidebarSelectionModePhase = 'off' | 'multi' | 'all';
-export type SecondarySidebarProps = {
+export type FetchPaneProps = {
   articles: SidebarArticle[];
   hasData: boolean;
   locale: Locale;
   labels: SidebarLabels;
-  batchStartDate: string;
-  onBatchStartDateChange: (value: string) => void;
-  batchEndDate: string;
-  onBatchEndDateChange: (value: string) => void;
-  onFetchLatestBatch: () => void;
+  fetchStartDate: string;
+  onFetchStartDateChange: (value: string) => void;
+  fetchEndDate: string;
+  onFetchEndDateChange: (value: string) => void;
+  onFetch: () => void;
   onDownloadPdf: (article: SidebarArticle) => Promise<void>;
   onOpenArticleDetails: (
     article: SidebarArticle,
     labels: ArticleDetailsModalLabels
   ) => void | Promise<void>;
-  isBatchLoading: boolean;
+  isFetchLoading: boolean;
   isSelectionModeEnabled: boolean;
   selectionModePhase: SidebarSelectionModePhase;
   selectedArticleKeys: ReadonlySet<string>;
@@ -124,35 +124,35 @@ export type SecondarySidebarProps = {
   onToggleArticleSelected: (article: SidebarArticle) => void;
 };
 
-export type SidebarPartState = {
+export type FetchPaneState = {
   ui: LocaleMessages;
   locale: Locale;
   articles: SidebarArticle[];
   hasData: boolean;
-  batchStartDate: string;
-  batchEndDate: string;
-  isBatchLoading: boolean;
+  fetchStartDate: string;
+  fetchEndDate: string;
+  isFetchLoading: boolean;
   isSelectionModeEnabled: boolean;
   selectionModePhase: SidebarSelectionModePhase;
   selectedArticleKeys: ReadonlySet<string>;
 };
 
-export type SidebarPartActions = {
-  onBatchStartDateChange: (value: string) => void;
-  onBatchEndDateChange: (value: string) => void;
-  onFetchLatestBatch: () => void;
-  onDownloadPdf: SecondarySidebarProps['onDownloadPdf'];
-  onOpenArticleDetails: SecondarySidebarProps['onOpenArticleDetails'];
-  onToggleSelectionMode: SecondarySidebarProps['onToggleSelectionMode'];
-  onToggleArticleSelected: SecondarySidebarProps['onToggleArticleSelected'];
+export type FetchPaneActions = {
+  onFetchStartDateChange: (value: string) => void;
+  onFetchEndDateChange: (value: string) => void;
+  onFetch: () => void;
+  onDownloadPdf: FetchPaneProps['onDownloadPdf'];
+  onOpenArticleDetails: FetchPaneProps['onOpenArticleDetails'];
+  onToggleSelectionMode: FetchPaneProps['onToggleSelectionMode'];
+  onToggleArticleSelected: FetchPaneProps['onToggleArticleSelected'];
 };
 
 type CreateSidebarPartLabelsParams = {
   ui: LocaleMessages;
 };
-type CreateSecondarySidebarPartPropsParams = {
-  state: SidebarPartState;
-  actions: SidebarPartActions;
+type CreateFetchPanePropsParams = {
+  state: FetchPaneState;
+  actions: FetchPaneActions;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -256,42 +256,42 @@ export function createSidebarPartLabels({
   };
 }
 
-export function createSecondarySidebarPartProps({
+export function createFetchPaneProps({
   state: {
     ui,
     locale,
     articles,
     hasData,
-    batchStartDate,
-    batchEndDate,
-    isBatchLoading,
+    fetchStartDate,
+    fetchEndDate,
+    isFetchLoading,
     isSelectionModeEnabled,
     selectionModePhase,
     selectedArticleKeys,
   },
   actions: {
-    onBatchStartDateChange,
-    onBatchEndDateChange,
-    onFetchLatestBatch,
+    onFetchStartDateChange,
+    onFetchEndDateChange,
+    onFetch,
     onDownloadPdf,
     onOpenArticleDetails,
     onToggleSelectionMode,
     onToggleArticleSelected,
   },
-}: CreateSecondarySidebarPartPropsParams): SecondarySidebarProps {
+}: CreateFetchPanePropsParams): FetchPaneProps {
   return {
     articles,
     hasData,
     locale,
     labels: createSidebarPartLabels({ ui }),
-    batchStartDate,
-    onBatchStartDateChange,
-    batchEndDate,
-    onBatchEndDateChange,
-    onFetchLatestBatch,
+    fetchStartDate,
+    onFetchStartDateChange,
+    fetchEndDate,
+    onFetchEndDateChange,
+    onFetch,
     onDownloadPdf,
     onOpenArticleDetails,
-    isBatchLoading,
+    isFetchLoading,
     isSelectionModeEnabled,
     selectionModePhase,
     selectedArticleKeys,
@@ -301,7 +301,7 @@ export function createSecondarySidebarPartProps({
 }
 
 function createArticleCardLabels(
-  labels: SecondarySidebarProps['labels'],
+  labels: FetchPaneProps['labels'],
 ): ArticleDetailsModalLabels {
   return {
     untitled: labels.untitled,
@@ -322,14 +322,14 @@ function createArticleCardLabels(
 }
 
 export class FetchPaneContentView extends LifecycleOwner {
-  private props: SecondarySidebarProps;
+  private props: FetchPaneProps;
   private readonly element = createElement('div', 'fetch-pane-content');
   private readonly contentElement = createElement('div');
   private readonly renderDisposables = new LifecycleStore();
   private cards = new Map<string, ArticleCard>();
   private disposed = false;
 
-  constructor(props: SecondarySidebarProps) {
+  constructor(props: FetchPaneProps) {
     super();
     this.props = props;
     this.register(this.renderDisposables);
@@ -341,7 +341,7 @@ export class FetchPaneContentView extends LifecycleOwner {
     return this.element;
   }
 
-  setProps(props: SecondarySidebarProps) {
+  setProps(props: FetchPaneProps) {
     if (this.disposed) {
       return;
     }
@@ -477,7 +477,7 @@ export class SecondarySidebarPartView extends LifecycleOwner {
   );
   private disposed = false;
 
-  constructor(_props: SecondarySidebarProps) {
+  constructor(_props: FetchPaneProps) {
     super();
     this.element.append(this.placeholder);
     registerWorkbenchPartDomNode(
@@ -490,7 +490,7 @@ export class SecondarySidebarPartView extends LifecycleOwner {
     return this.element;
   }
 
-  setProps(props: SecondarySidebarProps) {
+  setProps(props: FetchPaneProps) {
     if (this.disposed) {
       return;
     }
@@ -509,6 +509,6 @@ export class SecondarySidebarPartView extends LifecycleOwner {
   }
 }
 
-export function createSecondarySidebarPartView(props: SecondarySidebarProps) {
+export function createSecondarySidebarPartView(props: FetchPaneProps) {
   return new SecondarySidebarPartView(props);
 }

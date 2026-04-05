@@ -205,6 +205,20 @@
   gap: 12px;
 }
 
+.settings-batch-date-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.settings-batch-date-field {
+  min-width: 0;
+}
+
+.settings-batch-date-field .settings-input-control {
+  min-width: 0;
+}
+
 .settings-toggle-row {
   display: flex;
   align-items: center;

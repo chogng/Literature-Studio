@@ -161,6 +161,7 @@ import boldSvg from 'ls/base/browser/ui/lxicon/svg/bold.svg?raw';
 import bellSvg from 'ls/base/browser/ui/lxicon/svg/bell.svg?raw';
 import bellSlashSvg from 'ls/base/browser/ui/lxicon/svg/bell-slash.svg?raw';
 import bellDotSvg from 'ls/base/browser/ui/lxicon/svg/bell-dot.svg?raw';
+import batchDownloadSvg from 'ls/base/browser/ui/lxicon/svg/batch-download.svg?raw';
 import arrowUpSvg from 'ls/base/browser/ui/lxicon/svg/arrow-up.svg?raw';
 import arrowRightSvg from 'ls/base/browser/ui/lxicon/svg/arrow-right.svg?raw';
 import arrowLeftSvg from 'ls/base/browser/ui/lxicon/svg/arrow-left.svg?raw';
@@ -337,6 +338,7 @@ export type LxIconName =
   | 'bell'
   | 'bell-slash'
   | 'bell-dot'
+  | 'batch-download'
   | 'arrow-up'
   | 'arrow-right'
   | 'arrow-left'
@@ -513,6 +515,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'bell': bellSvg,
   'bell-slash': bellSlashSvg,
   'bell-dot': bellDotSvg,
+  'batch-download': batchDownloadSvg,
   'arrow-up': arrowUpSvg,
   'arrow-right': arrowRightSvg,
   'arrow-left': arrowLeftSvg,

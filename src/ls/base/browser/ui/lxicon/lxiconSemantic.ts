@@ -34,6 +34,9 @@ export const lxIconSemanticMap = {
   sidebar: {
     selectionMode: 'select-all',
   },
+  fetch: {
+    batchDownload: 'batch-download',
+  },
   editor: {
     closeTab: 'close',
   },

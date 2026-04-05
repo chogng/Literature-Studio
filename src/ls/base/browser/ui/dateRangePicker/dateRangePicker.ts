@@ -257,7 +257,7 @@ export class DateRangePickerView extends LifecycleOwner {
     this.trigger.append(this.triggerContent);
     this.element.append(this.trigger);
 
-    this.render();
+    this.renderView();
   }
 
   getElement() {
@@ -269,7 +269,7 @@ export class DateRangePickerView extends LifecycleOwner {
     if (!this.isOpen) {
       this.syncDraftValuesFromProps();
     }
-    this.render();
+    this.renderView();
   }
 
   focus() {
@@ -440,7 +440,7 @@ export class DateRangePickerView extends LifecycleOwner {
       this.openListeners.clear();
     }
 
-    this.render();
+    this.renderView();
   }
 
   private stepMonth(offset: number) {
@@ -485,7 +485,7 @@ export class DateRangePickerView extends LifecycleOwner {
     }
     this.pendingFocusDayValue = value;
     this.commitDraftValues();
-    this.render();
+    this.renderView();
   }
 
   private isCellDisabled(cell: CalendarCell) {
@@ -628,7 +628,7 @@ export class DateRangePickerView extends LifecycleOwner {
     this.restorePendingFocus();
   }
 
-  private render() {
+  private renderView() {
     this.element.className = ['date-range-picker', this.props.className].filter(Boolean).join(' ');
 
     const triggerLabel = createTriggerLabel(this.props.labels);

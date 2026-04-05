@@ -36,7 +36,7 @@ import {
   createSecondarySidebarPartView,
   SecondarySidebarPartView,
 } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
-import type { SecondarySidebarProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+import type { FetchPaneProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
 import {
   createPrimaryBarPartView,
   PrimaryBarPartView,
@@ -63,7 +63,7 @@ type ReaderPageViewProps = {
   fetchSidebarSize: number;
   primarySidebarSize: number;
   auxiliarySidebarSize: number;
-  secondarySidebarProps: SecondarySidebarProps;
+  fetchPaneProps: FetchPaneProps;
   primaryBarProps: PrimaryBarProps;
   auxiliarySidebarProps: AgentChatWidgetProps;
   editorPartProps: EditorPartProps;
@@ -317,10 +317,10 @@ export class ReaderPageView {
 
     if (!this.secondarySidebarView) {
       this.secondarySidebarView = createSecondarySidebarPartView(
-        this.props.secondarySidebarProps,
+        this.props.fetchPaneProps,
       );
     } else {
-      this.secondarySidebarView.setProps(this.props.secondarySidebarProps);
+      this.secondarySidebarView.setProps(this.props.fetchPaneProps);
     }
 
     this.secondarySidebarSlot.setContent(this.secondarySidebarView.getElement());
