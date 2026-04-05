@@ -6,18 +6,30 @@
   overflow: hidden;
 }
 
-.pm-toolbar {
+.pm-editor-shell > .editor-toolbar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--vscode-editor-sourceHeaderBorder, #e4ebf3);
+}
+
+.editor-draft-toolbar {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding: 6px 8px;
-  border-bottom: 1px solid rgba(221, 231, 240, 0.9);
+  width: 100%;
+  min-width: 0;
+  padding: 8px 2px;
   background: transparent;
   overflow-x: auto;
   scrollbar-width: thin;
+  -webkit-app-region: no-drag;
 }
 
-.pm-toolbar-group {
+.editor-draft-toolbar-group {
   flex: 0 0 auto;
   display: grid;
   grid-template-rows: auto auto;
@@ -30,12 +42,12 @@
   box-shadow: none;
 }
 
-.pm-toolbar-group-actions {
+.editor-draft-toolbar-group-actions {
   display: flex;
   gap: 4px;
 }
 
-.pm-toolbar-group-title {
+.editor-draft-toolbar-group-title {
   padding-top: 3px;
   border-top: 1px solid rgba(193, 205, 219, 0.5);
   color: #5f7185;
@@ -48,7 +60,7 @@
   text-transform: uppercase;
 }
 
-.pm-toolbar-btn.btn-base {
+.editor-draft-toolbar-btn.btn-base {
   min-width: 0;
   min-height: 0;
   padding: 0;
@@ -64,26 +76,26 @@
   transition: none;
 }
 
-.pm-toolbar-btn.btn-base:hover:not(:disabled) {
+.editor-draft-toolbar-btn.btn-base:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.05);
   border-color: transparent;
   color: #1f2d3a;
   transform: none;
 }
 
-.pm-toolbar-btn.btn-base:active:not(:disabled) {
+.editor-draft-toolbar-btn.btn-base:active:not(:disabled) {
   background: rgba(0, 0, 0, 0.1);
   transform: translateY(0);
 }
 
-.pm-toolbar-btn.btn-base.is-active {
+.editor-draft-toolbar-btn.btn-base.is-active {
   background: rgba(0, 0, 0, 0.08);
   border-color: transparent;
   color: #0a5fbf;
   box-shadow: none;
 }
 
-.pm-toolbar-btn-icon {
+.editor-draft-toolbar-btn-icon {
   width: 100%;
   height: 100%;
   display: inline-flex;
@@ -95,24 +107,24 @@
   pointer-events: none;
 }
 
-.pm-toolbar-btn.btn-base.is-active .pm-toolbar-btn-icon {
+.editor-draft-toolbar-btn.btn-base.is-active .editor-draft-toolbar-btn-icon {
   background: transparent;
 }
 
-.pm-toolbar-btn-icon .lx-icon {
+.editor-draft-toolbar-btn-icon .lx-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
 }
 
-.pm-toolbar-btn-icon .lx-icon svg {
+.editor-draft-toolbar-btn-icon .lx-icon svg {
   width: 14px;
   height: 14px;
   pointer-events: none;
 }
 
-.pm-toolbar-btn-glyph {
+.editor-draft-toolbar-btn-glyph {
   font:
     700 11px/1 "IBM Plex Sans",
     "Noto Sans SC",
@@ -121,12 +133,12 @@
   pointer-events: none;
 }
 
-.pm-toolbar-dropdown.dropdown-wrapper {
+.editor-draft-toolbar-dropdown.dropdown-wrapper {
   min-width: 88px;
   max-width: 140px;
 }
 
-.pm-toolbar-dropdown .dropdown-field {
+.editor-draft-toolbar-dropdown .dropdown-field {
   overflow: hidden;
   font:
     500 11px/1.2 "IBM Plex Sans",
@@ -349,17 +361,17 @@
 }
 
 @media (max-width: 760px) {
-  .pm-toolbar {
-    padding-left: 6px;
-    padding-right: 6px;
+  .editor-draft-toolbar {
+    padding-left: 0;
+    padding-right: 0;
     gap: 6px;
   }
 
-  .pm-toolbar-group {
+  .editor-draft-toolbar-group {
     padding: 2px 2px 4px;
   }
 
-  .pm-toolbar-group-actions {
+  .editor-draft-toolbar-group-actions {
     gap: 3px;
   }
 

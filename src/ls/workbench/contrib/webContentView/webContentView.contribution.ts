@@ -484,10 +484,12 @@ class WebContentDomManager {
   private resetTargetDomReadyState(entry: ManagedWebviewEntry) {
     entry.rejectDomReady(new Error('webview guest reset before dom-ready.'));
     entry.domReady = false;
-    entry.domReadyPromise = new Promise<void>((resolve, reject) => {
+    const domReadyPromise = new Promise<void>((resolve, reject) => {
       entry.resolveDomReady = resolve;
       entry.rejectDomReady = reject;
     });
+    domReadyPromise.catch(() => undefined);
+    entry.domReadyPromise = domReadyPromise;
   }
 
   private async waitForTargetDomReady(targetId?: string | null, timeoutMs = 8000) {

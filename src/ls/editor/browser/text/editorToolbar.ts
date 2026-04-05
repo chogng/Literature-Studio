@@ -138,11 +138,13 @@ const FONT_SIZE_PRESETS: readonly DropdownOption[] = [
 
 export class DraftEditorToolbar {
   private props: DraftEditorToolbarProps;
-  private readonly element = createElement('div', 'pm-toolbar');
+  private readonly element = createElement('div', 'editor-toolbar');
+  private readonly contentElement = createElement('div', 'editor-draft-toolbar');
   private dropdownViews: Array<{ dispose: () => void }> = [];
 
   constructor(props: DraftEditorToolbarProps) {
     this.props = props;
+    this.element.append(this.contentElement);
     this.render();
   }
 
@@ -166,7 +168,7 @@ export class DraftEditorToolbar {
     for (const group of this.createToolbarGroups()) {
       fragment.append(this.createToolbarGroup(group));
     }
-    this.element.replaceChildren(fragment);
+    this.contentElement.replaceChildren(fragment);
   }
 
   private createTextStyleOptions(
@@ -332,9 +334,9 @@ export class DraftEditorToolbar {
   }
 
   private createToolbarGroup(groupConfig: ToolbarGroupConfig) {
-    const group = createElement('section', 'pm-toolbar-group');
-    const actions = createElement('div', 'pm-toolbar-group-actions');
-    const title = createElement('div', 'pm-toolbar-group-title');
+    const group = createElement('section', 'editor-draft-toolbar-group');
+    const actions = createElement('div', 'editor-draft-toolbar-group-actions');
+    const title = createElement('div', 'editor-draft-toolbar-group-title');
 
     title.textContent = groupConfig.title;
 
@@ -353,7 +355,7 @@ export class DraftEditorToolbar {
   private createToolbarDropdown(dropdownConfig: WritingEditorToolbarDropdownConfig) {
     const menuPresenter = createDomDropdownMenuPresenter({ layer: 'portal' });
     const dropdown = createDropdownView({
-      className: 'pm-toolbar-dropdown',
+      className: 'editor-draft-toolbar-dropdown',
       menuPresenter,
       title: dropdownConfig.title,
       value: dropdownConfig.value,
@@ -376,7 +378,7 @@ export class DraftEditorToolbar {
     const button = createElement(
       'button',
       [
-        'pm-toolbar-btn',
+        'editor-draft-toolbar-btn',
         'btn-base',
         'btn-ghost',
         'btn-mode-icon',
@@ -386,7 +388,7 @@ export class DraftEditorToolbar {
         .filter(Boolean)
         .join(' '),
     );
-    const iconSlot = createElement('span', 'pm-toolbar-btn-icon');
+    const iconSlot = createElement('span', 'editor-draft-toolbar-btn-icon');
     button.type = 'button';
     button.disabled = Boolean(buttonConfig.disabled);
     button.setAttribute('aria-label', buttonConfig.label);
@@ -403,7 +405,7 @@ export class DraftEditorToolbar {
     if (buttonConfig.icon) {
       iconSlot.append(createLxIcon(buttonConfig.icon));
     } else if (buttonConfig.glyph) {
-      const glyph = createElement('span', 'pm-toolbar-btn-glyph');
+      const glyph = createElement('span', 'editor-draft-toolbar-btn-glyph');
       glyph.textContent = buttonConfig.glyph;
       iconSlot.append(glyph);
     }

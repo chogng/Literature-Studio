@@ -138,6 +138,29 @@ function waitForAsyncWork() {
   });
 }
 
+async function waitForCondition(
+  condition: () => boolean,
+  options?: {
+    timeoutMs?: number;
+    stepMs?: number;
+  },
+) {
+  const timeoutMs = options?.timeoutMs ?? 1000;
+  const stepMs = options?.stepMs ?? 0;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (condition()) {
+      return;
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, stepMs);
+    });
+  }
+
+  throw new Error('Timed out while waiting for test condition.');
+}
+
 type TestWebviewElement = HTMLElement & {
   __domReady: boolean;
   __history: string[];
@@ -273,7 +296,10 @@ function createElectronApi(overrides: Partial<ElectronAPI>): ElectronAPI {
   };
 }
 
-function withElectronApi<T>(electronAPI: ElectronAPI | undefined, run: () => T): T {
+async function withElectronApi<T>(
+  electronAPI: ElectronAPI | undefined,
+  run: () => T | Promise<T>,
+): Promise<T> {
   const testWindow = window as typeof window & {
     electronAPI?: ElectronAPI;
   };
@@ -281,7 +307,7 @@ function withElectronApi<T>(electronAPI: ElectronAPI | undefined, run: () => T):
   testWindow.electronAPI = electronAPI;
 
   try {
-    return run();
+    return await run();
   } finally {
     testWindow.electronAPI = previousElectronApi;
   }
@@ -387,9 +413,12 @@ test('web content contribution installs the renderer bridge and cleans up lifecy
           method: 'activateTarget',
           args: ['target-2'],
         });
-        await waitForAsyncWork();
+        await waitForCondition(() =>
+          bridgeResponses.some((response) => response.requestId === 'bridge-request-1'),
+        );
 
-        assert.equal(host.querySelector('webview')?.tagName, 'WEBVIEW');
+        const webContentRoot = document.getElementById('ls-webcontent-root');
+        assert.equal(webContentRoot?.querySelector('webview')?.tagName, 'WEBVIEW');
         assert.equal(reportedStates.at(-1)?.targetId, 'target-2');
         assert.equal(reportedStates.at(-1)?.activeTargetId, 'target-2');
         assert.equal(reportedStates.at(-1)?.ownership, 'active');
@@ -409,6 +438,7 @@ test('web content contribution installs the renderer bridge and cleans up lifecy
           undefined,
         );
         assert.equal(host.childElementCount, 0);
+        assert.equal(document.getElementById('ls-webcontent-root'), null);
         assert.equal(
           resizeObserverSpy.getActiveObservers(),
           activeObserversBeforeCreate,

@@ -586,6 +586,64 @@ test('DraftEditorToolbar disables figure-ref action when no figures are availabl
   }
 });
 
+test('DraftEditorToolbar uses the shared editor toolbar shell and draft-specific content classes', () => {
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      isUnderlineActive: false,
+      fontFamily: null,
+      fontSize: null,
+      textAlign: 'left',
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: false,
+      canRedo: false,
+      availableFigureIds: [],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      toggleUnderline: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      setTextAlign: () => {},
+      clearInlineStyles: () => {},
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {},
+      undo: () => {},
+      redo: () => {},
+      insertCitation: () => {},
+      insertFigure: () => {},
+      insertFigureRef: () => {},
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const toolbarShell = toolbar.getElement();
+    const draftToolbar = toolbarShell.querySelector(':scope > .editor-draft-toolbar');
+    const toolbarGroup = toolbarShell.querySelector(
+      '.editor-draft-toolbar > .editor-draft-toolbar-group',
+    );
+
+    assert.equal(toolbarShell.classList.contains('editor-toolbar'), true);
+    assert(draftToolbar instanceof HTMLElement);
+    assert(toolbarGroup instanceof HTMLElement);
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
+  }
+});
+
 test('ProseMirrorEditor refreshes placeholder text during an external document replacement', async () => {
   const initialDocument = createWritingEditorDocumentFromPlainText('alpha');
 
