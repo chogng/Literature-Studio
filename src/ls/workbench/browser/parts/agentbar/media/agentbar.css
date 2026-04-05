@@ -15,6 +15,35 @@
   min-width: 0;
 }
 
+.agentbar-topbar-actions {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.agentbar-topbar-leading {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.agentbar-topbar-trailing {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  padding-right: 0;
+  height: 100%;
+}
+
+.agentbar-topbar-trailing > .sidebar-topbar-actions {
+  margin-left: 0;
+}
+
 .agentbar-topbar-window-controls-spacer {
   width: var(--window-controls-width, 70px);
   min-width: var(--window-controls-width, 70px);

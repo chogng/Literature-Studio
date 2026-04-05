@@ -23,6 +23,7 @@ export type EditorPartActions = {
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
+  onCreateWebTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
 };
@@ -90,12 +91,24 @@ export function createEditorPartProps({
     onActivateTab,
     onCloseTab,
     onCreateDraftTab,
+    onCreateWebTab,
     onCreatePdfTab,
     onDraftDocumentChange,
   },
 }: CreateEditorPartPropsParams): EditorPartProps {
   return {
     labels: {
+      topbarAddAction: ui.editorTopbarAddAction,
+      createWrite: ui.editorCreateWrite,
+      createBrowser: ui.editorCreateBrowser,
+      createFile: ui.editorCreateFile,
+      toolbarSources: ui.agentbarToolbarSources,
+      toolbarBack: ui.titlebarBack,
+      toolbarForward: ui.titlebarForward,
+      toolbarRefresh: ui.titlebarRefresh,
+      toolbarFavorite: ui.agentbarToolbarFavorite,
+      toolbarMore: ui.agentbarToolbarMore,
+      toolbarAddressBar: ui.agentbarToolbarAddressBar,
       draftMode: ui.editorDraftMode,
       sourceMode: ui.editorSourceMode,
       pdfMode: ui.editorPdfMode,
@@ -106,6 +119,7 @@ export function createEditorPartProps({
       emptyWorkspaceBody: ui.editorEmptyWorkspaceBody,
       draftBodyPlaceholder: ui.editorDraftBodyPlaceholder,
       sourceTitle: ui.editorSourceTitle,
+      sourceUrlPrompt: ui.editorSourceUrlPrompt,
       pdfTitle: ui.editorPdfTitle,
       status: {
         statusbarAriaLabel: ui.editorStatusbarAriaLabel,
@@ -160,6 +174,7 @@ export function createEditorPartProps({
     onActivateTab,
     onCloseTab,
     onCreateDraftTab,
+    onCreateWebTab,
     onCreatePdfTab,
     onDraftDocumentChange,
   };
@@ -238,6 +253,7 @@ export class EditorPartController {
       onActivateTab: this.onActivateTab,
       onCloseTab: this.onCloseTab,
       onCreateDraftTab: this.createDraftTab,
+      onCreateWebTab: this.handleCreateWebTab,
       onCreatePdfTab: this.handleCreatePdfTab,
       onDraftDocumentChange: this.setDraftDocument,
     };
@@ -333,6 +349,33 @@ export class EditorPartController {
     }
 
     this.writingEditorModel.createPdfTab(normalizedPdfUrl);
+  };
+
+  private readonly handleCreateWebTab = async () => {
+    const { browserUrl, webUrl, ui } = this.context;
+    const { webContentSurfaceSnapshot } = this.snapshot;
+    const seedUrl = resolveContentSourceUrl(
+      webContentSurfaceSnapshot,
+      browserUrl,
+      webUrl,
+    );
+    const nextInput = (
+      await showWorkbenchTextInputModal({
+        title: ui.editorSourceTitle,
+        label: ui.editorSourceUrlPrompt,
+        defaultValue:
+          seedUrl && !looksLikePdfUrl(seedUrl)
+            ? seedUrl
+            : browserUrl || webUrl || 'https://',
+        ui,
+      })
+    ) ?? '';
+    const normalizedUrl = normalizeUrl(nextInput);
+    if (!normalizedUrl) {
+      return;
+    }
+
+    this.writingEditorModel.createWebTab(normalizedUrl);
   };
 
   private emitChange(reason: EditorPartChangeReason) {

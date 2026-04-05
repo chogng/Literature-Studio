@@ -33,6 +33,7 @@ export type EditorGroupViewProps = {
   onCreateDraftTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   topbarActionsElement?: HTMLElement | null;
+  topbarToolbarElement?: HTMLElement | null;
   onStatusChange?: (status: EditorStatusState) => void;
 };
 
@@ -218,6 +219,7 @@ export class EditorGroupView {
   private readonly controller: EditorGroupController;
   private readonly element = createElement('div', 'editor-shell');
   private readonly headerElement = createElement('div', 'editor-topbar');
+  private readonly toolbarElement = createElement('div', 'editor-toolbar');
   private readonly tabsElement = createElement('div', 'editor-topbar-tabs');
   private readonly actionsElement = createElement('div', 'editor-topbar-actions');
   private readonly titleAreaControl: TitleControl;
@@ -242,7 +244,7 @@ export class EditorGroupView {
     });
     this.tabsElement.append(this.titleAreaControl.getElement());
     this.headerElement.append(this.tabsElement, this.actionsElement);
-    this.element.append(this.headerElement, this.contentElement);
+    this.element.append(this.headerElement, this.toolbarElement, this.contentElement);
     this.render();
   }
 
@@ -294,6 +296,7 @@ export class EditorGroupView {
     this.titleAreaControl.setProps(createTitleControlProps(this.props, group));
     this.headerElement.classList.toggle('has-tabs', group.tabs.length > 0);
     this.syncTopbarActions(this.props.topbarActionsElement ?? null);
+    this.syncTopbarToolbar(this.props.topbarToolbarElement ?? null);
 
     this.contentElement.className = '';
     this.contentElement.removeAttribute('data-editor-pane');
@@ -349,6 +352,22 @@ export class EditorGroupView {
     if (currentTopbarActionsElement) {
       this.actionsElement.replaceChildren();
     }
+  }
+
+  private syncTopbarToolbar(topbarToolbarElement: HTMLElement | null) {
+    const currentTopbarToolbarElement = this.toolbarElement.firstElementChild;
+    if (topbarToolbarElement) {
+      if (currentTopbarToolbarElement !== topbarToolbarElement) {
+        this.toolbarElement.replaceChildren(topbarToolbarElement);
+      }
+      this.toolbarElement.style.display = '';
+      return;
+    }
+
+    if (currentTopbarToolbarElement) {
+      this.toolbarElement.replaceChildren();
+    }
+    this.toolbarElement.style.display = 'none';
   }
 }
 

@@ -16,6 +16,17 @@ import 'ls/workbench/browser/parts/editor/media/editor.css';
 import 'ls/workbench/browser/parts/editor/media/tabsTitleControl.css';
 
 export type EditorPartLabels = {
+  topbarAddAction: string;
+  createWrite: string;
+  createBrowser: string;
+  createFile: string;
+  toolbarSources: string;
+  toolbarBack: string;
+  toolbarForward: string;
+  toolbarRefresh: string;
+  toolbarFavorite: string;
+  toolbarMore: string;
+  toolbarAddressBar: string;
   draftMode: string;
   sourceMode: string;
   pdfMode: string;
@@ -26,6 +37,7 @@ export type EditorPartLabels = {
   emptyWorkspaceBody: string;
   draftBodyPlaceholder: string;
   sourceTitle: string;
+  sourceUrlPrompt: string;
   pdfTitle: string;
   status: EditorStatusLabels;
 } & WritingEditorSurfaceLabels;
@@ -39,9 +51,11 @@ export type EditorPartProps = {
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
+  onCreateWebTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   topbarActionsElement?: HTMLElement | null;
+  topbarToolbarElement?: HTMLElement | null;
   onStatusChange?: (status: EditorStatusState) => void;
 };
 

@@ -33,6 +33,7 @@
 
 .sidebar-topbar-toggle-btn.actionbar-action,
 .sidebar-topbar-search-btn.actionbar-action,
+.editor-topbar-add-btn.actionbar-action,
 .editor-topbar-toggle-editor-btn.actionbar-action {
   border: none;
   background: transparent;

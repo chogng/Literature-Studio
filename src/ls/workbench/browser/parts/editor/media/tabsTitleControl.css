@@ -1,5 +1,5 @@
 :root {
-  --editor-tabs-strip-height: 35px;
+  --editor-tabs-strip-height: var(--workbench-pane-topbar-height, 35px);
   --editor-tab-min-width: 96px;
   --editor-tab-max-width: 260px;
 }
@@ -39,6 +39,82 @@
 
 .editor-topbar-actions .sidebar-topbar-actions {
   margin-left: 0;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.editor-toolbar:empty {
+  display: none;
+}
+
+.editor-browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  -webkit-app-region: no-drag;
+}
+
+.editor-browser-toolbar-leading,
+.editor-browser-toolbar-trailing {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.editor-browser-toolbar-address-host {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-browser-toolbar-actions {
+  --ls-actionbar-item-size: 26px;
+  --ls-actionbar-icon-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.editor-browser-toolbar-actions .actionbar-actions-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.editor-browser-toolbar-btn.actionbar-action {
+  border: none;
+  background: transparent;
+  color: var(--vscode-sideBar-foreground, #1f2d3a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.editor-browser-toolbar-address-input.inputbox {
+  width: 100%;
+}
+
+.editor-browser-toolbar-address-input .ibwrapper {
+  width: 100%;
+}
+
+.editor-browser-toolbar-address-input .input {
+  width: 100%;
+  min-height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--vscode-agentBar-inputBorder, #d6e0e8);
+  background: var(--vscode-agentBar-inputBackground, #f9fbfd);
+  color: var(--vscode-agentBar-inputForeground, #1f2d3a);
+  padding: 0 10px;
+  font-size: 12px;
 }
 
 .editor-tabs-container {

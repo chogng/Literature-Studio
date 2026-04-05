@@ -13,6 +13,7 @@ export type { AgentChatWidgetProps } from 'ls/workbench/contrib/agentChat/browse
 export type AgentBarPartProps = AgentChatWidgetProps & {
   isPrimarySidebarVisible?: boolean;
   topbarActionsElement?: HTMLElement | null;
+  topbarTrailingActionsElement?: HTMLElement | null;
 };
 
 type CreateAgentBarPartPropsParams = {
@@ -113,6 +114,18 @@ export class AgentBarPartView {
     'div',
     'agentbar-topbar topbar-segment',
   );
+  private readonly topbarActionsElement = createElement(
+    'div',
+    'agentbar-topbar-actions',
+  );
+  private readonly topbarLeadingActionsElement = createElement(
+    'div',
+    'agentbar-topbar-leading',
+  );
+  private readonly topbarTrailingActionsElement = createElement(
+    'div',
+    'agentbar-topbar-trailing',
+  );
   private readonly leadingWindowControlsSpacer = createElement(
     'div',
     'agentbar-topbar-window-controls-spacer',
@@ -132,6 +145,11 @@ export class AgentBarPartView {
       );
       this.topbarElement.append(this.leadingWindowControlsSpacer);
     }
+    this.topbarActionsElement.append(
+      this.topbarLeadingActionsElement,
+      this.topbarTrailingActionsElement,
+    );
+    this.topbarElement.append(this.topbarActionsElement);
     this.element.append(this.topbarElement, this.sidebar.getElement());
     this.renderTopbar(props);
   }
@@ -152,21 +170,30 @@ export class AgentBarPartView {
   }
 
   private renderTopbar(props: AgentBarPartProps) {
-    const shouldMountTopbarActions = !!props.topbarActionsElement;
+    this.syncTopbarSlot(
+      this.topbarLeadingActionsElement,
+      props.topbarActionsElement ?? null,
+    );
+    this.syncTopbarSlot(
+      this.topbarTrailingActionsElement,
+      props.topbarTrailingActionsElement ?? null,
+    );
+  }
 
-    if (shouldMountTopbarActions) {
-      const topbarActionsElement = props.topbarActionsElement!;
-      if (this.topbarElement.lastElementChild !== topbarActionsElement) {
-        this.topbarElement.append(topbarActionsElement);
+  private syncTopbarSlot(
+    slotElement: HTMLElement,
+    topbarActionsElement: HTMLElement | null,
+  ) {
+    const currentTopbarActionsElement = slotElement.firstElementChild;
+    if (topbarActionsElement) {
+      if (currentTopbarActionsElement !== topbarActionsElement) {
+        slotElement.replaceChildren(topbarActionsElement);
       }
       return;
     }
 
-    const currentTopbarActionsElement = this.topbarElement.querySelector(
-      '.sidebar-topbar-actions-host',
-    );
     if (currentTopbarActionsElement) {
-      currentTopbarActionsElement.remove();
+      slotElement.replaceChildren();
     }
   }
 }

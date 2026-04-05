@@ -52,7 +52,17 @@ import {
   type SidebarTopbarActionsProps,
 } from 'ls/workbench/browser/parts/sidebar/sidebarTopbarActions';
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
+import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
+import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import {
+  requestOpenAddressBarSourceMenu,
+  requestTitlebarNavigateBack,
+  requestTitlebarNavigateForward,
+  requestTitlebarNavigateRefresh,
+  requestTitlebarNavigateWeb,
+} from 'ls/workbench/browser/parts/titlebar/titlebarActions';
+import { setWorkbenchWebUrl } from 'ls/workbench/browser/session';
 
 import {
   clearStatusbarCommandHandlers,
@@ -213,19 +223,62 @@ export class WorkbenchContentView {
     className: 'sidebar-topbar-actions',
     ariaRole: 'group',
   });
-  private readonly sharedTopbarActionsElement = createElement(
+  private readonly editorToolbarElement = createElement('div', 'editor-browser-toolbar');
+  private readonly editorToolbarLeadingHost = createElement(
     'div',
-    'sidebar-topbar-actions-host',
+    'editor-browser-toolbar-leading',
+  );
+  private readonly editorToolbarAddressHost = createElement(
+    'div',
+    'editor-browser-toolbar-address-host',
+  );
+  private readonly editorToolbarTrailingHost = createElement(
+    'div',
+    'editor-browser-toolbar-trailing',
+  );
+  private readonly editorToolbarLeadingActionsView = createActionBarView({
+    className: 'editor-browser-toolbar-actions',
+    ariaRole: 'group',
+  });
+  private readonly editorToolbarTrailingActionsView = createActionBarView({
+    className: 'editor-browser-toolbar-actions',
+    ariaRole: 'group',
+  });
+  private readonly editorToolbarAddressInput = new InputBox(
+    this.editorToolbarAddressHost,
+    undefined,
+    {
+      className: 'editor-browser-toolbar-address-input',
+      value: '',
+      placeholder: '',
+    },
   );
   private layoutTree: WorkbenchContentLayoutNode | null = null;
   private gridView: GridView | null = null;
   private rootGrid: GridBranchView | null = null;
   private gridOrientation: Orientation | null = null;
+  private gridEditorCollapsedState: boolean | null = null;
   private splitConstraints = getWorkbenchContentSplitConstraints(Orientation.VERTICAL);
   private disposed = false;
 
   constructor(props: WorkbenchContentViewProps) {
     this.props = props;
+    this.editorToolbarLeadingHost.append(this.editorToolbarLeadingActionsView.getElement());
+    this.editorToolbarTrailingHost.append(this.editorToolbarTrailingActionsView.getElement());
+    this.editorToolbarAddressInput.inputElement.setAttribute('spellcheck', 'false');
+    this.editorToolbarAddressInput.inputElement.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        requestTitlebarNavigateWeb();
+      }
+    });
+    this.editorToolbarAddressInput.onDidChange((value) => {
+      setWorkbenchWebUrl(value);
+    });
+    this.editorToolbarElement.append(
+      this.editorToolbarLeadingHost,
+      this.editorToolbarAddressHost,
+      this.editorToolbarTrailingHost,
+    );
     this.element.append(this.mainElement);
     this.installResizeObserver();
     this.render();
@@ -279,6 +332,9 @@ export class WorkbenchContentView {
     this.editorView?.dispose();
     this.sidebarTopbarActionsView.dispose();
     this.editorTopbarActionsView.dispose();
+    this.editorToolbarAddressInput.dispose();
+    this.editorToolbarLeadingActionsView.dispose();
+    this.editorToolbarTrailingActionsView.dispose();
     this.primaryBarView = null;
     this.agentBarView = null;
     this.editorView = null;
@@ -321,35 +377,130 @@ export class WorkbenchContentView {
     this.editorTopbarActionsView.setProps({
       className: 'sidebar-topbar-actions',
       ariaRole: 'group',
+      items: [
+        createDropdownMenuActionViewItem({
+          label: this.props.editorPartProps.labels.topbarAddAction,
+          title: this.props.editorPartProps.labels.topbarAddAction,
+          content: createLxIcon('add'),
+          buttonClassName: 'editor-topbar-add-btn',
+          menu: [
+            {
+              label: this.props.editorPartProps.labels.createWrite,
+              icon: 'write',
+              onClick: () => this.props.editorPartProps.onCreateDraftTab(),
+            },
+            {
+              label: this.props.editorPartProps.labels.createBrowser,
+              icon: 'link-external',
+              onClick: () => this.props.editorPartProps.onCreateWebTab(),
+            },
+            {
+              label: this.props.editorPartProps.labels.createFile,
+              icon: 'file',
+              onClick: () => this.props.editorPartProps.onCreatePdfTab(),
+            },
+          ],
+        }),
+        {
+          label: this.isEditorCollapsed
+            ? this.props.editorPartProps.labels.expandEditor
+            : this.props.editorPartProps.labels.collapseEditor,
+          title: this.isEditorCollapsed
+            ? this.props.editorPartProps.labels.expandEditor
+            : this.props.editorPartProps.labels.collapseEditor,
+          mode: 'icon',
+          buttonClassName: 'editor-topbar-toggle-editor-btn',
+          content: createLxIcon(
+            this.isEditorCollapsed
+              ? 'layout-sidebar-right-off'
+              : 'layout-sidebar-right',
+          ),
+          onClick: this.handleToggleEditorCollapse,
+        },
+      ],
+    });
+    this.editorToolbarLeadingActionsView.setProps({
+      className: 'editor-browser-toolbar-actions',
+      ariaRole: 'group',
+      items: [
+        {
+          label: this.props.editorPartProps.labels.toolbarSources,
+          title: this.props.editorPartProps.labels.toolbarSources,
+          mode: 'icon',
+          buttonClassName: 'editor-browser-toolbar-btn',
+          content: createLxIcon('list-unordered'),
+          onClick: requestOpenAddressBarSourceMenu,
+        },
+        {
+          label: this.props.editorPartProps.labels.toolbarBack,
+          title: this.props.editorPartProps.labels.toolbarBack,
+          mode: 'icon',
+          buttonClassName: 'editor-browser-toolbar-btn',
+          content: createLxIcon('arrow-left'),
+          disabled: !this.props.editorPartProps.viewPartProps.browserUrl,
+          onClick: requestTitlebarNavigateBack,
+        },
+        {
+          label: this.props.editorPartProps.labels.toolbarForward,
+          title: this.props.editorPartProps.labels.toolbarForward,
+          mode: 'icon',
+          buttonClassName: 'editor-browser-toolbar-btn',
+          content: createLxIcon('arrow-right'),
+          disabled: false,
+          onClick: requestTitlebarNavigateForward,
+        },
+        {
+          label: this.props.editorPartProps.labels.toolbarRefresh,
+          title: this.props.editorPartProps.labels.toolbarRefresh,
+          mode: 'icon',
+          buttonClassName: 'editor-browser-toolbar-btn',
+          content: createLxIcon('refresh'),
+          disabled: !this.props.editorPartProps.viewPartProps.browserUrl,
+          onClick: requestTitlebarNavigateRefresh,
+        },
+        {
+          label: this.props.editorPartProps.labels.toolbarFavorite,
+          title: this.props.editorPartProps.labels.toolbarFavorite,
+          mode: 'icon',
+          buttonClassName: 'editor-browser-toolbar-btn',
+          content: createLxIcon('start'),
+          disabled: !this.props.editorPartProps.viewPartProps.browserUrl,
+        },
+      ],
+    });
+    this.editorToolbarTrailingActionsView.setProps({
+      className: 'editor-browser-toolbar-actions',
+      ariaRole: 'group',
       items: [{
-        label: this.isEditorCollapsed
-          ? this.props.editorPartProps.labels.expandEditor
-          : this.props.editorPartProps.labels.collapseEditor,
-        title: this.isEditorCollapsed
-          ? this.props.editorPartProps.labels.expandEditor
-          : this.props.editorPartProps.labels.collapseEditor,
+        label: this.props.editorPartProps.labels.toolbarMore,
+        title: this.props.editorPartProps.labels.toolbarMore,
         mode: 'icon',
-        buttonClassName: 'editor-topbar-toggle-editor-btn',
-        content: createLxIcon(
-          this.isEditorCollapsed
-            ? 'layout-sidebar-right-off'
-            : 'layout-sidebar-right',
-        ),
-        onClick: this.handleToggleEditorCollapse,
+        buttonClassName: 'editor-browser-toolbar-btn',
+        content: createLxIcon('more'),
       }],
     });
-
-    const sharedChildren = [this.sidebarTopbarActionsView.getElement()];
-    if (this.isEditorCollapsed) {
-      sharedChildren.push(this.editorTopbarActionsView.getElement());
+    if (
+      this.editorToolbarAddressInput.value !==
+      this.props.editorPartProps.viewPartProps.browserUrl
+    ) {
+      this.editorToolbarAddressInput.value =
+        this.props.editorPartProps.viewPartProps.browserUrl;
     }
-    this.sharedTopbarActionsElement.replaceChildren(...sharedChildren);
+    this.editorToolbarAddressInput.inputElement.setAttribute(
+      'aria-label',
+      this.props.editorPartProps.labels.toolbarAddressBar,
+    );
+    this.editorToolbarAddressInput.setPlaceHolder(
+      'Journal listing / latest article page URL',
+    );
   }
 
-  private shouldMountSharedTopbarActionsInAgentBar() {
-    return this.props.isAgentSidebarVisible && (
-      this.isEditorCollapsed || !this.props.isPrimarySidebarVisible
-    );
+  private shouldMountPrimarySidebarActionsInAgentBar() {
+    return this.props.isAgentSidebarVisible && !this.props.isPrimarySidebarVisible;
+  }
+
+  private shouldMountEditorActionsInAgentBar() {
+    return this.props.isAgentSidebarVisible && this.isEditorCollapsed;
   }
 
   private renderPrimarySidebar() {
@@ -363,16 +514,16 @@ export class WorkbenchContentView {
     if (!this.primaryBarView) {
       this.primaryBarView = createPrimaryBarPartView({
         ...this.props.primaryBarProps,
-        topbarActionsElement: this.shouldMountSharedTopbarActionsInAgentBar()
+        topbarActionsElement: this.shouldMountPrimarySidebarActionsInAgentBar()
           ? null
-          : this.sharedTopbarActionsElement,
+          : this.sidebarTopbarActionsView.getElement(),
       });
     } else {
       this.primaryBarView.setProps({
         ...this.props.primaryBarProps,
-        topbarActionsElement: this.shouldMountSharedTopbarActionsInAgentBar()
+        topbarActionsElement: this.shouldMountPrimarySidebarActionsInAgentBar()
           ? null
-          : this.sharedTopbarActionsElement,
+          : this.sidebarTopbarActionsView.getElement(),
       });
     }
 
@@ -386,6 +537,9 @@ export class WorkbenchContentView {
         topbarActionsElement: this.isEditorCollapsed
           ? null
           : this.editorTopbarActionsView.getElement(),
+        topbarToolbarElement: this.isEditorCollapsed
+          ? null
+          : this.editorToolbarElement,
         onStatusChange: this.handleEditorStatusChange,
       });
     } else {
@@ -394,6 +548,9 @@ export class WorkbenchContentView {
         topbarActionsElement: this.isEditorCollapsed
           ? null
           : this.editorTopbarActionsView.getElement(),
+        topbarToolbarElement: this.isEditorCollapsed
+          ? null
+          : this.editorToolbarElement,
         onStatusChange: this.handleEditorStatusChange,
       });
     }
@@ -415,8 +572,11 @@ export class WorkbenchContentView {
         {
           ...this.props.agentBarProps,
           isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
-          topbarActionsElement: this.shouldMountSharedTopbarActionsInAgentBar()
-            ? this.sharedTopbarActionsElement
+          topbarActionsElement: this.shouldMountPrimarySidebarActionsInAgentBar()
+            ? this.sidebarTopbarActionsView.getElement()
+            : null,
+          topbarTrailingActionsElement: this.shouldMountEditorActionsInAgentBar()
+            ? this.editorTopbarActionsView.getElement()
             : null,
         },
       );
@@ -424,8 +584,11 @@ export class WorkbenchContentView {
       this.agentBarView.setProps({
         ...this.props.agentBarProps,
         isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
-        topbarActionsElement: this.shouldMountSharedTopbarActionsInAgentBar()
-          ? this.sharedTopbarActionsElement
+        topbarActionsElement: this.shouldMountPrimarySidebarActionsInAgentBar()
+          ? this.sidebarTopbarActionsView.getElement()
+          : null,
+        topbarTrailingActionsElement: this.shouldMountEditorActionsInAgentBar()
+          ? this.editorTopbarActionsView.getElement()
           : null,
       });
     }
@@ -461,6 +624,7 @@ export class WorkbenchContentView {
       this.gridView &&
       this.rootGrid &&
       this.gridOrientation === orientation &&
+      this.gridEditorCollapsedState === this.isEditorCollapsed &&
       this.mainElement.firstChild === this.gridView.element
     ) {
       return;
@@ -483,6 +647,7 @@ export class WorkbenchContentView {
     this.rootGrid = rootGrid;
     this.gridView = gridView;
     this.gridOrientation = orientation;
+    this.gridEditorCollapsedState = this.isEditorCollapsed;
     this.mainElement.replaceChildren(gridView.element);
   }
 
@@ -493,6 +658,7 @@ export class WorkbenchContentView {
     this.layoutTree = null;
     this.rootGrid = null;
     this.gridOrientation = null;
+    this.gridEditorCollapsedState = null;
   }
 
   private readonly handleGridSashSnap = (event: GridSashSnapEvent) => {
@@ -738,11 +904,12 @@ export class WorkbenchContentView {
         ? this.expandedEditorSize
         : this.gridView.getViewSize([EDITOR_INDEX]),
       visible: !this.isEditorCollapsed,
-      flex: true,
+      flex: !this.isEditorCollapsed,
     });
     nextTree = updateLeaf(nextTree, 'agentSidebar', {
       size: this.gridView.getViewSize([AGENT_SIDEBAR_INDEX]),
       visible: this.props.isAgentSidebarVisible,
+      flex: this.isEditorCollapsed && this.props.isAgentSidebarVisible,
     });
 
     this.layoutTree = this.updateTreeBranchSizes(nextTree, {

@@ -346,6 +346,17 @@ function createWorkbenchContentViewProps() {
     },
     editorPartProps: {
       labels: {
+        topbarAddAction: 'Add',
+        createWrite: 'Write',
+        createBrowser: 'Browser',
+        createFile: 'File',
+        toolbarSources: 'Source menu',
+        toolbarBack: 'Back',
+        toolbarForward: 'Forward',
+        toolbarRefresh: 'Refresh',
+        toolbarFavorite: 'Favorite',
+        toolbarMore: 'More',
+        toolbarAddressBar: 'Address bar',
         draftMode: 'Draft',
         sourceMode: 'Source',
         pdfMode: 'PDF',
@@ -356,6 +367,7 @@ function createWorkbenchContentViewProps() {
         emptyWorkspaceBody: 'Create a draft to start.',
         draftBodyPlaceholder: 'Start writing',
         sourceTitle: 'Source',
+        sourceUrlPrompt: 'Enter a source URL',
         pdfTitle: 'PDF',
         textGroup: 'Text',
         formatGroup: 'Format',
@@ -418,6 +430,7 @@ function createWorkbenchContentViewProps() {
       onActivateTab: () => {},
       onCloseTab: () => {},
       onCreateDraftTab: () => {},
+      onCreateWebTab: () => {},
       onCreatePdfTab: () => {},
       onDraftDocumentChange: () => {},
     },
@@ -538,6 +551,113 @@ test('WorkbenchContentView mounts the editor collapse action into auxiliary topb
   }
 });
 
+test('WorkbenchContentView renders an add dropdown before the collapse action and dispatches create handlers', async () => {
+  const calls: string[] = [];
+  const props = createWorkbenchContentViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    onCreateDraftTab: () => calls.push('write'),
+    onCreateWebTab: () => calls.push('browser'),
+    onCreatePdfTab: () => calls.push('file'),
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    const actionButtons = Array.from(
+      view.getElement().querySelectorAll('.editor-topbar .actionbar-action'),
+    );
+    assert.equal(actionButtons.length >= 2, true);
+    assert.equal(actionButtons[0]?.classList.contains('editor-topbar-add-btn'), true);
+    assert.equal(
+      actionButtons[1]?.classList.contains('editor-topbar-toggle-editor-btn'),
+      true,
+    );
+
+    const addButton = view
+      .getElement()
+      .querySelector('.editor-topbar .editor-topbar-add-btn');
+    assert(addButton instanceof HTMLButtonElement);
+    assert.equal(addButton.getAttribute('aria-label'), 'Add');
+
+    for (const [label, expectedCall] of [
+      ['Write', 'write'],
+      ['Browser', 'browser'],
+      ['File', 'file'],
+    ] as const) {
+      addButton.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const menu = document.body.querySelector('.dropdown-menu');
+      assert(menu instanceof HTMLElement);
+      const menuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+        (node) => node.textContent?.includes(label),
+      );
+      assert(menuItem instanceof HTMLElement);
+      menuItem.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      assert.equal(calls.at(-1), expectedCall);
+    }
+
+    assert.deepEqual(calls, ['write', 'browser', 'file']);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('WorkbenchContentView renders the browser toolbar below the editor topbar', () => {
+  const props = createWorkbenchContentViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: 'https://example.com/current',
+    },
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    const editorShell = view.getElement().querySelector('.editor-shell');
+    assert(editorShell instanceof HTMLElement);
+
+    const topbar = editorShell.querySelector('.editor-topbar');
+    assert(topbar instanceof HTMLElement);
+
+    const toolbar = editorShell.querySelector('.editor-toolbar .editor-browser-toolbar');
+    assert(toolbar instanceof HTMLElement);
+    assert.equal(topbar.nextElementSibling, toolbar.parentElement);
+
+    const leadingButtons = Array.from(
+      toolbar.querySelectorAll('.editor-browser-toolbar-leading .editor-browser-toolbar-btn'),
+    );
+    assert.deepEqual(
+      leadingButtons.map((button) => button.getAttribute('aria-label')),
+      ['Source menu', 'Back', 'Forward', 'Refresh', 'Favorite'],
+    );
+
+    const addressInput = toolbar.querySelector('.editor-browser-toolbar-address-input input');
+    assert(addressInput instanceof HTMLInputElement);
+    assert.equal(addressInput.getAttribute('aria-label'), 'Address bar');
+    assert.equal(addressInput.value, 'https://example.com/current');
+
+    const trailingButtons = Array.from(
+      toolbar.querySelectorAll('.editor-browser-toolbar-trailing .editor-browser-toolbar-btn'),
+    );
+    assert.deepEqual(
+      trailingButtons.map((button) => button.getAttribute('aria-label')),
+      ['More'],
+    );
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
 test('WorkbenchContentView mounts the editor collapse action into agentbar topbar even when the primary sidebar is visible', () => {
   const props = createWorkbenchContentViewProps();
   props.isPrimarySidebarVisible = true;
@@ -567,6 +687,12 @@ test('WorkbenchContentView mounts the editor collapse action into agentbar topba
       .querySelector('.agentbar-topbar .editor-topbar-toggle-editor-btn');
     assert(auxiliaryToggleButton instanceof HTMLButtonElement);
     assert.equal(auxiliaryToggleButton.getAttribute('aria-label'), 'Expand editor');
+    assert(
+      view
+        .getElement()
+        .querySelector('.primarybar-topbar .sidebar-topbar-actions-host')
+        instanceof HTMLElement,
+    );
     assert.equal(
       view
         .getElement()
@@ -575,6 +701,62 @@ test('WorkbenchContentView mounts the editor collapse action into agentbar topba
     );
   } finally {
     view.dispose();
+  }
+});
+
+test('WorkbenchContentView keeps primary width fixed and expands agentbar when the editor is collapsed', () => {
+  const animationFrameSpy = installAnimationFrameSpy();
+  setWindowInnerWidth(1280);
+
+  try {
+    const props = createWorkbenchContentViewProps();
+    props.isPrimarySidebarVisible = true;
+    props.isAgentSidebarVisible = true;
+    props.primarySidebarSize = 320;
+    props.agentSidebarSize = 360;
+    props.sidebarTopbarActionsProps = {
+      ...props.sidebarTopbarActionsProps,
+      isPrimarySidebarVisible: true,
+      primarySidebarToggleLabel: 'Hide primary sidebar',
+      commandPaletteLabel: 'Quick access',
+      onTogglePrimarySidebar: () => {},
+    };
+
+    const view = createWorkbenchContentView(props);
+    bindWorkbenchContentSize(view, 1280, 720);
+    document.body.append(view.getElement());
+    animationFrameSpy.flushAll();
+
+    const gridView = (view as unknown as {
+      gridView: {
+        getViewSize: (location: readonly number[]) => number;
+      } | null;
+    }).gridView;
+    assert(gridView);
+
+    const primarySizeBefore = gridView.getViewSize([0]);
+    const agentSizeBefore = gridView.getViewSize([1]);
+
+    const editorToggleButton = view
+      .getElement()
+      .querySelector('.editor-topbar .editor-topbar-toggle-editor-btn');
+    assert(editorToggleButton instanceof HTMLButtonElement);
+    editorToggleButton.click();
+    animationFrameSpy.flushAll();
+
+    const nextGridView = (view as unknown as {
+      gridView: {
+        getViewSize: (location: readonly number[]) => number;
+      } | null;
+    }).gridView;
+    assert(nextGridView);
+
+    assert.equal(nextGridView.getViewSize([0]), primarySizeBefore);
+    assert(nextGridView.getViewSize([1]) > agentSizeBefore);
+
+    view.dispose();
+  } finally {
+    animationFrameSpy.restore();
   }
 });
 
