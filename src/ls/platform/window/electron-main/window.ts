@@ -394,11 +394,14 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
     void window.loadFile(resolveWorkbenchRendererFilePath());
   }
 
-  window.on('closed', () => {
+  window.on('close', () => {
     closeAuxiliaryWindows();
     disposeMenuOverlay(window);
     disposeToastOverlay(window);
     disposeWebContentView(window);
+  });
+
+  window.on('closed', () => {
     mainWindow = null;
   });
 

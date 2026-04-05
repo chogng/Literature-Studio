@@ -140,6 +140,18 @@ function normalizeTheme(value: unknown): AppTheme {
   return value === 'dark' ? 'dark' : 'light';
 }
 
+function normalizeThemeColorCustomizations(value: unknown): StoredAppSettings['workbench.colorCustomizations'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const entries = Object.entries(value).filter(
+    ([key, entryValue]) => key.trim() && typeof entryValue === 'string',
+  );
+
+  return Object.fromEntries(entries);
+}
+
 function buildSourceId(seed: unknown, index: number) {
   const cleaned = cleanText(seed);
   if (cleaned) return cleaned;
@@ -245,6 +257,7 @@ function normalizeSettings(
         : defaultSameDomainOnly,
     useMica: typeof payload.useMica === 'boolean' ? payload.useMica : true,
     theme: normalizeTheme(payload.theme),
+    'workbench.colorCustomizations': normalizeThemeColorCustomizations(payload['workbench.colorCustomizations']),
     locale: normalizeLocale(payload.locale, defaultLocale),
     llm: normalizeLlmSettings(payload.llm),
     translation: normalizeTranslationSettings(payload.translation),

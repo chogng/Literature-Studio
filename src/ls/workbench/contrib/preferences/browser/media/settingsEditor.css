@@ -38,9 +38,9 @@
   min-height: 0;
   overflow: auto;
   padding: 16px 14px;
-  border-right: 1px solid #e6edf5;
+  border-right: 1px solid var(--vscode-settings-navigationBorder, #e6edf5);
   background:
-    linear-gradient(180deg, #f7fbff 0%, #f2f7fc 100%);
+    linear-gradient(180deg, var(--vscode-settings-navigationBackgroundFrom, #f7fbff) 0%, var(--vscode-settings-navigationBackgroundTo, #f2f7fc) 100%);
 }
 
 .settings-navigation-item {
@@ -51,7 +51,7 @@
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: #304357;
+  color: var(--vscode-settings-navigationItemForeground, #304357);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -70,13 +70,13 @@
 }
 
 .settings-navigation-item:hover {
-  background: rgba(10, 95, 191, 0.06);
+  background: var(--vscode-settings-navigationItemHoverBackground, rgba(10, 95, 191, 0.06));
 }
 
 .settings-navigation-item.active {
-  border-color: #c9d7e6;
-  background: #fff;
-  color: #0a5fbf;
+  border-color: var(--vscode-settings-navigationItemActiveBorder, #c9d7e6);
+  background: var(--vscode-settings-navigationItemActiveBackground, #fff);
+  color: var(--vscode-settings-navigationItemActiveForeground, #0a5fbf);
   box-shadow: none;
 }
 
@@ -88,7 +88,7 @@
   align-content: start;
   min-height: 0;
   overflow: auto;
-  background: #fff;
+  background: var(--vscode-settings-contentBackground, #fff);
 }
 
 .settings-section {
@@ -96,7 +96,7 @@
   gap: 10px;
   padding: 0 0 12px;
   border: 0;
-  border-bottom: 1px solid #e1e9f2;
+  border-bottom: 1px solid var(--vscode-settings-sectionBorder, #e1e9f2);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -118,7 +118,7 @@
 .settings-section-title {
   font-size: 15px;
   font-weight: 700;
-  color: #203040;
+  color: var(--vscode-settings-sectionTitleForeground, #203040);
 }
 
 @media (max-width: 980px) {
@@ -128,6 +128,6 @@
 
   .settings-navigation {
     border-right: 0;
-    border-bottom: 1px solid #e6edf5;
+    border-bottom: 1px solid var(--vscode-settings-navigationBorder, #e6edf5);
   }
 }

@@ -15,10 +15,10 @@
 }
 
 .list-view-row.is-selected {
-  background: #e8f1fc;
+  background: var(--vscode-list-activeSelectionBackground, #e8f1fc);
 }
 
 .list-view-row.is-focused {
-  outline: 1px solid #8cb4ea;
+  outline: 1px solid var(--vscode-list-focusOutline, #8cb4ea);
   outline-offset: -1px;
 }

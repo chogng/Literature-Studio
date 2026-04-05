@@ -1,4 +1,5 @@
 import type { ColorIdentifier } from 'ls/platform/theme/common/colorRegistry';
+import type { ThemeColorCustomizations } from 'ls/base/parts/sandbox/common/desktopTypes';
 import {
   createColorThemeData,
   type ColorThemeData,
@@ -18,10 +19,20 @@ const THEME_DEFINITIONS: Record<ThemeKind, ThemeJsonDefinition> = {
 };
 
 export function loadWorkbenchTheme(kind: ThemeKind): ColorThemeData {
+  return loadWorkbenchThemeWithCustomizations(kind);
+}
+
+export function loadWorkbenchThemeWithCustomizations(
+  kind: ThemeKind,
+  colorCustomizations: ThemeColorCustomizations = {},
+): ColorThemeData {
   const definition = THEME_DEFINITIONS[kind];
   return createColorThemeData({
     kind,
-    colors: definition.colors,
+    colors: {
+      ...definition.colors,
+      ...colorCustomizations as Partial<Record<ColorIdentifier, string>>,
+    },
     variables: definition.variables,
   });
 }

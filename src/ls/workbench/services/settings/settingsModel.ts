@@ -6,6 +6,7 @@ import type {
   LlmProviderSettings,
   RagProviderId,
   RagProviderSettings,
+  ThemeColorCustomizations,
   TranslationProviderId,
   TranslationProviderSettings,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
@@ -54,6 +55,7 @@ export type SettingsModelSnapshot = {
   sameDomainOnly: boolean;
   useMica: boolean;
   theme: AppTheme;
+  workbenchColorCustomizations: ThemeColorCustomizations;
   knowledgeBaseEnabled: boolean;
   autoIndexDownloadedPdf: boolean;
   libraryStorageMode: LibraryStorageMode;
@@ -141,6 +143,7 @@ function areSettingsModelSnapshotsEqual(
     previous.isTestingRagConnection === next.isTestingRagConnection &&
     previous.isTestingLlmConnection === next.isTestingLlmConnection &&
     previous.isTestingTranslationConnection === next.isTestingTranslationConnection &&
+    areJsonEqual(previous.workbenchColorCustomizations, next.workbenchColorCustomizations) &&
     areJsonEqual(previous.batchSources, next.batchSources) &&
     areJsonEqual(previous.ragProviders, next.ragProviders) &&
     areJsonEqual(previous.llmProviders, next.llmProviders) &&
@@ -165,6 +168,7 @@ function createInitialSettingsModelSnapshot(
     sameDomainOnly: defaultSameDomainOnly,
     useMica: true,
     theme: 'light',
+    workbenchColorCustomizations: {},
     knowledgeBaseEnabled: defaultKnowledgeBaseSettings.enabled,
     autoIndexDownloadedPdf: defaultKnowledgeBaseSettings.autoIndexDownloadedPdf,
     libraryStorageMode: defaultKnowledgeBaseSettings.libraryStorageMode,
@@ -815,6 +819,7 @@ export class SettingsModel {
         sameDomainOnly: resolved.sameDomainOnly,
         useMica: resolved.useMica,
         theme: resolved.theme,
+        workbenchColorCustomizations: resolved.workbenchColorCustomizations,
         knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
         autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
         libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
@@ -937,6 +942,7 @@ export class SettingsModel {
       sameDomainOnly,
       useMica,
       theme,
+      workbenchColorCustomizations,
       knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       libraryStorageMode,
@@ -962,6 +968,7 @@ export class SettingsModel {
       sameDomainOnly,
       useMica,
       theme,
+      workbenchColorCustomizations,
       locale,
       knowledgeBase: {
         enabled: knowledgeBaseEnabled,
@@ -1014,6 +1021,7 @@ export class SettingsModel {
       sameDomainOnly: resolved.sameDomainOnly,
       useMica: resolved.useMica,
       theme: resolved.theme,
+      workbenchColorCustomizations: resolved.workbenchColorCustomizations,
       knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
       autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
       libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
@@ -1050,6 +1058,7 @@ export class SettingsModel {
       sameDomainOnly,
       useMica,
       theme,
+      workbenchColorCustomizations,
       knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       libraryStorageMode,
@@ -1075,6 +1084,7 @@ export class SettingsModel {
       sameDomainOnly,
       useMica,
       theme,
+      workbenchColorCustomizations,
       locale,
       knowledgeBase: {
         enabled: knowledgeBaseEnabled,
@@ -1129,6 +1139,7 @@ export class SettingsModel {
         sameDomainOnly: resolved.sameDomainOnly,
         useMica: resolved.useMica,
         theme: resolved.theme,
+        workbenchColorCustomizations: resolved.workbenchColorCustomizations,
         knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
         autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
         libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,

@@ -218,7 +218,9 @@ async function executeScienceValidationScript(
     let settled = false;
 
     const cleanup = () => {
-      window.removeListener('closed', handleClosed);
+      if (!window.isDestroyed()) {
+        window.removeListener('closed', handleClosed);
+      }
       abortSignal?.removeEventListener('abort', handleAbort);
     };
 
@@ -447,9 +449,13 @@ async function waitForScienceValidationBoot(
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
-      webContents.removeListener('dom-ready', handleDomReady);
-      webContents.removeListener('did-fail-load', handleDidFailLoad);
-      window.removeListener('closed', handleClosed);
+      if (!window.isDestroyed()) {
+        if (!window.webContents.isDestroyed()) {
+          webContents.removeListener('dom-ready', handleDomReady);
+          webContents.removeListener('did-fail-load', handleDidFailLoad);
+        }
+        window.removeListener('closed', handleClosed);
+      }
       abortSignal?.removeEventListener('abort', handleAbort);
     };
 

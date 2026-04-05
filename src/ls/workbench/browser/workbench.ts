@@ -903,6 +903,7 @@ class WorkbenchHost {
       sameDomainOnly,
       useMica,
       theme,
+      workbenchColorCustomizations,
       knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       knowledgeBasePdfDownloadDir,
@@ -926,7 +927,7 @@ class WorkbenchHost {
       isTestingLlmConnection,
       isTestingTranslationConnection,
     } = settingsSnapshot;
-    applyWorkbenchTheme(theme);
+    applyWorkbenchTheme(theme, workbenchColorCustomizations);
     const knowledgeBaseModeEnabled = knowledgeBaseEnabled;
     this.syncKnowledgeBaseLayout(knowledgeBaseModeEnabled);
 

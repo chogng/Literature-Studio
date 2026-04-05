@@ -1,8 +1,6 @@
+import { getGlobalSashSize } from 'ls/base/browser/ui/sash/sash';
 import { Orientation } from 'ls/base/browser/ui/splitview/splitview';
-import {
-  WORKBENCH_SPLITVIEW_LIMITS,
-  WORKBENCH_SPLITVIEW_SASH_SIZE,
-} from 'ls/workbench/browser/layout';
+import { WORKBENCH_SPLITVIEW_LIMITS } from 'ls/workbench/browser/layout';
 
 export type SplitViewConstraints = {
   minimum: number;
@@ -44,7 +42,7 @@ function getLeadingGroupSashSize(
   isPrimarySidebarVisible: boolean,
 ) {
   return isFetchSidebarVisible && isPrimarySidebarVisible
-    ? WORKBENCH_SPLITVIEW_SASH_SIZE
+    ? getGlobalSashSize()
     : 0;
 }
 

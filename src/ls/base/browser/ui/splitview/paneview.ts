@@ -1,4 +1,4 @@
-import { Orientation } from 'ls/base/browser/ui/sash/sash';
+import { getGlobalSashSize, Orientation } from 'ls/base/browser/ui/sash/sash';
 import { EventEmitter } from 'ls/base/common/event';
 import {
   LifecycleStore,
@@ -264,7 +264,7 @@ export class PaneView {
     );
     this.splitView = new SplitView(
       orientation,
-      options.sashSize ?? 8,
+      options.sashSize ?? getGlobalSashSize(),
       options.reserveSashSpace ?? true,
     );
     this.element.append(this.splitView.element);

@@ -1624,9 +1624,14 @@ export function ensureWebContentView(window: BrowserWindow) {
   window.webContents.on('destroyed', handleDestroyed);
   window.webContents.on('render-process-gone', handleRenderProcessGone);
   disposeWebContentWindowListeners = () => {
-    window.webContents.removeListener('did-start-navigation', handleDidStartNavigation);
-    window.webContents.removeListener('destroyed', handleDestroyed);
-    window.webContents.removeListener('render-process-gone', handleRenderProcessGone);
+    if (!window.isDestroyed()) {
+      const currentWebContents = window.webContents;
+      if (!currentWebContents.isDestroyed()) {
+        currentWebContents.removeListener('did-start-navigation', handleDidStartNavigation);
+        currentWebContents.removeListener('destroyed', handleDestroyed);
+        currentWebContents.removeListener('render-process-gone', handleRenderProcessGone);
+      }
+    }
     disposeWebContentWindowListeners = null;
   };
 }

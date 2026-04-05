@@ -3,6 +3,7 @@ import type {
   IGridView,
 } from 'ls/base/browser/ui/grid/gridview';
 import { GridBranchView, GridView, Orientation } from 'ls/base/browser/ui/grid/gridview';
+import { getGlobalSashSize } from 'ls/base/browser/ui/sash/sash';
 import {
   LifecycleStore,
   MutableLifecycle,
@@ -18,7 +19,6 @@ import {
   WORKBENCH_CONTENT_LAYOUT_BREAKPOINT,
   WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE,
   WORKBENCH_SPLITVIEW_LIMITS,
-  WORKBENCH_SPLITVIEW_SASH_SIZE,
 } from 'ls/workbench/browser/layout';
 import {
   getWorkbenchContentSplitConstraints,
@@ -147,7 +147,7 @@ function getRootSplitSize(
     sizes.editorSize +
     (props.isAuxiliarySidebarVisible ? sizes.auxiliarySidebarSize : 0) +
     (WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE
-      ? Math.max(0, getVisibleRootPaneCount(props) - 1) * WORKBENCH_SPLITVIEW_SASH_SIZE
+      ? Math.max(0, getVisibleRootPaneCount(props) - 1) * getGlobalSashSize()
       : 0)
   );
 }
@@ -662,7 +662,7 @@ export class WorkbenchContentView {
 
     const branch = new GridBranchView(
       node.orientation,
-      WORKBENCH_SPLITVIEW_SASH_SIZE,
+      undefined,
       WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE,
       node.children.map((child) => ({
         view:

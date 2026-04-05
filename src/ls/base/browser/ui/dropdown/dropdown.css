@@ -1,13 +1,13 @@
 .dropdown-wrapper {
   --dropdown-height: 40px;
   --dropdown-radius: 8px;
-  --dropdown-border: #cfdae7;
-  --dropdown-border-hover: #b8c7d9;
-  --dropdown-border-focus: #0a5fbf;
-  --dropdown-bg: #ffffff;
-  --dropdown-bg-hover: rgba(0, 0, 0, 0.04);
-  --dropdown-bg-focus: #ffffff;
-  --dropdown-menu-item-hover-bg: rgba(0, 0, 0, 0.04);
+  --dropdown-border: var(--vscode-dropdown-border, #cfdae7);
+  --dropdown-border-hover: var(--vscode-dropdown-borderHover, #b8c7d9);
+  --dropdown-border-focus: var(--vscode-dropdown-borderFocus, #0a5fbf);
+  --dropdown-bg: var(--vscode-dropdown-background, #ffffff);
+  --dropdown-bg-hover: var(--vscode-dropdown-backgroundHover, rgba(0, 0, 0, 0.04));
+  --dropdown-bg-focus: var(--vscode-dropdown-backgroundFocus, #ffffff);
+  --dropdown-menu-item-hover-bg: var(--vscode-dropdown-itemHoverBackground, rgba(0, 0, 0, 0.04));
 
   position: relative;
   display: flex;
@@ -23,18 +23,18 @@
 }
 
 .dropdown-wrapper:hover:not(.dropdown-disabled) {
-  border-color: var(--dropdown-border);
+  border-color: var(--dropdown-border-hover);
   background-color: var(--dropdown-bg-hover);
 }
 
 .dropdown-focused {
-  border-color: var(--dropdown-border);
+  border-color: var(--dropdown-border-focus);
   background-color: var(--dropdown-bg-focus);
 }
 
 .dropdown-disabled {
   opacity: 0.65;
-  background-color: #f8fafc;
+  background-color: var(--vscode-dropdown-backgroundDisabled, #f8fafc);
   cursor: not-allowed;
 }
 
@@ -76,13 +76,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: var(--vscode-dropdown-iconForeground, #64748b);
   pointer-events: none;
   z-index: 1;
 }
 
 .dropdown-wrapper.dropdown-disabled .dropdown-icon-wrapper {
-  color: #94a3b8;
+  color: var(--vscode-dropdown-iconDisabledForeground, #94a3b8);
 }
 
 .dropdown-menu {
@@ -92,10 +92,10 @@
   width: max-content;
   min-width: 100%;
   max-width: 320px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--vscode-dropdown-menuBackground, #ffffff);
+  border: 1px solid var(--vscode-dropdown-menuBorder, rgba(0, 0, 0, 0.08));
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--vscode-dropdown-menuShadow, 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06));
   padding: 4px;
   z-index: 1000;
   display: flex;
@@ -103,7 +103,7 @@
   gap: 2px;
   overflow-y: auto;
   animation: dropdown-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  color: #1a2530;
+  color: var(--vscode-dropdown-menuForeground, #1a2530);
 }
 
 .dropdown-menu-portal {
@@ -159,7 +159,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
-  color: #304357;
+  color: var(--vscode-dropdown-itemForeground, #304357);
   gap: 8px;
 }
 
@@ -177,8 +177,8 @@
 }
 
 .dropdown-menu-item.selected {
-  background: #f1f6fc;
-  color: #0a5fbf;
+  background: var(--vscode-dropdown-itemSelectedBackground, #f1f6fc);
+  color: var(--vscode-dropdown-itemSelectedForeground, #0a5fbf);
   font-weight: 500;
 }
 
@@ -199,7 +199,7 @@
   width: 14px;
   min-width: 14px;
   height: 14px;
-  color: rgba(10, 95, 191, 0.72);
+  color: var(--vscode-dropdown-itemCheckForeground, rgba(10, 95, 191, 0.72));
   opacity: 0.9;
 }
 

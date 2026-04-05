@@ -1,8 +1,8 @@
 .ls-menu {
-  --ls-menu-hover-bg: rgba(0, 0, 0, 0.04);
-  --ls-menu-selected-bg: #f1f6fc;
-  --ls-menu-selected-fg: #0a5fbf;
-  --ls-menu-check-color: rgba(10, 95, 191, 0.72);
+  --ls-menu-hover-bg: var(--vscode-menu-itemHoverBackground, rgba(0, 0, 0, 0.04));
+  --ls-menu-selected-bg: var(--vscode-menu-itemSelectedBackground, #f1f6fc);
+  --ls-menu-selected-fg: var(--vscode-menu-itemSelectedForeground, #0a5fbf);
+  --ls-menu-check-color: var(--vscode-menu-itemCheckForeground, rgba(10, 95, 191, 0.72));
 
   position: absolute;
   top: calc(100% + 4px);
@@ -10,10 +10,10 @@
   width: max-content;
   min-width: 100%;
   max-width: min(360px, calc(100vw - 16px));
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--vscode-menu-background, #ffffff);
+  border: 1px solid var(--vscode-menu-border, rgba(0, 0, 0, 0.08));
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--vscode-menu-shadow, 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06));
   padding: 4px;
   z-index: 1000;
   display: flex;
@@ -21,7 +21,7 @@
   gap: 2px;
   overflow-y: auto;
   animation: ls-menu-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  color: #1a2530;
+  color: var(--vscode-menu-foreground, #1a2530);
   outline: none;
 }
 
@@ -38,9 +38,8 @@
 
 .ls-menu:focus-visible {
   box-shadow:
-    0 0 0 2px rgba(10, 95, 191, 0.28),
-    0 8px 32px rgba(0, 0, 0, 0.12),
-    0 1px 2px rgba(0, 0, 0, 0.06);
+    0 0 0 2px var(--vscode-menu-focusOutline, rgba(10, 95, 191, 0.28)),
+    var(--vscode-menu-shadow, 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06));
 }
 
 @keyframes ls-menu-fade-in {
@@ -77,7 +76,7 @@
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
   user-select: none;
-  color: #304357;
+  color: var(--vscode-menu-itemForeground, #304357);
   gap: 8px;
 }
 

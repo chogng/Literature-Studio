@@ -1,5 +1,5 @@
+import { getGlobalSashSize } from 'ls/base/browser/ui/sash/sash';
 import { Orientation } from 'ls/base/browser/ui/grid/gridview';
-import { WORKBENCH_SPLITVIEW_SASH_SIZE } from 'ls/workbench/browser/layout';
 
 export type WorkbenchContentLayoutLeafId =
   | 'fetchSidebar'
@@ -133,7 +133,7 @@ function getRootSize(params: WorkbenchContentLayoutTreeParams) {
     (params.isPrimarySidebarVisible ? params.primarySidebarSize : 0) +
     params.editorSize +
     (params.isAuxiliarySidebarVisible ? params.auxiliarySidebarSize : 0) +
-    Math.max(0, getRootVisibleChildCount(params) - 1) * WORKBENCH_SPLITVIEW_SASH_SIZE
+    Math.max(0, getRootVisibleChildCount(params) - 1) * getGlobalSashSize()
   );
 }
 

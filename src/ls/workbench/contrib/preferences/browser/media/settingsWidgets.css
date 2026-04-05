@@ -3,7 +3,7 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #304050;
+  color: var(--vscode-settings-fieldForeground, #304050);
 }
 
 .checkbox-field {
@@ -14,17 +14,17 @@
   appearance: none;
   width: 16px;
   height: 16px;
-  border: 1px solid #a7bad0;
+  border: 1px solid var(--vscode-settings-checkboxBorder, #a7bad0);
   border-radius: 4px;
-  background: #fff;
+  background: var(--vscode-settings-checkboxBackground, #fff);
   position: relative;
   flex: 0 0 auto;
   cursor: pointer;
 }
 
 .radix-checkbox:checked {
-  border-color: #0a5fbf;
-  background: #0a5fbf;
+  border-color: var(--vscode-settings-checkboxCheckedBorder, #0a5fbf);
+  background: var(--vscode-settings-checkboxCheckedBackground, #0a5fbf);
 }
 
 .radix-checkbox:checked::after {
@@ -34,7 +34,7 @@
   top: 2px;
   width: 4px;
   height: 8px;
-  border: solid #fff;
+  border: solid var(--vscode-settings-checkboxCheckmark, #fff);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -45,7 +45,7 @@
 }
 
 .radix-checkbox:focus-visible {
-  outline: 2px solid #0a5fbf;
+  outline: 2px solid var(--vscode-settings-checkboxFocusBorder, #0a5fbf);
   outline-offset: 2px;
 }
 
@@ -61,7 +61,7 @@
 .settings-field {
   display: grid;
   gap: 8px;
-  color: #2d4052;
+  color: var(--vscode-settings-fieldForeground, #2d4052);
   font-size: 14px;
 }
 
@@ -118,33 +118,33 @@
   width: 100%;
   min-height: 34px;
   padding: 6px 10px;
-  border: 1px solid #c9d7e6;
+  border: 1px solid var(--vscode-settings-inputBorder, #c9d7e6);
   border-radius: 8px;
-  background: #fff;
-  color: #203040;
+  background: var(--vscode-settings-inputBackground, #fff);
+  color: var(--vscode-settings-inputForeground, #203040);
   font: inherit;
   box-sizing: border-box;
 }
 
 .settings-native-input:focus,
 .settings-native-select:focus {
-  outline: 2px solid rgba(10, 95, 191, 0.18);
-  border-color: #0a5fbf;
+  outline: 2px solid var(--vscode-settings-inputFocusOutline, rgba(10, 95, 191, 0.18));
+  border-color: var(--vscode-settings-inputFocusBorder, #0a5fbf);
 }
 
 .settings-native-button {
   min-height: 34px;
   padding: 6px 10px;
-  border: 1px solid #c9d7e6;
+  border: 1px solid var(--vscode-settings-buttonBorder, #c9d7e6);
   border-radius: 8px;
-  background: #fff;
-  color: #203040;
+  background: var(--vscode-settings-buttonBackground, #fff);
+  color: var(--vscode-settings-buttonForeground, #203040);
   font: inherit;
   cursor: pointer;
 }
 
 .settings-native-button:hover:not(:disabled) {
-  background: #f6f9fc;
+  background: var(--vscode-settings-buttonHoverBackground, #f6f9fc);
 }
 
 .settings-native-button:disabled {
@@ -231,7 +231,7 @@
 }
 
 .settings-toggle-subtitle {
-  color: #2d4052;
+  color: var(--vscode-settings-fieldForeground, #2d4052);
   font-size: 14px;
 }
 
@@ -259,7 +259,7 @@
   gap: 16px;
   padding: 12px;
   border-radius: 18px;
-  background: #f6f6f6;
+  background: var(--vscode-settings-panelBackground, #f6f6f6);
 }
 
 .settings-llm-api-row {
@@ -285,14 +285,14 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #64748b;
+  color: var(--vscode-settings-mutedForeground, #64748b);
   border-radius: 4px;
   cursor: pointer;
 }
 
 .settings-password-toggle:hover {
-  color: #304357;
-  background: #f1f5f9;
+  color: var(--vscode-settings-fieldForeground, #304357);
+  background: var(--vscode-settings-cardBackgroundAlt, #f1f5f9);
 }
 
 .settings-password-toggle:focus-visible {
@@ -307,7 +307,7 @@
   display: grid;
   gap: 0px;
   border-radius: 18px;
-  background: #f6f6f6;
+  background: var(--vscode-settings-panelBackground, #f6f6f6);
   box-shadow: none;
 }
 
@@ -352,7 +352,7 @@
   left: 12px;
   right: 12px;
   height: 1px;
-  background: #e5e5e5;
+  background: var(--vscode-settings-separator, #e5e5e5);
 }
 
 .settings-model-list-item:first-child::before {
@@ -370,14 +370,14 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #203040;
+  color: var(--vscode-settings-panelForeground, #203040);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
 .settings-model-list-button:hover:not(:disabled) .settings-model-list-name {
-  color: #0a5fbf;
+  color: var(--vscode-settings-linkForeground, #0a5fbf);
 }
 
 .settings-model-list-title-row {
@@ -389,7 +389,7 @@
 }
 
 .settings-model-list-name {
-  color: #203040;
+  color: var(--vscode-settings-panelForeground, #203040);
   font-size: 12px;
   font-weight: 500;
 }
@@ -414,16 +414,16 @@
   align-items: center;
   min-height: 22px;
   padding: 0 8px;
-  border: 1px solid #d8e3ef;
+  border: 1px solid var(--vscode-settings-badgeBorder, #d8e3ef);
   border-radius: 999px;
-  background: #fff;
-  color: #5c7084;
+  background: var(--vscode-settings-badgeBackground, #fff);
+  color: var(--vscode-settings-badgeForeground, #5c7084);
   font-size: 12px;
   line-height: 1;
 }
 
 .settings-model-list-button:disabled {
-  color: #203040;
+  color: var(--vscode-settings-panelForeground, #203040);
   cursor: default;
   opacity: 1;
 }
@@ -433,13 +433,13 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #5c7084;
+  color: var(--vscode-settings-badgeForeground, #5c7084);
   font: inherit;
   cursor: pointer;
 }
 
 .settings-model-list-toggle-button:hover {
-  color: #203040;
+  color: var(--vscode-settings-panelForeground, #203040);
 }
 
 .settings-model-list-switch {
@@ -448,13 +448,13 @@
 
 .settings-model-list-empty {
   padding: 8px 2px 2px;
-  color: #66788b;
+  color: var(--vscode-settings-mutedForeground, #66788b);
   font-size: 13px;
 }
 
 .settings-hint {
   margin: 0;
-  color: #5b6b7b;
+  color: var(--vscode-settings-mutedForeground, #5b6b7b);
   font-size: 13px;
 }
 
@@ -468,13 +468,13 @@
   display: grid;
   gap: 6px;
   padding: 12px;
-  border: 1px solid #dce7f2;
+  border: 1px solid var(--vscode-settings-cardBorder, #dce7f2);
   border-radius: 12px;
-  background: linear-gradient(180deg, #f9fbfe 0%, #f3f7fb 100%);
+  background: linear-gradient(180deg, var(--vscode-settings-cardBackground, #f9fbfe) 0%, var(--vscode-settings-cardBackgroundAlt, #f3f7fb) 100%);
 }
 
 .settings-library-stat-label {
-  color: #607285;
+  color: var(--vscode-settings-cardLabelForeground, #607285);
   font-size: 12px;
 }
 
@@ -487,23 +487,23 @@
   display: grid;
   gap: 4px;
   padding: 10px 12px;
-  border: 1px solid #e4edf6;
+  border: 1px solid var(--vscode-settings-cardBorder, #e4edf6);
   border-radius: 10px;
-  background: #f9fbfd;
+  background: var(--vscode-settings-cardBackground, #f9fbfd);
 }
 
 .settings-library-doc-title {
-  color: #203040;
+  color: var(--vscode-settings-cardTitleForeground, #203040);
   font-size: 14px;
 }
 
 .settings-library-doc-meta {
-  color: #607285;
+  color: var(--vscode-settings-cardLabelForeground, #607285);
   font-size: 12px;
 }
 
 .settings-library-doc-status {
-  color: #35536e;
+  color: var(--vscode-settings-cardAccentForeground, #35536e);
   font-size: 12px;
 }
 

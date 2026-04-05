@@ -46,6 +46,70 @@ export const enum SashState {
   Enabled,
 }
 
+export const DEFAULT_SASH_SIZE = 10;
+export const DEFAULT_SASH_HOVER_SIZE = 10;
+
+let globalSashSize = DEFAULT_SASH_SIZE;
+let globalSashHoverSize = DEFAULT_SASH_HOVER_SIZE;
+
+function applyGlobalSashStyles() {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.documentElement.style.setProperty('--sash-size', `${globalSashSize}px`);
+  document.documentElement.style.setProperty(
+    '--sash-hover-size',
+    `${globalSashHoverSize}px`,
+  );
+}
+
+function parseCssPixelValue(value: string, fallback: number) {
+  const parsed = Number.parseFloat(value.trim());
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export function getGlobalSashSize() {
+  return globalSashSize;
+}
+
+export function setGlobalSashSize(
+  size: number,
+  hoverSize = size,
+) {
+  globalSashSize = size;
+  globalSashHoverSize = hoverSize;
+  applyGlobalSashStyles();
+}
+
+export function syncGlobalSashSizeFromCss() {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  const styles = getComputedStyle(document.documentElement);
+  globalSashSize = parseCssPixelValue(
+    styles.getPropertyValue('--sash-size'),
+    DEFAULT_SASH_SIZE,
+  );
+  globalSashHoverSize = parseCssPixelValue(
+    styles.getPropertyValue('--sash-hover-size'),
+    globalSashSize,
+  );
+}
+
+export function resetGlobalSashSize() {
+  globalSashSize = DEFAULT_SASH_SIZE;
+  globalSashHoverSize = DEFAULT_SASH_HOVER_SIZE;
+
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  document.documentElement.style.removeProperty('--sash-size');
+  document.documentElement.style.removeProperty('--sash-hover-size');
+}
+
 export type ISashEvent = {
   startX: number;
   currentX: number;
@@ -195,9 +259,7 @@ export class Sash {
       return this.explicitSize;
     }
 
-    const value = getComputedStyle(this.element).getPropertyValue('--sash-size').trim();
-    const size = Number.parseFloat(value);
-    return Number.isFinite(size) ? size : 0;
+    return getGlobalSashSize();
   }
 
   private getPositionedOffset(offset: number, size: number) {

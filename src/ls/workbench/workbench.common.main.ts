@@ -13,6 +13,7 @@ import { createWorkbenchWebContentViewContribution } from 'ls/workbench/contrib/
 
 //#region --- workbench services
 import 'ls/workbench/contrib/localization/localization.contribution';
+import 'ls/workbench/contrib/sash/browser/sash.contribution';
 //#endregion
 
 //#region --- workbench contributions

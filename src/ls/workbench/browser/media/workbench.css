@@ -1,9 +1,9 @@
 :root {
-  --workbench-chrome-bg: #fafafd;
-  --workbench-chrome-bg-transparent: rgba(250, 250, 253, 0);
+  --workbench-chrome-bg: var(--vscode-workbench-chromeBackground, #fafafd);
+  --workbench-chrome-bg-transparent: var(--vscode-workbench-chromeBackgroundTransparent, rgba(250, 250, 253, 0));
   font-family: 'IBM Plex Sans', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
   line-height: 1.4;
-  color: #1a2530;
+  color: var(--vscode-workbench-foreground, #1a2530);
   background: transparent;
 }
 
@@ -31,10 +31,10 @@ input {
 }
 
 button {
-  border: 1px solid #c4cfda;
+  border: 1px solid var(--vscode-workbench-buttonBorder, #c4cfda);
   border-radius: 2px;
-  background: #f6f9fc;
-  color: #1f2d3a;
+  background: var(--vscode-workbench-buttonBackground, #f6f9fc);
+  color: var(--vscode-workbench-buttonForeground, #1f2d3a);
   padding: 8px 12px;
   cursor: pointer;
 }
@@ -90,15 +90,16 @@ button:disabled {
 .panel {
   min-width: 0;
   min-height: 0;
-  background: #ffffff;
-  border: 1px solid #d2dce8;
+  background: var(--vscode-workbench-panelBackground, #ffffff);
+  border: 1px solid var(--vscode-workbench-panelBorder, #d2dce8);
   border-radius: 0;
 }
 
 .panel-title {
   padding: 10px 12px;
-  border-bottom: 1px solid #e5ebf1;
+  border-bottom: 1px solid var(--vscode-workbench-panelTitleBorder, #e5ebf1);
   font-weight: 600;
+  color: var(--vscode-workbench-panelTitleForeground, #203040);
 }
 
 /* The titlebar is split across the three top segments of
@@ -136,10 +137,6 @@ button:disabled {
 .content-grid .grid-view-branch > .split-view {
   width: 100%;
   height: 100%;
-}
-
-.content-grid .grid-view-branch > .split-view > .sash-container > .sash {
-  --sash-hover-size: 10px;
 }
 
 .content-grid .grid-view-branch > .split-view > .split-view-container > .split-view-view:not(:first-child)::before {

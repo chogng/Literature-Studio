@@ -5,6 +5,7 @@ import type {
 
 export type Locale = 'zh' | 'en';
 export type AppTheme = 'light' | 'dark';
+export type ThemeColorCustomizations = Record<string, string>;
 
 export interface ArticleFigure {
   id: string | null;
@@ -117,6 +118,7 @@ export interface StoredAppSettings {
   defaultSameDomainOnly: boolean;
   useMica: boolean;
   theme: AppTheme;
+  'workbench.colorCustomizations': ThemeColorCustomizations;
   locale: Locale;
   llm: LlmSettings;
   translation: TranslationSettings;

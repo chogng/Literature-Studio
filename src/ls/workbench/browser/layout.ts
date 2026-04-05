@@ -79,7 +79,6 @@ export const WORKBENCH_PART_IDS = {
 } as const;
 
 export const WORKBENCH_CONTENT_LAYOUT_BREAKPOINT = 980;
-export const WORKBENCH_SPLITVIEW_SASH_SIZE = 10;
 export const WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE = false;
 export const WORKBENCH_SPLITVIEW_LIMITS = {
   fetchSidebar: {

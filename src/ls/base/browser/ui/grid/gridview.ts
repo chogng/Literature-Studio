@@ -3,6 +3,7 @@ import type {
   SplitViewSashChangeEvent,
   SplitViewSashSnapEvent,
 } from 'ls/base/browser/ui/splitview/splitview';
+import { getGlobalSashSize } from 'ls/base/browser/ui/sash/sash';
 import { EventEmitter } from 'ls/base/common/event';
 import { LifecycleStore } from 'ls/base/common/lifecycle';
 import { Orientation, SplitView } from 'ls/base/browser/ui/splitview/splitview';
@@ -122,7 +123,7 @@ export class GridBranchView implements IGridView {
   private readonly onDidSashChangeEmitter = new EventEmitter<SplitViewSashChangeEvent>();
   private readonly onDidSashSnapEmitter = new EventEmitter<SplitViewSashSnapEvent>();
   private readonly onDidSashEndEmitter = new EventEmitter<number>();
-  private readonly sashSize: number;
+  private readonly sashSize: number | undefined;
   private readonly reserveSashSpace: boolean;
   private edgeSnappingValue = false;
   private widthValue = 0;
@@ -139,7 +140,7 @@ export class GridBranchView implements IGridView {
 
   constructor(
     readonly orientation: Orientation,
-    sashSize: number,
+    sashSize: number | undefined,
     reserveSashSpaceOrChildren: boolean | GridChild[] = true,
     childrenArg: GridChild[] = [],
   ) {
@@ -374,7 +375,7 @@ export class GridBranchView implements IGridView {
   }
 
   getSashSize() {
-    return this.sashSize;
+    return this.sashSize ?? getGlobalSashSize();
   }
 
   getReserveSashSpace() {
@@ -425,7 +426,7 @@ export class GridBranchView implements IGridView {
       return 0;
     }
 
-    return Math.max(0, this.getVisibleChildren().length - 1) * this.sashSize;
+    return Math.max(0, this.getVisibleChildren().length - 1) * this.getSashSize();
   }
 
   private updateSplitviewEdgeSnappingEnablement() {

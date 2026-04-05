@@ -5,6 +5,7 @@ import type {
   KnowledgeBaseSettings,
   LlmSettings,
   RagSettings,
+  ThemeColorCustomizations,
   TranslationSettings,
   StoredAppSettings as DesktopStoredAppSettings,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
@@ -32,6 +33,7 @@ export type ResolvedSettingsState = {
   sameDomainOnly: boolean;
   useMica: boolean;
   theme: AppTheme;
+  workbenchColorCustomizations: ThemeColorCustomizations;
   locale: Locale | null;
   configPath: string;
   llm: LlmSettings;
@@ -49,6 +51,7 @@ export type SaveSettingsDraft = {
   sameDomainOnly: boolean;
   useMica: boolean;
   theme: AppTheme;
+  workbenchColorCustomizations: ThemeColorCustomizations;
   locale: Locale;
   llm: LlmSettings;
   translation: TranslationSettings;
@@ -94,6 +97,7 @@ export function resolveSettingsState(
         : defaultSameDomainOnly,
     useMica: typeof loaded.useMica === 'boolean' ? loaded.useMica : true,
     theme: loaded.theme === 'dark' ? 'dark' : 'light',
+    workbenchColorCustomizations: { ...(loaded['workbench.colorCustomizations'] ?? {}) },
     locale: loadedLocale,
     configPath: loadedConfigPath,
     llm: cloneLlmSettings(loaded.llm ?? createDefaultLlmSettings()),
@@ -123,6 +127,7 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       defaultSameDomainOnly: draft.sameDomainOnly,
       useMica: draft.useMica,
       theme: draft.theme,
+      'workbench.colorCustomizations': { ...draft.workbenchColorCustomizations },
       locale: draft.locale,
       llm: cloneLlmSettings(draft.llm),
       translation: cloneTranslationSettings(draft.translation),

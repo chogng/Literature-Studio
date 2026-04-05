@@ -87,68 +87,68 @@
 
 /* Variants */
 .btn-primary {
-  background: #0a5fbf;
-  color: #ffffff;
-  border-color: #0955ac;
-  box-shadow: 0 1px 2px rgba(10, 95, 191, 0.1);
+  background: var(--vscode-button-primaryBackground, #0a5fbf);
+  color: var(--vscode-button-primaryForeground, #ffffff);
+  border-color: var(--vscode-button-primaryBorder, #0955ac);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--vscode-button-primaryBackground, #0a5fbf) 18%, transparent);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0d6ed8;
-  border-color: #0c67ca;
+  background: var(--vscode-button-primaryHoverBackground, #0d6ed8);
+  border-color: var(--vscode-button-primaryHoverBorder, #0c67ca);
 }
 
 .btn-primary:active:not(:disabled) {
-  background: #084c9a;
+  background: var(--vscode-button-primaryActiveBackground, #084c9a);
   transform: translateY(1px);
 }
 
 .btn-secondary {
-  background: #ffffff;
-  color: #1a2530;
-  border-color: #cfdae7;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  background: var(--vscode-button-secondaryBackground, #ffffff);
+  color: var(--vscode-button-secondaryForeground, #1a2530);
+  border-color: var(--vscode-button-secondaryBorder, #cfdae7);
+  box-shadow: var(--vscode-button-secondaryShadow, 0 1px 2px rgba(0, 0, 0, 0.04));
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #b8c7d9;
+  background: var(--vscode-button-secondaryHoverBackground, #f8fafc);
+  border-color: var(--vscode-button-secondaryHoverBorder, #b8c7d9);
 }
 
 .btn-secondary:active:not(:disabled) {
-  background: #edf2f7;
+  background: var(--vscode-button-secondaryActiveBackground, #edf2f7);
 }
 
 .btn-outline {
   background: transparent;
-  color: #0a5fbf;
-  border-color: #0a5fbf;
+  color: var(--vscode-button-outlineForeground, #0a5fbf);
+  border-color: var(--vscode-button-outlineBorder, #0a5fbf);
 }
 
 .btn-outline:hover:not(:disabled) {
-  background: rgba(10, 95, 191, 0.05);
+  background: var(--vscode-button-outlineHoverBackground, rgba(10, 95, 191, 0.05));
 }
 
 .btn-ghost {
   background: transparent;
-  color: #425468;
+  color: var(--vscode-button-ghostForeground, #425468);
   border-color: transparent;
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.04);
-  color: #1a2530;
+  background: var(--vscode-button-ghostHoverBackground, rgba(0, 0, 0, 0.04));
+  color: var(--vscode-button-ghostHoverForeground, #1a2530);
 }
 
 .btn-danger {
-  background: #fee2e2;
-  color: #ef4444;
-  border-color: #fecaca;
+  background: var(--vscode-button-dangerBackground, #fee2e2);
+  color: var(--vscode-button-dangerForeground, #ef4444);
+  border-color: var(--vscode-button-dangerBorder, #fecaca);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #fecaca;
-  color: #dc2626;
+  background: var(--vscode-button-dangerHoverBackground, #fecaca);
+  color: var(--vscode-button-dangerHoverForeground, #dc2626);
 }
 
 /* Loading State */

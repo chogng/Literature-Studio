@@ -18,6 +18,7 @@
     "dev:web": "vite --config vite.web.config.ts",
     "check:i18n": "node scripts/check-i18n-keys.mjs",
     "test:base-common": "node scripts/run-base-common-tests.mjs",
+    "test:workbench-browser": "node scripts/run-workbench-browser-tests.mjs",
     "test:writing-editor": "node scripts/run-writing-editor-tests.mjs",
     "test:library-store": "node scripts/run-library-store-tests.mjs",
     "test:agent": "node scripts/run-agent-tests.mjs",

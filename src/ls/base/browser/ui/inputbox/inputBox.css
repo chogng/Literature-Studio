@@ -3,7 +3,7 @@
   position: relative;
   width: 100%;
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--vscode-input-background, #ffffff);
   box-sizing: border-box;
 }
 
@@ -19,7 +19,7 @@
   padding: 0 12px;
   border: 0;
   background: transparent;
-  color: #1a2530;
+  color: var(--vscode-input-foreground, #1a2530);
   font: inherit;
   line-height: normal;
   font-size: 15px;
@@ -28,5 +28,5 @@
 }
 
 .inputbox > .ibwrapper > .input::placeholder {
-  color: #94a3b8;
+  color: var(--vscode-input-placeholderForeground, #94a3b8);
 }

@@ -1,4 +1,5 @@
 import {
+  getGlobalSashSize,
   ISashEvent,
   Orientation,
   Sash,
@@ -118,6 +119,7 @@ export class SplitView<TLayoutContext = undefined> {
   private layoutContext: TLayoutContext | undefined;
   private startSnappingEnabledValue = true;
   private endSnappingEnabledValue = true;
+  private readonly explicitSashSize: number | undefined;
 
   readonly onDidSashChange = this.onDidSashChangeEmitter.event;
   readonly onDidSashSnap = this.onDidSashSnapEmitter.event;
@@ -151,9 +153,10 @@ export class SplitView<TLayoutContext = undefined> {
 
   constructor(
     readonly orientation: Orientation = Orientation.VERTICAL,
-    private readonly sashSize = 10,
+    sashSize?: number,
     private readonly reserveSashSpace = true,
   ) {
+    this.explicitSashSize = sashSize;
     this.element.className = [
       'split-view',
       this.orientation === Orientation.VERTICAL ? 'vertical' : 'horizontal',
@@ -343,7 +346,7 @@ export class SplitView<TLayoutContext = undefined> {
       const leftItemIndex = index;
       const rightItemIndex = index + 1;
       const sash = new Sash(this.sashContainer, this.orientation, {
-        size: this.sashSize,
+        size: this.explicitSashSize,
         offsetMode: this.reserveSashSpace ? 'start' : 'end',
       });
       const disposeStart = sash.onDidStart((event) => {
@@ -537,7 +540,7 @@ export class SplitView<TLayoutContext = undefined> {
       if (index < this.sashItems.length) {
         this.sashItems[index].sash.layout(offset, orthogonalSize);
         if (this.hasReservedGapAfter(index)) {
-          offset += this.sashSize;
+          offset += this.getSashSize();
         }
       }
     }
@@ -762,7 +765,7 @@ export class SplitView<TLayoutContext = undefined> {
       }
 
       if (this.hasReservedGapAfter(index)) {
-        position += this.sashSize;
+        position += this.getSashSize();
       }
     }
   }
@@ -786,7 +789,11 @@ export class SplitView<TLayoutContext = undefined> {
         count += 1;
       }
     }
-    return count * this.sashSize;
+    return count * this.getSashSize();
+  }
+
+  private getSashSize() {
+    return this.explicitSashSize ?? getGlobalSashSize();
   }
 
   private getContentSize() {
