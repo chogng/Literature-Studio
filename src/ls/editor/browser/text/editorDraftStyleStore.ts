@@ -1,5 +1,7 @@
 import {
+  areEditorDraftStyleCatalogSnapshotsEqual,
   getEditorDraftStyleCatalogSnapshot,
+  normalizeEditorDraftStyleCatalogSnapshot,
   type EditorDraftStyleCatalogSnapshot,
 } from 'ls/editor/browser/text/editorDraftStyleCatalog';
 
@@ -14,7 +16,7 @@ export class EditorDraftStyleStore {
   constructor(
     initialSnapshot: EditorDraftStyleStoreSnapshot = getEditorDraftStyleCatalogSnapshot(),
   ) {
-    this.snapshot = initialSnapshot;
+    this.snapshot = normalizeEditorDraftStyleCatalogSnapshot(initialSnapshot);
   }
 
   getSnapshot() {
@@ -29,11 +31,12 @@ export class EditorDraftStyleStore {
   }
 
   setSnapshot(nextSnapshot: EditorDraftStyleStoreSnapshot) {
-    if (this.snapshot === nextSnapshot) {
+    const normalizedSnapshot = normalizeEditorDraftStyleCatalogSnapshot(nextSnapshot);
+    if (areEditorDraftStyleCatalogSnapshotsEqual(this.snapshot, normalizedSnapshot)) {
       return;
     }
 
-    this.snapshot = nextSnapshot;
+    this.snapshot = normalizedSnapshot;
     this.emitChange();
   }
 

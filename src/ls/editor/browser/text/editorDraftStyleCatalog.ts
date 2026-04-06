@@ -18,7 +18,60 @@ export type EditorDraftStyleCatalogSnapshot = {
   fontSizePresets: readonly EditorDraftStyleOption[];
 };
 
-const EDITOR_DRAFT_FONT_FAMILY_PRESETS: readonly EditorDraftStyleOption[] = Object.freeze([
+function freezeEditorDraftStyleOptions(
+  options: readonly EditorDraftStyleOption[],
+) {
+  return Object.freeze(
+    options.map((option) =>
+      Object.freeze({
+        value: option.value,
+        label: option.label,
+        title: option.title,
+      })),
+  );
+}
+
+export function normalizeEditorDraftStyleCatalogSnapshot(
+  snapshot: EditorDraftStyleCatalogSnapshot,
+): EditorDraftStyleCatalogSnapshot {
+  return Object.freeze({
+    defaultFontSizePresetName: snapshot.defaultFontSizePresetName,
+    defaultFontSizeValue: snapshot.defaultFontSizeValue,
+    fontFamilyPresets: freezeEditorDraftStyleOptions(snapshot.fontFamilyPresets),
+    fontSizePresets: freezeEditorDraftStyleOptions(snapshot.fontSizePresets),
+  });
+}
+
+function areEditorDraftStyleOptionsEqual(
+  previous: readonly EditorDraftStyleOption[],
+  next: readonly EditorDraftStyleOption[],
+) {
+  return (
+    previous.length === next.length &&
+    previous.every((option, index) => {
+      const nextOption = next[index];
+      return (
+        option.value === nextOption.value &&
+        option.label === nextOption.label &&
+        option.title === nextOption.title
+      );
+    })
+  );
+}
+
+export function areEditorDraftStyleCatalogSnapshotsEqual(
+  previous: EditorDraftStyleCatalogSnapshot,
+  next: EditorDraftStyleCatalogSnapshot,
+) {
+  return (
+    previous.defaultFontSizePresetName === next.defaultFontSizePresetName &&
+    previous.defaultFontSizeValue === next.defaultFontSizeValue &&
+    areEditorDraftStyleOptionsEqual(previous.fontFamilyPresets, next.fontFamilyPresets) &&
+    areEditorDraftStyleOptionsEqual(previous.fontSizePresets, next.fontSizePresets)
+  );
+}
+
+const EDITOR_DRAFT_FONT_FAMILY_PRESETS: readonly EditorDraftStyleOption[] = freezeEditorDraftStyleOptions([
   {
     value: '"Times New Roman", Times, serif',
     label: 'Times New Roman',
@@ -76,7 +129,7 @@ const EDITOR_DRAFT_FONT_FAMILY_PRESETS: readonly EditorDraftStyleOption[] = Obje
   },
 ]);
 
-const EDITOR_DRAFT_FONT_SIZE_PRESETS: readonly EditorDraftStyleOption[] = Object.freeze(
+const EDITOR_DRAFT_FONT_SIZE_PRESETS: readonly EditorDraftStyleOption[] = freezeEditorDraftStyleOptions(
   EDITOR_NAMED_FONT_SIZE_PRESETS.map((preset) => ({
     value: `${preset.cssPx}px`,
     label: preset.name,
@@ -84,7 +137,7 @@ const EDITOR_DRAFT_FONT_SIZE_PRESETS: readonly EditorDraftStyleOption[] = Object
   })),
 );
 
-const EDITOR_DRAFT_STYLE_CATALOG_SNAPSHOT: EditorDraftStyleCatalogSnapshot = Object.freeze({
+const EDITOR_DRAFT_STYLE_CATALOG_SNAPSHOT: EditorDraftStyleCatalogSnapshot = normalizeEditorDraftStyleCatalogSnapshot({
   defaultFontSizePresetName: DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
   defaultFontSizeValue: DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
   fontFamilyPresets: EDITOR_DRAFT_FONT_FAMILY_PRESETS,

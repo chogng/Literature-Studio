@@ -13,7 +13,7 @@ test('EditorDraftStyleStore initializes from catalog and notifies on snapshot ch
     changeCount += 1;
   });
 
-  assert.equal(store.getSnapshot(), initialSnapshot);
+  assert.deepEqual(store.getSnapshot(), initialSnapshot);
 
   const nextSnapshot = {
     ...initialSnapshot,
@@ -23,7 +23,8 @@ test('EditorDraftStyleStore initializes from catalog and notifies on snapshot ch
 
   store.setSnapshot(nextSnapshot);
   assert.equal(changeCount, 1);
-  assert.equal(store.getSnapshot(), nextSnapshot);
+  assert.deepEqual(store.getSnapshot(), nextSnapshot);
+  assert.notEqual(store.getSnapshot(), nextSnapshot);
 
   store.setSnapshot(nextSnapshot);
   assert.equal(changeCount, 1);
@@ -31,5 +32,31 @@ test('EditorDraftStyleStore initializes from catalog and notifies on snapshot ch
   unsubscribe();
   store.resetToCatalog();
   assert.equal(changeCount, 1);
-  assert.equal(store.getSnapshot(), initialSnapshot);
+  assert.deepEqual(store.getSnapshot(), initialSnapshot);
+});
+
+test('EditorDraftStyleStore snapshots are frozen and detached from caller-owned objects', () => {
+  const initialSnapshot = getEditorDraftStyleCatalogSnapshot();
+  const mutableSnapshot = {
+    ...initialSnapshot,
+    fontFamilyPresets: initialSnapshot.fontFamilyPresets.map((option) => ({ ...option })),
+    fontSizePresets: initialSnapshot.fontSizePresets.map((option) => ({ ...option })),
+  };
+  const store = createEditorDraftStyleStore();
+
+  store.setSnapshot(mutableSnapshot);
+  const storedSnapshot = store.getSnapshot();
+
+  assert.notEqual(storedSnapshot, mutableSnapshot);
+  assert.notEqual(storedSnapshot.fontFamilyPresets, mutableSnapshot.fontFamilyPresets);
+  assert.notEqual(storedSnapshot.fontFamilyPresets[0], mutableSnapshot.fontFamilyPresets[0]);
+  assert.equal(Object.isFrozen(storedSnapshot), true);
+  assert.equal(Object.isFrozen(storedSnapshot.fontFamilyPresets), true);
+  assert.equal(Object.isFrozen(storedSnapshot.fontFamilyPresets[0]), true);
+
+  mutableSnapshot.defaultFontSizeValue = '99px';
+  mutableSnapshot.fontFamilyPresets[0].label = 'Mutated';
+
+  assert.equal(store.getSnapshot().defaultFontSizeValue, initialSnapshot.defaultFontSizeValue);
+  assert.notEqual(store.getSnapshot().fontFamilyPresets[0].label, 'Mutated');
 });
