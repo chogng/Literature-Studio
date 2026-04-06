@@ -17,7 +17,7 @@ import {
   showWorkbenchTextInputModal,
 } from 'ls/workbench/browser/workbenchEditorModals';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
-import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
+import type { EditorPartBaseProps } from 'ls/workbench/browser/parts/editor/editorPartView';
 import type { EditorViewStateKey } from 'ls/workbench/browser/parts/editor/editorViewStateStore';
 import type { SerializedEditorViewStateEntry } from 'ls/workbench/browser/parts/editor/editorViewStateStore';
 
@@ -65,7 +65,7 @@ export type EditorPartControllerSnapshot = Pick<
 > & {
   draftBody: string;
   webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
-  editorPartProps: EditorPartProps;
+  editorPartProps: EditorPartBaseProps;
 };
 
 export type EditorPartModel = EditorPartController;
@@ -84,7 +84,7 @@ function createEditorPartStructureKey(snapshot: EditorPartControllerSnapshot) {
   return JSON.stringify({
     groupId: snapshot.groupId,
     tabs: snapshot.tabs.map(toStructuralWorkspaceTab),
-    dirtyDraftTabIds: [...snapshot.editorPartProps.dirtyDraftTabIds].sort(),
+    dirtyDraftTabIds: [...snapshot.dirtyDraftTabIds].sort(),
     activeTabId: snapshot.activeTabId,
     activeTab: snapshot.activeTab ? toStructuralWorkspaceTab(snapshot.activeTab) : null,
     webContentSurfaceSnapshot: snapshot.webContentSurfaceSnapshot,
@@ -116,7 +116,7 @@ export function createEditorPartProps({
     onSetEditorViewState,
     onDeleteEditorViewState,
   },
-}: CreateEditorPartPropsParams): EditorPartProps {
+}: CreateEditorPartPropsParams): EditorPartBaseProps {
   return {
     labels: {
       topbarAddAction: ui.editorTopbarAddAction,
@@ -213,17 +213,6 @@ export function createEditorPartProps({
     onCreateBrowserTab,
     onOpenBrowserPane,
     onCreatePdfTab,
-    onOpenAddressBarSourceMenu: () => {},
-    onToolbarNavigateBack: () => {},
-    onToolbarNavigateForward: () => {},
-    onToolbarNavigateRefresh: () => {},
-    onToolbarHardReload: () => {},
-    onToolbarCopyCurrentUrl: () => {},
-    onToolbarClearBrowsingHistory: () => {},
-    onToolbarClearCookies: () => {},
-    onToolbarClearCache: () => {},
-    onToolbarAddressChange: () => {},
-    onToolbarAddressSubmit: () => {},
     onDraftDocumentChange,
     onSetEditorViewState,
     onDeleteEditorViewState,
@@ -308,6 +297,7 @@ export class EditorPartController {
   private context: EditorPartControllerContext;
   private readonly editorModel = createEditorModel();
   private snapshot: EditorPartControllerSnapshot;
+  private closeOperationQueue: Promise<void> = Promise.resolve();
   private readonly listeners = new Set<
     (reason: EditorPartChangeReason) => void
   >();
@@ -425,40 +415,51 @@ export class EditorPartController {
     this.editorModel.activateTab(tabId);
   };
 
-  readonly onCloseTab = async (tabId: string) => {
-    const didConfirm = await this.confirmCloseForTabIds([tabId]);
-    if (!didConfirm) {
-      return false;
-    }
+  readonly onCloseTab = (tabId: string) =>
+    this.enqueueCloseOperation(async () => {
+      if (!this.hasTab(tabId)) {
+        return false;
+      }
 
-    this.editorModel.closeTab(tabId);
-    return true;
-  };
+      const didConfirm = await this.confirmCloseForTabIds([tabId]);
+      if (!didConfirm) {
+        return false;
+      }
 
-  readonly onCloseOtherTabs = async (tabId: string) => {
-    const tabsToClose = this.editorModel
-      .getSnapshot()
-      .tabs.filter((tab) => tab.id !== tabId)
-      .map((tab) => tab.id);
-    const didConfirm = await this.confirmCloseForTabIds(tabsToClose);
-    if (!didConfirm) {
-      return false;
-    }
+      this.editorModel.closeTab(tabId);
+      return true;
+    });
 
-    this.editorModel.closeOtherTabs(tabId);
-    return true;
-  };
+  readonly onCloseOtherTabs = (tabId: string) =>
+    this.enqueueCloseOperation(async () => {
+      if (!this.hasTab(tabId)) {
+        return false;
+      }
 
-  readonly onCloseAllTabs = async () => {
-    const tabsToClose = this.editorModel.getSnapshot().tabs.map((tab) => tab.id);
-    const didConfirm = await this.confirmCloseForTabIds(tabsToClose);
-    if (!didConfirm) {
-      return false;
-    }
+      const tabsToClose = this.editorModel
+        .getSnapshot()
+        .tabs.filter((tab) => tab.id !== tabId)
+        .map((tab) => tab.id);
+      const didConfirm = await this.confirmCloseForTabIds(tabsToClose);
+      if (!didConfirm) {
+        return false;
+      }
 
-    this.editorModel.closeAllTabs();
-    return true;
-  };
+      this.editorModel.closeOtherTabs(tabId);
+      return true;
+    });
+
+  readonly onCloseAllTabs = () =>
+    this.enqueueCloseOperation(async () => {
+      const tabsToClose = this.editorModel.getSnapshot().tabs.map((tab) => tab.id);
+      const didConfirm = await this.confirmCloseForTabIds(tabsToClose);
+      if (!didConfirm) {
+        return false;
+      }
+
+      this.editorModel.closeAllTabs();
+      return true;
+    });
 
   readonly onRenameTab = async (tabId: string) => {
     const targetTab = this.editorModel
@@ -564,6 +565,24 @@ export class EditorPartController {
         return false;
     }
   };
+
+  private hasTab(tabId: string) {
+    return this.editorModel
+      .getSnapshot()
+      .tabs.some((tab) => tab.id === tabId);
+  }
+
+  private enqueueCloseOperation<T>(operation: () => Promise<T>) {
+    const scheduledOperation = this.closeOperationQueue.then(
+      operation,
+      operation,
+    );
+    this.closeOperationQueue = scheduledOperation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return scheduledOperation;
+  }
 
   private emitChange(reason: EditorPartChangeReason) {
     for (const listener of this.listeners) {

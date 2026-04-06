@@ -857,28 +857,6 @@ class WorkbenchHost {
     this.previousActiveContentTabId = webContentSurfaceSnapshot.activeContentTabId;
   }
 
-  private createContentAwareEditorPartProps(params: {
-    activateTab: (tabId: string) => void;
-    closeTab: (tabId: string) => Promise<boolean> | boolean;
-    editorPartProps: EditorPartProps;
-  }) {
-    const {
-      activateTab,
-      closeTab,
-      editorPartProps,
-    } = params;
-
-    return {
-      ...editorPartProps,
-      onActivateTab: (tabId: string) => {
-        activateTab(tabId);
-      },
-      onCloseTab: (tabId: string) => {
-        return closeTab(tabId);
-      },
-    };
-  }
-
   private syncStatusbarVisibility(statusbarVisible: boolean) {
     if (statusbarVisible) {
       if (!this.statusbarElement.isConnected) {
@@ -1465,11 +1443,7 @@ class WorkbenchHost {
       void refreshLibrary();
     };
 
-    const contentAwareEditorPartProps = this.createContentAwareEditorPartProps({
-      activateTab: editorPartControllerInstance.onActivateTab,
-      closeTab: editorPartControllerInstance.onCloseTab,
-      editorPartProps,
-    });
+    const baseEditorPartProps = editorPartProps;
     const focusWorkbenchWebUrlInput = () => {
       editorPartControllerInstance.openBrowserPane();
       this.workbenchContentPartViews?.focusActiveEditorPrimaryInput();
@@ -1487,10 +1461,10 @@ class WorkbenchHost {
         navigateToAddressBarUrl(webUrl, true);
       },
     });
-    Object.assign(
-      contentAwareEditorPartProps,
-      editorBrowserToolbarActions,
-    );
+    const contentAwareEditorPartProps: EditorPartProps = {
+      ...baseEditorPartProps,
+      ...editorBrowserToolbarActions,
+    };
     this.auxiliaryEditorTopbarActionsView.setProps({
       isEditorCollapsed: true,
       labels: {

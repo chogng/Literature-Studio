@@ -1,24 +1,11 @@
 import { toast } from 'ls/base/browser/ui/toast/toast';
 import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { LocaleMessages } from 'language/locales';
-import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
+import type { EditorPartBrowserToolbarActions } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { getEditorContentDisplayUrl } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
 import type { WebContentNavigationModel } from 'ls/workbench/browser/webContentNavigationModel';
 
-type EditorBrowserToolbarActionHandlers = Pick<
-  EditorPartProps,
-  | 'onOpenAddressBarSourceMenu'
-  | 'onToolbarNavigateBack'
-  | 'onToolbarNavigateForward'
-  | 'onToolbarNavigateRefresh'
-  | 'onToolbarHardReload'
-  | 'onToolbarCopyCurrentUrl'
-  | 'onToolbarClearBrowsingHistory'
-  | 'onToolbarClearCookies'
-  | 'onToolbarClearCache'
-  | 'onToolbarAddressChange'
-  | 'onToolbarAddressSubmit'
->;
+type EditorBrowserToolbarActionHandlers = EditorPartBrowserToolbarActions;
 
 type CreateEditorBrowserToolbarActionsParams = {
   browserUrl: string;

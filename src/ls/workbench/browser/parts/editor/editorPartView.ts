@@ -56,7 +56,21 @@ export type EditorPartLabels = {
   status: EditorStatusLabels;
 } & WritingEditorSurfaceLabels;
 
-export type EditorPartProps = {
+export type EditorPartBrowserToolbarActions = {
+  onOpenAddressBarSourceMenu: () => void;
+  onToolbarNavigateBack: () => void;
+  onToolbarNavigateForward: () => void;
+  onToolbarNavigateRefresh: () => void;
+  onToolbarHardReload: () => void;
+  onToolbarCopyCurrentUrl: () => void | Promise<void>;
+  onToolbarClearBrowsingHistory: () => void;
+  onToolbarClearCookies: () => void | Promise<void>;
+  onToolbarClearCache: () => void | Promise<void>;
+  onToolbarAddressChange: (value: string) => void;
+  onToolbarAddressSubmit: () => void;
+};
+
+export type EditorPartBaseProps = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
   groupId: string;
@@ -74,17 +88,6 @@ export type EditorPartProps = {
   onCreateBrowserTab: () => void;
   onOpenBrowserPane: () => void;
   onCreatePdfTab: () => void;
-  onOpenAddressBarSourceMenu: () => void;
-  onToolbarNavigateBack: () => void;
-  onToolbarNavigateForward: () => void;
-  onToolbarNavigateRefresh: () => void;
-  onToolbarHardReload: () => void;
-  onToolbarCopyCurrentUrl: () => void | Promise<void>;
-  onToolbarClearBrowsingHistory: () => void;
-  onToolbarClearCookies: () => void | Promise<void>;
-  onToolbarClearCache: () => void | Promise<void>;
-  onToolbarAddressChange: (value: string) => void;
-  onToolbarAddressSubmit: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
   onDeleteEditorViewState: (key: EditorViewStateKey) => void;
@@ -94,6 +97,9 @@ export type EditorPartProps = {
   onToggleEditorCollapse?: () => void;
   onStatusChange?: (status: EditorStatusState) => void;
 };
+
+export type EditorPartProps = EditorPartBaseProps &
+  EditorPartBrowserToolbarActions;
 
 export class EditorPartView {
   private readonly element = document.createElement('section');
