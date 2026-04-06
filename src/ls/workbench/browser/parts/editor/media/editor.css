@@ -141,7 +141,7 @@
   overflow: hidden;
 }
 
-.editor-source-body > .web-frame-container {
+.editor-source-body > .browser-frame-container {
   flex: 1;
   min-height: 0;
   height: 100%;

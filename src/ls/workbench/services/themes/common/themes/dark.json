@@ -61,7 +61,7 @@
     "editor.panelGradientFrom": "#18222c",
     "editor.panelGradientTo": "#1c2630",
     "editor.panelAccent": "rgba(90, 169, 255, 0.12)",
-    "editor.sourcePaneBackground": "rgba(29, 39, 48, 0.82)",
+    "editor.sourcePaneBackground": "#18222c",
     "editor.sourceHeaderBorder": "#33404d",
     "editor.sourceHeaderForeground": "#d7e1ea",
     "editor.sourceSubheadingForeground": "#93a4b5",

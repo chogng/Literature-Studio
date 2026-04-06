@@ -1,4 +1,4 @@
-.web-frame-container {
+.browser-frame-container {
   position: relative;
   flex: 1;
   min-height: 0;
@@ -22,7 +22,7 @@
   border-radius: inherit;
 }
 
-.web-frame {
+.browser-frame {
   flex: 1;
   display: block;
   width: 100%;
@@ -33,11 +33,11 @@
   border-radius: inherit;
 }
 
-.web-frame-webview {
+.browser-frame-webview {
   display: flex;
 }
 
-.web-frame-placeholder {
+.browser-frame-placeholder {
   pointer-events: none;
 }
 

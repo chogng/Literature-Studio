@@ -281,8 +281,8 @@ export const editorPanelAccent = registerColor('editor.panelAccent', {
 });
 
 export const editorSourcePaneBackground = registerColor('editor.sourcePaneBackground', {
-  dark: 'rgba(29, 39, 48, 0.82)',
-  light: 'rgba(248, 250, 253, 0.72)',
+  dark: '#18222c',
+  light: '#f8f8f8',
 });
 
 export const editorSourceHeaderBorder = registerColor('editor.sourceHeaderBorder', {
@@ -552,7 +552,7 @@ export const editorTabKindPdfBackground = registerColor('editor.tabKindPdfBackgr
 
 export const editorWebContentBackground = registerColor('editor.webContentBackground', {
   dark: '#18222c',
-  light: '#ffffff',
+  light: '#f8f8f8',
 });
 
 export const editorWebContentForeground = registerColor('editor.webContentForeground', {

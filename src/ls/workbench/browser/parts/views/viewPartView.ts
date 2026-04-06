@@ -30,14 +30,14 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 
 export class ViewPartView {
   private props: ViewPartProps;
-  private readonly element = createElement('div', 'web-frame-container');
+  private readonly element = createElement('div', 'browser-frame-container');
   private readonly contentElement = createElement(
     'div',
     'native-webcontentview-host',
   );
   private readonly webContentHost = createElement(
     'div',
-    'web-frame web-frame-placeholder',
+    'browser-frame browser-frame-placeholder',
   );
   private readonly overlayElement = createElement('div', 'webcontent-overlay');
   private isWebContentHostRegistered = false;
@@ -78,7 +78,7 @@ export class ViewPartView {
 
     if (!this.props.browserUrl) {
       this.setWebContentHostRegistered(canHostNativeWebContent);
-      const emptyFrame = createElement('div', 'web-frame');
+      const emptyFrame = createElement('div', 'browser-frame');
       emptyFrame.setAttribute('aria-hidden', 'true');
       this.overlayElement.className = 'webcontent-overlay visible';
       this.overlayElement.append(emptyFrame);

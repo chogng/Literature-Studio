@@ -474,7 +474,7 @@ class WebContentDomManager {
 
   private createWebviewElement() {
     const webview = document.createElement('webview') as ManagedWebviewElement;
-    webview.className = 'web-frame web-frame-webview';
+    webview.className = 'browser-frame browser-frame-webview';
     webview.setAttribute('partition', WORKBENCH_SHARED_WEB_PARTITION);
     webview.setAttribute(
       'webpreferences',
