@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { EDITOR_LAYOUT_SPEC, cssPxToTwips } from 'ls/base/common/editorFormat';
 import { buildEditorDocxBuffer, buildEditorDocxFileName } from 'ls/code/electron-main/document/editorDocxSerializer';
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
@@ -166,6 +167,9 @@ test('buildEditorDocxBuffer serializes editor formatting, lists, references, and
     title: 'Draft Title',
     locale: 'zh',
   });
+  const topLevelBlockGapTwips = cssPxToTwips(EDITOR_LAYOUT_SPEC.topLevelBlockGapPx);
+  const blockquotePaddingTwips = cssPxToTwips(EDITOR_LAYOUT_SPEC.blockquotePaddingLeftPx);
+  const listIndentTwips = cssPxToTwips(EDITOR_LAYOUT_SPEC.listIndentPx);
   const zipText = buffer.toString('utf8');
   const bookmarkMatch = zipText.match(/<w:bookmarkStart w:id="(\d+)" w:name="([^"]+)"/);
 
@@ -176,10 +180,10 @@ test('buildEditorDocxBuffer serializes editor formatting, lists, references, and
   assert.match(zipText, /<w:i\/>/);
   assert.match(zipText, /<w:u w:val="single"\/>/);
   assert.match(zipText, /<w:sz w:val="24"\/>/);
-  assert.match(zipText, /w:before="203"/);
+  assert.match(zipText, new RegExp(`w:before="${topLevelBlockGapTwips}"`));
   assert.match(zipText, /w:before="150"/);
-  assert.match(zipText, /w:left="210"/);
-  assert.match(zipText, /w:left="360" w:hanging="180"/);
+  assert.match(zipText, new RegExp(`w:left="${blockquotePaddingTwips}"`));
+  assert.match(zipText, new RegExp(`w:left="${listIndentTwips}" w:hanging="180"`));
   assert.match(zipText, /<w:numPr>/);
   assert.match(zipText, /<w:pBdr>/);
   assert.match(zipText, /<w:tbl>/);
@@ -247,11 +251,14 @@ test('buildEditorDocxBuffer keeps list numbering when a list item starts with a 
     title: 'List Figure Draft',
     locale: 'zh',
   });
+  const listIndentTwips = cssPxToTwips(EDITOR_LAYOUT_SPEC.listIndentPx);
   const zipText = buffer.toString('utf8');
 
   assert.match(
     zipText,
-    /<w:p><w:pPr><w:jc w:val="left"\/><w:spacing w:after="0"\/><w:ind w:left="360" w:hanging="180"\/><w:numPr><w:ilvl w:val="0"\/><w:numId w:val="1"\/><\/w:numPr><\/w:pPr><w:r><w:t xml:space="preserve"> <\/w:t><\/w:r><\/w:p><w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"\/><w:tblInd w:w="360" w:type="dxa"\/>/,
+    new RegExp(
+      `<w:p><w:pPr><w:jc w:val="left"\\/><w:spacing w:after="0"\\/><w:ind w:left="${listIndentTwips}" w:hanging="180"\\/><w:numPr><w:ilvl w:val="0"\\/><w:numId w:val="1"\\/><\\/w:numPr><\\/w:pPr><w:r><w:t xml:space="preserve"> <\\/w:t><\\/w:r><\\/w:p><w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"\\/><w:tblInd w:w="${listIndentTwips}" w:type="dxa"\\/>`,
+    ),
   );
   assert.match(zipText, /List figure caption/);
 });

@@ -2,6 +2,10 @@ import type { NodeType } from 'prosemirror-model';
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
 
 import type { LocaleMessages } from 'language/locales';
+import {
+  DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
+  DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
+} from 'ls/base/common/editorFormat';
 import type {
   WritingEditorCommand,
   WritingEditorToolbarState,
@@ -652,8 +656,13 @@ function createFontSizeToolbarSplitButton(params: {
 }): WritingEditorToolbarSplitButtonConfig {
   const { labels, toolbarState, actions, options } = params;
   const currentValue = toolbarState.fontSize ?? '';
-  const currentOption = options.find((option) => option.value === currentValue) ?? null;
-  const currentLabel = (currentOption?.label ?? currentValue) || labels.defaultTextStyle;
+  const defaultOption = options.find((option) => option.value === DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE)
+    ?? options.find((option) => option.label === DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME)
+    ?? null;
+  const currentOption = options.find((option) => option.value === currentValue)
+    ?? (!currentValue ? defaultOption : null);
+  const currentLabel =
+    (currentOption?.label ?? currentValue) || defaultOption?.label || labels.defaultTextStyle;
 
   return {
     label: labels.fontSize,
@@ -663,15 +672,18 @@ function createFontSizeToolbarSplitButton(params: {
     onClick: () => {
       actions.setFontSize(currentValue || null);
     },
-    menu: options.map((option) => ({
-      label: option.label,
-      title: option.title ?? option.label,
-      checked: option.value === currentValue,
-      disabled: option.disabled,
-      onClick: () => {
-        actions.setFontSize(option.value || null);
-      },
-    })),
+    menu: options.map((option) => {
+      const isDefaultOption = option.value === (defaultOption?.value ?? '');
+      return {
+        label: option.label,
+        title: option.title ?? option.label,
+        checked: currentValue ? option.value === currentValue : isDefaultOption,
+        disabled: option.disabled,
+        onClick: () => {
+          actions.setFontSize(isDefaultOption ? null : (option.value || null));
+        },
+      };
+    }),
   };
 }
 

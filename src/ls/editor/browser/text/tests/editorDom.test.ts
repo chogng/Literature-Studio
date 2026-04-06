@@ -445,6 +445,14 @@ test('DraftEditorToolbar orders Chinese named font-size presets from large to sm
   document.body.append(toolbar.getElement());
 
   try {
+    const fontSizePrimary = Array.from(
+      toolbar.getElement().querySelectorAll<HTMLButtonElement>(
+        '.editor-draft-toolbar-split-primary.actionbar-action.is-text',
+      ),
+    ).find((candidate) => candidate.getAttribute('aria-label') === '五号');
+    assert(fontSizePrimary instanceof HTMLButtonElement);
+    assert.equal(fontSizePrimary.textContent?.trim(), '五号');
+
     const splitDropdowns = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-split-dropdown');
     const fontSizeDropdown = Array.from(splitDropdowns).find(
       (candidate) => candidate.getAttribute('aria-label') === labels.fontSize,
@@ -461,7 +469,8 @@ test('DraftEditorToolbar orders Chinese named font-size presets from large to sm
       .map((item) => item.textContent?.trim())
       .filter((value): value is string => Boolean(value));
 
-    assert.deepEqual(menuItemLabels.slice(0, 5), ['Default', '初号', '小初', '一号', '小一']);
+    assert.equal(menuItemLabels.includes('Default'), false);
+    assert.deepEqual(menuItemLabels.slice(0, 4), ['初号', '小初', '一号', '小一']);
     assert.deepEqual(menuItemLabels.slice(-4), ['五号', '小五', '六号', '小六']);
   } finally {
     toolbar.dispose();

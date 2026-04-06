@@ -6,6 +6,7 @@ import { keymap } from 'prosemirror-keymap';
 import { EditorView } from 'prosemirror-view';
 import { gapCursor } from 'prosemirror-gapcursor';
 import { dropCursor } from 'prosemirror-dropcursor';
+import { DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE } from 'ls/base/common/editorFormat';
 import { createDraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import { clearFontFamilyCommand, clearFontSizeCommand, clearInlineStylesCommand, getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setFontFamilyCommand, setFontSizeCommand, setParagraphCommand, setTextAlignCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, toggleUnderlineCommand, undoCommand } from 'ls/editor/browser/text/commands';
@@ -318,6 +319,10 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   constructor(props: WritingEditorSurfaceProps) {
     this.props = props;
     this.toolbar = new DraftEditorToolbar(this.createToolbarProps());
+    this.editorRootElement.style.setProperty(
+      '--ls-editor-default-font-size',
+      DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
+    );
     this.hostWrapperElement.append(this.editorRootElement);
     this.scrollableElement = new DomScrollableElement(this.hostWrapperElement, {
       className: 'pm-editor-scrollable',

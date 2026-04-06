@@ -53,6 +53,18 @@ export const EDITOR_NAMED_FONT_SIZE_PRESETS: readonly EditorNamedFontSizePreset[
   { name: '小六', cssPx: 9, pointSize: 6.5, docxHalfPoints: 13 },
 ] as const;
 
+export const DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME: EditorNamedFontSizeName = '五号';
+const DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_CANDIDATE = EDITOR_NAMED_FONT_SIZE_PRESETS.find(
+  (preset) => preset.name === DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
+);
+if (!DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_CANDIDATE) {
+  throw new Error(
+    `Missing default editor body font-size preset: ${DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME}`,
+  );
+}
+export const DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET = DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_CANDIDATE;
+export const DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE = `${DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET.cssPx}px`;
+
 export type EditorResolvedFontSize = {
   cssPx: number;
   pointSize: number;
@@ -76,7 +88,7 @@ export type EditorTypographySpec = {
 
 export const DEFAULT_EDITOR_DOCX_FONT_ASCII = 'IBM Plex Serif';
 export const DEFAULT_EDITOR_DOCX_FONT_EAST_ASIA = 'Source Han Serif SC';
-export const DEFAULT_EDITOR_DOCX_BODY_FONT_SIZE_PX = 15;
+export const DEFAULT_EDITOR_DOCX_BODY_FONT_SIZE_PX = DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET.cssPx;
 export const DEFAULT_EDITOR_DOCX_FIGCAPTION_FONT_SIZE_PX = 14.25;
 export const DEFAULT_EDITOR_DOCX_HEADING_FONT_SIZE_PX = {
   1: 27.2,

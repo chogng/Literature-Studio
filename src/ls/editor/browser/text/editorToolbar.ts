@@ -11,7 +11,10 @@ import {
 } from 'ls/base/browser/ui/dropdown/dropdown';
 import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import { EDITOR_NAMED_FONT_SIZE_PRESETS } from 'ls/base/common/editorFormat';
+import {
+  DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
+  EDITOR_NAMED_FONT_SIZE_PRESETS,
+} from 'ls/base/common/editorFormat';
 
 import type { WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
 import {
@@ -423,14 +426,16 @@ export class DraftEditorToolbar {
     defaultLabel: string,
     config?: {
       matchesPresetValue?: (currentValue: string, presetValue: string) => boolean;
+      includeDefaultOption?: boolean;
     },
   ) {
-    const options: DropdownOption[] = [
-      {
+    const options: DropdownOption[] = [];
+    if (config?.includeDefaultOption ?? true) {
+      options.push({
         value: '',
         label: defaultLabel,
-      },
-    ];
+      });
+    }
 
     const seenValues = new Set<string>();
     const appendOption = (option: DropdownOption) => {
@@ -565,7 +570,10 @@ export class DraftEditorToolbar {
     const fontSizeOptions = this.createTextStyleOptions(
       toolbarState.fontSize,
       FONT_SIZE_PRESETS,
-      labels.defaultTextStyle,
+      DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
+      {
+        includeDefaultOption: false,
+      },
     );
 
     return createWritingEditorToolbarButtonGroups({
