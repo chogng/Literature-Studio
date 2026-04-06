@@ -264,8 +264,18 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
         className: 'dropdown-context-view',
         render: () => menu,
         onHide: this.handlePortalHide,
+        alignment: request.align,
+        offset: 4,
+        matchAnchorWidth: request.matchTriggerWidth,
       });
       this.updateMenuLayout(menu, request);
+      requestAnimationFrame(() => {
+        if (this.menuView !== menu || this.currentRequest !== request) {
+          return;
+        }
+
+        this.updateMenuLayout(menu, request);
+      });
       return;
     }
 
@@ -316,7 +326,11 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
     menu.id = request.menuId;
     menu.setAttribute('role', 'listbox');
     if (this.layer === 'portal') {
-      menu.style.position = 'fixed';
+      menu.style.position = 'static';
+      menu.style.left = 'auto';
+      menu.style.top = 'auto';
+      menu.style.bottom = 'auto';
+      menu.style.minWidth = request.matchTriggerWidth ? '100%' : '0px';
     }
 
     const selectedValue = request.value;
@@ -355,21 +369,36 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
     const menuOffset = 4;
     const triggerRect = request.triggerRect;
 
-    if (this.layer === 'portal') {
-      menu.style.minWidth = request.matchTriggerWidth
-        ? `${triggerRect.width}px`
-        : '0px';
-      menu.style.left = '0px';
-      menu.style.top = '0px';
-      menu.style.bottom = 'auto';
-    }
-
     const menuWidth = menu.offsetWidth;
     const menuHeight = menu.offsetHeight;
+    const contextViewElement =
+      this.layer === 'portal'
+        ? menu.closest('.ls-context-view')
+        : null;
+    const shouldOpenUpwards =
+      this.layer === 'portal'
+        ? contextViewElement?.classList.contains('top') ?? false
+        : window.innerHeight - triggerRect.y - triggerRect.height - viewportPadding < menuHeight
+          && triggerRect.y - viewportPadding > (
+            window.innerHeight - triggerRect.y - triggerRect.height - viewportPadding
+          );
     const spaceBelow = window.innerHeight - triggerRect.y - triggerRect.height - viewportPadding;
     const spaceAbove = triggerRect.y - viewportPadding;
-    const shouldOpenUpwards = spaceBelow < menuHeight && spaceAbove > spaceBelow;
     const availableSpace = shouldOpenUpwards ? spaceAbove : spaceBelow;
+
+    menu.classList.toggle('dropdown-menu-top', shouldOpenUpwards);
+    menu.classList.toggle('dropdown-menu-bottom', !shouldOpenUpwards);
+    menu.style.maxHeight = `${Math.max(availableSpace - menuOffset, 120)}px`;
+
+    if (this.layer === 'portal') {
+      menu.style.position = 'static';
+      menu.style.left = 'auto';
+      menu.style.top = 'auto';
+      menu.style.bottom = 'auto';
+      menu.style.minWidth = request.matchTriggerWidth ? '100%' : '0px';
+      return;
+    }
+
     const preferredLeft =
       request.align === 'center'
         ? (triggerRect.width - menuWidth) / 2
@@ -380,23 +409,6 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
     const maxLeft =
       window.innerWidth - viewportPadding - triggerRect.x - menuWidth;
     const menuLeft = clamp(preferredLeft, minLeft, Math.max(minLeft, maxLeft));
-
-    menu.classList.toggle('dropdown-menu-top', shouldOpenUpwards);
-    menu.classList.toggle('dropdown-menu-bottom', !shouldOpenUpwards);
-    menu.style.maxHeight = `${Math.max(availableSpace - menuOffset, 120)}px`;
-
-    if (this.layer === 'portal') {
-      const top = shouldOpenUpwards
-        ? triggerRect.y - menu.offsetHeight - menuOffset
-        : triggerRect.y + triggerRect.height + menuOffset;
-      menu.style.left = `${triggerRect.x + menuLeft}px`;
-      menu.style.top = `${top}px`;
-      menu.style.bottom = 'auto';
-      menu.style.minWidth = request.matchTriggerWidth
-        ? `${triggerRect.width}px`
-        : '0px';
-      return;
-    }
 
     menu.style.left = `${menuLeft}px`;
     menu.style.removeProperty('top');

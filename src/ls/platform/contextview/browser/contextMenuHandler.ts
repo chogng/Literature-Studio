@@ -35,9 +35,11 @@ export class ContextMenuHandler {
         'actionbar-context-view',
         delegate.getMenuClassName?.(),
       ]),
-      alignment: delegate.alignment ?? 'end',
-      position: delegate.position ?? 'below',
-      minWidth: delegate.minWidth ?? 180,
+      anchorAlignment: delegate.anchorAlignment
+        ?? (delegate.alignment === 'start' ? 'left' : 'right'),
+      anchorPosition: delegate.position === 'above' ? 'above' : 'below',
+      anchorAxisAlignment: delegate.anchorAxisAlignment ?? 'vertical',
+      minWidth: delegate.minWidth,
       render: (container) => {
         const menu = this.renderMenu(options, delegate);
         container.append(menu.getElement());
@@ -71,9 +73,10 @@ export class ContextMenuHandler {
     options: readonly ContextMenuAction[],
     delegate: ContextMenuDelegate,
   ) {
-    return new Menu({
+    const menu = new Menu({
       items: options,
       role: 'menu',
+      placement: delegate.position === 'above' ? 'top' : 'bottom',
       value: options.find((option) => option.checked)?.value,
       onSelect: ({ value }) => {
         delegate.onSelect?.(value);
@@ -86,5 +89,29 @@ export class ContextMenuHandler {
         this.contextViewService.hideContextView({ didCancel: true });
       },
     });
+
+    queueMicrotask(() => {
+      const contextView = menu.getElement().closest('.ls-context-view');
+      const placement =
+        contextView?.classList.contains('top') ? 'top' : 'bottom';
+      menu.setOptions({
+        items: options,
+        role: 'menu',
+        placement,
+        value: options.find((option) => option.checked)?.value,
+        onSelect: ({ value }) => {
+          delegate.onSelect?.(value);
+          this.contextViewService.hideContextView({
+            didCancel: false,
+            value,
+          });
+        },
+        onCancel: () => {
+          this.contextViewService.hideContextView({ didCancel: true });
+        },
+      });
+    });
+
+    return menu;
   }
 }

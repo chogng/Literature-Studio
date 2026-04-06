@@ -457,12 +457,12 @@ export const editorTabsHeaderBackground = registerColor('editor.tabsHeaderBackgr
 
 export const editorTabHoverBackground = registerColor('editor.tabHoverBackground', {
   dark: 'rgba(255, 255, 255, 0.08)',
-  light: 'rgba(223, 231, 239, 0.7)',
+  light: '#e9e9e9',
 });
 
 export const editorTabActiveBackground = registerColor('editor.tabActiveBackground', {
   dark: '#24313d',
-  light: '#fbfcfd',
+  light: '#e9e9e9',
 });
 
 export const editorTabHistoryBackground = registerColor('editor.tabHistoryBackground', {
@@ -492,7 +492,7 @@ export const editorTabActiveForeground = registerColor('editor.tabActiveForegrou
 
 export const editorTabCloseHoverBackground = registerColor('editor.tabCloseHoverBackground', {
   dark: 'rgba(255, 255, 255, 0.08)',
-  light: 'rgba(0, 0, 0, 0.05)',
+  light: '#e9e9e9',
 });
 
 export const editorTabCloseHoverForeground = registerColor('editor.tabCloseHoverForeground', {

@@ -6,6 +6,7 @@ import 'ls/base/parts/contextmenu/electron-sandbox/tests/overlayContextmenu.test
 import 'ls/base/parts/contextmenu/electron-sandbox/tests/overlayMenu.test';
 import 'ls/base/browser/ui/dropdown/tests/dropdown.test';
 import 'ls/base/browser/ui/hover/tests/hover.test';
+import 'ls/base/browser/ui/dropdown/tests/dropdownMenuActionViewItem.test';
 import 'ls/base/browser/ui/tree/tests/simpleTree.test';
 import 'ls/base/browser/ui/toast/tests/toast.test';
 import 'ls/editor/browser/text/tests/fontSizePresets.test';

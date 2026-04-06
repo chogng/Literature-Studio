@@ -234,6 +234,7 @@ export class ArticleCard extends LifecycleOwner {
           title: MORE_ACTIONS_LABEL,
           content: createLxIcon('more'),
           buttonClassName: 'fetch-pane-article-card-icon-btn',
+          overlayAlignment: 'end',
           menu: [
             {
               label: VIEW_DETAILS_LABEL,

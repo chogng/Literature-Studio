@@ -383,7 +383,6 @@ export class AgentChatWidget {
       buttonClassName: 'agentbar-model-switch-btn',
       className: 'agentbar-model-switch',
       disabled: this.props.llmModelOptions.length === 0,
-      menuClassName: 'agentbar-model-switch-context-view',
       overlayRole: 'dialog',
       minWidth: 280,
       content: () => this.renderModelDropdownTrigger(currentOption),
@@ -632,7 +631,7 @@ export class AgentChatWidget {
       title: this.props.labels.assistantMore,
       content: createLxIcon(lxIconSemanticMap.assistant.more),
       buttonClassName: 'sidebar-action-btn',
-      menuClassName: 'agentbar-context-view',
+      overlayAlignment: 'end',
       menu: [
         {
           label: this.props.labels.assistantNewConversation,
@@ -650,7 +649,7 @@ export class AgentChatWidget {
       title: this.props.labels.assistantHistory,
       content: createLxIcon(lxIconSemanticMap.assistant.history),
       buttonClassName: 'sidebar-action-btn',
-      menuClassName: 'agentbar-context-view',
+      overlayAlignment: 'end',
       overlayRole: 'dialog',
       minWidth: 280,
       renderOverlay: ({ hide }) => {

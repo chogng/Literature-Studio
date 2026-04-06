@@ -3,21 +3,32 @@ import test, { after, before } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
-import {
-  ActionWithDropdownActionViewItem,
-  createDropdownMenuActionViewItem,
-  DropdownMenuActionViewItem,
-} from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 
 let cleanupDomEnvironment: (() => void) | null = null;
+let ActionWithDropdownActionViewItem:
+  typeof import('ls/base/browser/ui/dropdown/dropdownActionViewItem').ActionWithDropdownActionViewItem;
+let createDropdownMenuActionViewItem:
+  typeof import('ls/base/browser/ui/dropdown/dropdownActionViewItem').createDropdownMenuActionViewItem;
+let DropdownMenuActionViewItem:
+  typeof import('ls/base/browser/ui/dropdown/dropdownActionViewItem').DropdownMenuActionViewItem;
 
-before(() => {
+before(async () => {
   if (typeof document !== 'undefined') {
+    ({
+      ActionWithDropdownActionViewItem,
+      createDropdownMenuActionViewItem,
+      DropdownMenuActionViewItem,
+    } = await import('ls/base/browser/ui/dropdown/dropdownActionViewItem'));
     return;
   }
 
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
+  ({
+    ActionWithDropdownActionViewItem,
+    createDropdownMenuActionViewItem,
+    DropdownMenuActionViewItem,
+  } = await import('ls/base/browser/ui/dropdown/dropdownActionViewItem'));
 });
 
 after(() => {
@@ -115,8 +126,11 @@ test('DropdownMenuActionViewItem can render a custom overlay', async () => {
 
     const overlay = document.body.querySelector('.custom-history-overlay');
     assert(overlay instanceof HTMLElement);
+    const contextViewContent = document.body.querySelector('.ls-context-view-content');
+    assert(contextViewContent instanceof HTMLElement);
     assert.equal(trigger.getAttribute('aria-haspopup'), 'dialog');
     assert.equal(trigger.getAttribute('aria-expanded'), 'true');
+    assert.equal(contextViewContent.style.minWidth, '0px');
 
     const closeButton = overlay.querySelector('button');
     assert(closeButton instanceof HTMLButtonElement);
@@ -179,6 +193,8 @@ test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context
     assert.equal(document.body.querySelector('.dropdown-menu'), null);
     assert.equal(delegates.length, 1);
     assert.equal(delegates[0]?.getAnchor(), button);
+    assert.equal(delegates[0]?.minWidth, undefined);
+    assert.equal(delegates[0]?.position, 'below');
     assert.equal(button.getAttribute('aria-expanded'), 'true');
 
     button.click();
@@ -189,6 +205,496 @@ test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context
   } finally {
     item.dispose();
     document.body.replaceChildren();
+  }
+});
+
+test('DropdownMenuActionViewItem forwards requested menu position to the context menu service', async () => {
+  const delegates: import('ls/base/browser/contextmenu').ContextMenuDelegate[] = [];
+  const contextMenuService: import('ls/base/browser/contextmenu').ContextMenuService = {
+    showContextMenu(delegate) {
+      delegates.push(delegate);
+    },
+    hideContextMenu() {},
+    isVisible() {
+      return false;
+    },
+    dispose() {},
+  };
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    contextMenuService,
+    overlayPosition: 'above',
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+
+    assert.equal(delegates.length, 1);
+    assert.equal(delegates[0]?.position, 'above');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('DropdownMenuActionViewItem syncs menu placement class from the resolved context view position', async () => {
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 400,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: 300,
+  });
+
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.classList.contains('ls-context-view')) {
+      return {
+        x: 8,
+        y: 8,
+        width: 180,
+        height: 120,
+        top: 8,
+        left: 8,
+        right: 188,
+        bottom: 128,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    if (this.tagName === 'BUTTON') {
+      return {
+        x: 40,
+        y: 260,
+        width: 24,
+        height: 24,
+        top: 260,
+        left: 40,
+        right: 64,
+        bottom: 284,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    overlayPosition: 'above',
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+    await delay(0);
+
+    const contextView = document.body.querySelector('.ls-context-view');
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(contextView instanceof HTMLElement);
+    assert(menu instanceof HTMLElement);
+    assert.equal(contextView.classList.contains('top'), true);
+    assert.equal(menu.classList.contains('dropdown-menu-top'), true);
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth);
+    }
+    if (originalInnerHeight) {
+      Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+    }
+  }
+});
+
+test('DropdownMenuActionViewItem falls back to below placement when above cannot fit', async () => {
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 400,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: 300,
+  });
+
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.classList.contains('ls-context-view-content')) {
+      return {
+        x: 8,
+        y: 8,
+        width: 180,
+        height: 120,
+        top: 8,
+        left: 8,
+        right: 188,
+        bottom: 128,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    if (this.tagName === 'BUTTON') {
+      return {
+        x: 40,
+        y: 20,
+        width: 24,
+        height: 24,
+        top: 20,
+        left: 40,
+        right: 64,
+        bottom: 44,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    overlayPosition: 'above',
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+    await delay(0);
+
+    const contextView = document.body.querySelector('.ls-context-view');
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(contextView instanceof HTMLElement);
+    assert(menu instanceof HTMLElement);
+    assert.equal(contextView.classList.contains('bottom'), true);
+    assert.equal(contextView.classList.contains('top'), false);
+    assert.equal(menu.classList.contains('dropdown-menu-bottom'), true);
+    assert.equal(menu.classList.contains('dropdown-menu-top'), false);
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth);
+    }
+    if (originalInnerHeight) {
+      Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+    }
+  }
+});
+
+test('DropdownMenuActionViewItem flips above when the default below placement cannot fit', async () => {
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 400,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: 300,
+  });
+
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.classList.contains('ls-context-view-content')) {
+      return {
+        x: 8,
+        y: 8,
+        width: 180,
+        height: 120,
+        top: 8,
+        left: 8,
+        right: 188,
+        bottom: 128,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    if (this.tagName === 'BUTTON') {
+      return {
+        x: 40,
+        y: 260,
+        width: 24,
+        height: 24,
+        top: 260,
+        left: 40,
+        right: 64,
+        bottom: 284,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+    await delay(0);
+
+    const contextView = document.body.querySelector('.ls-context-view');
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(contextView instanceof HTMLElement);
+    assert(menu instanceof HTMLElement);
+    assert.equal(contextView.classList.contains('top'), true);
+    assert.equal(contextView.classList.contains('bottom'), false);
+    assert.equal(contextView.style.top, '140px');
+    assert.equal(menu.classList.contains('dropdown-menu-top'), true);
+    assert.equal(menu.classList.contains('dropdown-menu-bottom'), false);
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth);
+    }
+    if (originalInnerHeight) {
+      Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+    }
+  }
+});
+
+test('DropdownMenuActionViewItem uses zoom-adjusted anchor geometry for menu placement', async () => {
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+  const originalGetComputedStyle = window.getComputedStyle;
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 400,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: 300,
+  });
+
+  window.getComputedStyle = ((element: Element) => {
+    if (element instanceof HTMLButtonElement) {
+      return { zoom: '2' } as CSSStyleDeclaration;
+    }
+
+    return originalGetComputedStyle.call(window, element);
+  }) as typeof window.getComputedStyle;
+
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.classList.contains('ls-context-view-content')) {
+      return {
+        x: 8,
+        y: 8,
+        width: 120,
+        height: 60,
+        top: 8,
+        left: 8,
+        right: 128,
+        bottom: 68,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    if (this.tagName === 'BUTTON') {
+      return {
+        x: 100,
+        y: 40,
+        width: 20,
+        height: 20,
+        top: 40,
+        left: 100,
+        right: 120,
+        bottom: 60,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+    await delay(0);
+
+    const contextView = document.body.querySelector('.ls-context-view');
+    assert(contextView instanceof HTMLElement);
+    assert.equal(contextView.style.left, '200px');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    window.getComputedStyle = originalGetComputedStyle;
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth);
+    }
+    if (originalInnerHeight) {
+      Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+    }
+  }
+});
+
+test('DropdownMenuActionViewItem can opt into end alignment for menu placement', async () => {
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+  const originalGetComputedStyle = window.getComputedStyle;
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 400,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: 300,
+  });
+
+  window.getComputedStyle = ((element: Element) => {
+    if (element instanceof HTMLButtonElement) {
+      return { zoom: '2' } as CSSStyleDeclaration;
+    }
+
+    return originalGetComputedStyle.call(window, element);
+  }) as typeof window.getComputedStyle;
+
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.classList.contains('ls-context-view-content')) {
+      return {
+        x: 8,
+        y: 8,
+        width: 120,
+        height: 60,
+        top: 8,
+        left: 8,
+        right: 128,
+        bottom: 68,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    if (this.tagName === 'BUTTON') {
+      return {
+        x: 100,
+        y: 40,
+        width: 20,
+        height: 20,
+        top: 40,
+        left: 100,
+        right: 120,
+        bottom: 60,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    overlayAlignment: 'end',
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+    await delay(0);
+
+    const contextView = document.body.querySelector('.ls-context-view');
+    assert(contextView instanceof HTMLElement);
+    assert.equal(contextView.style.left, '120px');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    window.getComputedStyle = originalGetComputedStyle;
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth);
+    }
+    if (originalInnerHeight) {
+      Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+    }
   }
 });
 

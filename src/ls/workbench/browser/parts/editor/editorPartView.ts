@@ -42,12 +42,17 @@ export type EditorPartLabels = {
   sourceMode: string;
   pdfMode: string;
   close: string;
+  closeOthers?: string;
+  closeAll?: string;
+  rename?: string;
   expandEditor: string;
   collapseEditor: string;
   emptyWorkspaceTitle: string;
   emptyWorkspaceBody: string;
   draftBodyPlaceholder: string;
   pdfTitle: string;
+  renameTabTitle?: string;
+  renameTabLabel?: string;
   status: EditorStatusLabels;
 } & WritingEditorSurfaceLabels;
 
@@ -61,6 +66,9 @@ export type EditorPartProps = {
   viewStateEntries: SerializedEditorViewStateEntry[];
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onCloseOtherTabs?: (tabId: string) => void;
+  onCloseAllTabs?: () => void;
+  onRenameTab?: (tabId: string) => void | Promise<void>;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
   onOpenBrowserPane: () => void;

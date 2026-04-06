@@ -160,6 +160,15 @@ export type WritingEditorToolbarButtonGroup = {
   items: readonly WritingEditorToolbarItemConfig[];
 };
 
+export type WritingEditorToolbarMenuItemConfig = {
+  id: string;
+  label: string;
+  title?: string;
+  checked?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+};
+
 export type WritingEditorDraftCommandContext = {
   availableFigureIds: readonly string[];
 };
@@ -206,6 +215,7 @@ type WritingEditorToolbarButtonDefinition = WritingEditorToolbarBaseDefinition &
   kind?: 'button';
   icon?: WritingEditorToolbarButtonConfig['icon'];
   glyph?: string;
+  overflowMenu?: boolean;
   isActive?: (state: WritingEditorToolbarState) => boolean;
   isEnabled?: (state: WritingEditorToolbarState) => boolean;
   run: (actions: WritingEditorToolbarActions) => void;
@@ -243,6 +253,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     createCommand: () => undoCommand(),
     toolbar: {
       group: 'history',
+      overflowMenu: true,
       getLabel: (labels) => labels.undo,
       icon: 'arrow-left',
       isEnabled: (state) => state.canUndo,
@@ -257,6 +268,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     createCommand: () => redoCommand(),
     toolbar: {
       group: 'history',
+      overflowMenu: true,
       getLabel: (labels) => labels.redo,
       icon: 'arrow-right',
       isEnabled: (state) => state.canRedo,
@@ -478,6 +490,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     id: 'clearInlineStyles',
     toolbar: {
       group: 'format',
+      overflowMenu: true,
       getLabel: (labels) => labels.clearInlineStyles,
       icon: 'circle-slash',
       run: (actions: WritingEditorToolbarActions) => {
@@ -489,6 +502,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     id: 'toggleBlockquote',
     toolbar: {
       group: 'format',
+      overflowMenu: true,
       getLabel: (labels) => labels.blockquote,
       icon: 'quote',
       isActive: (state) => state.isBlockquoteActive,
@@ -501,6 +515,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     id: 'insertCitation',
     toolbar: {
       group: 'insert',
+      overflowMenu: true,
       getLabel: (labels) => labels.insertCitation,
       icon: 'quotes',
       run: (actions: WritingEditorToolbarActions) => {
@@ -527,6 +542,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     id: 'insertFigureRef',
     toolbar: {
       group: 'insert',
+      overflowMenu: true,
       getLabel: (labels) => labels.insertFigureRef,
       icon: 'mention',
       isEnabled: (state) => state.availableFigureIds.length > 0,
@@ -780,9 +796,13 @@ export function createWritingEditorToolbarButtonGroups(params: {
   toolbarState: WritingEditorToolbarState;
   actions: WritingEditorToolbarActions;
   dropdownOptions: Partial<Record<'setFontFamily' | 'setFontSize', WritingEditorToolbarDropdownConfig['options']>>;
-}): readonly WritingEditorToolbarButtonGroup[] {
+}): {
+  groups: readonly WritingEditorToolbarButtonGroup[];
+  overflowMenuItems: readonly WritingEditorToolbarMenuItemConfig[];
+} {
   const { labels, toolbarState, actions, dropdownOptions } = params;
   const groups = new Map<WritingEditorToolbarGroupId, WritingEditorToolbarItemConfig[]>();
+  const overflowMenuItems: WritingEditorToolbarMenuItemConfig[] = [];
 
   for (const definition of writingEditorCommandDefinitions) {
     const toolbar = definition.toolbar;
@@ -824,6 +844,20 @@ export function createWritingEditorToolbarButtonGroups(params: {
         });
       }
     } else {
+      if (toolbar.overflowMenu) {
+        overflowMenuItems.push({
+          id: definition.id,
+          label: toolbar.getLabel(labels),
+          title: toolbar.getLabel(labels),
+          checked: toolbar.isActive?.(toolbarState),
+          disabled: toolbar.isEnabled ? !toolbar.isEnabled(toolbarState) : undefined,
+          onClick: () => {
+            toolbar.run(actions);
+          },
+        });
+        continue;
+      }
+
       items.push({
         label: toolbar.getLabel(labels),
         onClick: () => {
@@ -847,10 +881,15 @@ export function createWritingEditorToolbarButtonGroups(params: {
     }),
   ]);
 
-  return (['text', 'format', 'insert', 'history'] as const)
+  const buttonGroups = (['text', 'format', 'insert', 'history'] as const)
     .filter((groupId) => (groups.get(groupId)?.length ?? 0) > 0)
     .map((groupId) => ({
       title: getToolbarGroupTitle(groupId, labels),
       items: groups.get(groupId) ?? [],
     }));
+
+  return {
+    groups: buttonGroups,
+    overflowMenuItems,
+  };
 }

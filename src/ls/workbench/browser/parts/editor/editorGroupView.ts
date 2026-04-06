@@ -57,6 +57,9 @@ export type EditorGroupViewProps = {
   viewStateEntries: SerializedEditorViewStateEntry[];
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onCloseOtherTabs?: (tabId: string) => void;
+  onCloseAllTabs?: () => void;
+  onRenameTab?: (tabId: string) => void | Promise<void>;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
   onOpenBrowserPane: () => void;
@@ -107,6 +110,9 @@ function createTitleControlProps(
     | 'activeTab'
     | 'onActivateTab'
     | 'onCloseTab'
+    | 'onCloseOtherTabs'
+    | 'onCloseAllTabs'
+    | 'onRenameTab'
     | 'onCreateDraftTab'
     | 'onOpenBrowserPane'
     | 'onCreatePdfTab'
@@ -129,6 +135,9 @@ function createTitleControlProps(
     group,
     labels: {
       close: props.labels.close,
+      closeOthers: props.labels.closeOthers,
+      closeAll: props.labels.closeAll,
+      rename: props.labels.rename,
     },
     onActivateTab: (tabId) => {
       props.onActivateTab(tabId);
@@ -137,6 +146,9 @@ function createTitleControlProps(
       }
     },
     onCloseTab: props.onCloseTab,
+    onCloseOtherTabs: props.onCloseOtherTabs,
+    onCloseAllTabs: props.onCloseAllTabs,
+    onRenameTab: props.onRenameTab,
     onOpenPaneMode: (paneMode) => {
       if (paneMode === 'draft') {
         props.onCreateDraftTab();
@@ -163,6 +175,9 @@ function createTitleControl(
     | 'activeTab'
     | 'onActivateTab'
     | 'onCloseTab'
+    | 'onCloseOtherTabs'
+    | 'onCloseAllTabs'
+    | 'onRenameTab'
     | 'onCreateDraftTab'
     | 'onOpenBrowserPane'
     | 'onCreatePdfTab'

@@ -4,11 +4,9 @@
   --ls-menu-selected-fg: var(--vscode-menu-itemSelectedForeground, #0a5fbf);
   --ls-menu-check-color: var(--vscode-menu-itemCheckForeground, rgba(10, 95, 191, 0.72));
 
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
+  position: relative;
   width: max-content;
-  min-width: 100%;
+  min-width: max(180px, 100%);
   max-width: min(360px, calc(100vw - 16px));
   background: var(--vscode-menu-background, #ffffff);
   border: 1px solid var(--vscode-menu-border, rgba(0, 0, 0, 0.08));
@@ -26,14 +24,10 @@
 }
 
 .ls-menu.dropdown-menu-top {
-  top: auto;
-  bottom: calc(100% + 4px);
   animation-name: ls-menu-fade-in-up;
 }
 
 .ls-menu.dropdown-menu-bottom {
-  top: calc(100% + 4px);
-  bottom: auto;
 }
 
 .ls-menu:focus-visible {

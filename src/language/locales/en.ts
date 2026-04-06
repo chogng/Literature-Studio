@@ -182,6 +182,11 @@ const en = {
   editorDraftMode: 'Draft',
   editorSourceMode: 'Source',
   editorPdfMode: 'PDF',
+  editorTabContextCloseOthers: 'Close Others',
+  editorTabContextCloseAll: 'Close All',
+  editorTabContextRename: 'Rename',
+  editorTabRenameTitle: 'Rename Tab',
+  editorTabRenameLabel: 'Tab name',
   editorEmptyWorkspaceTitle: 'No editor is open yet',
   editorEmptyWorkspaceBody:
     'This area is the editor workspace. Create a draft tab first, or use the URL flow above to open source or PDF web content.',

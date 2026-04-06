@@ -1,14 +1,13 @@
 import type { BaseAction } from 'ls/base/common/actions';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { ContextViewAnchor } from 'ls/base/browser/ui/contextview/contextview';
 
-export type ContextMenuAnchor = HTMLElement | {
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-};
+export type ContextMenuAnchor = ContextViewAnchor;
 
 export type ContextMenuAlignment = 'start' | 'end';
+export type ContextMenuPosition = 'auto' | 'above' | 'below';
+export type ContextMenuAnchorAlignment = 'left' | 'right';
+export type ContextMenuAnchorAxisAlignment = 'vertical' | 'horizontal';
 
 // This is the current repo-level menu action contract shared by platform,
 // workbench, and native menu bridges. It is intentionally smaller than the
@@ -25,7 +24,10 @@ export interface ContextMenuDelegate {
   onSelect?: (value: string) => void;
   onHide?: (didCancel: boolean) => void;
   getMenuClassName?: () => string;
+  anchorAlignment?: ContextMenuAnchorAlignment;
+  anchorAxisAlignment?: ContextMenuAnchorAxisAlignment;
   alignment?: ContextMenuAlignment;
+  position?: ContextMenuPosition;
   minWidth?: number;
 }
 

@@ -8,15 +8,29 @@
 
 .editor-draft-toolbar {
   display: flex;
-  gap: 8px;
   align-items: center;
   width: 100%;
   min-width: 0;
   padding: 8px 2px;
   background: transparent;
+  -webkit-app-region: no-drag;
+}
+
+.editor-draft-toolbar-content {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: thin;
-  -webkit-app-region: no-drag;
+}
+
+.editor-draft-toolbar-trailing {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: 8px;
 }
 
 .editor-draft-toolbar-group.actionbar {
@@ -33,6 +47,10 @@
   flex: 0 0 auto;
   min-width: 0;
   background: transparent;
+}
+
+.editor-draft-toolbar-more.actionbar {
+  flex: 0 0 auto;
 }
 
 .editor-draft-toolbar-btn.actionbar-action {
@@ -348,7 +366,14 @@
   .editor-draft-toolbar {
     padding-left: 0;
     padding-right: 0;
+  }
+
+  .editor-draft-toolbar-content {
     gap: 6px;
+  }
+
+  .editor-draft-toolbar-trailing {
+    margin-left: 6px;
   }
 
   .editor-draft-toolbar-group.actionbar {

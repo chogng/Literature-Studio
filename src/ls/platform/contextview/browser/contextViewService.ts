@@ -1,6 +1,5 @@
 import { createContextViewController } from 'ls/base/browser/ui/contextview/contextview';
 import type {
-  ContextViewAnchor,
   ContextViewDelegate,
   ContextViewDisposable,
   ContextViewRenderResult,
@@ -21,25 +20,10 @@ function normalizeDisposable(result: ContextViewRenderResult): (() => void) | nu
   };
 }
 
-function createTransientAnchor(anchor: Exclude<ContextViewAnchor, HTMLElement>) {
-  const element = document.createElement('div');
-  element.setAttribute('aria-hidden', 'true');
-  element.style.position = 'fixed';
-  element.style.left = `${anchor.x}px`;
-  element.style.top = `${anchor.y}px`;
-  element.style.width = `${anchor.width ?? 0}px`;
-  element.style.height = `${anchor.height ?? 0}px`;
-  element.style.pointerEvents = 'none';
-  element.style.opacity = '0';
-  document.body.append(element);
-  return element;
-}
-
 class PlatformContextViewService implements ContextViewService {
   private readonly contextView = createContextViewController();
   private currentDelegate: ContextViewDelegate | null = null;
   private currentRenderDispose: (() => void) | null = null;
-  private transientAnchor: HTMLElement | null = null;
 
   showContextView(delegate: ContextViewDelegate): ContextViewDisposable {
     this.hideContextView();
@@ -50,17 +34,14 @@ class PlatformContextViewService implements ContextViewService {
     const renderResult = delegate.render(container);
     this.currentRenderDispose = normalizeDisposable(renderResult);
 
-    const anchor = delegate.getAnchor();
-    const anchorElement =
-      anchor instanceof HTMLElement
-        ? anchor
-        : (this.transientAnchor = createTransientAnchor(anchor));
-
     this.contextView.show({
-      anchor: anchorElement,
+      anchor: delegate.getAnchor(),
       className: delegate.className,
       render: () => container,
       onHide: this.handleHide,
+      anchorAlignment: delegate.anchorAlignment,
+      anchorPosition: delegate.anchorPosition,
+      anchorAxisAlignment: delegate.anchorAxisAlignment,
       alignment: delegate.alignment,
       position: delegate.position,
       offset: delegate.offset,
@@ -107,8 +88,6 @@ class PlatformContextViewService implements ContextViewService {
     this.currentRenderDispose?.();
     this.currentRenderDispose = null;
     this.currentDelegate = null;
-    this.transientAnchor?.remove();
-    this.transientAnchor = null;
   }
 
   private readonly handleHide = (data?: unknown) => {

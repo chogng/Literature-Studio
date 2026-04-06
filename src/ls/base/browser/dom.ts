@@ -48,3 +48,36 @@ export function addDisposableListener(
     target.removeEventListener(type, listener, options);
   });
 }
+
+export type DomNodePagePosition = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+export function getDomNodePagePosition(domNode: HTMLElement): DomNodePagePosition {
+  const rect = domNode.getBoundingClientRect();
+  return {
+    left: rect.left + window.scrollX,
+    top: rect.top + window.scrollY,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
+export function getDomNodeZoomLevel(domNode: HTMLElement) {
+  let current: HTMLElement | null = domNode;
+  let zoom = 1;
+
+  do {
+    const computedZoom = Number.parseFloat(window.getComputedStyle(current).zoom);
+    if (Number.isFinite(computedZoom) && computedZoom > 0 && computedZoom !== 1) {
+      zoom *= computedZoom;
+    }
+
+    current = current.parentElement;
+  } while (current && current !== document.documentElement);
+
+  return zoom;
+}

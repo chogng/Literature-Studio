@@ -3,6 +3,7 @@ import {
   type ActionBarItem,
   type ActionView,
 } from 'ls/base/browser/ui/actionbar/actionbar';
+import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import {
   createDomDropdownMenuPresenter,
   createDropdownView,
@@ -19,6 +20,7 @@ import {
   type WritingEditorToolbarButtonConfig,
   type WritingEditorToolbarDropdownConfig,
   type WritingEditorToolbarItemConfig,
+  type WritingEditorToolbarMenuItemConfig,
   type WritingEditorToolbarSplitButtonConfig,
 } from 'ls/editor/browser/text/editorCommandRegistry';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
@@ -34,6 +36,11 @@ export type DraftEditorToolbarProps = {
 type ToolbarGroupConfig = {
   title: string;
   items: readonly WritingEditorToolbarItemConfig[];
+};
+
+type ToolbarLayoutConfig = {
+  groups: readonly ToolbarGroupConfig[];
+  overflowMenuItems: readonly WritingEditorToolbarMenuItemConfig[];
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -144,10 +151,13 @@ const FONT_SIZE_PRESETS: readonly DropdownOption[] = [
 export class DraftEditorToolbar {
   private props: DraftEditorToolbarProps;
   private readonly element = createElement('div', 'editor-draft-toolbar');
+  private readonly contentElement = createElement('div', 'editor-draft-toolbar-content');
+  private readonly trailingElement = createElement('div', 'editor-draft-toolbar-trailing');
   private toolbarViews: Array<{ dispose: () => void }> = [];
 
   constructor(props: DraftEditorToolbarProps) {
     this.props = props;
+    this.element.append(this.contentElement, this.trailingElement);
     this.render();
   }
 
@@ -168,10 +178,17 @@ export class DraftEditorToolbar {
   private render() {
     this.disposeToolbarViews();
     const fragment = document.createDocumentFragment();
-    for (const group of this.createToolbarGroups()) {
+    const layout = this.createToolbarLayout();
+    for (const group of layout.groups) {
       fragment.append(this.createToolbarGroup(group));
     }
-    this.element.replaceChildren(fragment);
+    this.contentElement.replaceChildren(fragment);
+    this.trailingElement.replaceChildren();
+
+    if (layout.overflowMenuItems.length > 0) {
+      const overflowView = this.createOverflowMenu(layout.overflowMenuItems);
+      this.trailingElement.append(overflowView.getElement());
+    }
   }
 
   private createTextStyleOptions(
@@ -254,7 +271,7 @@ export class DraftEditorToolbar {
     return options;
   }
 
-  private createToolbarGroups(): readonly ToolbarGroupConfig[] {
+  private createToolbarLayout(): ToolbarLayoutConfig {
     const { labels, toolbarState, actions } = this.props;
     const fontFamilyPresets: DropdownOption[] = [
       {
@@ -323,7 +340,7 @@ export class DraftEditorToolbar {
       labels.defaultTextStyle,
     );
 
-    const buttonGroups = createWritingEditorToolbarButtonGroups({
+    return createWritingEditorToolbarButtonGroups({
       labels,
       toolbarState,
       actions,
@@ -332,8 +349,6 @@ export class DraftEditorToolbar {
         setFontSize: fontSizeOptions,
       },
     });
-
-    return buttonGroups;
   }
 
   private createToolbarGroup(groupConfig: ToolbarGroupConfig) {
@@ -354,21 +369,41 @@ export class DraftEditorToolbar {
     });
     const group = actionBarView.getElement();
 
-    group.addEventListener('mousedown', (event) => {
-      if (!(event.target instanceof Element)) {
-        return;
-      }
-
-      if (!event.target.closest('.actionbar-action')) {
-        return;
-      }
-
-      // Keep the ProseMirror selection alive while toolbar commands run.
-      event.preventDefault();
-    });
+    group.addEventListener('mousedown', this.handleActionbarMouseDown);
 
     this.toolbarViews.push(actionBarView);
     return group;
+  }
+
+  private createOverflowMenu(overflowMenuItems: readonly WritingEditorToolbarMenuItemConfig[]) {
+    const overflowView = createActionBarView({
+      className: 'editor-draft-toolbar-group editor-draft-toolbar-more',
+      ariaRole: 'group',
+      items: [
+        createDropdownMenuActionViewItem({
+          label: this.props.labels.toolbarMore,
+          title: this.props.labels.toolbarMore,
+          mode: 'icon',
+          buttonClassName: 'editor-draft-toolbar-btn',
+          content: createLxIcon('more'),
+          overlayAlignment: 'end',
+          menu: overflowMenuItems.map((item) => ({
+            id: item.id,
+            label: item.label,
+            title: item.title,
+            checked: item.checked,
+            disabled: item.disabled,
+            onClick: () => {
+              item.onClick();
+            },
+          })),
+          hoverService,
+        }),
+      ],
+    });
+    overflowView.getElement().addEventListener('mousedown', this.handleActionbarMouseDown);
+    this.toolbarViews.push(overflowView);
+    return overflowView;
   }
 
   private createToolbarDropdown(dropdownConfig: WritingEditorToolbarDropdownConfig) {
@@ -498,6 +533,19 @@ export class DraftEditorToolbar {
     }
     this.toolbarViews = [];
   }
+
+  private readonly handleActionbarMouseDown = (event: MouseEvent) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+
+    if (!event.target.closest('.actionbar-action')) {
+      return;
+    }
+
+    // Keep the ProseMirror selection alive while toolbar commands run.
+    event.preventDefault();
+  };
 }
 
 export function createDraftEditorToolbar(props: DraftEditorToolbarProps) {

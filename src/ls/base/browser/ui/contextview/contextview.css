@@ -6,5 +6,7 @@
 }
 
 .ls-context-view-content {
+  display: inline-block;
+  max-width: calc(100vw - 16px);
   pointer-events: auto;
 }

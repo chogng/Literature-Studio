@@ -2,16 +2,13 @@ import type {
   ContextMenuAction,
 } from 'ls/base/browser/contextmenu';
 import type {
+  AnchorAlignment,
+  AnchorAxisAlignment,
+  AnchorPosition,
+  ContextViewAnchor,
   ContextViewAlignment,
   ContextViewPosition,
 } from 'ls/base/browser/ui/contextview/contextview';
-
-export type ContextViewAnchor = HTMLElement | {
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-};
 
 export type ContextViewRenderResult =
   | void
@@ -26,6 +23,9 @@ export interface ContextViewDelegate {
   render: (container: HTMLElement) => ContextViewRenderResult;
   onHide?: (data?: unknown) => void;
   className?: string;
+  anchorAlignment?: AnchorAlignment;
+  anchorPosition?: AnchorPosition;
+  anchorAxisAlignment?: AnchorAxisAlignment;
   alignment?: ContextViewAlignment;
   position?: ContextViewPosition;
   offset?: number;
@@ -52,6 +52,8 @@ export interface ContextMenuDelegate {
   onSelect?: (value: string) => void;
   onHide?: (didCancel: boolean) => void;
   getMenuClassName?: () => string;
+  anchorAlignment?: AnchorAlignment;
+  anchorAxisAlignment?: AnchorAxisAlignment;
   alignment?: ContextViewAlignment;
   position?: ContextViewPosition;
   minWidth?: number;

@@ -30,6 +30,7 @@ import { ScrollbarVisibility } from 'ls/base/browser/ui/scrollbar/scrollableElem
 import 'ls/editor/browser/text/media/editor.css';
 
 export type WritingEditorSurfaceLabels = {
+  toolbarMore: string;
   textGroup: string;
   formatGroup: string;
   insertGroup: string;
@@ -258,6 +259,7 @@ function areSurfaceLabelsEqual(
   next: WritingEditorSurfaceLabels,
 ) {
   return (
+    previous.toolbarMore === next.toolbarMore &&
     previous.textGroup === next.textGroup &&
     previous.formatGroup === next.formatGroup &&
     previous.insertGroup === next.insertGroup &&

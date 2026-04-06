@@ -146,6 +146,7 @@ export class DraftEditorPane extends EditorPane<
         blockFigure: props.labels.status.blockFigure,
       },
       labels: {
+        toolbarMore: props.labels.toolbarMore,
         textGroup: props.labels.textGroup,
         formatGroup: props.labels.formatGroup,
         insertGroup: props.labels.insertGroup,

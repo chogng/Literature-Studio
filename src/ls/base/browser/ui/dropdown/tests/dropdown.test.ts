@@ -101,12 +101,17 @@ test('dropdown portal menu renders in document.body and follows the trigger rect
 
     dropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
+    const contextView = document.body.querySelector('.ls-context-view');
+    const contextViewContent = document.body.querySelector('.ls-context-view-content');
     const menu = document.body.querySelector('.dropdown-menu-portal');
+    assert(contextView instanceof HTMLElement);
+    assert(contextViewContent instanceof HTMLElement);
     assert(menu instanceof HTMLElement);
     assert.equal(dropdown.contains(menu), false);
-    assert.equal(menu.style.left, '40px');
-    assert.equal(menu.style.top, '156px');
-    assert.equal(menu.style.minWidth, '96px');
+    assert.equal(contextView.style.left, '40px');
+    assert.equal(contextView.style.top, '156px');
+    assert.equal(contextViewContent.style.minWidth, '96px');
+    assert.equal(menu.style.minWidth, '100%');
     assert.equal(menu.classList.contains('dropdown-menu-bottom'), true);
 
     menuPresenter.dispose();
@@ -204,8 +209,11 @@ test('dropdown portal menu can opt out of matching the trigger width', () => {
 
     dropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
+    const contextViewContent = document.body.querySelector('.ls-context-view-content');
     const menu = document.body.querySelector('.dropdown-menu-portal');
+    assert(contextViewContent instanceof HTMLElement);
     assert(menu instanceof HTMLElement);
+    assert.equal(contextViewContent.style.minWidth, '0px');
     assert.equal(menu.style.minWidth, '0px');
 
     menuPresenter.dispose();

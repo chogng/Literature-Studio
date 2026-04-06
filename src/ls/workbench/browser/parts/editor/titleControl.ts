@@ -3,11 +3,17 @@ import type { EditorGroupModel } from 'ls/workbench/browser/parts/editor/editorG
 export type TitleControlCallbacks = {
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onCloseOtherTabs?: (tabId: string) => void;
+  onCloseAllTabs?: () => void;
+  onRenameTab?: (tabId: string) => void | Promise<void>;
   onOpenPaneMode: (paneMode: EditorGroupModel['tabs'][number]['paneMode']) => void;
 };
 
 export type TitleControlLabels = {
   close: string;
+  closeOthers?: string;
+  closeAll?: string;
+  rename?: string;
 };
 
 export type TitleControlProps = {

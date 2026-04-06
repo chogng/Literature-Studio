@@ -156,6 +156,7 @@ function createTitlebarActionBar(params: {
           menu: item.menu,
           renderOverlay: item.renderOverlay,
           overlayRole: item.overlayRole,
+          overlayAlignment: 'end',
           menuClassName: item.menuClassName,
           minWidth: item.minWidth,
           contextMenuService: electronOverlayContextMenuService ?? undefined,

@@ -55,6 +55,7 @@ export class EditorTopbarActionsView {
           title: this.props.labels.topbarAddAction,
           content: createLxIcon('add'),
           buttonClassName: 'editor-topbar-add-btn',
+          overlayAlignment: 'end',
           menu: [
             {
               label: this.props.labels.createWrite,

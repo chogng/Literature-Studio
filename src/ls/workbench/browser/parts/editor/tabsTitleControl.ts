@@ -1,8 +1,10 @@
+import { createActionBarView, type ActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import {
   getHoverService,
   type HoverHandle,
 } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
 import {
   LifecycleStore,
   MutableLifecycle,
@@ -10,12 +12,20 @@ import {
   type DisposableLike,
 } from 'ls/base/common/lifecycle';
 import type { EditorGroupTabItem } from 'ls/workbench/browser/parts/editor/editorGroupModel';
-import { TitleControl } from 'ls/workbench/browser/parts/editor/titleControl';
+import {
+  TitleControl,
+  type TitleControlProps,
+} from 'ls/workbench/browser/parts/editor/titleControl';
+import {
+  createContextMenuService,
+  type WorkbenchContextMenuService,
+} from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
 
 type TabView = {
   element: HTMLDivElement;
   mainButton: HTMLButtonElement;
   mainHover: HoverHandle;
+  actionsView: ActionBarView;
   icon: HTMLSpanElement;
   labelText: HTMLSpanElement;
   dispose: () => void;
@@ -63,10 +73,22 @@ export class TabsTitleControl extends TitleControl {
   private readonly disposables = new LifecycleStore();
   private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
   private readonly layoutAnimationFrame = new MutableLifecycle<DisposableLike>();
+  private readonly contextMenuService: WorkbenchContextMenuService;
   private container: HTMLDivElement | null = null;
   private readonly tabViews = new Map<string, TabView>();
   private shouldRevealActiveTab = false;
   private readonly hoverService = getHoverService();
+
+  constructor(
+    props: TitleControlProps,
+    options: {
+      contextMenuService?: WorkbenchContextMenuService;
+    } = {},
+  ) {
+    super(props);
+    this.contextMenuService =
+      options.contextMenuService ?? createContextMenuService();
+  }
 
   protected override create() {
     this.container = createElement('div', 'editor-tabs-container');
@@ -98,6 +120,7 @@ export class TabsTitleControl extends TitleControl {
     this.layoutAnimationFrame.dispose();
     this.resizeObserver.dispose();
     this.disposables.dispose();
+    this.contextMenuService.dispose();
     for (const tabView of this.tabViews.values()) {
       tabView.dispose();
     }
@@ -143,12 +166,19 @@ export class TabsTitleControl extends TitleControl {
 
   private createTabView(): TabView {
     const tabElement = createElement('div', 'editor-tab');
+    const viewDisposables = new LifecycleStore();
     const mainButton = createElement(
       'button',
-      'editor-tab-main btn-base btn-ghost btn-md',
+      'editor-tab-main btn-base btn-md',
     );
     mainButton.type = 'button';
     mainButton.setAttribute('role', 'tab');
+    viewDisposables.add(addDisposableListener(tabElement, 'pointerenter', () => {
+      tabElement.dataset.hovered = 'true';
+    }));
+    viewDisposables.add(addDisposableListener(tabElement, 'pointerleave', () => {
+      delete tabElement.dataset.hovered;
+    }));
 
     const label = createElement('span', 'editor-tab-label');
     const icon = createElement('span', 'editor-tab-icon');
@@ -156,16 +186,23 @@ export class TabsTitleControl extends TitleControl {
     label.append(icon, labelText);
     mainButton.append(label);
     const mainHover = this.hoverService.createHover(mainButton, null);
-    tabElement.append(mainButton);
+    const actionsView = createActionBarView({
+      className: 'editor-tab-actions',
+      ariaRole: 'group',
+    });
+    tabElement.append(mainButton, actionsView.getElement());
 
     return {
       element: tabElement,
       mainButton,
       mainHover,
+      actionsView,
       icon,
       labelText,
       dispose: () => {
+        viewDisposables.dispose();
         mainHover.dispose();
+        actionsView.dispose();
         tabElement.remove();
       },
     };
@@ -194,6 +231,9 @@ export class TabsTitleControl extends TitleControl {
     tabView.mainButton.tabIndex = tab.state.isActive ? 0 : 0;
     tabView.mainHover.update(tab.title);
     tabView.mainButton.disabled = false;
+    tabView.element.oncontextmenu = (event) => {
+      this.openTabContextMenu(event, tab);
+    };
     tabView.mainButton.onclick = () => {
       if (tab.targetTabId) {
         this.props.onActivateTab(tab.targetTabId);
@@ -207,6 +247,94 @@ export class TabsTitleControl extends TitleControl {
       createLxIcon(getTabPaneModeIconName(tab.paneMode, tab.state.isActive)),
     );
     tabView.labelText.textContent = tab.label;
+    tabView.actionsView.setProps({
+      className: 'editor-tab-actions',
+      ariaRole: 'group',
+      items: tab.targetTabId
+        ? [
+            {
+              id: `close-${tab.id}`,
+              label: this.props.labels.close,
+              title: this.props.labels.close,
+              mode: 'icon',
+              buttonClassName: 'editor-tab-close-btn',
+              content: createLxIcon('close'),
+              onClick: (event) => {
+                event.stopPropagation();
+                this.props.onCloseTab(tab.targetTabId!);
+              },
+            },
+          ]
+        : [],
+    });
+  }
+
+  private openTabContextMenu(
+    event: MouseEvent,
+    tab: EditorGroupTabItem,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!tab.targetTabId) {
+      return;
+    }
+
+    const actions: ContextMenuAction[] = [
+      {
+        value: 'close',
+        label: this.props.labels.close,
+      },
+      this.props.onCloseOtherTabs
+        ? {
+            value: 'close-others',
+            label: this.props.labels.closeOthers ?? 'Close Others',
+          }
+        : null,
+      this.props.onCloseAllTabs
+        ? {
+            value: 'close-all',
+            label: this.props.labels.closeAll ?? 'Close All',
+          }
+        : null,
+      this.props.onRenameTab
+        ? {
+            value: 'rename',
+            label: this.props.labels.rename ?? 'Rename',
+          }
+        : null,
+    ].filter((action): action is ContextMenuAction => Boolean(action));
+    if (actions.length === 0) {
+      return;
+    }
+
+    this.contextMenuService.showContextMenu({
+      getAnchor: () => ({
+        x: event.clientX,
+        y: event.clientY,
+        width: 0,
+        height: 0,
+      }),
+      getActions: () => actions,
+      alignment: 'start',
+      coverage: 'trigger-band',
+      requestIdPrefix: 'editor-tab-menu',
+      onSelect: (value) => {
+        switch (value) {
+          case 'close':
+            this.props.onCloseTab(tab.targetTabId!);
+            break;
+          case 'close-others':
+            this.props.onCloseOtherTabs?.(tab.targetTabId!);
+            break;
+          case 'close-all':
+            this.props.onCloseAllTabs?.();
+            break;
+          case 'rename':
+            void this.props.onRenameTab?.(tab.targetTabId!);
+            break;
+        }
+      },
+    });
   }
 
   private syncTabOrder(nextTabElements: HTMLDivElement[]) {

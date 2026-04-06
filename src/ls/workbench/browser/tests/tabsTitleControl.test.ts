@@ -8,6 +8,7 @@ import type {
   EditorGroupTabItem,
 } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+import type { WorkbenchContextMenuService } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let TabsTitleControl: typeof import('ls/workbench/browser/parts/editor/tabsTitleControl').TabsTitleControl;
@@ -110,6 +111,27 @@ function installResizeObserverSpy() {
         value: previousResizeObserver,
       });
     },
+  };
+}
+
+function createContextMenuServiceSpy() {
+  const delegates: Array<
+    Parameters<WorkbenchContextMenuService['showContextMenu']>[0]
+  > = [];
+  const contextMenuService: WorkbenchContextMenuService = {
+    showContextMenu(delegate) {
+      delegates.push(delegate);
+    },
+    hideContextMenu() {},
+    isVisible() {
+      return delegates.length > 0;
+    },
+    dispose() {},
+  };
+
+  return {
+    contextMenuService,
+    delegates,
   };
 }
 
@@ -537,4 +559,102 @@ test('TabsTitleControl disconnects resize observers on dispose', () => {
     resizeObserverSpy.restore();
     document.body.replaceChildren();
   }
+});
+
+test('TabsTitleControl opens a context menu with close, close others, close all, and rename actions', () => {
+  const closedTabIds: string[] = [];
+  const closeOtherTabIds: string[] = [];
+  const renamedTabIds: string[] = [];
+  let closeAllCount = 0;
+  const contextMenuSpy = createContextMenuServiceSpy();
+  const control = new TabsTitleControl(
+    {
+      group: createGroupModel('browser-a', [
+        createTabItem({
+          id: 'draft-a',
+          kind: 'draft',
+          label: 'Draft A',
+          title: 'Draft A',
+        }),
+        createTabItem({
+          id: 'browser-a',
+          kind: 'browser',
+          label: 'Browser A',
+          title: 'Browser A',
+          isActive: true,
+        }),
+        createTabItem({
+          id: 'pdf-a',
+          kind: 'pdf',
+          label: 'Paper.pdf',
+          title: 'Paper.pdf',
+        }),
+      ]),
+      labels: {
+        close: 'Close',
+        closeOthers: 'Close Others',
+        closeAll: 'Close All',
+        rename: 'Rename',
+      },
+      onActivateTab: () => {},
+      onCloseTab: (tabId) => {
+        closedTabIds.push(tabId);
+      },
+      onCloseOtherTabs: (tabId) => {
+        closeOtherTabIds.push(tabId);
+      },
+      onCloseAllTabs: () => {
+        closeAllCount += 1;
+      },
+      onRenameTab: (tabId) => {
+        renamedTabIds.push(tabId);
+      },
+      onOpenPaneMode: () => {},
+    },
+    {
+      contextMenuService: contextMenuSpy.contextMenuService,
+    },
+  );
+  const container = control.getElement();
+  document.body.append(container);
+
+  const browserTab = container.children[1];
+  const contextMenuEvent = new MouseEvent('contextmenu', {
+    bubbles: true,
+    cancelable: true,
+    clientX: 24,
+    clientY: 36,
+  });
+  browserTab?.dispatchEvent(contextMenuEvent);
+
+  assert.equal(contextMenuEvent.defaultPrevented, true);
+  assert.equal(contextMenuSpy.delegates.length, 1);
+  const delegate = contextMenuSpy.delegates[0];
+
+  assert.deepEqual(
+    delegate.getActions().map((action) => action.value),
+    ['close', 'close-others', 'close-all', 'rename'],
+  );
+  assert.deepEqual(
+    delegate.getActions().map((action) => action.label),
+    ['Close', 'Close Others', 'Close All', 'Rename'],
+  );
+  assert.deepEqual(delegate.getAnchor(), {
+    x: 24,
+    y: 36,
+    width: 0,
+    height: 0,
+  });
+
+  delegate.onSelect?.('close');
+  delegate.onSelect?.('close-others');
+  delegate.onSelect?.('close-all');
+  delegate.onSelect?.('rename');
+
+  assert.deepEqual(closedTabIds, ['browser-a']);
+  assert.deepEqual(closeOtherTabIds, ['browser-a']);
+  assert.equal(closeAllCount, 1);
+  assert.deepEqual(renamedTabIds, ['browser-a']);
+
+  control.dispose();
 });

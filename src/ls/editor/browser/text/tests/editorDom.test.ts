@@ -14,6 +14,7 @@ let DomScrollableElement: typeof import('ls/base/browser/ui/scrollbar/scrollable
 let cleanupDomEnvironment: (() => void) | null = null;
 
 const labels = {
+  toolbarMore: 'More',
   textGroup: 'Text',
   formatGroup: 'Format',
   insertGroup: 'Insert',
@@ -577,11 +578,107 @@ test('DraftEditorToolbar disables figure-ref action when no figures are availabl
   document.body.append(toolbar.getElement());
 
   try {
-    const button = Array.from(toolbar.getElement().querySelectorAll('button')).find(
-      (candidate) => candidate.getAttribute('aria-label') === labels.insertFigureRef,
+    const moreButton = Array.from(toolbar.getElement().querySelectorAll('button')).find(
+      (candidate) => candidate.getAttribute('aria-label') === labels.toolbarMore,
     );
-    assert(button instanceof HTMLButtonElement);
-    assert.equal(button.disabled, true);
+    assert(moreButton instanceof HTMLButtonElement);
+
+    moreButton.click();
+
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(menu instanceof HTMLElement);
+    const menuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (candidate) => candidate.textContent?.includes(labels.insertFigureRef),
+    );
+    assert(menuItem instanceof HTMLElement);
+    assert.equal(menuItem.classList.contains('disabled'), true);
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('DraftEditorToolbar opens the more menu and dispatches overflow actions', async () => {
+  const calls: string[] = [];
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      isUnderlineActive: false,
+      fontFamily: null,
+      fontSize: null,
+      textAlign: 'left',
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: true,
+      canRedo: true,
+      availableFigureIds: ['figure_1'],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      toggleUnderline: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      setTextAlign: () => {},
+      clearInlineStyles: () => {
+        calls.push('clear');
+      },
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {
+        calls.push('blockquote');
+      },
+      undo: () => {
+        calls.push('undo');
+      },
+      redo: () => {
+        calls.push('redo');
+      },
+      insertCitation: () => {
+        calls.push('citation');
+      },
+      insertFigure: () => {},
+      insertFigureRef: () => {
+        calls.push('figureRef');
+      },
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const moreButton = toolbar.getElement().querySelector('[aria-label="More"]');
+    assert(moreButton instanceof HTMLElement);
+
+    for (const [label, call] of [
+      ['Clear styles', 'clear'],
+      ['Citation', 'citation'],
+      ['Quote', 'blockquote'],
+      ['Figure Ref', 'figureRef'],
+      ['Undo', 'undo'],
+      ['Redo', 'redo'],
+    ] as const) {
+      moreButton.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const menu = document.body.querySelector('.dropdown-menu');
+      assert(menu instanceof HTMLElement);
+      const menuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+        (node) => node.textContent?.includes(label),
+      );
+      assert(menuItem instanceof HTMLElement);
+      menuItem.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      assert.equal(calls.at(-1), call);
+    }
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();
@@ -632,8 +729,14 @@ test('DraftEditorToolbar renders draft-specific toolbar content classes', () => 
 
   try {
     const toolbarElement = toolbar.getElement();
+    const toolbarContent = toolbarElement.querySelector(
+      ':scope > .editor-draft-toolbar-content',
+    );
     const toolbarGroup = toolbarElement.querySelector(
-      ':scope > .actionbar.editor-draft-toolbar-group',
+      '.editor-draft-toolbar-content > .actionbar.editor-draft-toolbar-group',
+    );
+    const toolbarMore = toolbarElement.querySelector(
+      ':scope > .editor-draft-toolbar-trailing .editor-draft-toolbar-more',
     );
     const toolbarAction = toolbarElement.querySelector(
       '.editor-draft-toolbar-group .editor-draft-toolbar-btn.actionbar-action',
@@ -647,7 +750,9 @@ test('DraftEditorToolbar renders draft-specific toolbar content classes', () => 
     const splitLabels = toolbarElement.querySelectorAll('.editor-draft-toolbar-btn-label');
 
     assert.equal(toolbarElement.classList.contains('editor-draft-toolbar'), true);
+    assert(toolbarContent instanceof HTMLElement);
     assert(toolbarGroup instanceof HTMLElement);
+    assert(toolbarMore instanceof HTMLElement);
     assert(toolbarAction instanceof HTMLButtonElement);
     assert(textStylePrimary instanceof HTMLButtonElement);
     assert(textStyleDropdown instanceof HTMLElement);
@@ -802,8 +907,16 @@ test('ProseMirrorEditor clears undo history after an external document replaceme
       }),
     );
 
-    const undoButton = getToolbarButton(editor, 'Undo');
-    assert.equal(undoButton.disabled, true);
+    const moreButton = getToolbarButton(editor, labels.toolbarMore);
+    moreButton.click();
+
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(menu instanceof HTMLElement);
+    const undoItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (candidate) => candidate.textContent?.includes(labels.undo),
+    );
+    assert(undoItem instanceof HTMLElement);
+    assert.equal(undoItem.classList.contains('disabled'), true);
   });
 });
 

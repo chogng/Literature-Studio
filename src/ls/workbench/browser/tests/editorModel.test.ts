@@ -403,3 +403,68 @@ test('editor model reveals an existing browser tab inside the target group and c
     model.dispose();
   }
 });
+
+test('editor model can close other tabs, rename a tab, preserve a custom title, and close all tabs', () => {
+  const model = createEditorModel({
+    groups: [
+      {
+        groupId: DEFAULT_EDITOR_GROUP_ID,
+        tabs: [
+          {
+            id: 'draft-a',
+            kind: 'draft',
+            title: 'Draft A',
+            document: createWritingEditorDocumentFromPlainText('alpha'),
+            viewMode: 'draft',
+          },
+          {
+            id: 'browser-a',
+            kind: 'browser',
+            title: 'example.com/article',
+            url: 'https://example.com/article',
+          },
+          {
+            id: 'pdf-a',
+            kind: 'pdf',
+            title: 'example.com/paper.pdf',
+            url: 'https://example.com/paper.pdf',
+          },
+        ],
+        activeTabId: 'browser-a',
+        mruTabIds: ['browser-a', 'pdf-a', 'draft-a'],
+      },
+    ],
+    activeGroupId: DEFAULT_EDITOR_GROUP_ID,
+    viewStateEntries: [],
+  });
+
+  try {
+    model.closeOtherTabs('browser-a');
+    let snapshot = model.getSnapshot();
+
+    assert.deepEqual(
+      snapshot.tabs.map((tab) => tab.id),
+      ['browser-a'],
+    );
+    assert.equal(snapshot.activeTabId, 'browser-a');
+    assert.deepEqual(snapshot.mruTabIds, ['browser-a']);
+
+    model.renameTab('browser-a', 'Pinned Article');
+    model.updateActiveContentTabUrl('https://example.com/next');
+    snapshot = model.getSnapshot();
+
+    assert.equal(snapshot.tabs[0]?.title, 'Pinned Article');
+    assert.equal(snapshot.tabs[0]?.kind, 'browser');
+    assert.equal(snapshot.tabs[0]?.url, 'https://example.com/next');
+
+    model.closeAllTabs();
+    snapshot = model.getSnapshot();
+
+    assert.equal(snapshot.tabs.length, 0);
+    assert.equal(snapshot.activeTabId, null);
+    assert.equal(snapshot.activeTab, null);
+    assert.deepEqual(snapshot.mruTabIds, []);
+  } finally {
+    model.dispose();
+  }
+});

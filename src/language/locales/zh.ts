@@ -182,6 +182,11 @@ const zh = {
   editorDraftMode: '写作',
   editorSourceMode: '来源',
   editorPdfMode: 'PDF',
+  editorTabContextCloseOthers: '关闭其他',
+  editorTabContextCloseAll: '关闭全部',
+  editorTabContextRename: '重命名',
+  editorTabRenameTitle: '重命名标签',
+  editorTabRenameLabel: '标签名称',
   editorEmptyWorkspaceTitle: '还没有打开任何编辑器',
   editorEmptyWorkspaceBody:
     '这里是编辑工作区。先新建一个写作标签，或者通过上方链接流程打开来源 / PDF 预览。',

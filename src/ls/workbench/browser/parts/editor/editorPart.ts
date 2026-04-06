@@ -31,6 +31,9 @@ export type EditorPartState = {
 export type EditorPartActions = {
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onCloseOtherTabs: (tabId: string) => void;
+  onCloseAllTabs: () => void;
+  onRenameTab: (tabId: string) => void | Promise<void>;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
   onOpenBrowserPane: () => void;
@@ -91,6 +94,9 @@ export function createEditorPartProps({
   actions: {
     onActivateTab,
     onCloseTab,
+    onCloseOtherTabs,
+    onCloseAllTabs,
+    onRenameTab,
     onCreateDraftTab,
     onCreateBrowserTab,
     onOpenBrowserPane,
@@ -123,12 +129,17 @@ export function createEditorPartProps({
       sourceMode: ui.editorSourceMode,
       pdfMode: ui.editorPdfMode,
       close: ui.toastClose,
+      closeOthers: ui.editorTabContextCloseOthers,
+      closeAll: ui.editorTabContextCloseAll,
+      rename: ui.editorTabContextRename,
       expandEditor: ui.editorExpand,
       collapseEditor: ui.editorCollapse,
       emptyWorkspaceTitle: ui.editorEmptyWorkspaceTitle,
       emptyWorkspaceBody: ui.editorEmptyWorkspaceBody,
       draftBodyPlaceholder: ui.editorDraftBodyPlaceholder,
       pdfTitle: ui.editorPdfTitle,
+      renameTabTitle: ui.editorTabRenameTitle,
+      renameTabLabel: ui.editorTabRenameLabel,
       status: {
         statusbarAriaLabel: ui.editorStatusbarAriaLabel,
         words: ui.editorStatusWords,
@@ -183,6 +194,9 @@ export function createEditorPartProps({
     viewStateEntries,
     onActivateTab,
     onCloseTab,
+    onCloseOtherTabs,
+    onCloseAllTabs,
+    onRenameTab,
     onCreateDraftTab,
     onCreateBrowserTab,
     onOpenBrowserPane,
@@ -284,6 +298,9 @@ export class EditorPartController {
     this.actions = {
       onActivateTab: this.onActivateTab,
       onCloseTab: this.onCloseTab,
+      onCloseOtherTabs: this.onCloseOtherTabs,
+      onCloseAllTabs: this.onCloseAllTabs,
+      onRenameTab: this.onRenameTab,
       onCreateDraftTab: this.createDraftTab,
       onCreateBrowserTab: this.handleCreateBrowserTab,
       onOpenBrowserPane: this.handleOpenBrowserPane,
@@ -385,6 +402,37 @@ export class EditorPartController {
 
   readonly onCloseTab = (tabId: string) => {
     this.editorModel.closeTab(tabId);
+  };
+
+  readonly onCloseOtherTabs = (tabId: string) => {
+    this.editorModel.closeOtherTabs(tabId);
+  };
+
+  readonly onCloseAllTabs = () => {
+    this.editorModel.closeAllTabs();
+  };
+
+  readonly onRenameTab = async (tabId: string) => {
+    const targetTab = this.editorModel
+      .getSnapshot()
+      .tabs.find((tab) => tab.id === tabId);
+    if (!targetTab) {
+      return;
+    }
+
+    const { ui } = this.context;
+    const nextTitle =
+      (await showWorkbenchTextInputModal({
+        title: ui.editorTabRenameTitle,
+        label: ui.editorTabRenameLabel,
+        defaultValue: targetTab.title.trim(),
+        ui,
+      })) ?? '';
+    if (!nextTitle) {
+      return;
+    }
+
+    this.editorModel.renameTab(tabId, nextTitle);
   };
 
   private readonly handleCreatePdfTab = async () => {

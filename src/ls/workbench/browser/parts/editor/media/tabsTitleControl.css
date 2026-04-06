@@ -30,7 +30,7 @@
   overflow: hidden;
 }
 
-.editor-tab:hover {
+.editor-tab[data-hovered='true'] {
   background: transparent;
 }
 
@@ -54,10 +54,88 @@
   border-radius: inherit;
 }
 
-.editor-tab:hover .editor-tab-main,
+.editor-tab-actions.actionbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 36px;
+  height: 100%;
+  padding-right: 4px;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.editor-tab-actions .actionbar-actions-container,
+.editor-tab-actions .actionbar-item {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+
+.editor-tab-close-btn.actionbar-action {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-editor-tabForeground, #58697b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  padding: 0;
+  margin: 0;
+  transition: none;
+  gap: 0;
+}
+
+.editor-tab-close-btn.actionbar-action .lx-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+}
+
+.editor-tab[data-hovered='true'] .editor-tab-main,
 .editor-tab.is-active .editor-tab-main {
-  background: var(--vscode-button-ghostHoverBackground, rgba(0, 0, 0, 0.04));
   color: var(--vscode-editor-tabActiveForeground, #1d2f41);
+}
+
+.editor-tab[data-hovered='true'] .editor-tab-main {
+  background: var(--vscode-editor-tabHoverBackground, #e9e9e9);
+}
+
+.editor-tab.is-active .editor-tab-main {
+  background: var(--vscode-editor-tabActiveBackground, #e9e9e9);
+}
+
+.editor-tab[data-hovered='true'] .editor-tab-actions.actionbar,
+.editor-tab:focus-within .editor-tab-actions.actionbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* When the tab is hovered or focused, we apply a mask to the label to fade out the text towards the right edge, revealing the close button. */
+.editor-tab.has-title.is-available[data-hovered='true'] .editor-tab-label,
+.editor-tab.has-title.is-available:focus-within .editor-tab-label {
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - 36px),
+    transparent calc(100% - 12px)
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 36px),
+    transparent calc(100% - 12px)
+  );
+}
+
+.editor-tab[data-hovered='true'] .editor-tab-close-btn.actionbar-action,
+.editor-tab:focus-within .editor-tab-close-btn.actionbar-action {
+  background: var(--vscode-editor-tabCloseHoverBackground, #e9e9e9);
+  color: var(--vscode-editor-tabCloseHoverForeground, #1f2d3a);
 }
 
 .editor-tab-label {
@@ -116,6 +194,10 @@
 .editor-tab:not(.has-title) .editor-tab-main {
   padding: 0;
   justify-content: center;
+}
+
+.editor-tab:not(.is-available) .editor-tab-actions.actionbar {
+  display: none;
 }
 
 .editor-tab-main:disabled {

@@ -128,8 +128,8 @@ class DomDropdownActionOverlayPresenter {
       render: () => overlay,
       onHide: this.handleHide,
       position: request.position ?? 'below',
-      alignment: request.alignment ?? 'end',
-      minWidth: request.minWidth ?? 180,
+      alignment: request.alignment ?? 'start',
+      minWidth: request.minWidth,
     });
   }
 
@@ -173,7 +173,9 @@ class ContextMenuDropdownActionPresenter {
       getAnchor: this.getAnchor,
       getActions: () => menuActions,
       getMenuClassName: options.menuClassName ? () => options.menuClassName! : undefined,
-      alignment: options.overlayAlignment ?? 'end',
+      anchorAlignment: options.overlayAlignment === 'end' ? 'right' : 'left',
+      alignment: options.overlayAlignment ?? 'start',
+      position: options.overlayPosition ?? 'below',
       minWidth: options.minWidth,
       onHide: this.onHide,
       onSelect: (value: string) => {
@@ -219,13 +221,14 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
   private readonly overlayPresenter = new DomDropdownActionOverlayPresenter();
   private readonly menuPresenter = new ContextMenuDropdownActionPresenter(
     () => this.options,
-    () => this.button,
+    () => this.anchorElement ?? this.button,
     () => {
       this.isOpen = false;
       this.button.setAttribute('aria-expanded', 'false');
     },
   );
   private isOpen = false;
+  anchorElement: HTMLElement | null = null;
 
   private get options(): DropdownMenuActionViewItemOptions {
     return this.item as DropdownMenuActionViewItemOptions;
@@ -301,10 +304,10 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
 
   private createOverlayRequest(): DropdownActionOverlayRequest {
     return {
-      anchor: this.button,
+      anchor: this.anchorElement ?? this.button,
       className: DOM.composeClassName(['actionbar-context-view', this.options.menuClassName]),
       minWidth: this.options.minWidth,
-      alignment: this.options.overlayAlignment ?? 'end',
+      alignment: this.options.overlayAlignment ?? 'start',
       position: this.options.overlayPosition ?? 'below',
       render: (context) => this.options.renderOverlay?.(context) ?? DOM.createElement('div'),
       onHide: () => {
@@ -347,6 +350,9 @@ export class ActionWithDropdownActionViewItem extends BaseActionViewItem {
       ...options.dropdown,
       hoverService: options.dropdown.hoverService ?? hoverService,
     });
+    // Anchor the dropdown menu to the whole split button container so the
+    // popup aligns with the combined primary+chevron visual unit.
+    this.dropdownMenuActionViewItem.anchorElement = this.element;
     if (options.className) {
       this.element.classList.add(...options.className.split(/\s+/).filter(Boolean));
     }

@@ -118,6 +118,7 @@ function createProps(
     onCloseTab: () => {},
     onCreateDraftTab: () => {},
     onCreateBrowserTab: () => {},
+    onOpenBrowserPane: () => {},
     onCreatePdfTab: () => {},
     onOpenAddressBarSourceMenu: () => {},
     onToolbarNavigateBack: () => {},

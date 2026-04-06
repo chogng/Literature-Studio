@@ -160,6 +160,7 @@ implements EditorModeToolbarContribution {
         mode: 'icon',
         buttonClassName: 'editor-browser-toolbar-btn',
         content: createLxIcon('more'),
+        overlayAlignment: 'end',
         menu: [
           {
             label: this.context.labels.toolbarHardReload,

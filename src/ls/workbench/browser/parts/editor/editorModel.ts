@@ -450,6 +450,10 @@ export function toEditorWorkspaceTabInput(tab: EditorWorkspaceTab): EditorTabInp
   return toEditorTabInput(tab);
 }
 
+function hasDerivedContentTabTitle(tab: EditorWorkspaceContentTab) {
+  return tab.title.trim() === getEditorContentTabTitle(tab.url);
+}
+
 function createEditorModelSnapshot(
   workspaceState: EditorWorkspaceState,
 ): EditorModelSnapshot {
@@ -557,6 +561,38 @@ export class EditorModel {
       tabs: group.tabs.filter((tab) => tab.id !== tabId),
       activeTabId: group.activeTabId === tabId ? null : group.activeTabId,
       mruTabIds: group.mruTabIds.filter((id) => id !== tabId),
+    }));
+  };
+
+  readonly closeOtherTabs = (tabId: string) => {
+    const activeGroup = resolveActiveGroup(this.workspaceState);
+    if (!activeGroup.tabs.some((tab) => tab.id === tabId)) {
+      return;
+    }
+
+    if (activeGroup.tabs.length === 1 && activeGroup.tabs[0]?.id === tabId) {
+      return;
+    }
+
+    this.updateActiveGroupState((group) => ({
+      ...group,
+      tabs: group.tabs.filter((tab) => tab.id === tabId),
+      activeTabId: tabId,
+      mruTabIds: group.mruTabIds.filter((id) => id === tabId),
+    }));
+  };
+
+  readonly closeAllTabs = () => {
+    const activeGroup = resolveActiveGroup(this.workspaceState);
+    if (activeGroup.tabs.length === 0) {
+      return;
+    }
+
+    this.updateActiveGroupState((group) => ({
+      ...group,
+      tabs: [],
+      activeTabId: null,
+      mruTabIds: [],
     }));
   };
 
@@ -671,6 +707,19 @@ export class EditorModel {
 
   readonly updateActiveContentTabUrl = (url: string) => {
     const normalizedUrl = url.trim();
+    const activeGroup = resolveActiveGroup(this.workspaceState);
+    const activeTab = resolveActiveTab(activeGroup);
+    if (!activeTab || isEditorDraftTabInput(activeTab)) {
+      return;
+    }
+
+    const nextTitle = hasDerivedContentTabTitle(activeTab)
+      ? getEditorContentTabTitle(normalizedUrl)
+      : activeTab.title;
+    if (activeTab.url === normalizedUrl && activeTab.title === nextTitle) {
+      return;
+    }
+
     this.updateActiveGroupState((group) => ({
       ...group,
       tabs: group.tabs.map((tab) =>
@@ -680,7 +729,34 @@ export class EditorModel {
           ? {
               ...tab,
               url: normalizedUrl,
-              title: getEditorContentTabTitle(normalizedUrl),
+              title: hasDerivedContentTabTitle(tab)
+                ? getEditorContentTabTitle(normalizedUrl)
+                : tab.title,
+            }
+          : tab,
+      ),
+    }));
+  };
+
+  readonly renameTab = (tabId: string, title: string) => {
+    const nextTitle = title.trim();
+    if (!nextTitle) {
+      return;
+    }
+
+    const activeGroup = resolveActiveGroup(this.workspaceState);
+    const targetTab = activeGroup.tabs.find((tab) => tab.id === tabId);
+    if (!targetTab || targetTab.title === nextTitle) {
+      return;
+    }
+
+    this.updateActiveGroupState((group) => ({
+      ...group,
+      tabs: group.tabs.map((tab) =>
+        tab.id === tabId
+          ? {
+              ...tab,
+              title: nextTitle,
             }
           : tab,
       ),

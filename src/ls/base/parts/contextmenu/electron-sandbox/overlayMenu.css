@@ -7,6 +7,7 @@
 }
 
 .native-menu-overlay-menu.ls-menu {
+  position: fixed;
   min-width: var(--native-menu-min-width, 120px);
   max-width: min(560px, calc(100vw - 16px));
 }

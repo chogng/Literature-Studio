@@ -1,7 +1,11 @@
 import 'ls/base/browser/ui/contextview/contextview.css';
 import {
+  getDomNodePagePosition,
+  getDomNodeZoomLevel,
+} from 'ls/base/browser/dom';
+import {
+  layout,
   resolveAnchoredHorizontalLeft,
-  resolveAnchoredVerticalPlacement,
   resolveAnchoredVerticalTop,
 } from 'ls/base/browser/ui/contextview/anchoredLayout';
 import {
@@ -12,14 +16,26 @@ import {
   type DisposableLike,
 } from 'ls/base/common/lifecycle';
 
-export type ContextViewAlignment = 'start' | 'end';
+export type AnchorAlignment = 'left' | 'right';
+export type AnchorPosition = 'below' | 'above';
+export type AnchorAxisAlignment = 'vertical' | 'horizontal';
+export type ContextViewAlignment = 'start' | 'end' | 'center';
 export type ContextViewPosition = 'auto' | 'above' | 'below';
+export type ContextViewAnchor = HTMLElement | {
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+};
 
 export type ContextViewOptions = {
-  anchor: HTMLElement;
+  anchor: ContextViewAnchor;
   render: () => Node;
   className?: string;
   onHide?: (data?: unknown) => void;
+  anchorAlignment?: AnchorAlignment;
+  anchorPosition?: AnchorPosition;
+  anchorAxisAlignment?: AnchorAxisAlignment;
   alignment?: ContextViewAlignment;
   position?: ContextViewPosition;
   offset?: number;
@@ -36,7 +52,7 @@ export type ContextViewHandle = {
 };
 
 const VIEWPORT_MARGIN_PX = 8;
-const DEFAULT_OFFSET_PX = 8;
+const DEFAULT_OFFSET_PX = 0;
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -47,6 +63,177 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.className = className;
   }
   return element;
+}
+
+function rangesIntersect(
+  firstStart: number,
+  firstEnd: number,
+  secondStart: number,
+  secondEnd: number,
+) {
+  return firstStart < secondEnd && secondStart < firstEnd;
+}
+
+function resolveAnchorAlignment(
+  options: Pick<ContextViewOptions, 'anchorAlignment' | 'alignment'>,
+) {
+  if (options.anchorAlignment) {
+    return options.anchorAlignment;
+  }
+
+  return options.alignment === 'end' ? 'right' : 'left';
+}
+
+function resolveAnchorPosition(
+  options: Pick<ContextViewOptions, 'anchorPosition' | 'position'>,
+): AnchorPosition | 'auto' {
+  if (options.anchorPosition) {
+    return options.anchorPosition;
+  }
+
+  return options.position ?? 'auto';
+}
+
+function resolveViewportAnchorRect(anchor: ContextViewAnchor) {
+  if (!(anchor instanceof HTMLElement)) {
+    return {
+      left: anchor.x,
+      top: anchor.y,
+      width: anchor.width ?? 1,
+      height: anchor.height ?? 2,
+    };
+  }
+
+  const pagePosition = getDomNodePagePosition(anchor);
+  const zoom = getDomNodeZoomLevel(anchor);
+
+  return {
+    left: pagePosition.left * zoom - window.scrollX,
+    top: pagePosition.top * zoom - window.scrollY,
+    width: pagePosition.width * zoom,
+    height: pagePosition.height * zoom,
+  };
+}
+
+function resolveRenderedVerticalPlacement(options: {
+  anchorRect: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+  overlayHeight: number;
+  top: number;
+  fallbackPlacement: 'above' | 'below';
+}) {
+  const {
+    anchorRect,
+    overlayHeight,
+    top,
+    fallbackPlacement,
+  } = options;
+
+  const overlayBottom = top + overlayHeight;
+  const anchorBottom = anchorRect.top + anchorRect.height;
+
+  if (overlayBottom <= anchorRect.top) {
+    return 'above' as const;
+  }
+
+  if (top >= anchorBottom) {
+    return 'below' as const;
+  }
+
+  if (top < anchorRect.top) {
+    return 'above' as const;
+  }
+
+  if (overlayBottom > anchorBottom) {
+    return 'below' as const;
+  }
+
+  return fallbackPlacement;
+}
+
+function resolveTopWithOffset(options: {
+  anchorRect: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+  overlayHeight: number;
+  viewportHeight: number;
+  viewportMargin: number;
+  placement: 'above' | 'below';
+  offset: number;
+  baseTop: number;
+}) {
+  const {
+    anchorRect,
+    overlayHeight,
+    viewportHeight,
+    viewportMargin,
+    placement,
+    offset,
+    baseTop,
+  } = options;
+
+  if (offset <= 0) {
+    return baseTop;
+  }
+
+  const renderedPlacement = resolveRenderedVerticalPlacement({
+    anchorRect,
+    overlayHeight,
+    top: baseTop,
+    fallbackPlacement: placement,
+  });
+  const overlayBottom = baseTop + overlayHeight;
+  const anchorBottom = anchorRect.top + anchorRect.height;
+  const isAboveAnchor = overlayBottom <= anchorRect.top;
+  const isBelowAnchor = baseTop >= anchorBottom;
+
+  if (!isAboveAnchor && !isBelowAnchor) {
+    return baseTop;
+  }
+
+  return resolveAnchoredVerticalTop({
+    anchorRect: {
+      x: anchorRect.left,
+      y: anchorRect.top,
+      width: anchorRect.width,
+      height: anchorRect.height,
+    },
+    overlayHeight,
+    viewportHeight,
+    viewportMargin,
+    offset,
+    placement: renderedPlacement,
+  });
+}
+
+function resolveOffsetAwareVerticalAnchor(options: {
+  anchorRect: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+  position: 'above' | 'below' | 'auto';
+  offset: number;
+}) {
+  const {
+    anchorRect,
+    position,
+    offset,
+  } = options;
+
+  return {
+    offset: anchorRect.top - offset,
+    size: anchorRect.height + (offset * 2),
+    position: position === 'above' ? 'after' as const : 'before' as const,
+  };
 }
 
 function addDisposableListener<K extends keyof DocumentEventMap>(
@@ -87,6 +274,7 @@ export class ContextViewController extends LifecycleOwner implements ContextView
   private visible = false;
   private disposed = false;
   private suppressHide = false;
+  private pendingRelayout = false;
 
   constructor() {
     super();
@@ -110,6 +298,7 @@ export class ContextViewController extends LifecycleOwner implements ContextView
     this.content.replaceChildren(options.render());
     this.mount();
     this.layout();
+    this.scheduleRelayout();
   }
 
   hide = (data?: unknown) => {
@@ -162,6 +351,7 @@ export class ContextViewController extends LifecycleOwner implements ContextView
   private unmount() {
     this.element.remove();
     this.mountedListeners.clear();
+    this.pendingRelayout = false;
   }
 
   layout() {
@@ -171,14 +361,18 @@ export class ContextViewController extends LifecycleOwner implements ContextView
 
     const {
       anchor,
-      alignment = 'start',
-      position = 'auto',
       offset = DEFAULT_OFFSET_PX,
       matchAnchorWidth = false,
       minWidth,
     } = this.options;
 
-    const anchorRect = anchor.getBoundingClientRect();
+    const anchorRect = resolveViewportAnchorRect(anchor);
+    const anchoredRect = {
+      x: anchorRect.left,
+      y: anchorRect.top,
+      width: anchorRect.width,
+      height: anchorRect.height,
+    };
     const viewportWidth =
       window.innerWidth || document.documentElement.clientWidth || 0;
     const viewportHeight =
@@ -188,47 +382,106 @@ export class ContextViewController extends LifecycleOwner implements ContextView
     this.element.style.top = `${VIEWPORT_MARGIN_PX}px`;
     this.content.style.minWidth = `${Math.max(minWidth ?? 0, matchAnchorWidth ? anchorRect.width : 0)}px`;
 
-    const overlayRect = this.element.getBoundingClientRect();
-    const resolvedPosition = resolveAnchoredVerticalPlacement({
-      anchorRect: {
-        x: anchorRect.x,
-        y: anchorRect.y,
-        width: anchorRect.width,
-        height: anchorRect.height,
-      },
-      overlayHeight: overlayRect.height,
-      viewportHeight,
-      viewportMargin: VIEWPORT_MARGIN_PX,
-      offset,
-      preference: position,
-    }).placement;
+    const overlayRect = this.content.getBoundingClientRect();
+    const requestedPosition = resolveAnchorPosition(this.options);
+    const anchorAlignment = resolveAnchorAlignment(this.options);
+    const anchorAxisAlignment = this.options.anchorAxisAlignment ?? 'vertical';
+    const preferredPlacement =
+      requestedPosition === 'above' ? 'above' : 'below';
+    const usesCenteredAlignment =
+      anchorAxisAlignment === 'vertical'
+      && !this.options.anchorAlignment
+      && this.options.alignment === 'center';
+    let top: number;
+    let left: number;
 
-    const top = resolveAnchoredVerticalTop({
-      anchorRect: {
-        x: anchorRect.x,
-        y: anchorRect.y,
-        width: anchorRect.width,
-        height: anchorRect.height,
-      },
+    if (anchorAxisAlignment === 'vertical') {
+      const verticalAnchor = resolveOffsetAwareVerticalAnchor({
+        anchorRect,
+        position: requestedPosition,
+        offset,
+      });
+      const horizontalAnchor = {
+        offset: anchorRect.left,
+        size: anchorRect.width,
+        position: anchorAlignment === 'left' ? 'before' as const : 'after' as const,
+        mode: 'align' as 'align' | 'avoid',
+      };
+
+      top = layout(viewportHeight, overlayRect.height, verticalAnchor);
+
+      if (usesCenteredAlignment) {
+        left = resolveAnchoredHorizontalLeft({
+          anchorRect: anchoredRect,
+          overlayWidth: overlayRect.width,
+          viewportWidth,
+          viewportMargin: VIEWPORT_MARGIN_PX,
+          alignment: 'center',
+        });
+      } else {
+        if (
+          rangesIntersect(
+            top,
+            top + overlayRect.height,
+            verticalAnchor.offset,
+            verticalAnchor.offset + verticalAnchor.size,
+          )
+        ) {
+          horizontalAnchor.mode = 'avoid';
+        }
+
+        left = layout(viewportWidth, overlayRect.width, horizontalAnchor);
+      }
+    } else {
+      const horizontalAnchor = {
+        offset: anchorRect.left,
+        size: anchorRect.width,
+        position: anchorAlignment === 'left' ? 'before' as const : 'after' as const,
+      };
+      const verticalAnchor = {
+        offset: anchorRect.top,
+        size: anchorRect.height,
+        position: preferredPlacement === 'below' ? 'before' as const : 'after' as const,
+        mode: 'align' as 'align' | 'avoid',
+      };
+
+      left = layout(viewportWidth, overlayRect.width, horizontalAnchor);
+
+      if (
+        rangesIntersect(
+          left,
+          left + overlayRect.width,
+          horizontalAnchor.offset,
+          horizontalAnchor.offset + horizontalAnchor.size,
+        )
+      ) {
+        verticalAnchor.mode = 'avoid';
+      }
+
+      top = layout(viewportHeight, overlayRect.height, verticalAnchor);
+      top = resolveTopWithOffset({
+        anchorRect,
+        overlayHeight: overlayRect.height,
+        viewportHeight,
+        viewportMargin: VIEWPORT_MARGIN_PX,
+        placement: preferredPlacement,
+        offset,
+        baseTop: top,
+      });
+    }
+
+    const renderedPlacement = resolveRenderedVerticalPlacement({
+      anchorRect,
       overlayHeight: overlayRect.height,
-      viewportHeight,
-      viewportMargin: VIEWPORT_MARGIN_PX,
-      offset,
-      placement: resolvedPosition,
+      top,
+      fallbackPlacement: preferredPlacement,
     });
 
-    const left = resolveAnchoredHorizontalLeft({
-      anchorRect: {
-        x: anchorRect.x,
-        y: anchorRect.y,
-        width: anchorRect.width,
-        height: anchorRect.height,
-      },
-      overlayWidth: overlayRect.width,
-      viewportWidth,
-      viewportMargin: VIEWPORT_MARGIN_PX,
-      alignment,
-    });
+    this.element.classList.remove('top', 'bottom', 'left', 'right');
+    this.element.classList.add(
+      renderedPlacement === 'below' ? 'bottom' : 'top',
+    );
+    this.element.classList.add(anchorAlignment === 'left' ? 'left' : 'right');
 
     this.element.style.left = `${Math.round(left)}px`;
     this.element.style.top = `${Math.round(top)}px`;
@@ -252,7 +505,14 @@ export class ContextViewController extends LifecycleOwner implements ContextView
       return;
     }
 
-    if (this.element.contains(targetNode) || this.options?.anchor.contains(targetNode)) {
+    if (this.element.contains(targetNode)) {
+      return;
+    }
+
+    if (
+      this.options?.anchor instanceof HTMLElement
+      && this.options.anchor.contains(targetNode)
+    ) {
       return;
     }
 
@@ -272,6 +532,21 @@ export class ContextViewController extends LifecycleOwner implements ContextView
   private readonly handleWindowResize = () => {
     this.hide();
   };
+
+  private scheduleRelayout() {
+    if (this.pendingRelayout || !this.visible) {
+      return;
+    }
+
+    this.pendingRelayout = true;
+    requestAnimationFrame(() => {
+      this.pendingRelayout = false;
+      if (!this.visible || this.disposed) {
+        return;
+      }
+      this.layout();
+    });
+  }
 }
 
 export function createContextViewController() {
