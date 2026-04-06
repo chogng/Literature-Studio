@@ -2,11 +2,15 @@ import type { LocaleMessages } from 'language/locales';
 import { normalizeUrl } from 'ls/workbench/common/url';
 import {
   EMPTY_BROWSER_TAB_URL,
-  isEmptyBrowserTabInput,
   toEditorTabInput,
 } from 'ls/workbench/browser/parts/editor/editorInput';
 import { createWebContentSurfaceSnapshot, resolveContentSourceUrl } from 'ls/workbench/browser/webContentSurfaceState';
 import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
+import {
+  createDirtyDraftTabIdSet,
+  isReusableEmptyBrowserTab,
+  isReusableEmptyDraftTab,
+} from 'ls/workbench/browser/parts/editor/editorTabPolicy';
 
 import { preparePdfDownload } from 'ls/workbench/services/document/documentActionService';
 import { createEditorModel } from 'ls/workbench/browser/parts/editor/editorModel';
@@ -355,7 +359,7 @@ export class EditorPartController {
   };
 
   readonly createDraftTab = () => {
-    this.editorModel.createDraftTab();
+    this.createOrRevealEmptyDraftTab();
   };
 
   readonly createBrowserTab = (url: string) => {
@@ -366,11 +370,33 @@ export class EditorPartController {
     this.createOrRevealEmptyBrowserTab();
   };
 
+  private readonly createOrRevealEmptyDraftTab = () => {
+    const { activeTab, tabs, dirtyDraftTabIds } = this.editorModel.getSnapshot();
+    const dirtyDraftTabIdSet = createDirtyDraftTabIdSet(dirtyDraftTabIds);
+    // Keep the fixed draft entry lightweight: reuse the blank clean draft first.
+    const existingEmptyDraftTab = isReusableEmptyDraftTab(
+      activeTab,
+      dirtyDraftTabIdSet,
+    )
+      ? activeTab
+      : tabs.find((tab) =>
+          isReusableEmptyDraftTab(tab, dirtyDraftTabIdSet),
+        ) ?? null;
+    if (existingEmptyDraftTab) {
+      this.editorModel.activateTab(existingEmptyDraftTab.id);
+      return existingEmptyDraftTab.id;
+    }
+
+    this.editorModel.createDraftTab();
+    return this.editorModel.getSnapshot().activeTabId;
+  };
+
   private readonly createOrRevealEmptyBrowserTab = () => {
     const { activeTab, tabs } = this.editorModel.getSnapshot();
-    const existingEmptyBrowserTab = isEmptyBrowserTabInput(activeTab)
+    // Mirror draft behavior for browser mode: reveal the existing about:blank tab before creating one.
+    const existingEmptyBrowserTab = isReusableEmptyBrowserTab(activeTab)
       ? activeTab
-      : tabs.find((tab) => isEmptyBrowserTabInput(tab)) ?? null;
+      : tabs.find((tab) => isReusableEmptyBrowserTab(tab)) ?? null;
     if (existingEmptyBrowserTab) {
       this.editorModel.activateTab(existingEmptyBrowserTab.id);
       return existingEmptyBrowserTab.id;

@@ -9,10 +9,14 @@ import type {
   DraftEditorStatusState,
 } from 'ls/editor/browser/text/draftEditorStatusState';
 import type {
-  EditorWorkspaceDraftTab,
   EditorWorkspaceTab,
 } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+import {
+  createDirtyDraftTabIdSet,
+  getDraftTabDisplayLabel as resolveDraftTabDisplayLabel,
+  isClosableEditorTab,
+} from 'ls/workbench/browser/parts/editor/editorTabPolicy';
 
 export type EditorGroupTabState = {
   isActive: boolean;
@@ -43,26 +47,23 @@ export type EditorGroupModel = {
 // Planned modes are kept in the type surface for future wiring.
 const FIXED_EDITOR_PANE_MODES = SUPPORTED_EDITOR_PANE_MODES;
 
-function getDraftTabDisplayLabel(
-  tab: EditorWorkspaceDraftTab,
-  labels: EditorPartLabels,
-  index: number,
-) {
-  const normalizedTitle = tab.title.trim();
-  return normalizedTitle || `${labels.draftMode} ${index + 1}`;
-}
-
 function getTabDisplayLabel(
   tab: EditorWorkspaceTab,
   labels: EditorPartLabels,
   draftIndex: number,
+  draftCount: number,
 ) {
   const paneMode = getEditorPaneMode(tab);
 
   switch (paneMode) {
     case 'draft':
       return isEditorDraftTabInput(tab)
-        ? getDraftTabDisplayLabel(tab, labels, draftIndex)
+        ? resolveDraftTabDisplayLabel({
+            tab,
+            draftModeLabel: labels.draftMode,
+            draftIndex,
+            draftCount,
+          })
         : labels.draftMode;
     case 'pdf':
       return tab.title.trim() || labels.pdfMode;
@@ -79,6 +80,8 @@ function getTabDisplayTitle(
   const paneMode = getEditorPaneMode(tab);
 
   switch (paneMode) {
+    case 'draft':
+      return label || labels.draftMode;
     case 'browser':
       return label || labels.sourceMode;
     case 'pdf':
@@ -164,14 +167,20 @@ export function createEditorGroupModel({
   dirtyDraftTabIds: readonly string[];
 }): EditorGroupModel {
   const activePaneMode = activeTab ? getEditorPaneMode(activeTab) : null;
-  const dirtyDraftTabIdSet = new Set(dirtyDraftTabIds);
+  // Keep close/label behavior centralized by evaluating tab policy once per render.
+  const dirtyDraftTabIdSet = createDirtyDraftTabIdSet(dirtyDraftTabIds);
   const draftTabIds = tabs
     .filter((tab) => isEditorDraftTabInput(tab))
     .map((tab) => tab.id);
   const normalizedTabs = tabs.map((tab) => {
     const draftIndex =
       isEditorDraftTabInput(tab) ? draftTabIds.indexOf(tab.id) : -1;
-    const label = getTabDisplayLabel(tab, labels, Math.max(draftIndex, 0));
+    const label = getTabDisplayLabel(
+      tab,
+      labels,
+      Math.max(draftIndex, 0),
+      draftTabIds.length,
+    );
     const draftStatus = isEditorDraftTabInput(tab)
       ? draftStatusByTabId[tab.id]
       : undefined;
@@ -180,6 +189,7 @@ export function createEditorGroupModel({
     const isDirty = isEditorDraftTabInput(tab)
       ? dirtyDraftTabIdSet.has(tab.id)
       : false;
+    const isClosable = isClosableEditorTab(tab, dirtyDraftTabIdSet);
 
     return {
       id: tab.id,
@@ -189,7 +199,7 @@ export function createEditorGroupModel({
       title: getTabDisplayTitle(tab, labels, label),
       state: {
         isActive: tab.id === activeTabId,
-        isClosable: true,
+        isClosable,
         isDirty,
         hasLocalHistory: canUndo || canRedo,
         canUndo,
@@ -217,7 +227,9 @@ export function createEditorGroupModel({
         targetTabId: representativeTab?.id ?? null,
         state: {
           isActive: activePaneMode === paneMode,
-          isClosable: Boolean(representativeTab?.id),
+          isClosable: Boolean(
+            representativeTab?.id && representativeTab.state.isClosable,
+          ),
           isDirty: representativeTab?.state.isDirty ?? false,
           hasLocalHistory: representativeTab?.state.hasLocalHistory ?? false,
           canUndo: representativeTab?.state.canUndo ?? false,
