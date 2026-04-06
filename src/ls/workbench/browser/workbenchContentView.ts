@@ -486,13 +486,48 @@ export class WorkbenchContentView {
     this.editorToolbarTrailingActionsView.setProps({
       className: 'editor-browser-toolbar-actions',
       ariaRole: 'group',
-      items: [{
-        label: this.props.editorPartProps.labels.toolbarMore,
-        title: this.props.editorPartProps.labels.toolbarMore,
-        mode: 'icon',
-        buttonClassName: 'editor-browser-toolbar-btn',
-        content: createLxIcon('more'),
-      }],
+      items: [
+        createDropdownMenuActionViewItem({
+          label: this.props.editorPartProps.labels.toolbarMore,
+          title: this.props.editorPartProps.labels.toolbarMore,
+          mode: 'icon',
+          buttonClassName: 'editor-browser-toolbar-btn',
+          content: createLxIcon('more'),
+          menu: [
+            {
+              label: this.props.editorPartProps.labels.toolbarHardReload,
+              onClick: () => this.props.editorPartProps.onToolbarHardReload(),
+              disabled: !this.props.editorPartProps.viewPartProps.browserUrl,
+            },
+            {
+              label: this.props.editorPartProps.labels.toolbarCopyCurrentUrl,
+              onClick: () => {
+                void this.props.editorPartProps.onToolbarCopyCurrentUrl();
+              },
+              disabled: !this.props.editorPartProps.viewPartProps.browserUrl,
+            },
+            {
+              label: this.props.editorPartProps.labels.toolbarClearBrowsingHistory,
+              onClick: () => this.props.editorPartProps.onToolbarClearBrowsingHistory(),
+              disabled: !this.props.editorPartProps.viewPartProps.browserUrl,
+            },
+            {
+              label: this.props.editorPartProps.labels.toolbarClearCookies,
+              onClick: () => {
+                void this.props.editorPartProps.onToolbarClearCookies();
+              },
+              disabled: !this.props.editorPartProps.viewPartProps.electronRuntime,
+            },
+            {
+              label: this.props.editorPartProps.labels.toolbarClearCache,
+              onClick: () => {
+                void this.props.editorPartProps.onToolbarClearCache();
+              },
+              disabled: !this.props.editorPartProps.viewPartProps.electronRuntime,
+            },
+          ],
+        }),
+      ],
     });
     const displayBrowserUrl = getEditorContentDisplayUrl(
       this.props.editorPartProps.viewPartProps.browserUrl,

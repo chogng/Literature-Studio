@@ -216,10 +216,12 @@ export interface WebContentSelectionSnapshot {
 export type WebContentNavigationMode = 'browser' | 'strict';
 export type WebContentBridgeMethod =
   | 'activateTarget'
+  | 'clearHistory'
   | 'executeJavaScript'
   | 'getState'
   | 'goBack'
   | 'goForward'
+  | 'hardReload'
   | 'navigateTo'
   | 'printToPDF'
   | 'releaseTarget'
@@ -675,6 +677,8 @@ export interface NativeMenuEvent {
 export interface AppCommandPayloadMap {
   fetch_article: FetchArticlePayload;
   fetch_latest_articles: FetchLatestArticlesPayload;
+  clear_web_cache: undefined;
+  clear_web_cookies: undefined;
   load_settings: undefined;
   save_settings: SaveSettingsPayload;
   test_llm_connection: TestLlmConnectionPayload;
@@ -699,6 +703,8 @@ export interface AppCommandPayloadMap {
 export interface AppCommandResultMap {
   fetch_article: Article;
   fetch_latest_articles: Article[];
+  clear_web_cache: boolean;
+  clear_web_cookies: boolean;
   load_settings: AppSettings;
   save_settings: AppSettings;
   test_llm_connection: LlmConnectionTestResult;
@@ -750,6 +756,8 @@ export interface ElectronWebContentApi {
   setBounds: (bounds: WebContentBounds | null) => void;
   setVisible: (visible: boolean) => void;
   setLayoutPhase: (phase: WebContentLayoutPhase) => void;
+  clearHistory: (targetId?: string | null) => void;
+  hardReload: (targetId?: string | null) => void;
   reload: (targetId?: string | null) => void;
   goBack: (targetId?: string | null) => void;
   goForward: (targetId?: string | null) => void;

@@ -90,6 +90,9 @@ import imageSvg from 'ls/base/browser/ui/lxicon/svg/image.svg?raw';
 import imageFilledSvg from 'ls/base/browser/ui/lxicon/svg/image-filled.svg?raw';
 import htmlSvg from 'ls/base/browser/ui/lxicon/svg/html.svg?raw';
 import historySvg from 'ls/base/browser/ui/lxicon/svg/history.svg?raw';
+import h3Svg from 'ls/base/browser/ui/lxicon/svg/h3.svg?raw';
+import h2Svg from 'ls/base/browser/ui/lxicon/svg/h2.svg?raw';
+import h1Svg from 'ls/base/browser/ui/lxicon/svg/h1.svg?raw';
 import kimiColorSvg from 'ls/base/browser/ui/lxicon/svg/kimi-color.svg?raw';
 import githubSvg from 'ls/base/browser/ui/lxicon/svg/Github.svg?raw';
 import githubInvertedSvg from 'ls/base/browser/ui/lxicon/svg/Github-inverted.svg?raw';
@@ -271,6 +274,9 @@ export type LxIconName =
   | 'image-filled'
   | 'html'
   | 'history'
+  | 'h3'
+  | 'h2'
+  | 'h1'
   | 'kimi-color'
   | 'Github'
   | 'Github-inverted'
@@ -452,6 +458,9 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'image-filled': imageFilledSvg,
   'html': htmlSvg,
   'history': historySvg,
+  'h3': h3Svg,
+  'h2': h2Svg,
+  'h1': h1Svg,
   'kimi-color': kimiColorSvg,
   'Github': githubSvg,
   'Github-inverted': githubInvertedSvg,

@@ -44,6 +44,7 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { setARIAContainer } from 'ls/base/browser/ui/aria/aria';
 import { createToastHost } from 'ls/base/browser/ui/toast/toastHost';
 import type { ToastHost } from 'ls/base/browser/ui/toast/toastHost';
+import { toast } from 'ls/base/browser/ui/toast/toast';
 
 import {
   localeService,
@@ -87,6 +88,7 @@ import {
 } from 'ls/workbench/services/llm/registry';
 
 import { isEditorContentTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
+import { getEditorContentDisplayUrl } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
 import type { EditorWorkspaceTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import {
@@ -181,6 +183,31 @@ function toFileUrl(filePath: string) {
   }
 
   return encodeURI(`file://${normalized.startsWith('/') ? normalized : `/${normalized}`}`);
+}
+
+async function copyTextToClipboard(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', 'true');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.append(textarea);
+  textarea.focus();
+  textarea.select();
+
+  try {
+    const copied = document.execCommand('copy');
+    if (!copied) {
+      throw new Error('Clipboard copy command was rejected.');
+    }
+  } finally {
+    textarea.remove();
+  }
 }
 
 function looksLikePdfResource(value: string) {
@@ -1288,11 +1315,84 @@ class WorkbenchHost {
       });
     };
 
+    const handleWebContentHardReload = () => {
+      webContentNavigationModelInstance.handleBrowserHardReload({
+        electronRuntime,
+        webContentRuntime,
+        ui,
+      });
+    };
+
+    const handleCopyCurrentUrl = async () => {
+      const currentUrl = getEditorContentDisplayUrl(browserUrl);
+      if (!currentUrl) {
+        return;
+      }
+
+      try {
+        await copyTextToClipboard(currentUrl);
+        toast.success(ui.toastCurrentUrlCopied);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error ?? 'Unknown clipboard error');
+        toast.error(ui.toastCurrentUrlCopyFailed.replace('{error}', message));
+      }
+    };
+
+    const handleClearBrowsingHistory = () => {
+      try {
+        webContentNavigationModelInstance.handleWebContentClearHistory({
+          webContentRuntime,
+          ui,
+        });
+        if (webContentRuntime) {
+          toast.success(ui.toastBrowsingHistoryCleared);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error ?? 'Unknown history error');
+        toast.error(ui.toastBrowsingHistoryClearFailed.replace('{error}', message));
+      }
+    };
+
+    const handleClearCookies = async () => {
+      try {
+        const cleared = await invokeDesktop<boolean>('clear_web_cookies');
+        if (!cleared) {
+          throw new Error(ui.toastWebContentRuntimeUnavailable);
+        }
+        toast.success(ui.toastCookiesCleared);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error ?? 'Unknown cookie error');
+        toast.error(ui.toastCookiesClearFailed.replace('{error}', message));
+      }
+    };
+
+    const handleClearCache = async () => {
+      try {
+        const cleared = await invokeDesktop<boolean>('clear_web_cache');
+        if (!cleared) {
+          throw new Error(ui.toastWebContentRuntimeUnavailable);
+        }
+        toast.success(ui.toastCacheCleared);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error ?? 'Unknown cache error');
+        toast.error(ui.toastCacheClearFailed.replace('{error}', message));
+      }
+    };
+
     const contentAwareEditorPartProps = this.createContentAwareEditorPartProps({
       activateTab: editorPartControllerInstance.onActivateTab,
       closeTab: editorPartControllerInstance.onCloseTab,
       editorPartProps,
     });
+    contentAwareEditorPartProps.onToolbarHardReload = handleWebContentHardReload;
+    contentAwareEditorPartProps.onToolbarCopyCurrentUrl = handleCopyCurrentUrl;
+    contentAwareEditorPartProps.onToolbarClearBrowsingHistory = handleClearBrowsingHistory;
+    contentAwareEditorPartProps.onToolbarClearCookies = handleClearCookies;
+    contentAwareEditorPartProps.onToolbarClearCache = handleClearCache;
 
     const handleBatchFetchStart = () => {
       setWorkbenchArticles([]);

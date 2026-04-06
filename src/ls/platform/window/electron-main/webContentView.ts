@@ -2088,6 +2088,36 @@ export function reloadWebContent(targetId?: string | null) {
     });
 }
 
+export function hardReloadWebContent(targetId?: string | null) {
+  const normalizedTargetId = normalizeWebContentTargetId(targetId);
+  if (targetId !== undefined) {
+    activeWebContentTargetId = normalizedTargetId;
+  }
+
+  void invokeRendererWebContentBridge<unknown>('hardReload', [normalizedTargetId])
+    .then((state) => {
+      rememberWebContentState(coerceWebContentState(state, normalizedTargetId));
+    })
+    .catch(() => {
+      // Ignore fire-and-forget navigation button failures.
+    });
+}
+
+export function clearWebContentHistory(targetId?: string | null) {
+  const normalizedTargetId = normalizeWebContentTargetId(targetId);
+  if (targetId !== undefined) {
+    activeWebContentTargetId = normalizedTargetId;
+  }
+
+  void invokeRendererWebContentBridge<unknown>('clearHistory', [normalizedTargetId])
+    .then((state) => {
+      rememberWebContentState(coerceWebContentState(state, normalizedTargetId));
+    })
+    .catch(() => {
+      // Ignore fire-and-forget navigation button failures.
+    });
+}
+
 export function goBackWebContent(targetId?: string | null) {
   const normalizedTargetId = normalizeWebContentTargetId(targetId);
   if (targetId !== undefined) {

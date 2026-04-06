@@ -71,3 +71,49 @@ export async function clearWorkbenchSharedSessionOrigins(
 
   return true;
 }
+
+export async function clearWorkbenchSharedSessionCookies() {
+  const workbenchSession = await resolveWorkbenchSharedSession();
+  if (!workbenchSession) {
+    return false;
+  }
+
+  try {
+    await workbenchSession.clearStorageData({
+      storages: ['cookies'],
+    });
+  } catch {
+    // Ignore cookie cleanup failures and continue with best-effort reset.
+  }
+
+  try {
+    await workbenchSession.clearAuthCache();
+  } catch {
+    // Ignore auth-cache cleanup failures.
+  }
+
+  return true;
+}
+
+export async function clearWorkbenchSharedSessionCache() {
+  const workbenchSession = await resolveWorkbenchSharedSession();
+  if (!workbenchSession) {
+    return false;
+  }
+
+  try {
+    await workbenchSession.clearStorageData({
+      storages: ['cachestorage'],
+    });
+  } catch {
+    // Ignore storage cleanup failures and continue with best-effort reset.
+  }
+
+  try {
+    await workbenchSession.clearCache();
+  } catch {
+    // Ignore HTTP cache cleanup failures.
+  }
+
+  return true;
+}

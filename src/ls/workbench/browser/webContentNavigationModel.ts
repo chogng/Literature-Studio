@@ -376,6 +376,27 @@ export class WebContentNavigationModel {
     }
   }
 
+  handleBrowserHardReload({
+    electronRuntime,
+    webContentRuntime,
+    ui,
+  }: BrowserRefreshParams): void {
+    const webContentRefreshMode = resolveWebContentRefreshMode(
+      electronRuntime,
+      webContentRuntime,
+    );
+
+    if (webContentRefreshMode === 'content-runtime-unavailable') {
+      toast.error(ui.toastWebContentRuntimeUnavailable);
+      return;
+    }
+
+    const webContent = nativeHostService.webContent;
+    if (webContentRefreshMode === 'webcontents-content' && webContent) {
+      webContent.hardReload(this.activeTargetId);
+    }
+  }
+
   handleWebContentBack({ webContentRuntime, ui }: WebContentNavigationButtonParams): void {
     const webContent = nativeHostService.webContent;
     if (!webContentRuntime || !webContent) {
@@ -394,6 +415,16 @@ export class WebContentNavigationModel {
     }
 
     webContent.goForward(this.activeTargetId);
+  }
+
+  handleWebContentClearHistory({ webContentRuntime, ui }: WebContentNavigationButtonParams): void {
+    const webContent = nativeHostService.webContent;
+    if (!webContentRuntime || !webContent) {
+      toast.error(ui.toastWebContentRuntimeUnavailable);
+      return;
+    }
+
+    webContent.clearHistory(this.activeTargetId);
   }
 
   createAddressBarSourceOptions(batchSources: ReadonlyArray<BatchSource>) {

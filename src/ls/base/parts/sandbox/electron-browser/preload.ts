@@ -162,6 +162,12 @@ const electronAPI: ElectronAPI = {
     setLayoutPhase(phase: WebContentLayoutPhase) {
       sendIpc('app:web-content-set-layout-phase', phase);
     },
+    clearHistory(targetId?: string | null) {
+      sendIpc('app:web-content-clear-history', { targetId: targetId ?? null });
+    },
+    hardReload(targetId?: string | null) {
+      sendIpc('app:web-content-hard-reload', { targetId: targetId ?? null });
+    },
     reload(targetId?: string | null) {
       sendIpc('app:web-content-reload', { targetId: targetId ?? null });
     },

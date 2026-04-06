@@ -362,6 +362,11 @@ function createWorkbenchContentViewProps() {
         toolbarRefresh: 'Refresh',
         toolbarFavorite: 'Favorite',
         toolbarMore: 'More',
+        toolbarHardReload: 'Hard reload',
+        toolbarCopyCurrentUrl: 'Copy current URL',
+        toolbarClearBrowsingHistory: 'Clear browsing history',
+        toolbarClearCookies: 'Clear cookies',
+        toolbarClearCache: 'Clear cache',
         toolbarAddressBar: 'Address bar',
         toolbarAddressPlaceholder: 'Search or enter URL',
         draftMode: 'Draft',
@@ -439,6 +444,11 @@ function createWorkbenchContentViewProps() {
       onCreateDraftTab: () => {},
       onCreateBrowserTab: () => {},
       onCreatePdfTab: () => {},
+      onToolbarHardReload: () => {},
+      onToolbarCopyCurrentUrl: () => {},
+      onToolbarClearBrowsingHistory: () => {},
+      onToolbarClearCookies: () => {},
+      onToolbarClearCache: () => {},
       onDraftDocumentChange: () => {},
       onSetEditorViewState: () => {},
       onDeleteEditorViewState: () => {},
@@ -680,6 +690,91 @@ test('WorkbenchContentView renders the browser toolbar below the editor topbar',
       trailingButtons.map((button) => button.getAttribute('aria-label')),
       ['More'],
     );
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('WorkbenchContentView opens the browser toolbar more menu and dispatches handlers', async () => {
+  const calls: string[] = [];
+  const props = createWorkbenchContentViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-1',
+        kind: 'browser',
+        title: 'Example',
+        url: 'https://example.com/current',
+      },
+    ],
+    activeTabId: 'browser-tab-1',
+    activeTab: {
+      id: 'browser-tab-1',
+      kind: 'browser',
+      title: 'Example',
+      url: 'https://example.com/current',
+    },
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: 'https://example.com/current',
+      electronRuntime: true,
+      webContentRuntime: true,
+    },
+    onToolbarHardReload: () => {
+      calls.push('hardReload');
+    },
+    onToolbarCopyCurrentUrl: () => {
+      calls.push('copy');
+    },
+    onToolbarClearBrowsingHistory: () => {
+      calls.push('clearHistory');
+    },
+    onToolbarClearCookies: () => {
+      calls.push('clearCookies');
+    },
+    onToolbarClearCache: () => {
+      calls.push('clearCache');
+    },
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    const moreButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-trailing [aria-label="More"]');
+    assert(moreButton instanceof HTMLElement);
+
+    for (const label of [
+      ['Hard reload', 'hardReload'],
+      ['Copy current URL', 'copy'],
+      ['Clear browsing history', 'clearHistory'],
+      ['Clear cookies', 'clearCookies'],
+      ['Clear cache', 'clearCache'],
+    ].map(([entryLabel]) => entryLabel)) {
+      moreButton.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const menu = document.body.querySelector('.dropdown-menu');
+      assert(menu instanceof HTMLElement);
+      const menuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+        (node) => node.textContent?.includes(label),
+      );
+      assert(menuItem instanceof HTMLElement);
+      menuItem.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    assert.deepEqual(calls, [
+      'hardReload',
+      'copy',
+      'clearHistory',
+      'clearCookies',
+      'clearCache',
+    ]);
   } finally {
     view.dispose();
     document.body.replaceChildren();

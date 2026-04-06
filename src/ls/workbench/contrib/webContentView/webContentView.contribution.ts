@@ -42,6 +42,7 @@ type WebContentTargetSnapshot = Pick<
 type ManagedWebviewElement = HTMLElement & {
   canGoBack?: () => boolean;
   canGoForward?: () => boolean;
+  clearHistory?: () => void;
   executeJavaScript?: <T = unknown>(
     code: string,
     userGesture?: boolean,
@@ -52,6 +53,7 @@ type ManagedWebviewElement = HTMLElement & {
   isLoading?: () => boolean;
   loadURL?: (url: string) => Promise<void>;
   printToPDF?: (options?: unknown) => Promise<Uint8Array>;
+  reloadIgnoringCache?: () => void;
   reload?: () => void;
   stop?: () => void;
 };
@@ -74,6 +76,7 @@ type BridgeExecuteTimeout = {
 
 type WebContentDomBridge = {
   activateTarget: (targetId?: string | null) => Promise<WebContentState>;
+  clearHistory: (targetId?: string | null) => Promise<WebContentState>;
   executeJavaScript: (
     targetId: string | null | undefined,
     script: string,
@@ -82,6 +85,7 @@ type WebContentDomBridge = {
   getState: (targetId?: string | null) => Promise<WebContentState>;
   goBack: (targetId?: string | null) => Promise<WebContentState>;
   goForward: (targetId?: string | null) => Promise<WebContentState>;
+  hardReload: (targetId?: string | null) => Promise<WebContentState>;
   navigateTo: (
     url: string,
     targetId?: string | null,
@@ -329,11 +333,13 @@ class WebContentDomManager {
   constructor() {
     this.bridge = {
       activateTarget: (targetId) => this.activateTarget(targetId),
+      clearHistory: (targetId) => this.clearHistory(targetId),
       executeJavaScript: (targetId, script, timeoutMs) =>
         this.executeTargetScript(targetId, script, timeoutMs),
       getState: (targetId) => this.getState(targetId),
       goBack: (targetId) => this.goBack(targetId),
       goForward: (targetId) => this.goForward(targetId),
+      hardReload: (targetId) => this.hardReload(targetId),
       navigateTo: (url, targetId, mode) => this.navigateTo(url, targetId, mode),
       printToPDF: (targetId, options) => this.printToPDF(targetId, options),
       releaseTarget: (targetId) => this.releaseTarget(targetId),
@@ -806,6 +812,26 @@ class WebContentDomManager {
     this.activeTargetId = normalizedTargetId;
     this.syncDomPlacement();
     entry.webview.reload?.();
+    await this.syncTargetState(normalizedTargetId);
+    return this.buildState(normalizedTargetId);
+  }
+
+  private async hardReload(targetId?: string | null) {
+    const normalizedTargetId = normalizeWebContentTargetId(targetId);
+    const entry = this.ensureTargetEntry(normalizedTargetId);
+    this.activeTargetId = normalizedTargetId;
+    this.syncDomPlacement();
+    entry.webview.reloadIgnoringCache?.();
+    await this.syncTargetState(normalizedTargetId);
+    return this.buildState(normalizedTargetId);
+  }
+
+  private async clearHistory(targetId?: string | null) {
+    const normalizedTargetId = normalizeWebContentTargetId(targetId);
+    const entry = this.ensureTargetEntry(normalizedTargetId);
+    this.activeTargetId = normalizedTargetId;
+    this.syncDomPlacement();
+    entry.webview.clearHistory?.();
     await this.syncTargetState(normalizedTargetId);
     return this.buildState(normalizedTargetId);
   }

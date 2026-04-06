@@ -30,11 +30,13 @@ import type {
 import type { StorageService } from 'ls/platform/storage/common/storage';
 import {
   getWebContentState,
+  clearWebContentHistory,
   executeWebContentTargetScript,
   getWebContentSelection,
   activateWebContentTarget,
   goBackWebContent,
   goForwardWebContent,
+  hardReloadWebContent,
   navigateWebContentTarget,
   reportWebContentState,
   reportWebContentRendererReady,
@@ -45,6 +47,10 @@ import {
   setWebContentLayoutPhaseState,
   setWebContentVisible,
 } from 'ls/platform/window/electron-main/webContentView';
+import {
+  clearWorkbenchSharedSessionCache,
+  clearWorkbenchSharedSessionCookies,
+} from 'ls/platform/native/electron-main/sharedWebSession';
 import {
   getNativeModalState,
   openArticleDetailsModal,
@@ -146,6 +152,10 @@ async function invokeCommand<TCommand extends AppCommand>(
           },
         ) as Promise<AppCommandResultMap[TCommand]>;
       }
+    case 'clear_web_cache':
+      return clearWorkbenchSharedSessionCache() as Promise<AppCommandResultMap[TCommand]>;
+    case 'clear_web_cookies':
+      return clearWorkbenchSharedSessionCookies() as Promise<AppCommandResultMap[TCommand]>;
     case 'load_settings':
       return storage.loadSettings() as Promise<AppCommandResultMap[TCommand]>;
     case 'save_settings':
@@ -467,6 +477,14 @@ export function registerAppIpc(storage: StorageService) {
 
   ipcMain.on('app:web-content-reload', (_event, payload?: { targetId?: string | null }) => {
     reloadWebContent(payload?.targetId);
+  });
+
+  ipcMain.on('app:web-content-hard-reload', (_event, payload?: { targetId?: string | null }) => {
+    hardReloadWebContent(payload?.targetId);
+  });
+
+  ipcMain.on('app:web-content-clear-history', (_event, payload?: { targetId?: string | null }) => {
+    clearWebContentHistory(payload?.targetId);
   });
 
   ipcMain.on('app:web-content-go-back', (_event, payload?: { targetId?: string | null }) => {

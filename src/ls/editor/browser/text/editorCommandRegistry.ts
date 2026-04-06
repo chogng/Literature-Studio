@@ -93,6 +93,10 @@ export type WritingEditorToolbarButtonConfig = {
   label: string;
   onClick: () => void;
   icon?:
+    | 'tx'
+    | 'h1'
+    | 'h2'
+    | 'h3'
     | 'bold'
     | 'italics'
     | 'underline'
@@ -132,6 +136,7 @@ export type WritingEditorToolbarSplitButtonConfig = {
   label: string;
   title?: string;
   buttonLabel: string;
+  buttonIcon?: WritingEditorToolbarButtonConfig['icon'];
   buttonGlyph?: string;
   onClick: () => void;
   menu: readonly {
@@ -373,7 +378,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     toolbar: {
       group: 'text',
       getLabel: (labels) => labels.paragraph,
-      glyph: 'Tx',
+      icon: 'tx',
       isActive: (state) => state.isParagraphActive,
       run: (actions: WritingEditorToolbarActions) => {
         actions.setParagraph();
@@ -387,7 +392,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     toolbar: {
       group: 'text',
       getLabel: (labels) => labels.heading1,
-      glyph: 'H1',
+      icon: 'h1',
       isActive: (state) => state.activeHeadingLevel === 1,
       run: (actions: WritingEditorToolbarActions) => {
         actions.toggleHeading(1);
@@ -401,7 +406,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     toolbar: {
       group: 'text',
       getLabel: (labels) => labels.heading2,
-      glyph: 'H2',
+      icon: 'h2',
       isActive: (state) => state.activeHeadingLevel === 2,
       run: (actions: WritingEditorToolbarActions) => {
         actions.toggleHeading(2);
@@ -415,7 +420,7 @@ const writingEditorCommandDefinitions: readonly WritingEditorCommandDefinition[]
     toolbar: {
       group: 'text',
       getLabel: (labels) => labels.heading3,
-      glyph: 'H3',
+      icon: 'h3',
       isActive: (state) => state.activeHeadingLevel === 3,
       run: (actions: WritingEditorToolbarActions) => {
         actions.toggleHeading(3);
@@ -562,18 +567,21 @@ function createTextStyleToolbarSplitButton(params: {
           ? labels.heading3
           : labels.paragraph;
   const buttonGlyph =
+    undefined;
+  const buttonIcon =
     currentValue === 'heading-1'
-      ? 'H1'
+      ? 'h1'
       : currentValue === 'heading-2'
-        ? 'H2'
+        ? 'h2'
         : currentValue === 'heading-3'
-          ? 'H3'
-          : 'Tx';
+          ? 'h3'
+          : 'tx';
 
   return {
     label: labels.textGroup,
     title: labels.textGroup,
     buttonLabel,
+    buttonIcon,
     buttonGlyph,
     onClick: () => {
       switch (currentValue) {
