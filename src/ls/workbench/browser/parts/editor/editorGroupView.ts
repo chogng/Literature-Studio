@@ -150,18 +150,24 @@ function createTitleControlProps(
     onCloseAllTabs: props.onCloseAllTabs,
     onRenameTab: props.onRenameTab,
     onOpenPaneMode: (paneMode) => {
-      if (paneMode === 'draft') {
-        props.onCreateDraftTab();
-        return;
+      switch (paneMode) {
+        case 'draft':
+          props.onCreateDraftTab();
+          return;
+        case 'browser':
+          props.onOpenBrowserPane();
+          requestBrowserPrimaryInputFocus();
+          return;
+        case 'pdf':
+          props.onCreatePdfTab();
+          return;
+        case 'file':
+        case 'terminal':
+        case 'git-changes':
+          // Placeholder mode entries are visible in the topbar, but their
+          // creation/activation pipeline is intentionally deferred.
+          return;
       }
-
-      if (paneMode === 'browser') {
-        props.onOpenBrowserPane();
-        requestBrowserPrimaryInputFocus();
-        return;
-      }
-
-      props.onCreatePdfTab();
     },
   };
 }

@@ -40,14 +40,24 @@ function createTabItem(
   tab: Pick<EditorGroupTabItem, 'id' | 'kind' | 'label' | 'title'> & {
     paneMode?: EditorGroupTabItem['paneMode'];
     isActive?: boolean;
+    isClosable?: boolean;
     hasLocalHistory?: boolean;
     targetTabId?: string | null;
   },
 ): EditorGroupTabItem {
+  const fallbackPaneModeByKind: Record<EditorGroupTabItem['kind'], EditorGroupTabItem['paneMode']> = {
+    draft: 'draft',
+    browser: 'browser',
+    pdf: 'pdf',
+    file: 'file',
+    terminal: 'terminal',
+    'git-changes': 'git-changes',
+  };
+
   return {
     id: tab.id,
     kind: tab.kind,
-    paneMode: tab.paneMode ?? (tab.kind === 'draft' ? 'draft' : tab.kind === 'pdf' ? 'pdf' : 'browser'),
+    paneMode: tab.paneMode ?? fallbackPaneModeByKind[tab.kind],
     label: tab.label,
     title: tab.title,
     targetTabId:
@@ -56,7 +66,7 @@ function createTabItem(
         : tab.id,
     state: {
       isActive: Boolean(tab.isActive),
-      isClosable: false,
+      isClosable: Boolean(tab.isClosable),
       hasLocalHistory: Boolean(tab.hasLocalHistory),
       canUndo: Boolean(tab.hasLocalHistory),
       canRedo: false,
@@ -583,6 +593,7 @@ test('TabsTitleControl opens a context menu with close, close others, close all,
           label: 'Browser A',
           title: 'Browser A',
           isActive: true,
+          isClosable: true,
         }),
         createTabItem({
           id: 'pdf-a',
@@ -714,6 +725,7 @@ test('TabsTitleControl renders its DOM context menu below the cursor for availab
         label: 'Draft A',
         title: 'Draft A',
         isActive: true,
+        isClosable: true,
       }),
     ]),
     labels: {

@@ -1,6 +1,7 @@
 import {
   SUPPORTED_EDITOR_PANE_MODES,
-  type SupportedEditorPaneMode,
+  type EditorPaneMode,
+  type EditorPlannedTabKind,
   getEditorPaneMode,
   isEditorDraftTabInput,
 } from 'ls/workbench/browser/parts/editor/editorInput';
@@ -23,8 +24,8 @@ export type EditorGroupTabState = {
 
 export type EditorGroupTabItem = {
   id: string;
-  kind: EditorWorkspaceTab['kind'];
-  paneMode: SupportedEditorPaneMode;
+  kind: EditorPlannedTabKind;
+  paneMode: EditorPaneMode;
   label: string;
   title: string;
   targetTabId: string | null;
@@ -37,6 +38,8 @@ export type EditorGroupModel = {
   activeTab: EditorWorkspaceTab | null;
 };
 
+// Topbar currently renders only supported pane modes.
+// Planned modes are kept in the type surface for future wiring.
 const FIXED_EDITOR_PANE_MODES = SUPPORTED_EDITOR_PANE_MODES;
 
 function getDraftTabDisplayLabel(
@@ -111,14 +114,36 @@ function getFallbackTitleForPaneMode(
       return labels.draftMode;
     case 'pdf':
       return labels.pdfMode;
+    // Placeholder labels until localization + real pane contributions land.
+    case 'file':
+      return 'File';
+    case 'terminal':
+      return 'Terminal';
+    case 'git-changes':
+      return 'Git Changes';
     default:
       return labels.sourceMode;
   }
 }
 
+function getFallbackLabelForPaneMode(
+  paneMode: EditorGroupTabItem['paneMode'],
+) {
+  switch (paneMode) {
+    case 'file':
+      return 'File';
+    case 'terminal':
+      return 'Terminal';
+    case 'git-changes':
+      return 'Git Changes';
+    default:
+      return '';
+  }
+}
+
 function getDefaultTabKindForPaneMode(
   paneMode: EditorGroupTabItem['paneMode'],
-): EditorWorkspaceTab['kind'] {
+): EditorPlannedTabKind {
   return paneMode;
 }
 
@@ -179,7 +204,7 @@ export function createEditorGroupModel({
         id: `${paneMode}-entry`,
         kind: representativeTab?.kind ?? getDefaultTabKindForPaneMode(paneMode),
         paneMode: representativeTab?.paneMode ?? paneMode,
-        label: representativeTab?.label ?? '',
+        label: representativeTab?.label ?? getFallbackLabelForPaneMode(paneMode),
         title: representativeTab?.title || getFallbackTitleForPaneMode(paneMode, labels),
         targetTabId: representativeTab?.id ?? null,
         state: {

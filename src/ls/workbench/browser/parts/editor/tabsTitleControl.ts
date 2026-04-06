@@ -58,15 +58,24 @@ function getTabPaneModeIconName(
   paneMode: EditorGroupTabItem['paneMode'],
   isActive: boolean,
 ): LxIconName {
-  if (paneMode === 'draft') {
-    return 'write';
+  switch (paneMode) {
+    case 'draft':
+      return 'write';
+    case 'pdf':
+      return isActive ? 'pdf' : 'file-pdf';
+    case 'file':
+      return 'file';
+    case 'terminal':
+      return 'terminal';
+    case 'git-changes':
+      return 'git-branch';
+    default:
+      return 'broswer-1';
   }
+}
 
-  if (paneMode === 'pdf') {
-    return isActive ? 'pdf' : 'file-pdf';
-  }
-
-  return 'broswer-1';
+function isTabClosable(tab: Pick<EditorGroupTabItem, 'targetTabId' | 'state'>) {
+  return Boolean(tab.targetTabId && tab.state.isClosable);
 }
 
 export class TabsTitleControl extends TitleControl {
@@ -214,7 +223,9 @@ export class TabsTitleControl extends TitleControl {
     index: number,
     totalTabs: number,
   ) {
+    const closable = isTabClosable(tab);
     tabView.element.classList.toggle('is-active', tab.state.isActive);
+    tabView.element.classList.toggle('is-closable', closable);
     tabView.element.classList.toggle(
       'has-local-history',
       tab.state.hasLocalHistory,
@@ -228,7 +239,7 @@ export class TabsTitleControl extends TitleControl {
     tabView.mainButton.setAttribute('aria-selected', String(tab.state.isActive));
     tabView.mainButton.setAttribute('aria-posinset', String(index + 1));
     tabView.mainButton.setAttribute('aria-setsize', String(totalTabs));
-    tabView.mainButton.tabIndex = tab.state.isActive ? 0 : 0;
+    tabView.mainButton.tabIndex = 0;
     tabView.mainHover.update(tab.title);
     tabView.mainButton.disabled = false;
     tabView.element.oncontextmenu = (event) => {
@@ -250,7 +261,7 @@ export class TabsTitleControl extends TitleControl {
     tabView.actionsView.setProps({
       className: 'editor-tab-actions',
       ariaRole: 'group',
-      items: tab.targetTabId
+      items: closable
         ? [
             {
               id: `close-${tab.id}`,
@@ -280,22 +291,26 @@ export class TabsTitleControl extends TitleControl {
     }
 
     const actions: ContextMenuAction[] = [
-      {
-        value: 'close',
-        label: this.props.labels.close,
-      },
-      this.props.onCloseOtherTabs
-        ? {
-            value: 'close-others',
-            label: this.props.labels.closeOthers ?? 'Close Others',
-          }
-        : null,
-      this.props.onCloseAllTabs
-        ? {
-            value: 'close-all',
-            label: this.props.labels.closeAll ?? 'Close All',
-          }
-        : null,
+      ...(tab.state.isClosable
+        ? [
+            {
+              value: 'close' as const,
+              label: this.props.labels.close,
+            },
+            this.props.onCloseOtherTabs
+              ? {
+                  value: 'close-others' as const,
+                  label: this.props.labels.closeOthers ?? 'Close Others',
+                }
+              : null,
+            this.props.onCloseAllTabs
+              ? {
+                  value: 'close-all' as const,
+                  label: this.props.labels.closeAll ?? 'Close All',
+                }
+              : null,
+          ]
+        : []),
       this.props.onRenameTab
         ? {
             value: 'rename',
