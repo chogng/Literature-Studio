@@ -40,7 +40,6 @@
 .editor-draft-toolbar-group.actionbar {
   --editor-draft-toolbar-item-size: 24px;
   --editor-draft-toolbar-icon-size: 14px;
-  --ls-actionbar-gap: 4px;
   --ls-actionbar-radius: 6px;
   --ls-actionbar-foreground: #1f2d3a;
   --ls-actionbar-hover-foreground: #1f2d3a;
@@ -376,14 +375,6 @@
 
   .editor-draft-toolbar-trailing:not(:empty) {
     margin-left: 6px;
-  }
-
-  .editor-draft-toolbar-group.actionbar {
-    --ls-actionbar-gap: 3px;
-  }
-
-  .editor-draft-toolbar-group .actionbar-actions-container {
-    gap: 3px;
   }
 
   .pm-editor-root .ProseMirror {

@@ -872,6 +872,22 @@ export function createWritingEditorToolbarButtonGroups(params: {
   );
   const headingInsertIndex = fontSizeIndex >= 0 ? fontSizeIndex + 1 : formatItems.length;
   formatItems.splice(headingInsertIndex, 0, headingSplit);
+  const leadingSplitLabels = [labels.fontFamily, labels.fontSize];
+  const leadingSplitItems: WritingEditorToolbarItemConfig[] = [];
+  for (const splitLabel of leadingSplitLabels) {
+    const index = formatItems.findIndex(
+      (item) => 'menu' in item && item.label === splitLabel,
+    );
+    if (index < 0) {
+      continue;
+    }
+
+    const [item] = formatItems.splice(index, 1);
+    if (item) {
+      leadingSplitItems.push(item);
+    }
+  }
+  formatItems.unshift(...leadingSplitItems);
   groups.set('format', formatItems);
   groups.delete('text');
 

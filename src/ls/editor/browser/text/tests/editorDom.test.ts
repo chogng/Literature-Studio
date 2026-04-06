@@ -768,6 +768,12 @@ test('DraftEditorToolbar renders draft-specific toolbar content classes', () => 
     const splitDropdownLabels = Array.from(
       toolbarElement.querySelectorAll('.editor-draft-toolbar-split-dropdown.actionbar-action'),
     ).map((button) => button.getAttribute('aria-label'));
+    const actionOrder = Array.from(
+      toolbarElement.querySelectorAll('.editor-draft-toolbar-group .actionbar-action[aria-label]'),
+    ).map((button) => button.getAttribute('aria-label'));
+    const boldIndex = actionOrder.indexOf(labels.bold);
+    const fontFamilyDropdownIndex = actionOrder.indexOf(labels.fontFamily);
+    const fontSizeDropdownIndex = actionOrder.indexOf(labels.fontSize);
 
     assert.equal(toolbarElement.classList.contains('editor-draft-toolbar'), true);
     assert(toolbarContent instanceof HTMLElement);
@@ -778,6 +784,11 @@ test('DraftEditorToolbar renders draft-specific toolbar content classes', () => 
     assert(textStyleDropdown instanceof HTMLElement);
     assert(fontSizePrimary instanceof HTMLButtonElement);
     assert.deepEqual(splitDropdownLabels, [labels.fontFamily, labels.fontSize, labels.textGroup]);
+    assert.notEqual(boldIndex, -1);
+    assert.notEqual(fontFamilyDropdownIndex, -1);
+    assert.notEqual(fontSizeDropdownIndex, -1);
+    assert(fontFamilyDropdownIndex < boldIndex);
+    assert(fontSizeDropdownIndex < boldIndex);
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();
