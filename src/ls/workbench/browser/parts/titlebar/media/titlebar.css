@@ -193,24 +193,19 @@
 
 .titlebar-input-field {
   --inputbox-height: var(--titlebar-field-height);
+  --inputbox-background: var(--vscode-titleBar-fieldBackground, rgba(255, 255, 255, 0.72));
+  --inputbox-font-size: 12px;
+  --inputbox-padding-x: 10px;
+  --inputbox-text-align: center;
   width: 100%;
-  height: var(--titlebar-field-height) !important;
-  background: var(--vscode-titleBar-fieldBackground, rgba(255, 255, 255, 0.72)) !important;
 }
 
 .titlebar-input-field:hover {
-  background: var(--titlebar-field-bg-hover) !important;
+  --inputbox-background: var(--titlebar-field-bg-hover);
 }
 
 .titlebar-input-field.input-focused {
-  background: var(--titlebar-field-bg-focus) !important;
-}
-
-.titlebar-input-field .input {
-  height: var(--titlebar-field-height);
-  font-size: 12px;
-  padding: 0 10px;
-  text-align: center;
+  --inputbox-background: var(--titlebar-field-bg-focus);
 }
 
 .titlebar-app-name {
@@ -404,8 +399,8 @@
     flex-basis: 220px;
   }
 
-  .titlebar-input-field .input {
-    text-align: left;
+  .titlebar-input-field {
+    --inputbox-text-align: left;
   }
 
   .titlebar-controls-viewport {

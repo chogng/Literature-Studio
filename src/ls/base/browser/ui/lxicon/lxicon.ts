@@ -12,6 +12,7 @@ import unlimitedSvg from 'ls/base/browser/ui/lxicon/svg/unlimited.svg?raw';
 import unfoldSvg from 'ls/base/browser/ui/lxicon/svg/unfold.svg?raw';
 import typescriptSvg from 'ls/base/browser/ui/lxicon/svg/typescript.svg?raw';
 import tsSvg from 'ls/base/browser/ui/lxicon/svg/ts.svg?raw';
+import txSvg from 'ls/base/browser/ui/lxicon/svg/tx.svg?raw';
 import trashSvg from 'ls/base/browser/ui/lxicon/svg/trash.svg?raw';
 import translateSvg from 'ls/base/browser/ui/lxicon/svg/translate.svg?raw';
 import threeBarsSvg from 'ls/base/browser/ui/lxicon/svg/three-bars.svg?raw';
@@ -191,6 +192,7 @@ export type LxIconName =
   | 'unfold'
   | 'typescript'
   | 'ts'
+  | 'tx'
   | 'trash'
   | 'translate'
   | 'three-bars'
@@ -370,6 +372,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'unfold': unfoldSvg,
   'typescript': typescriptSvg,
   'ts': tsSvg,
+  'tx': txSvg,
   'trash': trashSvg,
   'translate': translateSvg,
   'three-bars': threeBarsSvg,

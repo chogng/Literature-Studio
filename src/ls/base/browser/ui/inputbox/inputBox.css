@@ -1,10 +1,28 @@
 .inputbox {
   --inputbox-height: 28px;
+  --inputbox-line-height: var(--inputbox-height);
+  --inputbox-border-radius: 6px;
+  --inputbox-border: 0;
+  --inputbox-background: transparent;
+  --inputbox-background-hover: #e6e6e6;
+  --inputbox-foreground: var(--vscode-input-foreground, #1a2530);
+  --inputbox-placeholder-foreground: var(--vscode-input-placeholderForeground, #94a3b8);
+  --inputbox-padding-y: 4px;
+  --inputbox-padding-x: 8px;
+  --inputbox-font-size: 15px;
+  --inputbox-text-align: left;
   position: relative;
   width: 100%;
-  border-radius: 6px;
-  background: var(--vscode-input-background, #ffffff);
+  height: var(--inputbox-height);
+  border-radius: var(--inputbox-border-radius);
+  border: var(--inputbox-border);
+  background: var(--inputbox-background);
   box-sizing: border-box;
+  transition: background-color 180ms ease-out;
+}
+
+.inputbox:hover {
+  background: var(--inputbox-background-hover);
 }
 
 .inputbox > .ibwrapper {
@@ -15,18 +33,19 @@
 
 .inputbox > .ibwrapper > .input {
   width: 100%;
-  height: var(--inputbox-height);
-  padding: 0 12px;
+  height: 100%;
+  padding: var(--inputbox-padding-y) var(--inputbox-padding-x);
   border: 0;
   background: transparent;
-  color: var(--vscode-input-foreground, #1a2530);
+  color: var(--inputbox-foreground);
   font: inherit;
-  line-height: normal;
-  font-size: 15px;
+  line-height: var(--inputbox-line-height);
+  font-size: var(--inputbox-font-size);
+  text-align: var(--inputbox-text-align);
   outline: none;
   box-sizing: border-box;
 }
 
 .inputbox > .ibwrapper > .input::placeholder {
-  color: var(--vscode-input-placeholderForeground, #94a3b8);
+  color: var(--inputbox-placeholder-foreground);
 }

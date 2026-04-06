@@ -287,7 +287,7 @@ export const editorSourcePaneBackground = registerColor('editor.sourcePaneBackgr
 
 export const editorSourceHeaderBorder = registerColor('editor.sourceHeaderBorder', {
   dark: '#33404d',
-  light: '#e4ebf3',
+  light: '#e1e1e1',
 });
 
 export const editorSourceHeaderForeground = registerColor('editor.sourceHeaderForeground', {

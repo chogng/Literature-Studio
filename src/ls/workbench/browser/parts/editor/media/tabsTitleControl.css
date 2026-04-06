@@ -4,56 +4,6 @@
   --editor-tab-max-width: 280px;
 }
 
-.editor-topbar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-  min-height: 38px;
-  box-sizing: border-box;
-  padding: 6px 8px;
-  background: transparent;
-  overflow: hidden;
-  -webkit-app-region: drag;
-}
-
-.editor-topbar-tabs {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  -webkit-app-region: no-drag;
-}
-
-.editor-topbar-actions {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  -webkit-app-region: no-drag;
-}
-
-.editor-topbar-actions .sidebar-topbar-actions {
-  margin-left: 0;
-}
-
-.editor-toolbar {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 36px;
-  padding: 0 6px;
-  box-sizing: border-box;
-  border-bottom: 1px solid var(--vscode-editor-sourceHeaderBorder, #e4ebf3);
-}
-
-.editor-toolbar:empty {
-  display: none;
-}
-
 .editor-browser-toolbar {
   display: flex;
   align-items: center;
@@ -75,8 +25,6 @@
 }
 
 .editor-browser-toolbar-actions {
-  --ls-actionbar-item-size: 26px;
-  --ls-actionbar-icon-size: 15px;
   display: inline-flex;
   align-items: center;
   min-width: 0;
@@ -99,22 +47,12 @@
 }
 
 .editor-browser-toolbar-address-input.inputbox {
+  --inputbox-height: 26px;
+  --inputbox-border-radius: 7px;
+  --inputbox-foreground: var(--vscode-agentBar-inputForeground, #1f2d3a);
+  --inputbox-padding-x: 10px;
+  --inputbox-font-size: 12px;
   width: 100%;
-}
-
-.editor-browser-toolbar-address-input .ibwrapper {
-  width: 100%;
-}
-
-.editor-browser-toolbar-address-input .input {
-  width: 100%;
-  min-height: 28px;
-  border-radius: 7px;
-  border: 1px solid var(--vscode-agentBar-inputBorder, #d6e0e8);
-  background: var(--vscode-agentBar-inputBackground, #f9fbfd);
-  color: var(--vscode-agentBar-inputForeground, #1f2d3a);
-  padding: 0 10px;
-  font-size: 12px;
 }
 
 .editor-pdf-toolbar {
