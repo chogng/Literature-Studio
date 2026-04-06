@@ -63,7 +63,24 @@ function getTabDisplayLabel(
     case 'pdf':
       return tab.title.trim() || labels.pdfMode;
     default:
-      return tab.title.trim() || labels.sourceMode;
+      return tab.title.trim();
+  }
+}
+
+function getTabDisplayTitle(
+  tab: EditorWorkspaceTab,
+  labels: EditorPartLabels,
+  label: string,
+) {
+  const paneMode = getEditorPaneMode(tab);
+
+  switch (paneMode) {
+    case 'browser':
+      return label || labels.sourceMode;
+    case 'pdf':
+      return label || labels.pdfMode;
+    default:
+      return label;
   }
 }
 
@@ -137,7 +154,7 @@ export function createEditorGroupModel({
       kind: tab.kind,
       paneMode: getEditorPaneMode(tab),
       label,
-      title: label,
+      title: getTabDisplayTitle(tab, labels, label),
       state: {
         isActive: tab.id === activeTabId,
         isClosable: false,

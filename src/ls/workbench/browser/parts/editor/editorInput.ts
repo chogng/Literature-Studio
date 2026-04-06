@@ -1,3 +1,5 @@
+import { getEditorContentTabTitle } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
+
 export type EditorTabViewMode = 'draft';
 
 export type EditorDraftTabInput = {
@@ -109,24 +111,6 @@ const DEFAULT_VIEW_MODE: EditorTabViewMode = 'draft';
 export function createEditorTabInputId(prefix: 'draft' | 'browser' | 'pdf') {
   const randomPart = Math.random().toString(36).slice(2, 8);
   return `ls-${prefix}-tab-${Date.now().toString(36)}-${randomPart}`;
-}
-
-export function getEditorContentTabTitle(url: string) {
-  const normalizedUrl = url.trim();
-  if (!normalizedUrl || normalizedUrl === 'about:blank') {
-    return '';
-  }
-
-  try {
-    const parsedUrl = new URL(normalizedUrl);
-    const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
-    const lastPathSegment = pathSegments[pathSegments.length - 1];
-    return lastPathSegment
-      ? `${parsedUrl.hostname}/${lastPathSegment}`
-      : parsedUrl.hostname;
-  } catch {
-    return normalizedUrl;
-  }
 }
 
 export function getEditorPaneMode(

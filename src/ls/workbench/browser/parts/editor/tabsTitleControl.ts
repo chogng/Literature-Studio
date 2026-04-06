@@ -2,7 +2,7 @@ import {
   getHoverService,
   type HoverHandle,
 } from 'ls/base/browser/ui/hover/hover';
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import {
   LifecycleStore,
   MutableLifecycle,
@@ -44,13 +44,16 @@ function addDisposableListener(
   });
 }
 
-function getTabPaneModeIconName(paneMode: EditorGroupTabItem['paneMode']) {
+function getTabPaneModeIconName(
+  paneMode: EditorGroupTabItem['paneMode'],
+  isActive: boolean,
+): LxIconName {
   if (paneMode === 'draft') {
     return 'write';
   }
 
   if (paneMode === 'pdf') {
-    return 'pdf';
+    return isActive ? 'pdf' : 'file-pdf';
   }
 
   return 'broswer-1';
@@ -200,7 +203,9 @@ export class TabsTitleControl extends TitleControl {
       this.props.onOpenPaneMode(tab.paneMode);
     };
 
-    tabView.icon.replaceChildren(createLxIcon(getTabPaneModeIconName(tab.paneMode)));
+    tabView.icon.replaceChildren(
+      createLxIcon(getTabPaneModeIconName(tab.paneMode, tab.state.isActive)),
+    );
     tabView.labelText.textContent = tab.label;
   }
 

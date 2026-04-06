@@ -3,11 +3,14 @@ import test from 'node:test';
 import { createWritingEditorDocumentFromPlainText } from 'ls/editor/common/writingEditorDocument';
 import type { EditorWorkspaceDraftTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import {
-  getEditorContentTabTitle,
   getEditorTabInputResourceKey,
   normalizeEditorTabInput,
   toEditorTabInput,
 } from 'ls/workbench/browser/parts/editor/editorInput';
+import {
+  getEditorContentDisplayUrl,
+  getEditorContentTabTitle,
+} from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
 
 test('toEditorTabInput strips draft-only payload from workspace tabs', () => {
   const draftTab: EditorWorkspaceDraftTab = {
@@ -67,6 +70,11 @@ test('getEditorTabInputResourceKey uses stable kind-aware resource keys', () => 
 
 test('getEditorContentTabTitle treats about:blank as an empty browser tab title', () => {
   assert.equal(getEditorContentTabTitle('about:blank'), '');
+});
+
+test('getEditorContentDisplayUrl hides about:blank from url displays', () => {
+  assert.equal(getEditorContentDisplayUrl('about:blank'), '');
+  assert.equal(getEditorContentDisplayUrl(' https://example.com/paper '), 'https://example.com/paper');
 });
 
 test('normalizeEditorTabInput clears stale about:blank browser titles from persisted state', () => {

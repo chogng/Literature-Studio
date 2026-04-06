@@ -5,7 +5,6 @@ import {
   createEditorBrowserTabInput,
   createEditorDraftTabInput,
   createEditorPdfTabInput,
-  getEditorContentTabTitle,
   isEditorBrowserTabInput,
   isEditorDraftTabInput,
   isEditorPdfTabInput,
@@ -33,6 +32,7 @@ import type {
   EditorViewStateKey,
   SerializedEditorViewStateEntry,
 } from 'ls/workbench/browser/parts/editor/editorViewStateStore';
+import { getEditorContentTabTitle } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
 
 export type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 

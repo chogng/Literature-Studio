@@ -261,6 +261,32 @@ test('createEditorGroupModel always returns three fixed tabs and prefers the act
   assert.equal(model.tabs[2]?.targetTabId, 'pdf-a');
 });
 
+test('createEditorGroupModel keeps an untitled browser tab icon-only while preserving its mode title', () => {
+  const model = createEditorGroupModel({
+    tabs: [
+      {
+        id: 'browser-a',
+        kind: 'browser',
+        title: '',
+        url: 'about:blank',
+      },
+    ],
+    activeTabId: 'browser-a',
+    activeTab: {
+      id: 'browser-a',
+      kind: 'browser',
+      title: '',
+      url: 'about:blank',
+    },
+    labels: editorLabels,
+    draftStatusByTabId: {},
+  });
+
+  assert.equal(model.tabs[1]?.targetTabId, 'browser-a');
+  assert.equal(model.tabs[1]?.label, '');
+  assert.equal(model.tabs[1]?.title, 'Browser');
+});
+
 test('TabsTitleControl opens a pane mode when its fixed tab has no target tab yet', () => {
   const openedPaneModes: string[] = [];
   const control = new TabsTitleControl({
@@ -305,6 +331,69 @@ test('TabsTitleControl opens a pane mode when its fixed tab has no target tab ye
   browserButton.click();
 
   assert.deepEqual(openedPaneModes, ['browser']);
+
+  control.dispose();
+});
+
+test('TabsTitleControl uses file-pdf for inactive pdf tabs and pdf for the active one', () => {
+  const control = new TabsTitleControl({
+    group: createGroupModel('browser-a', [
+      createTabItem({
+        id: 'browser-a',
+        kind: 'browser',
+        label: 'Browser',
+        title: 'Browser',
+        isActive: true,
+      }),
+      createTabItem({
+        id: 'pdf-a',
+        kind: 'pdf',
+        label: 'Paper.pdf',
+        title: 'Paper.pdf',
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+  const container = control.getElement();
+  document.body.append(container);
+
+  const getPdfIcon = () =>
+    container.children[1]?.querySelector('.editor-tab-icon .lx-icon');
+
+  assert.equal(getPdfIcon()?.classList.contains('lx-icon-file-pdf'), true);
+  assert.equal(getPdfIcon()?.classList.contains('lx-icon-pdf'), false);
+
+  control.setProps({
+    group: createGroupModel('pdf-a', [
+      createTabItem({
+        id: 'browser-a',
+        kind: 'browser',
+        label: 'Browser',
+        title: 'Browser',
+      }),
+      createTabItem({
+        id: 'pdf-a',
+        kind: 'pdf',
+        label: 'Paper.pdf',
+        title: 'Paper.pdf',
+        isActive: true,
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+
+  assert.equal(getPdfIcon()?.classList.contains('lx-icon-file-pdf'), false);
+  assert.equal(getPdfIcon()?.classList.contains('lx-icon-pdf'), true);
 
   control.dispose();
 });

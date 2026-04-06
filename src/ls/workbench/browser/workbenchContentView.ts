@@ -64,6 +64,7 @@ import {
 } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 import { setWorkbenchWebUrl } from 'ls/workbench/browser/session';
 import { getEditorPaneMode } from 'ls/workbench/browser/parts/editor/editorInput';
+import { getEditorContentDisplayUrl } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
 
 import {
   clearStatusbarCommandHandlers,
@@ -493,12 +494,11 @@ export class WorkbenchContentView {
         content: createLxIcon('more'),
       }],
     });
-    if (
-      this.editorToolbarAddressInput.value !==
-      this.props.editorPartProps.viewPartProps.browserUrl
-    ) {
-      this.editorToolbarAddressInput.value =
-        this.props.editorPartProps.viewPartProps.browserUrl;
+    const displayBrowserUrl = getEditorContentDisplayUrl(
+      this.props.editorPartProps.viewPartProps.browserUrl,
+    );
+    if (this.editorToolbarAddressInput.value !== displayBrowserUrl) {
+      this.editorToolbarAddressInput.value = displayBrowserUrl;
     }
     this.editorToolbarAddressInput.inputElement.setAttribute(
       'aria-label',

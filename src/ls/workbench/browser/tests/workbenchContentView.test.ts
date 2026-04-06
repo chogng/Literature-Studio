@@ -686,6 +686,46 @@ test('WorkbenchContentView renders the browser toolbar below the editor topbar',
   }
 });
 
+test('WorkbenchContentView hides about:blank in the browser toolbar address input', () => {
+  const props = createWorkbenchContentViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-blank',
+        kind: 'browser',
+        title: '',
+        url: 'about:blank',
+      },
+    ],
+    activeTabId: 'browser-tab-blank',
+    activeTab: {
+      id: 'browser-tab-blank',
+      kind: 'browser',
+      title: '',
+      url: 'about:blank',
+    },
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: 'about:blank',
+    },
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    const addressInput = view.getElement().querySelector(
+      '.editor-browser-toolbar-address-input input',
+    );
+    assert(addressInput instanceof HTMLInputElement);
+    assert.equal(addressInput.value, '');
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
 test('WorkbenchContentView hides the top toolbar for draft tabs and shows a placeholder toolbar for pdf tabs', () => {
   const props = createWorkbenchContentViewProps();
   props.editorPartProps = {
