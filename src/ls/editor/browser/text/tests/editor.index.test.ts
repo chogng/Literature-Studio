@@ -2,8 +2,6 @@ import './prosemirrorDocument.test';
 import 'ls/code/electron-main/document/tests/editorDocxSerializer.test';
 import 'ls/base/browser/ui/contextview/tests/anchoredLayout.test';
 import 'ls/base/parts/contextmenu/electron-sandbox/tests/nativeContextmenu.test';
-import 'ls/base/parts/contextmenu/electron-sandbox/tests/overlayContextmenu.test';
-import 'ls/base/parts/contextmenu/electron-sandbox/tests/overlayMenu.test';
 import 'ls/base/browser/ui/dropdown/tests/dropdown.test';
 import 'ls/base/browser/ui/hover/tests/hover.test';
 import 'ls/base/browser/ui/dropdown/tests/dropdownMenuActionViewItem.test';

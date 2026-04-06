@@ -32,24 +32,11 @@ This keeps the base layer portable for web usage while still allowing desktop-on
 
 Default: DOM.
 
-Use native menu overlay only when all of the following are true:
+Current policy:
 
-- Running in desktop runtime.
-- The interaction belongs to a workbench-level surface, not a generic reusable control.
-- Native overlay provides a concrete UX gain such as titlebar alignment or cross-surface hit area.
-
-Use DOM dropdown for:
-
-- Editor-local controls.
-- Sidebar and panel filters.
-- Settings forms.
-- Any reusable component in `base`.
-- Any scene that must behave the same on web and desktop.
-
-Use native dropdown overlay for:
-
-- Titlebar source selector.
-- Future top-level window chrome menus that visually belong to the native shell.
+- All dropdowns and action menus render through DOM primitives.
+- Workbench surfaces such as titlebar also use the same DOM menu path.
+- Do not add a separate native menu overlay path unless a future requirement proves it is necessary and maintainable.
 
 ### Toasts
 
@@ -76,12 +63,7 @@ Use native toast for:
 ### Dropdown
 
 - `base/browser/ui/dropdown` stays DOM-only.
-- Titlebar owns a native-aware wrapper around the base dropdown.
-- The wrapper mirrors open/close/focus behavior and forwards selection changes back into titlebar state.
-- External-menu mode must treat an opened menu session as stable state:
-  - `open` creates the session.
-  - `viewport` updates may refresh anchor geometry.
-  - `props` updates must not reopen the native menu unless menu content, selection, alignment, or trigger rect actually changed.
+- Workbench composition should use the shared DOM menu/contextview path directly.
 
 ### Toast
 
@@ -99,81 +81,6 @@ When adding a new popup surface, decide its mode explicitly:
 - If it is tightly coupled to desktop window chrome or overlay behavior, route it through workbench/platform and keep the primitive DOM-only.
 
 Do not add new `window.electronAPI` calls inside `base/browser/ui/*`.
-
-## Native Overlay Failure Modes
-
-These issues tend to look like random rendering bugs, but they are usually state or lifecycle bugs across DOM, workbench state, and Electron native views.
-
-### 1. Reopen-on-props churn
-
-Symptom:
-
-- A native menu is visibly open.
-- Some unrelated state update happens, such as web content loading completing.
-- Hover, focus, or pointer behavior suddenly feels stale or stuck.
-
-Cause:
-
-- The trigger component re-renders.
-- The wrapper re-emits an external menu `open` request for an already-open native menu.
-- The native overlay renderer gets new state even though nothing meaningful about the menu changed.
-
-Policy:
-
-- Treat an opened external menu as a session.
-- During that session, ignore `props`-driven refreshes unless one of these changed:
-  - trigger rect
-  - menu alignment
-  - option list
-  - selected value
-
-Current implementation:
-
-- `DropdownView` in [`src/ls/base/browser/ui/dropdown/dropdown.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/base/browser/ui/dropdown/dropdown.ts) caches the last external menu request while the menu is open.
-- `props` updates only emit a new external request when the request is materially different.
-
-### 2. Unstable native overlay host
-
-Symptom:
-
-- Native overlay position or hover hit testing becomes inconsistent after close/reopen.
-- Problems are more likely when another `WebContentsView` is created or re-layered at the same time.
-
-Cause:
-
-- The overlay host itself is repeatedly collapsed to `0x0`, hidden, and expanded again.
-- Electron can briefly desynchronize the painted surface and the input hit region during rapid view churn.
-
-Policy:
-
-- Keep the native overlay host stable for the lifetime of the window.
-- Prefer toggling visibility over tearing down geometry every time the menu closes.
-- Only use hidden zero-bounds when the parent window itself is unavailable.
-
-Current implementation:
-
-- [`src/ls/platform/window/electron-main/menuOverlayView.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/platform/window/electron-main/menuOverlayView.ts) keeps the menu overlay sized to the parent content area and hides it without collapsing to `0x0` during normal close flows.
-
-### 3. Hover state lost after DOM rebuild
-
-Symptom:
-
-- The menu is visible and correctly positioned.
-- Pointer hover appears on the wrong item or does not show until the pointer moves again.
-
-Cause:
-
-- The overlay renderer rebuilds menu DOM while the pointer is already inside the menu.
-- Pure CSS `:hover` state may not immediately realign with the rebuilt DOM tree.
-
-Policy:
-
-- For native overlay renderers, do not rely solely on CSS pseudo-classes after state-driven re-render.
-- If the overlay can be rebuilt while open, explicitly resync hover from the current pointer position.
-
-Current implementation:
-
-- [`src/ls/workbench/browser/menuOverlayWindow.ts`](/Users/lance/Desktop/Literature-Studio/src/ls/workbench/browser/menuOverlayWindow.ts) tracks the last pointer position and reapplies hover state after render.
 
 ## Recommended Pattern For Future Native Overlays
 

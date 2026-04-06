@@ -43,7 +43,6 @@ import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/prim
 import { createFetchPaneProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
 
 import { createToastOverlayWindowView } from 'ls/workbench/browser/toastOverlayWindow';
-import { createOverlayMenuView } from 'ls/base/parts/contextmenu/electron-sandbox/overlayMenu';
 import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
 import { createWorkbenchContentPartViews } from 'ls/workbench/browser/workbenchContentPartViews';
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
@@ -156,7 +155,6 @@ let batchFetchController: BatchFetchController | null = null;
 let activeWorkbenchHost: WorkbenchHost | null = null;
 let activeOverlayView:
   | ReturnType<typeof createToastOverlayWindowView>
-  | ReturnType<typeof createOverlayMenuView>
   | ReturnType<typeof createArticleDetailsModalWindowView>
   | null = null;
 let activeAgentChatModelOptionValue: string | null = null;
@@ -2082,12 +2080,6 @@ export function renderWorkbench() {
 
   if (nativeOverlayKind === 'toast') {
     activeOverlayView = createToastOverlayWindowView();
-    rootElement.replaceChildren(activeOverlayView.getElement());
-    return;
-  }
-
-  if (nativeOverlayKind === 'menu') {
-    activeOverlayView = createOverlayMenuView();
     rootElement.replaceChildren(activeOverlayView.getElement());
     return;
   }

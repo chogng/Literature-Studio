@@ -4,16 +4,10 @@ import type {
   ContextMenuService as BaseContextMenuService,
 } from 'ls/base/browser/contextmenu';
 import type {
-  NativeMenuCoverage,
-} from 'ls/base/parts/sandbox/common/desktopTypes';
-import type {
   ContextMenuItem,
   PopupOptions,
 } from 'ls/base/parts/contextmenu/common/contextmenu';
 import { createPlatformContextMenuService } from 'ls/platform/contextview/browser/contextMenuService';
-import {
-  createElectronOverlayContextMenuHandler,
-} from 'ls/base/parts/contextmenu/electron-sandbox/overlayContextmenu';
 import {
   close as closeNativePopupContextMenu,
   popup as popupNativePopupContextMenu,
@@ -26,7 +20,6 @@ import {
 export type WorkbenchContextMenuRouteOptions = {
   backend?: WorkbenchContextMenuBackendPreference;
   value?: string;
-  coverage?: NativeMenuCoverage;
   requestIdPrefix?: string;
 };
 
@@ -44,16 +37,11 @@ export type WorkbenchContextMenuService = {
 
 export type WorkbenchContextMenuServiceOptions = {
   backend?: WorkbenchContextMenuBackendPreference;
-  coverage?: NativeMenuCoverage;
   requestIdPrefix?: string;
 };
 
-// DOM menus stay in platform/contextview. The only non-DOM backends surfaced to
-// workbench code are:
-// - `native-popup`: native popup menu semantics
-// - `electron-overlay`: a dedicated WebContentsView overlay surface that can
-//   cover other WebContentsView instances
-// Only backend routing and workbench-specific preferences stay in this file.
+// DOM menus stay in platform/contextview. The only non-DOM backend surfaced to
+// workbench code is `native-popup`.
 
 function resolveDomAlignment(align?: WorkbenchContextMenuAlignment) {
   return align === 'end' ? 'end' : 'start';
@@ -106,7 +94,6 @@ function createNativePopupContextMenuItems(
 }
 
 class ContextMenuService implements WorkbenchContextMenuService {
-  private readonly electronOverlayContextMenu = createElectronOverlayContextMenuHandler();
   private readonly domContextMenu = createPlatformContextMenuService();
   private activeDomDelegate: WorkbenchContextMenuDelegate | null = null;
   private activeNativePopupRequestId: string | null = null;
@@ -123,22 +110,6 @@ class ContextMenuService implements WorkbenchContextMenuService {
       backend: delegate.backend ?? this.options.backend,
     });
 
-    if (backend === 'electron-overlay') {
-      this.electronOverlayContextMenu.show({
-        anchor: delegate.getAnchor(),
-        options: delegate.getActions(),
-        value: delegate.value,
-        align: delegate.alignment,
-        coverage: delegate.coverage ?? this.options.coverage,
-        requestIdPrefix: delegate.requestIdPrefix ?? this.options.requestIdPrefix,
-        onSelect: delegate.onSelect,
-        onHide: () => {
-          delegate.onHide?.(true);
-        },
-      });
-      return;
-    }
-
     if (
       backend === 'native-popup' &&
       this.showNativePopupContextMenu(delegate)
@@ -150,19 +121,16 @@ class ContextMenuService implements WorkbenchContextMenuService {
   };
 
   hideContextMenu = () => {
-    this.electronOverlayContextMenu.hide();
     this.hideNativePopupContextMenu();
     this.domContextMenu.hideContextMenu();
   };
 
   isVisible = () =>
-    this.electronOverlayContextMenu.isVisible()
-    || this.domContextMenu.isVisible()
+    this.domContextMenu.isVisible()
     || this.activeNativePopupRequestId !== null;
 
   dispose = () => {
     this.hideContextMenu();
-    this.electronOverlayContextMenu.dispose();
     this.domContextMenu.dispose();
   };
 

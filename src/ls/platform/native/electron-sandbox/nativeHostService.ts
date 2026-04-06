@@ -45,10 +45,6 @@ class ElectronSandboxNativeHostService implements INativeHostService {
     return this.api?.toast;
   }
 
-  get overlayMenu() {
-    return this.api?.overlayMenu;
-  }
-
   get nativePopupContextMenu() {
     return this.api?.nativePopupContextMenu;
   }

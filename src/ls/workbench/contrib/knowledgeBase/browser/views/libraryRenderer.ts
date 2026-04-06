@@ -210,7 +210,6 @@ export class LibraryRenderer {
       }),
       getActions: () => options,
       alignment: 'start',
-      coverage: 'trigger-band',
       requestIdPrefix: 'library-document-menu',
       onSelect: (value) => {
         actions.get(value)?.();

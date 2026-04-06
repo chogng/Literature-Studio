@@ -2,7 +2,6 @@ import type {
   ContextMenuPopupApi,
   ElectronFetchApi,
   ElectronInvoke,
-  ElectronOverlayMenuApi,
   ElectronModalApi,
   ElectronToastApi,
   ElectronWebContentApi,
@@ -17,6 +16,5 @@ export interface INativeHostService {
   readonly fetch: ElectronFetchApi | undefined;
   readonly modal: ElectronModalApi | undefined;
   readonly toast: ElectronToastApi | undefined;
-  readonly overlayMenu: ElectronOverlayMenuApi | undefined;
   readonly nativePopupContextMenu: ContextMenuPopupApi | undefined;
 }

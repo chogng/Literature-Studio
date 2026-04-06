@@ -2,7 +2,6 @@ import { BrowserWindow } from 'electron';
 import type { BrowserWindowConstructorOptions, WebContents } from 'electron';
 
 import type { WindowControlAction, WindowState } from 'ls/base/parts/sandbox/common/desktopTypes';
-import { disposeMenuOverlay, prewarmMenuOverlay } from 'ls/base/parts/contextmenu/electron-main/overlayContextmenu';
 import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
 import { disposeToastOverlay } from 'ls/platform/window/electron-main/toastOverlayView';
 import { disposeWebContentView, ensureWebContentView } from 'ls/platform/window/electron-main/webContentView';
@@ -396,7 +395,6 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
 
   window.on('close', () => {
     closeAuxiliaryWindows();
-    disposeMenuOverlay(window);
     disposeToastOverlay(window);
     disposeWebContentView(window);
   });
@@ -419,11 +417,5 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
   window.on('enter-full-screen', () => publishWindowState(window));
   window.on('leave-full-screen', () => publishWindowState(window));
   window.webContents.on('did-finish-load', () => publishWindowState(window));
-  window.webContents.once('did-finish-load', () => {
-    setTimeout(() => {
-      prewarmMenuOverlay(window);
-    }, 0);
-  });
-
   return window;
 }

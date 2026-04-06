@@ -633,48 +633,6 @@ export interface NativeToastLayout {
   height: number;
 }
 
-export interface NativeMenuOption {
-  value: string;
-  label: string;
-  title?: string;
-  disabled?: boolean;
-}
-
-export interface NativeMenuRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export type NativeMenuAlign = 'start' | 'center' | 'end';
-export type NativeMenuCoverage = 'full-window' | 'trigger-band';
-
-export interface NativeMenuOpenPayload {
-  requestId: string;
-  triggerRect: NativeMenuRect;
-  options: NativeMenuOption[];
-  value?: string;
-  align?: NativeMenuAlign;
-  coverage?: NativeMenuCoverage;
-}
-
-export interface NativeMenuState {
-  requestId: string;
-  triggerRect: NativeMenuRect;
-  options: NativeMenuOption[];
-  value: string;
-  align: NativeMenuAlign;
-  coverage: NativeMenuCoverage;
-  sourceWebContentsId: number;
-}
-
-export interface NativeMenuEvent {
-  requestId: string;
-  type: 'select' | 'close';
-  value?: string;
-}
-
 export interface AppCommandPayloadMap {
   fetch_article: FetchArticlePayload;
   fetch_latest_articles: FetchLatestArticlesPayload;
@@ -793,15 +751,6 @@ export interface ElectronToastApi {
   setHovering: (hovering: boolean) => void;
 }
 
-export interface ElectronOverlayMenuApi {
-  open: (payload: NativeMenuOpenPayload) => void;
-  close: (requestId: string) => void;
-  select: (requestId: string, value: string) => void;
-  getState: () => Promise<NativeMenuState | null>;
-  onStateChange: (listener: (state: NativeMenuState | null) => void) => () => void;
-  onEvent: (listener: (event: NativeMenuEvent) => void) => () => void;
-}
-
 export interface ContextMenuPopupApi {
   open: (payload: ContextMenuPopupPayload) => void;
   close: (requestId: string) => void;
@@ -815,6 +764,5 @@ export interface ElectronAPI {
   fetch?: ElectronFetchApi;
   modal?: ElectronModalApi;
   toast?: ElectronToastApi;
-  overlayMenu?: ElectronOverlayMenuApi;
   nativePopupContextMenu?: ContextMenuPopupApi;
 }

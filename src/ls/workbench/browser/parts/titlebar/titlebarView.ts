@@ -14,7 +14,6 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import { getWindowChromeLayout } from 'ls/platform/window/common/window';
-import { createContextMenuService } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
 
 import {
   requestExportTitlebarDocx,
@@ -125,16 +124,6 @@ function createTitlebarActionBar(params: {
   items: readonly TitlebarIconActionItem[];
 }) {
   const hoverService = getHoverService();
-  const shouldUseContextMenuService = params.items.some(
-    (item) => item.menu && !item.renderOverlay,
-  );
-  const electronOverlayContextMenuService = shouldUseContextMenuService
-    ? createContextMenuService({
-        backend: 'electron-overlay',
-        coverage: 'trigger-band',
-        requestIdPrefix: 'electron-overlay-titlebar-action-menu',
-      })
-    : null;
 
   const actionBarView = createActionBarView({
     className: composeClassName(['titlebar-actionbar', params.className]),
@@ -159,7 +148,6 @@ function createTitlebarActionBar(params: {
           overlayAlignment: 'end',
           menuClassName: item.menuClassName,
           minWidth: item.minWidth,
-          contextMenuService: electronOverlayContextMenuService ?? undefined,
           hoverService,
         });
       }
@@ -175,7 +163,6 @@ function createTitlebarActionBar(params: {
     getElement: () => actionBarView.getElement(),
     dispose: () => {
       actionBarView.dispose();
-      electronOverlayContextMenuService?.dispose();
     },
   };
 }

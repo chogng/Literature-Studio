@@ -316,7 +316,6 @@ export class TabsTitleControl extends TitleControl {
       }),
       getActions: () => actions,
       alignment: 'start',
-      coverage: 'trigger-band',
       requestIdPrefix: 'editor-tab-menu',
       onSelect: (value) => {
         switch (value) {

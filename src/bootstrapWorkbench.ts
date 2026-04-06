@@ -146,10 +146,6 @@ const workbenchDependencyModules = [
     load: () => import('ls/workbench/browser/toastOverlayWindow'),
   },
   {
-    label: 'ls/base/parts/contextmenu/electron-sandbox/overlayMenu',
-    load: () => import('ls/base/parts/contextmenu/electron-sandbox/overlayMenu'),
-  },
-  {
     label: 'ls/workbench/browser/articleDetailsModalWindow',
     load: () => import('ls/workbench/browser/articleDetailsModalWindow'),
   },

@@ -63,12 +63,6 @@ import {
   showToast,
 } from 'ls/platform/window/electron-main/toastOverlayView';
 import {
-  closeMenuOverlay,
-  getMenuOverlayState,
-  openMenuOverlay,
-  selectMenuOption,
-} from 'ls/base/parts/contextmenu/electron-main/overlayContextmenu';
-import {
   NATIVE_POPUP_CONTEXT_MENU_CLOSE_CHANNEL,
   NATIVE_POPUP_CONTEXT_MENU_EVENT_CHANNEL,
   NATIVE_POPUP_CONTEXT_MENU_OPEN_CHANNEL,
@@ -426,22 +420,6 @@ export function registerAppIpc(storage: StorageService) {
 
   ipcMain.on('app:native-toast-hover', (_event, hovering: boolean) => {
     setToastHovering(hovering);
-  });
-
-  ipcMain.on('app:native-menu-open', (event, payload) => {
-    openMenuOverlay(resolveWindowFromWebContents(event.sender), event.sender.id, payload);
-  });
-
-  ipcMain.on('app:native-menu-close', (_event, requestId: string) => {
-    closeMenuOverlay(requestId);
-  });
-
-  ipcMain.handle('app:native-menu-get-state', () => {
-    return getMenuOverlayState();
-  });
-
-  ipcMain.on('app:native-menu-select', (_event, requestId: string, value: string) => {
-    selectMenuOption(requestId, value);
   });
 
   ipcMain.on('app:web-content-activate', (_event, payload?: { targetId?: string | null }) => {
