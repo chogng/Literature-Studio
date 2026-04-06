@@ -25,6 +25,7 @@ import {
   createDisplayLanguageOptions,
   requestSetDisplayLanguage,
 } from 'ls/workbench/contrib/localization/browser/localizationsActions';
+import { requestToggleTitlebarSettings } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 import { batchLimitMax, batchLimitMin } from 'ls/workbench/services/config/configSchema';
 import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from 'ls/workbench/browser/layout';
 import 'ls/workbench/contrib/preferences/browser/media/settingsEditor.css';
@@ -38,7 +39,7 @@ type CreateSettingsPartPropsParams = { state: SettingsPartState; actions: Settin
 export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams): SettingsPartLabels {
   return {
     settingsTitle: ui.settingsTitle, settingsLoading: ui.settingsLoading, settingsLanguage: ui.settingsLanguage, languageChinese: ui.languageChinese, languageEnglish: ui.languageEnglish, settingsLanguageHint: ui.settingsLanguageHint,
-    settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
+    settingsNavigationBack: ui.settingsNavigationBack, settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
     settingsPageUrl: ui.settingsPageUrl, settingsPageUrlHint: ui.settingsPageUrlHint, pageUrlPlaceholder: ui.pageUrlPlaceholder, settingsBatchJournalTitle: ui.settingsBatchJournalTitle, batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
     addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly, startDate: ui.startDate, endDate: ui.endDate,
     settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsTheme: ui.settingsTheme, settingsThemeHint: ui.settingsThemeHint, settingsThemeLight: ui.settingsThemeLight, settingsThemeDark: ui.settingsThemeDark, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
@@ -51,7 +52,7 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
     settingsLibraryMaxConcurrentJobs: ui.settingsLibraryMaxConcurrentJobs, settingsLibraryMaxConcurrentJobsHint: ui.settingsLibraryMaxConcurrentJobsHint, settingsRagTitle: ui.settingsRagTitle, settingsRagProvider: ui.settingsRagProvider, settingsRagProviderHint: ui.settingsRagProviderHint,
     settingsRagProviderMoark: ui.settingsRagProviderMoark, settingsRagApiKey: ui.settingsRagApiKey, settingsRagApiKeyPlaceholder: ui.settingsRagApiKeyPlaceholder, settingsRagBaseUrl: ui.settingsRagBaseUrl, settingsRagEmbeddingModel: ui.settingsRagEmbeddingModel,
     settingsRagRerankerModel: ui.settingsRagRerankerModel, settingsRagEmbeddingPath: ui.settingsRagEmbeddingPath, settingsRagRerankPath: ui.settingsRagRerankPath, settingsRagCandidateCount: ui.settingsRagCandidateCount, settingsRagTopK: ui.settingsRagTopK,
-    settingsRagTestConnection: ui.settingsRagTestConnection, settingsRagShowApiKey: ui.settingsRagShowApiKey, settingsRagHideApiKey: ui.settingsRagHideApiKey, settingsRagHint: ui.settingsRagHint, settingsBatchHint: ui.settingsBatchHint, defaultPdfDir: ui.defaultPdfDir,
+    settingsRagTestConnection: ui.settingsRagTestConnection, settingsRagShowApiKey: ui.settingsRagShowApiKey, settingsRagHideApiKey: ui.settingsRagHideApiKey, settingsRagHint: ui.settingsRagHint, settingsBatchHint: ui.settingsBatchHint, defaultPdfDir: ui.defaultPdfDir, settingsStatusbar: ui.settingsStatusbar, settingsStatusbarHint: ui.settingsStatusbarHint,
     pdfFileNameUseSelectionOrder: ui.pdfFileNameUseSelectionOrder, pdfFileNameUseSelectionOrderHint: ui.pdfFileNameUseSelectionOrderHint, downloadDirPlaceholder: ui.downloadDirPlaceholder, chooseDirectory: ui.chooseDirectory, openConfigLocation: ui.openConfigLocation,
     resetDefault: ui.resetDefault, settingsHintPath: ui.settingsHintPath, settingsConfigPath: ui.settingsConfigPath, currentDir: ui.currentDir, systemDownloads: ui.systemDownloads, settingsLlmTitle: ui.settingsLlmTitle, settingsLlmProvider: ui.settingsLlmProvider,
     settingsLlmProviderHint: ui.settingsLlmProviderHint, settingsLlmProviderGlm: ui.settingsLlmProviderGlm, settingsLlmProviderKimi: ui.settingsLlmProviderKimi, settingsLlmProviderDeepSeek: ui.settingsLlmProviderDeepSeek, settingsLlmProviderGemini: ui.settingsLlmProviderGemini, settingsLlmApiKey: ui.settingsLlmApiKey,
@@ -463,7 +464,13 @@ export class SettingsPartView {
         button.append(label);
         button.dataset.pageTarget = item.id;
         button.classList.toggle('active', item.id === this.activePageId);
-        button.addEventListener('click', () => this.focusPage(item.id));
+        button.addEventListener('click', () => {
+          if (item.id === 'back') {
+            requestToggleTitlebarSettings();
+            return;
+          }
+          this.focusPage(item.id);
+        });
         return button;
       }),
     );
@@ -543,6 +550,7 @@ export class SettingsPartView {
       !previousProps ||
       previousProps.theme !== this.props.theme ||
       previousProps.useMica !== this.props.useMica ||
+      previousProps.statusbarVisible !== this.props.statusbarVisible ||
       previousProps.desktopRuntime !== this.props.desktopRuntime ||
       previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
       previousProps.labels.settingsAppearanceTitle !== this.props.labels.settingsAppearanceTitle ||
@@ -551,7 +559,9 @@ export class SettingsPartView {
       previousProps.labels.settingsThemeLight !== this.props.labels.settingsThemeLight ||
       previousProps.labels.settingsThemeDark !== this.props.labels.settingsThemeDark ||
       previousProps.labels.settingsUseMica !== this.props.labels.settingsUseMica ||
-      previousProps.labels.settingsUseMicaHint !== this.props.labels.settingsUseMicaHint
+      previousProps.labels.settingsUseMicaHint !== this.props.labels.settingsUseMicaHint ||
+      previousProps.labels.settingsStatusbar !== this.props.labels.settingsStatusbar ||
+      previousProps.labels.settingsStatusbarHint !== this.props.labels.settingsStatusbarHint
     );
   }
 
@@ -773,6 +783,14 @@ export class SettingsPartView {
         this.props.useMica,
         this.props.isSettingsSaving || !this.props.desktopRuntime,
         this.props.onUseMicaChange,
+      ),
+      this.renderToggleRow(
+        'settings.appearance.statusbarVisible',
+        this.props.labels.settingsStatusbar,
+        this.props.labels.settingsStatusbarHint,
+        this.props.statusbarVisible,
+        this.props.isSettingsSaving,
+        this.props.onStatusbarVisibleChange,
       ),
     );
     return field;

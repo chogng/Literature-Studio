@@ -155,6 +155,11 @@ export class SettingsController {
     this.scheduleImmediateAutoSave();
   };
 
+  readonly setStatusbarVisible = (nextStatusbarVisible: boolean) => {
+    this.settingsModel.setStatusbarVisible(nextStatusbarVisible);
+    this.scheduleImmediateAutoSave();
+  };
+
   readonly setTheme = (nextTheme: AppTheme) => {
     this.settingsModel.setTheme(nextTheme);
     this.scheduleImmediateAutoSave();

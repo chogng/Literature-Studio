@@ -32,6 +32,8 @@ export type PrimaryBarLabels = SidebarLabels;
 
 export type PrimaryBarProps = {
   labels: PrimaryBarLabels;
+  accountLabel?: string;
+  settingsLabel?: string;
   fetchPaneProps: FetchPaneProps;
   librarySnapshot: LibraryDocumentsResult;
   isLibraryLoading: boolean;
@@ -45,6 +47,7 @@ export type PrimaryBarProps = {
   onDocumentEditSourceUrl?: (document: LibraryDocumentSummary) => void;
   onDocumentDelete?: (document: LibraryDocumentSummary) => void;
   topbarActionsElement?: HTMLElement | null;
+  footerActionsElement?: HTMLElement | null;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -106,6 +109,10 @@ export class PrimaryBar {
     'primarybar-topbar-window-controls-spacer',
   );
   private readonly contentElement = createElement('div', 'primarybar-content');
+  private readonly footerElement = createElement(
+    'footer',
+    'primarybar-footer',
+  );
   private readonly paneView = new PaneView({
     orientation: Orientation.HORIZONTAL,
     reserveSashSpace: false,
@@ -177,7 +184,7 @@ export class PrimaryBar {
       this.topbarElement.append(this.leadingWindowControlsSpacer);
     }
     this.contentElement.append(this.paneView.element);
-    this.element.append(this.topbarElement, this.contentElement);
+    this.element.append(this.topbarElement, this.contentElement, this.footerElement);
     this.installResizeObserver();
     this.render();
   }
@@ -229,6 +236,7 @@ export class PrimaryBar {
   private render() {
     const { labels } = this.props;
     this.syncTopbarActions(this.props.topbarActionsElement ?? null);
+    this.syncFooterActions(this.props.footerActionsElement ?? null);
     this.actionsView.setProps({
       className: 'pane-header-actionbar',
       ariaRole: 'group',
@@ -297,6 +305,20 @@ export class PrimaryBar {
     }
 
     currentTopbarActionsElement?.remove();
+  }
+
+  private syncFooterActions(footerActionsElement: HTMLElement | null) {
+    const currentFooterActionsElement = this.footerElement.firstElementChild;
+    if (footerActionsElement) {
+      if (currentFooterActionsElement !== footerActionsElement) {
+        this.footerElement.replaceChildren(footerActionsElement);
+      }
+      return;
+    }
+
+    if (currentFooterActionsElement) {
+      this.footerElement.replaceChildren();
+    }
   }
 
   private installResizeObserver() {

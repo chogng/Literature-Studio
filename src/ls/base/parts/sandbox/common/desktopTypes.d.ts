@@ -116,6 +116,7 @@ export interface StoredAppSettings {
   defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
+  statusbarVisible: boolean;
   useMica: boolean;
   theme: AppTheme;
   'workbench.colorCustomizations': ThemeColorCustomizations;

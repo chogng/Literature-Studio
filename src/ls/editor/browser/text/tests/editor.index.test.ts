@@ -19,7 +19,7 @@ import 'ls/workbench/browser/tests/agentbar.test';
 import 'ls/workbench/browser/tests/gridview.test';
 import 'ls/workbench/browser/tests/modelSubscriptions.test';
 import 'ls/workbench/browser/tests/workbenchContentLayoutTree.test';
-import 'ls/workbench/browser/tests/workbenchContentView.test';
+import 'ls/workbench/browser/tests/workbenchContentLayoutView.test';
 import 'ls/workbench/browser/tests/splitview.test';
 import 'ls/workbench/browser/tests/toastOverlayWindow.test';
 import 'ls/workbench/browser/tests/window.test';

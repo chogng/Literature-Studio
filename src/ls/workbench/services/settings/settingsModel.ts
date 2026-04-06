@@ -53,6 +53,7 @@ export type SettingsModelSnapshot = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  statusbarVisible: boolean;
   useMica: boolean;
   theme: AppTheme;
   workbenchColorCustomizations: ThemeColorCustomizations;
@@ -125,6 +126,7 @@ function areSettingsModelSnapshotsEqual(
     previous.pdfFileNameUseSelectionOrder === next.pdfFileNameUseSelectionOrder &&
     previous.batchLimit === next.batchLimit &&
     previous.sameDomainOnly === next.sameDomainOnly &&
+    previous.statusbarVisible === next.statusbarVisible &&
     previous.useMica === next.useMica &&
     previous.theme === next.theme &&
     previous.knowledgeBaseEnabled === next.knowledgeBaseEnabled &&
@@ -166,6 +168,7 @@ function createInitialSettingsModelSnapshot(
     batchSources: initialBatchSources,
     batchLimit: defaultBatchLimit,
     sameDomainOnly: defaultSameDomainOnly,
+    statusbarVisible: true,
     useMica: true,
     theme: 'light',
     workbenchColorCustomizations: {},
@@ -257,6 +260,17 @@ export class SettingsModel {
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       useMica,
+    }));
+  };
+
+  readonly setStatusbarVisible = (statusbarVisible: boolean) => {
+    if (this.snapshot.statusbarVisible === statusbarVisible) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      statusbarVisible,
     }));
   };
 
@@ -817,6 +831,7 @@ export class SettingsModel {
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
+        statusbarVisible: resolved.statusbarVisible,
         useMica: resolved.useMica,
         theme: resolved.theme,
         workbenchColorCustomizations: resolved.workbenchColorCustomizations,
@@ -940,6 +955,7 @@ export class SettingsModel {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      statusbarVisible,
       useMica,
       theme,
       workbenchColorCustomizations,
@@ -966,6 +982,7 @@ export class SettingsModel {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      statusbarVisible,
       useMica,
       theme,
       workbenchColorCustomizations,
@@ -1019,6 +1036,7 @@ export class SettingsModel {
       batchSources: resolved.batchSources,
       batchLimit: resolved.batchLimit,
       sameDomainOnly: resolved.sameDomainOnly,
+      statusbarVisible: resolved.statusbarVisible,
       useMica: resolved.useMica,
       theme: resolved.theme,
       workbenchColorCustomizations: resolved.workbenchColorCustomizations,
@@ -1056,6 +1074,7 @@ export class SettingsModel {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      statusbarVisible,
       useMica,
       theme,
       workbenchColorCustomizations,
@@ -1082,6 +1101,7 @@ export class SettingsModel {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      statusbarVisible,
       useMica,
       theme,
       workbenchColorCustomizations,
@@ -1137,6 +1157,7 @@ export class SettingsModel {
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
+        statusbarVisible: resolved.statusbarVisible,
         useMica: resolved.useMica,
         theme: resolved.theme,
         workbenchColorCustomizations: resolved.workbenchColorCustomizations,

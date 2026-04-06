@@ -26,6 +26,9 @@ import type { AnyEditorPane } from 'ls/workbench/browser/parts/editor/panes/edit
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import { EditorEmptyWorkspaceView } from 'ls/workbench/browser/parts/editor/editorEmptyWorkspaceView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+import { createEditorBrowserToolbarProps } from 'ls/workbench/browser/parts/editor/editorBrowserToolbarModel';
+import { createEditorBrowserToolbarView } from 'ls/workbench/browser/parts/editor/editorBrowserToolbarView';
+import { createEditorTopbarActionsView } from 'ls/workbench/browser/parts/editor/editorTopbarActionsView';
 import { createEditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 import type { EditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 import {
@@ -56,11 +59,24 @@ export type EditorGroupViewProps = {
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
   onCreatePdfTab: () => void;
+  onOpenAddressBarSourceMenu: () => void;
+  onToolbarNavigateBack: () => void;
+  onToolbarNavigateForward: () => void;
+  onToolbarNavigateRefresh: () => void;
+  onToolbarHardReload: () => void;
+  onToolbarCopyCurrentUrl: () => void | Promise<void>;
+  onToolbarClearBrowsingHistory: () => void;
+  onToolbarClearCookies: () => void | Promise<void>;
+  onToolbarClearCache: () => void | Promise<void>;
+  onToolbarAddressChange: (value: string) => void;
+  onToolbarAddressSubmit: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
   onDeleteEditorViewState: (key: EditorViewStateKey) => void;
-  topbarActionsElement?: HTMLElement | null;
-  topbarToolbarElement?: HTMLElement | null;
+  showTopbarActions?: boolean;
+  showTopbarToolbar?: boolean;
+  isEditorCollapsed?: boolean;
+  onToggleEditorCollapse?: () => void;
   onStatusChange?: (status: EditorStatusState) => void;
 };
 
@@ -281,6 +297,22 @@ export class EditorGroupView {
   private readonly toolbarElement = createElement('div', 'editor-toolbar');
   private readonly tabsElement = createElement('div', 'editor-topbar-tabs');
   private readonly actionsElement = createElement('div', 'editor-topbar-actions');
+  private readonly topbarActionsView = createEditorTopbarActionsView({
+    isEditorCollapsed: false,
+    labels: {
+      topbarAddAction: '',
+      createWrite: '',
+      createBrowser: '',
+      createFile: '',
+      expandEditor: '',
+      collapseEditor: '',
+    },
+    onCreateDraftTab: () => {},
+    onCreateBrowserTab: () => {},
+    onCreatePdfTab: () => {},
+    onToggleEditorCollapse: () => {},
+  });
+  private readonly browserToolbarView: ReturnType<typeof createEditorBrowserToolbarView>;
   private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div', 'editor-content');
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
@@ -298,6 +330,9 @@ export class EditorGroupView {
     this.props = props;
     this.controller = new EditorGroupController(props);
     this.viewStateStore = createEditorViewStateStore(props.viewStateEntries);
+    this.browserToolbarView = createEditorBrowserToolbarView(
+      createEditorBrowserToolbarProps(props),
+    );
     setEditorFrameSlot(this.headerElement, EDITOR_FRAME_SLOTS.topbar);
     setEditorFrameSlot(this.toolbarElement, EDITOR_FRAME_SLOTS.toolbar);
     setEditorFrameSlot(this.contentElement, EDITOR_FRAME_SLOTS.content);
@@ -352,6 +387,8 @@ export class EditorGroupView {
 
   dispose() {
     this.titleAreaControl.dispose();
+    this.topbarActionsView.dispose();
+    this.browserToolbarView.dispose();
     this.saveActivePaneViewState();
     this.disposeAllPaneInstances();
     this.element.replaceChildren();
@@ -371,8 +408,28 @@ export class EditorGroupView {
     this.props.onStatusChange?.(editorStatus);
     this.titleAreaControl.setProps(createTitleControlProps(this.props, group));
     this.headerElement.classList.toggle('has-tabs', group.tabs.length > 0);
-    this.syncTopbarActions(this.props.topbarActionsElement ?? null);
-    this.syncTopbarToolbar(this.props.topbarToolbarElement ?? null);
+    this.topbarActionsView.setProps({
+      isEditorCollapsed: Boolean(this.props.isEditorCollapsed),
+      labels: {
+        topbarAddAction: this.props.labels.topbarAddAction,
+        createWrite: this.props.labels.createWrite,
+        createBrowser: this.props.labels.createBrowser,
+        createFile: this.props.labels.createFile,
+        expandEditor: this.props.labels.expandEditor,
+        collapseEditor: this.props.labels.collapseEditor,
+      },
+      onCreateDraftTab: this.props.onCreateDraftTab,
+      onCreateBrowserTab: this.props.onCreateBrowserTab,
+      onCreatePdfTab: this.props.onCreatePdfTab,
+      onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
+    });
+    this.browserToolbarView.setProps(createEditorBrowserToolbarProps(this.props));
+    this.syncTopbarActions(
+      this.props.showTopbarActions ? this.topbarActionsView.getElement() : null,
+    );
+    this.syncTopbarToolbar(
+      this.props.showTopbarToolbar ? this.browserToolbarView.getElement() : null,
+    );
 
     this.contentElement.className = 'editor-content';
     this.contentElement.removeAttribute('data-editor-pane');

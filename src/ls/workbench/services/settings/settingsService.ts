@@ -31,6 +31,7 @@ export type ResolvedSettingsState = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  statusbarVisible: boolean;
   useMica: boolean;
   theme: AppTheme;
   workbenchColorCustomizations: ThemeColorCustomizations;
@@ -49,6 +50,7 @@ export type SaveSettingsDraft = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  statusbarVisible: boolean;
   useMica: boolean;
   theme: AppTheme;
   workbenchColorCustomizations: ThemeColorCustomizations;
@@ -95,6 +97,10 @@ export function resolveSettingsState(
       typeof loaded.defaultSameDomainOnly === 'boolean'
         ? loaded.defaultSameDomainOnly
         : defaultSameDomainOnly,
+    statusbarVisible:
+      typeof loaded.statusbarVisible === 'boolean'
+        ? loaded.statusbarVisible
+        : true,
     useMica: typeof loaded.useMica === 'boolean' ? loaded.useMica : true,
     theme: loaded.theme === 'dark' ? 'dark' : 'light',
     workbenchColorCustomizations: { ...(loaded['workbench.colorCustomizations'] ?? {}) },
@@ -125,6 +131,7 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       defaultBatchSources: nextBatchSources,
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: draft.sameDomainOnly,
+      statusbarVisible: draft.statusbarVisible,
       useMica: draft.useMica,
       theme: draft.theme,
       'workbench.colorCustomizations': { ...draft.workbenchColorCustomizations },

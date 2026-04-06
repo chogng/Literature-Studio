@@ -21,6 +21,8 @@ export type SettingsPageId =
   | 'knowledgeBase'
   | 'literature';
 
+export type SettingsNavigationItemId = 'back' | SettingsPageId;
+
 type SettingsPageDefinition = {
   id: SettingsPageId;
   label: (labels: SettingsPartLabels) => string;
@@ -65,7 +67,7 @@ const settingsPageLayout: SettingsPageDefinition[] = [
 
 export type SettingsSectionMap = Record<SettingsSectionId, HTMLElement>;
 export type SettingsNavigationItem = {
-  id: SettingsPageId;
+  id: SettingsNavigationItemId;
   label: string;
   icon?: LxIconName;
 };
@@ -84,11 +86,18 @@ export function createSettingsSectionMap(factory: () => HTMLElement): SettingsSe
 }
 
 export function getSettingsNavigationItems(labels: SettingsPartLabels): SettingsNavigationItem[] {
-  return settingsPageLayout.map((page) => ({
-    id: page.id,
-    label: page.label(labels).trim(),
-    icon: page.icon,
-  }));
+  return [
+    {
+      id: 'back',
+      label: labels.settingsNavigationBack.trim(),
+      icon: 'arrow-left',
+    },
+    ...settingsPageLayout.map((page) => ({
+      id: page.id,
+      label: page.label(labels).trim(),
+      icon: page.icon,
+    })),
+  ];
 }
 
 export function getSettingsPageSectionIds(pageId: SettingsPageId): SettingsSectionId[] {

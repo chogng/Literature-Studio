@@ -8,6 +8,8 @@ import type { SidebarTopbarActionsProps } from 'ls/workbench/browser/parts/sideb
 let cleanupDomEnvironment: (() => void) | null = null;
 let createPrimaryBar: typeof import('ls/workbench/browser/parts/primarybar/primarybar').createPrimaryBar;
 let SidebarTopbarActionsView: typeof import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions').SidebarTopbarActionsView;
+let PrimaryBarFooterActionsView: typeof import('ls/workbench/browser/parts/primarybar/primarybarFooterActions').PrimaryBarFooterActionsView;
+let subscribeTitlebarUiActions: typeof import('ls/workbench/browser/parts/titlebar/titlebarActions').subscribeTitlebarUiActions;
 
 function createProps(): PrimaryBarProps {
   const labels = {
@@ -70,6 +72,8 @@ before(async () => {
   cleanupDomEnvironment = domEnvironment.cleanup;
   ({ createPrimaryBar } = await import('ls/workbench/browser/parts/primarybar/primarybar'));
   ({ SidebarTopbarActionsView } = await import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions'));
+  ({ PrimaryBarFooterActionsView } = await import('ls/workbench/browser/parts/primarybar/primarybarFooterActions'));
+  ({ subscribeTitlebarUiActions } = await import('ls/workbench/browser/parts/titlebar/titlebarActions'));
 });
 
 after(() => {
@@ -128,5 +132,68 @@ test('primary bar topbar exposes a quick access action', () => {
   } finally {
     primaryBar.dispose();
     topbarActionsView.dispose();
+  }
+});
+
+test('primary bar renders a footer at the bottom and mounts footer content', () => {
+  const footerActionsView = new PrimaryBarFooterActionsView({
+    accountLabel: 'Literature Studio',
+    settingsLabel: 'Settings',
+  });
+  const primaryBar = createPrimaryBar({
+    ...createProps(),
+    footerActionsElement: footerActionsView.getElement(),
+  });
+  const element = primaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const footer = element.querySelector('.primarybar-footer');
+    assert(footer instanceof HTMLElement);
+    assert.equal(element.lastElementChild, footer);
+    assert.equal(
+      footer.querySelector('.primarybar-footer-actions-host'),
+      footerActionsView.getElement(),
+    );
+    assert.equal(
+      footer.querySelector('.primarybar-footer-account-label')?.textContent,
+      'Literature Studio',
+    );
+  } finally {
+    primaryBar.dispose();
+    footerActionsView.dispose();
+  }
+});
+
+test('primary bar footer settings action reuses the titlebar settings event', () => {
+  let triggered = false;
+  const unsubscribe = subscribeTitlebarUiActions((action) => {
+    if (action.type === 'TOGGLE_SETTINGS') {
+      triggered = true;
+    }
+  });
+  const footerActionsView = new PrimaryBarFooterActionsView({
+    accountLabel: 'Literature Studio',
+    settingsLabel: 'Settings',
+  });
+  const primaryBar = createPrimaryBar({
+    ...createProps(),
+    footerActionsElement: footerActionsView.getElement(),
+  });
+  const element = primaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const settingsButton = element.querySelector(
+      '.primarybar-footer .primarybar-footer-settings-btn',
+    );
+    assert(settingsButton instanceof HTMLButtonElement);
+    assert.equal(settingsButton.getAttribute('aria-label'), 'Settings');
+    settingsButton.click();
+    assert.equal(triggered, true);
+  } finally {
+    unsubscribe();
+    primaryBar.dispose();
+    footerActionsView.dispose();
   }
 });

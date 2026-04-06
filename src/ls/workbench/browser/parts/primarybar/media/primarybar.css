@@ -1,5 +1,6 @@
 .panel.primarybar-panel {
   --primarybar-topbar-height: 36px;
+  --primarybar-footer-height: 36px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -28,6 +29,23 @@
   min-height: var(--primarybar-topbar-height);
   -webkit-app-region: drag;
   user-select: none;
+}
+
+.primarybar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  flex: 0 0 var(--primarybar-footer-height);
+  height: var(--primarybar-footer-height);
+  min-height: var(--primarybar-footer-height);
+  padding: 0 8px;
+  border-top: 1px solid var(--vscode-sideBar-border, #e5e5e5);
+  background: var(--vscode-primaryBar-background, #fafafa);
+}
+
+.primarybar-footer > * {
+  min-width: 0;
 }
 
 .primarybar-topbar-window-controls-spacer {

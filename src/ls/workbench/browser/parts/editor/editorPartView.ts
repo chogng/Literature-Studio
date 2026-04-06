@@ -63,16 +63,24 @@ export type EditorPartProps = {
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
   onCreatePdfTab: () => void;
+  onOpenAddressBarSourceMenu: () => void;
+  onToolbarNavigateBack: () => void;
+  onToolbarNavigateForward: () => void;
+  onToolbarNavigateRefresh: () => void;
   onToolbarHardReload: () => void;
   onToolbarCopyCurrentUrl: () => void | Promise<void>;
   onToolbarClearBrowsingHistory: () => void;
   onToolbarClearCookies: () => void | Promise<void>;
   onToolbarClearCache: () => void | Promise<void>;
+  onToolbarAddressChange: (value: string) => void;
+  onToolbarAddressSubmit: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
   onDeleteEditorViewState: (key: EditorViewStateKey) => void;
-  topbarActionsElement?: HTMLElement | null;
-  topbarToolbarElement?: HTMLElement | null;
+  showTopbarActions?: boolean;
+  showTopbarToolbar?: boolean;
+  isEditorCollapsed?: boolean;
+  onToggleEditorCollapse?: () => void;
   onStatusChange?: (status: EditorStatusState) => void;
 };
 

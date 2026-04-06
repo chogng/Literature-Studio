@@ -39,6 +39,7 @@ const zh = {
   emptyAllInputLinkSuffix: '以抓取',
   settingsTitle: '设置',
   settingsLoading: '设置加载中...',
+  settingsNavigationBack: 'Back',
   settingsNavigationGeneral: '通用设置',
   settingsNavigationTextEditor: '文本编辑器',
   settingsNavigationChat: '聊天',
@@ -66,6 +67,9 @@ const zh = {
   settingsUseMica: '透明背景',
   settingsUseMicaHint:
     '\u4ec5\u5728\u684c\u9762\u7aef\u751f\u6548\u3002Windows \u652f\u6301\u65f6\uff0c\u6807\u9898\u680f\u548c\u4e3b\u754c\u9762\u5e95\u5c42\u4f1a\u8ddf\u968f Mica \u6750\u8d28\u3002',
+  settingsStatusbar: '状态栏',
+  settingsStatusbarHint:
+    '用于控制内容工作区底部 status bar 的显示与隐藏。',
   settingsLibraryTitle: '知识库与文献管理',
   settingsKnowledgeBaseTitle: '知识库',
   settingsKnowledgeBaseHint:

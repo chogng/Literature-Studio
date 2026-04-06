@@ -25,6 +25,9 @@ import { createEditorPartController } from 'ls/workbench/browser/parts/editor/ed
 import type { EditorPartChangeReason, EditorPartControllerContext, EditorPartModel } from 'ls/workbench/browser/parts/editor/editorPart';
 
 import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
+import { createEditorBrowserToolbarActions } from 'ls/workbench/browser/parts/editor/editorBrowserToolbarActions';
+import { PrimaryBarFooterActionsView } from 'ls/workbench/browser/parts/primarybar/primarybarFooterActions';
+import { SidebarTopbarActionsView } from 'ls/workbench/browser/parts/sidebar/sidebarTopbarActions';
 import {
   createSettingsPartView,
   createSettingsPartProps,
@@ -38,13 +41,14 @@ import { createFetchPaneProps } from 'ls/workbench/browser/parts/sidebar/seconda
 import { createToastOverlayWindowView } from 'ls/workbench/browser/toastOverlayWindow';
 import { createOverlayMenuView } from 'ls/base/parts/contextmenu/electron-sandbox/overlayMenu';
 import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
-import { createWorkbenchContentView } from 'ls/workbench/browser/workbenchContentView';
+import { createWorkbenchContentLayoutView } from 'ls/workbench/browser/workbenchContentLayoutView';
+import { createWorkbenchContentPartViews } from 'ls/workbench/browser/workbenchContentPartViews';
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
+import { createEditorTopbarActionsView } from 'ls/workbench/browser/parts/editor/editorTopbarActionsView';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { setARIAContainer } from 'ls/base/browser/ui/aria/aria';
 import { createToastHost } from 'ls/base/browser/ui/toast/toastHost';
 import type { ToastHost } from 'ls/base/browser/ui/toast/toastHost';
-import { toast } from 'ls/base/browser/ui/toast/toast';
 
 import {
   localeService,
@@ -88,7 +92,6 @@ import {
 } from 'ls/workbench/services/llm/registry';
 
 import { isEditorContentTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
-import { getEditorContentDisplayUrl } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
 import type { EditorWorkspaceTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import {
@@ -183,31 +186,6 @@ function toFileUrl(filePath: string) {
   }
 
   return encodeURI(`file://${normalized.startsWith('/') ? normalized : `/${normalized}`}`);
-}
-
-async function copyTextToClipboard(value: string) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return;
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = value;
-  textarea.setAttribute('readonly', 'true');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.append(textarea);
-  textarea.focus();
-  textarea.select();
-
-  try {
-    const copied = document.execCommand('copy');
-    if (!copied) {
-      throw new Error('Clipboard copy command was rejected.');
-    }
-  } finally {
-    textarea.remove();
-  }
 }
 
 function looksLikePdfResource(value: string) {
@@ -413,10 +391,31 @@ class WorkbenchHost {
   private readonly toastMount: HTMLDivElement;
   private readonly statusbarElement: HTMLElement;
   private readonly toastHost: ToastHost;
-  private workbenchContentView: ReturnType<typeof createWorkbenchContentView> | null = null;
-  private retiredWorkbenchContentView:
-    | ReturnType<typeof createWorkbenchContentView>
+  private workbenchContentLayoutView: ReturnType<typeof createWorkbenchContentLayoutView> | null = null;
+  private retiredWorkbenchContentLayoutView:
+    | ReturnType<typeof createWorkbenchContentLayoutView>
     | null = null;
+  private workbenchContentPartViews: ReturnType<typeof createWorkbenchContentPartViews> | null = null;
+  private retiredWorkbenchContentPartViews:
+    | ReturnType<typeof createWorkbenchContentPartViews>
+    | null = null;
+  private readonly auxiliaryEditorTopbarActionsView = createEditorTopbarActionsView({
+    isEditorCollapsed: true,
+    labels: {
+      topbarAddAction: '',
+      createWrite: '',
+      createBrowser: '',
+      createFile: '',
+      expandEditor: '',
+      collapseEditor: '',
+    },
+    onCreateDraftTab: () => {},
+    onCreateBrowserTab: () => {},
+    onCreatePdfTab: () => {},
+    onToggleEditorCollapse: () => {},
+  });
+  private readonly sidebarTopbarActionsView = new SidebarTopbarActionsView();
+  private readonly primaryBarFooterActionsView = new PrimaryBarFooterActionsView();
   private settingsView: ReturnType<typeof createSettingsPartView> | null = null;
   private readonly globalDisposables: Array<() => void> = [];
   private webContentStateDisposable: (() => void) | null = null;
@@ -487,9 +486,15 @@ class WorkbenchHost {
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.statusbar, null);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.container, null);
 
-    this.workbenchContentView?.dispose();
-    this.workbenchContentView = null;
-    this.retiredWorkbenchContentView = null;
+    this.workbenchContentLayoutView?.dispose();
+    this.workbenchContentLayoutView = null;
+    this.retiredWorkbenchContentLayoutView = null;
+    this.workbenchContentPartViews?.dispose();
+    this.workbenchContentPartViews = null;
+    this.retiredWorkbenchContentPartViews = null;
+    this.auxiliaryEditorTopbarActionsView.dispose();
+    this.sidebarTopbarActionsView.dispose();
+    this.primaryBarFooterActionsView.dispose();
     this.settingsView?.dispose();
     this.settingsView = null;
     this.toastHost.dispose();
@@ -656,7 +661,7 @@ class WorkbenchHost {
       releasedContentTargetIds.add(targetId);
       const pendingViewStateSave =
         (
-          this.workbenchContentView ?? this.retiredWorkbenchContentView
+          this.workbenchContentPartViews ?? this.retiredWorkbenchContentPartViews
         )?.whenEditorTabViewStateSettled(targetId) ??
         Promise.resolve();
       void pendingViewStateSave.finally(() => {
@@ -755,19 +760,21 @@ class WorkbenchHost {
   private syncWorkbenchChrome(params: {
     electronRuntime: boolean;
     useMica: boolean;
+    statusbarVisible: boolean;
     activePage: WorkbenchPage;
   }) {
-    const { electronRuntime, useMica, activePage } = params;
+    const { electronRuntime, useMica, statusbarVisible, activePage } = params;
+    const isStatusbarVisible = activePage === 'content' && statusbarVisible;
 
     this.containerElement.className = [
       'app-window',
       electronRuntime && useMica ? 'is-mica-enabled' : '',
-      activePage === 'content' ? 'has-statusbar' : '',
+      isStatusbarVisible ? 'has-statusbar' : '',
     ]
       .filter(Boolean)
       .join(' ');
     this.shellElement.className = getWorkbenchShellClassName({ activePage });
-    this.syncStatusbarVisibility(activePage === 'content');
+    this.syncStatusbarVisibility(isStatusbarVisible);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.titlebar, null);
   }
 
@@ -803,11 +810,11 @@ class WorkbenchHost {
   private syncEditorCommandHandlers() {
     setWorkbenchEditorCommandHandlers({
       executeActiveDraftCommand: (commandId) =>
-        this.workbenchContentView?.executeActiveDraftCommand(commandId) ?? false,
+        this.workbenchContentPartViews?.executeActiveDraftCommand(commandId) ?? false,
       canExecuteActiveDraftCommand: (commandId) =>
-        this.workbenchContentView?.canExecuteActiveDraftCommand(commandId) ?? false,
+        this.workbenchContentPartViews?.canExecuteActiveDraftCommand(commandId) ?? false,
       getActiveDraftStableSelectionTarget: () =>
-        this.workbenchContentView?.getActiveDraftStableSelectionTarget() ?? null,
+        this.workbenchContentPartViews?.getActiveDraftStableSelectionTarget() ?? null,
     });
   }
 
@@ -875,32 +882,73 @@ class WorkbenchHost {
       commandPaletteLabel: string;
       onTogglePrimarySidebar: () => void;
     };
+    editorTopbarAuxiliaryActionsElement?: HTMLElement | null;
     editorPartProps: EditorPartProps;
   }) {
-    this.retiredWorkbenchContentView = null;
+    this.retiredWorkbenchContentLayoutView = null;
+    this.retiredWorkbenchContentPartViews = null;
     this.settingsView?.dispose();
     this.settingsView = null;
-    if (!this.workbenchContentView) {
-      this.workbenchContentView = createWorkbenchContentView(props);
+    this.sidebarTopbarActionsView.setProps(props.sidebarTopbarActionsProps);
+    this.primaryBarFooterActionsView.setProps({
+      accountLabel: props.primaryBarProps.accountLabel,
+      settingsLabel: props.primaryBarProps.settingsLabel,
+    });
+    const partViewProps = {
+      isPrimarySidebarVisible: props.isPrimarySidebarVisible,
+      isAgentSidebarVisible: props.isAgentSidebarVisible,
+      primaryBarProps: props.primaryBarProps,
+      agentBarProps: props.agentBarProps,
+      editorPartProps: props.editorPartProps,
+      sidebarTopbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+      primaryBarFooterActionsElement: this.primaryBarFooterActionsView.getElement(),
+      editorTopbarAuxiliaryActionsElement: props.editorTopbarAuxiliaryActionsElement,
+    };
+    if (!this.workbenchContentPartViews) {
+      this.workbenchContentPartViews = createWorkbenchContentPartViews(partViewProps);
     } else {
-      this.workbenchContentView.setProps(props);
+      this.workbenchContentPartViews.setProps(partViewProps);
+    }
+    if (!this.workbenchContentLayoutView) {
+      this.workbenchContentLayoutView = createWorkbenchContentLayoutView({
+        isPrimarySidebarVisible: props.isPrimarySidebarVisible,
+        isAgentSidebarVisible: props.isAgentSidebarVisible,
+        isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
+        primarySidebarSize: props.primarySidebarSize,
+        agentSidebarSize: props.agentSidebarSize,
+        partViews: this.workbenchContentPartViews,
+      });
+    } else {
+      this.workbenchContentLayoutView.setProps({
+        isPrimarySidebarVisible: props.isPrimarySidebarVisible,
+        isAgentSidebarVisible: props.isAgentSidebarVisible,
+        isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
+        primarySidebarSize: props.primarySidebarSize,
+        agentSidebarSize: props.agentSidebarSize,
+        partViews: this.workbenchContentPartViews,
+      });
     }
     this.syncEditorCommandHandlers();
 
-    const workbenchContentElement = this.workbenchContentView.getElement();
+    const workbenchContentElement = this.workbenchContentLayoutView.getElement();
     if (this.pageMount.firstChild !== workbenchContentElement) {
       this.pageMount.replaceChildren(workbenchContentElement);
     }
-    this.workbenchContentView.layout();
+    this.workbenchContentLayoutView.layout();
   }
 
   private renderSettingsPage(
     settingsPartProps: ReturnType<typeof createSettingsPartProps>,
   ) {
-    if (this.workbenchContentView) {
-      this.workbenchContentView.dispose();
-      this.retiredWorkbenchContentView = this.workbenchContentView;
-      this.workbenchContentView = null;
+    if (this.workbenchContentLayoutView) {
+      this.workbenchContentLayoutView.dispose();
+      this.retiredWorkbenchContentLayoutView = this.workbenchContentLayoutView;
+      this.workbenchContentLayoutView = null;
+    }
+    if (this.workbenchContentPartViews) {
+      this.workbenchContentPartViews.dispose();
+      this.retiredWorkbenchContentPartViews = this.workbenchContentPartViews;
+      this.workbenchContentPartViews = null;
     }
     setWorkbenchEditorCommandHandlers(null);
     if (!this.settingsView) {
@@ -954,6 +1002,7 @@ class WorkbenchHost {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      statusbarVisible,
       useMica,
       theme,
       workbenchColorCustomizations,
@@ -1293,106 +1342,40 @@ class WorkbenchHost {
       void refreshLibrary();
     };
 
-    const handleWebContentBack = () => {
-      webContentNavigationModelInstance.handleWebContentBack({
-        webContentRuntime,
-        ui,
-      });
-    };
-
-    const handleWebContentForward = () => {
-      webContentNavigationModelInstance.handleWebContentForward({
-        webContentRuntime,
-        ui,
-      });
-    };
-
-    const handleWebContentRefresh = () => {
-      webContentNavigationModelInstance.handleBrowserRefresh({
-        electronRuntime,
-        webContentRuntime,
-        ui,
-      });
-    };
-
-    const handleWebContentHardReload = () => {
-      webContentNavigationModelInstance.handleBrowserHardReload({
-        electronRuntime,
-        webContentRuntime,
-        ui,
-      });
-    };
-
-    const handleCopyCurrentUrl = async () => {
-      const currentUrl = getEditorContentDisplayUrl(browserUrl);
-      if (!currentUrl) {
-        return;
-      }
-
-      try {
-        await copyTextToClipboard(currentUrl);
-        toast.success(ui.toastCurrentUrlCopied);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : String(error ?? 'Unknown clipboard error');
-        toast.error(ui.toastCurrentUrlCopyFailed.replace('{error}', message));
-      }
-    };
-
-    const handleClearBrowsingHistory = () => {
-      try {
-        webContentNavigationModelInstance.handleWebContentClearHistory({
-          webContentRuntime,
-          ui,
-        });
-        if (webContentRuntime) {
-          toast.success(ui.toastBrowsingHistoryCleared);
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : String(error ?? 'Unknown history error');
-        toast.error(ui.toastBrowsingHistoryClearFailed.replace('{error}', message));
-      }
-    };
-
-    const handleClearCookies = async () => {
-      try {
-        const cleared = await invokeDesktop<boolean>('clear_web_cookies');
-        if (!cleared) {
-          throw new Error(ui.toastWebContentRuntimeUnavailable);
-        }
-        toast.success(ui.toastCookiesCleared);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : String(error ?? 'Unknown cookie error');
-        toast.error(ui.toastCookiesClearFailed.replace('{error}', message));
-      }
-    };
-
-    const handleClearCache = async () => {
-      try {
-        const cleared = await invokeDesktop<boolean>('clear_web_cache');
-        if (!cleared) {
-          throw new Error(ui.toastWebContentRuntimeUnavailable);
-        }
-        toast.success(ui.toastCacheCleared);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : String(error ?? 'Unknown cache error');
-        toast.error(ui.toastCacheClearFailed.replace('{error}', message));
-      }
-    };
-
     const contentAwareEditorPartProps = this.createContentAwareEditorPartProps({
       activateTab: editorPartControllerInstance.onActivateTab,
       closeTab: editorPartControllerInstance.onCloseTab,
       editorPartProps,
     });
-    contentAwareEditorPartProps.onToolbarHardReload = handleWebContentHardReload;
-    contentAwareEditorPartProps.onToolbarCopyCurrentUrl = handleCopyCurrentUrl;
-    contentAwareEditorPartProps.onToolbarClearBrowsingHistory = handleClearBrowsingHistory;
-    contentAwareEditorPartProps.onToolbarClearCookies = handleClearCookies;
-    contentAwareEditorPartProps.onToolbarClearCache = handleClearCache;
+    const editorBrowserToolbarActions = createEditorBrowserToolbarActions({
+      browserUrl,
+      electronRuntime,
+      webContentRuntime,
+      invokeDesktop,
+      setWebUrl: setWorkbenchWebUrl,
+      ui,
+      webContentNavigationModel: webContentNavigationModelInstance,
+    });
+    Object.assign(
+      contentAwareEditorPartProps,
+      editorBrowserToolbarActions,
+    );
+    this.auxiliaryEditorTopbarActionsView.setProps({
+      isEditorCollapsed: true,
+      labels: {
+        topbarAddAction: contentAwareEditorPartProps.labels.topbarAddAction,
+        createWrite: contentAwareEditorPartProps.labels.createWrite,
+        createBrowser: contentAwareEditorPartProps.labels.createBrowser,
+        createFile: contentAwareEditorPartProps.labels.createFile,
+        expandEditor: contentAwareEditorPartProps.labels.expandEditor,
+        collapseEditor: contentAwareEditorPartProps.labels.collapseEditor,
+      },
+      onCreateDraftTab: contentAwareEditorPartProps.onCreateDraftTab,
+      onCreateBrowserTab: contentAwareEditorPartProps.onCreateBrowserTab,
+      onCreatePdfTab: contentAwareEditorPartProps.onCreatePdfTab,
+      onToggleEditorCollapse:
+        contentAwareEditorPartProps.onToggleEditorCollapse ?? (() => {}),
+    });
 
     const handleBatchFetchStart = () => {
       setWorkbenchArticles([]);
@@ -1460,7 +1443,7 @@ class WorkbenchHost {
     };
 
     const activeDraftStableSelectionTarget =
-      this.workbenchContentView?.getActiveDraftStableSelectionTarget() ?? null;
+      this.workbenchContentPartViews?.getActiveDraftStableSelectionTarget() ?? null;
     const assistantWritingContext = formatStableSelectionWritingContext(
       activeDraftStableSelectionTarget,
       draftBody,
@@ -1498,7 +1481,7 @@ class WorkbenchHost {
         fallbackWritingContext: assistantWritingContext,
         getFallbackWritingContext: () =>
           formatStableSelectionWritingContext(
-            this.workbenchContentView?.getActiveDraftStableSelectionTarget() ?? null,
+            this.workbenchContentPartViews?.getActiveDraftStableSelectionTarget() ?? null,
             editorPartControllerInstance.getDraftBody(),
           ),
         getDraftBody: () => editorPartControllerInstance.getDraftBody(),
@@ -1506,7 +1489,7 @@ class WorkbenchHost {
         setDraftDocument: (value) =>
           editorPartControllerInstance.setDraftDocument(value),
         getActiveDraftStableSelectionTarget: () =>
-          this.workbenchContentView?.getActiveDraftStableSelectionTarget() ?? null,
+          this.workbenchContentPartViews?.getActiveDraftStableSelectionTarget() ?? null,
       },
       documentActionsController: documentActionsControllerInstance,
       documentActionsContext: {
@@ -1550,9 +1533,9 @@ class WorkbenchHost {
     });
 
     this.syncTitlebarCommandHandlers({
-      onNavigateBack: handleWebContentBack,
-      onNavigateForward: handleWebContentForward,
-      onNavigateRefresh: handleWebContentRefresh,
+      onNavigateBack: editorBrowserToolbarActions.onToolbarNavigateBack,
+      onNavigateForward: editorBrowserToolbarActions.onToolbarNavigateForward,
+      onNavigateRefresh: editorBrowserToolbarActions.onToolbarNavigateRefresh,
       onNavigateWeb: handleNavigateWeb,
       onExportDocx: handleExportDocx,
     });
@@ -1583,6 +1566,8 @@ class WorkbenchHost {
 
     const primaryBarProps: PrimaryBarProps = {
       labels: fetchPaneProps.labels,
+      accountLabel: ui.appName,
+      settingsLabel: ui.titlebarSettings,
       fetchPaneProps,
       librarySnapshot,
       isLibraryLoading,
@@ -1669,6 +1654,7 @@ class WorkbenchHost {
         fetchStartDate: batchStartDate,
         fetchEndDate: batchEndDate,
         useMica,
+        statusbarVisible,
         theme,
         knowledgeBaseEnabled,
         autoIndexDownloadedPdf,
@@ -1714,6 +1700,7 @@ class WorkbenchHost {
         onFetchStartDateChange: setBatchStartDate,
         onFetchEndDateChange: setBatchEndDate,
         onUseMicaChange: settingsControllerInstance.setUseMica,
+        onStatusbarVisibleChange: settingsControllerInstance.setStatusbarVisible,
         onThemeChange: settingsControllerInstance.setTheme,
         onKnowledgeBaseEnabledChange: settingsControllerInstance.setKnowledgeBaseEnabled,
         onAutoIndexDownloadedPdfChange:
@@ -1791,6 +1778,7 @@ class WorkbenchHost {
     this.syncWorkbenchChrome({
       electronRuntime,
       useMica,
+      statusbarVisible,
       activePage,
     });
 
@@ -1805,6 +1793,8 @@ class WorkbenchHost {
         primaryBarProps,
         agentBarProps,
         sidebarTopbarActionsProps,
+        editorTopbarAuxiliaryActionsElement:
+          this.auxiliaryEditorTopbarActionsView.getElement(),
         editorPartProps: contentAwareEditorPartProps,
       });
     } else {

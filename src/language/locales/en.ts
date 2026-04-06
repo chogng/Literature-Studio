@@ -39,6 +39,7 @@ const en = {
   emptyAllInputLinkSuffix: 'to fetch',
   settingsTitle: 'Settings',
   settingsLoading: 'Loading settings...',
+  settingsNavigationBack: 'Back',
   settingsNavigationGeneral: 'General',
   settingsNavigationTextEditor: 'Text editor',
   settingsNavigationChat: 'Chat',
@@ -66,6 +67,9 @@ const en = {
   settingsUseMica: 'Transparent background',
   settingsUseMicaHint:
     'Available in the desktop app. The titlebar and app shell will pick up the system Mica material when Windows supports it.',
+  settingsStatusbar: 'Status bar',
+  settingsStatusbarHint:
+    'Controls whether the bottom status bar is shown in the content workspace.',
   settingsLibraryTitle: 'Knowledge base and library',
   settingsKnowledgeBaseTitle: 'Knowledge base',
   settingsKnowledgeBaseHint:
