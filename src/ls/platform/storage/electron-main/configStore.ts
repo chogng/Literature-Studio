@@ -9,6 +9,10 @@ import type {
   RagSettings,
   StoredAppSettings,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import {
+  cloneEditorDraftStyleSettings,
+  normalizeEditorDraftStyleSettings,
+} from 'ls/base/common/editorDraftStyle';
 import type { StorageService } from 'ls/platform/storage/common/storage';
 import { cleanText } from 'ls/base/common/strings';
 import {
@@ -263,6 +267,7 @@ function normalizeSettings(
     theme: normalizeTheme(payload.theme),
     'workbench.colorCustomizations': normalizeThemeColorCustomizations(payload['workbench.colorCustomizations']),
     locale: normalizeLocale(payload.locale, defaultLocale),
+    editorDraftStyle: normalizeEditorDraftStyleSettings(payload.editorDraftStyle),
     llm: normalizeLlmSettings(payload.llm),
     translation: normalizeTranslationSettings(payload.translation),
     knowledgeBase: normalizeKnowledgeBaseSettings(payload.knowledgeBase),
@@ -488,6 +493,7 @@ function normalizeRelativeApiPath(value: unknown, fallbackValue: string): string
 function attachConfigPath(settings: StoredAppSettings, configPath: string): AppSettings {
   return {
     ...settings,
+    editorDraftStyle: cloneEditorDraftStyleSettings(settings.editorDraftStyle),
     knowledgeBase: cloneKnowledgeBaseSettings(settings.knowledgeBase),
     configPath,
   };

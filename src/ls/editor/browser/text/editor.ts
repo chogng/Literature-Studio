@@ -11,7 +11,7 @@ import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorS
 import { clearFontFamilyCommand, clearFontSizeCommand, clearInlineStylesCommand, getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setFontFamilyCommand, setFontSizeCommand, setParagraphCommand, setTextAlignCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, toggleUnderlineCommand, undoCommand } from 'ls/editor/browser/text/commands';
 import type { InsertFigurePayload, WritingEditorCommand, WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
 import { createWritingEditorKeymapBindings } from 'ls/editor/browser/text/editorCommandRegistry';
-import { editorDraftStyleStore } from 'ls/editor/browser/text/editorDraftStyleStore';
+import { editorDraftStyleService } from 'ls/editor/browser/text/editorDraftStyleService';
 import { collectWritingEditorDerivedLabels, createWritingEditorDocumentModel, findWritingEditorNodeByBlockId, getWritingEditorNodeText, getWritingEditorTextUnitKind, isWritingEditorPlainTextEditableNode, normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument, WritingEditorStableSelectionTarget, WritingEditorTextUnitKind } from 'ls/editor/common/writingEditorDocument';
 
@@ -303,7 +303,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   private readonly editorRootElement = createElement('div', 'pm-editor-root');
   private readonly scrollableElement: DomScrollableElement;
   private readonly toolbar: DraftEditorToolbar;
-  private readonly disposeDraftStyleStoreSubscription: () => void;
+  private readonly disposeDraftStyleServiceSubscription: () => void;
   private view: EditorView | null = null;
   // The workbench can rerender before the writing model echoes the latest local document back.
   private readonly inputSession = new WritingEditorInputSession({
@@ -321,8 +321,8 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.props = props;
     this.toolbar = new DraftEditorToolbar(this.createToolbarProps());
     this.applyDraftStyleSnapshot();
-    this.disposeDraftStyleStoreSubscription = editorDraftStyleStore.subscribe(
-      this.handleDraftStyleStoreChange,
+    this.disposeDraftStyleServiceSubscription = editorDraftStyleService.subscribe(
+      this.handleDraftStyleServiceChange,
     );
     this.hostWrapperElement.append(this.editorRootElement);
     this.scrollableElement = new DomScrollableElement(this.hostWrapperElement, {
@@ -377,7 +377,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   }
 
   dispose() {
-    this.disposeDraftStyleStoreSubscription();
+    this.disposeDraftStyleServiceSubscription();
     this.inputSession.dispose();
     this.destroyView();
     this.toolbar.dispose();
@@ -584,9 +584,22 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   }
 
   private applyDraftStyleSnapshot() {
+    const styleSnapshot = editorDraftStyleService.getSnapshot();
+    this.editorRootElement.style.setProperty(
+      '--ls-editor-default-color',
+      styleSnapshot.defaultBodyStyle.color,
+    );
+    this.editorRootElement.style.setProperty(
+      '--ls-editor-default-line-height',
+      String(styleSnapshot.defaultBodyStyle.lineHeight),
+    );
+    this.editorRootElement.style.setProperty(
+      '--ls-editor-default-font-family',
+      styleSnapshot.defaultBodyStyle.fontFamilyValue,
+    );
     this.editorRootElement.style.setProperty(
       '--ls-editor-default-font-size',
-      editorDraftStyleStore.getSnapshot().defaultFontSizeValue,
+      styleSnapshot.defaultBodyStyle.fontSizeValue,
     );
   }
 
@@ -797,7 +810,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.inputSession.handleFocus();
   };
 
-  private readonly handleDraftStyleStoreChange = () => {
+  private readonly handleDraftStyleServiceChange = () => {
     this.applyDraftStyleSnapshot();
     this.toolbar.setProps(this.createToolbarProps());
   };

@@ -688,6 +688,7 @@ function createFontFamilyToolbarSplitButton(params: {
   const { labels, actions, model, options } = params;
   const currentValue = model.currentValue;
   const currentLabel = model.currentLabel;
+  const defaultValue = model.defaultValue;
 
   return {
     label: labels.fontFamily,
@@ -697,15 +698,18 @@ function createFontFamilyToolbarSplitButton(params: {
     onClick: () => {
       actions.setFontFamily(currentValue || null);
     },
-    menu: options.map((option) => ({
-      label: option.label,
-      title: option.title ?? option.label,
-      checked: option.value === currentValue,
-      disabled: option.disabled,
-      onClick: () => {
-        actions.setFontFamily(option.value || null);
-      },
-    })),
+    menu: options.map((option) => {
+      const isDefaultOption = option.value === defaultValue;
+      return {
+        label: option.label,
+        title: option.title ?? option.label,
+        checked: currentValue ? option.value === currentValue : isDefaultOption,
+        disabled: option.disabled,
+        onClick: () => {
+          actions.setFontFamily(isDefaultOption ? null : (option.value || null));
+        },
+      };
+    }),
   };
 }
 

@@ -191,12 +191,9 @@
   min-height: 100%;
   height: auto;
   padding: 18px 18px 22px;
-  color: #203040;
+  color: var(--ls-editor-default-color);
   font:
-    var(--ls-editor-default-font-size)/1.8 "IBM Plex Serif",
-    "Source Han Serif SC",
-    "Noto Serif CJK SC",
-    serif;
+    var(--ls-editor-default-font-size)/var(--ls-editor-default-line-height) var(--ls-editor-default-font-family);
   outline: none;
   white-space: pre-wrap;
   word-break: break-word;

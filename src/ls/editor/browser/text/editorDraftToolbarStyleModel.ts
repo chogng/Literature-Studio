@@ -2,9 +2,9 @@ import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { resolvePrimaryFontFamily } from 'ls/base/common/editorFormat';
 import type { EditorDraftStyleOption } from 'ls/editor/browser/text/editorDraftStyleCatalog';
 import {
-  editorDraftStyleStore,
-  type EditorDraftStyleStoreSnapshot,
-} from 'ls/editor/browser/text/editorDraftStyleStore';
+  editorDraftStyleService,
+  type EditorDraftStyleServiceSnapshot,
+} from 'ls/editor/browser/text/editorDraftStyleService';
 
 export type EditorDraftToolbarFontModel = {
   currentValue: string;
@@ -12,12 +12,16 @@ export type EditorDraftToolbarFontModel = {
   options: readonly DropdownOption[];
 };
 
+export type EditorDraftToolbarFontFamilyModel = EditorDraftToolbarFontModel & {
+  defaultValue: string;
+};
+
 export type EditorDraftToolbarFontSizeModel = EditorDraftToolbarFontModel & {
   defaultValue: string;
 };
 
 export type EditorDraftToolbarStyleModel = {
-  fontFamily: EditorDraftToolbarFontModel;
+  fontFamily: EditorDraftToolbarFontFamilyModel;
   fontSize: EditorDraftToolbarFontSizeModel;
 };
 
@@ -25,7 +29,7 @@ type BuildEditorDraftToolbarStyleModelParams = {
   fontFamilyValue: string | null;
   fontSizeValue: string | null;
   defaultTextStyleLabel: string;
-  snapshot?: EditorDraftStyleStoreSnapshot;
+  snapshot?: EditorDraftStyleServiceSnapshot;
 };
 
 const fontAvailabilityCache = new Map<string, boolean>();
@@ -97,6 +101,23 @@ function toDropdownOption(option: EditorDraftStyleOption): DropdownOption {
     label: option.label,
     title: option.title,
   };
+}
+
+function findMatchingOption(
+  value: string,
+  options: readonly DropdownOption[],
+  matchesPresetValue?: (candidateValue: string, optionValue: string) => boolean,
+) {
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return options.find((option) => {
+    const optionValue = option.value.trim();
+    return optionValue === normalizedValue
+      || (matchesPresetValue?.(normalizedValue, optionValue) ?? false);
+  }) ?? null;
 }
 
 function createTextStyleOptions(
@@ -186,46 +207,55 @@ function createTextStyleOptions(
 export function createEditorDraftToolbarStyleModel(
   params: BuildEditorDraftToolbarStyleModelParams,
 ): EditorDraftToolbarStyleModel {
-  const snapshot = params.snapshot ?? editorDraftStyleStore.getSnapshot();
+  const snapshot = params.snapshot ?? editorDraftStyleService.getSnapshot();
+  const defaultFontFamilyValue = snapshot.defaultBodyStyle.fontFamilyValue;
+  const defaultFontSizeValue = snapshot.defaultBodyStyle.fontSizeValue;
+  const fontFamilyMatch = (currentValue: string, presetValue: string) =>
+    normalizeFontFamilyValue(currentValue) === normalizeFontFamilyValue(presetValue);
   const fontFamilyOptions = createTextStyleOptions(
     params.fontFamilyValue,
     snapshot.fontFamilyPresets.map(toDropdownOption).map(withFontAvailability),
     params.defaultTextStyleLabel,
     {
-      matchesPresetValue: (currentValue, presetValue) =>
-        normalizeFontFamilyValue(currentValue) === normalizeFontFamilyValue(presetValue),
+      includeDefaultOption: false,
+      matchesPresetValue: fontFamilyMatch,
     },
   );
 
   const fontSizeOptions = createTextStyleOptions(
     params.fontSizeValue,
     snapshot.fontSizePresets.map(toDropdownOption),
-    snapshot.defaultFontSizePresetName,
+    params.defaultTextStyleLabel,
     {
       includeDefaultOption: false,
     },
   );
 
   const fontFamilyCurrentValue = params.fontFamilyValue?.trim() ?? '';
-  const fontFamilyCurrentOption = fontFamilyOptions.find(
-    (option) => option.value === fontFamilyCurrentValue,
-  ) ?? null;
+  const defaultFontFamilyOption = findMatchingOption(
+    defaultFontFamilyValue,
+    fontFamilyOptions,
+    fontFamilyMatch,
+  );
+  const fontFamilyCurrentOption = findMatchingOption(
+    fontFamilyCurrentValue,
+    fontFamilyOptions,
+    fontFamilyMatch,
+  ) ?? (!fontFamilyCurrentValue ? defaultFontFamilyOption : null);
 
-  const defaultFontSizeOption = fontSizeOptions.find(
-    (option) => option.value === snapshot.defaultFontSizeValue,
-  ) ?? fontSizeOptions.find(
-    (option) => option.label === snapshot.defaultFontSizePresetName,
-  ) ?? null;
+  const defaultFontSizeOption = findMatchingOption(defaultFontSizeValue, fontSizeOptions);
   const fontSizeCurrentValue = params.fontSizeValue?.trim() ?? '';
-  const fontSizeCurrentOption = fontSizeOptions.find(
-    (option) => option.value === fontSizeCurrentValue,
-  ) ?? (!fontSizeCurrentValue ? defaultFontSizeOption : null);
+  const fontSizeCurrentOption = findMatchingOption(fontSizeCurrentValue, fontSizeOptions)
+    ?? (!fontSizeCurrentValue ? defaultFontSizeOption : null);
 
   return {
     fontFamily: {
       currentValue: fontFamilyCurrentValue,
       currentLabel:
-        (fontFamilyCurrentOption?.label ?? fontFamilyCurrentValue) || params.defaultTextStyleLabel,
+        (fontFamilyCurrentOption?.label ?? fontFamilyCurrentValue)
+        || defaultFontFamilyOption?.label
+        || params.defaultTextStyleLabel,
+      defaultValue: defaultFontFamilyOption?.value ?? defaultFontFamilyValue,
       options: fontFamilyOptions,
     },
     fontSize: {
@@ -233,8 +263,9 @@ export function createEditorDraftToolbarStyleModel(
       currentLabel:
         (fontSizeCurrentOption?.label ?? fontSizeCurrentValue)
         || defaultFontSizeOption?.label
+        || defaultFontSizeValue
         || params.defaultTextStyleLabel,
-      defaultValue: defaultFontSizeOption?.value ?? snapshot.defaultFontSizeValue,
+      defaultValue: defaultFontSizeOption?.value ?? defaultFontSizeValue,
       options: fontSizeOptions,
     },
   };

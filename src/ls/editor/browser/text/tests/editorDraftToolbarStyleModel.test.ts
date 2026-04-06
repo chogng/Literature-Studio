@@ -5,6 +5,9 @@ import { getEditorDraftStyleCatalogSnapshot } from 'ls/editor/browser/text/edito
 import { createEditorDraftToolbarStyleModel } from 'ls/editor/browser/text/editorDraftToolbarStyleModel';
 
 const snapshot = getEditorDraftStyleCatalogSnapshot();
+const defaultFontSizeLabel =
+  snapshot.fontSizePresets.find((option) => option.value === snapshot.defaultBodyStyle.fontSizeValue)?.label
+  ?? snapshot.defaultBodyStyle.fontSizeValue;
 
 test('EditorDraftToolbarStyleModel resolves default font-size label without a synthetic default option', () => {
   const model = createEditorDraftToolbarStyleModel({
@@ -15,8 +18,8 @@ test('EditorDraftToolbarStyleModel resolves default font-size label without a sy
   });
 
   assert.equal(model.fontSize.currentValue, '');
-  assert.equal(model.fontSize.currentLabel, snapshot.defaultFontSizePresetName);
-  assert.equal(model.fontSize.defaultValue, snapshot.defaultFontSizeValue);
+  assert.equal(model.fontSize.currentLabel, defaultFontSizeLabel);
+  assert.equal(model.fontSize.defaultValue, snapshot.defaultBodyStyle.fontSizeValue);
   assert.equal(model.fontSize.options.some((option) => option.value === ''), false);
 });
 
@@ -60,4 +63,9 @@ test('EditorDraftToolbarStyleModel includes DengXian font preset', () => {
     model.fontFamily.options.some((option) => option.label === '等线'),
     true,
   );
+  assert.equal(
+    model.fontFamily.options.some((option) => option.label === 'Default'),
+    false,
+  );
+  assert.equal(model.fontFamily.currentLabel, '等线');
 });

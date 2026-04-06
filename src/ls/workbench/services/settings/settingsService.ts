@@ -9,6 +9,12 @@ import type {
   TranslationSettings,
   StoredAppSettings as DesktopStoredAppSettings,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import {
+  cloneEditorDraftStyleSettings,
+  createDefaultEditorDraftStyleSettings,
+  normalizeEditorDraftStyleSettings,
+  type EditorDraftStyleSettings,
+} from 'ls/base/common/editorDraftStyle';
 import type { Locale } from 'language/i18n';
 import { defaultBatchLimit, defaultSameDomainOnly, getConfigBatchSourceSeed, normalizeBatchLimit, resolveConfigBatchSources } from 'ls/workbench/services/config/configSchema';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
@@ -37,6 +43,7 @@ export type ResolvedSettingsState = {
   workbenchColorCustomizations: ThemeColorCustomizations;
   locale: Locale | null;
   configPath: string;
+  editorDraftStyle: EditorDraftStyleSettings;
   llm: LlmSettings;
   translation: TranslationSettings;
   knowledgeBase: KnowledgeBaseSettings;
@@ -55,6 +62,7 @@ export type SaveSettingsDraft = {
   theme: AppTheme;
   workbenchColorCustomizations: ThemeColorCustomizations;
   locale: Locale;
+  editorDraftStyle: EditorDraftStyleSettings;
   llm: LlmSettings;
   translation: TranslationSettings;
   knowledgeBase: KnowledgeBaseSettings;
@@ -106,6 +114,9 @@ export function resolveSettingsState(
     workbenchColorCustomizations: { ...(loaded['workbench.colorCustomizations'] ?? {}) },
     locale: loadedLocale,
     configPath: loadedConfigPath,
+    editorDraftStyle: normalizeEditorDraftStyleSettings(
+      loaded.editorDraftStyle ?? createDefaultEditorDraftStyleSettings(),
+    ),
     llm: cloneLlmSettings(loaded.llm ?? createDefaultLlmSettings()),
     translation: cloneTranslationSettings(loaded.translation ?? createDefaultTranslationSettings()),
     knowledgeBase: cloneKnowledgeBaseSettings(
@@ -136,6 +147,7 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       theme: draft.theme,
       'workbench.colorCustomizations': { ...draft.workbenchColorCustomizations },
       locale: draft.locale,
+      editorDraftStyle: cloneEditorDraftStyleSettings(draft.editorDraftStyle),
       llm: cloneLlmSettings(draft.llm),
       translation: cloneTranslationSettings(draft.translation),
       knowledgeBase: cloneKnowledgeBaseSettings({

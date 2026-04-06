@@ -5,7 +5,7 @@ import { ScrollbarVisibility } from 'ls/base/browser/ui/scrollbar/scrollableElem
 import { createEmptyWritingEditorDocument, createWritingEditorDocumentFromPlainText, writingEditorDocumentToPlainText } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 import { getEditorDraftStyleCatalogSnapshot } from 'ls/editor/browser/text/editorDraftStyleCatalog';
-import { editorDraftStyleStore } from 'ls/editor/browser/text/editorDraftStyleStore';
+import { editorDraftStyleService } from 'ls/editor/browser/text/editorDraftStyleService';
 
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 
@@ -480,13 +480,18 @@ test('DraftEditorToolbar orders Chinese named font-size presets from large to sm
   }
 });
 
-test('ProseMirrorEditor syncs default font-size from editorDraftStyleStore', async () => {
-  editorDraftStyleStore.resetToCatalog();
+test('ProseMirrorEditor syncs default body style from editorDraftStyleService', async () => {
+  editorDraftStyleService.resetToCatalog();
   const catalogSnapshot = getEditorDraftStyleCatalogSnapshot();
   const updatedSnapshot = {
     ...catalogSnapshot,
-    defaultFontSizePresetName: '小四' as const,
-    defaultFontSizeValue: '16px',
+    defaultBodyStyle: {
+      ...catalogSnapshot.defaultBodyStyle,
+      fontFamilyValue: '"Times New Roman", Times, serif',
+      fontSizeValue: '16px',
+      lineHeight: 1.6,
+      color: '#112233',
+    },
   };
 
   try {
@@ -494,15 +499,39 @@ test('ProseMirrorEditor syncs default font-size from editorDraftStyleStore', asy
       const editorRoot = editor.getElement().querySelector('.pm-editor-root');
       assert(editorRoot instanceof HTMLElement);
       assert.equal(
-        editorRoot.style.getPropertyValue('--ls-editor-default-font-size').trim(),
-        catalogSnapshot.defaultFontSizeValue,
+        editorRoot.style.getPropertyValue('--ls-editor-default-font-family').trim(),
+        catalogSnapshot.defaultBodyStyle.fontFamilyValue,
       );
-
-      editorDraftStyleStore.setSnapshot(updatedSnapshot);
-
       assert.equal(
         editorRoot.style.getPropertyValue('--ls-editor-default-font-size').trim(),
-        updatedSnapshot.defaultFontSizeValue,
+        catalogSnapshot.defaultBodyStyle.fontSizeValue,
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-line-height').trim(),
+        String(catalogSnapshot.defaultBodyStyle.lineHeight),
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-color').trim(),
+        catalogSnapshot.defaultBodyStyle.color,
+      );
+
+      editorDraftStyleService.setSnapshot(updatedSnapshot);
+
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-font-family').trim(),
+        updatedSnapshot.defaultBodyStyle.fontFamilyValue,
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-font-size').trim(),
+        updatedSnapshot.defaultBodyStyle.fontSizeValue,
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-line-height').trim(),
+        String(updatedSnapshot.defaultBodyStyle.lineHeight),
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-color').trim(),
+        updatedSnapshot.defaultBodyStyle.color,
       );
 
       const fontSizePrimary = Array.from(
@@ -510,13 +539,84 @@ test('ProseMirrorEditor syncs default font-size from editorDraftStyleStore', asy
           '.editor-draft-toolbar-split-primary.actionbar-action.is-text',
         ),
       ).find(
-        (candidate) => candidate.getAttribute('aria-label') === updatedSnapshot.defaultFontSizePresetName,
+        (candidate) => candidate.getAttribute('aria-label') === '小四',
       );
       assert(fontSizePrimary instanceof HTMLButtonElement);
-      assert.equal(fontSizePrimary.textContent?.trim(), updatedSnapshot.defaultFontSizePresetName);
+      assert.equal(fontSizePrimary.textContent?.trim(), '小四');
     });
   } finally {
-    editorDraftStyleStore.resetToCatalog();
+    editorDraftStyleService.resetToCatalog();
+  }
+});
+
+test('DraftEditorToolbar uses DengXian as the implicit default font and hides Default menu item', () => {
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      isUnderlineActive: false,
+      fontFamily: null,
+      fontSize: null,
+      textAlign: 'left',
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: false,
+      canRedo: false,
+      availableFigureIds: [],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      toggleUnderline: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      setTextAlign: () => {},
+      clearInlineStyles: () => {},
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {},
+      undo: () => {},
+      redo: () => {},
+      insertCitation: () => {},
+      insertFigure: () => {},
+      insertFigureRef: () => {},
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const fontFamilyPrimary = Array.from(
+      toolbar.getElement().querySelectorAll<HTMLButtonElement>(
+        '.editor-draft-toolbar-split-primary.actionbar-action.is-text',
+      ),
+    ).find((candidate) => candidate.getAttribute('aria-label') === '等线');
+    assert(fontFamilyPrimary instanceof HTMLButtonElement);
+    assert.equal(fontFamilyPrimary.textContent?.trim(), '等线');
+
+    const splitDropdowns = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-split-dropdown');
+    const fontFamilyDropdown = Array.from(splitDropdowns).find(
+      (candidate) => candidate.getAttribute('aria-label') === labels.fontFamily,
+    );
+    assert(fontFamilyDropdown instanceof HTMLElement);
+    fontFamilyDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const menuItems = Array.from(document.body.querySelectorAll('.dropdown-menu-item'));
+    const menuItemLabels = menuItems
+      .map((item) => item.textContent?.trim())
+      .filter((value): value is string => Boolean(value));
+
+    assert.equal(menuItemLabels.includes('Default'), false);
+    assert.equal(menuItemLabels.includes('等线'), true);
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
   }
 });
 

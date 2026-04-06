@@ -1,9 +1,18 @@
 import {
-  DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
-  DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
+  areEditorDraftStyleSettingsEqual,
+  createDefaultEditorDraftStyleSettings,
+  normalizeEditorDraftStyleSettings,
+  type EditorDraftStyleSettings,
+} from 'ls/base/common/editorDraftStyle';
+import {
   EDITOR_NAMED_FONT_SIZE_PRESETS,
 } from 'ls/base/common/editorFormat';
-import type { EditorNamedFontSizeName } from 'ls/base/common/editorFormat';
+
+export type {
+  EditorDraftDefaultBodyStyle,
+  EditorDraftInlineStyleDefaults,
+  EditorDraftStyleSettings,
+} from 'ls/base/common/editorDraftStyle';
 
 export type EditorDraftStyleOption = {
   value: string;
@@ -11,9 +20,7 @@ export type EditorDraftStyleOption = {
   title?: string;
 };
 
-export type EditorDraftStyleCatalogSnapshot = {
-  defaultFontSizePresetName: EditorNamedFontSizeName;
-  defaultFontSizeValue: string;
+export type EditorDraftStyleCatalogSnapshot = EditorDraftStyleSettings & {
   fontFamilyPresets: readonly EditorDraftStyleOption[];
   fontSizePresets: readonly EditorDraftStyleOption[];
 };
@@ -31,14 +38,48 @@ function freezeEditorDraftStyleOptions(
   );
 }
 
-export function normalizeEditorDraftStyleCatalogSnapshot(
-  snapshot: EditorDraftStyleCatalogSnapshot,
-): EditorDraftStyleCatalogSnapshot {
+function freezeEditorDraftDefaultBodyStyle(
+  defaultBodyStyle: EditorDraftDefaultBodyStyle,
+): Readonly<EditorDraftDefaultBodyStyle> {
   return Object.freeze({
-    defaultFontSizePresetName: snapshot.defaultFontSizePresetName,
-    defaultFontSizeValue: snapshot.defaultFontSizeValue,
-    fontFamilyPresets: freezeEditorDraftStyleOptions(snapshot.fontFamilyPresets),
-    fontSizePresets: freezeEditorDraftStyleOptions(snapshot.fontSizePresets),
+    fontFamilyValue: defaultBodyStyle.fontFamilyValue,
+    fontSizeValue: defaultBodyStyle.fontSizeValue,
+    lineHeight: defaultBodyStyle.lineHeight,
+    color: defaultBodyStyle.color,
+    inlineStyleDefaults: Object.freeze({
+      bold: defaultBodyStyle.inlineStyleDefaults.bold,
+      italic: defaultBodyStyle.inlineStyleDefaults.italic,
+      underline: defaultBodyStyle.inlineStyleDefaults.underline,
+    }),
+  });
+}
+
+export function normalizeEditorDraftStyleCatalogSnapshot(
+  snapshot: EditorDraftStyleSettings | EditorDraftStyleCatalogSnapshot,
+): EditorDraftStyleCatalogSnapshot {
+  const normalizedSettings = normalizeEditorDraftStyleSettings(snapshot);
+  const defaultBodyStyle = normalizedSettings.defaultBodyStyle;
+  const fontFamilyPresets =
+    'fontFamilyPresets' in snapshot ? snapshot.fontFamilyPresets : EDITOR_DRAFT_FONT_FAMILY_PRESETS;
+  const fontSizePresets =
+    'fontSizePresets' in snapshot ? snapshot.fontSizePresets : EDITOR_DRAFT_FONT_SIZE_PRESETS;
+
+  const normalizedDefaultBodyStyle = freezeEditorDraftDefaultBodyStyle({
+    fontFamilyValue: defaultBodyStyle.fontFamilyValue,
+    fontSizeValue: defaultBodyStyle.fontSizeValue,
+    lineHeight: defaultBodyStyle.lineHeight,
+    color: defaultBodyStyle.color,
+    inlineStyleDefaults: {
+      bold: defaultBodyStyle.inlineStyleDefaults.bold,
+      italic: defaultBodyStyle.inlineStyleDefaults.italic,
+      underline: defaultBodyStyle.inlineStyleDefaults.underline,
+    },
+  });
+
+  return Object.freeze({
+    defaultBodyStyle: normalizedDefaultBodyStyle,
+    fontFamilyPresets: freezeEditorDraftStyleOptions(fontFamilyPresets),
+    fontSizePresets: freezeEditorDraftStyleOptions(fontSizePresets),
   });
 }
 
@@ -64,8 +105,7 @@ export function areEditorDraftStyleCatalogSnapshotsEqual(
   next: EditorDraftStyleCatalogSnapshot,
 ) {
   return (
-    previous.defaultFontSizePresetName === next.defaultFontSizePresetName &&
-    previous.defaultFontSizeValue === next.defaultFontSizeValue &&
+    areEditorDraftStyleSettingsEqual(previous, next) &&
     areEditorDraftStyleOptionsEqual(previous.fontFamilyPresets, next.fontFamilyPresets) &&
     areEditorDraftStyleOptionsEqual(previous.fontSizePresets, next.fontSizePresets)
   );
@@ -138,8 +178,7 @@ const EDITOR_DRAFT_FONT_SIZE_PRESETS: readonly EditorDraftStyleOption[] = freeze
 );
 
 const EDITOR_DRAFT_STYLE_CATALOG_SNAPSHOT: EditorDraftStyleCatalogSnapshot = normalizeEditorDraftStyleCatalogSnapshot({
-  defaultFontSizePresetName: DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
-  defaultFontSizeValue: DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
+  ...createDefaultEditorDraftStyleSettings(),
   fontFamilyPresets: EDITOR_DRAFT_FONT_FAMILY_PRESETS,
   fontSizePresets: EDITOR_DRAFT_FONT_SIZE_PRESETS,
 });

@@ -2,6 +2,7 @@ import type {
   ContextMenuPopupEvent,
   ContextMenuPopupPayload,
 } from 'ls/base/parts/contextmenu/common/contextmenu';
+import type { EditorDraftStyleSettings } from 'ls/base/common/editorDraftStyle';
 
 export type Locale = 'zh' | 'en';
 export type AppTheme = 'light' | 'dark';
@@ -121,6 +122,7 @@ export interface StoredAppSettings {
   theme: AppTheme;
   'workbench.colorCustomizations': ThemeColorCustomizations;
   locale: Locale;
+  editorDraftStyle: EditorDraftStyleSettings;
   llm: LlmSettings;
   translation: TranslationSettings;
   knowledgeBase: KnowledgeBaseSettings;

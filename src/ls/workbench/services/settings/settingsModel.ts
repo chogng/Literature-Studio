@@ -10,6 +10,12 @@ import type {
   TranslationProviderId,
   TranslationProviderSettings,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import {
+  areEditorDraftStyleSettingsEqual,
+  cloneEditorDraftStyleSettings,
+  createDefaultEditorDraftStyleSettings,
+  type EditorDraftStyleSettings,
+} from 'ls/base/common/editorDraftStyle';
 import { EventEmitter } from 'ls/base/common/event';
 import type { Locale } from 'language/i18n';
 import { defaultBatchLimit, defaultSameDomainOnly } from 'ls/workbench/services/config/configSchema';
@@ -57,6 +63,7 @@ export type SettingsModelSnapshot = {
   useMica: boolean;
   theme: AppTheme;
   workbenchColorCustomizations: ThemeColorCustomizations;
+  editorDraftStyle: EditorDraftStyleSettings;
   knowledgeBaseEnabled: boolean;
   autoIndexDownloadedPdf: boolean;
   libraryStorageMode: LibraryStorageMode;
@@ -129,6 +136,7 @@ function areSettingsModelSnapshotsEqual(
     previous.statusbarVisible === next.statusbarVisible &&
     previous.useMica === next.useMica &&
     previous.theme === next.theme &&
+    areEditorDraftStyleSettingsEqual(previous.editorDraftStyle, next.editorDraftStyle) &&
     previous.knowledgeBaseEnabled === next.knowledgeBaseEnabled &&
     previous.autoIndexDownloadedPdf === next.autoIndexDownloadedPdf &&
     previous.libraryStorageMode === next.libraryStorageMode &&
@@ -172,6 +180,7 @@ function createInitialSettingsModelSnapshot(
     useMica: true,
     theme: 'light',
     workbenchColorCustomizations: {},
+    editorDraftStyle: createDefaultEditorDraftStyleSettings(),
     knowledgeBaseEnabled: defaultKnowledgeBaseSettings.enabled,
     autoIndexDownloadedPdf: defaultKnowledgeBaseSettings.autoIndexDownloadedPdf,
     libraryStorageMode: defaultKnowledgeBaseSettings.libraryStorageMode,
@@ -283,6 +292,19 @@ export class SettingsModel {
       ...snapshot,
       theme,
     }));
+  };
+
+  readonly setEditorDraftStyle = (editorDraftStyle: EditorDraftStyleSettings) => {
+    this.updateSnapshot((snapshot) => {
+      if (areEditorDraftStyleSettingsEqual(snapshot.editorDraftStyle, editorDraftStyle)) {
+        return snapshot;
+      }
+
+      return {
+        ...snapshot,
+        editorDraftStyle: cloneEditorDraftStyleSettings(editorDraftStyle),
+      };
+    });
   };
 
   readonly setKnowledgeBaseEnabled = (knowledgeBaseEnabled: boolean) => {
@@ -835,6 +857,7 @@ export class SettingsModel {
         useMica: resolved.useMica,
         theme: resolved.theme,
         workbenchColorCustomizations: resolved.workbenchColorCustomizations,
+        editorDraftStyle: cloneEditorDraftStyleSettings(resolved.editorDraftStyle),
         knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
         autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
         libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
@@ -959,6 +982,7 @@ export class SettingsModel {
       useMica,
       theme,
       workbenchColorCustomizations,
+      editorDraftStyle,
       knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       libraryStorageMode,
@@ -986,6 +1010,7 @@ export class SettingsModel {
       useMica,
       theme,
       workbenchColorCustomizations,
+      editorDraftStyle,
       locale,
       knowledgeBase: {
         enabled: knowledgeBaseEnabled,
@@ -1040,6 +1065,7 @@ export class SettingsModel {
       useMica: resolved.useMica,
       theme: resolved.theme,
       workbenchColorCustomizations: resolved.workbenchColorCustomizations,
+      editorDraftStyle: cloneEditorDraftStyleSettings(resolved.editorDraftStyle),
       knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
       autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
       libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,
@@ -1078,6 +1104,7 @@ export class SettingsModel {
       useMica,
       theme,
       workbenchColorCustomizations,
+      editorDraftStyle,
       knowledgeBaseEnabled,
       autoIndexDownloadedPdf,
       libraryStorageMode,
@@ -1105,6 +1132,7 @@ export class SettingsModel {
       useMica,
       theme,
       workbenchColorCustomizations,
+      editorDraftStyle,
       locale,
       knowledgeBase: {
         enabled: knowledgeBaseEnabled,
@@ -1161,6 +1189,7 @@ export class SettingsModel {
         useMica: resolved.useMica,
         theme: resolved.theme,
         workbenchColorCustomizations: resolved.workbenchColorCustomizations,
+        editorDraftStyle: cloneEditorDraftStyleSettings(resolved.editorDraftStyle),
         knowledgeBaseEnabled: resolved.knowledgeBase.enabled,
         autoIndexDownloadedPdf: resolved.knowledgeBase.autoIndexDownloadedPdf,
         libraryStorageMode: resolved.knowledgeBase.libraryStorageMode,

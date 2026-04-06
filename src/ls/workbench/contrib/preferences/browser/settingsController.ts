@@ -4,6 +4,8 @@ import type {
   ElectronInvoke,
   LlmProviderId,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { cloneEditorDraftStyleSettings } from 'ls/base/common/editorDraftStyle';
+import { editorDraftStyleService } from 'ls/editor/browser/text/editorDraftStyleService';
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
 import {
@@ -42,6 +44,8 @@ export class SettingsController {
   private context: SettingsControllerContext;
   private readonly settingsModel: SettingsModel;
   private autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private disposeEditorDraftStyleSubscription: (() => void) | null = null;
+  private isApplyingLoadedEditorDraftStyle = false;
   private started = false;
   private disposed = false;
   private loadSequence = 0;
@@ -67,6 +71,9 @@ export class SettingsController {
     }
 
     this.started = true;
+    this.disposeEditorDraftStyleSubscription = editorDraftStyleService.subscribe(
+      this.handleEditorDraftStyleChange,
+    );
     void this.loadSettings();
   };
 
@@ -77,6 +84,8 @@ export class SettingsController {
       this.flushAutoSave();
     }
 
+    this.disposeEditorDraftStyleSubscription?.();
+    this.disposeEditorDraftStyleSubscription = null;
     this.disposed = true;
   };
 
@@ -465,6 +474,15 @@ export class SettingsController {
       if (this.disposed || loadSequence !== this.loadSequence) {
         return;
       }
+
+      this.isApplyingLoadedEditorDraftStyle = true;
+      try {
+        editorDraftStyleService.setSnapshot(
+          cloneEditorDraftStyleSettings(this.settingsModel.getSnapshot().editorDraftStyle),
+        );
+      } finally {
+        this.isApplyingLoadedEditorDraftStyle = false;
+      }
     } catch (loadError) {
       if (this.disposed || loadSequence !== this.loadSequence) {
         return;
@@ -476,6 +494,17 @@ export class SettingsController {
         formatLocalized(ui.toastLoadSettingsFailed, { error: localizedError }),
       );
     }
+  };
+
+  private readonly handleEditorDraftStyleChange = () => {
+    if (this.disposed || this.isApplyingLoadedEditorDraftStyle) {
+      return;
+    }
+
+    this.settingsModel.setEditorDraftStyle(
+      cloneEditorDraftStyleSettings(editorDraftStyleService.getSnapshot()),
+    );
+    this.scheduleDebouncedAutoSave();
   };
 
   private flushAutoSave = () => {
