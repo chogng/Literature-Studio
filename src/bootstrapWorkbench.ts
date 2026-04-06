@@ -268,11 +268,11 @@ export function renderWorkbenchBootstrapError(
   );
   heading.setAttribute(
     'style',
-    'margin:0;font:600 18px/1.3 "IBM Plex Sans","PingFang SC","Noto Sans CJK SC",sans-serif;',
+    'margin:0;font:600 18px/1.3 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans CJK SC",sans-serif;',
   );
   summary.setAttribute(
     'style',
-    'margin:0;color:#506070;font:13px/1.5 "IBM Plex Sans","PingFang SC","Noto Sans CJK SC",sans-serif;',
+    'margin:0;color:#506070;font:13px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans CJK SC",sans-serif;',
   );
   pre.setAttribute(
     'style',

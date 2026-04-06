@@ -51,7 +51,6 @@
   --inputbox-border-radius: 7px;
   --inputbox-foreground: var(--vscode-agentBar-inputForeground, #1f2d3a);
   --inputbox-padding-x: 10px;
-  --inputbox-font-size: 12px;
   width: 100%;
 }
 

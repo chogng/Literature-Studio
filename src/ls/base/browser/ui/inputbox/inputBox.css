@@ -1,6 +1,5 @@
 .inputbox {
   --inputbox-height: 28px;
-  --inputbox-line-height: var(--inputbox-height);
   --inputbox-border-radius: 6px;
   --inputbox-border: 0;
   --inputbox-background: transparent;
@@ -9,7 +8,7 @@
   --inputbox-placeholder-foreground: var(--vscode-input-placeholderForeground, #94a3b8);
   --inputbox-padding-y: 4px;
   --inputbox-padding-x: 8px;
-  --inputbox-font-size: 15px;
+  --inputbox-font-size: 12px;
   --inputbox-text-align: left;
   position: relative;
   width: 100%;
@@ -29,6 +28,7 @@
   display: flex;
   align-items: center;
   width: 100%;
+  height: 100%;
 }
 
 .inputbox > .ibwrapper > .input {
@@ -39,7 +39,7 @@
   background: transparent;
   color: var(--inputbox-foreground);
   font: inherit;
-  line-height: var(--inputbox-line-height);
+  line-height: normal;
   font-size: var(--inputbox-font-size);
   text-align: var(--inputbox-text-align);
   outline: none;

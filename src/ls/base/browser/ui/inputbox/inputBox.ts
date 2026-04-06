@@ -1,8 +1,4 @@
 import 'ls/base/browser/ui/inputbox/inputBox.css';
-import {
-  getHoverService,
-  type HoverHandle,
-} from 'ls/base/browser/ui/hover/hover';
 import { EventEmitter } from 'ls/base/common/event';
 import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 
@@ -30,7 +26,6 @@ function addDisposableListener<K extends keyof HTMLElementEventMap>(
 export class InputBox extends LifecycleOwner {
   readonly element: HTMLElement;
   readonly inputElement: HTMLInputElement;
-  private readonly hoverController: HoverHandle;
   private readonly changeEmitter = new EventEmitter<string>();
   private placeholder = '';
   private tooltip = '';
@@ -58,8 +53,6 @@ export class InputBox extends LifecycleOwner {
     wrapper.append(this.inputElement);
     this.element.append(wrapper);
     container.append(this.element);
-    this.hoverController = getHoverService().createHover(this.element, null);
-    this.register(this.hoverController);
     this.register(this.changeEmitter);
 
     if (options.ariaLabel) {
@@ -139,7 +132,6 @@ export class InputBox extends LifecycleOwner {
   }
 
   private syncHover() {
-    this.hoverController.update(this.tooltip || this.placeholder || null);
     this.element.removeAttribute('title');
   }
 }

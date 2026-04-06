@@ -306,8 +306,8 @@ export const inputForeground = registerColor('input.foreground', {
 });
 
 export const inputPlaceholderForeground = registerColor('input.placeholderForeground', {
-  dark: '#7f92a5',
-  light: '#94a3b8',
+  dark: '#bababa',
+  light: '#bababa',
 });
 
 export const listActiveSelectionBackground = registerColor('list.activeSelectionBackground', {

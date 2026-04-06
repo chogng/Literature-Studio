@@ -230,7 +230,7 @@
     "modal.titleForeground": "#d7e1ea",
     "input.background": "#1f2a35",
     "input.foreground": "#d7e1ea",
-    "input.placeholderForeground": "#7f92a5",
+    "input.placeholderForeground": "#bababa",
     "list.activeSelectionBackground": "#22344a",
     "list.focusOutline": "#5aa9ff",
     "tree.activeSelectionBackground": "#22344a",
