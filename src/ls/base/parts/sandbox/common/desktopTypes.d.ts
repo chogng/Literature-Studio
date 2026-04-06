@@ -753,6 +753,11 @@ export interface ElectronWebContentApi {
   reload: (targetId?: string | null) => void;
   goBack: (targetId?: string | null) => void;
   goForward: (targetId?: string | null) => void;
+  executeJavaScript?: <T = unknown>(
+    targetId: string | null | undefined,
+    script: string,
+    timeoutMs?: number,
+  ) => Promise<T | null>;
   getSelection: (targetId?: string | null) => Promise<WebContentSelectionSnapshot | null>;
   onStateChange: (listener: (state: WebContentState) => void) => () => void;
   onBridgeCommand?: (listener: (command: WebContentBridgeCommand) => void) => () => void;

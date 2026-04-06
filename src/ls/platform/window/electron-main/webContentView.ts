@@ -1520,6 +1520,15 @@ async function executeWebContentScript<T>(
   );
 }
 
+export async function executeWebContentTargetScript<T>(
+  targetId: string | null | undefined,
+  script: string,
+  options: WebContentDocumentSnapshotOptions = {},
+): Promise<T | null> {
+  const result = await executeWebContentScriptForTarget<T>(targetId, script, options);
+  return result === webContentDocumentSnapshotTimedOut ? null : result;
+}
+
 function normalizeWebContentListingCandidateSeeds(value: unknown): ListingCandidateSeed[] {
   if (!Array.isArray(value)) return [];
 

@@ -51,6 +51,52 @@ Non-responsibilities:
 3. Workbench parts must prefer CSS custom properties over selector-specificity overrides.
 4. If a workbench part must target a shared component's internal selector directly, treat that as a missing extension point and fix the base component.
 5. Use the narrowest stable token scope that matches the business requirement.
+6. For multi-row or multi-slot surfaces, bind layout tracks to explicit slots instead of relying on auto-placement after siblings are hidden.
+7. Use DOM state such as `hidden` or explicit state classes for visibility changes. Do not mix visibility behavior across `:empty`, inline `style.display`, and implicit grid/flex auto-placement.
+
+## Naming Guidance
+
+- Prefer `*Frame` for bounded workbench surfaces that own slots or layout tracks.
+- Reserve `*Shell` for true app-level or window-level orchestration, not routine surface wrappers.
+- A `frame` may own slots, top-level track layout, visibility state, and high-level surface chrome.
+- Prefer more specific names for inner layers:
+  `*Pane` for a mode-specific surface,
+  `*Host` for a mounted child root or scroll content host,
+  `*Root` for the primary content root,
+  `*Toolbar` for command chrome,
+  `*Scrollable` for the element that owns scrolling.
+
+## Applied To Editor Frame
+
+The editor surface is a good example of where `frame` is clearer than `shell`.
+
+`EditorGroupView` owns the outer editor frame:
+- `editor-frame`
+- `editor-topbar`
+- `editor-toolbar`
+- `editor-content`
+
+That frame may define explicit slots such as:
+- `data-editor-frame-slot='topbar'`
+- `data-editor-frame-slot='toolbar'`
+- `data-editor-frame-slot='content'`
+
+Rules for this frame:
+- The frame owns grid rows and slot placement.
+- The frame must keep content in the `1fr` track even when the toolbar is hidden.
+- Hidden toolbar state must be expressed through `hidden` or an explicit frame-owned class, not by depending on DOM emptiness.
+- Mode panes such as draft or source live inside `editor-content`; they do not own the frame grid.
+
+Inside the writing editor, `pm-editor-surface` is the outer writing surface container, while:
+- `pm-editor-scrollable` owns the scroll container.
+- `pm-editor-host` owns the mounted scroll content host.
+- `pm-editor-root` owns the editor content root.
+- `.ProseMirror` owns the editable document surface.
+
+This split keeps responsibilities stable:
+- surface container: high-level height distribution
+- scrollable/host: scrolling and scroll content sizing
+- root/document: actual editor content layout
 
 ## Applied To `Pane`
 
@@ -72,3 +118,8 @@ Part-specific header spacing, such as the `primarybar` library pane needing `8px
 - Is variation expressed through a token or explicit option?
 - Is the workbench part only setting tokens or its own surface styles?
 - Did we avoid solving the issue with selector escalation alone?
+
+## Related Docs
+
+- `docs/editor-architecture-roadmap.md` defines the long-term editor input, pane, group, and view-state architecture.
+- This document stays focused on DOM ownership, slot layout, and styling boundaries.

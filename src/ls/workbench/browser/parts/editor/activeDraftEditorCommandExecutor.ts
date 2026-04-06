@@ -1,7 +1,7 @@
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import { DraftEditorPane } from 'ls/workbench/browser/parts/editor/panes/draftEditorPane';
-import type { EditorPaneRenderer } from 'ls/workbench/browser/parts/editor/panes/editorPaneRegistry';
+import type { AnyEditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPane';
 
 export type DraftEditorSurfaceActionId = 'undo' | 'redo';
 
@@ -13,40 +13,40 @@ export type ActiveDraftEditorCommandExecutor = {
 };
 
 export function createActiveDraftEditorCommandExecutor(
-  getActivePaneRenderer: () => EditorPaneRenderer | null,
+  getActivePane: () => AnyEditorPane | null,
 ): ActiveDraftEditorCommandExecutor {
   return {
     execute(commandId) {
-      const activePaneRenderer = getActivePaneRenderer();
-      if (!(activePaneRenderer instanceof DraftEditorPane)) {
+      const activePane = getActivePane();
+      if (!(activePane instanceof DraftEditorPane)) {
         return false;
       }
 
-      return activePaneRenderer.executeCommand(commandId);
+      return activePane.executeCommand(commandId);
     },
     canExecute(commandId) {
-      const activePaneRenderer = getActivePaneRenderer();
-      if (!(activePaneRenderer instanceof DraftEditorPane)) {
+      const activePane = getActivePane();
+      if (!(activePane instanceof DraftEditorPane)) {
         return false;
       }
 
-      return activePaneRenderer.canExecuteCommand(commandId);
+      return activePane.canExecuteCommand(commandId);
     },
     runAction(actionId) {
-      const activePaneRenderer = getActivePaneRenderer();
-      if (!(activePaneRenderer instanceof DraftEditorPane)) {
+      const activePane = getActivePane();
+      if (!(activePane instanceof DraftEditorPane)) {
         return false;
       }
 
-      return activePaneRenderer.executeEditorAction(actionId);
+      return activePane.executeEditorAction(actionId);
     },
     getStableSelectionTarget() {
-      const activePaneRenderer = getActivePaneRenderer();
-      if (!(activePaneRenderer instanceof DraftEditorPane)) {
+      const activePane = getActivePane();
+      if (!(activePane instanceof DraftEditorPane)) {
         return null;
       }
 
-      return activePaneRenderer.getStableSelectionTarget();
+      return activePane.getStableSelectionTarget();
     },
   };
 }

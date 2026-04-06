@@ -1,37 +1,56 @@
 import { createEmptyWritingEditorDocument, normalizeWritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
+import {
+  createWritingBrowserEditorInput,
+  createWritingDraftEditorInput,
+  createWritingPdfEditorInput,
+  getWritingContentInputTitle,
+  isWritingBrowserEditorInput,
+  isWritingDraftEditorInput,
+  isWritingPdfEditorInput,
+  normalizeWritingEditorInput,
+  toWritingEditorInput,
+} from 'ls/workbench/browser/editorInput';
 import { createWritingLiveDraftState } from 'ls/workbench/browser/writingEditorLiveState';
-import { createWritingEditorStorage } from 'ls/workbench/browser/writingEditorStorage';
+import {
+  createWritingEditorStorage,
+} from 'ls/workbench/browser/writingEditorStorage';
+import type { StoredWritingWorkspaceState } from 'ls/workbench/browser/writingEditorStorage';
+import {
+  createEditorGroupId,
+  DEFAULT_EDITOR_GROUP_ID,
+  normalizeEditorGroupId,
+} from 'ls/workbench/browser/editorGroupIdentity';
+import {
+  normalizeSerializedEditorViewStateEntries,
+} from 'ls/workbench/browser/parts/editor/editorViewStateStore';
+import type {
+  EditorViewStateKey,
+  SerializedEditorViewStateEntry,
+} from 'ls/workbench/browser/parts/editor/editorViewStateStore';
 
 export type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
-
-export type WritingEditorViewMode = 'draft';
-
-export type WritingWorkspaceDraftTab = {
-  id: string;
-  kind: 'draft';
-  title: string;
-  document: WritingEditorDocument;
-  viewMode: WritingEditorViewMode;
-};
-
-export type WritingWorkspaceBrowserTab = {
-  id: string;
-  kind: 'browser';
-  title: string;
-  url: string;
-};
-
-export type WritingWorkspacePdfTab = {
-  id: string;
-  kind: 'pdf';
-  title: string;
-  url: string;
-};
+export type {
+  WritingDraftEditorInput,
+  WritingEditorInput,
+  WritingEditorViewMode,
+} from 'ls/workbench/browser/editorInput';
+import type {
+  WritingBrowserEditorInput,
+  WritingDraftEditorInput,
+  WritingEditorInput,
+  WritingPdfEditorInput,
+} from 'ls/workbench/browser/editorInput';
 
 // Content tabs only store editor input metadata. The active content tab temporarily owns one shared
 // web-content surface instead of spawning a dedicated browser/view instance per tab.
+export type WritingWorkspaceDraftTab = WritingDraftEditorInput & {
+  document: WritingEditorDocument;
+};
+
+export type WritingWorkspaceBrowserTab = WritingBrowserEditorInput;
+export type WritingWorkspacePdfTab = WritingPdfEditorInput;
 export type WritingWorkspaceContentTab =
   | WritingWorkspaceBrowserTab
   | WritingWorkspacePdfTab;
@@ -40,39 +59,54 @@ export type WritingWorkspaceTab =
   | WritingWorkspaceDraftTab
   | WritingWorkspaceContentTab;
 
-export type WritingWorkspaceState = {
+export type WritingEditorGroupState = {
+  groupId: string;
   tabs: WritingWorkspaceTab[];
   activeTabId: string | null;
   mruTabIds: string[];
 };
 
+export type WritingWorkspaceState = {
+  groups: WritingEditorGroupState[];
+  activeGroupId: string | null;
+  viewStateEntries: SerializedEditorViewStateEntry[];
+};
+
 export type WritingEditorModelSnapshot = {
+  groups: WritingEditorGroupState[];
+  activeGroupId: string;
+  groupId: string;
   tabs: WritingWorkspaceTab[];
   activeTabId: string | null;
   mruTabIds: string[];
   activeTab: WritingWorkspaceTab | null;
+  viewStateEntries: SerializedEditorViewStateEntry[];
+};
+
+export type WritingEditorGroupTarget = {
+  groupId?: string;
+  activateGroup?: boolean;
 };
 
 type WritingEditorModelListener = () => void;
 
-const DEFAULT_VIEW_MODE: WritingEditorViewMode = 'draft';
-
-function createWorkspaceTabId(prefix: 'draft' | 'browser' | 'pdf') {
-  const randomPart = Math.random().toString(36).slice(2, 8);
-  return `ls-${prefix}-tab-${Date.now().toString(36)}-${randomPart}`;
-}
+type ResolvedWritingEditorGroupTarget = {
+  groupId: string;
+  activateGroup: boolean;
+};
 
 function createDraftTab(
   initial?: Partial<Pick<WritingWorkspaceDraftTab, 'id' | 'title' | 'document' | 'viewMode'>>,
 ): WritingWorkspaceDraftTab {
   return {
-    id: initial?.id ?? createWorkspaceTabId('draft'),
-    kind: 'draft',
-    title: initial?.title ?? '',
+    ...createWritingDraftEditorInput({
+      id: initial?.id,
+      title: initial?.title,
+      viewMode: initial?.viewMode,
+    }),
     document: normalizeWritingEditorDocument(
       initial?.document ?? createEmptyWritingEditorDocument(),
     ),
-    viewMode: initial?.viewMode === 'draft' ? initial.viewMode : DEFAULT_VIEW_MODE,
   };
 }
 
@@ -80,100 +114,43 @@ function createNormalizedDocumentKey(document: WritingEditorDocument) {
   return JSON.stringify(normalizeWritingEditorDocument(document));
 }
 
-function getContentTabTitle(url: string) {
-  if (!url.trim()) {
-    return '';
-  }
-
-  try {
-    const parsedUrl = new URL(url);
-    const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
-    const lastPathSegment = pathSegments[pathSegments.length - 1];
-    return lastPathSegment
-      ? `${parsedUrl.hostname}/${lastPathSegment}`
-      : parsedUrl.hostname;
-  } catch {
-    return url;
-  }
-}
-
-function createContentTab<K extends WritingWorkspaceContentTab['kind']>(
-  kind: K,
-  url: string,
-  initial?: Partial<Pick<Extract<WritingWorkspaceContentTab, { kind: K }>, 'id' | 'title'>>,
-): Extract<WritingWorkspaceContentTab, { kind: K }> {
-  const normalizedUrl = url.trim();
-
-  return {
-    id: initial?.id ?? createWorkspaceTabId(kind),
-    kind,
-    title: initial?.title?.trim() || getContentTabTitle(normalizedUrl),
-    url: normalizedUrl,
-  } as Extract<WritingWorkspaceContentTab, { kind: K }>;
-}
-
 function createBrowserTab(
   url: string,
-  initial?: Partial<Pick<WritingWorkspaceBrowserTab, 'id' | 'title'>>,
-): WritingWorkspaceBrowserTab {
-  return createContentTab('browser', url, initial);
+  initial?: Partial<Pick<WritingBrowserEditorInput, 'id' | 'title'>>,
+): WritingBrowserEditorInput {
+  return createWritingBrowserEditorInput(url, initial);
 }
 
 function createPdfTab(
   url: string,
-  initial?: Partial<Pick<WritingWorkspacePdfTab, 'id' | 'title'>>,
-): WritingWorkspacePdfTab {
-  return createContentTab('pdf', url, initial);
+  initial?: Partial<Pick<WritingPdfEditorInput, 'id' | 'title'>>,
+): WritingPdfEditorInput {
+  return createWritingPdfEditorInput(url, initial);
 }
 
 function normalizeWorkspaceTab(value: unknown): WritingWorkspaceTab | null {
-  const candidate = value as Partial<WritingWorkspaceTab> | null | undefined;
-  const rawCandidate = value as { kind?: unknown; url?: unknown } | null | undefined;
-  const legacyKind = rawCandidate?.kind;
-  if (!candidate || typeof candidate !== 'object' || typeof candidate.id !== 'string') {
+  const candidate = value as Partial<WritingWorkspaceDraftTab> | null | undefined;
+  const normalizedInput = normalizeWritingEditorInput(value);
+  if (!candidate || typeof candidate !== 'object' || !normalizedInput) {
     return null;
   }
 
-  if (candidate.kind === 'draft') {
+  if (isWritingDraftEditorInput(normalizedInput)) {
     return createDraftTab({
-      id: candidate.id,
-      title: typeof candidate.title === 'string' ? candidate.title : '',
+      id: normalizedInput.id,
+      title: normalizedInput.title,
       document: candidate.document,
-      viewMode: candidate.viewMode,
+      viewMode: normalizedInput.viewMode,
     });
   }
 
-  if (
-    (candidate.kind === 'browser' || legacyKind === 'web') &&
-    typeof rawCandidate?.url === 'string'
-  ) {
-    return createBrowserTab(rawCandidate.url, {
-      id: candidate.id,
-      title: typeof candidate.title === 'string' ? candidate.title : '',
-    });
-  }
-
-  if (candidate.kind === 'pdf' && typeof candidate.url === 'string') {
-    return createPdfTab(candidate.url, {
-      id: candidate.id,
-      title: typeof candidate.title === 'string' ? candidate.title : '',
-    });
-  }
-
-  return null;
+  return normalizedInput;
 }
 
-function toUniqueIds(values: ReadonlyArray<string>) {
-  return Array.from(new Set(values));
-}
-
-function touchMruTab(mruTabIds: ReadonlyArray<string>, tabId: string) {
-  return [tabId, ...mruTabIds.filter((value) => value !== tabId)];
-}
-
-function normalizeWorkspaceState(
-  state: WritingWorkspaceState,
-): WritingWorkspaceState {
+function normalizeEditorGroupState(
+  state: WritingEditorGroupState,
+): WritingEditorGroupState {
+  const normalizedGroupId = normalizeEditorGroupId(state.groupId);
   const tabs = state.tabs;
   const tabIdSet = new Set(tabs.map((tab) => tab.id));
   const normalizedMruTabIds = toUniqueIds(
@@ -188,11 +165,124 @@ function normalizeWorkspaceState(
       : normalizedMruTabIds[0] ?? tabs[0]?.id ?? null;
 
   return {
+    groupId: normalizedGroupId,
     tabs,
     activeTabId,
     mruTabIds: activeTabId
       ? touchMruTab(normalizedMruTabIds, activeTabId)
       : normalizedMruTabIds,
+  };
+}
+
+type StoredDraftState = Partial<
+  Pick<WritingWorkspaceDraftTab, 'title' | 'document' | 'viewMode'>
+>;
+
+function normalizeStoredDraftState(value: unknown): StoredDraftState | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as Partial<WritingWorkspaceDraftTab>;
+  return {
+    title: typeof candidate.title === 'string' ? candidate.title : undefined,
+    document: candidate.document,
+    viewMode: candidate.viewMode === 'draft' ? candidate.viewMode : undefined,
+  };
+}
+
+function normalizeStoredDraftStateByInputId(
+  value: StoredWritingWorkspaceState['draftStateByInputId'],
+) {
+  if (!value || typeof value !== 'object') {
+    return {} as Record<string, StoredDraftState>;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([tabId, draftState]) => {
+      const normalizedDraftState = normalizeStoredDraftState(draftState);
+      return normalizedDraftState ? [[tabId, normalizedDraftState]] : [];
+    }),
+  ) as Record<string, StoredDraftState>;
+}
+
+function createWorkspaceTabFromStoredInput(
+  input: WritingEditorInput,
+  draftStateByInputId: Record<string, StoredDraftState>,
+): WritingWorkspaceTab {
+  if (isWritingDraftEditorInput(input)) {
+    const draftState = draftStateByInputId[input.id];
+    return createDraftTab({
+      id: input.id,
+      title: draftState?.title ?? input.title,
+      document: draftState?.document,
+      viewMode: draftState?.viewMode ?? input.viewMode,
+    });
+  }
+
+  return input;
+}
+
+function toUniqueIds(values: ReadonlyArray<string>) {
+  return Array.from(new Set(values));
+}
+
+function touchMruTab(mruTabIds: ReadonlyArray<string>, tabId: string) {
+  return [tabId, ...mruTabIds.filter((value) => value !== tabId)];
+}
+
+function createEmptyEditorGroupState(groupId: string): WritingEditorGroupState {
+  return {
+    groupId: normalizeEditorGroupId(groupId),
+    tabs: [],
+    activeTabId: null,
+    mruTabIds: [],
+  };
+}
+
+function ensureWorkspaceGroup(
+  workspaceState: WritingWorkspaceState,
+  groupId: string,
+): WritingWorkspaceState {
+  const normalizedGroupId = normalizeEditorGroupId(groupId);
+  if (workspaceState.groups.some((group) => group.groupId === normalizedGroupId)) {
+    return workspaceState;
+  }
+
+  return {
+    ...workspaceState,
+    groups: [...workspaceState.groups, createEmptyEditorGroupState(normalizedGroupId)],
+  };
+}
+
+function normalizeWorkspaceState(
+  state: WritingWorkspaceState,
+): WritingWorkspaceState {
+  const normalizedGroups = toUniqueIds(
+    state.groups.map((group) => normalizeEditorGroupId(group.groupId)),
+  ).map((groupId) =>
+    normalizeEditorGroupState(
+      state.groups.find((group) => normalizeEditorGroupId(group.groupId) === groupId) ??
+        createEmptyEditorGroupState(groupId),
+    ),
+  );
+  const groups =
+    normalizedGroups.length > 0
+      ? normalizedGroups
+      : [
+          normalizeEditorGroupState(createEmptyEditorGroupState(DEFAULT_EDITOR_GROUP_ID)),
+        ];
+  const activeGroupId = groups.some((group) => group.groupId === state.activeGroupId)
+    ? (state.activeGroupId as string)
+    : groups[0].groupId;
+  const groupIdSet = new Set(groups.map((group) => group.groupId));
+
+  return {
+    groups,
+    activeGroupId,
+    viewStateEntries: normalizeSerializedEditorViewStateEntries(
+      state.viewStateEntries,
+    ).filter((entry) => groupIdSet.has(entry.key.groupId)),
   };
 }
 
@@ -207,9 +297,16 @@ function migrateLegacyWorkspaceState(
   });
 
   return {
-    tabs: [initialDraftTab],
-    activeTabId: initialDraftTab.id,
-    mruTabIds: [initialDraftTab.id],
+    groups: [
+      {
+        groupId: DEFAULT_EDITOR_GROUP_ID,
+        tabs: [initialDraftTab],
+        activeTabId: initialDraftTab.id,
+        mruTabIds: [initialDraftTab.id],
+      },
+    ],
+    activeGroupId: DEFAULT_EDITOR_GROUP_ID,
+    viewStateEntries: [],
   };
 }
 
@@ -222,65 +319,159 @@ function readStoredWorkspaceState(
   }
 
   try {
-    const tabs = Array.isArray(rawWorkspace.tabs)
-      ? rawWorkspace.tabs
-          .map((tab) => normalizeWorkspaceTab(tab))
-          .filter((tab): tab is WritingWorkspaceTab => Boolean(tab))
-      : [];
-    const activeTabId =
-      typeof rawWorkspace.activeTabId === 'string'
-        ? rawWorkspace.activeTabId
-        : null;
-    const mruTabIds = Array.isArray(rawWorkspace.mruTabIds)
-      ? rawWorkspace.mruTabIds.filter(
-          (tabId): tabId is string => typeof tabId === 'string',
-        )
-      : [];
+    const draftStateByInputId = normalizeStoredDraftStateByInputId(
+      rawWorkspace.draftStateByInputId,
+    );
+    const groups = Array.isArray(rawWorkspace.groups)
+      ? rawWorkspace.groups.flatMap((group) => {
+          if (!group || typeof group !== 'object') {
+            return [];
+          }
+
+          const candidate = group as {
+            groupId?: unknown;
+            inputs?: unknown;
+            tabs?: unknown;
+            activeTabId?: unknown;
+            mruTabIds?: unknown;
+          };
+          const tabs = Array.isArray(candidate.inputs)
+            ? candidate.inputs
+                .map((input) => normalizeWritingEditorInput(input))
+                .filter((input): input is WritingEditorInput => Boolean(input))
+                .map((input) => createWorkspaceTabFromStoredInput(input, draftStateByInputId))
+            : Array.isArray(candidate.tabs)
+              ? candidate.tabs
+                  .map((tab) => normalizeWorkspaceTab(tab))
+                  .filter((tab): tab is WritingWorkspaceTab => Boolean(tab))
+              : [];
+          const activeTabId =
+            typeof candidate.activeTabId === 'string'
+              ? candidate.activeTabId
+              : null;
+          const mruTabIds = Array.isArray(candidate.mruTabIds)
+            ? candidate.mruTabIds.filter(
+                (tabId): tabId is string => typeof tabId === 'string',
+              )
+            : [];
+
+          return [
+            {
+              groupId:
+                typeof candidate.groupId === 'string'
+                  ? candidate.groupId
+                  : DEFAULT_EDITOR_GROUP_ID,
+              tabs,
+              activeTabId,
+              mruTabIds,
+            } satisfies WritingEditorGroupState,
+          ];
+        })
+      : (() => {
+          const tabs = Array.isArray(rawWorkspace.inputs)
+            ? rawWorkspace.inputs
+                .map((input) => normalizeWritingEditorInput(input))
+                .filter((input): input is WritingEditorInput => Boolean(input))
+                .map((input) => createWorkspaceTabFromStoredInput(input, draftStateByInputId))
+            : Array.isArray(rawWorkspace.tabs)
+              ? rawWorkspace.tabs
+                  .map((tab) => normalizeWorkspaceTab(tab))
+                  .filter((tab): tab is WritingWorkspaceTab => Boolean(tab))
+              : [];
+          const activeTabId =
+            typeof rawWorkspace.activeTabId === 'string'
+              ? rawWorkspace.activeTabId
+              : null;
+          const groupId =
+            typeof rawWorkspace.groupId === 'string'
+              ? rawWorkspace.groupId
+              : DEFAULT_EDITOR_GROUP_ID;
+          const mruTabIds = Array.isArray(rawWorkspace.mruTabIds)
+            ? rawWorkspace.mruTabIds.filter(
+                (tabId): tabId is string => typeof tabId === 'string',
+              )
+            : [];
+
+          return [
+            {
+              groupId,
+              tabs,
+              activeTabId,
+              mruTabIds,
+            } satisfies WritingEditorGroupState,
+          ];
+        })();
+    const activeGroupId =
+      typeof rawWorkspace.activeGroupId === 'string'
+        ? rawWorkspace.activeGroupId
+        : typeof rawWorkspace.groupId === 'string'
+          ? rawWorkspace.groupId
+          : DEFAULT_EDITOR_GROUP_ID;
+    const viewStateEntries = normalizeSerializedEditorViewStateEntries(
+      rawWorkspace.viewStateEntries,
+    );
 
     return normalizeWorkspaceState({
-      tabs,
-      activeTabId,
-      mruTabIds,
+      groups,
+      activeGroupId,
+      viewStateEntries,
     });
   } catch {
     return migrateLegacyWorkspaceState(storage);
   }
 }
 
-function resolveActiveTab(workspaceState: WritingWorkspaceState) {
+function resolveActiveGroup(workspaceState: WritingWorkspaceState) {
   return (
-    workspaceState.tabs.find((tab) => tab.id === workspaceState.activeTabId) ??
-    workspaceState.tabs[0] ??
+    workspaceState.groups.find((group) => group.groupId === workspaceState.activeGroupId) ??
+    workspaceState.groups[0]
+  );
+}
+
+function resolveActiveTab(groupState: WritingEditorGroupState) {
+  return (
+    groupState.tabs.find((tab) => tab.id === groupState.activeTabId) ??
+    groupState.tabs[0] ??
     null
   );
 }
 
 function resolveContextDraftTab(
-  workspaceState: WritingWorkspaceState,
+  groupState: WritingEditorGroupState,
   activeTab: WritingWorkspaceTab | null,
 ) {
-  if (activeTab?.kind === 'draft') {
+  if (isWritingDraftEditorInput(activeTab)) {
     return activeTab;
   }
 
-  const tabById = new Map(workspaceState.tabs.map((tab) => [tab.id, tab] as const));
+  const tabById = new Map(groupState.tabs.map((tab) => [tab.id, tab] as const));
   return (
-    workspaceState.mruTabIds
+    groupState.mruTabIds
       .map((tabId) => tabById.get(tabId))
-      .find((tab): tab is WritingWorkspaceDraftTab => tab?.kind === 'draft') ?? null
+      .find((tab): tab is WritingWorkspaceDraftTab => isWritingDraftEditorInput(tab)) ??
+    null
   );
+}
+
+export function toWritingWorkspaceTabInput(tab: WritingWorkspaceTab): WritingEditorInput {
+  return toWritingEditorInput(tab);
 }
 
 function createWritingEditorModelSnapshot(
   workspaceState: WritingWorkspaceState,
 ): WritingEditorModelSnapshot {
-  const activeTab = resolveActiveTab(workspaceState);
+  const activeGroup = resolveActiveGroup(workspaceState);
+  const activeTab = resolveActiveTab(activeGroup);
 
   return {
-    tabs: workspaceState.tabs,
-    activeTabId: workspaceState.activeTabId,
-    mruTabIds: workspaceState.mruTabIds,
+    groups: workspaceState.groups,
+    activeGroupId: activeGroup.groupId,
+    groupId: activeGroup.groupId,
+    tabs: activeGroup.tabs,
+    activeTabId: activeGroup.activeTabId,
+    mruTabIds: activeGroup.mruTabIds,
     activeTab,
+    viewStateEntries: workspaceState.viewStateEntries,
   };
 }
 
@@ -309,94 +500,156 @@ export class WritingEditorModel {
   readonly getDraftBody = () => this.liveDraftState.getContextDraftBody();
   readonly getDraftDocument = () => this.liveDraftState.getActiveDraftDocument();
 
+  readonly createGroup = (
+    options: {
+      groupId?: string;
+      activate?: boolean;
+    } = {},
+  ) => {
+    const nextGroupId = normalizeEditorGroupId(
+      options.groupId ?? createEditorGroupId(),
+    );
+    const shouldActivate = options.activate ?? true;
+    const groupExists = this.workspaceState.groups.some(
+      (group) => group.groupId === nextGroupId,
+    );
+
+    if (groupExists) {
+      if (shouldActivate) {
+        this.activateGroup(nextGroupId);
+      }
+
+      return nextGroupId;
+    }
+
+    this.updateWorkspaceState((workspaceState) => {
+      const nextWorkspaceState = ensureWorkspaceGroup(workspaceState, nextGroupId);
+      return {
+        ...nextWorkspaceState,
+        activeGroupId: shouldActivate
+          ? nextGroupId
+          : nextWorkspaceState.activeGroupId,
+      };
+    });
+
+    return nextGroupId;
+  };
+
+  readonly activateGroup = (groupId: string) => {
+    const normalizedGroupId = normalizeEditorGroupId(groupId);
+    if (
+      this.workspaceState.activeGroupId === normalizedGroupId ||
+      !this.workspaceState.groups.some((group) => group.groupId === normalizedGroupId)
+    ) {
+      return;
+    }
+
+    this.updateWorkspaceState((workspaceState) => ({
+      ...workspaceState,
+      activeGroupId: normalizedGroupId,
+    }));
+  };
+
   readonly activateTab = (tabId: string) => {
-    this.updateWorkspaceState((state) => ({
-      ...state,
+    this.updateActiveGroupState((group) => ({
+      ...group,
       activeTabId: tabId,
-      mruTabIds: touchMruTab(state.mruTabIds, tabId),
+      mruTabIds: touchMruTab(group.mruTabIds, tabId),
     }));
   };
 
   readonly closeTab = (tabId: string) => {
-    this.updateWorkspaceState((state) => ({
-      tabs: state.tabs.filter((tab) => tab.id !== tabId),
-      activeTabId: state.activeTabId === tabId ? null : state.activeTabId,
-      mruTabIds: state.mruTabIds.filter((id) => id !== tabId),
+    this.updateActiveGroupState((group) => ({
+      ...group,
+      tabs: group.tabs.filter((tab) => tab.id !== tabId),
+      activeTabId: group.activeTabId === tabId ? null : group.activeTabId,
+      mruTabIds: group.mruTabIds.filter((id) => id !== tabId),
     }));
   };
 
-  readonly createDraftTab = () => {
+  readonly createDraftTab = (target: WritingEditorGroupTarget = {}) => {
     const nextTab = createDraftTab();
-    this.updateWorkspaceState((state) => ({
-      tabs: [...state.tabs, nextTab],
+    this.updateTargetGroupState(target, (group) => ({
+      ...group,
+      tabs: [...group.tabs, nextTab],
       activeTabId: nextTab.id,
-      mruTabIds: touchMruTab(state.mruTabIds, nextTab.id),
+      mruTabIds: touchMruTab(group.mruTabIds, nextTab.id),
     }));
   };
 
-  readonly createBrowserTab = (url: string) => {
+  readonly createBrowserTab = (
+    url: string,
+    target: WritingEditorGroupTarget = {},
+  ) => {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       return;
     }
 
-    this.updateWorkspaceState((state) => {
+    this.updateTargetGroupState(target, (group) => {
       // Mirror upstream open-editor behavior: the same web content resource re-activates its tab
-      // instead of creating duplicate entries in the strip.
-      const existingTab = state.tabs.find(
-        (tab) => tab.kind === 'browser' && tab.url === normalizedUrl,
+      // instead of creating duplicate entries in the target group strip.
+      const existingTab = group.tabs.find(
+        (tab) => isWritingBrowserEditorInput(tab) && tab.url === normalizedUrl,
       );
       if (existingTab) {
         return {
-          ...state,
+          ...group,
           activeTabId: existingTab.id,
-          mruTabIds: touchMruTab(state.mruTabIds, existingTab.id),
+          mruTabIds: touchMruTab(group.mruTabIds, existingTab.id),
         };
       }
 
       const nextTab = createBrowserTab(normalizedUrl);
       return {
-        tabs: [...state.tabs, nextTab],
+        ...group,
+        tabs: [...group.tabs, nextTab],
         activeTabId: nextTab.id,
-        mruTabIds: touchMruTab(state.mruTabIds, nextTab.id),
+        mruTabIds: touchMruTab(group.mruTabIds, nextTab.id),
       };
     });
   };
 
-  readonly createPdfTab = (url: string) => {
+  readonly createPdfTab = (
+    url: string,
+    target: WritingEditorGroupTarget = {},
+  ) => {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       return;
     }
 
-    this.updateWorkspaceState((state) => {
-      // Keep PDF tabs aligned with web tabs: one resource maps to one tab/input entry.
-      const existingTab = state.tabs.find(
-        (tab) => tab.kind === 'pdf' && tab.url === normalizedUrl,
+    this.updateTargetGroupState(target, (group) => {
+      // Keep PDF tabs aligned with web tabs: one resource maps to one tab/input entry
+      // inside the target group.
+      const existingTab = group.tabs.find(
+        (tab) => isWritingPdfEditorInput(tab) && tab.url === normalizedUrl,
       );
       if (existingTab) {
         return {
-          ...state,
+          ...group,
           activeTabId: existingTab.id,
-          mruTabIds: touchMruTab(state.mruTabIds, existingTab.id),
+          mruTabIds: touchMruTab(group.mruTabIds, existingTab.id),
         };
       }
 
       const nextTab = createPdfTab(normalizedUrl);
       return {
-        tabs: [...state.tabs, nextTab],
+        ...group,
+        tabs: [...group.tabs, nextTab],
         activeTabId: nextTab.id,
-        mruTabIds: touchMruTab(state.mruTabIds, nextTab.id),
+        mruTabIds: touchMruTab(group.mruTabIds, nextTab.id),
       };
     });
   };
 
   readonly setDraftDocument = (value: WritingEditorDocument) => {
     const normalizedDocument = normalizeWritingEditorDocument(value);
+    const activeGroup = resolveActiveGroup(this.workspaceState);
     const currentActiveDraftTab =
-      this.workspaceState.tabs.find(
+      activeGroup.tabs.find(
         (tab): tab is WritingWorkspaceDraftTab =>
-          tab.id === this.workspaceState.activeTabId && tab.kind === 'draft',
+          tab.id === activeGroup.activeTabId && isWritingDraftEditorInput(tab),
       ) ?? null;
 
     if (
@@ -407,11 +660,11 @@ export class WritingEditorModel {
       return;
     }
 
-    this.updateWorkspaceState(
-      (state) => ({
-        ...state,
-        tabs: state.tabs.map((tab) =>
-          tab.id === state.activeTabId && tab.kind === 'draft'
+    this.updateActiveGroupState(
+      (group) => ({
+        ...group,
+        tabs: group.tabs.map((tab) =>
+          tab.id === group.activeTabId && isWritingDraftEditorInput(tab)
             ? {
                 ...tab,
                 document: normalizedDocument,
@@ -425,18 +678,51 @@ export class WritingEditorModel {
 
   readonly updateActiveContentTabUrl = (url: string) => {
     const normalizedUrl = url.trim();
-    this.updateWorkspaceState((state) => ({
-      ...state,
-      tabs: state.tabs.map((tab) =>
+    this.updateActiveGroupState((group) => ({
+      ...group,
+      tabs: group.tabs.map((tab) =>
         // When the shared web content view navigates while a content tab owns it, update that tab's
         // input so the tab title/url stay consistent with the visible editor content.
-        tab.id === state.activeTabId && tab.kind !== 'draft'
+        tab.id === group.activeTabId && !isWritingDraftEditorInput(tab)
           ? {
               ...tab,
               url: normalizedUrl,
-              title: getContentTabTitle(normalizedUrl),
+              title: getWritingContentInputTitle(normalizedUrl),
             }
           : tab,
+      ),
+    }));
+  };
+
+  readonly setEditorViewState = (
+    key: EditorViewStateKey,
+    state: unknown,
+  ) => {
+    this.updateWorkspaceState((currentState) => ({
+      ...currentState,
+      viewStateEntries: [
+        ...currentState.viewStateEntries.filter(
+          (entry) =>
+            entry.key.groupId !== key.groupId ||
+            entry.key.paneId !== key.paneId ||
+            entry.key.resourceKey !== key.resourceKey,
+        ),
+        {
+          key,
+          state,
+        },
+      ],
+    }));
+  };
+
+  readonly deleteEditorViewState = (key: EditorViewStateKey) => {
+    this.updateWorkspaceState((currentState) => ({
+      ...currentState,
+      viewStateEntries: currentState.viewStateEntries.filter(
+        (entry) =>
+          entry.key.groupId !== key.groupId ||
+          entry.key.paneId !== key.paneId ||
+          entry.key.resourceKey !== key.resourceKey,
       ),
     }));
   };
@@ -467,10 +753,77 @@ export class WritingEditorModel {
     this.emitChange();
   }
 
+  private updateActiveGroupState(
+    updater: (group: WritingEditorGroupState) => WritingEditorGroupState,
+    options: { persist?: 'immediate' | 'debounced' } = {},
+  ) {
+    this.updateResolvedGroupState(
+      {
+        groupId: this.workspaceState.activeGroupId ?? DEFAULT_EDITOR_GROUP_ID,
+        activateGroup: true,
+      },
+      updater,
+      options,
+    );
+  }
+
+  private updateTargetGroupState(
+    target: WritingEditorGroupTarget,
+    updater: (group: WritingEditorGroupState) => WritingEditorGroupState,
+    options: { persist?: 'immediate' | 'debounced' } = {},
+  ) {
+    this.updateResolvedGroupState(
+      this.resolveTargetGroup(target),
+      updater,
+      options,
+    );
+  }
+
+  private updateResolvedGroupState(
+    target: ResolvedWritingEditorGroupTarget,
+    updater: (group: WritingEditorGroupState) => WritingEditorGroupState,
+    options: { persist?: 'immediate' | 'debounced' } = {},
+  ) {
+    this.updateWorkspaceState(
+      (workspaceState) => {
+        const nextWorkspaceState = ensureWorkspaceGroup(
+          workspaceState,
+          target.groupId,
+        );
+
+        return {
+          ...nextWorkspaceState,
+          activeGroupId: target.activateGroup
+            ? target.groupId
+            : nextWorkspaceState.activeGroupId,
+          groups: nextWorkspaceState.groups.map((group) =>
+            group.groupId === target.groupId ? updater(group) : group,
+          ),
+        };
+      },
+      options,
+    );
+  }
+
+  private resolveTargetGroup(
+    target: WritingEditorGroupTarget,
+  ): ResolvedWritingEditorGroupTarget {
+    const groupId = normalizeEditorGroupId(
+      target.groupId ?? this.workspaceState.activeGroupId,
+    );
+
+    return {
+      groupId,
+      activateGroup:
+        target.activateGroup ?? groupId === this.workspaceState.activeGroupId,
+    };
+  }
+
   private syncLiveDraftState() {
-    const activeTab = resolveActiveTab(this.workspaceState);
-    const activeDraftTab = activeTab?.kind === 'draft' ? activeTab : null;
-    const contextDraftTab = resolveContextDraftTab(this.workspaceState, activeTab);
+    const activeGroup = resolveActiveGroup(this.workspaceState);
+    const activeTab = resolveActiveTab(activeGroup);
+    const activeDraftTab = isWritingDraftEditorInput(activeTab) ? activeTab : null;
+    const contextDraftTab = resolveContextDraftTab(activeGroup, activeTab);
     this.liveDraftState.sync({
       activeDraftDocument: activeDraftTab?.document ?? null,
       contextDraftDocument: contextDraftTab?.document ?? null,
@@ -478,15 +831,16 @@ export class WritingEditorModel {
   }
 
   private createPersistedState() {
-    const activeTab = resolveActiveTab(this.workspaceState);
+    const activeGroup = resolveActiveGroup(this.workspaceState);
+    const activeTab = resolveActiveTab(activeGroup);
 
     return {
       workspaceState: {
-        tabs: this.workspaceState.tabs,
-        activeTabId: this.workspaceState.activeTabId,
-        mruTabIds: this.workspaceState.mruTabIds,
+        groups: this.workspaceState.groups,
+        activeGroupId: this.workspaceState.activeGroupId,
+        viewStateEntries: this.workspaceState.viewStateEntries,
       },
-      contextDraftTab: resolveContextDraftTab(this.workspaceState, activeTab),
+      contextDraftTab: resolveContextDraftTab(activeGroup, activeTab),
     };
   }
 }

@@ -1,5 +1,8 @@
 import type { Annotation } from 'ls/editor/common/annotation';
-import { PdfAnnotationEditor } from 'ls/editor/browser/pdf/pdfAnnotationEditor';
+import {
+  PdfAnnotationEditor,
+  type PdfAnnotationEditorViewState,
+} from 'ls/editor/browser/pdf/pdfAnnotationEditor';
 import {
   readStoredPdfAnnotations,
   writeStoredPdfAnnotations,
@@ -7,6 +10,7 @@ import {
 import type { WritingWorkspacePdfTab } from 'ls/workbench/browser/writingEditorModel';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+import { EditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPane';
 
 export type PdfEditorPaneProps = {
   labels: EditorPartLabels;
@@ -14,22 +18,26 @@ export type PdfEditorPaneProps = {
   viewPartProps: ViewPartProps;
 };
 
-export class PdfEditorPane {
+export class PdfEditorPane extends EditorPane<
+  PdfEditorPaneProps,
+  PdfAnnotationEditorViewState
+> {
   private props: PdfEditorPaneProps;
   private readonly editor: PdfAnnotationEditor;
   private annotations: readonly Annotation[] = [];
 
   constructor(props: PdfEditorPaneProps) {
+    super();
     this.props = props;
     this.annotations = readStoredPdfAnnotations(props.pdfTab.id);
     this.editor = new PdfAnnotationEditor(this.toEditorProps(props));
   }
 
-  getElement() {
+  override getElement() {
     return this.editor.getElement();
   }
 
-  setProps(props: PdfEditorPaneProps) {
+  override setProps(props: PdfEditorPaneProps) {
     if (this.props.pdfTab.id !== props.pdfTab.id) {
       this.annotations = readStoredPdfAnnotations(props.pdfTab.id);
     }
@@ -38,7 +46,15 @@ export class PdfEditorPane {
     this.editor.setProps(this.toEditorProps(props));
   }
 
-  dispose() {
+  override getViewState() {
+    return this.editor.getViewState();
+  }
+
+  override restoreViewState(viewState: PdfAnnotationEditorViewState | undefined) {
+    this.editor.restoreViewState(viewState);
+  }
+
+  override dispose() {
     this.editor.dispose();
   }
 

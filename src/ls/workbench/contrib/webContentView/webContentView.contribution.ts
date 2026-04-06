@@ -60,6 +60,7 @@ type ManagedWebviewEntry = {
   cleanup: Array<() => void>;
   domReady: boolean;
   domReadyPromise: Promise<void>;
+  hasCommittedNavigation: boolean;
   rejectDomReady: (error?: unknown) => void;
   resolveDomReady: () => void;
   state: WebContentTargetSnapshot;
@@ -248,6 +249,10 @@ function isAbortLikeWebContentNavigationError(error: unknown) {
 
 function isWebContentFailureUrl(url: string) {
   return /^about:blank$/i.test(url) || /^chrome-error:\/\//i.test(url);
+}
+
+function shouldUseWebviewSrcNavigation(currentUrl: string) {
+  return !currentUrl || isWebContentFailureUrl(currentUrl);
 }
 
 function hasWebContentReachedStableDestination(
@@ -476,7 +481,6 @@ class WebContentDomManager {
       'contextIsolation=yes, nodeIntegration=no, sandbox=yes',
     );
     webview.setAttribute('allowpopups', 'true');
-    webview.setAttribute('src', 'about:blank');
     this.applyHiddenWebviewStyle(webview);
     return webview;
   }
@@ -527,6 +531,7 @@ class WebContentDomManager {
       cleanup: [],
       domReady: false,
       domReadyPromise: Promise.resolve(),
+      hasCommittedNavigation: false,
       rejectDomReady: (_error?: unknown) => {},
       resolveDomReady: () => {},
       state: createDefaultTargetSnapshot(),
@@ -620,6 +625,11 @@ class WebContentDomManager {
     }
 
     entry.state = nextState;
+    if (shouldUseWebviewSrcNavigation(normalizeComparableWebContentUrl(nextState.url))) {
+      entry.hasCommittedNavigation = false;
+    } else if (nextState.url) {
+      entry.hasCommittedNavigation = true;
+    }
     if (normalizedTargetId === this.activeTargetId) {
       this.reportActiveState();
     }
@@ -717,14 +727,31 @@ class WebContentDomManager {
     let navigationFailure: unknown = null;
 
     try {
-      if (!entry.domReady) {
+      let currentUrl = '';
+      if (entry.domReady || entry.hasCommittedNavigation) {
+        try {
+          currentUrl = normalizeComparableWebContentUrl(
+            String(entry.webview.getURL?.() ?? '').trim(),
+          );
+        } catch {
+          currentUrl = '';
+        }
+      }
+      const shouldUseSrcNavigation =
+        !entry.hasCommittedNavigation ||
+        !entry.domReady ||
+        shouldUseWebviewSrcNavigation(currentUrl);
+
+      if (shouldUseSrcNavigation) {
         const assignedUrl = normalizeComparableWebContentUrl(
           String(entry.webview.getAttribute('src') ?? '').trim(),
         );
         if (assignedUrl !== normalizedTargetUrl) {
           entry.webview.setAttribute('src', resolvedUrl);
         }
-        await this.waitForTargetDomReady(normalizedTargetId, 12000);
+        if (!entry.domReady) {
+          await this.waitForTargetDomReady(normalizedTargetId, 12000);
+        }
       } else {
         if (typeof entry.webview.loadURL !== 'function') {
           throw new Error('webview.loadURL is unavailable.');

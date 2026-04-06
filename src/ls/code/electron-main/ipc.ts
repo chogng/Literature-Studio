@@ -30,6 +30,7 @@ import type {
 import type { StorageService } from 'ls/platform/storage/common/storage';
 import {
   getWebContentState,
+  executeWebContentTargetScript,
   getWebContentSelection,
   activateWebContentTarget,
   goBackWebContent,
@@ -338,6 +339,30 @@ export function registerAppIpc(storage: StorageService) {
     const state: WebContentState = getWebContentState(payload?.targetId);
     return state;
   });
+
+  ipcMain.handle(
+    'app:web-content-execute-javascript',
+    async (
+      _event,
+      payload?: {
+        targetId?: string | null;
+        script?: string;
+        timeoutMs?: number;
+      },
+    ) => {
+      if (typeof payload?.script !== 'string' || !payload.script.trim()) {
+        return null;
+      }
+
+      return await executeWebContentTargetScript(
+        payload.targetId,
+        payload.script,
+        {
+          timeoutMs: payload.timeoutMs,
+        },
+      );
+    },
+  );
 
   ipcMain.handle('app:web-content-get-selection', async (_event, payload?: { targetId?: string | null }) => {
     return await getWebContentSelection(payload?.targetId);

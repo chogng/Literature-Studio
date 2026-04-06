@@ -7,6 +7,7 @@ const en = {
   fetchCurrentBusy: 'Fetching...',
   fetchCurrent: 'fetch',
   pageUrlPlaceholder: 'Journal listing / latest article page URL',
+  editorToolbarAddressPlaceholder: 'Search or enter URL',
   batchCount: 'Count per URL',
   sameDomainOnly: 'Same domain only',
   crossDomainAllowed: 'Cross-domain allowed',

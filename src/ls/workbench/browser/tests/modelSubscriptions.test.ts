@@ -10,6 +10,7 @@ import type {
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 import { createLibraryModel } from 'ls/workbench/browser/libraryModel';
 import { WebContentNavigationModel } from 'ls/workbench/browser/webContentNavigationModel';
+import { EMPTY_WEB_CONTENT_STATE } from 'ls/workbench/services/webContent/webContentNavigationService';
 import { localeService } from 'ls/workbench/contrib/localization/browser/localeService';
 import {
   getWorkbenchContentStateSnapshot,
@@ -458,6 +459,42 @@ test('WebContentNavigationModel subscriptions stop after listener disposal', asy
     assert.equal(fetchSeedUrl, 'https://example.com/initial');
 
     disconnect();
+  });
+});
+
+test('WebContentNavigationModel does not activate a default web content target for null tabs', async () => {
+  const activatedTargetIds: Array<string | null | undefined> = [];
+  let setWebUrlCalls = 0;
+  let setFetchSeedUrlCalls = 0;
+
+  await withElectronApi(createElectronApi({
+    webContent: {
+      activate(targetId?: string | null) {
+        activatedTargetIds.push(targetId);
+      },
+      async getState() {
+        return createWebContentState();
+      },
+      onStateChange() {
+        return () => {};
+      },
+    } as NonNullable<ElectronAPI['webContent']>,
+  }), async () => {
+    const model = new WebContentNavigationModel();
+
+    await model.activateTarget(null, {
+      setWebUrl: () => {
+        setWebUrlCalls += 1;
+      },
+      setFetchSeedUrl: () => {
+        setFetchSeedUrlCalls += 1;
+      },
+    });
+
+    assert.deepEqual(activatedTargetIds, []);
+    assert.equal(setWebUrlCalls, 0);
+    assert.equal(setFetchSeedUrlCalls, 0);
+    assert.deepEqual(model.getSnapshot().webContentState, EMPTY_WEB_CONTENT_STATE);
   });
 });
 

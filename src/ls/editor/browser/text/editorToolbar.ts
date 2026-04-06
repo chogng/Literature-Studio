@@ -1,4 +1,8 @@
-import 'ls/base/browser/ui/button/button.css';
+import {
+  createActionBarView,
+  type ActionBarItem,
+  type ActionView,
+} from 'ls/base/browser/ui/actionbar/actionbar';
 import {
   createDomDropdownMenuPresenter,
   createDropdownView,
@@ -15,6 +19,7 @@ import {
   type WritingEditorToolbarButtonConfig,
   type WritingEditorToolbarDropdownConfig,
   type WritingEditorToolbarItemConfig,
+  type WritingEditorToolbarSplitButtonConfig,
 } from 'ls/editor/browser/text/editorCommandRegistry';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 
@@ -140,7 +145,7 @@ export class DraftEditorToolbar {
   private props: DraftEditorToolbarProps;
   private readonly element = createElement('div', 'editor-toolbar');
   private readonly contentElement = createElement('div', 'editor-draft-toolbar');
-  private dropdownViews: Array<{ dispose: () => void }> = [];
+  private toolbarViews: Array<{ dispose: () => void }> = [];
 
   constructor(props: DraftEditorToolbarProps) {
     this.props = props;
@@ -158,12 +163,12 @@ export class DraftEditorToolbar {
   }
 
   dispose() {
-    this.disposeDropdownViews();
+    this.disposeToolbarViews();
     this.element.replaceChildren();
   }
 
   private render() {
-    this.disposeDropdownViews();
+    this.disposeToolbarViews();
     const fragment = document.createDocumentFragment();
     for (const group of this.createToolbarGroups()) {
       fragment.append(this.createToolbarGroup(group));
@@ -334,21 +339,37 @@ export class DraftEditorToolbar {
   }
 
   private createToolbarGroup(groupConfig: ToolbarGroupConfig) {
-    const group = createElement('section', 'editor-draft-toolbar-group');
-    const actions = createElement('div', 'editor-draft-toolbar-group-actions');
-    const title = createElement('div', 'editor-draft-toolbar-group-title');
+    const actionBarView = createActionBarView({
+      className: 'editor-draft-toolbar-group',
+      ariaLabel: groupConfig.title,
+      items: groupConfig.items.map<ActionBarItem>((itemConfig) => {
+        if ('menu' in itemConfig) {
+          return this.createToolbarSplitButton(itemConfig);
+        }
 
-    title.textContent = groupConfig.title;
+        if ('options' in itemConfig) {
+          return this.createToolbarDropdown(itemConfig);
+        }
 
-    for (const itemConfig of groupConfig.items) {
-      if ('options' in itemConfig) {
-        actions.append(this.createToolbarDropdown(itemConfig));
-      } else {
-        actions.append(this.createToolbarButton(itemConfig));
+        return this.createToolbarButton(itemConfig);
+      }),
+    });
+    const group = actionBarView.getElement();
+
+    group.addEventListener('mousedown', (event) => {
+      if (!(event.target instanceof Element)) {
+        return;
       }
-    }
 
-    group.append(actions, title);
+      if (!event.target.closest('.actionbar-action')) {
+        return;
+      }
+
+      // Keep the ProseMirror selection alive while toolbar commands run.
+      event.preventDefault();
+    });
+
+    this.toolbarViews.push(actionBarView);
     return group;
   }
 
@@ -365,42 +386,71 @@ export class DraftEditorToolbar {
         dropdownConfig.onChange(target.value);
       },
     });
-    this.dropdownViews.push({
-      dispose: () => {
-        dropdown.dispose();
-        menuPresenter.dispose();
+
+    return {
+      render: (container?: HTMLElement) => {
+        if (!container) {
+          return;
+        }
+        container.replaceChildren(dropdown.getElement());
       },
-    });
-    return dropdown.getElement();
+      getElement: () => dropdown.getElement(),
+      getFocusableElement: () => dropdown.getElement(),
+      focus: () => {
+        dropdown.focus();
+      },
+      blur: () => {
+        dropdown.blur();
+      },
+      dispose: () => {
+        menuPresenter.dispose();
+        dropdown.dispose();
+      },
+    } satisfies ActionView;
+  }
+
+  private createToolbarSplitButton(splitButtonConfig: WritingEditorToolbarSplitButtonConfig) {
+    const primaryContent = createElement('span', 'editor-draft-toolbar-btn-icon');
+    const glyph = createElement('span', 'editor-draft-toolbar-btn-glyph');
+    glyph.textContent = splitButtonConfig.buttonGlyph ?? splitButtonConfig.buttonLabel;
+    primaryContent.append(glyph);
+
+    return {
+      type: 'split',
+      className: 'actionbar-split editor-draft-toolbar-split',
+      primary: {
+        label: splitButtonConfig.buttonLabel,
+        hover: splitButtonConfig.buttonLabel,
+        content: primaryContent,
+        mode: 'custom',
+        buttonClassName: 'editor-draft-toolbar-btn editor-draft-toolbar-split-primary',
+        onClick: () => {
+          splitButtonConfig.onClick();
+        },
+        hoverService,
+      },
+      dropdown: {
+        label: splitButtonConfig.label,
+        title: splitButtonConfig.title,
+        content: createLxIcon('chevron-down'),
+        mode: 'custom',
+        buttonClassName: 'editor-draft-toolbar-btn editor-draft-toolbar-split-dropdown',
+        menu: splitButtonConfig.menu.map((item, index) => ({
+          id: `${splitButtonConfig.label}-${index}`,
+          label: item.label,
+          title: item.title,
+          checked: item.checked,
+          onClick: () => {
+            item.onClick();
+          },
+        })),
+        hoverService,
+      },
+    } satisfies ActionBarItem;
   }
 
   private createToolbarButton(buttonConfig: WritingEditorToolbarButtonConfig) {
-    const button = createElement(
-      'button',
-      [
-        'editor-draft-toolbar-btn',
-        'btn-base',
-        'btn-ghost',
-        'btn-mode-icon',
-        'btn-sm',
-        buttonConfig.isActive ? 'is-active' : '',
-      ]
-        .filter(Boolean)
-        .join(' '),
-    );
     const iconSlot = createElement('span', 'editor-draft-toolbar-btn-icon');
-    button.type = 'button';
-    button.disabled = Boolean(buttonConfig.disabled);
-    button.setAttribute('aria-label', buttonConfig.label);
-    hoverService.createHover(button, buttonConfig.label);
-    if (buttonConfig.isToggle) {
-      button.setAttribute('aria-pressed', String(Boolean(buttonConfig.isActive)));
-    }
-    button.addEventListener('mousedown', (event) => {
-      // Keep the ProseMirror selection alive while toolbar commands run.
-      event.preventDefault();
-    });
-    button.addEventListener('click', buttonConfig.onClick);
 
     if (buttonConfig.icon) {
       iconSlot.append(createLxIcon(buttonConfig.icon));
@@ -410,15 +460,30 @@ export class DraftEditorToolbar {
       iconSlot.append(glyph);
     }
 
-    button.append(iconSlot);
-    return button;
+    return {
+      id: buttonConfig.label,
+      label: buttonConfig.label,
+      hover: buttonConfig.label,
+      content: iconSlot,
+      mode: 'custom',
+      active: Boolean(buttonConfig.isActive),
+      disabled: Boolean(buttonConfig.disabled),
+      buttonClassName: 'editor-draft-toolbar-btn',
+      buttonAttributes: buttonConfig.isToggle
+        ? { 'aria-pressed': String(Boolean(buttonConfig.isActive)) }
+        : undefined,
+      hoverService,
+      onClick: () => {
+        buttonConfig.onClick();
+      },
+    } satisfies ActionBarItem;
   }
 
-  private disposeDropdownViews() {
-    for (const dropdownView of this.dropdownViews) {
-      dropdownView.dispose();
+  private disposeToolbarViews() {
+    for (const toolbarView of this.toolbarViews) {
+      toolbarView.dispose();
     }
-    this.dropdownViews = [];
+    this.toolbarViews = [];
   }
 }
 

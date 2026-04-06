@@ -1,12 +1,12 @@
-.pm-editor-shell {
+.pm-editor-surface {
   min-height: 0;
   height: 100%;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.pm-editor-shell > .editor-toolbar {
+.pm-editor-surface > .editor-toolbar {
   display: flex;
   align-items: center;
   min-width: 0;
@@ -29,42 +29,30 @@
   -webkit-app-region: no-drag;
 }
 
-.editor-draft-toolbar-group {
+.editor-draft-toolbar-group.actionbar {
+  --ls-actionbar-item-size: 26px;
+  --ls-actionbar-icon-size: 14px;
+  --ls-actionbar-gap: 4px;
+  --ls-actionbar-radius: 6px;
+  --ls-actionbar-foreground: #1f2d3a;
+  --ls-actionbar-hover-foreground: #1f2d3a;
+  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.05);
+  --ls-actionbar-active-foreground: #0a5fbf;
+  --ls-actionbar-active-background: rgba(0, 0, 0, 0.08);
+  --ls-actionbar-focus-outline: #0a5fbf;
   flex: 0 0 auto;
-  display: grid;
-  grid-template-rows: auto auto;
-  gap: 4px;
   min-width: 0;
-  padding: 2px 4px 4px;
-  border-radius: 0;
-  border: 0;
   background: transparent;
-  box-shadow: none;
 }
 
-.editor-draft-toolbar-group-actions {
-  display: flex;
+.editor-draft-toolbar-group .actionbar-actions-container {
   gap: 4px;
 }
 
-.editor-draft-toolbar-group-title {
-  padding-top: 3px;
-  border-top: 1px solid rgba(193, 205, 219, 0.5);
-  color: #5f7185;
-  font:
-    600 10px/1.2 "IBM Plex Sans",
-    "Noto Sans SC",
-    sans-serif;
-  letter-spacing: 0.08em;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.editor-draft-toolbar-btn.btn-base {
+.editor-draft-toolbar-btn.actionbar-action {
   min-width: 0;
   min-height: 0;
   padding: 0;
-  border-radius: 6px;
   border: 0;
   background: transparent;
   color: #1f2d3a;
@@ -74,25 +62,6 @@
   gap: 0;
   box-shadow: none;
   transition: none;
-}
-
-.editor-draft-toolbar-btn.btn-base:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.05);
-  border-color: transparent;
-  color: #1f2d3a;
-  transform: none;
-}
-
-.editor-draft-toolbar-btn.btn-base:active:not(:disabled) {
-  background: rgba(0, 0, 0, 0.1);
-  transform: translateY(0);
-}
-
-.editor-draft-toolbar-btn.btn-base.is-active {
-  background: rgba(0, 0, 0, 0.08);
-  border-color: transparent;
-  color: #0a5fbf;
-  box-shadow: none;
 }
 
 .editor-draft-toolbar-btn-icon {
@@ -105,10 +74,6 @@
   background: transparent;
   color: inherit;
   pointer-events: none;
-}
-
-.editor-draft-toolbar-btn.btn-base.is-active .editor-draft-toolbar-btn-icon {
-  background: transparent;
 }
 
 .editor-draft-toolbar-btn-icon .lx-icon {
@@ -138,6 +103,38 @@
   max-width: 140px;
 }
 
+.actionbar-split .action-dropdown-item-separator {
+  height: var(--ls-actionbar-item-size, 26px);
+  padding: 6px 0;
+}
+
+.actionbar-split .action-dropdown-item-separator > div {
+  height: 14px;
+}
+
+.editor-draft-toolbar-split-primary.actionbar-action {
+  height: 100%;
+  min-height: var(--ls-actionbar-item-size, 26px);
+  min-width: 34px;
+  padding: 0 8px;
+  border-radius: var(--ls-actionbar-radius, 6px) 0 0 var(--ls-actionbar-radius, 6px);
+}
+
+.editor-draft-toolbar-split-dropdown.actionbar-action {
+  height: 100%;
+  min-height: var(--ls-actionbar-item-size, 26px);
+  width: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  padding: 0;
+  border-radius: 0 var(--ls-actionbar-radius, 6px) var(--ls-actionbar-radius, 6px) 0;
+}
+
+.editor-draft-toolbar-split-dropdown.actionbar-action .lx-icon {
+  width: 12px;
+  height: 12px;
+}
+
 .editor-draft-toolbar-dropdown .dropdown-field {
   overflow: hidden;
   font:
@@ -155,16 +152,19 @@
   height: 100%;
 }
 
-.pm-editor-host.scrollable-content {
+.pm-editor-scrollable > .pm-editor-host.scrollable-content {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .pm-editor-scrollable {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
+  flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
+  height: auto;
 }
 
 .pm-editor-root {
@@ -174,19 +174,19 @@
   align-items: stretch;
   min-height: 0;
   min-width: 0;
-  height: 100%;
+  height: auto;
 }
 
 .pm-editor-root .ProseMirror {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 0 auto;
   flex-direction: column;
   align-items: stretch;
   align-self: stretch;
   box-sizing: border-box;
   min-width: 0;
   min-height: 100%;
-  height: 100%;
+  height: auto;
   padding: 18px 18px 22px;
   color: #203040;
   font:
@@ -367,11 +367,11 @@
     gap: 6px;
   }
 
-  .editor-draft-toolbar-group {
-    padding: 2px 2px 4px;
+  .editor-draft-toolbar-group.actionbar {
+    --ls-actionbar-gap: 3px;
   }
 
-  .editor-draft-toolbar-group-actions {
+  .editor-draft-toolbar-group .actionbar-actions-container {
     gap: 3px;
   }
 

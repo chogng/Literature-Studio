@@ -513,7 +513,8 @@ test('DraftEditorToolbar marks unavailable preset fonts in the dropdown', () => 
   document.body.append(toolbar.getElement());
 
   try {
-    const fontFamilyDropdown = toolbar.getElement().querySelector('.dropdown-wrapper');
+    const dropdowns = toolbar.getElement().querySelectorAll('.dropdown-wrapper');
+    const fontFamilyDropdown = dropdowns.item(0);
     assert(fontFamilyDropdown instanceof HTMLElement);
     fontFamilyDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
@@ -586,7 +587,7 @@ test('DraftEditorToolbar disables figure-ref action when no figures are availabl
   }
 });
 
-test('DraftEditorToolbar uses the shared editor toolbar shell and draft-specific content classes', () => {
+test('DraftEditorToolbar uses the shared editor toolbar container and draft-specific content classes', () => {
   const toolbar = new DraftEditorToolbar({
     labels,
     toolbarState: {
@@ -629,15 +630,27 @@ test('DraftEditorToolbar uses the shared editor toolbar shell and draft-specific
   document.body.append(toolbar.getElement());
 
   try {
-    const toolbarShell = toolbar.getElement();
-    const draftToolbar = toolbarShell.querySelector(':scope > .editor-draft-toolbar');
-    const toolbarGroup = toolbarShell.querySelector(
-      '.editor-draft-toolbar > .editor-draft-toolbar-group',
+    const toolbarElement = toolbar.getElement();
+    const draftToolbar = toolbarElement.querySelector(':scope > .editor-draft-toolbar');
+    const toolbarGroup = toolbarElement.querySelector(
+      '.editor-draft-toolbar > .actionbar.editor-draft-toolbar-group',
+    );
+    const toolbarAction = toolbarElement.querySelector(
+      '.editor-draft-toolbar-group .editor-draft-toolbar-btn.actionbar-action',
+    );
+    const textStylePrimary = toolbarElement.querySelector(
+      '.editor-draft-toolbar-split .editor-draft-toolbar-split-primary.actionbar-action',
+    );
+    const textStyleDropdown = toolbarElement.querySelector(
+      '.editor-draft-toolbar-split .editor-draft-toolbar-split-dropdown.actionbar-action',
     );
 
-    assert.equal(toolbarShell.classList.contains('editor-toolbar'), true);
+    assert.equal(toolbarElement.classList.contains('editor-toolbar'), true);
     assert(draftToolbar instanceof HTMLElement);
     assert(toolbarGroup instanceof HTMLElement);
+    assert(toolbarAction instanceof HTMLButtonElement);
+    assert(textStylePrimary instanceof HTMLButtonElement);
+    assert(textStyleDropdown instanceof HTMLElement);
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();
@@ -660,7 +673,7 @@ test('ProseMirrorEditor refreshes placeholder text during an external document r
   }, initialDocument);
 });
 
-test('ProseMirrorEditor mounts the editing surface inside the shared scrollable shell', async () => {
+test('ProseMirrorEditor mounts the editing surface inside the shared scrollable container', async () => {
   await withEditor(({ editor }) => {
     const scrollableRoot = getScrollableRoot(editor);
     const host = scrollableRoot.querySelector('.pm-editor-host');
@@ -735,6 +748,40 @@ test('ProseMirrorEditor returns null for multi-block selections', async () => {
     editorView.dispatch(editorView.state.tr.setSelection(selection));
 
     assert.equal(editor.getStableSelectionTarget(), null);
+  });
+});
+
+test('ProseMirrorEditor restores draft view state with selection and scroll position', async () => {
+  await withEditor(({ editor }) => {
+    const initialDocument = createWritingEditorDocumentFromPlainText('alpha beta');
+    editor.setProps(createProps(initialDocument, () => {}));
+
+    const editorView = (editor as unknown as { view: import('prosemirror-view').EditorView | null }).view;
+    const host = (editor as unknown as { hostWrapperElement: HTMLElement }).hostWrapperElement;
+    assert(editorView);
+    assert(host instanceof HTMLElement);
+
+    const selection = TextSelection.create(editorView.state.doc, 1, 6);
+    editorView.dispatch(editorView.state.tr.setSelection(selection));
+    host.scrollTop = 48;
+    host.dispatchEvent(new Event('scroll'));
+
+    const viewState = editor.getViewState();
+    assert(viewState);
+    assert.equal(viewState.scrollPosition.scrollTop, 48);
+    assert.equal(viewState.selectionTarget?.selectedText, 'alpha');
+
+    const collapsedSelection = TextSelection.create(editorView.state.doc, 1, 1);
+    editorView.dispatch(editorView.state.tr.setSelection(collapsedSelection));
+    host.scrollTop = 0;
+    host.dispatchEvent(new Event('scroll'));
+
+    editor.restoreViewState(viewState);
+
+    const restoredTarget = editor.getStableSelectionTarget();
+    assert(restoredTarget);
+    assert.equal(restoredTarget.selectedText, 'alpha');
+    assert.equal(host.scrollTop, 48);
   });
 });
 

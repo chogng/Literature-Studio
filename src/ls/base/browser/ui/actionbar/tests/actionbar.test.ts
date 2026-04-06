@@ -278,3 +278,68 @@ test('actionbar can render a custom overlay action view item instance', async ()
     document.body.replaceChildren();
   }
 });
+
+test('actionbar can render a split action item with primary and dropdown controls', async () => {
+  let primaryRuns = 0;
+  let selected = '';
+  const actionBarView = createActionBarView({
+    items: [
+      {
+        type: 'split',
+        className: 'actionbar-split',
+        primary: {
+          label: 'Paragraph',
+          content: 'Tx',
+          mode: 'custom',
+          onClick: () => {
+            primaryRuns += 1;
+          },
+        },
+        dropdown: {
+          label: 'Text styles',
+          content: createLxIcon('chevron-down'),
+          mode: 'custom',
+          menu: [
+            {
+              label: 'Heading 1',
+              onClick: () => {
+                selected = 'heading-1';
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+  const element = actionBarView.getElement();
+  document.body.append(element);
+
+  try {
+    const buttons = element.querySelectorAll('.actionbar-action');
+    assert.equal(buttons.length, 2);
+
+    const primaryButton = buttons[0] as HTMLButtonElement;
+    const dropdownButton = buttons[1] as HTMLButtonElement;
+
+    primaryButton.click();
+    assert.equal(primaryRuns, 1);
+
+    dropdownButton.click();
+    await delay(0);
+
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(menu instanceof HTMLElement);
+
+    const menuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.includes('Heading 1'),
+    );
+    assert(menuItem instanceof HTMLElement);
+    menuItem.click();
+    await delay(0);
+
+    assert.equal(selected, 'heading-1');
+  } finally {
+    actionBarView.dispose();
+    document.body.replaceChildren();
+  }
+});

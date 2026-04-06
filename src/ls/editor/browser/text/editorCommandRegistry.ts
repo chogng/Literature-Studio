@@ -128,9 +128,24 @@ export type WritingEditorToolbarDropdownConfig = {
   onChange: (value: string) => void;
 };
 
+export type WritingEditorToolbarSplitButtonConfig = {
+  label: string;
+  title?: string;
+  buttonLabel: string;
+  buttonGlyph?: string;
+  onClick: () => void;
+  menu: readonly {
+    label: string;
+    title?: string;
+    checked?: boolean;
+    onClick: () => void;
+  }[];
+};
+
 export type WritingEditorToolbarItemConfig =
   | WritingEditorToolbarButtonConfig
-  | WritingEditorToolbarDropdownConfig;
+  | WritingEditorToolbarDropdownConfig
+  | WritingEditorToolbarSplitButtonConfig;
 
 export type WritingEditorToolbarButtonGroup = {
   title: string;
@@ -529,6 +544,89 @@ function getToolbarGroupTitle(groupId: WritingEditorToolbarGroupId, labels: Writ
   }
 }
 
+function createTextStyleToolbarSplitButton(params: {
+  labels: WritingEditorToolbarLabels;
+  toolbarState: WritingEditorToolbarState;
+  actions: WritingEditorToolbarActions;
+}): WritingEditorToolbarSplitButtonConfig {
+  const { labels, toolbarState, actions } = params;
+  const currentValue = toolbarState.activeHeadingLevel
+    ? `heading-${toolbarState.activeHeadingLevel}`
+    : 'paragraph';
+  const buttonLabel =
+    currentValue === 'heading-1'
+      ? labels.heading1
+      : currentValue === 'heading-2'
+        ? labels.heading2
+        : currentValue === 'heading-3'
+          ? labels.heading3
+          : labels.paragraph;
+  const buttonGlyph =
+    currentValue === 'heading-1'
+      ? 'H1'
+      : currentValue === 'heading-2'
+        ? 'H2'
+        : currentValue === 'heading-3'
+          ? 'H3'
+          : 'Tx';
+
+  return {
+    label: labels.textGroup,
+    title: labels.textGroup,
+    buttonLabel,
+    buttonGlyph,
+    onClick: () => {
+      switch (currentValue) {
+        case 'heading-1':
+          actions.toggleHeading(1);
+          return;
+        case 'heading-2':
+          actions.toggleHeading(2);
+          return;
+        case 'heading-3':
+          actions.toggleHeading(3);
+          return;
+        default:
+          actions.setParagraph();
+      }
+    },
+    menu: [
+      {
+        label: labels.paragraph,
+        title: labels.paragraph,
+        checked: currentValue === 'paragraph',
+        onClick: () => {
+          actions.setParagraph();
+        },
+      },
+      {
+        label: labels.heading1,
+        title: labels.heading1,
+        checked: currentValue === 'heading-1',
+        onClick: () => {
+          actions.toggleHeading(1);
+        },
+      },
+      {
+        label: labels.heading2,
+        title: labels.heading2,
+        checked: currentValue === 'heading-2',
+        onClick: () => {
+          actions.toggleHeading(2);
+        },
+      },
+      {
+        label: labels.heading3,
+        title: labels.heading3,
+        checked: currentValue === 'heading-3',
+        onClick: () => {
+          actions.toggleHeading(3);
+        },
+      },
+    ],
+  };
+}
+
 function isDraftEditorCommandId(commandId: WritingEditorRegisteredCommandId): commandId is DraftEditorCommandId {
   return commandId === 'insertCitation' || commandId === 'insertFigure' || commandId === 'insertFigureRef';
 }
@@ -645,6 +743,14 @@ export function createWritingEditorToolbarButtonGroups(params: {
     }
     groups.set(toolbar.group, items);
   }
+
+  groups.set('text', [
+    createTextStyleToolbarSplitButton({
+      labels,
+      toolbarState,
+      actions,
+    }),
+  ]);
 
   return (['text', 'format', 'insert', 'history'] as const)
     .filter((groupId) => (groups.get(groupId)?.length ?? 0) > 0)

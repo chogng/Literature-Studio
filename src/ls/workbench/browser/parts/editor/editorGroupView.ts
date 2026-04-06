@@ -1,7 +1,10 @@
+import { isWritingDraftEditorInput } from 'ls/workbench/browser/editorInput';
+import { getWritingEditorInputResourceKey } from 'ls/workbench/browser/editorInput';
 import type {
   WritingEditorDocument,
   WritingWorkspaceTab,
 } from 'ls/workbench/browser/writingEditorModel';
+import { toWritingWorkspaceTabInput } from 'ls/workbench/browser/writingEditorModel';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import { areDraftEditorStatusStatesEqual } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
@@ -11,13 +14,28 @@ import type { EditorStatusState } from 'ls/workbench/browser/parts/editor/editor
 import { createActiveDraftEditorCommandExecutor } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
 import type { DraftEditorSurfaceActionId } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
 import { resolveEditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPaneRegistry';
-import type { EditorPaneRenderer } from 'ls/workbench/browser/parts/editor/panes/editorPaneRegistry';
+import type { EditorPaneResolverContext } from 'ls/workbench/browser/parts/editor/panes/editorPaneRegistry';
+import {
+  EditorPane,
+} from 'ls/workbench/browser/parts/editor/panes/editorPane';
+import type { AnyEditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPane';
 
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import { EditorEmptyWorkspaceView } from 'ls/workbench/browser/parts/editor/editorEmptyWorkspaceView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { createEditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 import type { EditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
+import {
+  EDITOR_FRAME_SLOTS,
+  setEditorFrameSlot,
+} from 'ls/workbench/browser/parts/editor/editorFrame';
+import {
+  createEditorViewStateStore,
+} from 'ls/workbench/browser/parts/editor/editorViewStateStore';
+import type {
+  EditorViewStateKey,
+  SerializedEditorViewStateEntry,
+} from 'ls/workbench/browser/parts/editor/editorViewStateStore';
 
 import { TabsTitleControl } from 'ls/workbench/browser/parts/editor/tabsTitleControl';
 import type { TitleControl, TitleControlProps } from 'ls/workbench/browser/parts/editor/titleControl';
@@ -25,15 +43,19 @@ import type { TitleControl, TitleControlProps } from 'ls/workbench/browser/parts
 export type EditorGroupViewProps = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
+  groupId: string;
   tabs: WritingWorkspaceTab[];
   activeTabId: string | null;
   activeTab: WritingWorkspaceTab | null;
+  viewStateEntries: SerializedEditorViewStateEntry[];
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
+  onDeleteEditorViewState: (key: EditorViewStateKey) => void;
   topbarActionsElement?: HTMLElement | null;
   topbarToolbarElement?: HTMLElement | null;
   onStatusChange?: (status: EditorStatusState) => void;
@@ -145,7 +167,9 @@ function createEditorGroupControllerSnapshot(
     draftStatusByTabId,
   });
   const activeDraftStatus =
-    group.activeTab?.kind === 'draft' ? draftStatusByTabId[group.activeTab.id] : undefined;
+    isWritingDraftEditorInput(group.activeTab)
+      ? draftStatusByTabId[group.activeTab.id]
+      : undefined;
 
   return {
     group,
@@ -211,7 +235,7 @@ class EditorGroupController {
   private pruneDraftStatuses() {
     const draftTabIds = new Set(
       this.context.tabs
-        .filter((tab) => tab.kind === 'draft')
+        .filter((tab) => isWritingDraftEditorInput(tab))
         .map((tab) => tab.id),
     );
     const nextDraftStatusByTabId = Object.fromEntries(
@@ -248,23 +272,31 @@ class EditorGroupController {
 export class EditorGroupView {
   private props: EditorGroupViewProps;
   private readonly controller: EditorGroupController;
-  private readonly element = createElement('div', 'editor-shell');
+  private readonly element = createElement('div', 'editor-frame');
   private readonly headerElement = createElement('div', 'editor-topbar');
   private readonly toolbarElement = createElement('div', 'editor-toolbar');
   private readonly tabsElement = createElement('div', 'editor-topbar-tabs');
   private readonly actionsElement = createElement('div', 'editor-topbar-actions');
   private readonly titleAreaControl: TitleControl;
-  private readonly contentElement = createElement('div');
+  private readonly contentElement = createElement('div', 'editor-content');
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
+  private readonly viewStateStore: ReturnType<typeof createEditorViewStateStore>;
   private readonly draftCommandExecutor = createActiveDraftEditorCommandExecutor(
-    () => this.activePaneRenderer,
+    () => this.activePane,
   );
-  private activePaneRenderer: EditorPaneRenderer | null = null;
+  private activePane: AnyEditorPane | null = null;
+  private activePaneTabId: string | null = null;
+  private activePaneViewStateKey: EditorViewStateKey | null = null;
   private activePaneKey: string | null = null;
+  private readonly pendingViewStateSaveByTabId = new Map<string, Promise<void>>();
 
   constructor(props: EditorGroupViewProps) {
     this.props = props;
     this.controller = new EditorGroupController(props);
+    this.viewStateStore = createEditorViewStateStore(props.viewStateEntries);
+    setEditorFrameSlot(this.headerElement, EDITOR_FRAME_SLOTS.topbar);
+    setEditorFrameSlot(this.toolbarElement, EDITOR_FRAME_SLOTS.toolbar);
+    setEditorFrameSlot(this.contentElement, EDITOR_FRAME_SLOTS.content);
     this.titleAreaControl = createTitleControl(
       props,
       this.controller.getSnapshot().group,
@@ -299,7 +331,16 @@ export class EditorGroupView {
     return this.draftCommandExecutor.getStableSelectionTarget();
   }
 
+  whenTabViewStateSettled(tabId: string) {
+    return this.pendingViewStateSaveByTabId.get(tabId) ?? Promise.resolve();
+  }
+
   setProps(props: EditorGroupViewProps) {
+    if (props.groupId !== this.props.groupId) {
+      this.saveActivePaneViewState();
+      this.disposeAllPaneInstances();
+      this.viewStateStore.replaceAll(props.viewStateEntries);
+    }
     this.props = props;
     this.controller.setContext(props);
     this.render();
@@ -307,9 +348,8 @@ export class EditorGroupView {
 
   dispose() {
     this.titleAreaControl.dispose();
-    this.activePaneRenderer?.dispose();
-    this.activePaneRenderer = null;
-    this.activePaneKey = null;
+    this.saveActivePaneViewState();
+    this.disposeAllPaneInstances();
     this.element.replaceChildren();
   }
 
@@ -323,52 +363,53 @@ export class EditorGroupView {
 
   private render() {
     const { group, editorStatus } = this.controller.getSnapshot();
+    const resolverContext = this.createPaneResolverContext();
     this.props.onStatusChange?.(editorStatus);
     this.titleAreaControl.setProps(createTitleControlProps(this.props, group));
     this.headerElement.classList.toggle('has-tabs', group.tabs.length > 0);
     this.syncTopbarActions(this.props.topbarActionsElement ?? null);
     this.syncTopbarToolbar(this.props.topbarToolbarElement ?? null);
 
-    this.contentElement.className = '';
+    this.contentElement.className = 'editor-content';
     this.contentElement.removeAttribute('data-editor-pane');
 
     if (!group.activeTab) {
-      this.activePaneRenderer?.dispose();
-      this.activePaneRenderer = null;
-      this.activePaneKey = null;
+      this.releaseActivePane();
       this.emptyWorkspaceView.setProps({
         labels: this.props.labels,
         onCreateDraftTab: this.props.onCreateDraftTab,
       });
-      this.contentElement.className = 'editor-content';
       this.contentElement.replaceChildren(this.emptyWorkspaceView.getElement());
       return;
     }
 
-    const resolvedPane = resolveEditorPane(group.activeTab, {
-      labels: this.props.labels,
-      viewPartProps: this.props.viewPartProps,
-      onDraftDocumentChange: this.props.onDraftDocumentChange,
-      onDraftStatusChange: this.handleDraftStatusChange,
-    });
-
-    if (this.activePaneKey !== resolvedPane.paneKey || !this.activePaneRenderer) {
-      this.activePaneRenderer?.dispose();
-      this.activePaneRenderer = resolvedPane.createRenderer();
-      this.activePaneKey = resolvedPane.paneKey;
-      this.contentElement.replaceChildren(this.activePaneRenderer.getElement());
-    } else {
-      resolvedPane.updateRenderer(this.activePaneRenderer);
-      if (this.contentElement.firstChild !== this.activePaneRenderer.getElement()) {
-        this.contentElement.replaceChildren(this.activePaneRenderer.getElement());
-      }
-    }
+    const resolvedPane = resolveEditorPane(group.activeTab, resolverContext);
 
     this.contentElement.className = [
       'editor-content',
       ...resolvedPane.contentClassNames,
     ].join(' ');
     this.contentElement.dataset.editorPane = resolvedPane.paneId;
+
+    const nextPaneViewStateKey = this.createPaneViewStateKey(
+      resolvedPane.paneId,
+      group.activeTab,
+    );
+
+    if (this.activePaneKey !== resolvedPane.paneKey || !this.activePane) {
+      this.releaseActivePane();
+      this.activateResolvedPane(
+        resolvedPane,
+        group.activeTab.id,
+        nextPaneViewStateKey,
+      );
+    } else {
+      resolvedPane.updatePane(this.activePane);
+      this.activePaneViewStateKey = nextPaneViewStateKey;
+      if (this.contentElement.firstChild !== this.activePane.getElement()) {
+        this.contentElement.replaceChildren(this.activePane.getElement());
+      }
+    }
   }
 
   private syncTopbarActions(topbarActionsElement: HTMLElement | null) {
@@ -391,14 +432,139 @@ export class EditorGroupView {
       if (currentTopbarToolbarElement !== topbarToolbarElement) {
         this.toolbarElement.replaceChildren(topbarToolbarElement);
       }
-      this.toolbarElement.style.display = '';
+      this.toolbarElement.hidden = false;
       return;
     }
 
     if (currentTopbarToolbarElement) {
       this.toolbarElement.replaceChildren();
     }
-    this.toolbarElement.style.display = 'none';
+    this.toolbarElement.hidden = true;
+  }
+
+  private createPaneViewStateKey(
+    paneId: string,
+    tab: WritingWorkspaceTab,
+  ): EditorViewStateKey {
+    return {
+      groupId: this.props.groupId,
+      paneId,
+      resourceKey: getWritingEditorInputResourceKey(toWritingWorkspaceTabInput(tab)),
+    };
+  }
+
+  private createPaneResolverContext(): EditorPaneResolverContext {
+    return {
+      labels: this.props.labels,
+      viewPartProps: this.props.viewPartProps,
+      onDraftDocumentChange: this.props.onDraftDocumentChange,
+      onDraftStatusChange: this.handleDraftStatusChange,
+    };
+  }
+
+  private activateResolvedPane(
+    resolvedPane: ReturnType<typeof resolveEditorPane>,
+    tabId: string,
+    viewStateKey: EditorViewStateKey,
+  ) {
+    this.activePane = resolvedPane.createPane();
+    this.activePaneTabId = tabId;
+    this.activePaneViewStateKey = viewStateKey;
+    this.activePaneKey = resolvedPane.paneKey;
+    this.contentElement.replaceChildren(this.activePane.getElement());
+    this.restorePaneViewState(this.activePane, viewStateKey);
+  }
+
+  private releaseActivePane() {
+    if (!this.activePane) {
+      return;
+    }
+
+    this.saveActivePaneViewState();
+
+    const pane = this.activePane;
+
+    this.activePane = null;
+    this.activePaneTabId = null;
+    this.activePaneViewStateKey = null;
+    this.activePaneKey = null;
+
+    this.disposePane(pane);
+  }
+
+  private disposePane(pane: AnyEditorPane) {
+    pane.clearInput();
+    pane.dispose();
+  }
+
+  private disposeAllPaneInstances() {
+    if (this.activePane) {
+      this.disposePane(this.activePane);
+    }
+    this.activePane = null;
+    this.activePaneTabId = null;
+    this.activePaneViewStateKey = null;
+    this.activePaneKey = null;
+  }
+
+  private saveActivePaneViewState() {
+    if (!this.activePane || !this.activePaneViewStateKey || !this.activePaneTabId) {
+      return;
+    }
+
+    const pane = this.activePane;
+    const tabId = this.activePaneTabId;
+    const viewStateKey = this.activePaneViewStateKey;
+    const syncViewState = pane.getViewState();
+
+    if (syncViewState === undefined) {
+      if (pane.captureViewState === EditorPane.prototype.captureViewState) {
+        this.deletePaneViewState(viewStateKey);
+      }
+    } else {
+      this.setPaneViewState(viewStateKey, syncViewState);
+    }
+
+    const pendingSave = pane
+      .captureViewState()
+      .then((capturedViewState) => {
+        if (capturedViewState === undefined) {
+          if (pane.captureViewState === EditorPane.prototype.captureViewState) {
+            this.deletePaneViewState(viewStateKey);
+          }
+          return;
+        }
+
+        this.setPaneViewState(viewStateKey, capturedViewState);
+      })
+      .catch(() => {});
+    this.trackPendingViewStateSave(tabId, pendingSave);
+  }
+
+  private trackPendingViewStateSave(tabId: string, pendingSave: Promise<void>) {
+    this.pendingViewStateSaveByTabId.set(tabId, pendingSave);
+    void pendingSave.finally(() => {
+      if (this.pendingViewStateSaveByTabId.get(tabId) === pendingSave) {
+        this.pendingViewStateSaveByTabId.delete(tabId);
+      }
+    });
+  }
+
+  private restorePaneViewState(
+    pane: AnyEditorPane,
+    key: EditorViewStateKey,
+  ) {
+    pane.restoreViewState(this.viewStateStore.get(key));
+  }
+
+  private setPaneViewState(key: EditorViewStateKey, state: unknown) {
+    this.viewStateStore.set(key, state);
+    this.props.onSetEditorViewState(key, state);
+  }
+
+  private deletePaneViewState(key: EditorViewStateKey) {
+    this.viewStateStore.delete(key);
+    this.props.onDeleteEditorViewState(key);
   }
 }
 

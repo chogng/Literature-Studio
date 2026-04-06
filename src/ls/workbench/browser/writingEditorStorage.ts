@@ -1,16 +1,27 @@
 import { createEmptyWritingEditorDocument, createWritingEditorDocumentFromPlainText, normalizeWritingEditorDocument, writingEditorDocumentToPlainText } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
+import {
+  isWritingDraftEditorInput,
+  toWritingEditorInput,
+} from 'ls/workbench/browser/editorInput';
 import type {
   WritingEditorViewMode,
+  WritingEditorGroupState,
   WritingWorkspaceDraftTab,
   WritingWorkspaceState,
 } from 'ls/workbench/browser/writingEditorModel';
 
 export type StoredWritingWorkspaceState = {
+  groups?: unknown;
+  activeGroupId?: unknown;
   tabs?: unknown;
+  inputs?: unknown;
+  groupId?: unknown;
   activeTabId?: unknown;
   mruTabIds?: unknown;
+  draftStateByInputId?: unknown;
+  viewStateEntries?: unknown;
 };
 
 type StoredWritingLegacyDraftState = {
@@ -19,8 +30,17 @@ type StoredWritingLegacyDraftState = {
   viewMode: WritingEditorViewMode;
 };
 
+type StoredWritingDraftState = {
+  title: string;
+  document: WritingEditorDocument;
+  viewMode: WritingEditorViewMode;
+};
+
 type WritingEditorPersistedState = {
-  workspaceState: Pick<WritingWorkspaceState, 'tabs' | 'activeTabId' | 'mruTabIds'>;
+  workspaceState: Pick<
+    WritingWorkspaceState,
+    'groups' | 'activeGroupId' | 'viewStateEntries'
+  >;
   contextDraftTab: WritingWorkspaceDraftTab | null;
 };
 
@@ -97,16 +117,45 @@ function readStoredDocument(): WritingEditorDocument {
     : createEmptyWritingEditorDocument();
 }
 
+function createStoredDraftStateByInputId(
+  workspaceState: Pick<WritingWorkspaceState, 'groups'>,
+) {
+  return Object.fromEntries(
+    workspaceState.groups
+      .flatMap((group) => group.tabs)
+      .filter((tab): tab is WritingWorkspaceDraftTab => isWritingDraftEditorInput(tab))
+      .map((tab) => [
+        tab.id,
+        {
+          title: tab.title,
+          document: tab.document,
+          viewMode: tab.viewMode,
+        } satisfies StoredWritingDraftState,
+      ]),
+  );
+}
+
+function serializeStoredGroup(group: WritingEditorGroupState) {
+  return {
+    groupId: group.groupId,
+    inputs: group.tabs.map((tab) => toWritingEditorInput(tab)),
+    activeTabId: group.activeTabId,
+    mruTabIds: group.mruTabIds,
+  };
+}
+
 function persistState({
   workspaceState,
   contextDraftTab,
 }: WritingEditorPersistedState) {
+  const draftStateByInputId = createStoredDraftStateByInputId(workspaceState);
   writeStoredValue(
     storageKeys.workspace,
     JSON.stringify({
-      tabs: workspaceState.tabs,
-      activeTabId: workspaceState.activeTabId,
-      mruTabIds: workspaceState.mruTabIds,
+      groups: workspaceState.groups.map((group) => serializeStoredGroup(group)),
+      activeGroupId: workspaceState.activeGroupId,
+      draftStateByInputId,
+      viewStateEntries: workspaceState.viewStateEntries,
     }),
   );
   writeStoredValue(storageKeys.title, contextDraftTab?.title ?? '');
@@ -197,4 +246,3 @@ export class WritingEditorStorage {
 export function createWritingEditorStorage(options?: WritingEditorStorageOptions) {
   return new WritingEditorStorage(options);
 }
-

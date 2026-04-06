@@ -25,6 +25,11 @@ export type PdfAnnotationEditorProps = {
   onAnnotationsChange?: (annotations: readonly Annotation[]) => void;
 };
 
+export type PdfAnnotationEditorViewState = Pick<
+  PdfAnnotationStoreSnapshot,
+  'selection' | 'draftComment'
+>;
+
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
   className?: string,
@@ -98,6 +103,14 @@ export class PdfAnnotationEditor {
     return this.store.getSnapshot();
   }
 
+  getViewState(): PdfAnnotationEditorViewState {
+    const snapshot = this.store.getSnapshot();
+    return {
+      selection: snapshot.selection,
+      draftComment: snapshot.draftComment,
+    };
+  }
+
   setProps(props: PdfAnnotationEditorProps) {
     this.props = props;
     this.store.setTarget(props.targetId);
@@ -109,6 +122,15 @@ export class PdfAnnotationEditor {
 
   setSelection(selection: PdfSelection | null) {
     this.store.setSelection(selection);
+  }
+
+  restoreViewState(viewState: PdfAnnotationEditorViewState | undefined) {
+    if (!viewState) {
+      return;
+    }
+
+    this.store.setSelection(viewState.selection);
+    this.store.setDraftComment(viewState.draftComment);
   }
 
   dispose() {

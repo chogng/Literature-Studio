@@ -171,6 +171,17 @@ const electronAPI: ElectronAPI = {
     goForward(targetId?: string | null) {
       sendIpc('app:web-content-go-forward', { targetId: targetId ?? null });
     },
+    executeJavaScript<T = unknown>(
+      targetId: string | null | undefined,
+      script: string,
+      timeoutMs?: number,
+    ) {
+      return invokeIpc<T | null>('app:web-content-execute-javascript', {
+        targetId: targetId ?? null,
+        script,
+        timeoutMs,
+      });
+    },
     getSelection(targetId?: string | null) {
       return invokeIpc<WebContentSelectionSnapshot | null>('app:web-content-get-selection', {
         targetId: targetId ?? null,

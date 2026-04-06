@@ -55,9 +55,16 @@ test('writing editor storage debounces draft persistence and keeps the latest st
 
   storage.scheduleSave({
     workspaceState: {
-      tabs: [],
-      activeTabId: null,
-      mruTabIds: [],
+      groups: [
+        {
+          groupId: 'editor-group-a',
+          tabs: [],
+          activeTabId: null,
+          mruTabIds: [],
+        },
+      ],
+      activeGroupId: 'editor-group-a',
+      viewStateEntries: [],
     },
     contextDraftTab: {
       id: 'draft-a',
@@ -70,9 +77,16 @@ test('writing editor storage debounces draft persistence and keeps the latest st
 
   storage.scheduleSave({
     workspaceState: {
-      tabs: [],
-      activeTabId: null,
-      mruTabIds: [],
+      groups: [
+        {
+          groupId: 'editor-group-a',
+          tabs: [],
+          activeTabId: null,
+          mruTabIds: [],
+        },
+      ],
+      activeGroupId: 'editor-group-a',
+      viewStateEntries: [],
     },
     contextDraftTab: {
       id: 'draft-b',
@@ -109,6 +123,147 @@ test('writing editor storage reads the legacy draft payload from local storage',
   assert.equal(draftState.title, 'Draft');
   assert.equal(writingEditorDocumentToPlainText(draftState.document), 'legacy body');
   assert.equal(draftState.viewMode, 'draft');
+
+  try {
+    storage.dispose();
+  } finally {
+    restoreWindow();
+  }
+});
+
+test('writing editor storage persists editor inputs separately from draft state payload', () => {
+  const localStorage = createLocalStorage();
+  const restoreWindow = installMockWindow(localStorage);
+  const storage = createWritingEditorStorage();
+
+  storage.save({
+    workspaceState: {
+      groups: [
+        {
+          groupId: 'editor-group-a',
+          tabs: [
+            {
+              id: 'draft-a',
+              kind: 'draft',
+              title: 'Draft A',
+              document: createWritingEditorDocumentFromPlainText('alpha'),
+              viewMode: 'draft',
+            },
+            {
+              id: 'browser-a',
+              kind: 'browser',
+              title: 'Browser A',
+              url: 'https://example.com/article',
+            },
+          ],
+          activeTabId: 'draft-a',
+          mruTabIds: ['draft-a', 'browser-a'],
+        },
+      ],
+      activeGroupId: 'editor-group-a',
+      viewStateEntries: [
+        {
+          key: {
+            groupId: 'editor-group-a',
+            paneId: 'draft',
+            resourceKey: 'draft:draft-a',
+          },
+          state: {
+            scrollPosition: {
+              scrollLeft: 0,
+              scrollTop: 24,
+            },
+          },
+        },
+      ],
+    },
+    contextDraftTab: {
+      id: 'draft-a',
+      kind: 'draft',
+      title: 'Draft A',
+      document: createWritingEditorDocumentFromPlainText('alpha'),
+      viewMode: 'draft',
+    },
+  });
+
+  const rawWorkspace = localStorage.getItem('ls.writingWorkspace.state');
+  assert.ok(rawWorkspace);
+  const storedWorkspace = JSON.parse(rawWorkspace) as {
+    groups: Array<{
+      groupId: string;
+      inputs: Array<{
+        id: string;
+        kind: string;
+        title: string;
+        viewMode?: string;
+        url?: string;
+        document?: unknown;
+      }>;
+      activeTabId: string | null;
+      mruTabIds: string[];
+    }>;
+    activeGroupId: string;
+    draftStateByInputId: Record<string, { document: unknown }>;
+    viewStateEntries: unknown[];
+    inputs?: unknown;
+    groupId?: unknown;
+  };
+
+  assert.equal(Array.isArray(storedWorkspace.groups), true);
+  assert.equal(storedWorkspace.inputs, undefined);
+  assert.equal(storedWorkspace.groupId, undefined);
+  assert.equal(storedWorkspace.activeGroupId, 'editor-group-a');
+  assert.deepEqual(storedWorkspace.groups[0], {
+    groupId: 'editor-group-a',
+    inputs: [
+      {
+        id: 'draft-a',
+        kind: 'draft',
+        title: 'Draft A',
+        viewMode: 'draft',
+      },
+      {
+        id: 'browser-a',
+        kind: 'browser',
+        title: 'Browser A',
+        url: 'https://example.com/article',
+      },
+    ],
+    activeTabId: 'draft-a',
+    mruTabIds: ['draft-a', 'browser-a'],
+  });
+  assert.deepEqual(storedWorkspace.groups[0].inputs[0], {
+    id: 'draft-a',
+    kind: 'draft',
+    title: 'Draft A',
+    viewMode: 'draft',
+  });
+  const storedDraftInput = storedWorkspace.groups[0].inputs[0] as {
+    document?: unknown;
+  };
+  assert.equal(storedDraftInput.document, undefined);
+  assert.equal(
+    writingEditorDocumentToPlainText(
+      storedWorkspace.draftStateByInputId['draft-a']
+        .document as import('ls/editor/common/writingEditorDocument').WritingEditorDocument,
+    ),
+    'alpha',
+  );
+  assert.deepEqual(storedWorkspace.viewStateEntries, [
+    {
+      key: {
+        groupId: 'editor-group-a',
+        paneId: 'draft',
+        resourceKey: 'draft:draft-a',
+      },
+      state: {
+        scrollPosition: {
+          scrollLeft: 0,
+          scrollTop: 24,
+        },
+      },
+    },
+  ]);
 
   try {
     storage.dispose();

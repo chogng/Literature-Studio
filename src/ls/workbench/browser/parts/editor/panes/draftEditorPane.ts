@@ -8,9 +8,11 @@ import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorS
 import { ProseMirrorEditor } from 'ls/editor/browser/text/editor';
 import { localeService } from 'ls/workbench/contrib/localization/browser/localeService';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+import { EditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPane';
 import { createDraftEditorCommandAction } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import type { DraftEditorSurfaceActionId } from 'ls/workbench/browser/parts/editor/activeDraftEditorCommandExecutor';
+import type { WritingEditorSurfaceViewState } from 'ls/editor/browser/text/editor';
 
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 
@@ -21,19 +23,23 @@ export type DraftEditorPaneProps = {
   onStatusChange?: (status: DraftEditorStatusState) => void;
 };
 
-export class DraftEditorPane {
+export class DraftEditorPane extends EditorPane<
+  DraftEditorPaneProps,
+  WritingEditorSurfaceViewState
+> {
   private props: DraftEditorPaneProps;
   private readonly element = document.createElement('div');
   private readonly editor: ProseMirrorEditor;
 
   constructor(props: DraftEditorPaneProps) {
+    super();
     this.props = props;
     this.element.className = 'editor-draft-pane';
     this.editor = new ProseMirrorEditor(this.toEditorProps(props));
     this.element.append(this.editor.getElement());
   }
 
-  getElement() {
+  override getElement() {
     return this.element;
   }
 
@@ -74,12 +80,24 @@ export class DraftEditorPane {
     }
   }
 
-  setProps(props: DraftEditorPaneProps) {
+  override setProps(props: DraftEditorPaneProps) {
     this.props = props;
     this.editor.setProps(this.toEditorProps(props));
   }
 
-  dispose() {
+  override focus() {
+    this.editor.focus();
+  }
+
+  override getViewState() {
+    return this.editor.getViewState();
+  }
+
+  override restoreViewState(viewState: WritingEditorSurfaceViewState | undefined) {
+    this.editor.restoreViewState(viewState);
+  }
+
+  override dispose() {
     this.editor.dispose();
     this.element.replaceChildren();
   }

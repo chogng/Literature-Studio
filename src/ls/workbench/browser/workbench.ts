@@ -86,6 +86,7 @@ import {
   parseLlmModelOptionValue,
 } from 'ls/workbench/services/llm/registry';
 
+import { isWritingContentEditorInput } from 'ls/workbench/browser/editorInput';
 import type { WritingWorkspaceTab } from 'ls/workbench/browser/writingEditorModel';
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import {
@@ -95,6 +96,7 @@ import {
 import { EventEmitter } from 'ls/base/common/event';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import { applyWorkbenchTheme } from 'ls/workbench/services/themes/browser/workbenchThemeService';
+import { applyWorkbenchBrowserStyles } from 'ls/workbench/browser/style';
 import 'ls/workbench/browser/media/workbench.css';
 
 export type WorkbenchPage = 'content' | 'settings';
@@ -291,7 +293,7 @@ function reduceWorkbenchState(
 }
 
 function isContentTab(tab: WritingWorkspaceTab) {
-  return tab.kind !== 'draft';
+  return isWritingContentEditorInput(tab);
 }
 
 function toContentTabIdSet(tabs: ReadonlyArray<WritingWorkspaceTab>) {
@@ -385,6 +387,9 @@ class WorkbenchHost {
   private readonly statusbarElement: HTMLElement;
   private readonly toastHost: ToastHost;
   private workbenchContentView: ReturnType<typeof createWorkbenchContentView> | null = null;
+  private retiredWorkbenchContentView:
+    | ReturnType<typeof createWorkbenchContentView>
+    | null = null;
   private settingsView: ReturnType<typeof createSettingsPartView> | null = null;
   private readonly globalDisposables: Array<() => void> = [];
   private webContentStateDisposable: (() => void) | null = null;
@@ -457,6 +462,7 @@ class WorkbenchHost {
 
     this.workbenchContentView?.dispose();
     this.workbenchContentView = null;
+    this.retiredWorkbenchContentView = null;
     this.settingsView?.dispose();
     this.settingsView = null;
     this.toastHost.dispose();
@@ -614,6 +620,27 @@ class WorkbenchHost {
         });
     };
 
+    const releasedContentTargetIds = new Set<string>();
+    const releaseContentTarget = (targetId: string | null) => {
+      if (!targetId || releasedContentTargetIds.has(targetId)) {
+        return;
+      }
+
+      releasedContentTargetIds.add(targetId);
+      const pendingViewStateSave =
+        (
+          this.workbenchContentView ?? this.retiredWorkbenchContentView
+        )?.whenEditorTabViewStateSettled(targetId) ??
+        Promise.resolve();
+      void pendingViewStateSave.finally(() => {
+        if (this.previousActiveContentTabId === targetId) {
+          return;
+        }
+
+        webContentNavigationModel.releaseTarget(targetId);
+      });
+    };
+
     if (
       this.previousContentTargetId !== webContentSurfaceSnapshot.activeContentTabId ||
       this.previousContentTargetUrl !== webContentSurfaceSnapshot.activeContentTabUrl
@@ -626,10 +653,19 @@ class WorkbenchHost {
       this.previousContentTargetUrl = webContentSurfaceSnapshot.activeContentTabUrl;
     }
 
+    // Keep content tabs lightweight: once a tab is inactive, drop its live target
+    // and restore from persisted URL/view state when it becomes active again.
+    if (
+      this.previousActiveContentTabId &&
+      this.previousActiveContentTabId !== webContentSurfaceSnapshot.activeContentTabId
+    ) {
+      releaseContentTarget(this.previousActiveContentTabId);
+    }
+
     const nextContentTabIds = toContentTabIdSet(tabs);
     for (const previousTabId of this.previousContentTabIds) {
       if (!nextContentTabIds.has(previousTabId)) {
-        webContentNavigationModel.releaseTarget(previousTabId);
+        releaseContentTarget(previousTabId);
       }
     }
     this.previousContentTabIds = nextContentTabIds;
@@ -650,28 +686,20 @@ class WorkbenchHost {
   }
 
   private createContentAwareEditorPartProps(params: {
-    tabs: WritingWorkspaceTab[];
     activateTab: (tabId: string) => void;
     closeTab: (tabId: string) => void;
     editorPartProps: EditorPartProps;
-    webContentNavigationModel: WebContentNavigationModel;
   }) {
     const {
-      tabs,
       activateTab,
       closeTab,
       editorPartProps,
-      webContentNavigationModel,
     } = params;
 
     return {
       ...editorPartProps,
       onActivateTab: (tabId: string) => {
-        const targetTab = tabs.find((tab) => tab.id === tabId) ?? null;
         activateTab(tabId);
-        void webContentNavigationModel.activateTarget(
-          targetTab && isContentTab(targetTab) ? targetTab.id : null,
-        );
       },
       onCloseTab: (tabId: string) => {
         closeTab(tabId);
@@ -822,6 +850,7 @@ class WorkbenchHost {
     };
     editorPartProps: EditorPartProps;
   }) {
+    this.retiredWorkbenchContentView = null;
     this.settingsView?.dispose();
     this.settingsView = null;
     if (!this.workbenchContentView) {
@@ -841,8 +870,11 @@ class WorkbenchHost {
   private renderSettingsPage(
     settingsPartProps: ReturnType<typeof createSettingsPartProps>,
   ) {
-    this.workbenchContentView?.dispose();
-    this.workbenchContentView = null;
+    if (this.workbenchContentView) {
+      this.workbenchContentView.dispose();
+      this.retiredWorkbenchContentView = this.workbenchContentView;
+      this.workbenchContentView = null;
+    }
     setWorkbenchEditorCommandHandlers(null);
     if (!this.settingsView) {
       this.settingsView = createSettingsPartView(settingsPartProps);
@@ -922,6 +954,7 @@ class WorkbenchHost {
       isTestingTranslationConnection,
     } = settingsSnapshot;
     applyWorkbenchTheme(theme, workbenchColorCustomizations);
+    applyWorkbenchBrowserStyles();
     const knowledgeBaseModeEnabled = knowledgeBaseEnabled;
     this.syncKnowledgeBaseLayout(knowledgeBaseModeEnabled);
 
@@ -1256,11 +1289,9 @@ class WorkbenchHost {
     };
 
     const contentAwareEditorPartProps = this.createContentAwareEditorPartProps({
-      tabs: editorTabs,
       activateTab: editorPartControllerInstance.onActivateTab,
       closeTab: editorPartControllerInstance.onCloseTab,
       editorPartProps,
-      webContentNavigationModel: webContentNavigationModelInstance,
     });
 
     const handleBatchFetchStart = () => {
@@ -1829,6 +1860,7 @@ export function renderWorkbench() {
   }
 
   applyWorkbenchTheme();
+  applyWorkbenchBrowserStyles();
   setARIAContainer(document.body);
 
   activeWorkbenchHost?.dispose();

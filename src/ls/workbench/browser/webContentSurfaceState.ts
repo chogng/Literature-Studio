@@ -1,3 +1,4 @@
+import { isWritingContentEditorInput } from 'ls/workbench/browser/editorInput';
 import type {
   WritingWorkspaceContentTab,
   WritingWorkspaceTab,
@@ -15,7 +16,7 @@ export type WebContentSurfaceSnapshot = {
 export function resolveActiveContentTab(
   activeTab: WritingWorkspaceTab | null,
 ): WritingWorkspaceContentTab | null {
-  return activeTab && activeTab.kind !== 'draft' ? activeTab : null;
+  return isWritingContentEditorInput(activeTab) ? activeTab : null;
 }
 
 // Mirror the upstream editor split: tabs select a target, while the active editor pane renders one shared web-content surface.

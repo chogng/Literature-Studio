@@ -3,6 +3,10 @@ import type {
   WritingWorkspaceTab,
 } from 'ls/workbench/browser/writingEditorModel';
 import type {
+  EditorViewStateKey,
+  SerializedEditorViewStateEntry,
+} from 'ls/workbench/browser/parts/editor/editorViewStateStore';
+import type {
   EditorStatusLabels,
   EditorStatusState,
 } from 'ls/workbench/browser/parts/editor/editorStatus';
@@ -27,6 +31,7 @@ export type EditorPartLabels = {
   toolbarFavorite: string;
   toolbarMore: string;
   toolbarAddressBar: string;
+  toolbarAddressPlaceholder: string;
   draftMode: string;
   sourceMode: string;
   pdfMode: string;
@@ -43,15 +48,19 @@ export type EditorPartLabels = {
 export type EditorPartProps = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
+  groupId: string;
   tabs: WritingWorkspaceTab[];
   activeTabId: string | null;
   activeTab: WritingWorkspaceTab | null;
+  viewStateEntries: SerializedEditorViewStateEntry[];
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
+  onDeleteEditorViewState: (key: EditorViewStateKey) => void;
   topbarActionsElement?: HTMLElement | null;
   topbarToolbarElement?: HTMLElement | null;
   onStatusChange?: (status: EditorStatusState) => void;
@@ -86,6 +95,10 @@ export class EditorPartView {
 
   getActiveDraftStableSelectionTarget() {
     return this.groupView.getActiveDraftStableSelectionTarget();
+  }
+
+  whenEditorTabViewStateSettled(tabId: string) {
+    return this.groupView.whenTabViewStateSettled(tabId);
   }
 
   setProps(props: EditorPartProps) {

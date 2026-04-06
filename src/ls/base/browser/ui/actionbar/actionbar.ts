@@ -7,6 +7,7 @@ import {
   BaseActionViewItem,
   type ActionViewItemOptions,
 } from 'ls/base/browser/ui/actionbar/actionViewItems';
+import { createActionWithDropdownActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import type { HoverInput, HoverService } from 'ls/base/browser/ui/hover/hover';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -46,7 +47,23 @@ export type ActionBarSeparatorItem = {
   className?: string;
 };
 
-export type ActionBarItem = ActionBarActionItem | ActionBarSeparatorItem | ActionView;
+export type ActionBarSplitItem = {
+  type: 'split';
+  id?: string;
+  className?: string;
+  primary: ActionBarActionItem;
+  dropdown: ActionBarActionItem & {
+    menu?: readonly ActionBarMenuItem[];
+    renderOverlay?: (context: { hide: () => void }) => HTMLElement;
+    overlayRole?: string;
+    menuClassName?: string;
+    minWidth?: number;
+    overlayAlignment?: 'start' | 'end';
+    overlayPosition?: 'auto' | 'above' | 'below';
+  };
+};
+
+export type ActionBarItem = ActionBarActionItem | ActionBarSeparatorItem | ActionBarSplitItem | ActionView;
 
 export type ActionBarProps = {
   items?: readonly ActionBarItem[];
@@ -58,7 +75,11 @@ export type ActionBarProps = {
 };
 
 function isActionItem(item: ActionBarItem): item is ActionBarActionItem {
-  return !isViewItem(item) && item.type !== 'separator';
+  return !isViewItem(item) && item.type !== 'separator' && item.type !== 'split';
+}
+
+function isSplitItem(item: ActionBarItem): item is ActionBarSplitItem {
+  return !isViewItem(item) && item.type === 'split';
 }
 
 function isViewItem(item: ActionBarItem): item is ActionView {
@@ -198,6 +219,32 @@ export class ActionBarView extends LifecycleOwner {
     }
 
     if (!isActionItem(item)) {
+      if (isSplitItem(item)) {
+        const viewItem = createActionWithDropdownActionViewItem({
+          className: item.className,
+          primary: {
+            ...item.primary,
+            hoverService: item.primary.hoverService ?? this.props.hoverService,
+          },
+          dropdown: {
+            ...item.dropdown,
+            hoverService: item.dropdown.hoverService ?? this.props.hoverService,
+          },
+        });
+        viewItem.render();
+        const element = viewItem.getElement();
+        if (item.id) {
+          element.dataset.actionbarItemId = item.id;
+        }
+        this.renderedItems.push({
+          button: viewItem.getFocusableElement?.() ?? element,
+          dispose: () => {
+            viewItem.dispose();
+          },
+        });
+        return element;
+      }
+
       const itemElement = document.createElement('div');
       itemElement.className = DOM.composeClassName([
         'actionbar-item',

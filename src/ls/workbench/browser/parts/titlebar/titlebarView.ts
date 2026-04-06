@@ -347,12 +347,12 @@ export class TitlebarView {
     this.controlsElement.setAttribute('aria-label', props.labels.controlsAriaLabel);
 
     this.disposeRenderedViews();
-    this.renderStart(props);
+    this.renderStart();
     this.renderCenter(props);
     this.renderControls(props);
   }
 
-  private renderStart(props: TitlebarProps) {
+  private renderStart() {
     this.startElement.replaceChildren();
   }
 

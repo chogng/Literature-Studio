@@ -1,5 +1,6 @@
 import type { LocaleMessages } from 'language/locales';
 import { normalizeUrl } from 'ls/workbench/common/url';
+import { toWritingEditorInput } from 'ls/workbench/browser/editorInput';
 import { createWebContentSurfaceSnapshot, resolveContentSourceUrl } from 'ls/workbench/browser/webContentSurfaceState';
 import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
 
@@ -10,13 +11,17 @@ import type { WritingEditorDocument, WritingEditorModelSnapshot, WritingWorkspac
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
+import type { EditorViewStateKey } from 'ls/workbench/browser/parts/editor/editorViewStateStore';
+import type { SerializedEditorViewStateEntry } from 'ls/workbench/browser/parts/editor/editorViewStateStore';
 
 export type EditorPartState = {
   ui: LocaleMessages;
   viewPartProps: ViewPartProps;
+  groupId: string;
   tabs: WritingWorkspaceTab[];
   activeTabId: string | null;
   activeTab: WritingWorkspaceTab | null;
+  viewStateEntries: SerializedEditorViewStateEntry[];
 };
 
 export type EditorPartActions = {
@@ -26,6 +31,8 @@ export type EditorPartActions = {
   onCreateBrowserTab: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
+  onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
+  onDeleteEditorViewState: (key: EditorViewStateKey) => void;
 };
 
 export type EditorPartControllerContext = {
@@ -37,7 +44,7 @@ export type EditorPartControllerContext = {
 
 export type EditorPartControllerSnapshot = Pick<
   WritingEditorModelSnapshot,
-  'tabs' | 'activeTabId' | 'activeTab'
+  'groupId' | 'tabs' | 'activeTabId' | 'activeTab' | 'viewStateEntries'
 > & {
   draftBody: string;
   webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
@@ -53,25 +60,12 @@ type CreateEditorPartPropsParams = {
 };
 
 function toStructuralWorkspaceTab(tab: WritingWorkspaceTab) {
-  if (tab.kind === 'draft') {
-    return {
-      id: tab.id,
-      kind: tab.kind,
-      title: tab.title,
-      viewMode: tab.viewMode,
-    };
-  }
-
-  return {
-    id: tab.id,
-    kind: tab.kind,
-    title: tab.title,
-    url: tab.url,
-  };
+  return toWritingEditorInput(tab);
 }
 
 function createEditorPartStructureKey(snapshot: EditorPartControllerSnapshot) {
   return JSON.stringify({
+    groupId: snapshot.groupId,
     tabs: snapshot.tabs.map(toStructuralWorkspaceTab),
     activeTabId: snapshot.activeTabId,
     activeTab: snapshot.activeTab ? toStructuralWorkspaceTab(snapshot.activeTab) : null,
@@ -83,9 +77,11 @@ export function createEditorPartProps({
   state: {
     ui,
     viewPartProps,
+    groupId,
     tabs,
     activeTabId,
     activeTab,
+    viewStateEntries,
   },
   actions: {
     onActivateTab,
@@ -94,6 +90,8 @@ export function createEditorPartProps({
     onCreateBrowserTab,
     onCreatePdfTab,
     onDraftDocumentChange,
+    onSetEditorViewState,
+    onDeleteEditorViewState,
   },
 }: CreateEditorPartPropsParams): EditorPartProps {
   return {
@@ -109,6 +107,7 @@ export function createEditorPartProps({
       toolbarFavorite: ui.agentbarToolbarFavorite,
       toolbarMore: ui.agentbarToolbarMore,
       toolbarAddressBar: ui.agentbarToolbarAddressBar,
+      toolbarAddressPlaceholder: ui.editorToolbarAddressPlaceholder,
       draftMode: ui.editorDraftMode,
       sourceMode: ui.editorSourceMode,
       pdfMode: ui.editorPdfMode,
@@ -166,15 +165,19 @@ export function createEditorPartProps({
       fontSizePrompt: ui.editorFontSizePrompt,
     },
     viewPartProps,
+    groupId,
     tabs,
     activeTabId,
     activeTab,
+    viewStateEntries,
     onActivateTab,
     onCloseTab,
     onCreateDraftTab,
     onCreateBrowserTab,
     onCreatePdfTab,
     onDraftDocumentChange,
+    onSetEditorViewState,
+    onDeleteEditorViewState,
   };
 }
 
@@ -209,23 +212,27 @@ function createEditorPartControllerSnapshot(
 ): EditorPartControllerSnapshot {
   const writingSnapshot = writingEditorModel.getSnapshot();
   const { ui, viewPartProps } = context;
-  const { tabs, activeTabId, activeTab } = writingSnapshot;
+  const { groupId, tabs, activeTabId, activeTab, viewStateEntries } = writingSnapshot;
   const draftBody = writingEditorModel.getDraftBody();
   const webContentSurfaceSnapshot = createWebContentSurfaceSnapshot(activeTab);
 
   return {
+    groupId,
     tabs,
     activeTabId,
     activeTab,
+    viewStateEntries,
     draftBody,
     webContentSurfaceSnapshot,
     editorPartProps: createEditorPartProps({
       state: {
         ui,
         viewPartProps,
+        groupId,
         tabs,
         activeTabId,
         activeTab,
+        viewStateEntries,
       },
       actions,
     }),
@@ -268,6 +275,8 @@ export class EditorPartController {
       onCreateBrowserTab: this.handleCreateBrowserTab,
       onCreatePdfTab: this.handleCreatePdfTab,
       onDraftDocumentChange: this.setDraftDocument,
+      onSetEditorViewState: this.setEditorViewState,
+      onDeleteEditorViewState: this.deleteEditorViewState,
     };
     this.snapshot = createEditorPartControllerSnapshot(
       this.context,
@@ -323,6 +332,15 @@ export class EditorPartController {
   readonly getDraftDocument = () => this.writingEditorModel.getDraftDocument();
   readonly setDraftDocument = (value: WritingEditorDocument) => {
     this.writingEditorModel.setDraftDocument(value);
+  };
+  readonly setEditorViewState = (
+    key: EditorViewStateKey,
+    state: unknown,
+  ) => {
+    this.writingEditorModel.setEditorViewState(key, state);
+  };
+  readonly deleteEditorViewState = (key: EditorViewStateKey) => {
+    this.writingEditorModel.deleteEditorViewState(key);
   };
 
   readonly onActivateTab = (tabId: string) => {

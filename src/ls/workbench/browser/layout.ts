@@ -58,7 +58,6 @@ export const WORKBENCH_PART_IDS = {
   statusbar: 'workbench.statusbar',
   settings: 'workbench.settings',
   editor: 'workbench.editor',
-  view: 'workbench.view',
   webContentViewHost: 'workbench.view.webContentViewHost',
 } as const;
 
@@ -100,7 +99,6 @@ const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement |
   [WORKBENCH_PART_IDS.statusbar]: null,
   [WORKBENCH_PART_IDS.settings]: null,
   [WORKBENCH_PART_IDS.editor]: null,
-  [WORKBENCH_PART_IDS.view]: null,
   [WORKBENCH_PART_IDS.webContentViewHost]: null,
 };
 

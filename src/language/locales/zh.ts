@@ -7,6 +7,7 @@ const zh = {
   fetchCurrentBusy: '抓取中...',
   fetchCurrent: '抓取当前文章',
   pageUrlPlaceholder: '期刊列表页 / 最新文章页链接',
+  editorToolbarAddressPlaceholder: 'Search or enter URL',
   batchCount: '每个 URL 数量',
   sameDomainOnly: '仅同域',
   crossDomainAllowed: '允许跨域',

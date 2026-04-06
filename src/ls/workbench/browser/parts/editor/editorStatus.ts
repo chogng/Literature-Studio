@@ -1,3 +1,7 @@
+import {
+  isWritingDraftEditorInput,
+  isWritingPdfEditorInput,
+} from 'ls/workbench/browser/editorInput';
 import type {
   WritingWorkspaceDraftTab,
   WritingWorkspaceTab,
@@ -215,8 +219,8 @@ function createContentEditorStatus(
 ): EditorStatusState {
   return {
     ariaLabel: labels.statusbarAriaLabel,
-    kind: tab.kind === 'pdf' ? 'pdf' : 'browser',
-    modeLabel: tab.kind === 'pdf' ? labels.pdfMode : labels.sourceMode,
+    kind: isWritingPdfEditorInput(tab) ? 'pdf' : 'browser',
+    modeLabel: isWritingPdfEditorInput(tab) ? labels.pdfMode : labels.sourceMode,
     leftItems: [],
     rightItems: [
       {
@@ -243,7 +247,7 @@ export function createEditorStatus(
     };
   }
 
-  if (activeTab.kind === 'draft') {
+  if (isWritingDraftEditorInput(activeTab)) {
     return createDraftEditorStatus(activeTab, labels, draftStatusState);
   }
 

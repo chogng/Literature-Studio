@@ -1,4 +1,8 @@
-import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
+import {
+  getWorkbenchPartDomNode,
+  WORKBENCH_PART_IDS,
+  registerWorkbenchPartDomNode,
+} from 'ls/workbench/browser/layout';
 import 'ls/workbench/browser/parts/views/media/view.css';
 
 export type ViewPartLabels = {
@@ -43,7 +47,6 @@ export class ViewPartView {
     this.webContentHost.setAttribute('aria-hidden', 'true');
     this.contentElement.append(this.webContentHost, this.overlayElement);
     this.element.append(this.contentElement);
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.view, this.element);
     this.render();
   }
 
@@ -58,7 +61,6 @@ export class ViewPartView {
 
   dispose() {
     this.setWebContentHostRegistered(false);
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.view, null);
     this.element.replaceChildren();
   }
 
@@ -105,10 +107,20 @@ export class ViewPartView {
     }
 
     this.isWebContentHostRegistered = registered;
-    registerWorkbenchPartDomNode(
-      WORKBENCH_PART_IDS.webContentViewHost,
-      registered ? this.webContentHost : null,
-    );
+    if (registered) {
+      registerWorkbenchPartDomNode(
+        WORKBENCH_PART_IDS.webContentViewHost,
+        this.webContentHost,
+      );
+      return;
+    }
+
+    if (
+      getWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost) ===
+      this.webContentHost
+    ) {
+      registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, null);
+    }
   }
 }
 

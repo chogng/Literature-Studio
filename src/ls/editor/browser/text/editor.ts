@@ -1,5 +1,5 @@
 import type { ResolvedPos } from 'prosemirror-model';
-import { EditorState } from 'prosemirror-state';
+import { EditorState, TextSelection } from 'prosemirror-state';
 import { baseKeymap } from 'prosemirror-commands';
 import { history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
@@ -72,6 +72,15 @@ export type WritingEditorSurfaceHandle = {
   insertFigureRef: (targetId: string) => boolean;
   getAvailableFigureIds: () => readonly string[];
   getStableSelectionTarget: () => WritingEditorStableSelectionTarget | null;
+};
+
+export type WritingEditorSurfaceViewState = {
+  scrollPosition: {
+    scrollLeft: number;
+    scrollTop: number;
+  };
+  selectionTarget: WritingEditorStableSelectionTarget | null;
+  shouldFocus: boolean;
 };
 
 type WritingEditorSurfaceStatusLabels = {
@@ -166,6 +175,51 @@ function resolveSelectionTextUnit($pos: ResolvedPos): ResolvedSelectionTextUnit 
   return null;
 }
 
+function findSelectionTextUnitPosition(
+  state: EditorState,
+  target: Pick<WritingEditorStableSelectionTarget, 'blockId' | 'kind'>,
+): { pos: number; nodeSize: number } | null {
+  let resolvedPosition: { pos: number; nodeSize: number } | null = null;
+
+  state.doc.descendants((node, pos) => {
+    const kind = getWritingEditorTextUnitKind(node);
+    const blockId = (node.attrs as { blockId?: unknown } | null | undefined)?.blockId;
+    if (kind === target.kind && blockId === target.blockId) {
+      resolvedPosition = {
+        pos,
+        nodeSize: node.content.size,
+      };
+      return false;
+    }
+
+    return true;
+  });
+
+  return resolvedPosition;
+}
+
+function createSelectionFromStableTarget(
+  state: EditorState,
+  target: WritingEditorStableSelectionTarget,
+) {
+  const documentModel = createWritingEditorDocumentModel(
+    state.doc.toJSON() as WritingEditorDocument,
+  );
+  const textModel = documentModel.getTextModel(target.blockId);
+  const textUnitPosition = findSelectionTextUnitPosition(state, target);
+  if (!textModel || !textUnitPosition) {
+    return null;
+  }
+
+  const offsets = textModel.getOffsetsForRange(target.range);
+  const contentStart = textUnitPosition.pos + 1;
+  const contentEnd = contentStart + textUnitPosition.nodeSize;
+  const from = Math.min(Math.max(contentStart + offsets.startOffset, contentStart), contentEnd);
+  const to = Math.min(Math.max(contentStart + offsets.endOffset, contentStart), contentEnd);
+
+  return TextSelection.create(state.doc, from, to);
+}
+
 function createNormalizedDocumentKey(document: WritingEditorDocument) {
   return JSON.stringify(normalizeWritingEditorDocument(document));
 }
@@ -241,7 +295,7 @@ function areSurfaceLabelsEqual(
 
 export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   private props: WritingEditorSurfaceProps;
-  private readonly element = createElement('div', 'pm-editor-shell');
+  private readonly element = createElement('div', 'pm-editor-surface');
   private readonly hostWrapperElement = createElement('div', 'pm-editor-host');
   private readonly editorRootElement = createElement('div', 'pm-editor-root');
   private readonly scrollableElement: DomScrollableElement;
@@ -320,6 +374,37 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
 
   focus() {
     this.view?.focus();
+  }
+
+  getViewState(): WritingEditorSurfaceViewState | undefined {
+    return {
+      scrollPosition: this.scrollableElement.getScrollPosition(),
+      selectionTarget: this.getStableSelectionTarget(),
+      shouldFocus: Boolean(this.view?.hasFocus()),
+    };
+  }
+
+  restoreViewState(viewState: WritingEditorSurfaceViewState | undefined) {
+    if (!this.view || !viewState) {
+      return;
+    }
+
+    if (viewState.selectionTarget) {
+      const selection = createSelectionFromStableTarget(
+        this.view.state,
+        viewState.selectionTarget,
+      );
+      if (selection) {
+        this.view.dispatch(this.view.state.tr.setSelection(selection));
+      }
+    }
+
+    this.refreshScrollableDimensions();
+    this.scrollableElement.setScrollPosition(viewState.scrollPosition);
+
+    if (viewState.shouldFocus) {
+      this.focus();
+    }
   }
 
   insertPlainText(text: string) {

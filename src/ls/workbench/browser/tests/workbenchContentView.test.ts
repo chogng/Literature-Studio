@@ -3,6 +3,11 @@ import test, { after, afterEach, before } from 'node:test';
 
 import { createEmptyWritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
+import { DEFAULT_EDITOR_GROUP_ID } from 'ls/workbench/browser/editorGroupIdentity';
+import {
+  EDITOR_FRAME_SLOTS,
+  getEditorFrameSlot,
+} from 'ls/workbench/browser/parts/editor/editorFrame';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let createWorkbenchContentView: typeof import('ls/workbench/browser/workbenchContentView').createWorkbenchContentView;
@@ -358,6 +363,7 @@ function createWorkbenchContentViewProps() {
         toolbarFavorite: 'Favorite',
         toolbarMore: 'More',
         toolbarAddressBar: 'Address bar',
+        toolbarAddressPlaceholder: 'Search or enter URL',
         draftMode: 'Draft',
         sourceMode: 'Source',
         pdfMode: 'PDF',
@@ -423,15 +429,19 @@ function createWorkbenchContentViewProps() {
           contentUnavailable: 'Unavailable',
         },
       },
+      groupId: DEFAULT_EDITOR_GROUP_ID,
       tabs: [],
       activeTabId: null,
       activeTab: null,
+      viewStateEntries: [],
       onActivateTab: () => {},
       onCloseTab: () => {},
       onCreateDraftTab: () => {},
       onCreateBrowserTab: () => {},
       onCreatePdfTab: () => {},
       onDraftDocumentChange: () => {},
+      onSetEditorViewState: () => {},
+      onDeleteEditorViewState: () => {},
     },
   } as unknown as Parameters<typeof createWorkbenchContentView>[0];
 }
@@ -636,13 +646,17 @@ test('WorkbenchContentView renders the browser toolbar below the editor topbar',
   document.body.append(view.getElement());
 
   try {
-    const editorShell = view.getElement().querySelector('.editor-shell');
-    assert(editorShell instanceof HTMLElement);
+    const editorFrame = view.getElement().querySelector('.editor-frame');
+    assert(editorFrame instanceof HTMLElement);
 
-    const topbar = editorShell.querySelector('.editor-topbar');
+    const topbar = editorFrame.querySelector('.editor-topbar');
     assert(topbar instanceof HTMLElement);
+    const toolbarHost = editorFrame.querySelector(':scope > .editor-toolbar');
+    assert(toolbarHost instanceof HTMLElement);
+    assert.equal(toolbarHost.hidden, false);
+    assert.equal(getEditorFrameSlot(toolbarHost), EDITOR_FRAME_SLOTS.toolbar);
 
-    const toolbar = editorShell.querySelector('.editor-toolbar .editor-browser-toolbar');
+    const toolbar = editorFrame.querySelector('.editor-toolbar .editor-browser-toolbar');
     assert(toolbar instanceof HTMLElement);
     assert.equal(topbar.nextElementSibling, toolbar.parentElement);
 
@@ -699,6 +713,12 @@ test('WorkbenchContentView hides the top toolbar for draft tabs and shows a plac
   document.body.append(view.getElement());
 
   try {
+    const toolbarHost = view.getElement().querySelector('.editor-frame > .editor-toolbar');
+    assert(toolbarHost instanceof HTMLElement);
+    assert.equal(toolbarHost.hidden, true);
+    const contentHost = view.getElement().querySelector('.editor-frame > .editor-content');
+    assert(contentHost instanceof HTMLElement);
+    assert.equal(getEditorFrameSlot(contentHost), EDITOR_FRAME_SLOTS.content);
     assert.equal(
       view.getElement().querySelector('.editor-toolbar .editor-browser-toolbar'),
       null,
@@ -731,8 +751,66 @@ test('WorkbenchContentView hides the top toolbar for draft tabs and shows a plac
     });
 
     const pdfToolbar = view.getElement().querySelector('.editor-toolbar .editor-pdf-toolbar');
+    assert.equal(toolbarHost.hidden, false);
     assert(pdfToolbar instanceof HTMLElement);
     assert.match(pdfToolbar.textContent ?? '', /PDF toolbar coming soon/i);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('WorkbenchContentView mounts the draft editor content hierarchy inside editor-frame', () => {
+  const props = createWorkbenchContentViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'draft-tab-1',
+        kind: 'draft',
+        title: 'Draft',
+        document: createEmptyWritingEditorDocument(),
+        viewMode: 'draft',
+      },
+    ],
+    activeTabId: 'draft-tab-1',
+    activeTab: {
+      id: 'draft-tab-1',
+      kind: 'draft',
+      title: 'Draft',
+      document: createEmptyWritingEditorDocument(),
+      viewMode: 'draft',
+    },
+  };
+
+  const view = createWorkbenchContentView(props);
+  document.body.append(view.getElement());
+
+  try {
+    const editorFrame = view.getElement().querySelector('.editor-frame');
+    assert(editorFrame instanceof HTMLElement);
+    assert.deepEqual(
+      Array.from(editorFrame.children).map((child) =>
+        getEditorFrameSlot(child as HTMLElement) ?? '',
+      ),
+      [
+        EDITOR_FRAME_SLOTS.topbar,
+        EDITOR_FRAME_SLOTS.toolbar,
+        EDITOR_FRAME_SLOTS.content,
+      ],
+    );
+
+    const editorContent = editorFrame.querySelector(':scope > .editor-content.is-mode-draft');
+    assert(editorContent instanceof HTMLElement);
+
+    const draftPane = editorContent.querySelector(':scope > .editor-draft-pane');
+    assert(draftPane instanceof HTMLElement);
+
+    const proseMirrorSurface = draftPane.querySelector(':scope > .pm-editor-surface');
+    assert(proseMirrorSurface instanceof HTMLElement);
+
+    const proseMirrorRoot = proseMirrorSurface.querySelector('.ProseMirror');
+    assert(proseMirrorRoot instanceof HTMLElement);
   } finally {
     view.dispose();
     document.body.replaceChildren();

@@ -218,6 +218,7 @@ export class WorkbenchContentView {
   private primaryBarView: PrimaryBarPartView | null = null;
   private agentBarView: AgentBarPartView | null = null;
   private editorView: ReturnType<typeof createEditorPartView> | null = null;
+  private retiredEditorView: ReturnType<typeof createEditorPartView> | null = null;
   private readonly sidebarTopbarActionsView = new SidebarTopbarActionsView();
   private readonly editorTopbarActionsView = createActionBarView({
     className: 'sidebar-topbar-actions',
@@ -303,6 +304,14 @@ export class WorkbenchContentView {
     return this.editorView?.getActiveDraftStableSelectionTarget() ?? null;
   }
 
+  whenEditorTabViewStateSettled(tabId: string) {
+    return (
+      this.editorView?.whenEditorTabViewStateSettled(tabId) ??
+      this.retiredEditorView?.whenEditorTabViewStateSettled(tabId) ??
+      Promise.resolve()
+    );
+  }
+
   setProps(props: WorkbenchContentViewProps) {
     if (this.disposed) {
       return;
@@ -332,7 +341,8 @@ export class WorkbenchContentView {
     this.disposeGridView();
     this.primaryBarView?.dispose();
     this.agentBarView?.dispose();
-    this.editorView?.dispose();
+    this.retiredEditorView = this.editorView;
+    this.retiredEditorView?.dispose();
     this.sidebarTopbarActionsView.dispose();
     this.editorTopbarActionsView.dispose();
     this.editorToolbarAddressInput.dispose();
@@ -494,7 +504,7 @@ export class WorkbenchContentView {
       this.props.editorPartProps.labels.toolbarAddressBar,
     );
     this.editorToolbarAddressInput.setPlaceHolder(
-      'Journal listing / latest article page URL',
+      this.props.editorPartProps.labels.toolbarAddressPlaceholder,
     );
     this.editorPdfToolbarLabel.textContent = `${this.props.editorPartProps.labels.pdfTitle} toolbar coming soon`;
   }

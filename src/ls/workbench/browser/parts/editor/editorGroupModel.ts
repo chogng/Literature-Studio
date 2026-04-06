@@ -1,3 +1,7 @@
+import {
+  isWritingDraftEditorInput,
+  isWritingPdfEditorInput,
+} from 'ls/workbench/browser/editorInput';
 import type {
   DraftEditorStatusState,
 } from 'ls/editor/browser/text/draftEditorStatusState';
@@ -50,11 +54,11 @@ function getTabDisplayLabel(
   labels: EditorPartLabels,
   draftIndex: number,
 ) {
-  if (tab.kind === 'draft') {
+  if (isWritingDraftEditorInput(tab)) {
     return getDraftTabDisplayLabel(tab, labels, draftIndex);
   }
 
-  if (tab.kind === 'pdf') {
+  if (isWritingPdfEditorInput(tab)) {
     return tab.title.trim() || labels.pdfMode;
   }
 
@@ -92,13 +96,15 @@ export function createEditorGroupModel({
   draftStatusByTabId: Record<string, DraftEditorStatusState>;
 }): EditorGroupModel {
   const draftTabIds = tabs
-    .filter((tab) => tab.kind === 'draft')
+    .filter((tab) => isWritingDraftEditorInput(tab))
     .map((tab) => tab.id);
   const normalizedTabs = tabs.map((tab) => {
     const draftIndex =
-      tab.kind === 'draft' ? draftTabIds.indexOf(tab.id) : -1;
+      isWritingDraftEditorInput(tab) ? draftTabIds.indexOf(tab.id) : -1;
     const label = getTabDisplayLabel(tab, labels, Math.max(draftIndex, 0));
-    const draftStatus = tab.kind === 'draft' ? draftStatusByTabId[tab.id] : undefined;
+    const draftStatus = isWritingDraftEditorInput(tab)
+      ? draftStatusByTabId[tab.id]
+      : undefined;
     const canUndo = Boolean(draftStatus?.canUndo);
     const canRedo = Boolean(draftStatus?.canRedo);
 

@@ -218,6 +218,11 @@ export class WebContentNavigationModel {
       return null;
     }
 
+    if (!targetId) {
+      this.setWebContentState(EMPTY_WEB_CONTENT_STATE);
+      return null;
+    }
+
     webContent.activate(targetId);
 
     if (!context) {

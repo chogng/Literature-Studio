@@ -132,12 +132,6 @@ function createDomRect(x: number, y: number, width: number, height: number) {
   } as DOMRect;
 }
 
-function waitForAsyncWork() {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
-}
-
 async function waitForCondition(
   condition: () => boolean,
   options?: {
@@ -537,5 +531,91 @@ test('web content contribution uses src for the first navigation before webview 
     webviewSpy.restore();
     animationFrameSpy.restore();
     resizeObserverSpy.restore();
+  }
+});
+
+test('web content contribution still uses src when a recreated webview is dom-ready but blank', async () => {
+  const resizeObserverSpy = installResizeObserverSpy();
+  const animationFrameSpy = installAnimationFrameSpy();
+  const webviewSpy = installWebviewSpy();
+  const host = document.createElement('div');
+
+  host.dataset.webcontentActive = 'true';
+  Object.defineProperty(host, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => createDomRect(0, 0, 480, 320),
+  });
+  document.body.append(host);
+  registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, host);
+
+  try {
+    await withElectronApi(
+      createElectronApi({
+        webContent: {
+          async navigate() {
+            return {
+              targetId: null,
+              activeTargetId: null,
+              ownership: 'inactive',
+              layoutPhase: 'hidden',
+              url: '',
+              canGoBack: false,
+              canGoForward: false,
+              isLoading: false,
+              visible: false,
+            } satisfies DesktopWebContentState;
+          },
+          onBridgeCommand() {
+            return () => {};
+          },
+          respondToBridgeCommand() {},
+          reportBridgeReady() {},
+          reportState() {},
+        } as unknown as NonNullable<ElectronAPI['webContent']>,
+      }),
+      async () => {
+        const contribution = createWorkbenchWebContentViewContribution();
+        assert(contribution);
+        animationFrameSpy.flushUntilIdle();
+
+        const bridge = (window as typeof window & {
+          __lsWebContentBridge?: {
+            activateTarget: (targetId?: string | null) => Promise<DesktopWebContentState>;
+            navigateTo: (
+              url: string,
+              targetId?: string | null,
+              mode?: 'browser' | 'strict',
+            ) => Promise<DesktopWebContentState>;
+          };
+        }).__lsWebContentBridge;
+        assert(bridge);
+
+        await bridge.activateTarget('target-1');
+        const testWebview = webviewSpy.getCreatedWebviews()[0];
+        assert(testWebview);
+        testWebview.setAttribute('src', 'about:blank');
+        testWebview.dispatchEvent(new Event('dom-ready'));
+        assert.equal(testWebview.getURL?.(), 'about:blank');
+
+        const restoredState = await bridge.navigateTo(
+          'https://example.com/restored',
+          'target-1',
+          'browser',
+        );
+
+        assert.deepEqual(testWebview.__loadURLCalls, []);
+        assert.equal(
+          testWebview.getAttribute('src'),
+          'https://example.com/restored',
+        );
+        assert.equal(restoredState.url, 'https://example.com/restored');
+
+        contribution.dispose();
+      },
+    );
+  } finally {
+    resizeObserverSpy.restore();
+    animationFrameSpy.restore();
+    host.remove();
   }
 });
