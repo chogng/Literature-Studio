@@ -193,6 +193,7 @@ test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context
     assert.equal(document.body.querySelector('.dropdown-menu'), null);
     assert.equal(delegates.length, 1);
     assert.equal(delegates[0]?.getAnchor(), button);
+    assert.equal(delegates[0]?.offset, undefined);
     assert.equal(delegates[0]?.minWidth, undefined);
     assert.equal(delegates[0]?.position, 'below');
     assert.equal(button.getAttribute('aria-expanded'), 'true');
@@ -202,6 +203,44 @@ test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context
 
     assert.equal(hideCount, 1);
     assert.equal(button.getAttribute('aria-expanded'), 'false');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('DropdownMenuActionViewItem forwards a custom offset to the context menu service', async () => {
+  const delegates: import('ls/base/browser/contextmenu').ContextMenuDelegate[] = [];
+  const contextMenuService: import('ls/base/browser/contextmenu').ContextMenuService = {
+    showContextMenu(delegate) {
+      delegates.push(delegate);
+    },
+    hideContextMenu() {},
+    isVisible() {
+      return false;
+    },
+    dispose() {},
+  };
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    contextMenuService,
+    offset: 12,
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+
+    assert.equal(delegates.length, 1);
+    assert.equal(delegates[0]?.offset, 12);
   } finally {
     item.dispose();
     document.body.replaceChildren();
@@ -495,7 +534,7 @@ test('DropdownMenuActionViewItem flips above when the default below placement ca
     assert(menu instanceof HTMLElement);
     assert.equal(contextView.classList.contains('top'), true);
     assert.equal(contextView.classList.contains('bottom'), false);
-    assert.equal(contextView.style.top, '140px');
+    assert.equal(contextView.style.top, '136px');
     assert.equal(menu.classList.contains('dropdown-menu-top'), true);
     assert.equal(menu.classList.contains('dropdown-menu-bottom'), false);
   } finally {

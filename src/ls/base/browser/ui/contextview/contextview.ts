@@ -4,11 +4,6 @@ import {
   getDomNodeZoomLevel,
 } from 'ls/base/browser/dom';
 import {
-  layout,
-  resolveAnchoredHorizontalLeft,
-  resolveAnchoredVerticalTop,
-} from 'ls/base/browser/ui/contextview/anchoredLayout';
-import {
   LifecycleOwner,
   MutableLifecycle,
   combineDisposables,
@@ -51,6 +46,53 @@ export type ContextViewHandle = {
   dispose: () => void;
 };
 
+export type AnchoredAlignment = 'start' | 'end' | 'center';
+export type AnchoredPlacement = 'above' | 'below';
+export type AnchoredPlacementPreference = 'auto' | AnchoredPlacement;
+
+export type AnchoredRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type AnchoredVerticalPlacementResult = {
+  placement: AnchoredPlacement;
+  canFitAbove: boolean;
+  canFitBelow: boolean;
+  spaceAbove: number;
+  spaceBelow: number;
+};
+
+export type OneDimensionalLayoutMode = 'align' | 'avoid';
+export type OneDimensionalLayoutPosition = 'before' | 'after';
+
+export type OneDimensionalLayoutAnchor = {
+  offset: number;
+  size: number;
+  mode?: OneDimensionalLayoutMode;
+  position: OneDimensionalLayoutPosition;
+};
+
+type ViewportRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type ViewportSize = {
+  width: number;
+  height: number;
+};
+
+type LayoutResult = {
+  left: number;
+  top: number;
+  placement: 'above' | 'below';
+};
+
 const VIEWPORT_MARGIN_PX = 8;
 const DEFAULT_OFFSET_PX = 0;
 
@@ -63,6 +105,175 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.className = className;
   }
   return element;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function resolveLayoutBoundaries(anchor: OneDimensionalLayoutAnchor) {
+  const mode = anchor.mode ?? 'avoid';
+  return {
+    afterBoundary: mode === 'align' ? anchor.offset : anchor.offset + anchor.size,
+    beforeBoundary: mode === 'align' ? anchor.offset + anchor.size : anchor.offset,
+  };
+}
+
+export function layout(
+  viewportSize: number,
+  viewSize: number,
+  anchor: OneDimensionalLayoutAnchor,
+) {
+  const {
+    afterBoundary,
+    beforeBoundary,
+  } = resolveLayoutBoundaries(anchor);
+
+  if (anchor.position === 'before') {
+    if (viewSize <= viewportSize - afterBoundary) {
+      return afterBoundary;
+    }
+
+    if (viewSize <= beforeBoundary) {
+      return beforeBoundary - viewSize;
+    }
+
+    return Math.max(viewportSize - viewSize, 0);
+  }
+
+  if (viewSize <= beforeBoundary) {
+    return beforeBoundary - viewSize;
+  }
+
+  if (viewSize <= viewportSize - afterBoundary) {
+    return afterBoundary;
+  }
+
+  return 0;
+}
+
+export function resolveAnchoredHorizontalLeft(options: {
+  anchorRect: AnchoredRect;
+  overlayWidth: number;
+  viewportWidth: number;
+  viewportMargin: number;
+  alignment?: AnchoredAlignment;
+}) {
+  const {
+    anchorRect,
+    overlayWidth,
+    viewportWidth,
+    viewportMargin,
+    alignment = 'start',
+  } = options;
+
+  const preferredLeft =
+    alignment === 'center'
+      ? anchorRect.x + (anchorRect.width - overlayWidth) / 2
+      : alignment === 'end'
+        ? anchorRect.x + anchorRect.width - overlayWidth
+        : anchorRect.x;
+
+  return clamp(
+    preferredLeft,
+    viewportMargin,
+    Math.max(viewportMargin, viewportWidth - overlayWidth - viewportMargin),
+  );
+}
+
+export function resolveAnchoredVerticalPlacement(options: {
+  anchorRect: AnchoredRect;
+  overlayHeight: number;
+  viewportHeight: number;
+  viewportMargin: number;
+  offset: number;
+  preference?: AnchoredPlacementPreference;
+}): AnchoredVerticalPlacementResult {
+  const {
+    anchorRect,
+    overlayHeight,
+    viewportHeight,
+    viewportMargin,
+    offset,
+    preference = 'auto',
+  } = options;
+
+  const spaceBelow =
+    viewportHeight - anchorRect.y - anchorRect.height - viewportMargin;
+  const spaceAbove = anchorRect.y - viewportMargin;
+  const canFitBelow = spaceBelow >= overlayHeight + offset;
+  const canFitAbove = spaceAbove >= overlayHeight + offset;
+
+  const placement =
+    preference === 'above'
+      ? 'above'
+      : preference === 'below'
+        ? 'below'
+        : canFitBelow || !canFitAbove
+          ? 'below'
+          : 'above';
+
+  return {
+    placement,
+    canFitAbove,
+    canFitBelow,
+    spaceAbove,
+    spaceBelow,
+  };
+}
+
+export function resolveAnchoredVerticalPlacementWithFallback(options: {
+  preference?: AnchoredPlacementPreference;
+  placement: Pick<AnchoredVerticalPlacementResult, 'placement' | 'canFitAbove' | 'canFitBelow'>;
+}) {
+  const {
+    preference = 'auto',
+    placement,
+  } = options;
+
+  if (preference === 'above') {
+    return placement.canFitAbove || !placement.canFitBelow ? 'above' : 'below';
+  }
+
+  if (preference === 'below') {
+    return placement.canFitBelow || !placement.canFitAbove ? 'below' : 'above';
+  }
+
+  return placement.placement;
+}
+
+export function resolveAnchoredVerticalTop(options: {
+  anchorRect: AnchoredRect;
+  overlayHeight: number;
+  viewportHeight: number;
+  viewportMargin: number;
+  offset: number;
+  placement: AnchoredPlacement;
+}) {
+  const {
+    anchorRect,
+    overlayHeight,
+    viewportHeight,
+    viewportMargin,
+    offset,
+    placement,
+  } = options;
+
+  const nextTop =
+    placement === 'above'
+      ? anchorRect.y - overlayHeight - offset
+      : anchorRect.y + anchorRect.height + offset;
+
+  const maxTop = Math.max(
+    viewportMargin,
+    viewportHeight - overlayHeight - viewportMargin,
+  );
+
+  return clamp(
+    nextTop,
+    viewportMargin,
+    maxTop,
+  );
 }
 
 function rangesIntersect(
@@ -84,9 +295,9 @@ function resolveAnchorAlignment(
   return options.alignment === 'end' ? 'right' : 'left';
 }
 
-function resolveAnchorPosition(
+function resolveAnchorPositionPreference(
   options: Pick<ContextViewOptions, 'anchorPosition' | 'position'>,
-): AnchorPosition | 'auto' {
+): ContextViewPosition {
   if (options.anchorPosition) {
     return options.anchorPosition;
   }
@@ -94,7 +305,7 @@ function resolveAnchorPosition(
   return options.position ?? 'auto';
 }
 
-function resolveViewportAnchorRect(anchor: ContextViewAnchor) {
+function resolveViewportAnchorRect(anchor: ContextViewAnchor): ViewportRect {
   if (!(anchor instanceof HTMLElement)) {
     return {
       left: anchor.x,
@@ -115,13 +326,15 @@ function resolveViewportAnchorRect(anchor: ContextViewAnchor) {
   };
 }
 
-function resolveRenderedVerticalPlacement(options: {
-  anchorRect: {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
+function resolveViewportSize(): ViewportSize {
+  return {
+    width: window.innerWidth || document.documentElement.clientWidth || 0,
+    height: window.innerHeight || document.documentElement.clientHeight || 0,
   };
+}
+
+function resolveRenderedVerticalPlacement(options: {
+  anchorRect: ViewportRect;
   overlayHeight: number;
   top: number;
   fallbackPlacement: 'above' | 'below';
@@ -155,85 +368,193 @@ function resolveRenderedVerticalPlacement(options: {
   return fallbackPlacement;
 }
 
-function resolveTopWithOffset(options: {
-  anchorRect: {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-  };
+function resolveSeparatedPlacement(options: {
+  anchorRect: ViewportRect;
   overlayHeight: number;
-  viewportHeight: number;
-  viewportMargin: number;
-  placement: 'above' | 'below';
-  offset: number;
-  baseTop: number;
+  top: number;
 }) {
   const {
     anchorRect,
     overlayHeight,
-    viewportHeight,
-    viewportMargin,
-    placement,
-    offset,
-    baseTop,
+    top,
   } = options;
 
-  if (offset <= 0) {
-    return baseTop;
-  }
-
-  const renderedPlacement = resolveRenderedVerticalPlacement({
-    anchorRect,
-    overlayHeight,
-    top: baseTop,
-    fallbackPlacement: placement,
-  });
-  const overlayBottom = baseTop + overlayHeight;
+  const overlayBottom = top + overlayHeight;
   const anchorBottom = anchorRect.top + anchorRect.height;
-  const isAboveAnchor = overlayBottom <= anchorRect.top;
-  const isBelowAnchor = baseTop >= anchorBottom;
 
-  if (!isAboveAnchor && !isBelowAnchor) {
-    return baseTop;
+  if (overlayBottom <= anchorRect.top) {
+    return 'above' as const;
   }
 
-  return resolveAnchoredVerticalTop({
-    anchorRect: {
-      x: anchorRect.left,
-      y: anchorRect.top,
-      width: anchorRect.width,
-      height: anchorRect.height,
-    },
-    overlayHeight,
-    viewportHeight,
-    viewportMargin,
-    offset,
-    placement: renderedPlacement,
-  });
+  if (top >= anchorBottom) {
+    return 'below' as const;
+  }
+
+  return null;
 }
 
-function resolveOffsetAwareVerticalAnchor(options: {
-  anchorRect: {
-    left: number;
-    top: number;
+function resolveVerticalAxisLayout(options: {
+  anchorRect: ViewportRect;
+  overlaySize: {
     width: number;
     height: number;
   };
-  position: 'above' | 'below' | 'auto';
+  viewportSize: ViewportSize;
+  requestedPosition: ContextViewPosition;
+  anchorAlignment: AnchorAlignment;
+  hasExplicitAnchorAlignment: boolean;
+  alignment?: ContextViewAlignment;
   offset: number;
 }) {
   const {
     anchorRect,
-    position,
+    overlaySize,
+    viewportSize,
+    requestedPosition,
+    anchorAlignment,
+    hasExplicitAnchorAlignment,
+    alignment,
     offset,
   } = options;
 
-  return {
-    offset: anchorRect.top - offset,
-    size: anchorRect.height + (offset * 2),
-    position: position === 'above' ? 'after' as const : 'before' as const,
+  const anchoredRect = {
+    x: anchorRect.left,
+    y: anchorRect.top,
+    width: anchorRect.width,
+    height: anchorRect.height,
   };
+  const placementInfo = resolveAnchoredVerticalPlacement({
+    anchorRect: anchoredRect,
+    overlayHeight: overlaySize.height,
+    viewportHeight: viewportSize.height,
+    viewportMargin: VIEWPORT_MARGIN_PX,
+    offset,
+    preference: requestedPosition,
+  });
+  const resolvedPlacement = resolveAnchoredVerticalPlacementWithFallback({
+    preference: requestedPosition,
+    placement: placementInfo,
+  });
+  const top = resolveAnchoredVerticalTop({
+    anchorRect: anchoredRect,
+    overlayHeight: overlaySize.height,
+    viewportHeight: viewportSize.height,
+    viewportMargin: VIEWPORT_MARGIN_PX,
+    offset,
+    placement: resolvedPlacement,
+  });
+  const usesCenteredAlignment =
+    !alignment || alignment !== 'center'
+      ? false
+      : !hasExplicitAnchorAlignment;
+  let left: number;
+
+  if (usesCenteredAlignment) {
+    left = resolveAnchoredHorizontalLeft({
+      anchorRect: anchoredRect,
+      overlayWidth: overlaySize.width,
+      viewportWidth: viewportSize.width,
+      viewportMargin: VIEWPORT_MARGIN_PX,
+      alignment: 'center',
+    });
+  } else {
+    const overlapsAnchorVertically = rangesIntersect(
+      top,
+      top + overlaySize.height,
+      anchorRect.top,
+      anchorRect.top + anchorRect.height,
+    );
+    left = layout(viewportSize.width, overlaySize.width, {
+      offset: anchorRect.left,
+      size: anchorRect.width,
+      position: anchorAlignment === 'left' ? 'before' : 'after',
+      mode: overlapsAnchorVertically ? 'avoid' : 'align',
+    });
+  }
+
+  return {
+    left,
+    top,
+    placement: resolveRenderedVerticalPlacement({
+      anchorRect,
+      overlayHeight: overlaySize.height,
+      top,
+      fallbackPlacement: resolvedPlacement,
+    }),
+  } as LayoutResult;
+}
+
+function resolveHorizontalAxisLayout(options: {
+  anchorRect: ViewportRect;
+  overlaySize: {
+    width: number;
+    height: number;
+  };
+  viewportSize: ViewportSize;
+  preferredPlacement: 'above' | 'below';
+  anchorAlignment: AnchorAlignment;
+  offset: number;
+}) {
+  const {
+    anchorRect,
+    overlaySize,
+    viewportSize,
+    preferredPlacement,
+    anchorAlignment,
+    offset,
+  } = options;
+
+  const left = layout(viewportSize.width, overlaySize.width, {
+    offset: anchorRect.left,
+    size: anchorRect.width,
+    position: anchorAlignment === 'left' ? 'before' : 'after',
+  });
+  const overlapsAnchorHorizontally = rangesIntersect(
+    left,
+    left + overlaySize.width,
+    anchorRect.left,
+    anchorRect.left + anchorRect.width,
+  );
+  let top = layout(viewportSize.height, overlaySize.height, {
+    offset: anchorRect.top,
+    size: anchorRect.height,
+    position: preferredPlacement === 'below' ? 'before' : 'after',
+    mode: overlapsAnchorHorizontally ? 'avoid' : 'align',
+  });
+
+  if (offset > 0) {
+    const separatedPlacement = resolveSeparatedPlacement({
+      anchorRect,
+      overlayHeight: overlaySize.height,
+      top,
+    });
+    if (separatedPlacement) {
+      top = resolveAnchoredVerticalTop({
+        anchorRect: {
+          x: anchorRect.left,
+          y: anchorRect.top,
+          width: anchorRect.width,
+          height: anchorRect.height,
+        },
+        overlayHeight: overlaySize.height,
+        viewportHeight: viewportSize.height,
+        viewportMargin: VIEWPORT_MARGIN_PX,
+        offset,
+        placement: separatedPlacement,
+      });
+    }
+  }
+
+  return {
+    left,
+    top,
+    placement: resolveRenderedVerticalPlacement({
+      anchorRect,
+      overlayHeight: overlaySize.height,
+      top,
+      fallbackPlacement: preferredPlacement,
+    }),
+  } as LayoutResult;
 }
 
 function addDisposableListener<K extends keyof DocumentEventMap>(
@@ -365,126 +686,63 @@ export class ContextViewController extends LifecycleOwner implements ContextView
       matchAnchorWidth = false,
       minWidth,
     } = this.options;
-
     const anchorRect = resolveViewportAnchorRect(anchor);
-    const anchoredRect = {
-      x: anchorRect.left,
-      y: anchorRect.top,
-      width: anchorRect.width,
-      height: anchorRect.height,
-    };
-    const viewportWidth =
-      window.innerWidth || document.documentElement.clientWidth || 0;
-    const viewportHeight =
-      window.innerHeight || document.documentElement.clientHeight || 0;
-
-    this.element.style.left = `${VIEWPORT_MARGIN_PX}px`;
-    this.element.style.top = `${VIEWPORT_MARGIN_PX}px`;
-    this.content.style.minWidth = `${Math.max(minWidth ?? 0, matchAnchorWidth ? anchorRect.width : 0)}px`;
-
-    const overlayRect = this.content.getBoundingClientRect();
-    const requestedPosition = resolveAnchorPosition(this.options);
+    const viewportSize = resolveViewportSize();
     const anchorAlignment = resolveAnchorAlignment(this.options);
+    const requestedPosition = resolveAnchorPositionPreference(this.options);
     const anchorAxisAlignment = this.options.anchorAxisAlignment ?? 'vertical';
     const preferredPlacement =
       requestedPosition === 'above' ? 'above' : 'below';
-    const usesCenteredAlignment =
+
+    this.element.style.left = `${VIEWPORT_MARGIN_PX}px`;
+    this.element.style.top = `${VIEWPORT_MARGIN_PX}px`;
+    this.content.style.minWidth = `${Math.max(
+      minWidth ?? 0,
+      matchAnchorWidth ? anchorRect.width : 0,
+    )}px`;
+
+    const overlayRect = this.content.getBoundingClientRect();
+    const overlaySize = {
+      width: overlayRect.width,
+      height: overlayRect.height,
+    };
+    const resolvedLayout =
       anchorAxisAlignment === 'vertical'
-      && !this.options.anchorAlignment
-      && this.options.alignment === 'center';
-    let top: number;
-    let left: number;
-
-    if (anchorAxisAlignment === 'vertical') {
-      const verticalAnchor = resolveOffsetAwareVerticalAnchor({
-        anchorRect,
-        position: requestedPosition,
-        offset,
-      });
-      const horizontalAnchor = {
-        offset: anchorRect.left,
-        size: anchorRect.width,
-        position: anchorAlignment === 'left' ? 'before' as const : 'after' as const,
-        mode: 'align' as 'align' | 'avoid',
-      };
-
-      top = layout(viewportHeight, overlayRect.height, verticalAnchor);
-
-      if (usesCenteredAlignment) {
-        left = resolveAnchoredHorizontalLeft({
-          anchorRect: anchoredRect,
-          overlayWidth: overlayRect.width,
-          viewportWidth,
-          viewportMargin: VIEWPORT_MARGIN_PX,
-          alignment: 'center',
+        ? resolveVerticalAxisLayout({
+          anchorRect,
+          overlaySize,
+          viewportSize,
+          requestedPosition,
+          anchorAlignment,
+          hasExplicitAnchorAlignment: Boolean(this.options.anchorAlignment),
+          alignment: this.options.alignment,
+          offset,
+        })
+        : resolveHorizontalAxisLayout({
+          anchorRect,
+          overlaySize,
+          viewportSize,
+          preferredPlacement,
+          anchorAlignment,
+          offset,
         });
-      } else {
-        if (
-          rangesIntersect(
-            top,
-            top + overlayRect.height,
-            verticalAnchor.offset,
-            verticalAnchor.offset + verticalAnchor.size,
-          )
-        ) {
-          horizontalAnchor.mode = 'avoid';
-        }
-
-        left = layout(viewportWidth, overlayRect.width, horizontalAnchor);
-      }
-    } else {
-      const horizontalAnchor = {
-        offset: anchorRect.left,
-        size: anchorRect.width,
-        position: anchorAlignment === 'left' ? 'before' as const : 'after' as const,
-      };
-      const verticalAnchor = {
-        offset: anchorRect.top,
-        size: anchorRect.height,
-        position: preferredPlacement === 'below' ? 'before' as const : 'after' as const,
-        mode: 'align' as 'align' | 'avoid',
-      };
-
-      left = layout(viewportWidth, overlayRect.width, horizontalAnchor);
-
-      if (
-        rangesIntersect(
-          left,
-          left + overlayRect.width,
-          horizontalAnchor.offset,
-          horizontalAnchor.offset + horizontalAnchor.size,
-        )
-      ) {
-        verticalAnchor.mode = 'avoid';
-      }
-
-      top = layout(viewportHeight, overlayRect.height, verticalAnchor);
-      top = resolveTopWithOffset({
-        anchorRect,
-        overlayHeight: overlayRect.height,
-        viewportHeight,
-        viewportMargin: VIEWPORT_MARGIN_PX,
-        placement: preferredPlacement,
-        offset,
-        baseTop: top,
-      });
-    }
-
-    const renderedPlacement = resolveRenderedVerticalPlacement({
-      anchorRect,
-      overlayHeight: overlayRect.height,
-      top,
-      fallbackPlacement: preferredPlacement,
-    });
+    const left = clamp(
+      resolvedLayout.left,
+      VIEWPORT_MARGIN_PX,
+      Math.max(
+        VIEWPORT_MARGIN_PX,
+        viewportSize.width - overlaySize.width - VIEWPORT_MARGIN_PX,
+      ),
+    );
 
     this.element.classList.remove('top', 'bottom', 'left', 'right');
     this.element.classList.add(
-      renderedPlacement === 'below' ? 'bottom' : 'top',
+      resolvedLayout.placement === 'below' ? 'bottom' : 'top',
     );
     this.element.classList.add(anchorAlignment === 'left' ? 'left' : 'right');
 
     this.element.style.left = `${Math.round(left)}px`;
-    this.element.style.top = `${Math.round(top)}px`;
+    this.element.style.top = `${Math.round(resolvedLayout.top)}px`;
   }
 
   private readonly handleContentMouseDown = () => {

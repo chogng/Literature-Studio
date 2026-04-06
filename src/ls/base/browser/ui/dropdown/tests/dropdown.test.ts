@@ -133,7 +133,7 @@ test('dropdown portal menu renders in document.body and follows the trigger rect
   }
 });
 
-test('dropdown renders option icons in both trigger field and menu items', () => {
+test('dropdown renders option icons in both trigger field and portal menu items', () => {
   const dropdownView = createDropdownView({
     value: 'science',
     options: [
@@ -150,7 +150,7 @@ test('dropdown renders option icons in both trigger field and menu items', () =>
 
     dropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    const menuIcon = dropdown.querySelector('.dropdown-menu .dropdown-option-icon');
+    const menuIcon = document.body.querySelector('.dropdown-menu-portal .dropdown-option-icon');
     assert(menuIcon instanceof HTMLElement);
   } finally {
     dropdownView.dispose();
@@ -363,8 +363,9 @@ test('dropdown exposes basic aria metadata and keyboard selection for DOM menus'
     dropdown.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     dropdown.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
 
-    const menu = dropdown.querySelector('.dropdown-menu');
+    const menu = document.body.querySelector('.dropdown-menu');
     assert(menu instanceof HTMLElement);
+    assert.equal(dropdown.contains(menu), false);
     assert.equal(dropdown.getAttribute('aria-expanded'), 'true');
     assert.equal(dropdown.getAttribute('aria-controls'), menu.id);
     assert.equal(dropdown.getAttribute('aria-activedescendant'), `${menu.id}-option-1`);
@@ -372,7 +373,7 @@ test('dropdown exposes basic aria metadata and keyboard selection for DOM menus'
     dropdown.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
     assert.deepEqual(selections, ['science']);
-    assert.equal(dropdown.querySelector('.dropdown-menu'), null);
+    assert.equal(document.body.querySelector('.dropdown-menu'), null);
   } finally {
     dropdownView.dispose();
     document.body.replaceChildren();

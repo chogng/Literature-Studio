@@ -56,6 +56,7 @@ export interface ContextMenuDelegate {
   anchorAxisAlignment?: AnchorAxisAlignment;
   alignment?: ContextViewAlignment;
   position?: ContextViewPosition;
+  offset?: number;
   minWidth?: number;
 }
 

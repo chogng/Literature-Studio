@@ -140,12 +140,16 @@ class ContextMenuService implements WorkbenchContextMenuService {
       getAnchor: delegate.getAnchor,
       getActions: delegate.getActions,
       getMenuClassName: delegate.getMenuClassName,
+      anchorAlignment: delegate.anchorAlignment,
+      anchorAxisAlignment: delegate.anchorAxisAlignment,
       alignment: resolveDomAlignment(delegate.alignment),
+      position: delegate.position,
+      offset: delegate.offset,
       minWidth: delegate.minWidth,
-      onHide: () => {
+      onHide: (didCancel) => {
         const activeDelegate = this.activeDomDelegate;
         this.activeDomDelegate = null;
-        activeDelegate?.onHide?.(true);
+        activeDelegate?.onHide?.(didCancel);
       },
       onSelect: (value: string) => {
         delegate.onSelect?.(value);

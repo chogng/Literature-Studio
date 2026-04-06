@@ -1,4 +1,9 @@
 import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
+import {
+  resolveAnchoredVerticalPlacement,
+  resolveAnchoredVerticalPlacementWithFallback,
+  type AnchoredRect,
+} from 'ls/base/browser/ui/contextview/contextview';
 import { Menu } from 'ls/base/browser/ui/menu/menu';
 import type {
   ContextMenuDelegate,
@@ -13,6 +18,59 @@ type ContextMenuHidePayload = {
   didCancel: boolean;
   value?: string;
 };
+
+const ELEMENT_CONTEXT_MENU_OFFSET_PX = 4;
+
+function resolveContextMenuOffset(delegate: ContextMenuDelegate) {
+  if (typeof delegate.offset === 'number') {
+    return delegate.offset;
+  }
+
+  return delegate.getAnchor() instanceof HTMLElement
+    ? ELEMENT_CONTEXT_MENU_OFFSET_PX
+    : 0;
+}
+
+function resolveAnchorRect(delegate: ContextMenuDelegate): AnchoredRect {
+  const anchor = delegate.getAnchor();
+  if (anchor instanceof HTMLElement) {
+    const rect = anchor.getBoundingClientRect();
+    return {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+  }
+
+  return {
+    x: anchor.x,
+    y: anchor.y,
+    width: anchor.width ?? 0,
+    height: anchor.height ?? 0,
+  };
+}
+
+function resolveMenuPlacement(
+  delegate: ContextMenuDelegate,
+  menuHeight: number,
+): 'top' | 'bottom' {
+  const viewportHeight =
+    window.innerHeight || document.documentElement.clientHeight || 0;
+  const placement = resolveAnchoredVerticalPlacement({
+    anchorRect: resolveAnchorRect(delegate),
+    overlayHeight: menuHeight,
+    viewportHeight,
+    viewportMargin: 8,
+    offset: resolveContextMenuOffset(delegate),
+    preference: delegate.position ?? 'auto',
+  });
+  const resolvedPlacement = resolveAnchoredVerticalPlacementWithFallback({
+    preference: delegate.position ?? 'auto',
+    placement,
+  });
+  return resolvedPlacement === 'above' ? 'top' : 'bottom';
+}
 
 export class ContextMenuHandler {
   private focusToReturn: HTMLElement | null = null;
@@ -39,6 +97,7 @@ export class ContextMenuHandler {
         ?? (delegate.alignment === 'start' ? 'left' : 'right'),
       anchorPosition: delegate.position === 'above' ? 'above' : 'below',
       anchorAxisAlignment: delegate.anchorAxisAlignment ?? 'vertical',
+      offset: resolveContextMenuOffset(delegate),
       minWidth: delegate.minWidth,
       render: (container) => {
         const menu = this.renderMenu(options, delegate);
@@ -91,9 +150,10 @@ export class ContextMenuHandler {
     });
 
     queueMicrotask(() => {
-      const contextView = menu.getElement().closest('.ls-context-view');
-      const placement =
-        contextView?.classList.contains('top') ? 'top' : 'bottom';
+      const placement = resolveMenuPlacement(
+        delegate,
+        menu.getElement().getBoundingClientRect().height,
+      );
       menu.setOptions({
         items: options,
         role: 'menu',

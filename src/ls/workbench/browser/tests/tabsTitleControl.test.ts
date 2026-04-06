@@ -8,7 +8,10 @@ import type {
   EditorGroupTabItem,
 } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
-import type { WorkbenchContextMenuService } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
+import type {
+  WorkbenchContextMenuDelegate,
+  WorkbenchContextMenuService,
+} from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let TabsTitleControl: typeof import('ls/workbench/browser/parts/editor/tabsTitleControl').TabsTitleControl;
@@ -115,9 +118,7 @@ function installResizeObserverSpy() {
 }
 
 function createContextMenuServiceSpy() {
-  const delegates: Array<
-    Parameters<WorkbenchContextMenuService['showContextMenu']>[0]
-  > = [];
+  const delegates: WorkbenchContextMenuDelegate[] = [];
   const contextMenuService: WorkbenchContextMenuService = {
     showContextMenu(delegate) {
       delegates.push(delegate);
@@ -645,6 +646,7 @@ test('TabsTitleControl opens a context menu with close, close others, close all,
     width: 0,
     height: 0,
   });
+  assert.equal(delegate.backend, 'dom');
 
   delegate.onSelect?.('close');
   delegate.onSelect?.('close-others');
@@ -657,4 +659,108 @@ test('TabsTitleControl opens a context menu with close, close others, close all,
   assert.deepEqual(renamedTabIds, ['browser-a']);
 
   control.dispose();
+});
+
+test('TabsTitleControl renders its DOM context menu below the cursor for available tabs near the top edge', async () => {
+  const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    value: 300,
+  });
+
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.classList.contains('editor-tab-main')) {
+      return {
+        x: 40,
+        y: 5,
+        width: 80,
+        height: 26,
+        top: 5,
+        left: 40,
+        right: 120,
+        bottom: 31,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    if (this.classList.contains('ls-menu')) {
+      return {
+        x: 0,
+        y: 0,
+        width: 160,
+        height: 120,
+        top: 0,
+        left: 0,
+        right: 160,
+        bottom: 120,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  const control = new TabsTitleControl({
+    group: createGroupModel('draft-a', [
+      createTabItem({
+        id: 'draft-a',
+        kind: 'draft',
+        label: 'Draft A',
+        title: 'Draft A',
+        isActive: true,
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+  const container = control.getElement();
+  document.body.append(container);
+
+  try {
+    const tab = container.querySelector('.editor-tab');
+    assert(tab instanceof HTMLElement);
+    const button = tab.querySelector('.editor-tab-main');
+    assert(button instanceof HTMLButtonElement);
+
+    const buttonRect = button.getBoundingClientRect();
+    const clientX = Math.round(buttonRect.left + buttonRect.width / 2);
+    const clientY = Math.round(buttonRect.bottom - 2);
+    const contextMenuEvent = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX,
+      clientY,
+      button: 2,
+      buttons: 2,
+    });
+
+    tab.dispatchEvent(contextMenuEvent);
+    await waitForAnimationFrame();
+    await waitForAnimationFrame();
+
+    const menu = document.body.querySelector('.ls-context-view .ls-menu');
+    assert(menu instanceof HTMLElement);
+    assert.equal(menu.classList.contains('dropdown-menu-bottom'), true);
+    assert.equal(menu.classList.contains('dropdown-menu-top'), false);
+
+    const menuRect = menu.getBoundingClientRect();
+    assert.equal(menuRect.top >= clientY, true);
+  } finally {
+    control.dispose();
+    document.body.replaceChildren();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    if (originalInnerHeight) {
+      Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+    }
+  }
 });

@@ -47,6 +47,7 @@ export type DropdownMenuActionViewItemOptions = {
   contextMenuService?: ContextMenuService;
   overlayAlignment?: DropdownMenuActionAlignment;
   overlayPosition?: DropdownMenuActionPosition;
+  offset?: number;
 };
 
 export type ActionWithDropdownActionViewItemOptions = {
@@ -71,6 +72,7 @@ type DropdownActionOverlayRequest = {
   minWidth?: number;
   alignment?: DropdownMenuActionAlignment;
   position?: DropdownMenuActionPosition;
+  offset?: number;
   render: (context: DropdownMenuActionOverlayContext) => HTMLElement;
   onHide: () => void;
 };
@@ -129,6 +131,7 @@ class DomDropdownActionOverlayPresenter {
       onHide: this.handleHide,
       position: request.position ?? 'below',
       alignment: request.alignment ?? 'start',
+      offset: request.offset,
       minWidth: request.minWidth,
     });
   }
@@ -176,6 +179,7 @@ class ContextMenuDropdownActionPresenter {
       anchorAlignment: options.overlayAlignment === 'end' ? 'right' : 'left',
       alignment: options.overlayAlignment ?? 'start',
       position: options.overlayPosition ?? 'below',
+      offset: options.offset,
       minWidth: options.minWidth,
       onHide: this.onHide,
       onSelect: (value: string) => {
@@ -309,6 +313,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
       minWidth: this.options.minWidth,
       alignment: this.options.overlayAlignment ?? 'start',
       position: this.options.overlayPosition ?? 'below',
+      offset: this.options.offset,
       render: (context) => this.options.renderOverlay?.(context) ?? DOM.createElement('div'),
       onHide: () => {
         this.isOpen = false;

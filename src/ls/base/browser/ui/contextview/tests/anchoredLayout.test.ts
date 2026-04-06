@@ -5,8 +5,9 @@ import {
   layout,
   resolveAnchoredHorizontalLeft,
   resolveAnchoredVerticalPlacement,
+  resolveAnchoredVerticalPlacementWithFallback,
   resolveAnchoredVerticalTop,
-} from 'ls/base/browser/ui/contextview/anchoredLayout';
+} from 'ls/base/browser/ui/contextview/contextview';
 
 test('one-dimensional layout matches before/after behavior for zero-size anchors', () => {
   assert.equal(layout(200, 20, { offset: 0, size: 0, position: 'before' }), 0);
@@ -90,6 +91,40 @@ test('anchored layout flips above when below does not fit and above does', () =>
   assert.equal(placement.placement, 'above');
   assert.equal(placement.canFitAbove, true);
   assert.equal(placement.canFitBelow, false);
+});
+
+test('anchored layout preference falls back below when above cannot fit', () => {
+  const placement = resolveAnchoredVerticalPlacement({
+    anchorRect: { x: 40, y: 20, width: 80, height: 24 },
+    overlayHeight: 120,
+    viewportHeight: 300,
+    viewportMargin: 8,
+    offset: 8,
+    preference: 'above',
+  });
+  const resolvedPlacement = resolveAnchoredVerticalPlacementWithFallback({
+    preference: 'above',
+    placement,
+  });
+
+  assert.equal(resolvedPlacement, 'below');
+});
+
+test('anchored layout preference falls back above when below cannot fit', () => {
+  const placement = resolveAnchoredVerticalPlacement({
+    anchorRect: { x: 40, y: 260, width: 80, height: 24 },
+    overlayHeight: 120,
+    viewportHeight: 300,
+    viewportMargin: 8,
+    offset: 8,
+    preference: 'below',
+  });
+  const resolvedPlacement = resolveAnchoredVerticalPlacementWithFallback({
+    preference: 'below',
+    placement,
+  });
+
+  assert.equal(resolvedPlacement, 'above');
 });
 
 test('anchored layout clamps top when the overlay is taller than the available viewport', () => {

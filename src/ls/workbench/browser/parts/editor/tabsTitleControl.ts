@@ -308,6 +308,7 @@ export class TabsTitleControl extends TitleControl {
     }
 
     this.contextMenuService.showContextMenu({
+      backend: 'dom',
       getAnchor: () => ({
         x: event.clientX,
         y: event.clientY,

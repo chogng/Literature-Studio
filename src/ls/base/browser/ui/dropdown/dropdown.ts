@@ -1,5 +1,9 @@
 import 'ls/base/browser/ui/dropdown/dropdown.css';
-import { createContextViewController } from 'ls/base/browser/ui/contextview/contextview';
+import {
+  createContextViewController,
+  resolveAnchoredVerticalPlacement,
+  resolveAnchoredVerticalPlacementWithFallback,
+} from 'ls/base/browser/ui/contextview/contextview';
 import {
   getHoverService,
   type HoverHandle,
@@ -17,7 +21,7 @@ import {
 } from 'ls/base/common/lifecycle';
 
 export type DropdownMenuAlign = 'start' | 'center' | 'end';
-export type DropdownDomMenuLayer = 'inline' | 'portal';
+export type DropdownDomMenuLayer = 'portal';
 export type DropdownMenuChangeSource = 'open' | 'props' | 'viewport';
 
 export type DropdownOption = {
@@ -164,10 +168,6 @@ function composeClassName(parts: Array<string | undefined | null | false>) {
   return parts.filter(Boolean).join(' ');
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
 function addDisposableListener<K extends keyof DocumentEventMap>(
   target: Document,
   type: K,
@@ -240,17 +240,12 @@ export function shouldRefreshDropdownMenuRequest(
 }
 
 class DomDropdownMenuPresenter implements DropdownMenuPresenter {
-  readonly isDetached: boolean;
+  readonly isDetached = true;
   readonly supportsActiveDescendant = true;
-  readonly respondsToViewportChanges: boolean;
+  readonly respondsToViewportChanges = true;
   private readonly contextView = createContextViewController();
   private menuView: HTMLDivElement | null = null;
   private currentRequest: DropdownMenuRequest | null = null;
-
-  constructor(private readonly layer: DropdownDomMenuLayer) {
-    this.isDetached = layer === 'portal';
-    this.respondsToViewportChanges = layer === 'portal';
-  }
 
   show = (request: DropdownMenuRequest) => {
     this.currentRequest = request;
@@ -258,46 +253,30 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
     this.menuView?.remove();
     this.menuView = menu;
 
-    if (this.layer === 'portal') {
-      this.contextView.show({
-        anchor: request.anchor,
-        className: 'dropdown-context-view',
-        render: () => menu,
-        onHide: this.handlePortalHide,
-        alignment: request.align,
-        offset: 4,
-        matchAnchorWidth: request.matchTriggerWidth,
-      });
-      this.updateMenuLayout(menu, request);
-      requestAnimationFrame(() => {
-        if (this.menuView !== menu || this.currentRequest !== request) {
-          return;
-        }
-
-        this.updateMenuLayout(menu, request);
-      });
-      return;
-    }
-
-    request.anchor.append(menu);
+    this.contextView.show({
+      anchor: request.anchor,
+      className: 'dropdown-context-view',
+      render: () => menu,
+      onHide: this.handlePortalHide,
+      alignment: request.align,
+      offset: 4,
+      matchAnchorWidth: request.matchTriggerWidth,
+    });
     this.updateMenuLayout(menu, request);
+    requestAnimationFrame(() => {
+      if (this.menuView !== menu || this.currentRequest !== request) {
+        return;
+      }
+
+      this.updateMenuLayout(menu, request);
+    });
   };
 
   hide = () => {
-    if (this.layer === 'portal') {
-      this.contextView.hide();
-      return;
-    }
-
-    this.menuView?.remove();
-    this.menuView = null;
-    this.currentRequest = null;
+    this.contextView.hide();
   };
 
-  isVisible = () =>
-    this.layer === 'portal'
-      ? this.contextView.isVisible()
-      : this.menuView !== null;
+  isVisible = () => this.contextView.isVisible();
 
   containsTarget = (target: Node) => this.menuView?.contains(target) ?? false;
 
@@ -320,18 +299,16 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
       'div',
       composeClassName([
         'dropdown-menu',
-        this.layer === 'portal' ? 'dropdown-menu-portal' : '',
+        'dropdown-menu-portal',
       ]),
     );
     menu.id = request.menuId;
     menu.setAttribute('role', 'listbox');
-    if (this.layer === 'portal') {
-      menu.style.position = 'static';
-      menu.style.left = 'auto';
-      menu.style.top = 'auto';
-      menu.style.bottom = 'auto';
-      menu.style.minWidth = request.matchTriggerWidth ? '100%' : '0px';
-    }
+    menu.style.position = 'static';
+    menu.style.left = 'auto';
+    menu.style.top = 'auto';
+    menu.style.bottom = 'auto';
+    menu.style.minWidth = request.matchTriggerWidth ? '100%' : '0px';
 
     const selectedValue = request.value;
     menu.append(
@@ -369,58 +346,47 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
     const menuOffset = 4;
     const triggerRect = request.triggerRect;
 
-    const menuWidth = menu.offsetWidth;
     const menuHeight = menu.offsetHeight;
-    const contextViewElement =
-      this.layer === 'portal'
-        ? menu.closest('.ls-context-view')
-        : null;
-    const shouldOpenUpwards =
-      this.layer === 'portal'
-        ? contextViewElement?.classList.contains('top') ?? false
-        : window.innerHeight - triggerRect.y - triggerRect.height - viewportPadding < menuHeight
-          && triggerRect.y - viewportPadding > (
-            window.innerHeight - triggerRect.y - triggerRect.height - viewportPadding
-          );
-    const spaceBelow = window.innerHeight - triggerRect.y - triggerRect.height - viewportPadding;
-    const spaceAbove = triggerRect.y - viewportPadding;
-    const availableSpace = shouldOpenUpwards ? spaceAbove : spaceBelow;
+    const viewportHeight =
+      window.innerHeight || document.documentElement.clientHeight || 0;
+    const placement = resolveAnchoredVerticalPlacement({
+      anchorRect: {
+        x: triggerRect.x,
+        y: triggerRect.y,
+        width: triggerRect.width,
+        height: triggerRect.height,
+      },
+      overlayHeight: menuHeight,
+      viewportHeight,
+      viewportMargin: viewportPadding,
+      offset: menuOffset,
+      preference: 'auto',
+    });
+    const resolvedPlacement = resolveAnchoredVerticalPlacementWithFallback({
+      preference: 'auto',
+      placement,
+    });
+    const shouldOpenUpwards = resolvedPlacement === 'above';
+    const availableSpace = shouldOpenUpwards
+      ? placement.spaceAbove
+      : placement.spaceBelow;
 
     menu.classList.toggle('dropdown-menu-top', shouldOpenUpwards);
     menu.classList.toggle('dropdown-menu-bottom', !shouldOpenUpwards);
     menu.style.maxHeight = `${Math.max(availableSpace - menuOffset, 120)}px`;
-
-    if (this.layer === 'portal') {
-      menu.style.position = 'static';
-      menu.style.left = 'auto';
-      menu.style.top = 'auto';
-      menu.style.bottom = 'auto';
-      menu.style.minWidth = request.matchTriggerWidth ? '100%' : '0px';
-      return;
-    }
-
-    const preferredLeft =
-      request.align === 'center'
-        ? (triggerRect.width - menuWidth) / 2
-        : request.align === 'end'
-          ? triggerRect.width - menuWidth
-          : 0;
-    const minLeft = viewportPadding - triggerRect.x;
-    const maxLeft =
-      window.innerWidth - viewportPadding - triggerRect.x - menuWidth;
-    const menuLeft = clamp(preferredLeft, minLeft, Math.max(minLeft, maxLeft));
-
-    menu.style.left = `${menuLeft}px`;
-    menu.style.removeProperty('top');
-    menu.style.removeProperty('bottom');
-    menu.style.removeProperty('min-width');
+    menu.style.position = 'static';
+    menu.style.left = 'auto';
+    menu.style.top = 'auto';
+    menu.style.bottom = 'auto';
+    menu.style.minWidth = request.matchTriggerWidth ? '100%' : '0px';
   }
 }
 
 export function createDomDropdownMenuPresenter(options?: {
   layer?: DropdownDomMenuLayer;
 }): DropdownMenuPresenter {
-  return new DomDropdownMenuPresenter(options?.layer ?? 'inline');
+  void options;
+  return new DomDropdownMenuPresenter();
 }
 
 let dropdownViewIdSequence = 0;
@@ -437,7 +403,7 @@ export class DropdownView extends LifecycleOwner {
   private readonly iconWrapper = createElement('div', 'dropdown-icon-wrapper');
   private readonly chevronIcon = createChevronIcon();
   private readonly hoverController: HoverHandle;
-  private readonly defaultMenuPresenter = createDomDropdownMenuPresenter({ layer: 'inline' });
+  private readonly defaultMenuPresenter = createDomDropdownMenuPresenter();
   private readonly openListeners = new MutableLifecycle<DisposableLike>();
   private disposed = false;
 
