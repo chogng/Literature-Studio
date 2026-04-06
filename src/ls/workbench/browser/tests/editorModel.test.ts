@@ -5,7 +5,7 @@ import {
   writingEditorDocumentToPlainText,
 } from 'ls/editor/common/writingEditorDocument';
 import { DEFAULT_EDITOR_GROUP_ID } from 'ls/workbench/browser/editorGroupIdentity';
-import { createEditorModel } from 'ls/workbench/browser/editorModel';
+import { createEditorModel } from 'ls/workbench/browser/parts/editor/editorModel';
 
 type MockStorage = {
   getItem(key: string): string | null;

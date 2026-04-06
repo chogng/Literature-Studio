@@ -2,11 +2,11 @@ import {
   getEditorPaneMode,
   isEditorDraftTabInput,
   isEditorPdfTabInput,
-} from 'ls/workbench/browser/editorInput';
+} from 'ls/workbench/browser/parts/editor/editorInput';
 import type {
   EditorWorkspaceDraftTab,
   EditorWorkspaceTab,
-} from 'ls/workbench/browser/editorModel';
+} from 'ls/workbench/browser/parts/editor/editorModel';
 import { collectWritingEditorStats } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';

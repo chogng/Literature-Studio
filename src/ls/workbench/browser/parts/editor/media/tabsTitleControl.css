@@ -135,7 +135,7 @@
   min-width: 0;
 }
 
-.editor-tab-kind {
+.editor-tab-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -145,21 +145,21 @@
   color: var(--vscode-editor-tabKindForeground, #4d6276);
 }
 
-.editor-tab-kind .lx-icon {
+.editor-tab-icon .lx-icon {
   display: inline-flex;
   width: 16px;
   height: 16px;
 }
 
-.editor-tab[data-pane-mode='draft'] .editor-tab-kind {
+.editor-tab[data-pane-mode='draft'] .editor-tab-icon {
   color: var(--vscode-editor-tabKindDraftForeground, #35536f);
 }
 
-.editor-tab[data-pane-mode='browser'] .editor-tab-kind {
+.editor-tab[data-pane-mode='browser'] .editor-tab-icon {
   color: var(--vscode-editor-tabKindWebForeground, #5f572f);
 }
 
-.editor-tab[data-pane-mode='pdf'] .editor-tab-kind {
+.editor-tab[data-pane-mode='pdf'] .editor-tab-icon {
   color: var(--vscode-editor-tabKindPdfForeground, #6f3f35);
 }
 

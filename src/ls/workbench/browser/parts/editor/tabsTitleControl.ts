@@ -16,7 +16,7 @@ type TabView = {
   element: HTMLDivElement;
   mainButton: HTMLButtonElement;
   mainHover: HoverHandle;
-  kindIcon: HTMLSpanElement;
+  icon: HTMLSpanElement;
   labelText: HTMLSpanElement;
   dispose: () => void;
 };
@@ -148,9 +148,9 @@ export class TabsTitleControl extends TitleControl {
     mainButton.setAttribute('role', 'tab');
 
     const label = createElement('span', 'editor-tab-label');
-    const kindIcon = createElement('span', 'editor-tab-kind');
+    const icon = createElement('span', 'editor-tab-icon');
     const labelText = createElement('span', 'editor-tab-label-text');
-    label.append(kindIcon, labelText);
+    label.append(icon, labelText);
     mainButton.append(label);
     const mainHover = this.hoverService.createHover(mainButton, null);
     tabElement.append(mainButton);
@@ -159,7 +159,7 @@ export class TabsTitleControl extends TitleControl {
       element: tabElement,
       mainButton,
       mainHover,
-      kindIcon,
+      icon,
       labelText,
       dispose: () => {
         mainHover.dispose();
@@ -200,7 +200,7 @@ export class TabsTitleControl extends TitleControl {
       this.props.onOpenPaneMode(tab.paneMode);
     };
 
-    tabView.kindIcon.replaceChildren(createLxIcon(getTabPaneModeIconName(tab.paneMode)));
+    tabView.icon.replaceChildren(createLxIcon(getTabPaneModeIconName(tab.paneMode)));
     tabView.labelText.textContent = tab.label;
   }
 

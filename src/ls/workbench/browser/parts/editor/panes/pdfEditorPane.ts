@@ -7,7 +7,7 @@ import {
   readStoredPdfAnnotations,
   writeStoredPdfAnnotations,
 } from 'ls/editor/browser/pdf/pdfAnnotationPersistence';
-import type { EditorWorkspacePdfTab } from 'ls/workbench/browser/editorModel';
+import type { EditorWorkspacePdfTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { EditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPane';

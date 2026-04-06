@@ -11,16 +11,16 @@ import {
   isEditorPdfTabInput,
   normalizeEditorTabInput,
   toEditorTabInput,
-} from 'ls/workbench/browser/editorInput';
+} from 'ls/workbench/browser/parts/editor/editorInput';
 import type {
   EditorBrowserTabInput,
   EditorDraftTabInput,
   EditorTabInput,
   EditorPdfTabInput,
-} from 'ls/workbench/browser/editorInput';
-import { createEditorLiveDraftState } from 'ls/workbench/browser/editorLiveState';
-import { createEditorStorage } from 'ls/workbench/browser/editorStorage';
-import type { StoredWritingWorkspaceState } from 'ls/workbench/browser/editorStorage';
+} from 'ls/workbench/browser/parts/editor/editorInput';
+import { createEditorLiveDraftState } from 'ls/workbench/browser/parts/editor/editorLiveState';
+import { createEditorStorage } from 'ls/workbench/browser/parts/editor/editorStorage';
+import type { StoredWritingWorkspaceState } from 'ls/workbench/browser/parts/editor/editorStorage';
 import {
   createEditorGroupId,
   DEFAULT_EDITOR_GROUP_ID,

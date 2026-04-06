@@ -3,14 +3,14 @@ import {
   type SupportedEditorPaneMode,
   getEditorPaneMode,
   isEditorDraftTabInput,
-} from 'ls/workbench/browser/editorInput';
+} from 'ls/workbench/browser/parts/editor/editorInput';
 import type {
   DraftEditorStatusState,
 } from 'ls/editor/browser/text/draftEditorStatusState';
 import type {
   EditorWorkspaceDraftTab,
   EditorWorkspaceTab,
-} from 'ls/workbench/browser/editorModel';
+} from 'ls/workbench/browser/parts/editor/editorModel';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 
 export type EditorGroupTabState = {

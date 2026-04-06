@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWritingEditorDocumentFromPlainText } from 'ls/editor/common/writingEditorDocument';
-import type { EditorWorkspaceDraftTab } from 'ls/workbench/browser/editorModel';
+import type { EditorWorkspaceDraftTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import {
   getEditorContentTabTitle,
   getEditorTabInputResourceKey,
   normalizeEditorTabInput,
   toEditorTabInput,
-} from 'ls/workbench/browser/editorInput';
+} from 'ls/workbench/browser/parts/editor/editorInput';
 
 test('toEditorTabInput strips draft-only payload from workspace tabs', () => {
   const draftTab: EditorWorkspaceDraftTab = {

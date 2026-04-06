@@ -2,12 +2,12 @@ import {
   getEditorPaneMode,
   getEditorTabInputResourceKey,
   isEditorDraftTabInput,
-} from 'ls/workbench/browser/editorInput';
+} from 'ls/workbench/browser/parts/editor/editorInput';
 import type {
   EditorWorkspaceTab,
   WritingEditorDocument,
-} from 'ls/workbench/browser/editorModel';
-import { toEditorWorkspaceTabInput } from 'ls/workbench/browser/editorModel';
+} from 'ls/workbench/browser/parts/editor/editorModel';
+import { toEditorWorkspaceTabInput } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import { areDraftEditorStatusStatesEqual } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';

@@ -5,7 +5,7 @@ import {
   createWritingEditorDocumentFromPlainText,
   writingEditorDocumentToPlainText,
 } from 'ls/editor/common/writingEditorDocument';
-import { createEditorStorage } from 'ls/workbench/browser/editorStorage';
+import { createEditorStorage } from 'ls/workbench/browser/parts/editor/editorStorage';
 
 type MockStorage = {
   getItem(key: string): string | null;

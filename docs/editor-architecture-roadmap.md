@@ -15,9 +15,9 @@ The goal is to align with upstream workbench editor concepts without copying the
 
 The current editor stack already has useful building blocks:
 
-- `src/ls/workbench/browser/editorModel.ts` stores explicit editor groups, one active group id, and serialized view-state entries.
+- `src/ls/workbench/browser/parts/editor/editorModel.ts` stores explicit editor groups, one active group id, and serialized view-state entries.
 - `src/ls/workbench/browser/parts/editor/panes/editorPaneRegistry.ts` resolves `draft`, `browser`, and `pdf` panes through descriptor-owned `acceptsInput` rules.
-- `src/ls/workbench/browser/editorStorage.ts` persists serialized group inputs, draft payload by input id, active group id, and serialized view-state entries.
+- `src/ls/workbench/browser/parts/editor/editorStorage.ts` persists serialized group inputs, draft payload by input id, active group id, and serialized view-state entries.
 - `src/ls/workbench/browser/webContentSurfaceState.ts` keeps browser/pdf content on one shared content surface.
 
 That is enough for a solid single-visible-group editor surface, but it is still not a full workbench editor model because:
@@ -224,7 +224,7 @@ Already implemented locally:
 - a descriptor-based pane registry under `src/ls/workbench/browser/parts/editor/panes/editorPaneRegistry.ts`
 - a local `EditorPane` base class with pane-specific `getViewState()` and `restoreViewState()`
 - durable workspace group state via persisted `groups + activeGroupId`
-- model-level group-aware open/reveal/reuse behavior inside `src/ls/workbench/browser/editorModel.ts`
+- model-level group-aware open/reveal/reuse behavior inside `src/ls/workbench/browser/parts/editor/editorModel.ts`
 - persisted view-state entries keyed by `{ groupId, paneId, resourceKey }`
 - real draft, pdf, and browser scroll-state restore across tab switches
 - runtime pane switching currently recreates inactive pane instances instead of caching them in memory
@@ -268,8 +268,8 @@ Deliverables:
 
 Expected file touch points:
 
-- `src/ls/workbench/browser/editorModel.ts`
-- `src/ls/workbench/browser/editorStorage.ts`
+- `src/ls/workbench/browser/parts/editor/editorModel.ts`
+- `src/ls/workbench/browser/parts/editor/editorStorage.ts`
 - new local input contract file under `src/ls/workbench/browser/parts/editor/`
 
 ### Phase 2: formalize pane contracts

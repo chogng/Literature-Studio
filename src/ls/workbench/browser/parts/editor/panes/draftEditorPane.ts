@@ -1,7 +1,7 @@
 import type {
   EditorWorkspaceDraftTab,
   WritingEditorDocument,
-} from 'ls/workbench/browser/editorModel';
+} from 'ls/workbench/browser/parts/editor/editorModel';
 import { getLocaleMessages } from 'language/i18n';
 import { isDraftEditorCommandEnabled } from 'ls/editor/browser/text/editorCommandRegistry';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';

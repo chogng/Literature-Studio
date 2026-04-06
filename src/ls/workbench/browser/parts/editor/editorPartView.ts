@@ -1,7 +1,7 @@
 import type {
   EditorWorkspaceTab,
   WritingEditorDocument,
-} from 'ls/workbench/browser/editorModel';
+} from 'ls/workbench/browser/parts/editor/editorModel';
 import type {
   EditorViewStateKey,
   SerializedEditorViewStateEntry,

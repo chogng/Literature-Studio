@@ -86,8 +86,8 @@ import {
   parseLlmModelOptionValue,
 } from 'ls/workbench/services/llm/registry';
 
-import { isEditorContentTabInput } from 'ls/workbench/browser/editorInput';
-import type { EditorWorkspaceTab } from 'ls/workbench/browser/editorModel';
+import { isEditorContentTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
+import type { EditorWorkspaceTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import {
   hasDesktopRuntime,

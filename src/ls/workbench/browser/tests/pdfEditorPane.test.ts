@@ -90,8 +90,8 @@ after(() => {
 
 function createProps(
   activeTabId: string | null,
-  activeTab: import('ls/workbench/browser/editorModel').EditorWorkspaceTab | null,
-  tabs: import('ls/workbench/browser/editorModel').EditorWorkspaceTab[],
+  activeTab: import('ls/workbench/browser/parts/editor/editorModel').EditorWorkspaceTab | null,
+  tabs: import('ls/workbench/browser/parts/editor/editorModel').EditorWorkspaceTab[],
 ) {
   return {
     labels,

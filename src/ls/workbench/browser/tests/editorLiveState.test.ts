@@ -4,7 +4,7 @@ import {
   createEmptyWritingEditorDocument,
   createWritingEditorDocumentFromPlainText,
 } from 'ls/editor/common/writingEditorDocument';
-import { createEditorLiveDraftState } from 'ls/workbench/browser/editorLiveState';
+import { createEditorLiveDraftState } from 'ls/workbench/browser/parts/editor/editorLiveState';
 
 test('live draft state updates the active draft document immediately', () => {
   const state = createEditorLiveDraftState();

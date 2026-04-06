@@ -1,8 +1,8 @@
-import { isEditorContentTabInput } from 'ls/workbench/browser/editorInput';
+import { isEditorContentTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
 import type {
   EditorWorkspaceContentTab,
   EditorWorkspaceTab,
-} from 'ls/workbench/browser/editorModel';
+} from 'ls/workbench/browser/parts/editor/editorModel';
 
 export type WebContentSurfaceOwner = 'shared-content' | 'editor-content-tab';
 

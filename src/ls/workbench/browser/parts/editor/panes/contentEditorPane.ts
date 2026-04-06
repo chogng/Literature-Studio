@@ -1,4 +1,4 @@
-import type { EditorWorkspaceContentTab } from 'ls/workbench/browser/editorModel';
+import type { EditorWorkspaceContentTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import { ViewPartView } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 

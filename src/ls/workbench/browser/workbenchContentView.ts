@@ -63,7 +63,7 @@ import {
   requestTitlebarNavigateWeb,
 } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 import { setWorkbenchWebUrl } from 'ls/workbench/browser/session';
-import { getEditorPaneMode } from 'ls/workbench/browser/editorInput';
+import { getEditorPaneMode } from 'ls/workbench/browser/parts/editor/editorInput';
 
 import {
   clearStatusbarCommandHandlers,

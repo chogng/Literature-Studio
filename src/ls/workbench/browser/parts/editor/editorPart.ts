@@ -1,12 +1,12 @@
 import type { LocaleMessages } from 'language/locales';
 import { normalizeUrl } from 'ls/workbench/common/url';
-import { toEditorTabInput } from 'ls/workbench/browser/editorInput';
+import { toEditorTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
 import { createWebContentSurfaceSnapshot, resolveContentSourceUrl } from 'ls/workbench/browser/webContentSurfaceState';
 import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
 
 import { preparePdfDownload } from 'ls/workbench/services/document/documentActionService';
-import { createEditorModel } from 'ls/workbench/browser/editorModel';
-import type { EditorModelSnapshot, EditorWorkspaceTab, WritingEditorDocument } from 'ls/workbench/browser/editorModel';
+import { createEditorModel } from 'ls/workbench/browser/parts/editor/editorModel';
+import type { EditorModelSnapshot, EditorWorkspaceTab, WritingEditorDocument } from 'ls/workbench/browser/parts/editor/editorModel';
 
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';

@@ -4,13 +4,13 @@ import type {
   EditorWorkspacePdfTab,
   EditorWorkspaceTab,
   WritingEditorDocument,
-} from 'ls/workbench/browser/editorModel';
+} from 'ls/workbench/browser/parts/editor/editorModel';
 import {
   PLANNED_EDITOR_PANE_MODES,
   type EditorFuturePaneMode,
   type SupportedEditorPaneMode,
   getEditorPaneMode,
-} from 'ls/workbench/browser/editorInput';
+} from 'ls/workbench/browser/parts/editor/editorInput';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';

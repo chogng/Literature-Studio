@@ -4,13 +4,13 @@ import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocume
 import {
   isEditorDraftTabInput,
   toEditorTabInput,
-} from 'ls/workbench/browser/editorInput';
-import type { EditorTabViewMode } from 'ls/workbench/browser/editorInput';
+} from 'ls/workbench/browser/parts/editor/editorInput';
+import type { EditorTabViewMode } from 'ls/workbench/browser/parts/editor/editorInput';
 import type {
   EditorEditorGroupState,
   EditorWorkspaceDraftTab,
   EditorWorkspaceState,
-} from 'ls/workbench/browser/editorModel';
+} from 'ls/workbench/browser/parts/editor/editorModel';
 
 export type StoredWritingWorkspaceState = {
   groups?: unknown;
