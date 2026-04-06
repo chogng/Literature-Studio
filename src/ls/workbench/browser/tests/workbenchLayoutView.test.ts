@@ -974,6 +974,154 @@ test('WorkbenchLayoutView hides about:blank in the browser toolbar address input
   }
 });
 
+test('WorkbenchLayoutView syncs focused browser address input when it has not been edited', () => {
+  const initialUrl = 'https://example.com/current';
+  const updatedUrl = 'https://example.com/next';
+  const props = createWorkbenchLayoutViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-sync',
+        kind: 'browser',
+        title: 'Example',
+        url: initialUrl,
+      },
+    ],
+    activeTabId: 'browser-tab-sync',
+    activeTab: {
+      id: 'browser-tab-sync',
+      kind: 'browser',
+      title: 'Example',
+      url: initialUrl,
+    },
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: initialUrl,
+    },
+  };
+
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    const initialAddressInput = view.getElement().querySelector(
+      '.editor-browser-toolbar-address-input input',
+    );
+    assert(initialAddressInput instanceof HTMLInputElement);
+    assert.equal(initialAddressInput.value, initialUrl);
+    initialAddressInput.focus();
+
+    view.setProps(
+      materializeWorkbenchLayoutViewProps({
+        ...props,
+        editorPartProps: {
+          ...props.editorPartProps,
+          tabs: [
+            {
+              id: 'browser-tab-sync',
+              kind: 'browser',
+              title: 'Example',
+              url: updatedUrl,
+            },
+          ],
+          activeTabId: 'browser-tab-sync',
+          activeTab: {
+            id: 'browser-tab-sync',
+            kind: 'browser',
+            title: 'Example',
+            url: updatedUrl,
+          },
+          viewPartProps: {
+            ...props.editorPartProps.viewPartProps,
+            browserUrl: updatedUrl,
+          },
+        },
+      }),
+    );
+
+    const updatedAddressInput = view.getElement().querySelector(
+      '.editor-browser-toolbar-address-input input',
+    );
+    assert(updatedAddressInput instanceof HTMLInputElement);
+    assert.equal(updatedAddressInput.value, updatedUrl);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('WorkbenchLayoutView keeps typed browser address input while focused during onChange rerenders', () => {
+  const pastedUrl = 'https://example.com/pasted';
+  let latestAddressValue = '';
+  let view: ReturnType<typeof createWorkbenchLayoutView> | null = null;
+  const props = createWorkbenchLayoutViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-blank',
+        kind: 'browser',
+        title: '',
+        url: 'about:blank',
+      },
+    ],
+    activeTabId: 'browser-tab-blank',
+    activeTab: {
+      id: 'browser-tab-blank',
+      kind: 'browser',
+      title: '',
+      url: 'about:blank',
+    },
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: 'about:blank',
+    },
+    onToolbarAddressChange: (value: string) => {
+      latestAddressValue = value;
+      if (!view) {
+        return;
+      }
+
+      view.setProps(
+        materializeWorkbenchLayoutViewProps({
+          ...props,
+          editorPartProps: {
+            ...props.editorPartProps,
+            viewPartProps: {
+              ...props.editorPartProps.viewPartProps,
+              browserUrl: 'about:blank',
+            },
+          },
+        }),
+      );
+    },
+  };
+
+  view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    const addressInput = view.getElement().querySelector(
+      '.editor-browser-toolbar-address-input input',
+    );
+    assert(addressInput instanceof HTMLInputElement);
+
+    addressInput.focus();
+    addressInput.value = pastedUrl;
+    addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    assert.equal(latestAddressValue, pastedUrl);
+    assert.equal(addressInput.value, pastedUrl);
+
+    addressInput.blur();
+    assert.equal(addressInput.value, '');
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
 test('WorkbenchLayoutView shows the active-tab toolbar for draft tabs and pdf tabs', () => {
   const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {

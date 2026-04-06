@@ -47,18 +47,17 @@ implements EditorModeToolbarContribution {
     value: '',
     placeholder: '',
   });
+  private isAddressInputEdited = false;
 
   constructor(context: EditorModeToolbarContributionContext) {
     this.context = context;
     this.leadingHost.append(this.leadingActionsView.getElement());
     this.trailingHost.append(this.trailingActionsView.getElement());
     this.addressInput.inputElement.setAttribute('spellcheck', 'false');
-    this.addressInput.inputElement.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        this.context.onAddressInputSubmit();
-      }
-    });
+    this.addressInput.inputElement.addEventListener('keydown', this.handleAddressInputKeyDown);
+    this.addressInput.inputElement.addEventListener('blur', this.handleAddressInputBlur);
     this.addressInput.onDidChange((value) => {
+      this.isAddressInputEdited = true;
       this.context.onAddressInputChange(value);
     });
     this.element.append(this.leadingHost, this.addressHost, this.trailingHost);
@@ -80,6 +79,8 @@ implements EditorModeToolbarContribution {
   }
 
   dispose() {
+    this.addressInput.inputElement.removeEventListener('keydown', this.handleAddressInputKeyDown);
+    this.addressInput.inputElement.removeEventListener('blur', this.handleAddressInputBlur);
     this.addressInput.dispose();
     this.leadingActionsView.dispose();
     this.trailingActionsView.dispose();
@@ -98,15 +99,44 @@ implements EditorModeToolbarContribution {
       items: this.createTrailingItems(),
     });
 
-    const displayBrowserUrl = getEditorContentDisplayUrl(this.context.browserUrl);
-    if (this.addressInput.value !== displayBrowserUrl) {
-      this.addressInput.value = displayBrowserUrl;
-    }
+    this.syncAddressInputFromContext();
     this.addressInput.inputElement.setAttribute(
       'aria-label',
       this.context.labels.toolbarAddressBar,
     );
     this.addressInput.setPlaceHolder(this.context.labels.toolbarAddressPlaceholder);
+  }
+
+  private readonly handleAddressInputKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      this.isAddressInputEdited = false;
+      this.context.onAddressInputSubmit();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.isAddressInputEdited = false;
+      this.syncAddressInputFromContext(true);
+      this.addressInput.select();
+    }
+  };
+
+  private readonly handleAddressInputBlur = () => {
+    this.isAddressInputEdited = false;
+    this.syncAddressInputFromContext(true);
+  };
+
+  private syncAddressInputFromContext(force = false) {
+    const displayBrowserUrl = getEditorContentDisplayUrl(this.context.browserUrl);
+    const canSyncValue =
+      force ||
+      !this.addressInput.hasFocus() ||
+      !this.isAddressInputEdited;
+
+    if (canSyncValue && this.addressInput.value !== displayBrowserUrl) {
+      this.addressInput.value = displayBrowserUrl;
+    }
   }
 
   private createLeadingItems(): ActionBarItem[] {
