@@ -151,15 +151,15 @@
   height: 16px;
 }
 
-.editor-tab[data-kind='draft'] .editor-tab-kind {
+.editor-tab[data-pane-mode='draft'] .editor-tab-kind {
   color: var(--vscode-editor-tabKindDraftForeground, #35536f);
 }
 
-.editor-tab[data-kind='browser'] .editor-tab-kind {
+.editor-tab[data-pane-mode='browser'] .editor-tab-kind {
   color: var(--vscode-editor-tabKindWebForeground, #5f572f);
 }
 
-.editor-tab[data-kind='pdf'] .editor-tab-kind {
+.editor-tab[data-pane-mode='pdf'] .editor-tab-kind {
   color: var(--vscode-editor-tabKindPdfForeground, #6f3f35);
 }
 

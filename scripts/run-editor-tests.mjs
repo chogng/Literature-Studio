@@ -11,7 +11,7 @@ const rootDir =
   scriptsMarkerIndex >= 0
     ? scriptFilePath.slice(0, scriptsMarkerIndex)
     : path.dirname(scriptFilePath);
-const outputDir = path.join(rootDir, '.tmp', 'writing-editor-tests');
+const outputDir = path.join(rootDir, '.tmp', 'editor-tests');
 const entryPoint = path.join(
   rootDir,
   'src',
@@ -20,7 +20,7 @@ const entryPoint = path.join(
   'browser',
   'text',
   'tests',
-  'writingEditor.index.test.ts',
+  'editor.index.test.ts',
 );
 const outputFile = path.join(outputDir, 'index.test.mjs');
 

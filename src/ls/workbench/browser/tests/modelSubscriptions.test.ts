@@ -478,7 +478,7 @@ test('WebContentNavigationModel does not activate a default web content target f
       onStateChange() {
         return () => {};
       },
-    } as NonNullable<ElectronAPI['webContent']>,
+    } as unknown as NonNullable<ElectronAPI['webContent']>,
   }), async () => {
     const model = new WebContentNavigationModel();
 
@@ -535,7 +535,7 @@ test('statusbarModel subscriptions stop after disposal', () => {
 
   setStatusbarState({
     ariaLabel: 'Status',
-    kind: 'browser',
+    paneMode: 'browser',
     modeLabel: 'Source',
     summary: 'Ready',
     leftItems: [],
@@ -544,7 +544,7 @@ test('statusbarModel subscriptions stop after disposal', () => {
   disposeListener();
   setStatusbarState({
     ariaLabel: 'Status',
-    kind: 'pdf',
+    paneMode: 'pdf',
     modeLabel: 'PDF',
     summary: 'Updated',
     leftItems: [],

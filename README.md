@@ -196,10 +196,10 @@ npm run check:i18n
 - `npm run preview`：Vite 预览
 - `npm run preview:web`：预览 `dist-web/` 的 Web 构建结果
 - `npm run check:i18n`：检查中英文文案键是否一致
-- `npm run test:writing-editor`：verify ProseMirror writing-editor invariants around `citation`, `figure`, and `figure_ref`
+- `npm run test:editor`：verify ProseMirror editor invariants around `citation`, `figure`, and `figure_ref`
 - `npm run test:library-store`：verify library document deletion and managed-copy cleanup behavior
 
-## Writing Editor Notes
+## Editor Notes
 
-- [`docs/prosemirror-writing-editor.md`](/c:/Users/lanxi/Desktop/Literature-Studio/docs/prosemirror-writing-editor.md) records the current ProseMirror document contract and the lightweight regression test entry point.
+- [`docs/prosemirror-editor.md`](/c:/Users/lanxi/Desktop/Literature-Studio/docs/prosemirror-editor.md) records the current ProseMirror document contract and the lightweight regression test entry point.
 - [`docs/typescript-type-style.md`](/Users/lance/Desktop/Literature-Studio/docs/typescript-type-style.md) defines when this repo should use `type` versus `interface`.

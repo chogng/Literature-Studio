@@ -1,4 +1,4 @@
-# ProseMirror Writing Editor
+# ProseMirror Editor
 
 This note records the current contract for the writing editor's structured ProseMirror document layer.
 
@@ -16,10 +16,10 @@ This note records the current contract for the writing editor's structured Prose
 Run the targeted regression check with:
 
 ```bash
-npm run test:writing-editor
+npm run test:editor
 ```
 
-The test entry point is `src/ls/editor/browser/text/tests/writingEditor.index.test.ts`.
+The test entry point is `src/ls/editor/browser/text/tests/editor.index.test.ts`.
 
 The lightweight runner bundles the test entry with `esbuild` and executes it through Node's built-in `node:test` runner. DOM integration coverage uses `jsdom`, so we still avoid introducing a full browser test stack.
 
@@ -59,7 +59,7 @@ The lightweight runner bundles the test entry with `esbuild` and executes it thr
 ## What is not fully covered
 
 - Native macOS IME candidate UI is still a manual smoke test.
-- The manual checklist lives in `docs/writing-ime-smoke.md`.
+- The manual checklist lives in `docs/editor-ime-smoke.md`.
 
 ## Next cleanup targets
 

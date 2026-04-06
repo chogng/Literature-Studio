@@ -1,27 +1,27 @@
-import { isWritingContentEditorInput } from 'ls/workbench/browser/editorInput';
+import { isEditorContentTabInput } from 'ls/workbench/browser/editorInput';
 import type {
-  WritingWorkspaceContentTab,
-  WritingWorkspaceTab,
-} from 'ls/workbench/browser/writingEditorModel';
+  EditorWorkspaceContentTab,
+  EditorWorkspaceTab,
+} from 'ls/workbench/browser/editorModel';
 
 export type WebContentSurfaceOwner = 'shared-content' | 'editor-content-tab';
 
 export type WebContentSurfaceSnapshot = {
-  activeContentTab: WritingWorkspaceContentTab | null;
+  activeContentTab: EditorWorkspaceContentTab | null;
   activeContentTabId: string | null;
   activeContentTabUrl: string;
   owner: WebContentSurfaceOwner;
 };
 
 export function resolveActiveContentTab(
-  activeTab: WritingWorkspaceTab | null,
-): WritingWorkspaceContentTab | null {
-  return isWritingContentEditorInput(activeTab) ? activeTab : null;
+  activeTab: EditorWorkspaceTab | null,
+): EditorWorkspaceContentTab | null {
+  return isEditorContentTabInput(activeTab) ? activeTab : null;
 }
 
 // Mirror the upstream editor split: tabs select a target, while the active editor pane renders one shared web-content surface.
 export function createWebContentSurfaceSnapshot(
-  activeTab: WritingWorkspaceTab | null,
+  activeTab: EditorWorkspaceTab | null,
 ): WebContentSurfaceSnapshot {
   const activeContentTab = resolveActiveContentTab(activeTab);
 

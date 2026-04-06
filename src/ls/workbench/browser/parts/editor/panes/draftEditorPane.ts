@@ -1,7 +1,7 @@
 import type {
+  EditorWorkspaceDraftTab,
   WritingEditorDocument,
-  WritingWorkspaceDraftTab,
-} from 'ls/workbench/browser/writingEditorModel';
+} from 'ls/workbench/browser/editorModel';
 import { getLocaleMessages } from 'language/i18n';
 import { isDraftEditorCommandEnabled } from 'ls/editor/browser/text/editorCommandRegistry';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
@@ -18,7 +18,7 @@ import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEdito
 
 export type DraftEditorPaneProps = {
   labels: EditorPartLabels;
-  draftTab: WritingWorkspaceDraftTab;
+  draftTab: EditorWorkspaceDraftTab;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onStatusChange?: (status: DraftEditorStatusState) => void;
 };

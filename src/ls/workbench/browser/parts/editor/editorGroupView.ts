@@ -1,10 +1,13 @@
-import { isWritingDraftEditorInput } from 'ls/workbench/browser/editorInput';
-import { getWritingEditorInputResourceKey } from 'ls/workbench/browser/editorInput';
+import {
+  getEditorPaneMode,
+  getEditorTabInputResourceKey,
+  isEditorDraftTabInput,
+} from 'ls/workbench/browser/editorInput';
 import type {
+  EditorWorkspaceTab,
   WritingEditorDocument,
-  WritingWorkspaceTab,
-} from 'ls/workbench/browser/writingEditorModel';
-import { toWritingWorkspaceTabInput } from 'ls/workbench/browser/writingEditorModel';
+} from 'ls/workbench/browser/editorModel';
+import { toEditorWorkspaceTabInput } from 'ls/workbench/browser/editorModel';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import { areDraftEditorStatusStatesEqual } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
@@ -44,9 +47,9 @@ export type EditorGroupViewProps = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
   groupId: string;
-  tabs: WritingWorkspaceTab[];
+  tabs: EditorWorkspaceTab[];
   activeTabId: string | null;
-  activeTab: WritingWorkspaceTab | null;
+  activeTab: EditorWorkspaceTab | null;
   viewStateEntries: SerializedEditorViewStateEntry[];
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
@@ -96,13 +99,13 @@ function createTitleControlProps(
     },
     onActivateTab: props.onActivateTab,
     onCloseTab: props.onCloseTab,
-    onOpenKind: (kind) => {
-      if (kind === 'draft') {
+    onOpenPaneMode: (paneMode) => {
+      if (paneMode === 'draft') {
         props.onCreateDraftTab();
         return;
       }
 
-      if (kind === 'browser') {
+      if (paneMode === 'browser') {
         props.onCreateBrowserTab();
         return;
       }
@@ -167,7 +170,7 @@ function createEditorGroupControllerSnapshot(
     draftStatusByTabId,
   });
   const activeDraftStatus =
-    isWritingDraftEditorInput(group.activeTab)
+    isEditorDraftTabInput(group.activeTab)
       ? draftStatusByTabId[group.activeTab.id]
       : undefined;
 
@@ -189,6 +192,7 @@ function createEditorGroupSnapshotKey(snapshot: EditorGroupControllerSnapshot) {
       ? {
           id: snapshot.group.activeTab.id,
           kind: snapshot.group.activeTab.kind,
+          paneMode: getEditorPaneMode(snapshot.group.activeTab),
         }
       : null,
     editorStatus: snapshot.editorStatus,
@@ -235,7 +239,7 @@ class EditorGroupController {
   private pruneDraftStatuses() {
     const draftTabIds = new Set(
       this.context.tabs
-        .filter((tab) => isWritingDraftEditorInput(tab))
+        .filter((tab) => isEditorDraftTabInput(tab))
         .map((tab) => tab.id),
     );
     const nextDraftStatusByTabId = Object.fromEntries(
@@ -444,12 +448,12 @@ export class EditorGroupView {
 
   private createPaneViewStateKey(
     paneId: string,
-    tab: WritingWorkspaceTab,
+    tab: EditorWorkspaceTab,
   ): EditorViewStateKey {
     return {
       groupId: this.props.groupId,
       paneId,
-      resourceKey: getWritingEditorInputResourceKey(toWritingWorkspaceTabInput(tab)),
+      resourceKey: getEditorTabInputResourceKey(toEditorWorkspaceTabInput(tab)),
     };
   }
 

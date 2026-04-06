@@ -5,7 +5,7 @@ import {
   writingEditorDocumentToPlainText,
 } from 'ls/editor/common/writingEditorDocument';
 import { DEFAULT_EDITOR_GROUP_ID } from 'ls/workbench/browser/editorGroupIdentity';
-import { createWritingEditorModel } from 'ls/workbench/browser/writingEditorModel';
+import { createEditorModel } from 'ls/workbench/browser/editorModel';
 
 type MockStorage = {
   getItem(key: string): string | null;
@@ -48,7 +48,7 @@ function installMockWindow(localStorage: MockStorage) {
   };
 }
 
-test('writing editor model restores draft documents from persisted input and draft-state records', () => {
+test('editor model restores draft documents from persisted input and draft-state records', () => {
   const localStorage = createLocalStorage({
     'ls.writingWorkspace.state': JSON.stringify({
       groups: [
@@ -108,7 +108,7 @@ test('writing editor model restores draft documents from persisted input and dra
   const restoreWindow = installMockWindow(localStorage);
 
   try {
-    const model = createWritingEditorModel();
+    const model = createEditorModel();
     const snapshot = model.getSnapshot();
     const draftTab = snapshot.tabs.find((tab) => tab.id === 'draft-a');
 
@@ -141,8 +141,8 @@ test('writing editor model restores draft documents from persisted input and dra
   }
 });
 
-test('writing editor model flattens the active group while preserving grouped workspace state', () => {
-  const model = createWritingEditorModel({
+test('editor model flattens the active group while preserving grouped workspace state', () => {
+  const model = createEditorModel({
     groups: [
       {
         groupId: 'editor-group-a',
@@ -215,7 +215,7 @@ test('writing editor model flattens the active group while preserving grouped wo
   }
 });
 
-test('writing editor model restores legacy flat workspace payloads into a default group', () => {
+test('editor model restores legacy flat workspace payloads into a default group', () => {
   const localStorage = createLocalStorage({
     'ls.writingWorkspace.state': JSON.stringify({
       groupId: 'editor-group-legacy',
@@ -234,7 +234,7 @@ test('writing editor model restores legacy flat workspace payloads into a defaul
   const restoreWindow = installMockWindow(localStorage);
 
   try {
-    const model = createWritingEditorModel();
+    const model = createEditorModel();
     const snapshot = model.getSnapshot();
     assert.equal(snapshot.activeGroupId, 'editor-group-legacy');
     assert.equal(snapshot.groupId, 'editor-group-legacy');
@@ -247,8 +247,8 @@ test('writing editor model restores legacy flat workspace payloads into a defaul
   }
 });
 
-test('writing editor model can create and activate explicit editor groups', () => {
-  const model = createWritingEditorModel({
+test('editor model can create and activate explicit editor groups', () => {
+  const model = createEditorModel({
     groups: [
       {
         groupId: DEFAULT_EDITOR_GROUP_ID,
@@ -295,8 +295,8 @@ test('writing editor model can create and activate explicit editor groups', () =
   }
 });
 
-test('writing editor model can open the same browser resource into another group without changing the active group', () => {
-  const model = createWritingEditorModel({
+test('editor model can open the same browser resource into another group without changing the active group', () => {
+  const model = createEditorModel({
     groups: [
       {
         groupId: 'editor-group-a',
@@ -348,8 +348,8 @@ test('writing editor model can open the same browser resource into another group
   }
 });
 
-test('writing editor model reveals an existing browser tab inside the target group and can activate that group', () => {
-  const model = createWritingEditorModel({
+test('editor model reveals an existing browser tab inside the target group and can activate that group', () => {
+  const model = createEditorModel({
     groups: [
       {
         groupId: 'editor-group-a',

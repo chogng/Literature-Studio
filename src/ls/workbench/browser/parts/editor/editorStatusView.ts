@@ -43,7 +43,7 @@ export class EditorStatusView {
   }
 
   setStatus(status: EditorStatusState) {
-    this.element.className = ['editor-statusbar', `is-kind-${status.kind}`].join(' ');
+    this.element.className = ['editor-statusbar', `is-pane-mode-${status.paneMode}`].join(' ');
     this.element.setAttribute('role', 'status');
     this.element.setAttribute('aria-label', status.ariaLabel);
 

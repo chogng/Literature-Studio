@@ -1,12 +1,12 @@
 import type { LocaleMessages } from 'language/locales';
 import { normalizeUrl } from 'ls/workbench/common/url';
-import { toWritingEditorInput } from 'ls/workbench/browser/editorInput';
+import { toEditorTabInput } from 'ls/workbench/browser/editorInput';
 import { createWebContentSurfaceSnapshot, resolveContentSourceUrl } from 'ls/workbench/browser/webContentSurfaceState';
 import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
 
 import { preparePdfDownload } from 'ls/workbench/services/document/documentActionService';
-import { createWritingEditorModel } from 'ls/workbench/browser/writingEditorModel';
-import type { WritingEditorDocument, WritingEditorModelSnapshot, WritingWorkspaceTab } from 'ls/workbench/browser/writingEditorModel';
+import { createEditorModel } from 'ls/workbench/browser/editorModel';
+import type { EditorModelSnapshot, EditorWorkspaceTab, WritingEditorDocument } from 'ls/workbench/browser/editorModel';
 
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
@@ -18,9 +18,9 @@ export type EditorPartState = {
   ui: LocaleMessages;
   viewPartProps: ViewPartProps;
   groupId: string;
-  tabs: WritingWorkspaceTab[];
+  tabs: EditorWorkspaceTab[];
   activeTabId: string | null;
-  activeTab: WritingWorkspaceTab | null;
+  activeTab: EditorWorkspaceTab | null;
   viewStateEntries: SerializedEditorViewStateEntry[];
 };
 
@@ -43,7 +43,7 @@ export type EditorPartControllerContext = {
 };
 
 export type EditorPartControllerSnapshot = Pick<
-  WritingEditorModelSnapshot,
+  EditorModelSnapshot,
   'groupId' | 'tabs' | 'activeTabId' | 'activeTab' | 'viewStateEntries'
 > & {
   draftBody: string;
@@ -59,8 +59,8 @@ type CreateEditorPartPropsParams = {
   actions: EditorPartActions;
 };
 
-function toStructuralWorkspaceTab(tab: WritingWorkspaceTab) {
-  return toWritingEditorInput(tab);
+function toStructuralWorkspaceTab(tab: EditorWorkspaceTab) {
+  return toEditorTabInput(tab);
 }
 
 function createEditorPartStructureKey(snapshot: EditorPartControllerSnapshot) {
@@ -207,13 +207,13 @@ function resolveNewBrowserTabUrl(params: {
 
 function createEditorPartControllerSnapshot(
   context: EditorPartControllerContext,
-  writingEditorModel: ReturnType<typeof createWritingEditorModel>,
+  editorModel: ReturnType<typeof createEditorModel>,
   actions: EditorPartActions,
 ): EditorPartControllerSnapshot {
-  const writingSnapshot = writingEditorModel.getSnapshot();
+  const editorSnapshot = editorModel.getSnapshot();
   const { ui, viewPartProps } = context;
-  const { groupId, tabs, activeTabId, activeTab, viewStateEntries } = writingSnapshot;
-  const draftBody = writingEditorModel.getDraftBody();
+  const { groupId, tabs, activeTabId, activeTab, viewStateEntries } = editorSnapshot;
+  const draftBody = editorModel.getDraftBody();
   const webContentSurfaceSnapshot = createWebContentSurfaceSnapshot(activeTab);
 
   return {
@@ -258,7 +258,7 @@ function areEditorPartControllerContextsEqual(
 
 export class EditorPartController {
   private context: EditorPartControllerContext;
-  private readonly writingEditorModel = createWritingEditorModel();
+  private readonly editorModel = createEditorModel();
   private snapshot: EditorPartControllerSnapshot;
   private readonly listeners = new Set<
     (reason: EditorPartChangeReason) => void
@@ -280,10 +280,10 @@ export class EditorPartController {
     };
     this.snapshot = createEditorPartControllerSnapshot(
       this.context,
-      this.writingEditorModel,
+      this.editorModel,
       this.actions,
     );
-    this.unsubscribeWritingModel = this.writingEditorModel.subscribe(() => {
+    this.unsubscribeWritingModel = this.editorModel.subscribe(() => {
       this.refreshSnapshot('model');
     });
   }
@@ -308,47 +308,47 @@ export class EditorPartController {
 
   readonly dispose = () => {
     this.unsubscribeWritingModel();
-    this.writingEditorModel.dispose();
+    this.editorModel.dispose();
     this.listeners.clear();
   };
 
   readonly createDraftTab = () => {
-    this.writingEditorModel.createDraftTab();
+    this.editorModel.createDraftTab();
   };
 
   readonly createBrowserTab = (url: string) => {
-    this.writingEditorModel.createBrowserTab(url);
+    this.editorModel.createBrowserTab(url);
   };
 
   readonly createPdfTab = (url: string) => {
-    this.writingEditorModel.createPdfTab(url);
+    this.editorModel.createPdfTab(url);
   };
 
   readonly updateActiveContentTabUrl = (url: string) => {
-    this.writingEditorModel.updateActiveContentTabUrl(url);
+    this.editorModel.updateActiveContentTabUrl(url);
   };
 
-  readonly getDraftBody = () => this.writingEditorModel.getDraftBody();
-  readonly getDraftDocument = () => this.writingEditorModel.getDraftDocument();
+  readonly getDraftBody = () => this.editorModel.getDraftBody();
+  readonly getDraftDocument = () => this.editorModel.getDraftDocument();
   readonly setDraftDocument = (value: WritingEditorDocument) => {
-    this.writingEditorModel.setDraftDocument(value);
+    this.editorModel.setDraftDocument(value);
   };
   readonly setEditorViewState = (
     key: EditorViewStateKey,
     state: unknown,
   ) => {
-    this.writingEditorModel.setEditorViewState(key, state);
+    this.editorModel.setEditorViewState(key, state);
   };
   readonly deleteEditorViewState = (key: EditorViewStateKey) => {
-    this.writingEditorModel.deleteEditorViewState(key);
+    this.editorModel.deleteEditorViewState(key);
   };
 
   readonly onActivateTab = (tabId: string) => {
-    this.writingEditorModel.activateTab(tabId);
+    this.editorModel.activateTab(tabId);
   };
 
   readonly onCloseTab = (tabId: string) => {
-    this.writingEditorModel.closeTab(tabId);
+    this.editorModel.closeTab(tabId);
   };
 
   private readonly handleCreatePdfTab = async () => {
@@ -378,13 +378,13 @@ export class EditorPartController {
       return;
     }
 
-    this.writingEditorModel.createPdfTab(normalizedPdfUrl);
+    this.editorModel.createPdfTab(normalizedPdfUrl);
   };
 
   private readonly handleCreateBrowserTab = async () => {
     const { browserUrl, webUrl } = this.context;
     const { webContentSurfaceSnapshot } = this.snapshot;
-    this.writingEditorModel.createBrowserTab(
+    this.editorModel.createBrowserTab(
       resolveNewBrowserTabUrl({
         webContentSurfaceSnapshot,
         browserUrl,
@@ -403,7 +403,7 @@ export class EditorPartController {
     this.setSnapshot(
       createEditorPartControllerSnapshot(
         this.context,
-        this.writingEditorModel,
+        this.editorModel,
         this.actions,
       ),
       reason,

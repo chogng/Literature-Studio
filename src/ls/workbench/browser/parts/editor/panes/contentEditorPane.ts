@@ -1,4 +1,4 @@
-import type { WritingWorkspaceContentTab } from 'ls/workbench/browser/writingEditorModel';
+import type { EditorWorkspaceContentTab } from 'ls/workbench/browser/editorModel';
 import { ViewPartView } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 
@@ -12,7 +12,7 @@ import type { ContentEditorPaneViewState } from 'ls/workbench/browser/parts/edit
 
 export type ContentEditorPaneProps = {
   labels: EditorPartLabels;
-  contentTab: WritingWorkspaceContentTab;
+  contentTab: EditorWorkspaceContentTab;
   viewPartProps: ViewPartProps;
 };
 

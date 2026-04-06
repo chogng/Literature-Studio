@@ -86,8 +86,8 @@ import {
   parseLlmModelOptionValue,
 } from 'ls/workbench/services/llm/registry';
 
-import { isWritingContentEditorInput } from 'ls/workbench/browser/editorInput';
-import type { WritingWorkspaceTab } from 'ls/workbench/browser/writingEditorModel';
+import { isEditorContentTabInput } from 'ls/workbench/browser/editorInput';
+import type { EditorWorkspaceTab } from 'ls/workbench/browser/editorModel';
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import {
   hasDesktopRuntime,
@@ -292,11 +292,11 @@ function reduceWorkbenchState(
   }
 }
 
-function isContentTab(tab: WritingWorkspaceTab) {
-  return isWritingContentEditorInput(tab);
+function isContentTab(tab: EditorWorkspaceTab) {
+  return isEditorContentTabInput(tab);
 }
 
-function toContentTabIdSet(tabs: ReadonlyArray<WritingWorkspaceTab>) {
+function toContentTabIdSet(tabs: ReadonlyArray<EditorWorkspaceTab>) {
   return new Set(tabs.filter(isContentTab).map((tab) => tab.id));
 }
 
@@ -583,7 +583,7 @@ class WorkbenchHost {
 
   private syncWebContentSurfaceState(params: {
     browserUrl: string;
-    tabs: WritingWorkspaceTab[];
+    tabs: EditorWorkspaceTab[];
     webContentNavigationModel: WebContentNavigationModel;
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
@@ -791,7 +791,7 @@ class WorkbenchHost {
     selectedArticleKeysInOrder: readonly string[];
     filteredArticleKeysInOrder: string[];
     browserUrl: string;
-    editorTabs: WritingWorkspaceTab[];
+    editorTabs: EditorWorkspaceTab[];
     webContentNavigationModel: WebContentNavigationModel;
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;

@@ -1,22 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWritingEditorDocumentFromPlainText } from 'ls/editor/common/writingEditorDocument';
-import type { WritingWorkspaceDraftTab } from 'ls/workbench/browser/writingEditorModel';
+import type { EditorWorkspaceDraftTab } from 'ls/workbench/browser/editorModel';
 import {
-  getWritingEditorInputResourceKey,
-  normalizeWritingEditorInput,
-  toWritingEditorInput,
+  getEditorContentTabTitle,
+  getEditorTabInputResourceKey,
+  normalizeEditorTabInput,
+  toEditorTabInput,
 } from 'ls/workbench/browser/editorInput';
 
-test('toWritingEditorInput strips draft-only payload from workspace tabs', () => {
-  const draftTab: WritingWorkspaceDraftTab = {
+test('toEditorTabInput strips draft-only payload from workspace tabs', () => {
+  const draftTab: EditorWorkspaceDraftTab = {
     id: 'draft-a',
     kind: 'draft',
     title: 'Draft A',
     viewMode: 'draft',
     document: createWritingEditorDocumentFromPlainText('alpha'),
   };
-  const input = toWritingEditorInput(draftTab);
+  const input = toEditorTabInput(draftTab);
 
   assert.deepEqual(input, {
     id: 'draft-a',
@@ -26,8 +27,8 @@ test('toWritingEditorInput strips draft-only payload from workspace tabs', () =>
   });
 });
 
-test('normalizeWritingEditorInput migrates legacy web inputs to browser inputs', () => {
-  const input = normalizeWritingEditorInput({
+test('normalizeEditorTabInput migrates legacy web inputs to browser inputs', () => {
+  const input = normalizeEditorTabInput({
     id: 'browser-a',
     kind: 'web',
     title: 'Example',
@@ -42,9 +43,9 @@ test('normalizeWritingEditorInput migrates legacy web inputs to browser inputs',
   });
 });
 
-test('getWritingEditorInputResourceKey uses stable kind-aware resource keys', () => {
+test('getEditorTabInputResourceKey uses stable kind-aware resource keys', () => {
   assert.equal(
-    getWritingEditorInputResourceKey({
+    getEditorTabInputResourceKey({
       id: 'draft-a',
       kind: 'draft',
       title: 'Draft A',
@@ -54,7 +55,7 @@ test('getWritingEditorInputResourceKey uses stable kind-aware resource keys', ()
   );
 
   assert.equal(
-    getWritingEditorInputResourceKey({
+    getEditorTabInputResourceKey({
       id: 'pdf-a',
       kind: 'pdf',
       title: 'Paper PDF',
@@ -62,4 +63,24 @@ test('getWritingEditorInputResourceKey uses stable kind-aware resource keys', ()
     }),
     'pdf:https://example.com/paper.pdf',
   );
+});
+
+test('getEditorContentTabTitle treats about:blank as an empty browser tab title', () => {
+  assert.equal(getEditorContentTabTitle('about:blank'), '');
+});
+
+test('normalizeEditorTabInput clears stale about:blank browser titles from persisted state', () => {
+  const input = normalizeEditorTabInput({
+    id: 'browser-blank',
+    kind: 'browser',
+    title: '/blank',
+    url: 'about:blank',
+  });
+
+  assert.deepEqual(input, {
+    id: 'browser-blank',
+    kind: 'browser',
+    title: '',
+    url: 'about:blank',
+  });
 });

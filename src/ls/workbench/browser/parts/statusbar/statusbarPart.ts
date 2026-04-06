@@ -25,7 +25,7 @@ export class StatusbarPart {
     this.container.classList.add('statusbar-part');
 
     this.statusbarElement = document.createElement('footer');
-    this.statusbarElement.className = 'editor-statusbar is-kind-empty';
+    this.statusbarElement.className = 'editor-statusbar is-pane-mode-empty';
     this.statusbarElement.setAttribute('role', 'status');
     this.statusbarElement.setAttribute('aria-label', '');
 
@@ -44,7 +44,7 @@ export class StatusbarPart {
   render(status: EditorStatusState) {
     this.statusbarElement.className = [
       'editor-statusbar',
-      `is-kind-${status.kind}`,
+      `is-pane-mode-${status.paneMode}`,
     ].join(' ');
     this.statusbarElement.setAttribute('aria-label', status.ariaLabel);
     this.primaryGroupElement.replaceChildren();

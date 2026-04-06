@@ -4,10 +4,10 @@ import {
   createEmptyWritingEditorDocument,
   createWritingEditorDocumentFromPlainText,
 } from 'ls/editor/common/writingEditorDocument';
-import { createWritingLiveDraftState } from 'ls/workbench/browser/writingEditorLiveState';
+import { createEditorLiveDraftState } from 'ls/workbench/browser/editorLiveState';
 
 test('live draft state updates the active draft document immediately', () => {
-  const state = createWritingLiveDraftState();
+  const state = createEditorLiveDraftState();
   const nextDocument = createWritingEditorDocumentFromPlainText('alpha');
 
   state.sync({
@@ -19,7 +19,7 @@ test('live draft state updates the active draft document immediately', () => {
 });
 
 test('live draft state computes plain text lazily for the context draft', () => {
-  const state = createWritingLiveDraftState();
+  const state = createEditorLiveDraftState();
   const nextDocument = createWritingEditorDocumentFromPlainText('alpha');
 
   state.sync({
@@ -32,7 +32,7 @@ test('live draft state computes plain text lazily for the context draft', () => 
 });
 
 test('live draft state clears cached body when the context draft disappears', () => {
-  const state = createWritingLiveDraftState();
+  const state = createEditorLiveDraftState();
 
   state.sync({
     activeDraftDocument: createWritingEditorDocumentFromPlainText('alpha'),

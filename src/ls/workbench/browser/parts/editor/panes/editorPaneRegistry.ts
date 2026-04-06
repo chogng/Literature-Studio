@@ -1,10 +1,16 @@
 import type {
+  EditorWorkspaceBrowserTab,
+  EditorWorkspaceDraftTab,
+  EditorWorkspacePdfTab,
+  EditorWorkspaceTab,
   WritingEditorDocument,
-  WritingWorkspaceBrowserTab,
-  WritingWorkspaceDraftTab,
-  WritingWorkspacePdfTab,
-  WritingWorkspaceTab,
-} from 'ls/workbench/browser/writingEditorModel';
+} from 'ls/workbench/browser/editorModel';
+import {
+  PLANNED_EDITOR_PANE_MODES,
+  type EditorFuturePaneMode,
+  type SupportedEditorPaneMode,
+  getEditorPaneMode,
+} from 'ls/workbench/browser/editorInput';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
@@ -28,18 +34,21 @@ export type EditorPaneResolverContext = {
   onDraftStatusChange: (tabId: string, status: DraftEditorStatusState) => void;
 };
 
-export type WritingEditorPaneId = 'draft' | 'browser' | 'pdf';
+export type EditorPaneId = SupportedEditorPaneMode;
+export type PlannedEditorPaneId = EditorFuturePaneMode;
+
+export const PLANNED_EDITOR_PANE_IDS = PLANNED_EDITOR_PANE_MODES;
 
 export type ResolvedEditorPane = {
-} & EditorPaneResolution<AnyEditorPane, WritingEditorPaneId>;
+} & EditorPaneResolution<AnyEditorPane, EditorPaneId>;
 
-type WritingEditorPaneDescriptor<
-  TInput extends WritingWorkspaceTab,
+type EditorPaneRegistryDescriptor<
+  TInput extends EditorWorkspaceTab,
   TProps,
   TPane extends EditorPane<TProps, any>,
-  TPaneId extends WritingEditorPaneId,
+  TPaneId extends EditorPaneId,
 > = EditorPaneDescriptor<
-  WritingWorkspaceTab,
+  EditorWorkspaceTab,
   TInput,
   EditorPaneResolverContext,
   TPane,
@@ -47,34 +56,34 @@ type WritingEditorPaneDescriptor<
 >;
 
 type EditorPaneDescriptorOptions<
-  TInput extends WritingWorkspaceTab,
+  TInput extends EditorWorkspaceTab,
   TProps,
   TPane extends EditorPane<TProps, any>,
-  TPaneId extends WritingEditorPaneId,
+  TPaneId extends EditorPaneId,
 > = {
   paneId: TPaneId;
   contentClassNames: readonly string[];
-  acceptsInput: (input: WritingWorkspaceTab) => input is TInput;
+  acceptsInput: (input: EditorWorkspaceTab) => input is TInput;
   createPaneKey: (input: TInput) => string;
   createPaneProps: (input: TInput, context: EditorPaneResolverContext) => TProps;
   createPane: (props: TProps) => TPane;
 };
 
-type AnyWritingEditorPaneDescriptor = WritingEditorPaneDescriptor<
+type AnyEditorPaneRegistryDescriptor = EditorPaneRegistryDescriptor<
   any,
   any,
   AnyEditorPane,
-  WritingEditorPaneId
+  EditorPaneId
 >;
 
 function createEditorPaneDescriptor<
-  TInput extends WritingWorkspaceTab,
+  TInput extends EditorWorkspaceTab,
   TProps,
   TPane extends EditorPane<TProps, any>,
-  TPaneId extends WritingEditorPaneId,
+  TPaneId extends EditorPaneId,
 >(
   options: EditorPaneDescriptorOptions<TInput, TProps, TPane, TPaneId>,
-): WritingEditorPaneDescriptor<TInput, TProps, TPane, TPaneId> {
+): EditorPaneRegistryDescriptor<TInput, TProps, TPane, TPaneId> {
   return {
     paneId: options.paneId,
     acceptsInput: options.acceptsInput,
@@ -94,7 +103,7 @@ function createEditorPaneDescriptor<
 }
 
 function createDraftPaneProps(
-  tab: WritingWorkspaceDraftTab,
+  tab: EditorWorkspaceDraftTab,
   context: EditorPaneResolverContext,
 ): DraftEditorPaneProps {
   return {
@@ -107,7 +116,7 @@ function createDraftPaneProps(
 }
 
 function createContentPaneProps(
-  tab: WritingWorkspaceBrowserTab | WritingWorkspacePdfTab,
+  tab: EditorWorkspaceBrowserTab | EditorWorkspacePdfTab,
   context: EditorPaneResolverContext,
 ): ContentEditorPaneProps {
   return {
@@ -118,7 +127,7 @@ function createContentPaneProps(
 }
 
 function createPdfPaneProps(
-  tab: WritingWorkspacePdfTab,
+  tab: EditorWorkspacePdfTab,
   context: EditorPaneResolverContext,
 ): PdfEditorPaneProps {
   return {
@@ -129,21 +138,21 @@ function createPdfPaneProps(
 }
 
 function isDraftWorkspaceTab(
-  input: WritingWorkspaceTab,
-): input is WritingWorkspaceDraftTab {
-  return input.kind === 'draft';
+  input: EditorWorkspaceTab,
+): input is EditorWorkspaceDraftTab {
+  return getEditorPaneMode(input) === 'draft';
 }
 
 function isBrowserWorkspaceTab(
-  input: WritingWorkspaceTab,
-): input is WritingWorkspaceBrowserTab {
-  return input.kind === 'browser';
+  input: EditorWorkspaceTab,
+): input is EditorWorkspaceBrowserTab {
+  return getEditorPaneMode(input) === 'browser';
 }
 
 function isPdfWorkspaceTab(
-  input: WritingWorkspaceTab,
-): input is WritingWorkspacePdfTab {
-  return input.kind === 'pdf';
+  input: EditorWorkspaceTab,
+): input is EditorWorkspacePdfTab {
+  return getEditorPaneMode(input) === 'pdf';
 }
 
 const draftEditorPaneDescriptor = createEditorPaneDescriptor({
@@ -180,10 +189,10 @@ export const editorPaneDescriptors = [
 ] as const;
 
 export function resolveEditorPane(
-  activeTab: WritingWorkspaceTab,
+  activeTab: EditorWorkspaceTab,
   context: EditorPaneResolverContext,
 ): ResolvedEditorPane {
-  for (const descriptor of editorPaneDescriptors as unknown as readonly AnyWritingEditorPaneDescriptor[]) {
+  for (const descriptor of editorPaneDescriptors as unknown as readonly AnyEditorPaneRegistryDescriptor[]) {
     if (!descriptor.acceptsInput(activeTab)) {
       continue;
     }
@@ -194,5 +203,7 @@ export function resolveEditorPane(
     }
   }
 
-  throw new Error(`No editor pane descriptor found for input kind "${activeTab.kind}"`);
+  throw new Error(
+    `No editor pane descriptor found for input pane mode "${getEditorPaneMode(activeTab)}"`,
+  );
 }

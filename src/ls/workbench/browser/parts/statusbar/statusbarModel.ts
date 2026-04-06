@@ -8,7 +8,7 @@ import type {
 function createEmptyStatusValue(): EditorStatusState {
   return {
     ariaLabel: '',
-    kind: 'empty',
+    paneMode: 'empty',
     summary: '',
     leftItems: [],
     rightItems: [],
@@ -20,7 +20,7 @@ export function createDefaultStatusbarState(
 ): EditorStatusState {
   return {
     ariaLabel: labels.statusbarAriaLabel,
-    kind: 'empty',
+    paneMode: 'empty',
     summary: labels.ready,
     leftItems: [],
     rightItems: [],
@@ -56,7 +56,7 @@ function areStatusItemsEqual(
 function areStatusbarStatesEqual(previous: EditorStatusState, next: EditorStatusState) {
   return (
     previous.ariaLabel === next.ariaLabel &&
-    previous.kind === next.kind &&
+    previous.paneMode === next.paneMode &&
     previous.modeLabel === next.modeLabel &&
     previous.summary === next.summary &&
     areStatusItemsEqual(previous.leftItems, next.leftItems) &&

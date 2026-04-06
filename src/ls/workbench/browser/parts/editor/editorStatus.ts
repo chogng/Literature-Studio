@@ -1,11 +1,12 @@
 import {
-  isWritingDraftEditorInput,
-  isWritingPdfEditorInput,
+  getEditorPaneMode,
+  isEditorDraftTabInput,
+  isEditorPdfTabInput,
 } from 'ls/workbench/browser/editorInput';
 import type {
-  WritingWorkspaceDraftTab,
-  WritingWorkspaceTab,
-} from 'ls/workbench/browser/writingEditorModel';
+  EditorWorkspaceDraftTab,
+  EditorWorkspaceTab,
+} from 'ls/workbench/browser/editorModel';
 import { collectWritingEditorStats } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorSurfaceLabels } from 'ls/editor/browser/text/editor';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
@@ -69,7 +70,7 @@ export type EditorStatusItem = {
 
 export type EditorStatusState = {
   ariaLabel: string;
-  kind: 'empty' | 'draft' | 'browser' | 'pdf';
+  paneMode: 'empty' | 'draft' | 'browser' | 'pdf';
   modeLabel?: string;
   summary?: string;
   leftItems: readonly EditorStatusItem[];
@@ -106,7 +107,7 @@ function formatBlockValue(
 }
 
 function createDraftFallbackStatusState(
-  tab: WritingWorkspaceDraftTab,
+  tab: EditorWorkspaceDraftTab,
   labels: DraftStatusResolverLabels,
 ): DraftEditorStatusState {
   const stats = collectWritingEditorStats(tab.document);
@@ -140,7 +141,7 @@ function formatStatusUrl(url: string) {
 }
 
 function createDraftEditorStatus(
-  tab: WritingWorkspaceDraftTab,
+  tab: EditorWorkspaceDraftTab,
   labels: EditorStatusContextLabels,
   draftStatusState?: DraftEditorStatusState,
 ): EditorStatusState {
@@ -174,7 +175,7 @@ function createDraftEditorStatus(
 
   return {
     ariaLabel: labels.statusbarAriaLabel,
-    kind: 'draft',
+    paneMode: 'draft',
     modeLabel: labels.draftMode,
     leftItems,
     rightItems: [
@@ -214,13 +215,14 @@ function createDraftEditorStatus(
 }
 
 function createContentEditorStatus(
-  tab: Extract<WritingWorkspaceTab, { kind: 'browser' | 'pdf' }>,
+  tab: Extract<EditorWorkspaceTab, { kind: 'browser' | 'pdf' }>,
   labels: EditorStatusContextLabels,
 ): EditorStatusState {
+  const paneMode = getEditorPaneMode(tab);
   return {
     ariaLabel: labels.statusbarAriaLabel,
-    kind: isWritingPdfEditorInput(tab) ? 'pdf' : 'browser',
-    modeLabel: isWritingPdfEditorInput(tab) ? labels.pdfMode : labels.sourceMode,
+    paneMode,
+    modeLabel: isEditorPdfTabInput(tab) ? labels.pdfMode : labels.sourceMode,
     leftItems: [],
     rightItems: [
       {
@@ -233,21 +235,21 @@ function createContentEditorStatus(
 }
 
 export function createEditorStatus(
-  activeTab: WritingWorkspaceTab | null,
+  activeTab: EditorWorkspaceTab | null,
   labels: EditorStatusContextLabels,
   draftStatusState?: DraftEditorStatusState,
 ): EditorStatusState {
   if (!activeTab) {
     return {
       ariaLabel: labels.statusbarAriaLabel,
-      kind: 'empty',
+      paneMode: 'empty',
       summary: labels.ready,
       leftItems: [],
       rightItems: [],
     };
   }
 
-  if (isWritingDraftEditorInput(activeTab)) {
+  if (isEditorDraftTabInput(activeTab)) {
     return createDraftEditorStatus(activeTab, labels, draftStatusState);
   }
 

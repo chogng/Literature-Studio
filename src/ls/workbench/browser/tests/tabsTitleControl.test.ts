@@ -34,6 +34,7 @@ function createGroupModel(
 
 function createTabItem(
   tab: Pick<EditorGroupTabItem, 'id' | 'kind' | 'label' | 'title'> & {
+    paneMode?: EditorGroupTabItem['paneMode'];
     isActive?: boolean;
     hasLocalHistory?: boolean;
     targetTabId?: string | null;
@@ -42,6 +43,7 @@ function createTabItem(
   return {
     id: tab.id,
     kind: tab.kind,
+    paneMode: tab.paneMode ?? (tab.kind === 'draft' ? 'draft' : tab.kind === 'pdf' ? 'pdf' : 'browser'),
     label: tab.label,
     title: tab.title,
     targetTabId:
@@ -154,7 +156,7 @@ test('TabsTitleControl reuses tab nodes across prop updates', () => {
       activatedTabIds.push(tabId);
     },
     onCloseTab: () => {},
-    onOpenKind: () => {},
+    onOpenPaneMode: () => {},
   });
   const container = control.getElement();
   document.body.append(container);
@@ -185,7 +187,7 @@ test('TabsTitleControl reuses tab nodes across prop updates', () => {
       activatedTabIds.push(tabId);
     },
     onCloseTab: () => {},
-    onOpenKind: () => {},
+    onOpenPaneMode: () => {},
   });
 
   assert.equal(container.children.length, 2);
@@ -259,8 +261,8 @@ test('createEditorGroupModel always returns three fixed tabs and prefers the act
   assert.equal(model.tabs[2]?.targetTabId, 'pdf-a');
 });
 
-test('TabsTitleControl opens a kind when its fixed tab has no target tab yet', () => {
-  const openedKinds: string[] = [];
+test('TabsTitleControl opens a pane mode when its fixed tab has no target tab yet', () => {
+  const openedPaneModes: string[] = [];
   const control = new TabsTitleControl({
     group: createGroupModel(null, [
       createTabItem({
@@ -290,8 +292,8 @@ test('TabsTitleControl opens a kind when its fixed tab has no target tab yet', (
     },
     onActivateTab: () => {},
     onCloseTab: () => {},
-    onOpenKind: (kind) => {
-      openedKinds.push(kind);
+    onOpenPaneMode: (paneMode) => {
+      openedPaneModes.push(paneMode);
     },
   });
   const container = control.getElement();
@@ -302,7 +304,7 @@ test('TabsTitleControl opens a kind when its fixed tab has no target tab yet', (
 
   browserButton.click();
 
-  assert.deepEqual(openedKinds, ['browser']);
+  assert.deepEqual(openedPaneModes, ['browser']);
 
   control.dispose();
 });
@@ -335,7 +337,7 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
     },
     onActivateTab: () => {},
     onCloseTab: () => {},
-    onOpenKind: () => {},
+    onOpenPaneMode: () => {},
   });
   const container = control.getElement();
   document.body.append(container);
@@ -401,7 +403,7 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
     },
     onActivateTab: () => {},
     onCloseTab: () => {},
-    onOpenKind: () => {},
+    onOpenPaneMode: () => {},
   });
 
   await waitForAnimationFrame();
@@ -433,7 +435,7 @@ test('TabsTitleControl disconnects resize observers on dispose', () => {
       },
       onActivateTab: () => {},
       onCloseTab: () => {},
-      onOpenKind: () => {},
+      onOpenPaneMode: () => {},
     });
     document.body.append(control.getElement());
 

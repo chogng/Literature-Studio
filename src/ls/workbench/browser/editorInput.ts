@@ -1,124 +1,233 @@
-export type WritingEditorViewMode = 'draft';
+export type EditorTabViewMode = 'draft';
 
-export type WritingDraftEditorInput = {
+export type EditorDraftTabInput = {
   id: string;
   kind: 'draft';
   title: string;
-  viewMode: WritingEditorViewMode;
+  viewMode: EditorTabViewMode;
 };
 
-export type WritingBrowserEditorInput = {
+export type EditorBrowserTabInput = {
   id: string;
   kind: 'browser';
   title: string;
   url: string;
 };
 
-export type WritingPdfEditorInput = {
+export type EditorPdfTabInput = {
   id: string;
   kind: 'pdf';
   title: string;
   url: string;
 };
 
-export type WritingContentEditorInput =
-  | WritingBrowserEditorInput
-  | WritingPdfEditorInput;
+export type EditorContentTabInput =
+  | EditorBrowserTabInput
+  | EditorPdfTabInput;
 
-export type WritingEditorInput =
-  | WritingDraftEditorInput
-  | WritingContentEditorInput;
+export type EditorTabInput =
+  | EditorDraftTabInput
+  | EditorContentTabInput;
 
-const DEFAULT_VIEW_MODE: WritingEditorViewMode = 'draft';
+export type EditorTabKind = EditorTabInput['kind'];
+export type SupportedEditorPaneMode = 'draft' | 'browser' | 'pdf';
 
-export function createWritingEditorInputId(prefix: 'draft' | 'browser' | 'pdf') {
+export const SUPPORTED_EDITOR_TAB_KINDS = [
+  'draft',
+  'browser',
+  'pdf',
+] as const;
+
+export const SUPPORTED_EDITOR_PANE_MODES = [
+  'draft',
+  'browser',
+  'pdf',
+] as const satisfies readonly SupportedEditorPaneMode[];
+
+// Planned tab kinds are declared here for forward compatibility.
+// They are intentionally not wired into runtime tab creation/normalization yet.
+export type EditorFutureTabKind =
+  | 'file'
+  | 'terminal'
+  | 'git-changes';
+
+export type EditorFuturePaneMode =
+  | 'file'
+  | 'terminal'
+  | 'git-changes';
+
+export type EditorPaneMode =
+  | SupportedEditorPaneMode
+  | EditorFuturePaneMode;
+
+export const PLANNED_EDITOR_TAB_KINDS = [
+  'file',
+  'terminal',
+  'git-changes',
+] as const;
+
+export const PLANNED_EDITOR_PANE_MODES = [
+  'file',
+  'terminal',
+  'git-changes',
+] as const satisfies readonly EditorFuturePaneMode[];
+
+export type EditorFileTabInput = {
+  id: string;
+  kind: 'file';
+  title: string;
+  resourceUri?: string;
+};
+
+export type EditorTerminalTabInput = {
+  id: string;
+  kind: 'terminal';
+  title: string;
+  terminalSessionId?: string;
+};
+
+export type EditorGitChangesTabInput = {
+  id: string;
+  kind: 'git-changes';
+  title: string;
+  repositoryUri?: string;
+};
+
+export type EditorFutureTabInput =
+  | EditorFileTabInput
+  | EditorTerminalTabInput
+  | EditorGitChangesTabInput;
+
+export type EditorPlannedTabInput =
+  | EditorTabInput
+  | EditorFutureTabInput;
+
+export type EditorPlannedTabKind = EditorPlannedTabInput['kind'];
+
+const DEFAULT_VIEW_MODE: EditorTabViewMode = 'draft';
+
+export function createEditorTabInputId(prefix: 'draft' | 'browser' | 'pdf') {
   const randomPart = Math.random().toString(36).slice(2, 8);
   return `ls-${prefix}-tab-${Date.now().toString(36)}-${randomPart}`;
 }
 
-export function getWritingContentInputTitle(url: string) {
-  if (!url.trim()) {
+export function getEditorContentTabTitle(url: string) {
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl || normalizedUrl === 'about:blank') {
     return '';
   }
 
   try {
-    const parsedUrl = new URL(url);
+    const parsedUrl = new URL(normalizedUrl);
     const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
     const lastPathSegment = pathSegments[pathSegments.length - 1];
     return lastPathSegment
       ? `${parsedUrl.hostname}/${lastPathSegment}`
       : parsedUrl.hostname;
   } catch {
-    return url;
+    return normalizedUrl;
   }
 }
 
-export function createWritingDraftEditorInput(
-  initial?: Partial<Pick<WritingDraftEditorInput, 'id' | 'title' | 'viewMode'>>,
-): WritingDraftEditorInput {
+export function getEditorPaneMode(
+  input: Pick<EditorTabInput, 'kind'>,
+): SupportedEditorPaneMode;
+export function getEditorPaneMode(
+  input: Pick<EditorPlannedTabInput, 'kind'>,
+): EditorPaneMode;
+export function getEditorPaneMode(
+  input: Pick<EditorPlannedTabInput, 'kind'>,
+): EditorPaneMode {
+  switch (input.kind) {
+    case 'draft':
+      return 'draft';
+    case 'browser':
+      return 'browser';
+    case 'pdf':
+      return 'pdf';
+    case 'file':
+      return 'file';
+    case 'terminal':
+      return 'terminal';
+    case 'git-changes':
+      return 'git-changes';
+    default:
+      return 'browser';
+  }
+}
+
+export function createEditorDraftTabInput(
+  initial?: Partial<Pick<EditorDraftTabInput, 'id' | 'title' | 'viewMode'>>,
+): EditorDraftTabInput {
   return {
-    id: initial?.id ?? createWritingEditorInputId('draft'),
+    id: initial?.id ?? createEditorTabInputId('draft'),
     kind: 'draft',
     title: initial?.title ?? '',
     viewMode: initial?.viewMode === 'draft' ? initial.viewMode : DEFAULT_VIEW_MODE,
   };
 }
 
-function createWritingContentEditorInput<K extends WritingContentEditorInput['kind']>(
+function createEditorContentTabInput<K extends EditorContentTabInput['kind']>(
   kind: K,
   url: string,
-  initial?: Partial<Pick<Extract<WritingContentEditorInput, { kind: K }>, 'id' | 'title'>>,
-): Extract<WritingContentEditorInput, { kind: K }> {
+  initial?: Partial<Pick<Extract<EditorContentTabInput, { kind: K }>, 'id' | 'title'>>,
+): Extract<EditorContentTabInput, { kind: K }> {
   const normalizedUrl = url.trim();
+  const derivedTitle = getEditorContentTabTitle(normalizedUrl);
+  const normalizedInitialTitle = initial?.title?.trim() ?? '';
+  const resolvedTitle =
+    normalizedUrl === 'about:blank'
+      ? ''
+      : normalizedInitialTitle || derivedTitle;
 
   return {
-    id: initial?.id ?? createWritingEditorInputId(kind),
+    id: initial?.id ?? createEditorTabInputId(kind),
     kind,
-    title: initial?.title?.trim() || getWritingContentInputTitle(normalizedUrl),
+    title: resolvedTitle,
     url: normalizedUrl,
-  } as Extract<WritingContentEditorInput, { kind: K }>;
+  } as Extract<EditorContentTabInput, { kind: K }>;
 }
 
-export function createWritingBrowserEditorInput(
+export function createEditorBrowserTabInput(
   url: string,
-  initial?: Partial<Pick<WritingBrowserEditorInput, 'id' | 'title'>>,
-): WritingBrowserEditorInput {
-  return createWritingContentEditorInput('browser', url, initial);
+  initial?: Partial<Pick<EditorBrowserTabInput, 'id' | 'title'>>,
+): EditorBrowserTabInput {
+  return createEditorContentTabInput('browser', url, initial);
 }
 
-export function createWritingPdfEditorInput(
+export function createEditorPdfTabInput(
   url: string,
-  initial?: Partial<Pick<WritingPdfEditorInput, 'id' | 'title'>>,
-): WritingPdfEditorInput {
-  return createWritingContentEditorInput('pdf', url, initial);
+  initial?: Partial<Pick<EditorPdfTabInput, 'id' | 'title'>>,
+): EditorPdfTabInput {
+  return createEditorContentTabInput('pdf', url, initial);
 }
 
-export function isWritingDraftEditorInput(
-  input: WritingEditorInput | null | undefined,
-): input is WritingDraftEditorInput {
+export function isEditorDraftTabInput(
+  input: EditorTabInput | null | undefined,
+): input is EditorDraftTabInput {
   return input?.kind === 'draft';
 }
 
-export function isWritingBrowserEditorInput(
-  input: WritingEditorInput | null | undefined,
-): input is WritingBrowserEditorInput {
+export function isEditorBrowserTabInput(
+  input: EditorTabInput | null | undefined,
+): input is EditorBrowserTabInput {
   return input?.kind === 'browser';
 }
 
-export function isWritingPdfEditorInput(
-  input: WritingEditorInput | null | undefined,
-): input is WritingPdfEditorInput {
+export function isEditorPdfTabInput(
+  input: EditorTabInput | null | undefined,
+): input is EditorPdfTabInput {
   return input?.kind === 'pdf';
 }
 
-export function isWritingContentEditorInput(
-  input: WritingEditorInput | null | undefined,
-): input is WritingContentEditorInput {
+export function isEditorContentTabInput(
+  input: EditorTabInput | null | undefined,
+): input is EditorContentTabInput {
   return input?.kind === 'browser' || input?.kind === 'pdf';
 }
 
-export function normalizeWritingEditorInput(value: unknown): WritingEditorInput | null {
-  const candidate = value as Partial<WritingEditorInput> | null | undefined;
+export function normalizeEditorTabInput(value: unknown): EditorTabInput | null {
+  const candidate = value as Partial<EditorTabInput> | null | undefined;
   const rawCandidate = value as { kind?: unknown; url?: unknown } | null | undefined;
   const legacyKind = rawCandidate?.kind;
   if (!candidate || typeof candidate !== 'object' || typeof candidate.id !== 'string') {
@@ -126,7 +235,7 @@ export function normalizeWritingEditorInput(value: unknown): WritingEditorInput 
   }
 
   if (candidate.kind === 'draft') {
-    return createWritingDraftEditorInput({
+    return createEditorDraftTabInput({
       id: candidate.id,
       title: typeof candidate.title === 'string' ? candidate.title : '',
       viewMode: candidate.viewMode,
@@ -137,14 +246,14 @@ export function normalizeWritingEditorInput(value: unknown): WritingEditorInput 
     (candidate.kind === 'browser' || legacyKind === 'web') &&
     typeof rawCandidate?.url === 'string'
   ) {
-    return createWritingBrowserEditorInput(rawCandidate.url, {
+    return createEditorBrowserTabInput(rawCandidate.url, {
       id: candidate.id,
       title: typeof candidate.title === 'string' ? candidate.title : '',
     });
   }
 
   if (candidate.kind === 'pdf' && typeof rawCandidate?.url === 'string') {
-    return createWritingPdfEditorInput(rawCandidate.url, {
+    return createEditorPdfTabInput(rawCandidate.url, {
       id: candidate.id,
       title: typeof candidate.title === 'string' ? candidate.title : '',
     });
@@ -153,20 +262,20 @@ export function normalizeWritingEditorInput(value: unknown): WritingEditorInput 
   return null;
 }
 
-export function toWritingEditorInput(input: WritingEditorInput): WritingEditorInput {
-  if (isWritingDraftEditorInput(input)) {
-    return createWritingDraftEditorInput(input);
+export function toEditorTabInput(input: EditorTabInput): EditorTabInput {
+  if (isEditorDraftTabInput(input)) {
+    return createEditorDraftTabInput(input);
   }
 
-  if (isWritingPdfEditorInput(input)) {
-    return createWritingPdfEditorInput(input.url, input);
+  if (isEditorPdfTabInput(input)) {
+    return createEditorPdfTabInput(input.url, input);
   }
 
-  return createWritingBrowserEditorInput(input.url, input);
+  return createEditorBrowserTabInput(input.url, input);
 }
 
-export function getWritingEditorInputResourceKey(input: WritingEditorInput) {
-  if (isWritingDraftEditorInput(input)) {
+export function getEditorTabInputResourceKey(input: EditorTabInput) {
+  if (isEditorDraftTabInput(input)) {
     return `draft:${input.id}`;
   }
 

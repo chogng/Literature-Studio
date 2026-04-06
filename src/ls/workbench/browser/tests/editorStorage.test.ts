@@ -5,7 +5,7 @@ import {
   createWritingEditorDocumentFromPlainText,
   writingEditorDocumentToPlainText,
 } from 'ls/editor/common/writingEditorDocument';
-import { createWritingEditorStorage } from 'ls/workbench/browser/writingEditorStorage';
+import { createEditorStorage } from 'ls/workbench/browser/editorStorage';
 
 type MockStorage = {
   getItem(key: string): string | null;
@@ -48,10 +48,10 @@ function installMockWindow(localStorage: MockStorage) {
   };
 }
 
-test('writing editor storage debounces draft persistence and keeps the latest state', async () => {
+test('editor storage debounces draft persistence and keeps the latest state', async () => {
   const localStorage = createLocalStorage();
   const restoreWindow = installMockWindow(localStorage);
-  const storage = createWritingEditorStorage({ debounceMs: 10 });
+  const storage = createEditorStorage({ debounceMs: 10 });
 
   storage.scheduleSave({
     workspaceState: {
@@ -109,14 +109,14 @@ test('writing editor storage debounces draft persistence and keeps the latest st
   }
 });
 
-test('writing editor storage reads the legacy draft payload from local storage', () => {
+test('editor storage reads the legacy draft payload from local storage', () => {
   const localStorage = createLocalStorage({
     'ls.writingDraft.title': 'Draft',
     'ls.writingDraft.body': 'legacy body',
     'ls.writingDraft.viewMode': 'split',
   });
   const restoreWindow = installMockWindow(localStorage);
-  const storage = createWritingEditorStorage();
+  const storage = createEditorStorage();
 
   const draftState = storage.readLegacyDraftState();
 
@@ -131,10 +131,10 @@ test('writing editor storage reads the legacy draft payload from local storage',
   }
 });
 
-test('writing editor storage persists editor inputs separately from draft state payload', () => {
+test('editor storage persists editor inputs separately from draft state payload', () => {
   const localStorage = createLocalStorage();
   const restoreWindow = installMockWindow(localStorage);
-  const storage = createWritingEditorStorage();
+  const storage = createEditorStorage();
 
   storage.save({
     workspaceState: {

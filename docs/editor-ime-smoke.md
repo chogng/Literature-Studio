@@ -1,10 +1,10 @@
-# Writing IME Smoke
+# Editor IME Smoke
 
 This checklist is the release gate for native IME behavior that cannot be fully covered by `jsdom`.
 
 ## Why this exists
 
-- `npm run test:writing-editor` now covers our composition, focus-restore, prop-sync, and DOM integration logic.
+- `npm run test:editor` now covers our composition, focus-restore, prop-sync, and DOM integration logic.
 - It does **not** exercise the real macOS input method candidate UI.
 - For Apple Pinyin and other native IMEs, we still need one short manual pass before release.
 

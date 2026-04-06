@@ -190,8 +190,8 @@ const workbenchDependencyModules = [
     load: () => import('ls/workbench/services/quickAccess/quickAccessService'),
   },
   {
-    label: 'ls/workbench/browser/writingEditorModel',
-    load: () => import('ls/workbench/browser/writingEditorModel'),
+    label: 'ls/workbench/browser/editorModel',
+    load: () => import('ls/workbench/browser/editorModel'),
   },
 ] as const;
 

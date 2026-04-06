@@ -44,12 +44,12 @@ function addDisposableListener(
   });
 }
 
-function getTabKindIconName(kind: 'draft' | 'browser' | 'pdf') {
-  if (kind === 'draft') {
+function getTabPaneModeIconName(paneMode: EditorGroupTabItem['paneMode']) {
+  if (paneMode === 'draft') {
     return 'write';
   }
 
-  if (kind === 'pdf') {
+  if (paneMode === 'pdf') {
     return 'pdf';
   }
 
@@ -181,7 +181,7 @@ export class TabsTitleControl extends TitleControl {
     );
     tabView.element.classList.toggle('has-title', Boolean(tab.label.trim()));
     tabView.element.classList.toggle('is-available', Boolean(tab.targetTabId));
-    tabView.element.dataset.kind = tab.kind;
+    tabView.element.dataset.paneMode = tab.paneMode;
     tabView.element.dataset.hasLocalHistory = String(tab.state.hasLocalHistory);
     tabView.element.dataset.tabId = tab.id;
 
@@ -197,10 +197,10 @@ export class TabsTitleControl extends TitleControl {
         return;
       }
 
-      this.props.onOpenKind(tab.kind);
+      this.props.onOpenPaneMode(tab.paneMode);
     };
 
-    tabView.kindIcon.replaceChildren(createLxIcon(getTabKindIconName(tab.kind)));
+    tabView.kindIcon.replaceChildren(createLxIcon(getTabPaneModeIconName(tab.paneMode)));
     tabView.labelText.textContent = tab.label;
   }
 

@@ -1,7 +1,7 @@
 import type {
+  EditorWorkspaceTab,
   WritingEditorDocument,
-  WritingWorkspaceTab,
-} from 'ls/workbench/browser/writingEditorModel';
+} from 'ls/workbench/browser/editorModel';
 import type {
   EditorViewStateKey,
   SerializedEditorViewStateEntry,
@@ -49,9 +49,9 @@ export type EditorPartProps = {
   labels: EditorPartLabels;
   viewPartProps: ViewPartProps;
   groupId: string;
-  tabs: WritingWorkspaceTab[];
+  tabs: EditorWorkspaceTab[];
   activeTabId: string | null;
-  activeTab: WritingWorkspaceTab | null;
+  activeTab: EditorWorkspaceTab | null;
   viewStateEntries: SerializedEditorViewStateEntry[];
   onActivateTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;

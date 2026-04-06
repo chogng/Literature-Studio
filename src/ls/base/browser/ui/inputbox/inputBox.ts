@@ -27,8 +27,6 @@ export class InputBox extends LifecycleOwner {
   readonly element: HTMLElement;
   readonly inputElement: HTMLInputElement;
   private readonly changeEmitter = new EventEmitter<string>();
-  private placeholder = '';
-  private tooltip = '';
   private disposed = false;
 
   constructor(container: HTMLElement, _contextViewProvider: unknown, options: IInputBoxOptions = {}) {
@@ -93,13 +91,11 @@ export class InputBox extends LifecycleOwner {
   }
 
   setPlaceHolder(placeholder: string) {
-    this.placeholder = placeholder;
     this.inputElement.placeholder = placeholder;
     this.syncHover();
   }
 
-  setTooltip(tooltip: string) {
-    this.tooltip = tooltip;
+  setTooltip(_tooltip: string) {
     this.syncHover();
   }
 

@@ -112,8 +112,8 @@ after(() => {
 
 function createProps(
   activeTabId: string | null,
-  activeTab: import('ls/workbench/browser/writingEditorModel').WritingWorkspaceTab | null,
-  tabs: import('ls/workbench/browser/writingEditorModel').WritingWorkspaceTab[],
+  activeTab: import('ls/workbench/browser/editorModel').EditorWorkspaceTab | null,
+  tabs: import('ls/workbench/browser/editorModel').EditorWorkspaceTab[],
   overrides: Partial<{
     onSetEditorViewState: (key: {
       groupId: string;
