@@ -27,9 +27,6 @@
   animation-name: ls-menu-fade-in-up;
 }
 
-.ls-menu.dropdown-menu-bottom {
-}
-
 @keyframes ls-menu-fade-in {
   from {
     opacity: 0;
@@ -76,7 +73,13 @@
 .ls-menu .dropdown-menu-item.selected {
   background: var(--ls-menu-selected-bg);
   color: var(--ls-menu-selected-fg);
-  font-weight: 500;
+
+}
+
+.ls-menu[data-menu^='draft-toolbar-'] {
+  --ls-menu-selected-bg: transparent;
+  --ls-menu-selected-fg: var(--vscode-menu-itemForeground, #304357);
+  --ls-menu-check-color: var(--vscode-menu-itemForeground, #304357);
 }
 
 .ls-menu .dropdown-menu-item.disabled {
@@ -116,7 +119,6 @@
   align-items: center;
   justify-content: center;
   width: 14px;
-  min-width: 14px;
   height: 14px;
   color: var(--ls-menu-check-color);
   opacity: 0.9;

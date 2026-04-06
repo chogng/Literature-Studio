@@ -137,9 +137,9 @@ export type WritingEditorToolbarSplitButtonConfig = {
   label: string;
   title?: string;
   buttonLabel: string;
+  buttonMode?: 'icon' | 'text' | 'custom';
   buttonIcon?: WritingEditorToolbarButtonConfig['icon'];
   buttonGlyph?: string;
-  buttonText?: string;
   onClick: () => void;
   menu: readonly {
     label: string;
@@ -580,29 +580,18 @@ function createTextStyleToolbarSplitButton(params: {
     : 'paragraph';
   const buttonLabel =
     currentValue === 'heading-1'
-      ? labels.heading1
-      : currentValue === 'heading-2'
-        ? labels.heading2
-        : currentValue === 'heading-3'
-          ? labels.heading3
-          : labels.paragraph;
-  const buttonGlyph =
-    undefined;
-  const buttonIcon =
-    currentValue === 'heading-1'
       ? 'h1'
       : currentValue === 'heading-2'
         ? 'h2'
         : currentValue === 'heading-3'
           ? 'h3'
-          : 'tx';
+          : 'Tx';
 
   return {
     label: labels.textGroup,
     title: labels.textGroup,
     buttonLabel,
-    buttonIcon,
-    buttonGlyph,
+    buttonMode: 'text',
     onClick: () => {
       switch (currentValue) {
         case 'heading-1':
@@ -670,8 +659,7 @@ function createFontSizeToolbarSplitButton(params: {
     label: labels.fontSize,
     title: labels.fontSize,
     buttonLabel: currentLabel,
-    buttonIcon: 'text-size',
-    buttonText: currentLabel,
+    buttonMode: 'text',
     onClick: () => {
       actions.setFontSize(currentValue || null);
     },
@@ -702,7 +690,7 @@ function createFontFamilyToolbarSplitButton(params: {
     label: labels.fontFamily,
     title: labels.fontFamily,
     buttonLabel: currentLabel,
-    buttonText: currentLabel,
+    buttonMode: 'text',
     onClick: () => {
       actions.setFontFamily(currentValue || null);
     },
@@ -873,13 +861,19 @@ export function createWritingEditorToolbarButtonGroups(params: {
     groups.set(toolbar.group, items);
   }
 
-  groups.set('text', [
-    createTextStyleToolbarSplitButton({
-      labels,
-      toolbarState,
-      actions,
-    }),
-  ]);
+  const headingSplit = createTextStyleToolbarSplitButton({
+    labels,
+    toolbarState,
+    actions,
+  });
+  const formatItems = [...(groups.get('format') ?? [])];
+  const fontSizeIndex = formatItems.findIndex(
+    (item) => 'menu' in item && item.label === labels.fontSize,
+  );
+  const headingInsertIndex = fontSizeIndex >= 0 ? fontSizeIndex + 1 : formatItems.length;
+  formatItems.splice(headingInsertIndex, 0, headingSplit);
+  groups.set('format', formatItems);
+  groups.delete('text');
 
   const buttonGroups = (['text', 'format', 'insert', 'history'] as const)
     .filter((groupId) => (groups.get(groupId)?.length ?? 0) > 0)

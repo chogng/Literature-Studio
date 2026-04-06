@@ -209,6 +209,7 @@ export class LibraryRenderer {
         height: 0,
       }),
       getActions: () => options,
+      getMenuData: () => 'knowledge-library-document',
       alignment: 'start',
       requestIdPrefix: 'library-document-menu',
       onSelect: (value) => {

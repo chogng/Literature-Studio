@@ -333,10 +333,13 @@ test('DraftEditorToolbar shows preset font labels for normalized browser font-fa
   document.body.append(toolbar.getElement());
 
   try {
-    const splitLabels = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-btn-label');
-    const fontFamilyField = splitLabels.item(0);
-    assert(fontFamilyField instanceof HTMLElement);
-    assert.equal(fontFamilyField.textContent, 'Times New Roman');
+    const fontFamilyPrimary = Array.from(
+      toolbar.getElement().querySelectorAll<HTMLButtonElement>(
+        '.editor-draft-toolbar-split-primary.actionbar-action.is-text',
+      ),
+    ).find((candidate) => candidate.getAttribute('aria-label') === 'Times New Roman');
+    assert(fontFamilyPrimary instanceof HTMLButtonElement);
+    assert.equal(fontFamilyPrimary.textContent?.trim(), 'Times New Roman');
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();
@@ -386,10 +389,13 @@ test('DraftEditorToolbar shows Chinese named font-size presets for matching px v
   document.body.append(toolbar.getElement());
 
   try {
-    const splitLabels = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-btn-label');
-    const fontSizeLabel = splitLabels.item(1);
-    assert(fontSizeLabel instanceof HTMLElement);
-    assert.equal(fontSizeLabel.textContent, '小四');
+    const fontSizePrimary = Array.from(
+      toolbar.getElement().querySelectorAll<HTMLButtonElement>(
+        '.editor-draft-toolbar-split-primary.actionbar-action.is-text',
+      ),
+    ).find((candidate) => candidate.getAttribute('aria-label') === '小四');
+    assert(fontSizePrimary instanceof HTMLButtonElement);
+    assert.equal(fontSizePrimary.textContent?.trim(), '小四');
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();
@@ -440,17 +446,23 @@ test('DraftEditorToolbar orders Chinese named font-size presets from large to sm
 
   try {
     const splitDropdowns = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-split-dropdown');
-    const fontSizeDropdown = splitDropdowns.item(2);
+    const fontSizeDropdown = Array.from(splitDropdowns).find(
+      (candidate) => candidate.getAttribute('aria-label') === labels.fontSize,
+    );
     assert(fontSizeDropdown instanceof HTMLElement);
     fontSizeDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(menu instanceof HTMLElement);
+    assert.equal(menu.getAttribute('data-menu'), 'draft-toolbar-split');
+
     const menuItems = Array.from(document.body.querySelectorAll('.dropdown-menu-item'));
-    const labels = menuItems
+    const menuItemLabels = menuItems
       .map((item) => item.textContent?.trim())
       .filter((value): value is string => Boolean(value));
 
-    assert.deepEqual(labels.slice(0, 5), ['Default', '初号', '小初', '一号', '小一']);
-    assert.deepEqual(labels.slice(-4), ['五号', '小五', '六号', '小六']);
+    assert.deepEqual(menuItemLabels.slice(0, 5), ['Default', '初号', '小初', '一号', '小一']);
+    assert.deepEqual(menuItemLabels.slice(-4), ['五号', '小五', '六号', '小六']);
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();
@@ -516,7 +528,9 @@ test('DraftEditorToolbar marks unavailable preset fonts in the dropdown', () => 
 
   try {
     const splitDropdowns = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-split-dropdown');
-    const fontFamilyDropdown = splitDropdowns.item(1);
+    const fontFamilyDropdown = Array.from(splitDropdowns).find(
+      (candidate) => candidate.getAttribute('aria-label') === labels.fontFamily,
+    );
     assert(fontFamilyDropdown instanceof HTMLElement);
     fontFamilyDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
@@ -587,6 +601,7 @@ test('DraftEditorToolbar disables figure-ref action when no figures are availabl
 
     const menu = document.body.querySelector('.dropdown-menu');
     assert(menu instanceof HTMLElement);
+    assert.equal(menu.getAttribute('data-menu'), 'draft-toolbar-overflow');
     const menuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
       (candidate) => candidate.textContent?.includes(labels.insertFigureRef),
     );
@@ -747,7 +762,12 @@ test('DraftEditorToolbar renders draft-specific toolbar content classes', () => 
     const textStyleDropdown = toolbarElement.querySelector(
       '.editor-draft-toolbar-split .editor-draft-toolbar-split-dropdown.actionbar-action',
     );
-    const splitLabels = toolbarElement.querySelectorAll('.editor-draft-toolbar-btn-label');
+    const fontSizePrimary = toolbarElement.querySelector(
+      '.editor-draft-toolbar-split-primary.actionbar-action.is-text',
+    );
+    const splitDropdownLabels = Array.from(
+      toolbarElement.querySelectorAll('.editor-draft-toolbar-split-dropdown.actionbar-action'),
+    ).map((button) => button.getAttribute('aria-label'));
 
     assert.equal(toolbarElement.classList.contains('editor-draft-toolbar'), true);
     assert(toolbarContent instanceof HTMLElement);
@@ -756,7 +776,124 @@ test('DraftEditorToolbar renders draft-specific toolbar content classes', () => 
     assert(toolbarAction instanceof HTMLButtonElement);
     assert(textStylePrimary instanceof HTMLButtonElement);
     assert(textStyleDropdown instanceof HTMLElement);
-    assert.equal(splitLabels.length >= 2, true);
+    assert(fontSizePrimary instanceof HTMLButtonElement);
+    assert.deepEqual(splitDropdownLabels, [labels.fontFamily, labels.fontSize, labels.textGroup]);
+  } finally {
+    toolbar.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('DraftEditorToolbar moves overflowing action buttons into the more menu', async () => {
+  const alignCalls: Array<'left' | 'center' | 'right'> = [];
+  const toolbar = new DraftEditorToolbar({
+    labels,
+    toolbarState: {
+      isParagraphActive: true,
+      activeHeadingLevel: null,
+      isBoldActive: false,
+      isItalicActive: false,
+      isUnderlineActive: false,
+      fontFamily: null,
+      fontSize: null,
+      textAlign: 'left',
+      isBulletListActive: false,
+      isOrderedListActive: false,
+      isBlockquoteActive: false,
+      canUndo: false,
+      canRedo: false,
+      availableFigureIds: [],
+    },
+    actions: {
+      setParagraph: () => {},
+      toggleHeading: () => {},
+      toggleBold: () => {},
+      toggleItalic: () => {},
+      toggleUnderline: () => {},
+      setFontFamily: () => {},
+      setFontSize: () => {},
+      setTextAlign: (value) => {
+        alignCalls.push(value);
+      },
+      clearInlineStyles: () => {},
+      toggleBulletList: () => {},
+      toggleOrderedList: () => {},
+      toggleBlockquote: () => {},
+      undo: () => {},
+      redo: () => {},
+      insertCitation: () => {},
+      insertFigure: () => {},
+      insertFigureRef: () => {},
+    },
+  });
+
+  document.body.append(toolbar.getElement());
+
+  try {
+    const toolbarElement = toolbar.getElement();
+    const contentElement = toolbarElement.querySelector(
+      ':scope > .editor-draft-toolbar-content',
+    );
+    const trailingElement = toolbarElement.querySelector(
+      ':scope > .editor-draft-toolbar-trailing',
+    );
+    assert(contentElement instanceof HTMLElement);
+    assert(trailingElement instanceof HTMLElement);
+
+    const createRect = (width: number, height: number) => ({
+      x: 0,
+      y: 0,
+      width,
+      height,
+      top: 0,
+      left: 0,
+      right: width,
+      bottom: height,
+      toJSON: () => ({}),
+    });
+    const narrowRect = createRect(220, 36);
+    Object.defineProperty(toolbarElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => narrowRect,
+    });
+    Object.defineProperty(trailingElement, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => createRect(24, 24),
+    });
+    Object.defineProperty(contentElement, 'scrollWidth', {
+      configurable: true,
+      get: () => {
+        const collapsibleActionButtons = contentElement.querySelectorAll(
+          '.editor-draft-toolbar-btn.actionbar-action:not(.editor-draft-toolbar-split-primary):not(.editor-draft-toolbar-split-dropdown)',
+        ).length;
+        return 180 + (collapsibleActionButtons * 28);
+      },
+    });
+
+    await delay(20);
+
+    const inlineAlignRightButton = Array.from(toolbarElement.querySelectorAll('button')).find(
+      (candidate) => candidate.getAttribute('aria-label') === labels.alignRight,
+    );
+    assert.equal(inlineAlignRightButton, undefined);
+
+    const moreButton = Array.from(toolbarElement.querySelectorAll('button')).find(
+      (candidate) => candidate.getAttribute('aria-label') === labels.toolbarMore,
+    );
+    assert(moreButton instanceof HTMLButtonElement);
+    moreButton.click();
+    await delay(0);
+
+    const menu = document.body.querySelector('.dropdown-menu');
+    assert(menu instanceof HTMLElement);
+    const alignRightMenuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (candidate) => candidate.textContent?.includes(labels.alignRight),
+    );
+    assert(alignRightMenuItem instanceof HTMLElement);
+    alignRightMenuItem.click();
+    await delay(0);
+
+    assert.equal(alignCalls.at(-1), 'right');
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();

@@ -53,6 +53,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+const AGENTBAR_TOPBAR_MORE_MENU_DATA = 'agentbar-topbar-more';
+
 export class AgentChatWidget {
   private props: AgentChatWidgetProps;
   private readonly element = createElement('div', 'agentbar-content');
@@ -632,6 +634,7 @@ export class AgentChatWidget {
       content: createLxIcon(lxIconSemanticMap.assistant.more),
       buttonClassName: 'sidebar-action-btn',
       overlayAlignment: 'end',
+      menuData: AGENTBAR_TOPBAR_MORE_MENU_DATA,
       menu: [
         {
           label: this.props.labels.assistantNewConversation,

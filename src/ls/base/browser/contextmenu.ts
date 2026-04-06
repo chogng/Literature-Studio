@@ -23,7 +23,9 @@ export interface ContextMenuDelegate {
   getActions: () => readonly ContextMenuAction[];
   onSelect?: (value: string) => void;
   onHide?: (didCancel: boolean) => void;
+  restoreFocusOnHide?: boolean;
   getMenuClassName?: () => string;
+  getMenuData?: () => string;
   anchorAlignment?: ContextMenuAnchorAlignment;
   anchorAxisAlignment?: ContextMenuAnchorAxisAlignment;
   alignment?: ContextMenuAlignment;

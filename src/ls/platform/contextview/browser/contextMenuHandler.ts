@@ -83,8 +83,11 @@ export class ContextMenuHandler {
       return;
     }
 
+    const shouldRestoreFocusOnHide = delegate.restoreFocusOnHide ?? true;
     this.focusToReturn =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      shouldRestoreFocusOnHide && document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
 
     this.contextViewService.showContextView({
       getAnchor: delegate.getAnchor,
@@ -112,7 +115,9 @@ export class ContextMenuHandler {
       onHide: (data) => {
         const payload = data as ContextMenuHidePayload | undefined;
         delegate.onHide?.(payload?.didCancel ?? true);
-        this.focusToReturn?.focus();
+        if (shouldRestoreFocusOnHide) {
+          this.focusToReturn?.focus();
+        }
         this.focusToReturn = null;
       },
     });
@@ -132,8 +137,10 @@ export class ContextMenuHandler {
     options: readonly ContextMenuAction[],
     delegate: ContextMenuDelegate,
   ) {
+    const dataMenu = delegate.getMenuData?.();
     const menu = new Menu({
       items: options,
+      dataMenu,
       role: 'menu',
       placement: delegate.position === 'above' ? 'top' : 'bottom',
       onSelect: ({ value }) => {
@@ -155,6 +162,7 @@ export class ContextMenuHandler {
       );
       menu.setOptions({
         items: options,
+        dataMenu,
         role: 'menu',
         placement,
         onSelect: ({ value }) => {

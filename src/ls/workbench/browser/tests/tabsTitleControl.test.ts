@@ -658,6 +658,7 @@ test('TabsTitleControl opens a context menu with close, close others, close all,
     height: 0,
   });
   assert.equal(delegate.backend, 'dom');
+  assert.equal(delegate.getMenuData?.(), 'editor-tab-context');
 
   delegate.onSelect?.('close');
   delegate.onSelect?.('close-others');
@@ -764,6 +765,7 @@ test('TabsTitleControl renders its DOM context menu below the cursor for availab
     const menu = document.body.querySelector('.ls-context-view .ls-menu');
     assert(contextView instanceof HTMLElement);
     assert(menu instanceof HTMLElement);
+    assert.equal(menu.getAttribute('data-menu'), 'editor-tab-context');
     assert.equal(contextView.classList.contains('bottom'), true);
     assert.equal(contextView.classList.contains('top'), false);
     assert.equal(menu.classList.contains('dropdown-menu-bottom'), true);

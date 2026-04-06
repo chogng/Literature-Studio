@@ -20,6 +20,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+const EDITOR_BROWSER_TOOLBAR_MORE_MENU_DATA = 'editor-browser-toolbar-more';
+
 export class EditorBrowserModeToolbarContribution
 implements EditorModeToolbarContribution {
   readonly mode = 'browser' as const;
@@ -164,6 +166,7 @@ implements EditorModeToolbarContribution {
         buttonClassName: 'editor-browser-toolbar-btn',
         content: createLxIcon('more'),
         overlayAlignment: 'end',
+        menuData: EDITOR_BROWSER_TOOLBAR_MORE_MENU_DATA,
         menu: [
           {
             label: this.context.labels.toolbarHardReload,

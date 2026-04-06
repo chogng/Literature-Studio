@@ -66,3 +66,28 @@ test('menu uses roving item focus for keyboard navigation', () => {
     document.body.replaceChildren();
   }
 });
+
+test('menu applies and clears the data-menu attribute from options', () => {
+  const menu = new Menu({
+    items: [
+      { value: 'alpha', label: 'Alpha' },
+    ],
+    dataMenu: 'editor-tab-context',
+  });
+  document.body.append(menu.getElement());
+
+  try {
+    assert.equal(menu.getElement().getAttribute('data-menu'), 'editor-tab-context');
+
+    menu.setOptions({
+      items: [
+        { value: 'alpha', label: 'Alpha' },
+      ],
+    });
+
+    assert.equal(menu.getElement().hasAttribute('data-menu'), false);
+  } finally {
+    menu.dispose();
+    document.body.replaceChildren();
+  }
+});

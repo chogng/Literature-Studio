@@ -65,6 +65,8 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 }
 
 const hoverService = getHoverService();
+const DRAFT_TOOLBAR_OVERFLOW_MENU_DATA = 'draft-toolbar-overflow';
+const DRAFT_TOOLBAR_SPLIT_MENU_DATA = 'draft-toolbar-split';
 
 function normalizeFontFamilyValue(value: string) {
   return value
@@ -615,6 +617,7 @@ export class DraftEditorToolbar {
           buttonClassName: 'editor-draft-toolbar-btn',
           content: createLxIcon('more'),
           overlayAlignment: 'end',
+          menuData: DRAFT_TOOLBAR_OVERFLOW_MENU_DATA,
           menu: overflowMenuItems.map((item) => this.toActionbarMenuItem(item)),
           hoverService,
         }),
@@ -676,18 +679,16 @@ export class DraftEditorToolbar {
 
   private createToolbarSplitButton(splitButtonConfig: WritingEditorToolbarSplitButtonConfig) {
     const primaryContent = createElement('span', 'editor-draft-toolbar-btn-icon');
-    const usesCustomPrimaryContent =
-      Boolean(splitButtonConfig.buttonText) || !splitButtonConfig.buttonIcon;
+    const usesCustomPrimaryContent = !splitButtonConfig.buttonIcon;
+    const primaryMode =
+      splitButtonConfig.buttonMode
+      ?? (usesCustomPrimaryContent ? 'custom' : 'icon');
 
-    if (splitButtonConfig.buttonIcon) {
+    if (primaryMode !== 'text' && splitButtonConfig.buttonIcon) {
       primaryContent.append(createLxIcon(splitButtonConfig.buttonIcon));
     }
 
-    if (splitButtonConfig.buttonText) {
-      const text = createElement('span', 'editor-draft-toolbar-btn-label');
-      text.textContent = splitButtonConfig.buttonText;
-      primaryContent.append(text);
-    } else if (!splitButtonConfig.buttonIcon) {
+    if (primaryMode !== 'text' && !splitButtonConfig.buttonIcon) {
       const glyph = createElement('span', 'editor-draft-toolbar-btn-glyph');
       glyph.textContent = splitButtonConfig.buttonGlyph ?? splitButtonConfig.buttonLabel;
       primaryContent.append(glyph);
@@ -699,8 +700,8 @@ export class DraftEditorToolbar {
       primary: {
         label: splitButtonConfig.buttonLabel,
         hover: splitButtonConfig.buttonLabel,
-        content: primaryContent,
-        mode: usesCustomPrimaryContent ? 'custom' : 'icon',
+        content: primaryMode === 'text' ? undefined : primaryContent,
+        mode: primaryMode,
         buttonClassName: 'editor-draft-toolbar-btn editor-draft-toolbar-split-primary',
         onClick: () => {
           splitButtonConfig.onClick();
@@ -713,6 +714,7 @@ export class DraftEditorToolbar {
         content: createLxIcon('chevron-down'),
         mode: 'icon',
         buttonClassName: 'editor-draft-toolbar-btn editor-draft-toolbar-split-dropdown',
+        menuData: DRAFT_TOOLBAR_SPLIT_MENU_DATA,
         menu: splitButtonConfig.menu.map((item, index) => ({
           id: `${splitButtonConfig.label}-${index}`,
           label: item.label,

@@ -139,7 +139,9 @@ class ContextMenuService implements WorkbenchContextMenuService {
     this.domContextMenu.showContextMenu({
       getAnchor: delegate.getAnchor,
       getActions: delegate.getActions,
+      restoreFocusOnHide: delegate.restoreFocusOnHide,
       getMenuClassName: delegate.getMenuClassName,
+      getMenuData: delegate.getMenuData,
       anchorAlignment: delegate.anchorAlignment,
       anchorAxisAlignment: delegate.anchorAxisAlignment,
       alignment: resolveDomAlignment(delegate.alignment),

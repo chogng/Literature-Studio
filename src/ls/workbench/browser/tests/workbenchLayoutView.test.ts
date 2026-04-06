@@ -759,6 +759,7 @@ test('WorkbenchLayoutView renders an add dropdown before the collapse action and
 
       const menu = document.body.querySelector('.dropdown-menu');
       assert(menu instanceof HTMLElement);
+      assert.equal(menu.getAttribute('data-menu'), 'editor-topbar-add');
       const menuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
         (node) => node.textContent?.includes(label),
       );
@@ -910,6 +911,7 @@ test('WorkbenchLayoutView opens the browser toolbar more menu and dispatches han
 
       const menu = document.body.querySelector('.dropdown-menu');
       assert(menu instanceof HTMLElement);
+      assert.equal(menu.getAttribute('data-menu'), 'editor-browser-toolbar-more');
       const menuItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
         (node) => node.textContent?.includes(label),
       );

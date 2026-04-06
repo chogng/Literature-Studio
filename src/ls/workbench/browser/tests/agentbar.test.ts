@@ -199,6 +199,7 @@ test('agent bar more action uses dropdown action view item', async () => {
 
     const menu = document.body.querySelector('.actionbar-context-view .dropdown-menu');
     assert(menu instanceof HTMLElement);
+    assert.equal(menu.getAttribute('data-menu'), 'agentbar-topbar-more');
     assert.equal(moreButton.getAttribute('aria-expanded'), 'true');
 
     const newChatItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(

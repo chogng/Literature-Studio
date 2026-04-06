@@ -42,6 +42,7 @@ export type DropdownMenuActionViewItemOptions = {
   renderOverlay?: (context: DropdownMenuActionOverlayContext) => HTMLElement;
   overlayRole?: string;
   menuClassName?: string;
+  menuData?: string;
   minWidth?: number;
   hoverService?: HoverService;
   contextMenuService?: ContextMenuService;
@@ -76,6 +77,8 @@ type DropdownActionOverlayRequest = {
   render: (context: DropdownMenuActionOverlayContext) => HTMLElement;
   onHide: () => void;
 };
+
+type DropdownMenuOpenSource = 'keyboard' | 'pointer';
 
 function createContextMenuValue(action: Pick<ActionBarMenuItem, 'id'>, index: number) {
   return action.id ?? `dropdown-menu-action-option-${index}`;
@@ -164,10 +167,11 @@ class ContextMenuDropdownActionPresenter {
     private readonly onHide: () => void,
   ) {}
 
-  show = () => {
+  show = (restoreFocusOnHide: boolean) => {
     const options = this.getOptions();
     const menuItems = options.menu ?? [];
     const menuActions = toContextMenuActions(menuItems);
+    const menuData = options.menuData?.trim();
     if (menuActions.length === 0) {
       return;
     }
@@ -176,11 +180,13 @@ class ContextMenuDropdownActionPresenter {
       getAnchor: this.getAnchor,
       getActions: () => menuActions,
       getMenuClassName: options.menuClassName ? () => options.menuClassName! : undefined,
+      getMenuData: menuData ? () => menuData : undefined,
       anchorAlignment: options.overlayAlignment === 'end' ? 'right' : 'left',
       alignment: options.overlayAlignment ?? 'start',
       position: options.overlayPosition ?? 'below',
       offset: options.offset,
       minWidth: options.minWidth,
+      restoreFocusOnHide,
       onHide: this.onHide,
       onSelect: (value: string) => {
         runContextMenuAction(options.menu, menuActions, value);
@@ -265,7 +271,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     this.button.setAttribute('aria-expanded', String(this.isOpen));
   }
 
-  show() {
+  show(source: DropdownMenuOpenSource = 'pointer') {
     if (this.item.disabled || this.isDisposed() || this.isOpen) {
       return;
     }
@@ -283,7 +289,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
 
     this.isOpen = true;
     this.button.setAttribute('aria-expanded', 'true');
-    this.menuPresenter.show();
+    this.menuPresenter.show(source === 'keyboard');
   }
 
   hide() {
@@ -328,7 +334,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     }
 
     event.preventDefault();
-    this.show();
+    this.show('keyboard');
   };
 
   protected override readonly handleClick = (event: MouseEvent) => {
@@ -338,7 +344,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
       this.hide();
       return;
     }
-    this.show();
+    this.show('pointer');
   };
 }
 

@@ -109,20 +109,6 @@
   pointer-events: none;
 }
 
-.editor-draft-toolbar-btn-label {
-  max-width: 4.5em;
-  overflow: hidden;
-  font:
-    500 11px/1.2 -apple-system,
-    BlinkMacSystemFont,
-    "PingFang SC",
-    "Noto Sans CJK SC",
-    sans-serif;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
 .editor-draft-toolbar-split {
   height: var(--editor-draft-toolbar-item-size);
 }
@@ -136,8 +122,20 @@
 }
 
 .editor-draft-toolbar-split-primary.actionbar-action {
-  min-width: 34px;
+  min-width: 24px;
   padding: 0 6px;
+}
+
+.editor-draft-toolbar-split-primary.actionbar-action.is-text {
+  font-size: 12px;
+}
+
+.editor-draft-toolbar-split-primary.actionbar-action.is-text .actionbar-content {
+  display: inline-block;
+  max-width: 4.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .editor-draft-toolbar-split-dropdown.actionbar-action {

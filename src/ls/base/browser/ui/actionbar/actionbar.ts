@@ -57,6 +57,7 @@ export type ActionBarSplitItem = {
     renderOverlay?: (context: { hide: () => void }) => HTMLElement;
     overlayRole?: string;
     menuClassName?: string;
+    menuData?: string;
     minWidth?: number;
     overlayAlignment?: 'start' | 'end';
     overlayPosition?: 'auto' | 'above' | 'below';

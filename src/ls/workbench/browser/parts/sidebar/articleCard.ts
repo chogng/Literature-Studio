@@ -32,6 +32,7 @@ const DOWNLOAD_PDF_LABEL = 'Download PDF';
 const VIEW_DETAILS_LABEL = 'View details';
 const DOWNLOADED_PDF_LABEL = 'PDF downloaded';
 const MORE_ACTIONS_LABEL = 'More actions';
+const ARTICLE_CARD_MORE_MENU_DATA = 'sidebar-article-card-more';
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -235,6 +236,7 @@ export class ArticleCard extends LifecycleOwner {
           content: createLxIcon('more'),
           buttonClassName: 'fetch-pane-article-card-icon-btn',
           overlayAlignment: 'end',
+          menuData: ARTICLE_CARD_MORE_MENU_DATA,
           menu: [
             {
               label: VIEW_DETAILS_LABEL,

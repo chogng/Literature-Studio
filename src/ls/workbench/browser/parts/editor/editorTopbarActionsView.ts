@@ -3,6 +3,8 @@ import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dr
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 
+const EDITOR_TOPBAR_ADD_MENU_DATA = 'editor-topbar-add';
+
 export type EditorTopbarActionsViewProps = {
   isEditorCollapsed: boolean;
   labels: Pick<
@@ -56,6 +58,7 @@ export class EditorTopbarActionsView {
           content: createLxIcon('add'),
           buttonClassName: 'editor-topbar-add-btn',
           overlayAlignment: 'end',
+          menuData: EDITOR_TOPBAR_ADD_MENU_DATA,
           menu: [
             {
               label: this.props.labels.createWrite,

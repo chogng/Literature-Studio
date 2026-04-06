@@ -16,6 +16,7 @@ export type MenuSelectEvent = {
 export interface MenuOptions {
   items: readonly ContextMenuAction[];
   className?: string;
+  dataMenu?: string;
   placement?: 'top' | 'bottom';
   role?: string;
   onSelect?: (event: MenuSelectEvent) => void;
@@ -194,6 +195,12 @@ export class Menu extends LifecycleOwner {
       this.options.className,
     ]);
     this.element.setAttribute('role', this.options.role ?? 'menu');
+    const dataMenu = this.options.dataMenu?.trim();
+    if (dataMenu) {
+      this.element.setAttribute('data-menu', dataMenu);
+    } else {
+      this.element.removeAttribute('data-menu');
+    }
     this.element.tabIndex = 0;
 
     const nodes: HTMLDivElement[] = [];

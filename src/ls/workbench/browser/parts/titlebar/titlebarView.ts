@@ -115,6 +115,7 @@ type TitlebarIconActionItem = {
   renderOverlay?: (context: DropdownMenuActionOverlayContext) => HTMLElement;
   overlayRole?: string;
   menuClassName?: string;
+  menuData?: string;
   minWidth?: number;
 };
 
@@ -147,6 +148,7 @@ function createTitlebarActionBar(params: {
           overlayRole: item.overlayRole,
           overlayAlignment: 'end',
           menuClassName: item.menuClassName,
+          menuData: item.menuData,
           minWidth: item.minWidth,
           hoverService,
         });

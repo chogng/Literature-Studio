@@ -173,6 +173,7 @@ test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context
     label: 'More',
     content: 'More',
     contextMenuService,
+    menuData: 'draft-toolbar-overflow',
     menu: [
       {
         label: 'Archive',
@@ -196,6 +197,8 @@ test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context
     assert.equal(delegates[0]?.offset, undefined);
     assert.equal(delegates[0]?.minWidth, undefined);
     assert.equal(delegates[0]?.position, 'below');
+    assert.equal(delegates[0]?.restoreFocusOnHide, false);
+    assert.equal(delegates[0]?.getMenuData?.(), 'draft-toolbar-overflow');
     assert.equal(button.getAttribute('aria-expanded'), 'true');
 
     button.click();
@@ -203,6 +206,43 @@ test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context
 
     assert.equal(hideCount, 1);
     assert.equal(button.getAttribute('aria-expanded'), 'false');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('DropdownMenuActionViewItem requests focus restoration when opened from keyboard', async () => {
+  const delegates: import('ls/base/browser/contextmenu').ContextMenuDelegate[] = [];
+  const contextMenuService: import('ls/base/browser/contextmenu').ContextMenuService = {
+    showContextMenu(delegate) {
+      delegates.push(delegate);
+    },
+    hideContextMenu() {},
+    isVisible() {
+      return false;
+    },
+    dispose() {},
+  };
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    contextMenuService,
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await delay(0);
+
+    assert.equal(delegates.length, 1);
+    assert.equal(delegates[0]?.restoreFocusOnHide, true);
   } finally {
     item.dispose();
     document.body.replaceChildren();

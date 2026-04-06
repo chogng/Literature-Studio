@@ -331,6 +331,7 @@ export class TabsTitleControl extends TitleControl {
         height: 0,
       }),
       getActions: () => actions,
+      getMenuData: () => 'editor-tab-context',
       alignment: 'start',
       requestIdPrefix: 'editor-tab-menu',
       onSelect: (value) => {
