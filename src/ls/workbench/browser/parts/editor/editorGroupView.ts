@@ -351,7 +351,7 @@ export class EditorGroupView {
     isEditorCollapsed: false,
     labels: {
       topbarAddAction: '',
-      createWrite: '',
+      createDraft: '',
       createBrowser: '',
       createFile: '',
       expandEditor: '',
@@ -476,7 +476,7 @@ export class EditorGroupView {
       isEditorCollapsed: Boolean(this.props.isEditorCollapsed),
       labels: {
         topbarAddAction: this.props.labels.topbarAddAction,
-        createWrite: this.props.labels.createWrite,
+        createDraft: this.props.labels.createDraft,
         createBrowser: this.props.labels.createBrowser,
         createFile: this.props.labels.createFile,
         expandEditor: this.props.labels.expandEditor,

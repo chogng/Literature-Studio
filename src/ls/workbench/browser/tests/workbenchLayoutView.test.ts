@@ -478,7 +478,7 @@ function createWorkbenchLayoutViewProps() {
     editorPartProps: {
       labels: {
         topbarAddAction: 'Add',
-        createWrite: 'Write',
+        createDraft: 'Draft',
         createBrowser: 'Browser',
         createFile: 'File',
         toolbarSources: 'Source menu',
@@ -724,7 +724,7 @@ test('WorkbenchLayoutView renders an add dropdown before the collapse action and
   const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
-    onCreateDraftTab: () => calls.push('write'),
+    onCreateDraftTab: () => calls.push('draft'),
     onCreateBrowserTab: () => calls.push('browser'),
     onCreatePdfTab: () => calls.push('file'),
   };
@@ -750,7 +750,7 @@ test('WorkbenchLayoutView renders an add dropdown before the collapse action and
     assert.equal(addButton.getAttribute('aria-label'), 'Add');
 
     for (const [label, expectedCall] of [
-      ['Write', 'write'],
+      ['Draft', 'draft'],
       ['Browser', 'browser'],
       ['File', 'file'],
     ] as const) {
@@ -770,7 +770,7 @@ test('WorkbenchLayoutView renders an add dropdown before the collapse action and
       assert.equal(calls.at(-1), expectedCall);
     }
 
-    assert.deepEqual(calls, ['write', 'browser', 'file']);
+    assert.deepEqual(calls, ['draft', 'browser', 'file']);
   } finally {
     view.dispose();
     document.body.replaceChildren();

@@ -125,7 +125,7 @@ const en = {
     'This phase uses article metadata, abstracts, and descriptions as the retrieval corpus. PDF chunk retrieval can plug into the same route later.',
   sidebarLibraryAction: 'Library',
   sidebarPdfDownloadAction: 'PDF download',
-  sidebarWritingAction: 'Writing',
+  sidebarWritingAction: 'Draft',
   knowledgeBaseSidebarEmpty:
     'No documents are in the knowledge base yet. Turn on knowledge base mode, then download PDFs to register them here.',
   assistantSidebarTitle: 'Assistant',
@@ -176,7 +176,7 @@ const en = {
   editorToolbarClearCache: 'Clear cache',
   editorTitle: 'Writing Workspace',
   editorTopbarAddAction: 'Add',
-  editorCreateWrite: 'Write',
+  editorCreateDraft: 'Draft',
   editorCreateBrowser: 'Browser',
   editorCreateFile: 'File',
   editorDraftMode: 'Draft',

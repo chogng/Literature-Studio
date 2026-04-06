@@ -543,7 +543,7 @@ class WorkbenchHost {
     isEditorCollapsed: true,
     labels: {
       topbarAddAction: '',
-      createWrite: '',
+      createDraft: '',
       createBrowser: '',
       createFile: '',
       expandEditor: '',
@@ -1488,7 +1488,7 @@ class WorkbenchHost {
       isEditorCollapsed: true,
       labels: {
         topbarAddAction: contentAwareEditorPartProps.labels.topbarAddAction,
-        createWrite: contentAwareEditorPartProps.labels.createWrite,
+        createDraft: contentAwareEditorPartProps.labels.createDraft,
         createBrowser: contentAwareEditorPartProps.labels.createBrowser,
         createFile: contentAwareEditorPartProps.labels.createFile,
         expandEditor: contentAwareEditorPartProps.labels.expandEditor,

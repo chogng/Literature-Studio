@@ -109,7 +109,7 @@ export function createEditorPartProps({
   return {
     labels: {
       topbarAddAction: ui.editorTopbarAddAction,
-      createWrite: ui.editorCreateWrite,
+      createDraft: ui.editorCreateDraft,
       createBrowser: ui.editorCreateBrowser,
       createFile: ui.editorCreateFile,
       toolbarSources: ui.agentbarToolbarSources,

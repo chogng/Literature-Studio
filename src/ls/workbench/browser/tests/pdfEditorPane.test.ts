@@ -9,7 +9,7 @@ let EditorGroupView: typeof import('ls/workbench/browser/parts/editor/editorGrou
 
 const labels = {
   topbarAddAction: 'Add',
-  createWrite: 'Write',
+  createDraft: 'Draft',
   createBrowser: 'Browser',
   createFile: 'File',
   toolbarSources: 'Source menu',

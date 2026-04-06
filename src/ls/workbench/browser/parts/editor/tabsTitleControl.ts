@@ -60,7 +60,7 @@ function getTabPaneModeIconName(
 ): LxIconName {
   switch (paneMode) {
     case 'draft':
-      return 'write';
+      return 'draft';
     case 'pdf':
       return isActive ? 'pdf' : 'file-pdf';
     case 'file':

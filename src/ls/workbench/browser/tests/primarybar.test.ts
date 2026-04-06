@@ -14,7 +14,7 @@ function createProps(): PrimaryBarProps {
   const labels = {
     libraryTitle: 'Library',
     fetchTitle: 'Fetch',
-    writingAction: 'Write',
+    writingAction: 'Draft',
     selectionModeEnterMulti: 'Select multiple',
     selectionModeSelectAll: 'Select all',
     selectionModeExit: 'Exit selection',

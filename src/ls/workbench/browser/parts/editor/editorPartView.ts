@@ -22,7 +22,7 @@ import 'ls/workbench/browser/parts/editor/media/tabsTitleControl.css';
 
 export type EditorPartLabels = {
   topbarAddAction: string;
-  createWrite: string;
+  createDraft: string;
   createBrowser: string;
   createFile: string;
   toolbarSources: string;

@@ -17,7 +17,7 @@ let TextSelection: typeof import('prosemirror-state').TextSelection;
 
 const labels = {
   topbarAddAction: 'Add',
-  createWrite: 'Write',
+  createDraft: 'Draft',
   createBrowser: 'Browser',
   createFile: 'File',
   toolbarSources: 'Source menu',

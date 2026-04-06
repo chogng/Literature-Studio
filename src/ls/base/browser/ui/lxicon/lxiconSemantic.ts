@@ -46,7 +46,7 @@ export const lxIconSemanticMap = {
   library: {
     refresh: 'projects',
     downloadPdf: 'download-2',
-    createDraft: 'write',
+    createDraft: 'draft',
     folderExpanded: 'chevron-down',
     folderCollapsed: 'chevron-right',
   },

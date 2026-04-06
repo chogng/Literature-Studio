@@ -188,6 +188,7 @@ export type LxIconName =
   | 'anthropic'
   | 'zoom-out'
   | 'zoom-in'
+  | 'draft'
   | 'write'
   | 'warning'
   | 'voice-circle'
@@ -372,6 +373,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   anthropic: anthropicSvg,
   'zoom-out': zoomOutSvg,
   'zoom-in': zoomInSvg,
+  'draft': writeSvg,
   'write': writeSvg,
   'warning': warningSvg,
   'voice-circle': voiceCircleSvg,

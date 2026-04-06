@@ -24,7 +24,7 @@
 
 ### 显式新建
 
-指 add 菜单里用户主动选择 `Write` / `Browser` / `File` 的动作。
+指 add 菜单里用户主动选择 `Draft` / `Browser` / `File` 的动作。
 
 ### 空态 tab
 
@@ -103,7 +103,7 @@ add 菜单里的 `Browser` 是“显式新建 browser tab”，但 browser mode 
 1. 固定 `draft` 入口：
    若没有 draft tab，则 `ensureModeEntry('draft')` 创建一个 untitled draft
    若已有 draft，则激活代表 draft
-2. add -> `Write`：
+2. add -> `Draft`：
    总是 `createNewTab('draft')`
 3. `focusModePrimaryInput('draft')`：
    focus 到编辑器正文
@@ -111,7 +111,7 @@ add 菜单里的 `Browser` 是“显式新建 browser tab”，但 browser mode 
 draft 和 browser 不同的点在于：
 
 1. draft 的“空态”本身就是一个可编辑文档
-2. add -> `Write` 通常应该真的创建新草稿，而不是复用已有 untitled draft
+2. add -> `Draft` 通常应该真的创建新草稿，而不是复用已有 untitled draft
 
 ### PDF
 

@@ -10,7 +10,7 @@ export type EditorTopbarActionsViewProps = {
   labels: Pick<
     EditorPartLabels,
     | 'topbarAddAction'
-    | 'createWrite'
+    | 'createDraft'
     | 'createBrowser'
     | 'createFile'
     | 'expandEditor'
@@ -61,8 +61,8 @@ export class EditorTopbarActionsView {
           menuData: EDITOR_TOPBAR_ADD_MENU_DATA,
           menu: [
             {
-              label: this.props.labels.createWrite,
-              icon: 'write',
+              label: this.props.labels.createDraft,
+              icon: 'draft',
               onClick: () => this.props.onCreateDraftTab(),
             },
             {
