@@ -47,6 +47,12 @@ type ToolbarDisplayLayoutConfig = ToolbarLayoutConfig & {
   overflowCandidateCount: number;
 };
 
+type OverflowCandidate = {
+  groupIndex: number;
+  itemIndex: number;
+  menuItem: WritingEditorToolbarMenuItemConfig;
+};
+
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
   className?: string,
@@ -152,6 +158,10 @@ const FONT_SIZE_PRESETS: readonly DropdownOption[] = [
   })),
 ];
 
+function createGroupItemKey(groupIndex: number, itemIndex: number) {
+  return `${groupIndex}:${itemIndex}`;
+}
+
 export class DraftEditorToolbar {
   private props: DraftEditorToolbarProps;
   private readonly element = createElement(
@@ -228,51 +238,16 @@ export class DraftEditorToolbar {
   }
 
   private createDisplayLayout(layout: ToolbarLayoutConfig): ToolbarDisplayLayoutConfig {
-    const overflowCandidates: Array<{
-      groupIndex: number;
-      itemIndex: number;
-      menuItem: WritingEditorToolbarMenuItemConfig;
-    }> = [];
-
-    for (let groupIndex = 0; groupIndex < layout.groups.length; groupIndex += 1) {
-      const group = layout.groups[groupIndex];
-      for (let itemIndex = 0; itemIndex < group.items.length; itemIndex += 1) {
-        const item = group.items[itemIndex];
-        const overflowMenuItem = this.createAdaptiveOverflowMenuItem(item, groupIndex, itemIndex);
-        if (!overflowMenuItem) {
-          continue;
-        }
-        overflowCandidates.push({
-          groupIndex,
-          itemIndex,
-          menuItem: overflowMenuItem,
-        });
-      }
-    }
-
-    const clampedOverflowCount = Math.min(this.adaptiveOverflowCount, overflowCandidates.length);
-    if (clampedOverflowCount !== this.adaptiveOverflowCount) {
-      this.adaptiveOverflowCount = clampedOverflowCount;
-    }
-
-    const collapsedCandidates = overflowCandidates.slice(
-      Math.max(overflowCandidates.length - this.adaptiveOverflowCount, 0),
-    );
-    const hiddenToolbarItems = new Set(
-      collapsedCandidates.map((candidate) => `${candidate.groupIndex}:${candidate.itemIndex}`),
-    );
-    const groups = layout.groups
-      .map<ToolbarGroupConfig>((group, groupIndex) => ({
-        title: group.title,
-        items: group.items.filter(
-          (_, itemIndex) => !hiddenToolbarItems.has(`${groupIndex}:${itemIndex}`),
-        ),
-      }))
-      .filter((group) => group.items.length > 0);
+    const overflowCandidates = this.collectOverflowCandidates(layout.groups);
+    this.clampAdaptiveOverflowCount(overflowCandidates.length);
+    // Collapse from the tail so the visual order keeps leading actions stable.
+    const collapsedCandidates = this.getCollapsedCandidates(overflowCandidates);
+    const groups = this.filterCollapsedItems(layout.groups, collapsedCandidates);
 
     return {
       groups,
       overflowMenuItems: [
+        // Keep command-level overflow entries first, then append width-driven collapsed actions.
         ...layout.overflowMenuItems,
         ...collapsedCandidates.map((candidate) => candidate.menuItem),
       ],
@@ -280,17 +255,40 @@ export class DraftEditorToolbar {
     };
   }
 
+  private collectOverflowCandidates(groups: readonly ToolbarGroupConfig[]): OverflowCandidate[] {
+    const candidates: OverflowCandidate[] = [];
+    for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+      const group = groups[groupIndex];
+      for (let itemIndex = 0; itemIndex < group.items.length; itemIndex += 1) {
+        const menuItem = this.createAdaptiveOverflowMenuItem(
+          group.items[itemIndex],
+          createGroupItemKey(groupIndex, itemIndex),
+        );
+        if (!menuItem) {
+          continue;
+        }
+        candidates.push({
+          groupIndex,
+          itemIndex,
+          menuItem,
+        });
+      }
+    }
+    return candidates;
+  }
+
   private createAdaptiveOverflowMenuItem(
     item: WritingEditorToolbarItemConfig,
-    groupIndex: number,
-    itemIndex: number,
+    overflowId: string,
   ): WritingEditorToolbarMenuItemConfig | null {
+    // Split buttons and dropdown fields keep their richer inline affordances.
+    // Only plain action buttons collapse into the terminal "more" menu.
     if ('menu' in item || 'options' in item) {
       return null;
     }
 
     return {
-      id: `toolbar-overflow-action-${groupIndex}-${itemIndex}`,
+      id: `toolbar-overflow-action-${overflowId}`,
       label: item.label,
       title: item.label,
       checked: item.isToggle ? Boolean(item.isActive) : undefined,
@@ -299,6 +297,40 @@ export class DraftEditorToolbar {
         item.onClick();
       },
     };
+  }
+
+  private clampAdaptiveOverflowCount(maxOverflowCount: number) {
+    if (this.adaptiveOverflowCount <= maxOverflowCount) {
+      return;
+    }
+    this.adaptiveOverflowCount = maxOverflowCount;
+  }
+
+  private getCollapsedCandidates(candidates: readonly OverflowCandidate[]) {
+    if (this.adaptiveOverflowCount <= 0) {
+      return [];
+    }
+
+    return candidates.slice(
+      Math.max(candidates.length - this.adaptiveOverflowCount, 0),
+    );
+  }
+
+  private filterCollapsedItems(
+    groups: readonly ToolbarGroupConfig[],
+    collapsedCandidates: readonly OverflowCandidate[],
+  ): ToolbarGroupConfig[] {
+    const hiddenToolbarItems = new Set(
+      collapsedCandidates.map((candidate) => createGroupItemKey(candidate.groupIndex, candidate.itemIndex)),
+    );
+    return groups
+      .map<ToolbarGroupConfig>((group, groupIndex) => ({
+        title: group.title,
+        items: group.items.filter(
+          (_, itemIndex) => !hiddenToolbarItems.has(createGroupItemKey(groupIndex, itemIndex)),
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
   }
 
   private scheduleOverflowSync() {
@@ -337,6 +369,7 @@ export class DraftEditorToolbar {
       }
     }
 
+    // Phase 1: keep moving actions into "more" until the toolbar fits.
     while (!this.isToolbarLayoutFitting() && nextOverflowCount < maxOverflowCount) {
       nextOverflowCount += 1;
       this.adaptiveOverflowCount = nextOverflowCount;
@@ -346,6 +379,7 @@ export class DraftEditorToolbar {
       }
     }
 
+    // Phase 2: try to pull actions back out so we keep the minimum collapsed set.
     while (nextOverflowCount > 0) {
       this.adaptiveOverflowCount = nextOverflowCount - 1;
       this.render({ skipOverflowSync: true });
@@ -448,6 +482,8 @@ export class DraftEditorToolbar {
         }) ?? null
       : null;
 
+    // Keep the current selection visible even when the browser normalizes
+    // the value format (for example, quoted/unquoted font-family lists).
     if (currentValue && matchedPreset) {
       appendAliasOption(currentValue, matchedPreset);
     } else if (currentValue) {
@@ -545,24 +581,26 @@ export class DraftEditorToolbar {
     const actionBarView = createActionBarView({
       className: 'editor-draft-toolbar-group',
       ariaLabel: groupConfig.title,
-      items: groupConfig.items.map<ActionBarItem>((itemConfig) => {
-        if ('menu' in itemConfig) {
-          return this.createToolbarSplitButton(itemConfig);
-        }
-
-        if ('options' in itemConfig) {
-          return this.createToolbarDropdown(itemConfig);
-        }
-
-        return this.createToolbarButton(itemConfig);
-      }),
+      items: groupConfig.items.map((itemConfig) => this.createToolbarItem(itemConfig)),
     });
     const group = actionBarView.getElement();
 
-    group.addEventListener('mousedown', this.handleActionbarMouseDown);
+    this.attachActionbarMouseDown(group);
 
     this.toolbarViews.push(actionBarView);
     return group;
+  }
+
+  private createToolbarItem(itemConfig: WritingEditorToolbarItemConfig): ActionBarItem {
+    if ('menu' in itemConfig) {
+      return this.createToolbarSplitButton(itemConfig);
+    }
+
+    if ('options' in itemConfig) {
+      return this.createToolbarDropdown(itemConfig);
+    }
+
+    return this.createToolbarButton(itemConfig);
   }
 
   private createOverflowMenu(overflowMenuItems: readonly WritingEditorToolbarMenuItemConfig[]) {
@@ -577,23 +615,27 @@ export class DraftEditorToolbar {
           buttonClassName: 'editor-draft-toolbar-btn',
           content: createLxIcon('more'),
           overlayAlignment: 'end',
-          menu: overflowMenuItems.map((item) => ({
-            id: item.id,
-            label: item.label,
-            title: item.title,
-            checked: item.checked,
-            disabled: item.disabled,
-            onClick: () => {
-              item.onClick();
-            },
-          })),
+          menu: overflowMenuItems.map((item) => this.toActionbarMenuItem(item)),
           hoverService,
         }),
       ],
     });
-    overflowView.getElement().addEventListener('mousedown', this.handleActionbarMouseDown);
+    this.attachActionbarMouseDown(overflowView.getElement());
     this.toolbarViews.push(overflowView);
     return overflowView;
+  }
+
+  private toActionbarMenuItem(item: WritingEditorToolbarMenuItemConfig) {
+    return {
+      id: item.id,
+      label: item.label,
+      title: item.title,
+      checked: item.checked,
+      disabled: item.disabled,
+      onClick: () => {
+        item.onClick();
+      },
+    };
   }
 
   private createToolbarDropdown(dropdownConfig: WritingEditorToolbarDropdownConfig) {
@@ -736,6 +778,10 @@ export class DraftEditorToolbar {
     // Keep the ProseMirror selection alive while toolbar commands run.
     event.preventDefault();
   };
+
+  private attachActionbarMouseDown(element: HTMLElement) {
+    element.addEventListener('mousedown', this.handleActionbarMouseDown);
+  }
 
   private readonly handleWindowResize = () => {
     this.scheduleOverflowSync();
