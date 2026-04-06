@@ -60,6 +60,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   border-radius: 0;
   background: transparent;
   color: inherit;
@@ -87,6 +88,20 @@
     "Noto Sans CJK SC",
     sans-serif;
   letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.editor-draft-toolbar-btn-label {
+  max-width: 4.5em;
+  overflow: hidden;
+  font:
+    500 11px/1.2 -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Noto Sans CJK SC",
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   pointer-events: none;
 }
 

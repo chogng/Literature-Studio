@@ -385,10 +385,10 @@ test('DraftEditorToolbar shows Chinese named font-size presets for matching px v
   document.body.append(toolbar.getElement());
 
   try {
-    const dropdownFields = toolbar.getElement().querySelectorAll('.dropdown-field');
-    const fontSizeField = dropdownFields.item(1);
-    assert(fontSizeField instanceof HTMLElement);
-    assert.equal(fontSizeField.textContent, '小四');
+    const splitLabels = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-btn-label');
+    const fontSizeLabel = splitLabels.item(0);
+    assert(fontSizeLabel instanceof HTMLElement);
+    assert.equal(fontSizeLabel.textContent, '小四');
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();
@@ -438,8 +438,10 @@ test('DraftEditorToolbar orders Chinese named font-size presets from large to sm
   document.body.append(toolbar.getElement());
 
   try {
-    const dropdowns = toolbar.getElement().querySelectorAll('.dropdown-wrapper');
-    const fontSizeDropdown = dropdowns.item(1);
+    const splitDropdowns = toolbar.getElement().querySelectorAll(
+      '.editor-draft-toolbar-split-dropdown',
+    );
+    const fontSizeDropdown = splitDropdowns.item(1);
     assert(fontSizeDropdown instanceof HTMLElement);
     fontSizeDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
@@ -644,12 +646,14 @@ test('DraftEditorToolbar renders draft-specific toolbar content classes', () => 
     const textStyleDropdown = toolbarElement.querySelector(
       '.editor-draft-toolbar-split .editor-draft-toolbar-split-dropdown.actionbar-action',
     );
+    const fontSizeLabel = toolbarElement.querySelector('.editor-draft-toolbar-btn-label');
 
     assert.equal(toolbarElement.classList.contains('editor-draft-toolbar'), true);
     assert(toolbarGroup instanceof HTMLElement);
     assert(toolbarAction instanceof HTMLButtonElement);
     assert(textStylePrimary instanceof HTMLButtonElement);
     assert(textStyleDropdown instanceof HTMLElement);
+    assert(fontSizeLabel instanceof HTMLElement);
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();

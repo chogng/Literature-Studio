@@ -63,6 +63,7 @@ export type EditorPartProps = {
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
+  onOpenBrowserPane: () => void;
   onCreatePdfTab: () => void;
   onOpenAddressBarSourceMenu: () => void;
   onToolbarNavigateBack: () => void;

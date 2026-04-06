@@ -8,6 +8,9 @@ import {
   WEB_CONTENT_VIEW_STATE_CAPTURE_SCRIPT_MARKER,
   WEB_CONTENT_VIEW_STATE_RESTORE_SCRIPT_MARKER,
 } from 'ls/workbench/browser/parts/editor/panes/contentEditorViewState';
+import {
+  subscribeTitlebarUiActions,
+} from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let EditorGroupView: typeof import('ls/workbench/browser/parts/editor/editorGroupView').EditorGroupView;
@@ -144,6 +147,7 @@ function createProps(
     onCloseTab: () => {},
     onCreateDraftTab: () => {},
     onCreateBrowserTab: () => {},
+    onOpenBrowserPane: () => {},
     onCreatePdfTab: () => {},
     onOpenAddressBarSourceMenu: () => {},
     onToolbarNavigateBack: () => {},
@@ -260,6 +264,72 @@ test('EditorGroupView recreates draft pane instances and restores view state aft
   } finally {
     view.dispose();
     document.body.replaceChildren();
+  }
+});
+
+test('EditorGroupView focuses the URL input when opening browser mode from an empty pane entry', () => {
+  const actions: string[] = [];
+  const unsubscribe = subscribeTitlebarUiActions((action) => {
+    actions.push(action.type);
+  });
+  const openedPaneModes: string[] = [];
+  const view = new EditorGroupView({
+    ...createProps(null, null, []),
+    onOpenBrowserPane: () => {
+      openedPaneModes.push('browser');
+    },
+  });
+  document.body.append(view.getElement());
+
+  try {
+    const browserButton = view
+      .getElement()
+      .querySelector('[data-tab-id="browser-entry"] .editor-tab-main');
+    assert(browserButton instanceof HTMLButtonElement);
+
+    browserButton.click();
+
+    assert.deepEqual(openedPaneModes, ['browser']);
+    assert(actions.includes('FOCUS_WEB_URL_INPUT'));
+  } finally {
+    unsubscribe();
+    view.dispose();
+  }
+});
+
+test('EditorGroupView focuses the URL input when activating an empty browser tab', () => {
+  const browserTab = {
+    id: 'browser-a',
+    kind: 'browser' as const,
+    title: '',
+    url: 'about:blank',
+  };
+  const actions: string[] = [];
+  const activatedTabIds: string[] = [];
+  const unsubscribe = subscribeTitlebarUiActions((action) => {
+    actions.push(action.type);
+  });
+  const view = new EditorGroupView({
+    ...createProps(null, null, [browserTab]),
+    onActivateTab: (tabId) => {
+      activatedTabIds.push(tabId);
+    },
+  });
+  document.body.append(view.getElement());
+
+  try {
+    const browserButton = view
+      .getElement()
+      .querySelector('[data-tab-id="browser-entry"] .editor-tab-main');
+    assert(browserButton instanceof HTMLButtonElement);
+
+    browserButton.click();
+
+    assert.deepEqual(activatedTabIds, ['browser-a']);
+    assert(actions.includes('FOCUS_WEB_URL_INPUT'));
+  } finally {
+    unsubscribe();
+    view.dispose();
   }
 });
 

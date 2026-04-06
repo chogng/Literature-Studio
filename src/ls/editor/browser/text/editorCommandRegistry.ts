@@ -94,6 +94,7 @@ export type WritingEditorToolbarButtonConfig = {
   onClick: () => void;
   icon?:
     | 'tx'
+    | 'text-size'
     | 'h1'
     | 'h2'
     | 'h3'
@@ -138,6 +139,7 @@ export type WritingEditorToolbarSplitButtonConfig = {
   buttonLabel: string;
   buttonIcon?: WritingEditorToolbarButtonConfig['icon'];
   buttonGlyph?: string;
+  buttonText?: string;
   onClick: () => void;
   menu: readonly {
     label: string;
@@ -175,6 +177,7 @@ type WritingEditorToolbarLabels = {
   underline: string;
   fontFamily: string;
   fontSize: string;
+  defaultTextStyle: string;
   alignLeft: string;
   alignCenter: string;
   alignRight: string;
@@ -635,6 +638,37 @@ function createTextStyleToolbarSplitButton(params: {
   };
 }
 
+function createFontSizeToolbarSplitButton(params: {
+  labels: WritingEditorToolbarLabels;
+  toolbarState: WritingEditorToolbarState;
+  actions: WritingEditorToolbarActions;
+  options: readonly WritingEditorToolbarDropdownConfig['options'][number][];
+}): WritingEditorToolbarSplitButtonConfig {
+  const { labels, toolbarState, actions, options } = params;
+  const currentValue = toolbarState.fontSize ?? '';
+  const currentOption = options.find((option) => option.value === currentValue) ?? null;
+  const currentLabel = (currentOption?.label ?? currentValue) || labels.defaultTextStyle;
+
+  return {
+    label: labels.fontSize,
+    title: labels.fontSize,
+    buttonLabel: currentLabel,
+    buttonIcon: 'text-size',
+    buttonText: currentLabel,
+    onClick: () => {
+      actions.setFontSize(currentValue || null);
+    },
+    menu: options.map((option) => ({
+      label: option.label,
+      title: option.title ?? option.label,
+      checked: option.value === currentValue,
+      onClick: () => {
+        actions.setFontSize(option.value || null);
+      },
+    })),
+  };
+}
+
 function isDraftEditorCommandId(commandId: WritingEditorRegisteredCommandId): commandId is DraftEditorCommandId {
   return commandId === 'insertCitation' || commandId === 'insertFigure' || commandId === 'insertFigureRef';
 }
@@ -726,16 +760,27 @@ export function createWritingEditorToolbarButtonGroups(params: {
     const items = groups.get(toolbar.group) ?? [];
     if (toolbar.kind === 'dropdown') {
       const options = dropdownOptions[definition.id as 'setFontFamily' | 'setFontSize'] ?? [];
-      items.push({
-        label: toolbar.getLabel(labels),
-        title: toolbar.getLabel(labels),
-        value: toolbar.getValue(toolbarState),
-        placeholder: toolbar.getPlaceholder(labels),
-        options,
-        onChange: (value) => {
-          toolbar.run(actions, value);
-        },
-      });
+      if (definition.id === 'setFontSize') {
+        items.push(
+          createFontSizeToolbarSplitButton({
+            labels,
+            toolbarState,
+            actions,
+            options,
+          }),
+        );
+      } else {
+        items.push({
+          label: toolbar.getLabel(labels),
+          title: toolbar.getLabel(labels),
+          value: toolbar.getValue(toolbarState),
+          placeholder: toolbar.getPlaceholder(labels),
+          options,
+          onChange: (value) => {
+            toolbar.run(actions, value);
+          },
+        });
+      }
     } else {
       items.push({
         label: toolbar.getLabel(labels),

@@ -45,6 +45,7 @@ import type {
 
 import { TabsTitleControl } from 'ls/workbench/browser/parts/editor/tabsTitleControl';
 import type { TitleControl, TitleControlProps } from 'ls/workbench/browser/parts/editor/titleControl';
+import { requestFocusTitlebarWebUrlInput } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 
 export type EditorGroupViewProps = {
   labels: EditorPartLabels;
@@ -58,6 +59,7 @@ export type EditorGroupViewProps = {
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
+  onOpenBrowserPane: () => void;
   onCreatePdfTab: () => void;
   onOpenAddressBarSourceMenu: () => void;
   onToolbarNavigateBack: () => void;
@@ -104,16 +106,33 @@ function createTitleControlProps(
     | 'onCloseTab'
     | 'onCreateDraftTab'
     | 'onCreateBrowserTab'
+    | 'onOpenBrowserPane'
     | 'onCreatePdfTab'
   >,
   group: EditorGroupModel,
 ): TitleControlProps {
+  const focusBrowserUrlInputForEmptyState = (tabId: string | null) => {
+    if (!tabId) {
+      return;
+    }
+
+    const targetTab = group.activeTabId === tabId
+      ? group.activeTab
+      : props.tabs.find((tab) => tab.id === tabId) ?? null;
+    if (targetTab?.kind === 'browser' && targetTab.url === 'about:blank') {
+      requestFocusTitlebarWebUrlInput();
+    }
+  };
+
   return {
     group,
     labels: {
       close: props.labels.close,
     },
-    onActivateTab: props.onActivateTab,
+    onActivateTab: (tabId) => {
+      props.onActivateTab(tabId);
+      focusBrowserUrlInputForEmptyState(tabId);
+    },
     onCloseTab: props.onCloseTab,
     onOpenPaneMode: (paneMode) => {
       if (paneMode === 'draft') {
@@ -122,7 +141,8 @@ function createTitleControlProps(
       }
 
       if (paneMode === 'browser') {
-        props.onCreateBrowserTab();
+        props.onOpenBrowserPane();
+        requestFocusTitlebarWebUrlInput();
         return;
       }
 
@@ -139,6 +159,7 @@ function createTitleControl(
     | 'onCloseTab'
     | 'onCreateDraftTab'
     | 'onCreateBrowserTab'
+    | 'onOpenBrowserPane'
     | 'onCreatePdfTab'
   >,
   group: EditorGroupModel,
@@ -309,6 +330,7 @@ export class EditorGroupView {
     },
     onCreateDraftTab: () => {},
     onCreateBrowserTab: () => {},
+    onOpenBrowserPane: () => {},
     onCreatePdfTab: () => {},
     onToggleEditorCollapse: () => {},
   });
@@ -419,7 +441,10 @@ export class EditorGroupView {
         collapseEditor: this.props.labels.collapseEditor,
       },
       onCreateDraftTab: this.props.onCreateDraftTab,
-      onCreateBrowserTab: this.props.onCreateBrowserTab,
+      onCreateBrowserTab: () => {
+        this.props.onCreateBrowserTab();
+        requestFocusTitlebarWebUrlInput();
+      },
       onCreatePdfTab: this.props.onCreatePdfTab,
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
     });

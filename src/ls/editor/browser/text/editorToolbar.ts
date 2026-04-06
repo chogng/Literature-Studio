@@ -411,7 +411,13 @@ export class DraftEditorToolbar {
     const primaryContent = createElement('span', 'editor-draft-toolbar-btn-icon');
     if (splitButtonConfig.buttonIcon) {
       primaryContent.append(createLxIcon(splitButtonConfig.buttonIcon));
-    } else {
+    }
+
+    if (splitButtonConfig.buttonText) {
+      const text = createElement('span', 'editor-draft-toolbar-btn-label');
+      text.textContent = splitButtonConfig.buttonText;
+      primaryContent.append(text);
+    } else if (!splitButtonConfig.buttonIcon) {
       const glyph = createElement('span', 'editor-draft-toolbar-btn-glyph');
       glyph.textContent = splitButtonConfig.buttonGlyph ?? splitButtonConfig.buttonLabel;
       primaryContent.append(glyph);

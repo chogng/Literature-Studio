@@ -29,6 +29,7 @@ export type EditorPartActions = {
   onCloseTab: (tabId: string) => void;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
+  onOpenBrowserPane: () => void;
   onCreatePdfTab: () => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
@@ -88,6 +89,7 @@ export function createEditorPartProps({
     onCloseTab,
     onCreateDraftTab,
     onCreateBrowserTab,
+    onOpenBrowserPane,
     onCreatePdfTab,
     onDraftDocumentChange,
     onSetEditorViewState,
@@ -179,6 +181,7 @@ export function createEditorPartProps({
     onCloseTab,
     onCreateDraftTab,
     onCreateBrowserTab,
+    onOpenBrowserPane,
     onCreatePdfTab,
     onOpenAddressBarSourceMenu: () => {},
     onToolbarNavigateBack: () => {},
@@ -209,20 +212,6 @@ function looksLikePdfUrl(url: string) {
     normalized.includes('format=pdf') ||
     normalized.includes('download=pdf')
   );
-}
-
-function resolveNewBrowserTabUrl(params: {
-  webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
-  browserUrl: string;
-  webUrl: string;
-}) {
-  const seedUrl = resolveContentSourceUrl(
-    params.webContentSurfaceSnapshot,
-    params.browserUrl,
-    params.webUrl,
-  );
-
-  return normalizeUrl(seedUrl) || normalizeUrl(params.browserUrl) || normalizeUrl(params.webUrl) || 'about:blank';
 }
 
 function createEditorPartControllerSnapshot(
@@ -293,6 +282,7 @@ export class EditorPartController {
       onCloseTab: this.onCloseTab,
       onCreateDraftTab: this.createDraftTab,
       onCreateBrowserTab: this.handleCreateBrowserTab,
+      onOpenBrowserPane: this.handleOpenBrowserPane,
       onCreatePdfTab: this.handleCreatePdfTab,
       onDraftDocumentChange: this.setDraftDocument,
       onSetEditorViewState: this.setEditorViewState,
@@ -338,6 +328,10 @@ export class EditorPartController {
 
   readonly createBrowserTab = (url: string) => {
     this.editorModel.createBrowserTab(url);
+  };
+
+  private readonly handleOpenBrowserPane = () => {
+    this.editorModel.createBrowserTab('about:blank');
   };
 
   readonly createPdfTab = (url: string) => {
@@ -401,16 +395,8 @@ export class EditorPartController {
     this.editorModel.createPdfTab(normalizedPdfUrl);
   };
 
-  private readonly handleCreateBrowserTab = async () => {
-    const { browserUrl, webUrl } = this.context;
-    const { webContentSurfaceSnapshot } = this.snapshot;
-    this.editorModel.createBrowserTab(
-      resolveNewBrowserTabUrl({
-        webContentSurfaceSnapshot,
-        browserUrl,
-        webUrl,
-      }),
-    );
+  private readonly handleCreateBrowserTab = () => {
+    this.editorModel.createBrowserTab('about:blank');
   };
 
   private emitChange(reason: EditorPartChangeReason) {

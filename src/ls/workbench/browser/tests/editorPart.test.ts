@@ -26,7 +26,7 @@ after(() => {
   domEnvironment.cleanup();
 });
 
-test('EditorPartController creates a browser tab from the current browser URL without prompting', async () => {
+test('EditorPartController creates a new browser tab as an empty about:blank tab', async () => {
   const { EditorPartController } = await import('ls/workbench/browser/parts/editor/editorPart');
   const controller = new EditorPartController({
     ui: en,
@@ -41,13 +41,13 @@ test('EditorPartController creates a browser tab from the current browser URL wi
     .getSnapshot()
     .tabs.find((tab) => tab.kind === 'browser');
   assert(browserTab);
-  assert.equal(browserTab.url, 'https://example.com/articles/current');
+  assert.equal(browserTab.url, 'about:blank');
   assert.equal(controller.getSnapshot().activeTab?.id, browserTab.id);
 
   controller.dispose();
 });
 
-test('EditorPartController falls back to about:blank when creating a browser tab without an available URL', async () => {
+test('EditorPartController keeps browser tab creation empty even without an available URL', async () => {
   const { EditorPartController } = await import('ls/workbench/browser/parts/editor/editorPart');
   const controller = new EditorPartController({
     ui: en,
@@ -57,6 +57,27 @@ test('EditorPartController falls back to about:blank when creating a browser tab
   });
 
   await (controller.getSnapshot().editorPartProps.onCreateBrowserTab as unknown as () => Promise<void>)();
+
+  const browserTab = controller
+    .getSnapshot()
+    .tabs.find((tab) => tab.kind === 'browser');
+  assert(browserTab);
+  assert.equal(browserTab.url, 'about:blank');
+  assert.equal(controller.getSnapshot().activeTab?.id, browserTab.id);
+
+  controller.dispose();
+});
+
+test('EditorPartController opens the browser pane as an empty about:blank tab', async () => {
+  const { EditorPartController } = await import('ls/workbench/browser/parts/editor/editorPart');
+  const controller = new EditorPartController({
+    ui: en,
+    browserUrl: 'https://example.com/articles/current',
+    webUrl: '',
+    viewPartProps: defaultViewPartProps,
+  });
+
+  controller.getSnapshot().editorPartProps.onOpenBrowserPane();
 
   const browserTab = controller
     .getSnapshot()
