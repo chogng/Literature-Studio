@@ -67,6 +67,7 @@ import mdSvg from 'ls/base/browser/ui/lxicon/svg/md.svg?raw';
 import markdownSvg from 'ls/base/browser/ui/lxicon/svg/markdown.svg?raw';
 import lockSvg from 'ls/base/browser/ui/lxicon/svg/lock.svg?raw';
 import localSvg from 'ls/base/browser/ui/lxicon/svg/local.svg?raw';
+import letterTSvg from 'ls/base/browser/ui/lxicon/svg/letter-t.svg?raw';
 import listUnorderedSvg from 'ls/base/browser/ui/lxicon/svg/list-unordered.svg?raw';
 import listUnfoldSvg from 'ls/base/browser/ui/lxicon/svg/list-unfold.svg?raw';
 import listOrderedSvg from 'ls/base/browser/ui/lxicon/svg/list-ordered.svg?raw';
@@ -247,6 +248,7 @@ export type LxIconName =
   | 'markdown'
   | 'lock'
   | 'local'
+  | 'letter-t'
   | 'list-unordered'
   | 'list-unfold'
   | 'list-ordered'
@@ -427,6 +429,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'markdown': markdownSvg,
   'lock': lockSvg,
   'local': localSvg,
+  'letter-t': letterTSvg,
   'list-unordered': listUnorderedSvg,
   'list-unfold': listUnfoldSvg,
   'list-ordered': listOrderedSvg,
