@@ -1,8 +1,9 @@
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { getEditorPaneMode } from 'ls/workbench/browser/parts/editor/editorInput';
 import type { EditorWorkspaceTab } from 'ls/workbench/browser/parts/editor/editorModel';
+import type { EditorModeToolbarContributionContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarContribution';
 
-type EditorBrowserToolbarSourceProps = {
+type EditorModeToolbarSourceProps = {
   activeTab: EditorWorkspaceTab | null;
   labels: EditorPartLabels;
   viewPartProps: {
@@ -22,43 +23,11 @@ type EditorBrowserToolbarSourceProps = {
   onToolbarAddressSubmit: () => void;
 };
 
-export type EditorBrowserToolbarProps = {
-  mode: 'browser' | 'pdf' | null;
-  browserUrl: string;
-  electronRuntime: boolean;
-  labels: Pick<
-    EditorPartLabels,
-    | 'toolbarSources'
-    | 'toolbarBack'
-    | 'toolbarForward'
-    | 'toolbarRefresh'
-    | 'toolbarFavorite'
-    | 'toolbarMore'
-    | 'toolbarHardReload'
-    | 'toolbarCopyCurrentUrl'
-    | 'toolbarClearBrowsingHistory'
-    | 'toolbarClearCookies'
-    | 'toolbarClearCache'
-    | 'toolbarAddressBar'
-    | 'toolbarAddressPlaceholder'
-    | 'pdfTitle'
-  >;
-  onOpenSources: () => void;
-  onNavigateBack: () => void;
-  onNavigateForward: () => void;
-  onNavigateRefresh: () => void;
-  onHardReload: () => void;
-  onCopyCurrentUrl: () => void | Promise<void>;
-  onClearBrowsingHistory: () => void;
-  onClearCookies: () => void | Promise<void>;
-  onClearCache: () => void | Promise<void>;
-  onAddressInputChange: (value: string) => void;
-  onAddressInputSubmit: () => void;
-};
+export type EditorModeToolbarContext = EditorModeToolbarContributionContext;
 
-export function createEditorBrowserToolbarProps(
-  props: EditorBrowserToolbarSourceProps,
-): EditorBrowserToolbarProps {
+export function createEditorModeToolbarContext(
+  props: EditorModeToolbarSourceProps,
+): EditorModeToolbarContext {
   const mode = props.activeTab ? getEditorPaneMode(props.activeTab) : null;
 
   return {
@@ -94,3 +63,4 @@ export function createEditorBrowserToolbarProps(
     onAddressInputSubmit: props.onToolbarAddressSubmit,
   };
 }
+

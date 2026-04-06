@@ -26,8 +26,8 @@ import type { AnyEditorPane } from 'ls/workbench/browser/parts/editor/panes/edit
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import { EditorEmptyWorkspaceView } from 'ls/workbench/browser/parts/editor/editorEmptyWorkspaceView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
-import { createEditorBrowserToolbarProps } from 'ls/workbench/browser/parts/editor/editorBrowserToolbarModel';
-import { createEditorBrowserToolbarView } from 'ls/workbench/browser/parts/editor/editorBrowserToolbarView';
+import { createEditorModeToolbarContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarModel';
+import { createEditorModeToolbarHost } from 'ls/workbench/browser/parts/editor/editorModeToolbarHost';
 import { createEditorTopbarActionsView } from 'ls/workbench/browser/parts/editor/editorTopbarActionsView';
 import { createEditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
 import type { EditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
@@ -312,7 +312,7 @@ export class EditorGroupView {
     onCreatePdfTab: () => {},
     onToggleEditorCollapse: () => {},
   });
-  private readonly modeToolbarView: ReturnType<typeof createEditorBrowserToolbarView>;
+  private readonly modeToolbarHost: ReturnType<typeof createEditorModeToolbarHost>;
   private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div', 'editor-content');
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
@@ -330,8 +330,8 @@ export class EditorGroupView {
     this.props = props;
     this.controller = new EditorGroupController(props);
     this.viewStateStore = createEditorViewStateStore(props.viewStateEntries);
-    this.modeToolbarView = createEditorBrowserToolbarView(
-      createEditorBrowserToolbarProps(props),
+    this.modeToolbarHost = createEditorModeToolbarHost(
+      createEditorModeToolbarContext(props),
     );
     setEditorFrameSlot(this.headerElement, EDITOR_FRAME_SLOTS.topbar);
     setEditorFrameSlot(this.toolbarElement, EDITOR_FRAME_SLOTS.toolbar);
@@ -388,7 +388,7 @@ export class EditorGroupView {
   dispose() {
     this.titleAreaControl.dispose();
     this.topbarActionsView.dispose();
-    this.modeToolbarView.dispose();
+    this.modeToolbarHost.dispose();
     this.saveActivePaneViewState();
     this.disposeAllPaneInstances();
     this.element.replaceChildren();
@@ -423,7 +423,7 @@ export class EditorGroupView {
       onCreatePdfTab: this.props.onCreatePdfTab,
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
     });
-    this.modeToolbarView.setProps(createEditorBrowserToolbarProps(this.props));
+    this.modeToolbarHost.setContext(createEditorModeToolbarContext(this.props));
     this.syncTopbarActions(
       this.props.showTopbarActions ? this.topbarActionsView.getElement() : null,
     );
@@ -513,7 +513,7 @@ export class EditorGroupView {
       return paneToolbarElement;
     }
 
-    return this.modeToolbarView.getElement();
+    return this.modeToolbarHost.getElement();
   }
 
   private createPaneViewStateKey(

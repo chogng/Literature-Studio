@@ -1,0 +1,67 @@
+.editor-browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  -webkit-app-region: no-drag;
+}
+
+.editor-browser-toolbar-leading,
+.editor-browser-toolbar-trailing {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.editor-browser-toolbar-address-host {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-browser-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.editor-browser-toolbar-actions .actionbar-actions-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.editor-browser-toolbar-btn.actionbar-action {
+  border: none;
+  background: transparent;
+  color: var(--vscode-sideBar-foreground, #1f2d3a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.editor-browser-toolbar-address-input.inputbox {
+  --inputbox-height: 26px;
+  --inputbox-border-radius: 7px;
+  --inputbox-foreground: var(--vscode-agentBar-inputForeground, #1f2d3a);
+  --inputbox-padding-x: 10px;
+  width: 100%;
+}
+
+.editor-pdf-toolbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 6px;
+  color: var(--vscode-editor-sourceSubheadingForeground, #698099);
+}
+
+.editor-pdf-toolbar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+}
