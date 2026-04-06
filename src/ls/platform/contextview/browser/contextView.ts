@@ -51,6 +51,7 @@ export interface ContextMenuDelegate {
   getActions: () => readonly ContextMenuAction[];
   onSelect?: (value: string) => void;
   onHide?: (didCancel: boolean) => void;
+  autoFocusOnShow?: boolean;
   restoreFocusOnHide?: boolean;
   getMenuClassName?: () => string;
   getMenuData?: () => string;

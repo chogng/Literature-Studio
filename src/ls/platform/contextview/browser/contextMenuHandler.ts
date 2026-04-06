@@ -84,6 +84,7 @@ export class ContextMenuHandler {
     }
 
     const shouldRestoreFocusOnHide = delegate.restoreFocusOnHide ?? true;
+    const shouldAutoFocusOnShow = delegate.autoFocusOnShow ?? true;
     this.focusToReturn =
       shouldRestoreFocusOnHide && document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -106,7 +107,13 @@ export class ContextMenuHandler {
         const menu = this.renderMenu(options, delegate);
         container.append(menu.getElement());
         queueMicrotask(() => {
-          menu.focusSelectedOrFirstEnabled();
+          if (shouldAutoFocusOnShow) {
+            menu.focusSelectedOrFirstEnabled();
+            return;
+          }
+          // For pointer-triggered menus, keep focus inside the menu surface
+          // without forcing item-level focus rings.
+          menu.getElement().focus();
         });
         return () => {
           menu.dispose();

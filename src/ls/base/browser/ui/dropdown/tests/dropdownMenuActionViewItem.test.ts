@@ -77,6 +77,7 @@ test('DropdownMenuActionViewItem renders and opens a menu overlay', async () => 
 
     const menu = document.body.querySelector('.dropdown-menu');
     assert(menu instanceof HTMLElement);
+    assert.equal(document.activeElement, menu);
 
     const archiveItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
       (node) => node.textContent?.includes('Archive'),
@@ -197,6 +198,7 @@ test('DropdownMenuActionViewItem delegates menu lifecycle to an injected context
     assert.equal(delegates[0]?.offset, undefined);
     assert.equal(delegates[0]?.minWidth, undefined);
     assert.equal(delegates[0]?.position, 'below');
+    assert.equal(delegates[0]?.autoFocusOnShow, false);
     assert.equal(delegates[0]?.restoreFocusOnHide, false);
     assert.equal(delegates[0]?.getMenuData?.(), 'draft-toolbar-overflow');
     assert.equal(button.getAttribute('aria-expanded'), 'true');
@@ -242,6 +244,7 @@ test('DropdownMenuActionViewItem requests focus restoration when opened from key
     await delay(0);
 
     assert.equal(delegates.length, 1);
+    assert.equal(delegates[0]?.autoFocusOnShow, true);
     assert.equal(delegates[0]?.restoreFocusOnHide, true);
   } finally {
     item.dispose();

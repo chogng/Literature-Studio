@@ -167,11 +167,12 @@ class ContextMenuDropdownActionPresenter {
     private readonly onHide: () => void,
   ) {}
 
-  show = (restoreFocusOnHide: boolean) => {
+  show = (source: DropdownMenuOpenSource) => {
     const options = this.getOptions();
     const menuItems = options.menu ?? [];
     const menuActions = toContextMenuActions(menuItems);
     const menuData = options.menuData?.trim();
+    const openedFromKeyboard = source === 'keyboard';
     if (menuActions.length === 0) {
       return;
     }
@@ -186,7 +187,8 @@ class ContextMenuDropdownActionPresenter {
       position: options.overlayPosition ?? 'below',
       offset: options.offset,
       minWidth: options.minWidth,
-      restoreFocusOnHide,
+      autoFocusOnShow: openedFromKeyboard,
+      restoreFocusOnHide: openedFromKeyboard,
       onHide: this.onHide,
       onSelect: (value: string) => {
         runContextMenuAction(options.menu, menuActions, value);
@@ -289,7 +291,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
 
     this.isOpen = true;
     this.button.setAttribute('aria-expanded', 'true');
-    this.menuPresenter.show(source === 'keyboard');
+    this.menuPresenter.show(source);
   }
 
   hide() {
