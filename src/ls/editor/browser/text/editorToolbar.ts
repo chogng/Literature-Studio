@@ -143,13 +143,11 @@ const FONT_SIZE_PRESETS: readonly DropdownOption[] = [
 
 export class DraftEditorToolbar {
   private props: DraftEditorToolbarProps;
-  private readonly element = createElement('div', 'editor-toolbar');
-  private readonly contentElement = createElement('div', 'editor-draft-toolbar');
+  private readonly element = createElement('div', 'editor-draft-toolbar');
   private toolbarViews: Array<{ dispose: () => void }> = [];
 
   constructor(props: DraftEditorToolbarProps) {
     this.props = props;
-    this.element.append(this.contentElement);
     this.render();
   }
 
@@ -173,7 +171,7 @@ export class DraftEditorToolbar {
     for (const group of this.createToolbarGroups()) {
       fragment.append(this.createToolbarGroup(group));
     }
-    this.contentElement.replaceChildren(fragment);
+    this.element.replaceChildren(fragment);
   }
 
   private createTextStyleOptions(

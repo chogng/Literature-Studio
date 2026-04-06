@@ -29,6 +29,8 @@ export type WorkbenchLayoutStateSnapshot = {
   isAgentSidebarVisible: boolean;
   primarySidebarSize: number;
   agentSidebarSize: number;
+  isEditorCollapsed: boolean;
+  expandedEditorSize: number;
 };
 
 type WorkbenchLayoutEvent =
@@ -62,6 +64,11 @@ type WorkbenchLayoutEvent =
   | {
       type: 'SET_AGENT_SIDEBAR_SIZE';
       size: number;
+    }
+  | {
+      type: 'SET_EDITOR_COLLAPSED';
+      collapsed: boolean;
+      expandedEditorSize?: number;
     };
 
 type WorkbenchShellLayoutParams = {
@@ -132,6 +139,8 @@ const DEFAULT_WORKBENCH_LAYOUT_STATE: WorkbenchLayoutStateSnapshot = {
   isAgentSidebarVisible: false,
   primarySidebarSize: WORKBENCH_SPLITVIEW_LIMITS.primaryBar.defaultSize,
   agentSidebarSize: WORKBENCH_SPLITVIEW_LIMITS.agentSidebar.defaultSize,
+  isEditorCollapsed: false,
+  expandedEditorSize: WORKBENCH_SPLITVIEW_LIMITS.editor.minimum,
 };
 
 const DEFAULT_WORKBENCH_PART_DOM_SNAPSHOT: Record<WorkbenchPartId, HTMLElement | null> = {
@@ -162,6 +171,13 @@ function clampSidebarSize(target: 'primaryBar' | 'agentSidebar', size: number) {
       : WORKBENCH_SPLITVIEW_LIMITS.agentSidebar;
 
   return Math.max(limits.minimum, Math.min(limits.maximum, Math.round(size)));
+}
+
+function clampExpandedEditorSize(size: number) {
+  return Math.max(
+    WORKBENCH_SPLITVIEW_LIMITS.editor.minimum,
+    Math.min(WORKBENCH_SPLITVIEW_LIMITS.editor.maximum, Math.round(size)),
+  );
 }
 
 function reduceWorkbenchLayoutState(
@@ -236,6 +252,25 @@ function reduceWorkbenchLayoutState(
       return {
         ...state,
         agentSidebarSize: nextSize,
+      };
+    }
+    case 'SET_EDITOR_COLLAPSED': {
+      const nextExpandedEditorSize =
+        typeof event.expandedEditorSize === 'number'
+          ? clampExpandedEditorSize(event.expandedEditorSize)
+          : state.expandedEditorSize;
+
+      if (
+        state.isEditorCollapsed === event.collapsed &&
+        state.expandedEditorSize === nextExpandedEditorSize
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        isEditorCollapsed: event.collapsed,
+        expandedEditorSize: nextExpandedEditorSize,
       };
     }
     default:
@@ -320,6 +355,25 @@ export function setAgentSidebarSize(size: number) {
 export function toggleAgentSidebarVisibility() {
   dispatchWorkbenchLayoutEvent({
     type: 'TOGGLE_AGENT_SIDEBAR_VISIBILITY',
+  });
+}
+
+export function setEditorCollapsed(
+  collapsed: boolean,
+  expandedEditorSize?: number,
+) {
+  dispatchWorkbenchLayoutEvent({
+    type: 'SET_EDITOR_COLLAPSED',
+    collapsed,
+    expandedEditorSize,
+  });
+}
+
+export function toggleEditorCollapsed(expandedEditorSize?: number) {
+  dispatchWorkbenchLayoutEvent({
+    type: 'SET_EDITOR_COLLAPSED',
+    collapsed: !workbenchLayoutState.isEditorCollapsed,
+    expandedEditorSize,
   });
 }
 

@@ -312,7 +312,7 @@ export class EditorGroupView {
     onCreatePdfTab: () => {},
     onToggleEditorCollapse: () => {},
   });
-  private readonly browserToolbarView: ReturnType<typeof createEditorBrowserToolbarView>;
+  private readonly modeToolbarView: ReturnType<typeof createEditorBrowserToolbarView>;
   private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div', 'editor-content');
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
@@ -330,7 +330,7 @@ export class EditorGroupView {
     this.props = props;
     this.controller = new EditorGroupController(props);
     this.viewStateStore = createEditorViewStateStore(props.viewStateEntries);
-    this.browserToolbarView = createEditorBrowserToolbarView(
+    this.modeToolbarView = createEditorBrowserToolbarView(
       createEditorBrowserToolbarProps(props),
     );
     setEditorFrameSlot(this.headerElement, EDITOR_FRAME_SLOTS.topbar);
@@ -388,7 +388,7 @@ export class EditorGroupView {
   dispose() {
     this.titleAreaControl.dispose();
     this.topbarActionsView.dispose();
-    this.browserToolbarView.dispose();
+    this.modeToolbarView.dispose();
     this.saveActivePaneViewState();
     this.disposeAllPaneInstances();
     this.element.replaceChildren();
@@ -423,12 +423,9 @@ export class EditorGroupView {
       onCreatePdfTab: this.props.onCreatePdfTab,
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
     });
-    this.browserToolbarView.setProps(createEditorBrowserToolbarProps(this.props));
+    this.modeToolbarView.setProps(createEditorBrowserToolbarProps(this.props));
     this.syncTopbarActions(
       this.props.showTopbarActions ? this.topbarActionsView.getElement() : null,
-    );
-    this.syncTopbarToolbar(
-      this.props.showTopbarToolbar ? this.browserToolbarView.getElement() : null,
     );
 
     this.contentElement.className = 'editor-content';
@@ -436,6 +433,7 @@ export class EditorGroupView {
 
     if (!group.activeTab) {
       this.releaseActivePane();
+      this.syncTopbarToolbar(null);
       this.emptyWorkspaceView.setProps({
         labels: this.props.labels,
         onCreateDraftTab: this.props.onCreateDraftTab,
@@ -471,6 +469,8 @@ export class EditorGroupView {
         this.contentElement.replaceChildren(this.activePane.getElement());
       }
     }
+
+    this.syncTopbarToolbar(this.resolveToolbarElement());
   }
 
   private syncTopbarActions(topbarActionsElement: HTMLElement | null) {
@@ -501,6 +501,19 @@ export class EditorGroupView {
       this.toolbarElement.replaceChildren();
     }
     this.toolbarElement.hidden = true;
+  }
+
+  private resolveToolbarElement() {
+    if (!this.props.showTopbarToolbar) {
+      return null;
+    }
+
+    const paneToolbarElement = this.activePane?.getToolbarElement() ?? null;
+    if (paneToolbarElement) {
+      return paneToolbarElement;
+    }
+
+    return this.modeToolbarView.getElement();
   }
 
   private createPaneViewStateKey(

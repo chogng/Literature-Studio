@@ -43,6 +43,10 @@ export class DraftEditorPane extends EditorPane<
     return this.element;
   }
 
+  override getToolbarElement() {
+    return this.editor.getToolbarElement();
+  }
+
   getStableSelectionTarget() {
     return this.editor.getStableSelectionTarget();
   }

@@ -8,6 +8,10 @@ export abstract class EditorPane<TProps, TViewState = unknown> {
   abstract setProps(props: TProps): void;
   abstract dispose(): void;
 
+  getToolbarElement(): HTMLElement | null {
+    return null;
+  }
+
   clearInput() {}
 
   focus() {}

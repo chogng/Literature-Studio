@@ -324,12 +324,16 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
       vertical: ScrollbarVisibility.Auto,
       verticalScrollbarSize: 10,
     });
-    this.element.append(this.toolbar.getElement(), this.scrollableElement.getDomNode());
+    this.element.append(this.scrollableElement.getDomNode());
     this.createView();
   }
 
   getElement() {
     return this.element;
+  }
+
+  getToolbarElement() {
+    return this.toolbar.getElement();
   }
 
   setProps(props: WritingEditorSurfaceProps) {

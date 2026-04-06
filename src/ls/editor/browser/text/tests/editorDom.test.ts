@@ -109,7 +109,8 @@ function getLatestFigureWidth(document: WritingEditorDocument) {
 }
 
 function getToolbarButton(editor: InstanceType<typeof ProseMirrorEditor>, label: string) {
-  const button = Array.from(editor.getElement().querySelectorAll('button')).find(
+  const toolbarRoot = editor.getToolbarElement();
+  const button = Array.from(toolbarRoot.querySelectorAll('button')).find(
     (candidate) => candidate.getAttribute('aria-label') === label,
   );
   assert(button instanceof HTMLButtonElement, `Toolbar button "${label}" was not found.`);
@@ -587,7 +588,7 @@ test('DraftEditorToolbar disables figure-ref action when no figures are availabl
   }
 });
 
-test('DraftEditorToolbar uses the shared editor toolbar container and draft-specific content classes', () => {
+test('DraftEditorToolbar renders draft-specific toolbar content classes', () => {
   const toolbar = new DraftEditorToolbar({
     labels,
     toolbarState: {
@@ -631,9 +632,8 @@ test('DraftEditorToolbar uses the shared editor toolbar container and draft-spec
 
   try {
     const toolbarElement = toolbar.getElement();
-    const draftToolbar = toolbarElement.querySelector(':scope > .editor-draft-toolbar');
     const toolbarGroup = toolbarElement.querySelector(
-      '.editor-draft-toolbar > .actionbar.editor-draft-toolbar-group',
+      ':scope > .actionbar.editor-draft-toolbar-group',
     );
     const toolbarAction = toolbarElement.querySelector(
       '.editor-draft-toolbar-group .editor-draft-toolbar-btn.actionbar-action',
@@ -645,8 +645,7 @@ test('DraftEditorToolbar uses the shared editor toolbar container and draft-spec
       '.editor-draft-toolbar-split .editor-draft-toolbar-split-dropdown.actionbar-action',
     );
 
-    assert.equal(toolbarElement.classList.contains('editor-toolbar'), true);
-    assert(draftToolbar instanceof HTMLElement);
+    assert.equal(toolbarElement.classList.contains('editor-draft-toolbar'), true);
     assert(toolbarGroup instanceof HTMLElement);
     assert(toolbarAction instanceof HTMLButtonElement);
     assert(textStylePrimary instanceof HTMLButtonElement);

@@ -154,10 +154,6 @@ const workbenchDependencyModules = [
     load: () => import('ls/workbench/browser/articleDetailsModalWindow'),
   },
   {
-    label: 'ls/workbench/browser/workbenchContentLayoutView',
-    load: () => import('ls/workbench/browser/workbenchContentLayoutView'),
-  },
-  {
     label: 'ls/workbench/contrib/localization/browser/localeService',
     load: () => import('ls/workbench/contrib/localization/browser/localeService'),
   },

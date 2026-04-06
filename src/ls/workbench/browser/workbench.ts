@@ -10,11 +10,16 @@ import type { LibraryModel, LibraryModelContext } from 'ls/workbench/browser/lib
 import { WebContentNavigationModel } from 'ls/workbench/browser/webContentNavigationModel';
 import {
   getWorkbenchLayoutStateSnapshot,
+  getWorkbenchContentClassName,
   getWorkbenchShellClassName,
   registerWorkbenchPartDomNode,
+  WorkbenchContentLayoutController,
+  WorkbenchLayoutSlotView,
   setAgentSidebarVisible,
+  setWorkbenchSidebarSizes,
   setPrimarySidebarVisible,
   subscribeWorkbenchLayoutState,
+  toggleEditorCollapsed,
   toggleAgentSidebarVisibility,
   togglePrimarySidebarVisibility,
   WORKBENCH_PART_IDS,
@@ -41,7 +46,6 @@ import { createFetchPaneProps } from 'ls/workbench/browser/parts/sidebar/seconda
 import { createToastOverlayWindowView } from 'ls/workbench/browser/toastOverlayWindow';
 import { createOverlayMenuView } from 'ls/base/parts/contextmenu/electron-sandbox/overlayMenu';
 import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
-import { createWorkbenchContentLayoutView } from 'ls/workbench/browser/workbenchContentLayoutView';
 import { createWorkbenchContentPartViews } from 'ls/workbench/browser/workbenchContentPartViews';
 import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
 import { createEditorTopbarActionsView } from 'ls/workbench/browser/parts/editor/editorTopbarActionsView';
@@ -222,6 +226,149 @@ function resolveRuntimeState() {
   };
 }
 
+export type WorkbenchContentLayoutViewProps = {
+  isPrimarySidebarVisible: boolean;
+  isAgentSidebarVisible: boolean;
+  isLayoutEdgeSnappingEnabled: boolean;
+  primarySidebarSize: number;
+  agentSidebarSize: number;
+  isEditorCollapsed: boolean;
+  expandedEditorSize: number;
+  partViews: ReturnType<typeof createWorkbenchContentPartViews>;
+};
+
+function createWorkbenchLayoutElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
+
+export class WorkbenchContentLayoutView {
+  private props: WorkbenchContentLayoutViewProps;
+  private readonly element = createWorkbenchLayoutElement('section', 'workbench-content-layout');
+  private readonly mainElement = createWorkbenchLayoutElement('main');
+  private readonly primarySidebarSlot = new WorkbenchLayoutSlotView(
+    'workbench-content-slot-leading-group workbench-leading-pane workbench-leading-pane-primary',
+    true,
+  );
+  private readonly editorSlot = new WorkbenchLayoutSlotView('workbench-content-slot-editor');
+  private readonly agentBarSlot = new WorkbenchLayoutSlotView(
+    'workbench-content-slot-agent',
+    true,
+  );
+  private readonly layoutController: WorkbenchContentLayoutController;
+  private disposed = false;
+
+  get gridView() {
+    return (this.layoutController as unknown as { gridView: unknown }).gridView;
+  }
+
+  get layoutAnimationFrame() {
+    return (this.layoutController as unknown as { layoutAnimationFrame: unknown }).layoutAnimationFrame;
+  }
+
+  get resizeObserver() {
+    return (this.layoutController as unknown as { resizeObserver: unknown }).resizeObserver;
+  }
+
+  get handleWindowResize() {
+    return (this.layoutController as unknown as {
+      handleWindowResize: EventListenerOrEventListenerObject;
+    }).handleWindowResize;
+  }
+
+  constructor(props: WorkbenchContentLayoutViewProps) {
+    this.props = props;
+    this.element.append(this.mainElement);
+    this.layoutController = new WorkbenchContentLayoutController({
+      container: this.element,
+      contentHost: this.mainElement,
+      primarySidebarSlot: this.primarySidebarSlot,
+      editorSlot: this.editorSlot,
+      agentSidebarSlot: this.agentBarSlot,
+      getState: () => ({
+        isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
+        isAgentSidebarVisible: this.props.isAgentSidebarVisible,
+        isLayoutEdgeSnappingEnabled: this.props.isLayoutEdgeSnappingEnabled,
+        primarySidebarSize: this.props.primarySidebarSize,
+        agentSidebarSize: this.props.agentSidebarSize,
+        isEditorCollapsed: this.props.isEditorCollapsed,
+        expandedEditorSize: this.props.expandedEditorSize,
+      }),
+      onPrimarySidebarVisibilityChange: setPrimarySidebarVisible,
+      onAgentSidebarVisibilityChange: setAgentSidebarVisible,
+      onSidebarSizesChange: setWorkbenchSidebarSizes,
+    });
+    this.render();
+  }
+
+  getElement() {
+    return this.element;
+  }
+
+  setProps(props: WorkbenchContentLayoutViewProps) {
+    if (this.disposed) {
+      return;
+    }
+
+    this.props = props;
+    this.render();
+  }
+
+  layout() {
+    this.layoutController.layout();
+  }
+
+  dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.layoutController.dispose();
+    this.element.replaceChildren();
+  }
+
+  private readonly handleToggleEditorCollapse = () => {
+    const editorViewSize = this.layoutController.getEditorViewSize();
+    if (!this.props.isEditorCollapsed && typeof editorViewSize === 'number') {
+      toggleEditorCollapsed(editorViewSize);
+      return;
+    }
+
+    toggleEditorCollapsed();
+  };
+
+  private render() {
+    this.mainElement.className = getWorkbenchContentClassName({
+      isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
+      isAgentSidebarVisible: this.props.isAgentSidebarVisible,
+    });
+
+    this.props.partViews.setLayoutState({
+      isEditorCollapsed: this.props.isEditorCollapsed,
+      mountPrimarySidebarActionsInAgentBar:
+        this.props.isAgentSidebarVisible && !this.props.isPrimarySidebarVisible,
+      mountEditorActionsInAgentBar:
+        this.props.isAgentSidebarVisible && this.props.isEditorCollapsed,
+      onToggleEditorCollapse: this.handleToggleEditorCollapse,
+    });
+    this.primarySidebarSlot.setContent(this.props.partViews.getPrimarySidebarElement());
+    this.editorSlot.setContent(this.props.partViews.getEditorElement());
+    this.agentBarSlot.setContent(this.props.partViews.getAgentSidebarElement());
+    this.layoutController.sync();
+  }
+}
+
+export function createWorkbenchContentLayoutView(props: WorkbenchContentLayoutViewProps) {
+  return new WorkbenchContentLayoutView(props);
+}
+
 function createAgentChatLlmSettings(
   activeProvider: LlmProviderId,
   llmProviders: Record<LlmProviderId, LlmProviderSettings>,
@@ -392,9 +539,6 @@ class WorkbenchHost {
   private readonly statusbarElement: HTMLElement;
   private readonly toastHost: ToastHost;
   private workbenchContentLayoutView: ReturnType<typeof createWorkbenchContentLayoutView> | null = null;
-  private retiredWorkbenchContentLayoutView:
-    | ReturnType<typeof createWorkbenchContentLayoutView>
-    | null = null;
   private workbenchContentPartViews: ReturnType<typeof createWorkbenchContentPartViews> | null = null;
   private retiredWorkbenchContentPartViews:
     | ReturnType<typeof createWorkbenchContentPartViews>
@@ -412,7 +556,7 @@ class WorkbenchHost {
     onCreateDraftTab: () => {},
     onCreateBrowserTab: () => {},
     onCreatePdfTab: () => {},
-    onToggleEditorCollapse: () => {},
+    onToggleEditorCollapse: toggleEditorCollapsed,
   });
   private readonly sidebarTopbarActionsView = new SidebarTopbarActionsView();
   private readonly primaryBarFooterActionsView = new PrimaryBarFooterActionsView();
@@ -488,7 +632,6 @@ class WorkbenchHost {
 
     this.workbenchContentLayoutView?.dispose();
     this.workbenchContentLayoutView = null;
-    this.retiredWorkbenchContentLayoutView = null;
     this.workbenchContentPartViews?.dispose();
     this.workbenchContentPartViews = null;
     this.retiredWorkbenchContentPartViews = null;
@@ -873,6 +1016,8 @@ class WorkbenchHost {
     isLayoutEdgeSnappingEnabled: boolean;
     primarySidebarSize: number;
     agentSidebarSize: number;
+    isEditorCollapsed: boolean;
+    expandedEditorSize: number;
     fetchPaneProps: ReturnType<typeof createFetchPaneProps>;
     primaryBarProps: PrimaryBarProps;
     agentBarProps: AgentBarPartProps;
@@ -885,7 +1030,6 @@ class WorkbenchHost {
     editorTopbarAuxiliaryActionsElement?: HTMLElement | null;
     editorPartProps: EditorPartProps;
   }) {
-    this.retiredWorkbenchContentLayoutView = null;
     this.retiredWorkbenchContentPartViews = null;
     this.settingsView?.dispose();
     this.settingsView = null;
@@ -916,6 +1060,8 @@ class WorkbenchHost {
         isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
         primarySidebarSize: props.primarySidebarSize,
         agentSidebarSize: props.agentSidebarSize,
+        isEditorCollapsed: props.isEditorCollapsed,
+        expandedEditorSize: props.expandedEditorSize,
         partViews: this.workbenchContentPartViews,
       });
     } else {
@@ -925,6 +1071,8 @@ class WorkbenchHost {
         isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
         primarySidebarSize: props.primarySidebarSize,
         agentSidebarSize: props.agentSidebarSize,
+        isEditorCollapsed: props.isEditorCollapsed,
+        expandedEditorSize: props.expandedEditorSize,
         partViews: this.workbenchContentPartViews,
       });
     }
@@ -942,7 +1090,6 @@ class WorkbenchHost {
   ) {
     if (this.workbenchContentLayoutView) {
       this.workbenchContentLayoutView.dispose();
-      this.retiredWorkbenchContentLayoutView = this.workbenchContentLayoutView;
       this.workbenchContentLayoutView = null;
     }
     if (this.workbenchContentPartViews) {
@@ -978,6 +1125,8 @@ class WorkbenchHost {
       isAgentSidebarVisible,
       primarySidebarSize,
       agentSidebarSize,
+      isEditorCollapsed,
+      expandedEditorSize,
     } = getWorkbenchLayoutStateSnapshot();
     const { electronRuntime, webContentRuntime, desktopRuntime } =
       resolveRuntimeState();
@@ -1373,8 +1522,7 @@ class WorkbenchHost {
       onCreateDraftTab: contentAwareEditorPartProps.onCreateDraftTab,
       onCreateBrowserTab: contentAwareEditorPartProps.onCreateBrowserTab,
       onCreatePdfTab: contentAwareEditorPartProps.onCreatePdfTab,
-      onToggleEditorCollapse:
-        contentAwareEditorPartProps.onToggleEditorCollapse ?? (() => {}),
+      onToggleEditorCollapse: toggleEditorCollapsed,
     });
 
     const handleBatchFetchStart = () => {
@@ -1789,6 +1937,8 @@ class WorkbenchHost {
         isLayoutEdgeSnappingEnabled: isWindowFullscreen,
         primarySidebarSize,
         agentSidebarSize,
+        isEditorCollapsed,
+        expandedEditorSize,
         fetchPaneProps,
         primaryBarProps,
         agentBarProps,
