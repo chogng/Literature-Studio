@@ -9,9 +9,10 @@
 .editor-draft-toolbar {
   display: flex;
   align-items: center;
+  gap: 8px;
   width: 100%;
   min-width: 0;
-  padding: 8px 2px;
+  padding: 0;
   background: transparent;
   -webkit-app-region: no-drag;
 }
@@ -30,7 +31,6 @@
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  margin-left: 8px;
 }
 
 .editor-draft-toolbar-group.actionbar {

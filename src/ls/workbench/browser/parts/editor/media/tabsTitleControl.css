@@ -53,7 +53,7 @@
   font: inherit;
   border-radius: inherit;
 }
-
+/* Tab actions container， the padding-right connects with the close button position*/
 .editor-tab-actions.actionbar {
   position: absolute;
   top: 0;
