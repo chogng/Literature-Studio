@@ -25,7 +25,10 @@ implements EditorModeToolbarContribution {
   readonly mode = 'browser' as const;
 
   private context: EditorModeToolbarContributionContext;
-  private readonly element = createElement('div', 'editor-browser-toolbar');
+  private readonly element = createElement(
+    'div',
+    'editor-mode-toolbar editor-browser-toolbar',
+  );
   private readonly leadingHost = createElement('div', 'editor-browser-toolbar-leading');
   private readonly addressHost = createElement('div', 'editor-browser-toolbar-address-host');
   private readonly trailingHost = createElement('div', 'editor-browser-toolbar-trailing');

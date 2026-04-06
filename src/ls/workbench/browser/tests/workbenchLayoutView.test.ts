@@ -814,6 +814,7 @@ test('WorkbenchLayoutView renders the browser toolbar below the editor topbar', 
     assert(toolbarHost instanceof HTMLElement);
     assert.equal(toolbarHost.hidden, false);
     assert.equal(getEditorFrameSlot(toolbarHost), EDITOR_FRAME_SLOTS.toolbar);
+    assert.equal(toolbarHost.dataset.toolbarMode, 'browser');
 
     const toolbar = editorFrame.querySelector('.editor-toolbar .editor-browser-toolbar');
     assert(toolbar instanceof HTMLElement);
@@ -1000,6 +1001,7 @@ test('WorkbenchLayoutView shows the active-tab toolbar for draft tabs and pdf ta
     const toolbarHost = view.getElement().querySelector('.editor-frame > .editor-toolbar');
     assert(toolbarHost instanceof HTMLElement);
     assert.equal(toolbarHost.hidden, false);
+    assert.equal(toolbarHost.dataset.toolbarMode, 'draft');
     const contentHost = view.getElement().querySelector('.editor-frame > .editor-content');
     assert(contentHost instanceof HTMLElement);
     assert.equal(getEditorFrameSlot(contentHost), EDITOR_FRAME_SLOTS.content);
@@ -1035,6 +1037,7 @@ test('WorkbenchLayoutView shows the active-tab toolbar for draft tabs and pdf ta
 
     const pdfToolbar = view.getElement().querySelector('.editor-toolbar .editor-pdf-toolbar');
     assert.equal(toolbarHost.hidden, false);
+    assert.equal(toolbarHost.dataset.toolbarMode, 'pdf');
     assert(pdfToolbar instanceof HTMLElement);
     assert.equal(
       view.getElement().querySelector('.editor-toolbar .editor-draft-toolbar'),

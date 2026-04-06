@@ -19,7 +19,10 @@ implements EditorModeToolbarContribution {
   readonly mode = 'pdf' as const;
 
   private context: EditorModeToolbarContributionContext;
-  private readonly element = createElement('div', 'editor-pdf-toolbar');
+  private readonly element = createElement(
+    'div',
+    'editor-mode-toolbar editor-pdf-toolbar',
+  );
   private readonly labelElement = createElement('span', 'editor-pdf-toolbar-label');
 
   constructor(context: EditorModeToolbarContributionContext) {
@@ -51,4 +54,3 @@ export function createEditorPdfModeToolbarContribution(
 ) {
   return new EditorPdfModeToolbarContribution(context);
 }
-

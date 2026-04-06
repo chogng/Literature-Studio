@@ -43,6 +43,10 @@ type ToolbarLayoutConfig = {
   overflowMenuItems: readonly WritingEditorToolbarMenuItemConfig[];
 };
 
+type ToolbarDisplayLayoutConfig = ToolbarLayoutConfig & {
+  overflowCandidateCount: number;
+};
+
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
   className?: string,
@@ -150,14 +154,31 @@ const FONT_SIZE_PRESETS: readonly DropdownOption[] = [
 
 export class DraftEditorToolbar {
   private props: DraftEditorToolbarProps;
-  private readonly element = createElement('div', 'editor-draft-toolbar');
+  private readonly element = createElement(
+    'div',
+    'editor-mode-toolbar editor-draft-toolbar',
+  );
   private readonly contentElement = createElement('div', 'editor-draft-toolbar-content');
   private readonly trailingElement = createElement('div', 'editor-draft-toolbar-trailing');
   private toolbarViews: Array<{ dispose: () => void }> = [];
+  private adaptiveOverflowCount = 0;
+  private overflowCandidateCount = 0;
+  private overflowSyncHandle: ReturnType<typeof setTimeout> | null = null;
+  private readonly resizeObserver: ResizeObserver | null;
+  private disposed = false;
 
   constructor(props: DraftEditorToolbarProps) {
     this.props = props;
     this.element.append(this.contentElement, this.trailingElement);
+    this.resizeObserver = typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => {
+        this.scheduleOverflowSync();
+      })
+      : null;
+    this.resizeObserver?.observe(this.element);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.handleWindowResize);
+    }
     this.render();
   }
 
@@ -171,14 +192,25 @@ export class DraftEditorToolbar {
   }
 
   dispose() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.cancelOverflowSync();
+    this.resizeObserver?.disconnect();
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.handleWindowResize);
+    }
     this.disposeToolbarViews();
     this.element.replaceChildren();
   }
 
-  private render() {
+  private render(options?: { skipOverflowSync?: boolean }) {
     this.disposeToolbarViews();
+    const layout = this.createDisplayLayout(this.createToolbarLayout());
+    this.overflowCandidateCount = layout.overflowCandidateCount;
     const fragment = document.createDocumentFragment();
-    const layout = this.createToolbarLayout();
     for (const group of layout.groups) {
       fragment.append(this.createToolbarGroup(group));
     }
@@ -189,6 +221,164 @@ export class DraftEditorToolbar {
       const overflowView = this.createOverflowMenu(layout.overflowMenuItems);
       this.trailingElement.append(overflowView.getElement());
     }
+
+    if (!options?.skipOverflowSync) {
+      this.scheduleOverflowSync();
+    }
+  }
+
+  private createDisplayLayout(layout: ToolbarLayoutConfig): ToolbarDisplayLayoutConfig {
+    const overflowCandidates: Array<{
+      groupIndex: number;
+      itemIndex: number;
+      menuItem: WritingEditorToolbarMenuItemConfig;
+    }> = [];
+
+    for (let groupIndex = 0; groupIndex < layout.groups.length; groupIndex += 1) {
+      const group = layout.groups[groupIndex];
+      for (let itemIndex = 0; itemIndex < group.items.length; itemIndex += 1) {
+        const item = group.items[itemIndex];
+        const overflowMenuItem = this.createAdaptiveOverflowMenuItem(item, groupIndex, itemIndex);
+        if (!overflowMenuItem) {
+          continue;
+        }
+        overflowCandidates.push({
+          groupIndex,
+          itemIndex,
+          menuItem: overflowMenuItem,
+        });
+      }
+    }
+
+    const clampedOverflowCount = Math.min(this.adaptiveOverflowCount, overflowCandidates.length);
+    if (clampedOverflowCount !== this.adaptiveOverflowCount) {
+      this.adaptiveOverflowCount = clampedOverflowCount;
+    }
+
+    const collapsedCandidates = overflowCandidates.slice(
+      Math.max(overflowCandidates.length - this.adaptiveOverflowCount, 0),
+    );
+    const hiddenToolbarItems = new Set(
+      collapsedCandidates.map((candidate) => `${candidate.groupIndex}:${candidate.itemIndex}`),
+    );
+    const groups = layout.groups
+      .map<ToolbarGroupConfig>((group, groupIndex) => ({
+        title: group.title,
+        items: group.items.filter(
+          (_, itemIndex) => !hiddenToolbarItems.has(`${groupIndex}:${itemIndex}`),
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
+
+    return {
+      groups,
+      overflowMenuItems: [
+        ...layout.overflowMenuItems,
+        ...collapsedCandidates.map((candidate) => candidate.menuItem),
+      ],
+      overflowCandidateCount: overflowCandidates.length,
+    };
+  }
+
+  private createAdaptiveOverflowMenuItem(
+    item: WritingEditorToolbarItemConfig,
+    groupIndex: number,
+    itemIndex: number,
+  ): WritingEditorToolbarMenuItemConfig | null {
+    if ('menu' in item || 'options' in item) {
+      return null;
+    }
+
+    return {
+      id: `toolbar-overflow-action-${groupIndex}-${itemIndex}`,
+      label: item.label,
+      title: item.label,
+      checked: item.isToggle ? Boolean(item.isActive) : undefined,
+      disabled: item.disabled,
+      onClick: () => {
+        item.onClick();
+      },
+    };
+  }
+
+  private scheduleOverflowSync() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.cancelOverflowSync();
+    this.overflowSyncHandle = setTimeout(() => {
+      this.overflowSyncHandle = null;
+      this.syncAdaptiveOverflow();
+    }, 0);
+  }
+
+  private cancelOverflowSync() {
+    if (this.overflowSyncHandle === null) {
+      return;
+    }
+
+    clearTimeout(this.overflowSyncHandle);
+    this.overflowSyncHandle = null;
+  }
+
+  private syncAdaptiveOverflow() {
+    if (this.disposed || !this.canMeasureOverflow()) {
+      return;
+    }
+
+    const maxOverflowCount = this.overflowCandidateCount;
+    let nextOverflowCount = Math.min(this.adaptiveOverflowCount, maxOverflowCount);
+    if (nextOverflowCount !== this.adaptiveOverflowCount) {
+      this.adaptiveOverflowCount = nextOverflowCount;
+      this.render({ skipOverflowSync: true });
+      if (!this.canMeasureOverflow()) {
+        return;
+      }
+    }
+
+    while (!this.isToolbarLayoutFitting() && nextOverflowCount < maxOverflowCount) {
+      nextOverflowCount += 1;
+      this.adaptiveOverflowCount = nextOverflowCount;
+      this.render({ skipOverflowSync: true });
+      if (!this.canMeasureOverflow()) {
+        return;
+      }
+    }
+
+    while (nextOverflowCount > 0) {
+      this.adaptiveOverflowCount = nextOverflowCount - 1;
+      this.render({ skipOverflowSync: true });
+      if (!this.canMeasureOverflow()) {
+        return;
+      }
+      if (this.isToolbarLayoutFitting()) {
+        nextOverflowCount -= 1;
+        continue;
+      }
+
+      this.adaptiveOverflowCount = nextOverflowCount;
+      this.render({ skipOverflowSync: true });
+      break;
+    }
+  }
+
+  private canMeasureOverflow() {
+    return this.element.getBoundingClientRect().width > 0;
+  }
+
+  private isToolbarLayoutFitting() {
+    const toolbarWidth = this.element.getBoundingClientRect().width;
+    if (!(toolbarWidth > 0)) {
+      return true;
+    }
+
+    const trailingMarginLeft = this.trailingElement.childElementCount > 0
+      ? Number.parseFloat(getComputedStyle(this.trailingElement).marginLeft || '0') || 0
+      : 0;
+    const contentWidth = this.contentElement.scrollWidth;
+    const trailingWidth = this.trailingElement.getBoundingClientRect().width;
+    return (contentWidth + trailingWidth + trailingMarginLeft) <= (toolbarWidth + 0.5);
   }
 
   private createTextStyleOptions(
@@ -545,6 +735,10 @@ export class DraftEditorToolbar {
 
     // Keep the ProseMirror selection alive while toolbar commands run.
     event.preventDefault();
+  };
+
+  private readonly handleWindowResize = () => {
+    this.scheduleOverflowSync();
   };
 }
 

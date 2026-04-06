@@ -485,6 +485,7 @@ export class EditorGroupView {
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
     });
     this.modeToolbarHost.setContext(createEditorModeToolbarContext(this.props));
+    this.syncToolbarMode(group.activeTab);
     this.syncTopbarActions(
       this.props.showTopbarActions ? this.topbarActionsView.getElement() : null,
     );
@@ -576,6 +577,15 @@ export class EditorGroupView {
       this.toolbarElement.replaceChildren();
     }
     this.toolbarElement.hidden = true;
+  }
+
+  private syncToolbarMode(activeTab: EditorWorkspaceTab | null) {
+    if (!activeTab) {
+      this.toolbarElement.removeAttribute('data-toolbar-mode');
+      return;
+    }
+
+    this.toolbarElement.dataset.toolbarMode = getEditorPaneMode(activeTab);
   }
 
   private resolveToolbarElement() {
