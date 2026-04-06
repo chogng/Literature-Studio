@@ -226,7 +226,7 @@ function resolveRuntimeState() {
   };
 }
 
-export type WorkbenchContentLayoutViewProps = {
+export type WorkbenchLayoutViewProps = {
   isPrimarySidebarVisible: boolean;
   isAgentSidebarVisible: boolean;
   isLayoutEdgeSnappingEnabled: boolean;
@@ -248,8 +248,8 @@ function createWorkbenchLayoutElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
-export class WorkbenchContentLayoutView {
-  private props: WorkbenchContentLayoutViewProps;
+export class WorkbenchLayoutView {
+  private props: WorkbenchLayoutViewProps;
   private readonly element = createWorkbenchLayoutElement('section', 'workbench-content-layout');
   private readonly mainElement = createWorkbenchLayoutElement('main');
   private readonly primarySidebarSlot = new WorkbenchLayoutSlotView(
@@ -282,7 +282,7 @@ export class WorkbenchContentLayoutView {
     }).handleWindowResize;
   }
 
-  constructor(props: WorkbenchContentLayoutViewProps) {
+  constructor(props: WorkbenchLayoutViewProps) {
     this.props = props;
     this.element.append(this.mainElement);
     this.layoutController = new WorkbenchContentLayoutController({
@@ -311,7 +311,7 @@ export class WorkbenchContentLayoutView {
     return this.element;
   }
 
-  setProps(props: WorkbenchContentLayoutViewProps) {
+  setProps(props: WorkbenchLayoutViewProps) {
     if (this.disposed) {
       return;
     }
@@ -365,8 +365,8 @@ export class WorkbenchContentLayoutView {
   }
 }
 
-export function createWorkbenchContentLayoutView(props: WorkbenchContentLayoutViewProps) {
-  return new WorkbenchContentLayoutView(props);
+export function createWorkbenchLayoutView(props: WorkbenchLayoutViewProps) {
+  return new WorkbenchLayoutView(props);
 }
 
 function createAgentChatLlmSettings(
@@ -538,7 +538,7 @@ class WorkbenchHost {
   private readonly toastMount: HTMLDivElement;
   private readonly statusbarElement: HTMLElement;
   private readonly toastHost: ToastHost;
-  private workbenchContentLayoutView: ReturnType<typeof createWorkbenchContentLayoutView> | null = null;
+  private workbenchLayoutView: ReturnType<typeof createWorkbenchLayoutView> | null = null;
   private workbenchContentPartViews: ReturnType<typeof createWorkbenchContentPartViews> | null = null;
   private retiredWorkbenchContentPartViews:
     | ReturnType<typeof createWorkbenchContentPartViews>
@@ -630,8 +630,8 @@ class WorkbenchHost {
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.statusbar, null);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.container, null);
 
-    this.workbenchContentLayoutView?.dispose();
-    this.workbenchContentLayoutView = null;
+    this.workbenchLayoutView?.dispose();
+    this.workbenchLayoutView = null;
     this.workbenchContentPartViews?.dispose();
     this.workbenchContentPartViews = null;
     this.retiredWorkbenchContentPartViews = null;
@@ -1053,8 +1053,8 @@ class WorkbenchHost {
     } else {
       this.workbenchContentPartViews.setProps(partViewProps);
     }
-    if (!this.workbenchContentLayoutView) {
-      this.workbenchContentLayoutView = createWorkbenchContentLayoutView({
+    if (!this.workbenchLayoutView) {
+      this.workbenchLayoutView = createWorkbenchLayoutView({
         isPrimarySidebarVisible: props.isPrimarySidebarVisible,
         isAgentSidebarVisible: props.isAgentSidebarVisible,
         isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
@@ -1065,7 +1065,7 @@ class WorkbenchHost {
         partViews: this.workbenchContentPartViews,
       });
     } else {
-      this.workbenchContentLayoutView.setProps({
+      this.workbenchLayoutView.setProps({
         isPrimarySidebarVisible: props.isPrimarySidebarVisible,
         isAgentSidebarVisible: props.isAgentSidebarVisible,
         isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
@@ -1078,19 +1078,19 @@ class WorkbenchHost {
     }
     this.syncEditorCommandHandlers();
 
-    const workbenchContentElement = this.workbenchContentLayoutView.getElement();
+    const workbenchContentElement = this.workbenchLayoutView.getElement();
     if (this.pageMount.firstChild !== workbenchContentElement) {
       this.pageMount.replaceChildren(workbenchContentElement);
     }
-    this.workbenchContentLayoutView.layout();
+    this.workbenchLayoutView.layout();
   }
 
   private renderSettingsPage(
     settingsPartProps: ReturnType<typeof createSettingsPartProps>,
   ) {
-    if (this.workbenchContentLayoutView) {
-      this.workbenchContentLayoutView.dispose();
-      this.workbenchContentLayoutView = null;
+    if (this.workbenchLayoutView) {
+      this.workbenchLayoutView.dispose();
+      this.workbenchLayoutView = null;
     }
     if (this.workbenchContentPartViews) {
       this.workbenchContentPartViews.dispose();

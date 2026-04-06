@@ -10,7 +10,7 @@ import {
 } from 'ls/workbench/browser/parts/editor/editorFrame';
 
 let cleanupDomEnvironment: (() => void) | null = null;
-let createWorkbenchContentLayoutView: typeof import('ls/workbench/browser/workbench').createWorkbenchContentLayoutView;
+let createWorkbenchLayoutView: typeof import('ls/workbench/browser/workbench').createWorkbenchLayoutView;
 let createWorkbenchContentPartViews: typeof import('ls/workbench/browser/workbenchContentPartViews').createWorkbenchContentPartViews;
 let getWorkbenchLayoutStateSnapshot: typeof import('ls/workbench/browser/layout').getWorkbenchLayoutStateSnapshot;
 let setPrimarySidebarVisible: typeof import('ls/workbench/browser/layout').setPrimarySidebarVisible;
@@ -20,7 +20,7 @@ let setEditorCollapsed: typeof import('ls/workbench/browser/layout').setEditorCo
 let SidebarTopbarActionsView: typeof import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions').SidebarTopbarActionsView;
 let PrimaryBarFooterActionsView: typeof import('ls/workbench/browser/parts/primarybar/primarybarFooterActions').PrimaryBarFooterActionsView;
 
-type RawWorkbenchContentLayoutViewProps = {
+type RawWorkbenchLayoutViewProps = {
   isPrimarySidebarVisible: boolean;
   isAgentSidebarVisible: boolean;
   isLayoutEdgeSnappingEnabled: boolean;
@@ -58,8 +58,8 @@ function createPrimaryBarFooterActionsElement(props: {
   return view.getElement();
 }
 
-function materializeWorkbenchContentLayoutViewProps(
-  props: RawWorkbenchContentLayoutViewProps,
+function materializeWorkbenchLayoutViewProps(
+  props: RawWorkbenchLayoutViewProps,
 ) {
   setPrimarySidebarVisible(props.isPrimarySidebarVisible);
   setAgentSidebarVisible(props.isAgentSidebarVisible);
@@ -102,10 +102,10 @@ function materializeWorkbenchContentLayoutViewProps(
     isEditorCollapsed: props.isEditorCollapsed,
     expandedEditorSize: props.expandedEditorSize,
     partViews: nextPartViews,
-  } as Parameters<typeof createWorkbenchContentLayoutView>[0];
+  } as Parameters<typeof createWorkbenchLayoutView>[0];
 }
 
-function syncRawPropsWithLayoutState(props: RawWorkbenchContentLayoutViewProps) {
+function syncRawPropsWithLayoutState(props: RawWorkbenchLayoutViewProps) {
   const layoutState = getWorkbenchLayoutStateSnapshot();
   props.isPrimarySidebarVisible = layoutState.isPrimarySidebarVisible;
   props.isAgentSidebarVisible = layoutState.isAgentSidebarVisible;
@@ -239,7 +239,7 @@ function setWindowInnerWidth(width: number) {
 }
 
 function bindWorkbenchContentSize(
-  view: ReturnType<typeof createWorkbenchContentLayoutView>,
+  view: ReturnType<typeof createWorkbenchLayoutView>,
   initialWidth: number,
   initialHeight: number,
 ) {
@@ -285,7 +285,7 @@ function getEventEmitterListenerCount(
   return emitter?.listeners?.size ?? 0;
 }
 
-function createWorkbenchContentLayoutViewProps() {
+function createWorkbenchLayoutViewProps() {
   const auxiliaryEditorTopbarActionsElement = document.createElement('div');
   auxiliaryEditorTopbarActionsElement.className = 'sidebar-topbar-actions actionbar is-horizontal';
   const actionsContainer = document.createElement('div');
@@ -585,13 +585,13 @@ function createWorkbenchContentLayoutViewProps() {
       onSetEditorViewState: () => {},
       onDeleteEditorViewState: () => {},
     },
-  } as RawWorkbenchContentLayoutViewProps;
+  } as RawWorkbenchLayoutViewProps;
 }
 
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
-  ({ createWorkbenchContentLayoutView } = await import('ls/workbench/browser/workbench'));
+  ({ createWorkbenchLayoutView } = await import('ls/workbench/browser/workbench'));
   ({ createWorkbenchContentPartViews } = await import('ls/workbench/browser/workbenchContentPartViews'));
   ({
     getWorkbenchLayoutStateSnapshot,
@@ -613,8 +613,8 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-test('WorkbenchContentLayoutView mounts primary topbar actions into auxiliary topbar when the primary sidebar is hidden', () => {
-  const props = createWorkbenchContentLayoutViewProps();
+test('WorkbenchLayoutView mounts primary topbar actions into auxiliary topbar when the primary sidebar is hidden', () => {
+  const props = createWorkbenchLayoutViewProps();
   props.isPrimarySidebarVisible = true;
   props.isAgentSidebarVisible = true;
   props.sidebarTopbarActionsProps = {
@@ -625,7 +625,7 @@ test('WorkbenchContentLayoutView mounts primary topbar actions into auxiliary to
     onTogglePrimarySidebar: () => {},
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -655,7 +655,7 @@ test('WorkbenchContentLayoutView mounts primary topbar actions into auxiliary to
         onTogglePrimarySidebar: () => {},
       }),
     };
-    view.setProps(materializeWorkbenchContentLayoutViewProps(nextProps));
+    view.setProps(materializeWorkbenchLayoutViewProps(nextProps));
 
     primaryTopbarActionsHost = view
       .getElement()
@@ -679,8 +679,8 @@ test('WorkbenchContentLayoutView mounts primary topbar actions into auxiliary to
   }
 });
 
-test('WorkbenchContentLayoutView mounts the editor collapse action into auxiliary topbar when the editor is collapsed', () => {
-  const props = createWorkbenchContentLayoutViewProps();
+test('WorkbenchLayoutView mounts the editor collapse action into auxiliary topbar when the editor is collapsed', () => {
+  const props = createWorkbenchLayoutViewProps();
   props.isPrimarySidebarVisible = false;
   props.isAgentSidebarVisible = true;
   props.sidebarTopbarActionsProps = {
@@ -691,7 +691,7 @@ test('WorkbenchContentLayoutView mounts the editor collapse action into auxiliar
     onTogglePrimarySidebar: () => {},
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -702,7 +702,7 @@ test('WorkbenchContentLayoutView mounts the editor collapse action into auxiliar
     assert.equal(editorToggleButton.getAttribute('aria-label'), 'Collapse editor');
 
     editorToggleButton.click();
-    view.setProps(materializeWorkbenchContentLayoutViewProps(syncRawPropsWithLayoutState(props)));
+    view.setProps(materializeWorkbenchLayoutViewProps(syncRawPropsWithLayoutState(props)));
 
     const auxiliaryToggleButton = view
       .getElement()
@@ -720,9 +720,9 @@ test('WorkbenchContentLayoutView mounts the editor collapse action into auxiliar
   }
 });
 
-test('WorkbenchContentLayoutView renders an add dropdown before the collapse action and dispatches create handlers', async () => {
+test('WorkbenchLayoutView renders an add dropdown before the collapse action and dispatches create handlers', async () => {
   const calls: string[] = [];
-  const props = createWorkbenchContentLayoutViewProps();
+  const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
     onCreateDraftTab: () => calls.push('write'),
@@ -730,7 +730,7 @@ test('WorkbenchContentLayoutView renders an add dropdown before the collapse act
     onCreatePdfTab: () => calls.push('file'),
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -777,8 +777,8 @@ test('WorkbenchContentLayoutView renders an add dropdown before the collapse act
   }
 });
 
-test('WorkbenchContentLayoutView renders the browser toolbar below the editor topbar', () => {
-  const props = createWorkbenchContentLayoutViewProps();
+test('WorkbenchLayoutView renders the browser toolbar below the editor topbar', () => {
+  const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
     tabs: [
@@ -802,7 +802,7 @@ test('WorkbenchContentLayoutView renders the browser toolbar below the editor to
     },
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -846,9 +846,9 @@ test('WorkbenchContentLayoutView renders the browser toolbar below the editor to
   }
 });
 
-test('WorkbenchContentLayoutView opens the browser toolbar more menu and dispatches handlers', async () => {
+test('WorkbenchLayoutView opens the browser toolbar more menu and dispatches handlers', async () => {
   const calls: string[] = [];
-  const props = createWorkbenchContentLayoutViewProps();
+  const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
     tabs: [
@@ -889,7 +889,7 @@ test('WorkbenchContentLayoutView opens the browser toolbar more menu and dispatc
     },
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -931,8 +931,8 @@ test('WorkbenchContentLayoutView opens the browser toolbar more menu and dispatc
   }
 });
 
-test('WorkbenchContentLayoutView hides about:blank in the browser toolbar address input', () => {
-  const props = createWorkbenchContentLayoutViewProps();
+test('WorkbenchLayoutView hides about:blank in the browser toolbar address input', () => {
+  const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
     tabs: [
@@ -956,7 +956,7 @@ test('WorkbenchContentLayoutView hides about:blank in the browser toolbar addres
     },
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -971,8 +971,8 @@ test('WorkbenchContentLayoutView hides about:blank in the browser toolbar addres
   }
 });
 
-test('WorkbenchContentLayoutView shows the active-tab toolbar for draft tabs and pdf tabs', () => {
-  const props = createWorkbenchContentLayoutViewProps();
+test('WorkbenchLayoutView shows the active-tab toolbar for draft tabs and pdf tabs', () => {
+  const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
     tabs: [
@@ -994,7 +994,7 @@ test('WorkbenchContentLayoutView shows the active-tab toolbar for draft tabs and
     },
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -1032,7 +1032,7 @@ test('WorkbenchContentLayoutView shows the active-tab toolbar for draft tabs and
         },
       },
     };
-    view.setProps(materializeWorkbenchContentLayoutViewProps(nextProps));
+    view.setProps(materializeWorkbenchLayoutViewProps(nextProps));
 
     const pdfToolbar = view.getElement().querySelector('.editor-toolbar .editor-pdf-toolbar');
     assert.equal(toolbarHost.hidden, false);
@@ -1048,8 +1048,8 @@ test('WorkbenchContentLayoutView shows the active-tab toolbar for draft tabs and
   }
 });
 
-test('WorkbenchContentLayoutView mounts the draft editor content hierarchy inside editor-frame', () => {
-  const props = createWorkbenchContentLayoutViewProps();
+test('WorkbenchLayoutView mounts the draft editor content hierarchy inside editor-frame', () => {
+  const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
     tabs: [
@@ -1071,7 +1071,7 @@ test('WorkbenchContentLayoutView mounts the draft editor content hierarchy insid
     },
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -1105,8 +1105,8 @@ test('WorkbenchContentLayoutView mounts the draft editor content hierarchy insid
   }
 });
 
-test('WorkbenchContentLayoutView mounts the editor collapse action into agentbar topbar even when the primary sidebar is visible', () => {
-  const props = createWorkbenchContentLayoutViewProps();
+test('WorkbenchLayoutView mounts the editor collapse action into agentbar topbar even when the primary sidebar is visible', () => {
+  const props = createWorkbenchLayoutViewProps();
   props.isPrimarySidebarVisible = true;
   props.isAgentSidebarVisible = true;
   props.sidebarTopbarActionsProps = {
@@ -1117,7 +1117,7 @@ test('WorkbenchContentLayoutView mounts the editor collapse action into agentbar
     onTogglePrimarySidebar: () => {},
   };
 
-  const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
   document.body.append(view.getElement());
 
   try {
@@ -1128,7 +1128,7 @@ test('WorkbenchContentLayoutView mounts the editor collapse action into agentbar
     assert.equal(editorToggleButton.getAttribute('aria-label'), 'Collapse editor');
 
     editorToggleButton.click();
-    view.setProps(materializeWorkbenchContentLayoutViewProps(syncRawPropsWithLayoutState(props)));
+    view.setProps(materializeWorkbenchLayoutViewProps(syncRawPropsWithLayoutState(props)));
 
     const auxiliaryToggleButton = view
       .getElement()
@@ -1152,12 +1152,12 @@ test('WorkbenchContentLayoutView mounts the editor collapse action into agentbar
   }
 });
 
-test('WorkbenchContentLayoutView keeps primary width fixed and expands agentbar when the editor is collapsed', () => {
+test('WorkbenchLayoutView keeps primary width fixed and expands agentbar when the editor is collapsed', () => {
   const animationFrameSpy = installAnimationFrameSpy();
   setWindowInnerWidth(1280);
 
   try {
-    const props = createWorkbenchContentLayoutViewProps();
+    const props = createWorkbenchLayoutViewProps();
     props.isPrimarySidebarVisible = true;
     props.isAgentSidebarVisible = true;
     props.primarySidebarSize = 320;
@@ -1170,7 +1170,7 @@ test('WorkbenchContentLayoutView keeps primary width fixed and expands agentbar 
       onTogglePrimarySidebar: () => {},
     };
 
-    const view = createWorkbenchContentLayoutView(materializeWorkbenchContentLayoutViewProps(props));
+    const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
     bindWorkbenchContentSize(view, 1280, 720);
     document.body.append(view.getElement());
     animationFrameSpy.flushAll();
@@ -1190,7 +1190,7 @@ test('WorkbenchContentLayoutView keeps primary width fixed and expands agentbar 
       .querySelector('.editor-topbar .editor-topbar-toggle-editor-btn');
     assert(editorToggleButton instanceof HTMLButtonElement);
     editorToggleButton.click();
-    view.setProps(materializeWorkbenchContentLayoutViewProps(syncRawPropsWithLayoutState(props)));
+    view.setProps(materializeWorkbenchLayoutViewProps(syncRawPropsWithLayoutState(props)));
     animationFrameSpy.flushAll();
 
     const nextGridView = (view as unknown as {
@@ -1209,13 +1209,13 @@ test('WorkbenchContentLayoutView keeps primary width fixed and expands agentbar 
   }
 });
 
-test('WorkbenchContentLayoutView dispose cancels a pending layout animation frame', () => {
+test('WorkbenchLayoutView dispose cancels a pending layout animation frame', () => {
   const animationFrameSpy = installAnimationFrameSpy();
   setWindowInnerWidth(1280);
 
   try {
-    const view = createWorkbenchContentLayoutView(
-      materializeWorkbenchContentLayoutViewProps(createWorkbenchContentLayoutViewProps()),
+    const view = createWorkbenchLayoutView(
+      materializeWorkbenchLayoutViewProps(createWorkbenchLayoutViewProps()),
     );
     bindWorkbenchContentSize(view, 1280, 720);
     document.body.append(view.getElement());
@@ -1238,14 +1238,14 @@ test('WorkbenchContentLayoutView dispose cancels a pending layout animation fram
   }
 });
 
-test('WorkbenchContentLayoutView dispose disconnects its resize observer', () => {
+test('WorkbenchLayoutView dispose disconnects its resize observer', () => {
   const resizeObserverSpy = installResizeObserverSpy();
   const animationFrameSpy = installAnimationFrameSpy();
   setWindowInnerWidth(1280);
 
   try {
-    const view = createWorkbenchContentLayoutView(
-      materializeWorkbenchContentLayoutViewProps(createWorkbenchContentLayoutViewProps()),
+    const view = createWorkbenchLayoutView(
+      materializeWorkbenchLayoutViewProps(createWorkbenchLayoutViewProps()),
     );
     const observerIndex = resizeObserverSpy.getInstanceCount() - 1;
     bindWorkbenchContentSize(view, 1280, 720);
@@ -1267,7 +1267,7 @@ test('WorkbenchContentLayoutView dispose disconnects its resize observer', () =>
   }
 });
 
-test('WorkbenchContentLayoutView falls back to a disposable window resize listener without ResizeObserver', () => {
+test('WorkbenchLayoutView falls back to a disposable window resize listener without ResizeObserver', () => {
   const previousResizeObserver = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
   const animationFrameSpy = installAnimationFrameSpy();
   const addedResizeListeners: EventListenerOrEventListenerObject[] = [];
@@ -1293,8 +1293,8 @@ test('WorkbenchContentLayoutView falls back to a disposable window resize listen
   setWindowInnerWidth(1280);
 
   try {
-    const view = createWorkbenchContentLayoutView(
-      materializeWorkbenchContentLayoutViewProps(createWorkbenchContentLayoutViewProps()),
+    const view = createWorkbenchLayoutView(
+      materializeWorkbenchLayoutViewProps(createWorkbenchLayoutViewProps()),
     );
     bindWorkbenchContentSize(view, 1280, 720);
     document.body.append(view.getElement());
@@ -1325,13 +1325,13 @@ test('WorkbenchContentLayoutView falls back to a disposable window resize listen
   }
 });
 
-test('WorkbenchContentLayoutView replaces grid event subscriptions when the split orientation changes', () => {
+test('WorkbenchLayoutView replaces grid event subscriptions when the split orientation changes', () => {
   const animationFrameSpy = installAnimationFrameSpy();
   setWindowInnerWidth(1280);
 
   try {
-    const view = createWorkbenchContentLayoutView(
-      materializeWorkbenchContentLayoutViewProps(createWorkbenchContentLayoutViewProps()),
+    const view = createWorkbenchLayoutView(
+      materializeWorkbenchLayoutViewProps(createWorkbenchLayoutViewProps()),
     );
     const size = bindWorkbenchContentSize(view, 1280, 720);
     document.body.append(view.getElement());
