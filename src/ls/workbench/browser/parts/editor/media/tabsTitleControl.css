@@ -122,11 +122,9 @@
   border-radius: inherit;
 }
 
-.editor-tab:hover .editor-tab-main {
-  color: var(--vscode-editor-tabHoverForeground, #304253);
-}
-
+.editor-tab:hover .editor-tab-main,
 .editor-tab.is-active .editor-tab-main {
+  background: var(--vscode-button-ghostHoverBackground, rgba(0, 0, 0, 0.04));
   color: var(--vscode-editor-tabActiveForeground, #1d2f41);
 }
 
