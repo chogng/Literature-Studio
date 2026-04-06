@@ -34,6 +34,7 @@ import selectSvg from 'ls/base/browser/ui/lxicon/svg/select.svg?raw';
 import searchSvg from 'ls/base/browser/ui/lxicon/svg/search.svg?raw';
 import screenFullSvg from 'ls/base/browser/ui/lxicon/svg/screen-full.svg?raw';
 import saveSvg from 'ls/base/browser/ui/lxicon/svg/save.svg?raw';
+import unsaveSvg from 'ls/base/browser/ui/lxicon/svg/unsave.svg?raw';
 import sandboxSvg from 'ls/base/browser/ui/lxicon/svg/sandbox.svg?raw';
 import rssSvg from 'ls/base/browser/ui/lxicon/svg/rss.svg?raw';
 import repoPushSvg from 'ls/base/browser/ui/lxicon/svg/repo-push.svg?raw';
@@ -219,6 +220,7 @@ export type LxIconName =
   | 'search'
   | 'screen-full'
   | 'save'
+  | 'unsave'
   | 'sandbox'
   | 'rss'
   | 'repo-push'
@@ -404,6 +406,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'search': searchSvg,
   'screen-full': screenFullSvg,
   'save': saveSvg,
+  'unsave': unsaveSvg,
   'sandbox': sandboxSvg,
   'rss': rssSvg,
   'repo-push': repoPushSvg,

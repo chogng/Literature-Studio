@@ -137,6 +137,7 @@ function createProps(
     viewPartProps: defaultViewPartProps,
     groupId: DEFAULT_EDITOR_GROUP_ID,
     tabs,
+    dirtyDraftTabIds: [],
     activeTabId,
     activeTab,
     viewStateEntries: [],

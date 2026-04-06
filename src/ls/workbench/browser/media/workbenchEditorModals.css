@@ -16,6 +16,13 @@
   color: #415266;
 }
 
+.workbench-editor-confirm-message {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #415266;
+}
+
 .workbench-editor-modal-actions {
   display: flex;
   justify-content: flex-end;

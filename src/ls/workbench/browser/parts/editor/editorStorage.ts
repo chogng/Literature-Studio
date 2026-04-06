@@ -11,6 +11,9 @@ import type {
   EditorWorkspaceDraftTab,
   EditorWorkspaceState,
 } from 'ls/workbench/browser/parts/editor/editorModel';
+import type {
+  EditorDraftSavedStateByInputId,
+} from 'ls/workbench/browser/parts/editor/editorDraftDirtyState';
 
 export type StoredWritingWorkspaceState = {
   groups?: unknown;
@@ -21,6 +24,7 @@ export type StoredWritingWorkspaceState = {
   activeTabId?: unknown;
   mruTabIds?: unknown;
   draftStateByInputId?: unknown;
+  savedDraftStateByInputId?: unknown;
   viewStateEntries?: unknown;
 };
 
@@ -42,6 +46,7 @@ type EditorPersistedState = {
     'groups' | 'activeGroupId' | 'viewStateEntries'
   >;
   contextDraftTab: EditorWorkspaceDraftTab | null;
+  savedDraftStateByInputId: EditorDraftSavedStateByInputId;
 };
 
 type EditorStorageOptions = {
@@ -147,6 +152,7 @@ function serializeStoredGroup(group: EditorEditorGroupState) {
 function persistState({
   workspaceState,
   contextDraftTab,
+  savedDraftStateByInputId,
 }: EditorPersistedState) {
   const draftStateByInputId = createStoredDraftStateByInputId(workspaceState);
   writeStoredValue(
@@ -155,6 +161,7 @@ function persistState({
       groups: workspaceState.groups.map((group) => serializeStoredGroup(group)),
       activeGroupId: workspaceState.activeGroupId,
       draftStateByInputId,
+      savedDraftStateByInputId,
       viewStateEntries: workspaceState.viewStateEntries,
     }),
   );

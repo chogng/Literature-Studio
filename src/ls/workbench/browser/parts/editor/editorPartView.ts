@@ -61,13 +61,14 @@ export type EditorPartProps = {
   viewPartProps: ViewPartProps;
   groupId: string;
   tabs: EditorWorkspaceTab[];
+  dirtyDraftTabIds: readonly string[];
   activeTabId: string | null;
   activeTab: EditorWorkspaceTab | null;
   viewStateEntries: SerializedEditorViewStateEntry[];
   onActivateTab: (tabId: string) => void;
-  onCloseTab: (tabId: string) => void;
-  onCloseOtherTabs?: (tabId: string) => void;
-  onCloseAllTabs?: () => void;
+  onCloseTab: (tabId: string) => Promise<boolean> | boolean | void;
+  onCloseOtherTabs?: (tabId: string) => Promise<boolean> | boolean | void;
+  onCloseAllTabs?: () => Promise<boolean> | boolean | void;
   onRenameTab?: (tabId: string) => void | Promise<void>;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;

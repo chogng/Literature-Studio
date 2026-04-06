@@ -47,3 +47,17 @@ test('EditorDraftToolbarStyleModel normalizes font-family aliases to preset labe
     true,
   );
 });
+
+test('EditorDraftToolbarStyleModel includes DengXian font preset', () => {
+  const model = createEditorDraftToolbarStyleModel({
+    fontFamilyValue: null,
+    fontSizeValue: null,
+    defaultTextStyleLabel: 'Default',
+    snapshot,
+  });
+
+  assert.equal(
+    model.fontFamily.options.some((option) => option.label === '等线'),
+    true,
+  );
+});

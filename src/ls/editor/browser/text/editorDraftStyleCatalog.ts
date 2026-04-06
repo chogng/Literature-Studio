@@ -40,6 +40,11 @@ const EDITOR_DRAFT_FONT_FAMILY_PRESETS: readonly EditorDraftStyleOption[] = Obje
     title: '黑体 / SimHei / Heiti SC',
   },
   {
+    value: '"等线", "DengXian", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif',
+    label: '等线',
+    title: '等线 / DengXian',
+  },
+  {
     value: '"楷体", "KaiTi", "Kaiti SC", "STKaiti", serif',
     label: '楷体',
     title: '楷体 / KaiTi / Kaiti SC',

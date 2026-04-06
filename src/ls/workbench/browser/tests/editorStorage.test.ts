@@ -73,6 +73,7 @@ test('editor storage debounces draft persistence and keeps the latest state', as
       document: createWritingEditorDocumentFromPlainText('alpha'),
       viewMode: 'draft',
     },
+    savedDraftStateByInputId: {},
   });
 
   storage.scheduleSave({
@@ -95,6 +96,7 @@ test('editor storage debounces draft persistence and keeps the latest state', as
       document: createWritingEditorDocumentFromPlainText('beta'),
       viewMode: 'draft',
     },
+    savedDraftStateByInputId: {},
   });
 
   await delay(25);
@@ -184,6 +186,13 @@ test('editor storage persists editor inputs separately from draft state payload'
       document: createWritingEditorDocumentFromPlainText('alpha'),
       viewMode: 'draft',
     },
+    savedDraftStateByInputId: {
+      'draft-a': {
+        title: 'Draft A',
+        document: createWritingEditorDocumentFromPlainText('alpha'),
+        viewMode: 'draft',
+      },
+    },
   });
 
   const rawWorkspace = localStorage.getItem('ls.writingWorkspace.state');
@@ -204,6 +213,11 @@ test('editor storage persists editor inputs separately from draft state payload'
     }>;
     activeGroupId: string;
     draftStateByInputId: Record<string, { document: unknown }>;
+    savedDraftStateByInputId: Record<string, {
+      title: string;
+      document: unknown;
+      viewMode: string;
+    }>;
     viewStateEntries: unknown[];
     inputs?: unknown;
     groupId?: unknown;
@@ -245,6 +259,15 @@ test('editor storage persists editor inputs separately from draft state payload'
   assert.equal(
     writingEditorDocumentToPlainText(
       storedWorkspace.draftStateByInputId['draft-a']
+        .document as import('ls/editor/common/writingEditorDocument').WritingEditorDocument,
+    ),
+    'alpha',
+  );
+  assert.equal(storedWorkspace.savedDraftStateByInputId['draft-a'].title, 'Draft A');
+  assert.equal(storedWorkspace.savedDraftStateByInputId['draft-a'].viewMode, 'draft');
+  assert.equal(
+    writingEditorDocumentToPlainText(
+      storedWorkspace.savedDraftStateByInputId['draft-a']
         .document as import('ls/editor/common/writingEditorDocument').WritingEditorDocument,
     ),
     'alpha',

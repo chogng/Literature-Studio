@@ -7,22 +7,35 @@ import {
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 
+export type WorkbenchEditorCommandId = DraftEditorCommandId | 'saveDraft';
+
 export type WorkbenchEditorCommandHandlers = {
   executeActiveDraftCommand: (commandId: DraftEditorCommandId) => boolean;
   canExecuteActiveDraftCommand: (commandId: DraftEditorCommandId) => boolean;
   getActiveDraftStableSelectionTarget: () => WritingEditorStableSelectionTarget | null;
+  saveActiveDraft: () => boolean;
+  canSaveActiveDraft: () => boolean;
 };
 
 export type WorkbenchEditorCommandDefinition = {
-  id: DraftEditorCommandId;
+  id: WorkbenchEditorCommandId;
   label: (ui: LocaleMessages) => string;
   shortcutLabel: string;
   enabled: boolean;
 };
 
 function createWorkbenchEditorCommandDefinition(
-  id: DraftEditorCommandId,
+  id: WorkbenchEditorCommandId,
 ): WorkbenchEditorCommandDefinition {
+  if (id === 'saveDraft') {
+    return {
+      id,
+      label: (ui: LocaleMessages) => ui.editorSaveDraft,
+      shortcutLabel: 'Mod+S',
+      enabled: canExecuteWorkbenchEditorCommand(id),
+    };
+  }
+
   return {
     id,
     label: (ui: LocaleMessages) => getDraftEditorWorkbenchLabel(id, ui),
@@ -32,9 +45,12 @@ function createWorkbenchEditorCommandDefinition(
 }
 
 export function getWorkbenchEditorCommandDefinitions(): ReadonlyArray<WorkbenchEditorCommandDefinition> {
-  return getDraftEditorCommandIds().map((id) =>
-    createWorkbenchEditorCommandDefinition(id),
-  );
+  return [
+    createWorkbenchEditorCommandDefinition('saveDraft'),
+    ...getDraftEditorCommandIds().map((id) =>
+      createWorkbenchEditorCommandDefinition(id),
+    ),
+  ];
 }
 
 let workbenchEditorCommandHandlers: WorkbenchEditorCommandHandlers | null = null;
@@ -49,7 +65,15 @@ export function getWorkbenchEditorCommandHandlers() {
   return workbenchEditorCommandHandlers;
 }
 
-export function executeWorkbenchEditorCommand(commandId: DraftEditorCommandId) {
+export function executeWorkbenchEditorCommand(commandId: WorkbenchEditorCommandId) {
+  if (commandId === 'saveDraft') {
+    if (!workbenchEditorCommandHandlers?.canSaveActiveDraft()) {
+      return false;
+    }
+
+    return workbenchEditorCommandHandlers?.saveActiveDraft() ?? false;
+  }
+
   if (!workbenchEditorCommandHandlers?.canExecuteActiveDraftCommand(commandId)) {
     return false;
   }
@@ -59,7 +83,11 @@ export function executeWorkbenchEditorCommand(commandId: DraftEditorCommandId) {
   );
 }
 
-export function canExecuteWorkbenchEditorCommand(commandId: DraftEditorCommandId) {
+export function canExecuteWorkbenchEditorCommand(commandId: WorkbenchEditorCommandId) {
+  if (commandId === 'saveDraft') {
+    return workbenchEditorCommandHandlers?.canSaveActiveDraft() ?? false;
+  }
+
   return workbenchEditorCommandHandlers?.canExecuteActiveDraftCommand(commandId) ?? false;
 }
 
@@ -70,7 +98,7 @@ export function getWorkbenchActiveDraftStableSelectionTarget() {
 }
 
 export function getWorkbenchEditorCommandDefinition(
-  commandId: DraftEditorCommandId,
+  commandId: WorkbenchEditorCommandId,
 ) {
   return createWorkbenchEditorCommandDefinition(commandId);
 }

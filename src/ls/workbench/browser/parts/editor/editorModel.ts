@@ -17,6 +17,13 @@ import type {
   EditorTabInput,
   EditorPdfTabInput,
 } from 'ls/workbench/browser/parts/editor/editorInput';
+import {
+  createEditorDraftDirtyState,
+} from 'ls/workbench/browser/parts/editor/editorDraftDirtyState';
+import type {
+  EditorDraftSavedState,
+  EditorDraftSavedStateByInputId,
+} from 'ls/workbench/browser/parts/editor/editorDraftDirtyState';
 import { createEditorLiveDraftState } from 'ls/workbench/browser/parts/editor/editorLiveState';
 import { createEditorStorage } from 'ls/workbench/browser/parts/editor/editorStorage';
 import type { StoredWritingWorkspaceState } from 'ls/workbench/browser/parts/editor/editorStorage';
@@ -70,6 +77,7 @@ export type EditorModelSnapshot = {
   activeGroupId: string;
   groupId: string;
   tabs: EditorWorkspaceTab[];
+  dirtyDraftTabIds: string[];
   activeTabId: string | null;
   mruTabIds: string[];
   activeTab: EditorWorkspaceTab | null;
@@ -199,6 +207,40 @@ function normalizeStoredDraftStateByInputId(
   ) as Record<string, StoredDraftState>;
 }
 
+function normalizeStoredSavedDraftState(
+  value: unknown,
+): EditorDraftSavedState | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as Partial<EditorWorkspaceDraftTab>;
+  if (typeof candidate.title !== 'string') {
+    return null;
+  }
+
+  return {
+    title: candidate.title,
+    document: normalizeWritingEditorDocument(candidate.document),
+    viewMode: candidate.viewMode === 'draft' ? candidate.viewMode : 'draft',
+  };
+}
+
+function normalizeStoredSavedDraftStateByInputId(
+  value: StoredWritingWorkspaceState['savedDraftStateByInputId'],
+) {
+  if (!value || typeof value !== 'object') {
+    return {} as EditorDraftSavedStateByInputId;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([tabId, savedState]) => {
+      const normalizedSavedState = normalizeStoredSavedDraftState(savedState);
+      return normalizedSavedState ? [[tabId, normalizedSavedState]] : [];
+    }),
+  ) as EditorDraftSavedStateByInputId;
+}
+
 function createWorkspaceTabFromStoredInput(
   input: EditorTabInput,
   draftStateByInputId: Record<string, StoredDraftState>,
@@ -305,15 +347,24 @@ function migrateLegacyWorkspaceState(
 
 function readStoredWorkspaceState(
   storage = createEditorStorage(),
-): EditorWorkspaceState {
+): {
+  workspaceState: EditorWorkspaceState;
+  savedDraftStateByInputId: EditorDraftSavedStateByInputId;
+} {
   const rawWorkspace = storage.readWorkspaceState();
   if (!rawWorkspace) {
-    return migrateLegacyWorkspaceState(storage);
+    return {
+      workspaceState: migrateLegacyWorkspaceState(storage),
+      savedDraftStateByInputId: {},
+    };
   }
 
   try {
     const draftStateByInputId = normalizeStoredDraftStateByInputId(
       rawWorkspace.draftStateByInputId,
+    );
+    const savedDraftStateByInputId = normalizeStoredSavedDraftStateByInputId(
+      rawWorkspace.savedDraftStateByInputId,
     );
     const groups = Array.isArray(rawWorkspace.groups)
       ? rawWorkspace.groups.flatMap((group) => {
@@ -404,13 +455,19 @@ function readStoredWorkspaceState(
       rawWorkspace.viewStateEntries,
     );
 
-    return normalizeWorkspaceState({
-      groups,
-      activeGroupId,
-      viewStateEntries,
-    });
+    return {
+      workspaceState: normalizeWorkspaceState({
+        groups,
+        activeGroupId,
+        viewStateEntries,
+      }),
+      savedDraftStateByInputId,
+    };
   } catch {
-    return migrateLegacyWorkspaceState(storage);
+    return {
+      workspaceState: migrateLegacyWorkspaceState(storage),
+      savedDraftStateByInputId: {},
+    };
   }
 }
 
@@ -456,15 +513,20 @@ function hasDerivedContentTabTitle(tab: EditorWorkspaceContentTab) {
 
 function createEditorModelSnapshot(
   workspaceState: EditorWorkspaceState,
+  draftDirtyState: ReturnType<typeof createEditorDraftDirtyState>,
 ): EditorModelSnapshot {
   const activeGroup = resolveActiveGroup(workspaceState);
   const activeTab = resolveActiveTab(activeGroup);
+  const dirtyDraftTabIds = draftDirtyState.getDirtyDraftTabIds(
+    activeGroup.tabs,
+  );
 
   return {
     groups: workspaceState.groups,
     activeGroupId: activeGroup.groupId,
     groupId: activeGroup.groupId,
     tabs: activeGroup.tabs,
+    dirtyDraftTabIds,
     activeTabId: activeGroup.activeTabId,
     mruTabIds: activeGroup.mruTabIds,
     activeTab,
@@ -475,14 +537,25 @@ function createEditorModelSnapshot(
 export class EditorModel {
   private workspaceState: EditorWorkspaceState;
   private snapshot: EditorModelSnapshot;
+  private readonly draftDirtyState: ReturnType<typeof createEditorDraftDirtyState>;
   private readonly liveDraftState = createEditorLiveDraftState();
   private readonly storage = createEditorStorage();
   private listeners = new Set<EditorModelListener>();
 
-  constructor(initialState: EditorWorkspaceState = readStoredWorkspaceState()) {
+  constructor(
+    initialState: EditorWorkspaceState,
+    initialSavedDraftStateByInputId: EditorDraftSavedStateByInputId = {},
+  ) {
     this.workspaceState = normalizeWorkspaceState(initialState);
+    this.draftDirtyState = createEditorDraftDirtyState(
+      initialSavedDraftStateByInputId,
+    );
+    this.syncDraftDirtyState();
     this.syncLiveDraftState();
-    this.snapshot = createEditorModelSnapshot(this.workspaceState);
+    this.snapshot = createEditorModelSnapshot(
+      this.workspaceState,
+      this.draftDirtyState,
+    );
     this.storage.save(this.createPersistedState());
   }
 
@@ -496,6 +569,48 @@ export class EditorModel {
   readonly getSnapshot = () => this.snapshot;
   readonly getDraftBody = () => this.liveDraftState.getContextDraftBody();
   readonly getDraftDocument = () => this.liveDraftState.getActiveDraftDocument();
+  readonly isTabDirty = (tabId: string) =>
+    this.draftDirtyState.isTabDirty(tabId, this.snapshot.tabs);
+  readonly getDirtyDraftTabIds = (tabIds?: readonly string[]) => {
+    const tabs = tabIds
+      ? this.snapshot.tabs.filter((tab) => tabIds.includes(tab.id))
+      : this.snapshot.tabs;
+    return this.draftDirtyState.getDirtyDraftTabIds(tabs);
+  };
+  readonly canSaveActiveDraft = () => {
+    const activeTab = this.snapshot.activeTab;
+    return Boolean(activeTab && isEditorDraftTabInput(activeTab));
+  };
+  readonly saveDraftTab = (tabId: string) => {
+    if (!this.draftDirtyState.isTabDirty(tabId, this.snapshot.tabs)) {
+      return false;
+    }
+
+    const didSave = this.draftDirtyState.markTabSaved(tabId, this.snapshot.tabs);
+    if (!didSave) {
+      return false;
+    }
+
+    this.snapshot = createEditorModelSnapshot(
+      this.workspaceState,
+      this.draftDirtyState,
+    );
+    this.storage.save(this.createPersistedState());
+    this.emitChange();
+    return true;
+  };
+  readonly saveActiveDraft = () => {
+    const activeTab = this.snapshot.activeTab;
+    if (!activeTab || !isEditorDraftTabInput(activeTab)) {
+      return false;
+    }
+
+    if (!this.draftDirtyState.isTabDirty(activeTab.id, this.snapshot.tabs)) {
+      return true;
+    }
+
+    return this.saveDraftTab(activeTab.id);
+  };
 
   readonly createGroup = (
     options: {
@@ -812,8 +927,12 @@ export class EditorModel {
     options: { persist?: 'immediate' | 'debounced' } = {},
   ) {
     this.workspaceState = normalizeWorkspaceState(updater(this.workspaceState));
+    this.syncDraftDirtyState();
     this.syncLiveDraftState();
-    this.snapshot = createEditorModelSnapshot(this.workspaceState);
+    this.snapshot = createEditorModelSnapshot(
+      this.workspaceState,
+      this.draftDirtyState,
+    );
     if (options.persist === 'debounced') {
       this.storage.scheduleSave(this.createPersistedState());
     } else {
@@ -899,6 +1018,12 @@ export class EditorModel {
     });
   }
 
+  private syncDraftDirtyState() {
+    this.draftDirtyState.syncTabs(
+      this.workspaceState.groups.flatMap((group) => group.tabs),
+    );
+  }
+
   private createPersistedState() {
     const activeGroup = resolveActiveGroup(this.workspaceState);
     const activeTab = resolveActiveTab(activeGroup);
@@ -910,12 +1035,21 @@ export class EditorModel {
         viewStateEntries: this.workspaceState.viewStateEntries,
       },
       contextDraftTab: resolveContextDraftTab(activeGroup, activeTab),
+      savedDraftStateByInputId: this.draftDirtyState.getSavedStateByTabId(),
     };
   }
 }
 
 export function createEditorModel(
-  initialState: EditorWorkspaceState = readStoredWorkspaceState(),
+  initialState?: EditorWorkspaceState,
 ) {
-  return new EditorModel(initialState);
+  if (initialState) {
+    return new EditorModel(initialState);
+  }
+
+  const restoredState = readStoredWorkspaceState();
+  return new EditorModel(
+    restoredState.workspaceState,
+    restoredState.savedDraftStateByInputId,
+  );
 }

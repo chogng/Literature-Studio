@@ -303,6 +303,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   private readonly editorRootElement = createElement('div', 'pm-editor-root');
   private readonly scrollableElement: DomScrollableElement;
   private readonly toolbar: DraftEditorToolbar;
+  private readonly disposeDraftStyleStoreSubscription: () => void;
   private view: EditorView | null = null;
   // The workbench can rerender before the writing model echoes the latest local document back.
   private readonly inputSession = new WritingEditorInputSession({
@@ -319,9 +320,9 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   constructor(props: WritingEditorSurfaceProps) {
     this.props = props;
     this.toolbar = new DraftEditorToolbar(this.createToolbarProps());
-    this.editorRootElement.style.setProperty(
-      '--ls-editor-default-font-size',
-      editorDraftStyleStore.getSnapshot().defaultFontSizeValue,
+    this.applyDraftStyleSnapshot();
+    this.disposeDraftStyleStoreSubscription = editorDraftStyleStore.subscribe(
+      this.handleDraftStyleStoreChange,
     );
     this.hostWrapperElement.append(this.editorRootElement);
     this.scrollableElement = new DomScrollableElement(this.hostWrapperElement, {
@@ -376,6 +377,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
   }
 
   dispose() {
+    this.disposeDraftStyleStoreSubscription();
     this.inputSession.dispose();
     this.destroyView();
     this.toolbar.dispose();
@@ -579,6 +581,13 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
           this.props.onInsertFigureRef(this.snapshot.toolbarState.availableFigureIds),
       },
     };
+  }
+
+  private applyDraftStyleSnapshot() {
+    this.editorRootElement.style.setProperty(
+      '--ls-editor-default-font-size',
+      editorDraftStyleStore.getSnapshot().defaultFontSizeValue,
+    );
   }
 
   private runCommand(command: WritingEditorCommand) {
@@ -786,7 +795,12 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
 
   private readonly handleFocus = () => {
     this.inputSession.handleFocus();
-  }
+  };
+
+  private readonly handleDraftStyleStoreChange = () => {
+    this.applyDraftStyleSnapshot();
+    this.toolbar.setProps(this.createToolbarProps());
+  };
 }
 
 export function createProseMirrorEditor(props: WritingEditorSurfaceProps) {

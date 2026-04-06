@@ -187,6 +187,14 @@ const en = {
   editorTabContextRename: 'Rename',
   editorTabRenameTitle: 'Rename Tab',
   editorTabRenameLabel: 'Tab name',
+  editorSaveDraft: 'Save Draft',
+  editorUnsavedChangesTitle: 'Unsaved Changes',
+  editorUnsavedChangesMessageSingle:
+    'Do you want to save changes to "{title}" before closing?',
+  editorUnsavedChangesMessageMultiple:
+    'Do you want to save changes to {count} draft tabs before closing?',
+  editorUnsavedChangesSave: 'Save',
+  editorUnsavedChangesDiscard: "Don't Save",
   editorEmptyWorkspaceTitle: 'No editor is open yet',
   editorEmptyWorkspaceBody:
     'This area is the editor workspace. Create a draft tab first, or use the URL flow above to open source or PDF web content.',

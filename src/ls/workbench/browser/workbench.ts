@@ -557,6 +557,7 @@ class WorkbenchHost {
   private readonly sidebarTopbarActionsView = new SidebarTopbarActionsView();
   private readonly primaryBarFooterActionsView = new PrimaryBarFooterActionsView();
   private settingsView: ReturnType<typeof createSettingsPartView> | null = null;
+  private editorPartController: EditorPartModel | null = null;
   private readonly globalDisposables: Array<() => void> = [];
   private webContentStateDisposable: (() => void) | null = null;
   private servicesSubscribed = false;
@@ -635,6 +636,7 @@ class WorkbenchHost {
     this.primaryBarFooterActionsView.dispose();
     this.settingsView?.dispose();
     this.settingsView = null;
+    this.editorPartController = null;
     this.toastHost.dispose();
     this.rootElement.replaceChildren();
   }
@@ -857,7 +859,7 @@ class WorkbenchHost {
 
   private createContentAwareEditorPartProps(params: {
     activateTab: (tabId: string) => void;
-    closeTab: (tabId: string) => void;
+    closeTab: (tabId: string) => Promise<boolean> | boolean;
     editorPartProps: EditorPartProps;
   }) {
     const {
@@ -872,7 +874,7 @@ class WorkbenchHost {
         activateTab(tabId);
       },
       onCloseTab: (tabId: string) => {
-        closeTab(tabId);
+        return closeTab(tabId);
       },
     };
   }
@@ -924,6 +926,10 @@ class WorkbenchHost {
         this.workbenchContentPartViews?.canExecuteActiveDraftCommand(commandId) ?? false,
       getActiveDraftStableSelectionTarget: () =>
         this.workbenchContentPartViews?.getActiveDraftStableSelectionTarget() ?? null,
+      saveActiveDraft: () =>
+        this.editorPartController?.saveActiveDraft() ?? false,
+      canSaveActiveDraft: () =>
+        this.editorPartController?.canSaveActiveDraft() ?? false,
     });
   }
 
@@ -1227,6 +1233,7 @@ class WorkbenchHost {
       browserUrl,
       webUrl,
     });
+    this.editorPartController = editorPartControllerInstance;
     const editorPartSnapshot = editorPartControllerInstance.getSnapshot();
     const {
       tabs: editorTabs,

@@ -12,7 +12,10 @@ import { preparePdfDownload } from 'ls/workbench/services/document/documentActio
 import { createEditorModel } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { EditorModelSnapshot, EditorWorkspaceTab, WritingEditorDocument } from 'ls/workbench/browser/parts/editor/editorModel';
 
-import { showWorkbenchTextInputModal } from 'ls/workbench/browser/workbenchEditorModals';
+import {
+  showWorkbenchSaveConfirmModal,
+  showWorkbenchTextInputModal,
+} from 'ls/workbench/browser/workbenchEditorModals';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
 import type { EditorViewStateKey } from 'ls/workbench/browser/parts/editor/editorViewStateStore';
@@ -23,6 +26,7 @@ export type EditorPartState = {
   viewPartProps: ViewPartProps;
   groupId: string;
   tabs: EditorWorkspaceTab[];
+  dirtyDraftTabIds: readonly string[];
   activeTabId: string | null;
   activeTab: EditorWorkspaceTab | null;
   viewStateEntries: SerializedEditorViewStateEntry[];
@@ -30,9 +34,9 @@ export type EditorPartState = {
 
 export type EditorPartActions = {
   onActivateTab: (tabId: string) => void;
-  onCloseTab: (tabId: string) => void;
-  onCloseOtherTabs: (tabId: string) => void;
-  onCloseAllTabs: () => void;
+  onCloseTab: (tabId: string) => Promise<boolean>;
+  onCloseOtherTabs: (tabId: string) => Promise<boolean>;
+  onCloseAllTabs: () => Promise<boolean>;
   onRenameTab: (tabId: string) => void | Promise<void>;
   onCreateDraftTab: () => void;
   onCreateBrowserTab: () => void;
@@ -52,7 +56,12 @@ export type EditorPartControllerContext = {
 
 export type EditorPartControllerSnapshot = Pick<
   EditorModelSnapshot,
-  'groupId' | 'tabs' | 'activeTabId' | 'activeTab' | 'viewStateEntries'
+  | 'groupId'
+  | 'tabs'
+  | 'dirtyDraftTabIds'
+  | 'activeTabId'
+  | 'activeTab'
+  | 'viewStateEntries'
 > & {
   draftBody: string;
   webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
@@ -75,6 +84,7 @@ function createEditorPartStructureKey(snapshot: EditorPartControllerSnapshot) {
   return JSON.stringify({
     groupId: snapshot.groupId,
     tabs: snapshot.tabs.map(toStructuralWorkspaceTab),
+    dirtyDraftTabIds: [...snapshot.editorPartProps.dirtyDraftTabIds].sort(),
     activeTabId: snapshot.activeTabId,
     activeTab: snapshot.activeTab ? toStructuralWorkspaceTab(snapshot.activeTab) : null,
     webContentSurfaceSnapshot: snapshot.webContentSurfaceSnapshot,
@@ -87,6 +97,7 @@ export function createEditorPartProps({
     viewPartProps,
     groupId,
     tabs,
+    dirtyDraftTabIds,
     activeTabId,
     activeTab,
     viewStateEntries,
@@ -189,6 +200,7 @@ export function createEditorPartProps({
     viewPartProps,
     groupId,
     tabs,
+    dirtyDraftTabIds,
     activeTabId,
     activeTab,
     viewStateEntries,
@@ -239,13 +251,21 @@ function createEditorPartControllerSnapshot(
 ): EditorPartControllerSnapshot {
   const editorSnapshot = editorModel.getSnapshot();
   const { ui, viewPartProps } = context;
-  const { groupId, tabs, activeTabId, activeTab, viewStateEntries } = editorSnapshot;
+  const {
+    groupId,
+    tabs,
+    dirtyDraftTabIds,
+    activeTabId,
+    activeTab,
+    viewStateEntries,
+  } = editorSnapshot;
   const draftBody = editorModel.getDraftBody();
   const webContentSurfaceSnapshot = createWebContentSurfaceSnapshot(activeTab);
 
   return {
     groupId,
     tabs,
+    dirtyDraftTabIds,
     activeTabId,
     activeTab,
     viewStateEntries,
@@ -257,6 +277,7 @@ function createEditorPartControllerSnapshot(
         viewPartProps,
         groupId,
         tabs,
+        dirtyDraftTabIds,
         activeTabId,
         activeTab,
         viewStateEntries,
@@ -377,6 +398,10 @@ export class EditorPartController {
     this.editorModel.createPdfTab(url);
   };
 
+  readonly canSaveActiveDraft = () => this.editorModel.canSaveActiveDraft();
+
+  readonly saveActiveDraft = () => this.editorModel.saveActiveDraft();
+
   readonly updateActiveContentTabUrl = (url: string) => {
     this.editorModel.updateActiveContentTabUrl(url);
   };
@@ -400,16 +425,39 @@ export class EditorPartController {
     this.editorModel.activateTab(tabId);
   };
 
-  readonly onCloseTab = (tabId: string) => {
+  readonly onCloseTab = async (tabId: string) => {
+    const didConfirm = await this.confirmCloseForTabIds([tabId]);
+    if (!didConfirm) {
+      return false;
+    }
+
     this.editorModel.closeTab(tabId);
+    return true;
   };
 
-  readonly onCloseOtherTabs = (tabId: string) => {
+  readonly onCloseOtherTabs = async (tabId: string) => {
+    const tabsToClose = this.editorModel
+      .getSnapshot()
+      .tabs.filter((tab) => tab.id !== tabId)
+      .map((tab) => tab.id);
+    const didConfirm = await this.confirmCloseForTabIds(tabsToClose);
+    if (!didConfirm) {
+      return false;
+    }
+
     this.editorModel.closeOtherTabs(tabId);
+    return true;
   };
 
-  readonly onCloseAllTabs = () => {
+  readonly onCloseAllTabs = async () => {
+    const tabsToClose = this.editorModel.getSnapshot().tabs.map((tab) => tab.id);
+    const didConfirm = await this.confirmCloseForTabIds(tabsToClose);
+    if (!didConfirm) {
+      return false;
+    }
+
     this.editorModel.closeAllTabs();
+    return true;
   };
 
   readonly onRenameTab = async (tabId: string) => {
@@ -467,6 +515,54 @@ export class EditorPartController {
 
   private readonly handleCreateBrowserTab = () => {
     this.createOrRevealEmptyBrowserTab();
+  };
+
+  private readonly confirmCloseForTabIds = async (tabIds: readonly string[]) => {
+    if (tabIds.length === 0) {
+      return true;
+    }
+
+    const dirtyDraftTabIds = this.editorModel.getDirtyDraftTabIds(tabIds);
+    if (dirtyDraftTabIds.length === 0) {
+      return true;
+    }
+
+    const { ui } = this.context;
+    const dirtyTabs = this.editorModel
+      .getSnapshot()
+      .tabs.filter(
+        (tab): tab is Extract<EditorWorkspaceTab, { kind: 'draft' }> =>
+          tab.kind === 'draft' && dirtyDraftTabIds.includes(tab.id),
+      );
+    const firstDirtyTitle =
+      dirtyTabs[0]?.title.trim() || ui.editorDraftMode;
+    const confirmation = await showWorkbenchSaveConfirmModal({
+      title: ui.editorUnsavedChangesTitle,
+      message:
+        dirtyDraftTabIds.length === 1
+          ? ui.editorUnsavedChangesMessageSingle.replace('{title}', firstDirtyTitle)
+          : ui.editorUnsavedChangesMessageMultiple.replace(
+              '{count}',
+              String(dirtyDraftTabIds.length),
+            ),
+      saveLabel: ui.editorUnsavedChangesSave,
+      discardLabel: ui.editorUnsavedChangesDiscard,
+      cancelLabel: ui.editorModalCancel,
+      closeLabel: ui.toastClose,
+    });
+
+    switch (confirmation) {
+      case 'save':
+        for (const dirtyTabId of dirtyDraftTabIds) {
+          this.editorModel.saveDraftTab(dirtyTabId);
+        }
+        return true;
+      case 'discard':
+        return true;
+      case 'cancel':
+      default:
+        return false;
+    }
   };
 
   private emitChange(reason: EditorPartChangeReason) {

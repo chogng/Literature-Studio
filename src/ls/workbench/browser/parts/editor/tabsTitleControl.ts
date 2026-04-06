@@ -78,6 +78,15 @@ function isTabClosable(tab: Pick<EditorGroupTabItem, 'targetTabId' | 'state'>) {
   return Boolean(tab.targetTabId && tab.state.isClosable);
 }
 
+function createDirtyCloseButtonContent() {
+  const container = createElement('span', 'editor-tab-dirty-close-icon');
+  container.append(
+    createLxIcon('unsave', 'editor-tab-close-icon-unsave'),
+    createLxIcon('close', 'editor-tab-close-icon-close'),
+  );
+  return container;
+}
+
 export class TabsTitleControl extends TitleControl {
   private readonly disposables = new LifecycleStore();
   private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
@@ -226,6 +235,7 @@ export class TabsTitleControl extends TitleControl {
     const closable = isTabClosable(tab);
     tabView.element.classList.toggle('is-active', tab.state.isActive);
     tabView.element.classList.toggle('is-closable', closable);
+    tabView.element.classList.toggle('is-dirty', tab.state.isDirty);
     tabView.element.classList.toggle(
       'has-local-history',
       tab.state.hasLocalHistory,
@@ -233,6 +243,7 @@ export class TabsTitleControl extends TitleControl {
     tabView.element.classList.toggle('has-title', Boolean(tab.label.trim()));
     tabView.element.classList.toggle('is-available', Boolean(tab.targetTabId));
     tabView.element.dataset.paneMode = tab.paneMode;
+    tabView.element.dataset.isDirty = String(tab.state.isDirty);
     tabView.element.dataset.hasLocalHistory = String(tab.state.hasLocalHistory);
     tabView.element.dataset.tabId = tab.id;
 
@@ -269,10 +280,12 @@ export class TabsTitleControl extends TitleControl {
               title: this.props.labels.close,
               mode: 'icon',
               buttonClassName: 'editor-tab-close-btn',
-              content: createLxIcon('close'),
+              content: tab.state.isDirty
+                ? createDirtyCloseButtonContent()
+                : createLxIcon('close'),
               onClick: (event) => {
                 event.stopPropagation();
-                this.props.onCloseTab(tab.targetTabId!);
+                void this.props.onCloseTab(tab.targetTabId!);
               },
             },
           ]
@@ -337,13 +350,13 @@ export class TabsTitleControl extends TitleControl {
       onSelect: (value) => {
         switch (value) {
           case 'close':
-            this.props.onCloseTab(tab.targetTabId!);
+            void this.props.onCloseTab(tab.targetTabId!);
             break;
           case 'close-others':
-            this.props.onCloseOtherTabs?.(tab.targetTabId!);
+            void this.props.onCloseOtherTabs?.(tab.targetTabId!);
             break;
           case 'close-all':
-            this.props.onCloseAllTabs?.();
+            void this.props.onCloseAllTabs?.();
             break;
           case 'rename':
             void this.props.onRenameTab?.(tab.targetTabId!);

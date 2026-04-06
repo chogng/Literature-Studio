@@ -75,7 +75,7 @@
   color: var(--ls-menu-selected-fg);
 
 }
-
+/* 作用域改法，会影响overflow菜单的样式，暂时不改了 */
 .ls-menu[data-menu^='draft-toolbar-'] {
   --ls-menu-selected-bg: transparent;
   --ls-menu-selected-fg: var(--vscode-menu-itemForeground, #304357);

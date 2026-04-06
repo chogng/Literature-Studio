@@ -7,17 +7,24 @@ import {
 
 import { showWorkbenchEditorCommandPalette } from 'ls/workbench/browser/workbenchEditorPalette';
 
-function isEditableEventTarget(target: EventTarget | null) {
+function isFormControlEventTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
     return false;
   }
 
-  if (target.isContentEditable) {
-    return true;
-  }
-
   const tagName = target.tagName.toLowerCase();
   return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+}
+
+function isContentEditableEventTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement && target.isContentEditable;
+}
+
+function isEditableEventTarget(target: EventTarget | null) {
+  return (
+    isFormControlEventTarget(target) ||
+    isContentEditableEventTarget(target)
+  );
 }
 
 function hasPrimaryModifier(event: KeyboardEvent) {
@@ -25,7 +32,34 @@ function hasPrimaryModifier(event: KeyboardEvent) {
 }
 
 export function handleWorkbenchEditorShortcut(event: KeyboardEvent) {
-  if (event.defaultPrevented || isEditableEventTarget(event.target)) {
+  if (event.defaultPrevented) {
+    return false;
+  }
+
+  if (
+    hasPrimaryModifier(event) &&
+    !event.shiftKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === 's'
+  ) {
+    if (isFormControlEventTarget(event.target)) {
+      return false;
+    }
+
+    if (!canExecuteWorkbenchEditorCommand('saveDraft')) {
+      return false;
+    }
+
+    const handled = executeWorkbenchEditorCommand('saveDraft');
+    if (!handled) {
+      return false;
+    }
+
+    event.preventDefault();
+    return true;
+  }
+
+  if (isEditableEventTarget(event.target)) {
     return false;
   }
 

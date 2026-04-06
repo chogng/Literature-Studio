@@ -91,6 +91,75 @@ export function showWorkbenchTextInputModal(params: {
   });
 }
 
+export function showWorkbenchSaveConfirmModal(params: {
+  title: string;
+  message: string;
+  saveLabel: string;
+  discardLabel: string;
+  cancelLabel: string;
+  closeLabel: string;
+}): Promise<'save' | 'discard' | 'cancel'> {
+  return new Promise((resolve) => {
+    const hoverService = getHoverService();
+    const body = createElement('div', 'workbench-editor-modal-body');
+    const message = createElement(
+      'p',
+      'workbench-editor-confirm-message',
+      params.message,
+    );
+    const actions = createElement('div', 'workbench-editor-modal-actions');
+    const cancelButton = createElement(
+      'button',
+      'btn-base btn-secondary btn-md',
+      params.cancelLabel,
+    ) as HTMLButtonElement;
+    const discardButton = createElement(
+      'button',
+      'btn-base btn-secondary btn-md',
+      params.discardLabel,
+    ) as HTMLButtonElement;
+    const saveButton = createElement(
+      'button',
+      'btn-base btn-primary btn-md',
+      params.saveLabel,
+    ) as HTMLButtonElement;
+
+    let resolved = false;
+    const finish = (value: 'save' | 'discard' | 'cancel') => {
+      if (resolved) {
+        return;
+      }
+
+      resolved = true;
+      modal.dispose();
+      resolve(value);
+    };
+
+    cancelButton.type = 'button';
+    discardButton.type = 'button';
+    saveButton.type = 'button';
+    cancelButton.addEventListener('click', () => finish('cancel'));
+    discardButton.addEventListener('click', () => finish('discard'));
+    saveButton.addEventListener('click', () => finish('save'));
+
+    actions.append(cancelButton, discardButton, saveButton);
+    body.append(message, actions);
+
+    const modal = createModalView({
+      open: true,
+      title: params.title,
+      content: body,
+      closeLabel: params.closeLabel,
+      onClose: () => finish('cancel'),
+      panelClassName: 'workbench-editor-modal-panel',
+      hoverService,
+    });
+
+    modal.open();
+    queueMicrotask(() => saveButton.focus());
+  });
+}
+
 export function showWorkbenchCommandPaletteModal(params: {
   title: string;
   ui: LocaleMessages;

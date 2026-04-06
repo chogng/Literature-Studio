@@ -187,6 +187,13 @@ const zh = {
   editorTabContextRename: '重命名',
   editorTabRenameTitle: '重命名标签',
   editorTabRenameLabel: '标签名称',
+  editorSaveDraft: '保存草稿',
+  editorUnsavedChangesTitle: '未保存更改',
+  editorUnsavedChangesMessageSingle: '关闭前是否保存“{title}”的更改？',
+  editorUnsavedChangesMessageMultiple:
+    '关闭前是否保存 {count} 个草稿标签的更改？',
+  editorUnsavedChangesSave: '保存',
+  editorUnsavedChangesDiscard: '不保存',
   editorEmptyWorkspaceTitle: '还没有打开任何编辑器',
   editorEmptyWorkspaceBody:
     '这里是编辑工作区。先新建一个写作标签，或者通过上方链接流程打开来源 / PDF 预览。',

@@ -561,6 +561,7 @@ function createWorkbenchLayoutViewProps() {
       },
       groupId: DEFAULT_EDITOR_GROUP_ID,
       tabs: [],
+      dirtyDraftTabIds: [],
       activeTabId: null,
       activeTab: null,
       viewStateEntries: [],

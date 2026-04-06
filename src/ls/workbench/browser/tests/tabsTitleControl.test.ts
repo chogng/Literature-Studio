@@ -41,6 +41,7 @@ function createTabItem(
     paneMode?: EditorGroupTabItem['paneMode'];
     isActive?: boolean;
     isClosable?: boolean;
+    isDirty?: boolean;
     hasLocalHistory?: boolean;
     targetTabId?: string | null;
   },
@@ -67,6 +68,7 @@ function createTabItem(
     state: {
       isActive: Boolean(tab.isActive),
       isClosable: Boolean(tab.isClosable),
+      isDirty: Boolean(tab.isDirty),
       hasLocalHistory: Boolean(tab.hasLocalHistory),
       canUndo: Boolean(tab.hasLocalHistory),
       canRedo: false,
@@ -282,6 +284,7 @@ test('createEditorGroupModel always returns three fixed tabs and prefers the act
     },
     labels: editorLabels,
     draftStatusByTabId: {},
+    dirtyDraftTabIds: [],
   });
 
   assert.deepEqual(
@@ -313,6 +316,7 @@ test('createEditorGroupModel keeps an untitled browser tab icon-only while prese
     },
     labels: editorLabels,
     draftStatusByTabId: {},
+    dirtyDraftTabIds: [],
   });
 
   assert.equal(model.tabs[1]?.targetTabId, 'browser-a');
@@ -431,6 +435,61 @@ test('TabsTitleControl uses file-pdf for inactive pdf tabs and pdf for the activ
   control.dispose();
 });
 
+test('TabsTitleControl renders unsave for dirty closable tabs and close for clean tabs', () => {
+  const control = new TabsTitleControl({
+    group: createGroupModel('draft-a', [
+      createTabItem({
+        id: 'draft-a',
+        kind: 'draft',
+        label: 'Draft A',
+        title: 'Draft A',
+        isActive: true,
+        isClosable: true,
+        isDirty: true,
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+  const container = control.getElement();
+  document.body.append(container);
+
+  const getCloseActionIcon = () =>
+    container.children[0]?.querySelector('.editor-tab-close-btn.actionbar-action .lx-icon');
+
+  assert.equal(getCloseActionIcon()?.classList.contains('lx-icon-unsave'), true);
+  assert.equal(getCloseActionIcon()?.classList.contains('lx-icon-close'), false);
+
+  control.setProps({
+    group: createGroupModel('draft-a', [
+      createTabItem({
+        id: 'draft-a',
+        kind: 'draft',
+        label: 'Draft A',
+        title: 'Draft A',
+        isActive: true,
+        isClosable: true,
+        isDirty: false,
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+
+  assert.equal(getCloseActionIcon()?.classList.contains('lx-icon-unsave'), false);
+  assert.equal(getCloseActionIcon()?.classList.contains('lx-icon-close'), true);
+
+  control.dispose();
+});
+
 test('TabsTitleControl reveals the active tab when the strip overflows', async () => {
   const control = new TabsTitleControl({
     group: createGroupModel('draft-a', [
@@ -510,6 +569,7 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
         kind: 'browser',
         label: 'Web B',
         title: 'Web B',
+        isDirty: true,
         hasLocalHistory: true,
       }),
       createTabItem({
@@ -533,6 +593,8 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
   assert.equal(scrollLeft, 176);
   assert.equal(container.classList.contains('is-overflowing'), true);
   assert.equal(container.classList.contains('is-scroll-end'), true);
+  assert.equal(secondTab.classList.contains('is-dirty'), true);
+  assert.equal(secondTab.getAttribute('data-is-dirty'), 'true');
   assert.equal(secondTab.classList.contains('has-local-history'), true);
 
   control.dispose();

@@ -4,6 +4,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { ScrollbarVisibility } from 'ls/base/browser/ui/scrollbar/scrollableElementOptions';
 import { createEmptyWritingEditorDocument, createWritingEditorDocumentFromPlainText, writingEditorDocumentToPlainText } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
+import { getEditorDraftStyleCatalogSnapshot } from 'ls/editor/browser/text/editorDraftStyleCatalog';
+import { editorDraftStyleStore } from 'ls/editor/browser/text/editorDraftStyleStore';
 
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 
@@ -475,6 +477,46 @@ test('DraftEditorToolbar orders Chinese named font-size presets from large to sm
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();
+  }
+});
+
+test('ProseMirrorEditor syncs default font-size from editorDraftStyleStore', async () => {
+  editorDraftStyleStore.resetToCatalog();
+  const catalogSnapshot = getEditorDraftStyleCatalogSnapshot();
+  const updatedSnapshot = {
+    ...catalogSnapshot,
+    defaultFontSizePresetName: '小四' as const,
+    defaultFontSizeValue: '16px',
+  };
+
+  try {
+    await withEditor(({ editor }) => {
+      const editorRoot = editor.getElement().querySelector('.pm-editor-root');
+      assert(editorRoot instanceof HTMLElement);
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-font-size').trim(),
+        catalogSnapshot.defaultFontSizeValue,
+      );
+
+      editorDraftStyleStore.setSnapshot(updatedSnapshot);
+
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-font-size').trim(),
+        updatedSnapshot.defaultFontSizeValue,
+      );
+
+      const fontSizePrimary = Array.from(
+        editor.getToolbarElement().querySelectorAll<HTMLButtonElement>(
+          '.editor-draft-toolbar-split-primary.actionbar-action.is-text',
+        ),
+      ).find(
+        (candidate) => candidate.getAttribute('aria-label') === updatedSnapshot.defaultFontSizePresetName,
+      );
+      assert(fontSizePrimary instanceof HTMLButtonElement);
+      assert.equal(fontSizePrimary.textContent?.trim(), updatedSnapshot.defaultFontSizePresetName);
+    });
+  } finally {
+    editorDraftStyleStore.resetToCatalog();
   }
 });
 

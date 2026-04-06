@@ -468,3 +468,89 @@ test('editor model can close other tabs, rename a tab, preserve a custom title, 
     model.dispose();
   }
 });
+
+test('editor model tracks dirty draft tabs against explicit save checkpoints', () => {
+  const model = createEditorModel({
+    groups: [
+      {
+        groupId: DEFAULT_EDITOR_GROUP_ID,
+        tabs: [
+          {
+            id: 'draft-a',
+            kind: 'draft',
+            title: 'Draft A',
+            document: createWritingEditorDocumentFromPlainText('alpha'),
+            viewMode: 'draft',
+          },
+        ],
+        activeTabId: 'draft-a',
+        mruTabIds: ['draft-a'],
+      },
+    ],
+    activeGroupId: DEFAULT_EDITOR_GROUP_ID,
+    viewStateEntries: [],
+  });
+
+  try {
+    assert.deepEqual(model.getSnapshot().dirtyDraftTabIds, []);
+    assert.equal(model.canSaveActiveDraft(), true);
+
+    model.setDraftDocument(createWritingEditorDocumentFromPlainText('beta'));
+    assert.deepEqual(model.getSnapshot().dirtyDraftTabIds, ['draft-a']);
+    assert.equal(model.canSaveActiveDraft(), true);
+
+    const didSave = model.saveActiveDraft();
+    assert.equal(didSave, true);
+    assert.deepEqual(model.getSnapshot().dirtyDraftTabIds, []);
+    assert.equal(model.canSaveActiveDraft(), true);
+  } finally {
+    model.dispose();
+  }
+});
+
+test('editor model restores saved draft checkpoints from persisted workspace state', () => {
+  const localStorage = createLocalStorage({
+    'ls.writingWorkspace.state': JSON.stringify({
+      groups: [
+        {
+          groupId: 'editor-group-a',
+          inputs: [
+            {
+              id: 'draft-a',
+              kind: 'draft',
+              title: 'Draft A',
+              viewMode: 'draft',
+            },
+          ],
+          activeTabId: 'draft-a',
+          mruTabIds: ['draft-a'],
+        },
+      ],
+      activeGroupId: 'editor-group-a',
+      draftStateByInputId: {
+        'draft-a': {
+          title: 'Draft A',
+          viewMode: 'draft',
+          document: createWritingEditorDocumentFromPlainText('changed'),
+        },
+      },
+      savedDraftStateByInputId: {
+        'draft-a': {
+          title: 'Draft A',
+          viewMode: 'draft',
+          document: createWritingEditorDocumentFromPlainText('saved'),
+        },
+      },
+      viewStateEntries: [],
+    }),
+  });
+  const restoreWindow = installMockWindow(localStorage);
+
+  try {
+    const model = createEditorModel();
+    assert.deepEqual(model.getSnapshot().dirtyDraftTabIds, ['draft-a']);
+    model.dispose();
+  } finally {
+    restoreWindow();
+  }
+});

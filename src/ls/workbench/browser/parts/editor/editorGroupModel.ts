@@ -17,6 +17,7 @@ import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorP
 export type EditorGroupTabState = {
   isActive: boolean;
   isClosable: boolean;
+  isDirty: boolean;
   hasLocalHistory: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -153,14 +154,17 @@ export function createEditorGroupModel({
   activeTab,
   labels,
   draftStatusByTabId,
+  dirtyDraftTabIds,
 }: {
   tabs: EditorWorkspaceTab[];
   activeTabId: string | null;
   activeTab: EditorWorkspaceTab | null;
   labels: EditorPartLabels;
   draftStatusByTabId: Record<string, DraftEditorStatusState>;
+  dirtyDraftTabIds: readonly string[];
 }): EditorGroupModel {
   const activePaneMode = activeTab ? getEditorPaneMode(activeTab) : null;
+  const dirtyDraftTabIdSet = new Set(dirtyDraftTabIds);
   const draftTabIds = tabs
     .filter((tab) => isEditorDraftTabInput(tab))
     .map((tab) => tab.id);
@@ -173,6 +177,9 @@ export function createEditorGroupModel({
       : undefined;
     const canUndo = Boolean(draftStatus?.canUndo);
     const canRedo = Boolean(draftStatus?.canRedo);
+    const isDirty = isEditorDraftTabInput(tab)
+      ? dirtyDraftTabIdSet.has(tab.id)
+      : false;
 
     return {
       id: tab.id,
@@ -182,7 +189,8 @@ export function createEditorGroupModel({
       title: getTabDisplayTitle(tab, labels, label),
       state: {
         isActive: tab.id === activeTabId,
-        isClosable: false,
+        isClosable: true,
+        isDirty,
         hasLocalHistory: canUndo || canRedo,
         canUndo,
         canRedo,
@@ -209,7 +217,8 @@ export function createEditorGroupModel({
         targetTabId: representativeTab?.id ?? null,
         state: {
           isActive: activePaneMode === paneMode,
-          isClosable: false,
+          isClosable: Boolean(representativeTab?.id),
+          isDirty: representativeTab?.state.isDirty ?? false,
           hasLocalHistory: representativeTab?.state.hasLocalHistory ?? false,
           canUndo: representativeTab?.state.canUndo ?? false,
           canRedo: representativeTab?.state.canRedo ?? false,
