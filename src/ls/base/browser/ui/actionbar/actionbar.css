@@ -1,6 +1,4 @@
 .actionbar {
-  --ls-actionbar-item-size: 24px;
-  --ls-actionbar-icon-size: 16px;
   --ls-actionbar-gap: 2px;
   --ls-actionbar-radius: 6px;
   --ls-actionbar-foreground: #425468;
@@ -57,21 +55,8 @@
     opacity 0.15s ease;
 }
 
-.actionbar-action.is-icon {
-  width: var(--ls-actionbar-item-size);
-  min-width: var(--ls-actionbar-item-size);
-  max-width: var(--ls-actionbar-item-size);
-  height: var(--ls-actionbar-item-size);
-  aspect-ratio: 1 / 1;
-}
-
-.actionbar-action.is-text,
-.actionbar-action.is-custom {
-  min-height: var(--ls-actionbar-item-size);
-}
-
 .actionbar-action.is-text {
-  padding: 0 8px;
+  padding: 0 4px;
 }
 
 .actionbar-action:hover:not(:disabled) {
@@ -112,13 +97,6 @@
 .actionbar-action.is-icon .actionbar-content,
 .actionbar-action.is-custom .actionbar-content {
   line-height: 0;
-}
-
-.actionbar-action.is-icon .lx-icon,
-.actionbar-action.is-custom .lx-icon {
-  font-size: var(--ls-actionbar-icon-size);
-  width: var(--ls-actionbar-icon-size);
-  height: var(--ls-actionbar-icon-size);
 }
 
 .actionbar-action.is-icon .lx-icon svg,
@@ -168,6 +146,16 @@
 
 .actionbar-split .actionbar-action {
   height: 100%;
+}
+
+.actionbar-split > .actionbar-item:first-child .actionbar-action {
+  padding: 0 4px;
+  border-radius: var(--ls-actionbar-radius) 0 0 var(--ls-actionbar-radius);
+}
+
+.actionbar-split > .actionbar-item:last-child .actionbar-action {
+  padding: 0;
+  border-radius: 0 var(--ls-actionbar-radius) var(--ls-actionbar-radius) 0;
 }
 
 .actionbar-separator {

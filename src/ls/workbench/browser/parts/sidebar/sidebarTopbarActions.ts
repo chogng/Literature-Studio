@@ -1,14 +1,14 @@
 import { createActionBarView, type ActionBarItem } from 'ls/base/browser/ui/actionbar/actionbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import { requestFocusTitlebarWebUrlInput } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 
 import 'ls/workbench/browser/parts/sidebar/media/sidebarTopbarActions.css';
 
 export type SidebarTopbarActionsProps = {
   isPrimarySidebarVisible?: boolean;
   primarySidebarToggleLabel?: string;
-  commandPaletteLabel?: string;
+  addressBarLabel?: string;
   onTogglePrimarySidebar?: () => void;
+  onFocusAddressBar?: () => void;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -56,14 +56,14 @@ export class SidebarTopbarActionsView {
         onClick: () => props.onTogglePrimarySidebar?.(),
       });
     }
-    if (props.commandPaletteLabel) {
+    if (props.addressBarLabel) {
       topbarItems.push({
-        label: props.commandPaletteLabel,
-        title: props.commandPaletteLabel,
+        label: props.addressBarLabel,
+        title: props.addressBarLabel,
         mode: 'icon',
         buttonClassName: 'sidebar-topbar-search-btn',
         content: createLxIcon('search'),
-        onClick: requestFocusTitlebarWebUrlInput,
+        onClick: () => props.onFocusAddressBar?.(),
       });
     }
 

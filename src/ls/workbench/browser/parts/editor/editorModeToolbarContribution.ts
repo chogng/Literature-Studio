@@ -37,6 +37,6 @@ export interface EditorModeToolbarContribution {
   readonly mode: EditorModeToolbarKind;
   getElement(): HTMLElement;
   setContext(context: EditorModeToolbarContributionContext): void;
+  focusPrimaryInput?(): void;
   dispose(): void;
 }
-

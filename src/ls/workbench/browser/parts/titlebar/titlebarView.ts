@@ -1,4 +1,4 @@
-import type { QuickAccessSourceOption } from 'ls/workbench/services/quickAccess/quickAccessService';
+// LEGACY: retained only as a compatibility implementation while titlebar code is retired.
 import {
   createActionBarView,
   type ActionBarItem,
@@ -13,17 +13,13 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { getHoverService } from 'ls/base/browser/ui/hover/hover';
-import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { getWindowChromeLayout } from 'ls/platform/window/common/window';
-import { createTitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/titlebarSourceDropdownView';
-import type { TitlebarSourceDropdownView } from 'ls/workbench/browser/parts/titlebar/titlebarSourceDropdownView';
 import { createContextMenuService } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
 
 import {
   requestExportTitlebarDocx,
   requestTitlebarNavigateBack,
   requestTitlebarNavigateForward,
-  requestTitlebarNavigateWeb,
   requestToggleTitlebarPrimarySidebar,
   requestToggleTitlebarAgentSidebar,
   requestToggleTitlebarSettings,
@@ -73,15 +69,6 @@ export type TitlebarProps = {
   onNavigateBack?: () => void;
   onNavigateForward?: () => void;
   onNavigateRefresh?: () => void;
-  webUrl?: string;
-  onWebUrlChange?: (url: string) => void;
-  articleUrlPlaceholder?: string;
-  addressBarSourceOptions?: QuickAccessSourceOption[];
-  selectedAddressBarSourceId?: string;
-  onSelectAddressBarSource?: (sourceId: string) => void;
-  onCycleAddressBarSource?: (direction: 'prev' | 'next') => void;
-  addressBarSourcePlaceholder?: string;
-  addressBarSourceAriaLabel?: string;
 };
 
 const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
@@ -103,18 +90,6 @@ const DEFAULT_TITLEBAR_LABELS: TitlebarLabels = {
 };
 
 const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
-const MIN_SOURCE_TRIGGER_WIDTH_PX = 56;
-const MAX_SOURCE_TRIGGER_WIDTH_PX = 520;
-const SOURCE_TRIGGER_HORIZONTAL_PADDING_PX = 22;
-const SOURCE_TRIGGER_FONT = '12px "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
-let sourceTriggerMeasureCanvas: HTMLCanvasElement | null = null;
-
-type SourceOptionView = {
-  value: string;
-  label: string;
-  title?: string;
-};
-
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
   className?: string,
@@ -128,41 +103,6 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 
 function composeClassName(parts: Array<string | undefined | null | false>) {
   return parts.filter(Boolean).join(' ');
-}
-
-function measureSourceTriggerWidth(label: string): number {
-  const text = label.trim();
-  if (!text) {
-    return MIN_SOURCE_TRIGGER_WIDTH_PX;
-  }
-
-  const fallback = Math.ceil(text.length * 8 + SOURCE_TRIGGER_HORIZONTAL_PADDING_PX);
-  if (typeof document === 'undefined') {
-    return Math.min(Math.max(fallback, MIN_SOURCE_TRIGGER_WIDTH_PX), MAX_SOURCE_TRIGGER_WIDTH_PX);
-  }
-
-  if (!sourceTriggerMeasureCanvas) {
-    sourceTriggerMeasureCanvas = document.createElement('canvas');
-  }
-
-  const context = sourceTriggerMeasureCanvas.getContext('2d');
-  if (!context) {
-    return Math.min(Math.max(fallback, MIN_SOURCE_TRIGGER_WIDTH_PX), MAX_SOURCE_TRIGGER_WIDTH_PX);
-  }
-
-  context.font = SOURCE_TRIGGER_FONT;
-  const measured = Math.ceil(context.measureText(text).width + SOURCE_TRIGGER_HORIZONTAL_PADDING_PX);
-  return Math.min(Math.max(measured, MIN_SOURCE_TRIGGER_WIDTH_PX), MAX_SOURCE_TRIGGER_WIDTH_PX);
-}
-
-function createSourceOptions(
-  addressBarSourceOptions: QuickAccessSourceOption[],
-): SourceOptionView[] {
-  return addressBarSourceOptions.map((option) => ({
-    value: option.id,
-    label: option.label,
-    title: `${option.journalTitle} | ${option.url}`,
-  }));
 }
 
 type TitlebarIconActionItem = {
@@ -248,10 +188,7 @@ export class TitlebarView {
   private readonly centerElement = createElement('div', 'titlebar-center');
   private readonly controlsViewportElement = createElement('div', 'titlebar-controls-viewport');
   private readonly controlsElement = createElement('div', 'titlebar-controls');
-  private readonly sourceSelectorWrap = createElement('div', 'titlebar-journal-bar');
   private readonly renderedViews: Array<{ dispose: () => void }> = [];
-  private sourceSelector: TitlebarSourceDropdownView | null = null;
-  private webUrlInput: HTMLInputElement | null = null;
   private readonly unsubscribeUiActions: () => void;
 
   constructor(props: TitlebarProps) {
@@ -265,18 +202,6 @@ export class TitlebarView {
       this.controlsViewportElement,
     );
     this.unsubscribeUiActions = subscribeTitlebarUiActions((action) => {
-      if (action.type === 'OPEN_ADDRESS_BAR_SOURCE_MENU') {
-        this.sourceSelector?.focus();
-        this.sourceSelector?.open();
-        return;
-      }
-
-      if (action.type === 'FOCUS_WEB_URL_INPUT') {
-        this.webUrlInput?.focus();
-        this.webUrlInput?.select();
-        return;
-      }
-
       if (action.type === 'NAVIGATE_REFRESH') {
         this.props.onNavigateRefresh?.();
       }
@@ -296,10 +221,7 @@ export class TitlebarView {
   dispose() {
     this.unsubscribeUiActions();
     this.disposeRenderedViews();
-    this.sourceSelector?.dispose();
     this.element.replaceChildren();
-    this.sourceSelector = null;
-    this.webUrlInput = null;
   }
 
   private render() {
@@ -313,8 +235,6 @@ export class TitlebarView {
       canGoBack: this.props.canGoBack ?? false,
       canGoForward: this.props.canGoForward ?? false,
       canExportDocx: this.props.canExportDocx ?? false,
-      addressBarSourceOptions: this.props.addressBarSourceOptions ?? [],
-      selectedAddressBarSourceId: this.props.selectedAddressBarSourceId ?? '',
       isPrimarySidebarOpen: this.props.isPrimarySidebarOpen ?? false,
       isAgentSidebarOpen: this.props.isAgentSidebarOpen ?? false,
       onWindowControl: this.props.onWindowControl,
@@ -394,107 +314,11 @@ export class TitlebarView {
     );
 
     this.centerElement.append(navGroup.getElement());
-
-    if (props.onWebUrlChange) {
-      const urlBar = createElement('div', 'titlebar-url-bar');
-      const inputBox = new InputBox(urlBar, undefined, {
-        className: 'titlebar-input-field titlebar-field-base',
-        value: props.webUrl ?? '',
-        placeholder: props.articleUrlPlaceholder ?? '',
-      });
-      const changeListener = inputBox.onDidChange((value) => {
-        props.onWebUrlChange?.(value);
-      });
-      const inputElement = inputBox.inputElement;
-      inputElement.addEventListener('keydown', (event) => {
-        if (props.onCycleAddressBarSource && event.altKey) {
-          if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            props.onCycleAddressBarSource('prev');
-            return;
-          }
-
-          if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            props.onCycleAddressBarSource('next');
-            return;
-          }
-        }
-
-        if (event.key === 'Enter') {
-          requestTitlebarNavigateWeb();
-        }
-      });
-      this.trackView({
-        dispose: () => {
-          changeListener.dispose();
-          inputBox.dispose();
-        },
-      });
-      this.webUrlInput = inputElement;
-      this.centerElement.append(urlBar);
-    } else {
-      this.webUrlInput = null;
-    }
   }
 
   private renderControls(props: TitlebarProps & { labels: TitlebarLabels }) {
     this.controlsElement.replaceChildren();
     const actionItems: TitlebarIconActionItem[] = [];
-
-    if (props.onSelectAddressBarSource) {
-      const sourceOptions = createSourceOptions(
-        props.addressBarSourceOptions ?? [],
-      );
-      const selectedOption =
-        sourceOptions.find((option) => option.value === props.selectedAddressBarSourceId) ?? null;
-      const selectorProps = {
-        options: sourceOptions,
-        value: props.selectedAddressBarSourceId ?? '',
-        placeholder: props.addressBarSourcePlaceholder ?? '',
-        className: `titlebar-source-select ${props.selectedAddressBarSourceId ? '' : 'is-placeholder'}`.trim(),
-        title:
-          props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
-        onChange: (event: { target: { value: string } }) =>
-          props.onSelectAddressBarSource?.(event.target.value),
-      };
-      const selector = this.sourceSelector ?? createTitlebarSourceDropdownView(selectorProps);
-      const selectorElement = selector.getElement();
-      this.sourceSelectorWrap.replaceChildren(selectorElement);
-      this.controlsElement.append(this.sourceSelectorWrap);
-      selector.setProps(selectorProps);
-      selectorElement.setAttribute(
-        'aria-label',
-        props.addressBarSourceAriaLabel ?? props.addressBarSourcePlaceholder ?? '',
-      );
-      selectorElement.style.setProperty(
-        '--titlebar-source-width',
-        `${measureSourceTriggerWidth(
-          selectedOption?.label ?? props.addressBarSourcePlaceholder ?? '',
-        )}px`,
-      );
-      selectorElement.onkeydown = (event) => {
-        if (!props.onCycleAddressBarSource || !event.altKey) {
-          return;
-        }
-
-        if (event.key === 'ArrowUp') {
-          event.preventDefault();
-          props.onCycleAddressBarSource('prev');
-          return;
-        }
-
-        if (event.key === 'ArrowDown') {
-          event.preventDefault();
-          props.onCycleAddressBarSource('next');
-        }
-      };
-      this.sourceSelector = selector;
-    } else {
-      this.sourceSelector?.dispose();
-      this.sourceSelector = null;
-      this.sourceSelectorWrap.replaceChildren();
-    }
 
     if (props.onTogglePrimarySidebar && props.primarySidebarToggleLabel) {
       actionItems.push({
@@ -575,7 +399,6 @@ export class TitlebarView {
     while (this.renderedViews.length > 0) {
       this.renderedViews.pop()?.dispose();
     }
-    this.webUrlInput = null;
   }
 }
 

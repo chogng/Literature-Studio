@@ -40,6 +40,10 @@ export class EditorModeToolbarHost {
     contribution?.setContext(context);
   }
 
+  focusPrimaryInput() {
+    this.getActiveContribution()?.focusPrimaryInput?.();
+  }
+
   dispose() {
     for (const contribution of this.contributionsByMode.values()) {
       contribution.dispose();
@@ -61,4 +65,3 @@ export function createEditorModeToolbarHost(
 ) {
   return new EditorModeToolbarHost(context);
 }
-

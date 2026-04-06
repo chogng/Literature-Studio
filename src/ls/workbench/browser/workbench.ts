@@ -20,7 +20,6 @@ import {
   setPrimarySidebarVisible,
   subscribeWorkbenchLayoutState,
   toggleEditorCollapsed,
-  toggleAgentSidebarVisibility,
   togglePrimarySidebarVisibility,
   WORKBENCH_PART_IDS,
 } from 'ls/workbench/browser/layout';
@@ -67,7 +66,6 @@ import {
   subscribeWorkbenchSession,
 } from 'ls/workbench/browser/session';
 import { setWorkbenchEditorCommandHandlers } from 'ls/workbench/browser/editorCommands';
-import { setWorkbenchTitlebarCommandHandlers } from 'ls/workbench/browser/titlebarCommands';
 import { handleWorkbenchEditorShortcut } from 'ls/workbench/browser/workbenchEditorShortcuts';
 import {
   getWindowStateSnapshot,
@@ -624,7 +622,6 @@ class WorkbenchHost {
       this.globalDisposables.pop()?.();
     }
 
-    setWorkbenchTitlebarCommandHandlers(null);
     setWorkbenchEditorCommandHandlers(null);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.titlebar, null);
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.statusbar, null);
@@ -921,35 +918,6 @@ class WorkbenchHost {
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.titlebar, null);
   }
 
-  private syncTitlebarCommandHandlers(params: {
-    onNavigateBack: () => void;
-    onNavigateForward: () => void;
-    onNavigateRefresh: () => void;
-    onNavigateWeb: () => void;
-    onExportDocx: () => Promise<void>;
-  }) {
-    const {
-      onNavigateBack,
-      onNavigateForward,
-      onNavigateRefresh,
-      onNavigateWeb,
-      onExportDocx,
-    } = params;
-
-    setWorkbenchTitlebarCommandHandlers({
-      onTogglePrimarySidebar: togglePrimarySidebarVisibility,
-      onToggleAgentSidebar: toggleAgentSidebarVisibility,
-      onNavigateBack,
-      onNavigateForward,
-      onNavigateRefresh,
-      onNavigateWeb,
-      onToggleSettings: toggleWorkbenchSettings,
-      onExportDocx: () => {
-        void onExportDocx();
-      },
-    });
-  }
-
   private syncEditorCommandHandlers() {
     setWorkbenchEditorCommandHandlers({
       executeActiveDraftCommand: (commandId) =>
@@ -1024,9 +992,11 @@ class WorkbenchHost {
     sidebarTopbarActionsProps: {
       isPrimarySidebarVisible: boolean;
       primarySidebarToggleLabel: string;
-      commandPaletteLabel: string;
+      addressBarLabel: string;
       onTogglePrimarySidebar: () => void;
+      onFocusAddressBar: () => void;
     };
+    onOpenSettings: () => void;
     editorTopbarAuxiliaryActionsElement?: HTMLElement | null;
     editorPartProps: EditorPartProps;
   }) {
@@ -1037,6 +1007,7 @@ class WorkbenchHost {
     this.primaryBarFooterActionsView.setProps({
       accountLabel: props.primaryBarProps.accountLabel,
       settingsLabel: props.primaryBarProps.settingsLabel,
+      onOpenSettings: props.onOpenSettings,
     });
     const partViewProps = {
       isPrimarySidebarVisible: props.isPrimarySidebarVisible,
@@ -1374,8 +1345,6 @@ class WorkbenchHost {
       documentActionsControllerInstance.handleSharedPdfDownload;
     const handleOpenArticleDetails =
       documentActionsControllerInstance.handleOpenArticleDetails;
-    const handleExportDocx =
-      documentActionsControllerInstance.handleExportDocx;
 
     const handleSidebarPdfDownload = () => {
       const sourceUrl = resolveContentSourceUrl(
@@ -1496,6 +1465,10 @@ class WorkbenchHost {
       closeTab: editorPartControllerInstance.onCloseTab,
       editorPartProps,
     });
+    const focusWorkbenchWebUrlInput = () => {
+      editorPartControllerInstance.openBrowserPane();
+      this.workbenchContentPartViews?.focusActiveEditorPrimaryInput();
+    };
     const editorBrowserToolbarActions = createEditorBrowserToolbarActions({
       browserUrl,
       electronRuntime,
@@ -1504,6 +1477,10 @@ class WorkbenchHost {
       setWebUrl: setWorkbenchWebUrl,
       ui,
       webContentNavigationModel: webContentNavigationModelInstance,
+      onOpenAddressBarSourceMenu: focusWorkbenchWebUrlInput,
+      onToolbarAddressSubmit: () => {
+        navigateToAddressBarUrl(webUrl, true);
+      },
     });
     Object.assign(
       contentAwareEditorPartProps,
@@ -1580,10 +1557,6 @@ class WorkbenchHost {
 
         return [...previousKeys, articleKey];
       });
-    };
-
-    const handleNavigateWeb = () => {
-      navigateToAddressBarUrl(webUrl, true);
     };
 
     const handleCloseAgentSidebar = () => {
@@ -1680,14 +1653,6 @@ class WorkbenchHost {
       batchFetchController: batchFetchControllerInstance,
     });
 
-    this.syncTitlebarCommandHandlers({
-      onNavigateBack: editorBrowserToolbarActions.onToolbarNavigateBack,
-      onNavigateForward: editorBrowserToolbarActions.onToolbarNavigateForward,
-      onNavigateRefresh: editorBrowserToolbarActions.onToolbarNavigateRefresh,
-      onNavigateWeb: handleNavigateWeb,
-      onExportDocx: handleExportDocx,
-    });
-
     const fetchPaneProps = createFetchPaneProps({
       state: {
         ui,
@@ -1702,6 +1667,7 @@ class WorkbenchHost {
         selectedArticleKeys,
       },
       actions: {
+        onFocusWebUrlInput: focusWorkbenchWebUrlInput,
         onFetchStartDateChange: setBatchStartDate,
         onFetchEndDateChange: setBatchEndDate,
         onFetch: () => void handleFetchLatestBatch(),
@@ -1787,8 +1753,9 @@ class WorkbenchHost {
       primarySidebarToggleLabel: isPrimarySidebarVisible
         ? ui.titlebarHidePrimarySidebar
         : ui.titlebarShowPrimarySidebar,
-      commandPaletteLabel: ui.addressBarSourcePlaceholder,
+      addressBarLabel: ui.agentbarToolbarAddressBar,
       onTogglePrimarySidebar: togglePrimarySidebarVisibility,
+      onFocusAddressBar: focusWorkbenchWebUrlInput,
     };
 
     const settingsPartProps = createSettingsPartProps({
@@ -1836,6 +1803,7 @@ class WorkbenchHost {
         isTestingTranslationConnection,
       },
       actions: {
+        onNavigateBack: toggleWorkbenchSettings,
         onBatchSourceUrlChange: settingsControllerInstance.handleBatchSourceUrlChange,
         onBatchSourceJournalTitleChange:
           settingsControllerInstance.handleBatchSourceJournalTitleChange,
@@ -1943,6 +1911,7 @@ class WorkbenchHost {
         primaryBarProps,
         agentBarProps,
         sidebarTopbarActionsProps,
+        onOpenSettings: toggleWorkbenchSettings,
         editorTopbarAuxiliaryActionsElement:
           this.auxiliaryEditorTopbarActionsView.getElement(),
         editorPartProps: contentAwareEditorPartProps,

@@ -99,6 +99,10 @@ export class WorkbenchContentPartViews {
     return this.editorView?.getActiveDraftStableSelectionTarget() ?? null;
   }
 
+  focusActiveEditorPrimaryInput() {
+    this.editorView?.focusPrimaryInput();
+  }
+
   whenEditorTabViewStateSettled(tabId: string) {
     return (
       this.editorView?.whenEditorTabViewStateSettled(tabId) ??

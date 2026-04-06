@@ -118,7 +118,7 @@ test('agent bar topbar exposes a primary sidebar toggle when the primary sidebar
   const topbarActionsView = new SidebarTopbarActionsView({
     isPrimarySidebarVisible: false,
     primarySidebarToggleLabel: 'Show primary sidebar',
-    commandPaletteLabel: 'Quick access',
+    addressBarLabel: 'Address bar',
     onTogglePrimarySidebar: () => {
       toggleCount += 1;
     },
@@ -149,11 +149,11 @@ test('agent bar topbar exposes a primary sidebar toggle when the primary sidebar
   }
 });
 
-test('agent bar topbar exposes a quick access action', () => {
+test('agent bar topbar exposes an address bar action', () => {
   const topbarActionsView = new SidebarTopbarActionsView({
     isPrimarySidebarVisible: false,
     primarySidebarToggleLabel: 'Show primary sidebar',
-    commandPaletteLabel: 'Quick access',
+    addressBarLabel: 'Address bar',
     onTogglePrimarySidebar: () => {},
   });
   const agentBar = createAgentBarPartView({
@@ -169,7 +169,7 @@ test('agent bar topbar exposes a quick access action', () => {
       '.agentbar-topbar .sidebar-topbar-search-btn',
     );
     assert(searchButton instanceof HTMLButtonElement);
-    assert.equal(searchButton.getAttribute('aria-label'), 'Quick access');
+    assert.equal(searchButton.getAttribute('aria-label'), 'Address bar');
   } finally {
     agentBar.dispose();
     topbarActionsView.dispose();

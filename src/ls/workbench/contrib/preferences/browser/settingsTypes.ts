@@ -43,6 +43,7 @@ export type SettingsPartLabels = {
 
 export type SettingsPartProps = {
   labels: SettingsPartLabels; isSettingsLoading: boolean; locale: Locale; batchSources: BatchSource[];
+  onNavigateBack: () => void;
   onBatchSourceUrlChange: (index: number, url: string) => void; onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void; onAddBatchSource: () => void;
   onRemoveBatchSource: (index: number) => void; onMoveBatchSource: (index: number, direction: 'up' | 'down') => void; batchLimit: number; onBatchLimitChange: (value: string) => void;
   sameDomainOnly: boolean; onSameDomainOnlyChange: (checked: boolean) => void; fetchStartDate: string; onFetchStartDateChange: (value: string) => void; fetchEndDate: string; onFetchEndDateChange: (value: string) => void; useMica: boolean; onUseMicaChange: (checked: boolean) => void; statusbarVisible: boolean; onStatusbarVisibleChange: (checked: boolean) => void; theme: AppTheme; onThemeChange: (value: AppTheme) => void; knowledgeBaseEnabled: boolean;
@@ -73,6 +74,7 @@ export type SettingsPartState = {
 };
 
 export type SettingsPartActions = {
+  onNavigateBack: () => void;
   onBatchSourceUrlChange: (index: number, url: string) => void; onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void;
   onAddBatchSource: () => void; onRemoveBatchSource: (index: number) => void; onMoveBatchSource: (index: number, direction: 'up' | 'down') => void; onBatchLimitChange: (value: string) => void;
   onSameDomainOnlyChange: (checked: boolean) => void; onFetchStartDateChange: (value: string) => void; onFetchEndDateChange: (value: string) => void; onUseMicaChange: (checked: boolean) => void; onStatusbarVisibleChange: (checked: boolean) => void; onThemeChange: (value: AppTheme) => void; onKnowledgeBaseEnabledChange: (checked: boolean) => void; onAutoIndexDownloadedPdfChange: (checked: boolean) => void; onKnowledgeBasePdfDownloadDirChange: (value: string) => void; onChooseKnowledgeBasePdfDownloadDir: () => void;

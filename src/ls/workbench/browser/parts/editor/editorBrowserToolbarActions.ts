@@ -3,10 +3,6 @@ import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { LocaleMessages } from 'language/locales';
 import type { EditorPartProps } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { getEditorContentDisplayUrl } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
-import {
-  requestOpenAddressBarSourceMenu,
-  requestTitlebarNavigateWeb,
-} from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 import type { WebContentNavigationModel } from 'ls/workbench/browser/webContentNavigationModel';
 
 type EditorBrowserToolbarActionHandlers = Pick<
@@ -32,6 +28,8 @@ type CreateEditorBrowserToolbarActionsParams = {
   setWebUrl: (value: string) => void;
   ui: LocaleMessages;
   webContentNavigationModel: WebContentNavigationModel;
+  onOpenAddressBarSourceMenu: () => void;
+  onToolbarAddressSubmit: () => void;
 };
 
 async function copyTextToClipboard(value: string) {
@@ -70,10 +68,12 @@ export function createEditorBrowserToolbarActions(
     setWebUrl,
     ui,
     webContentNavigationModel,
+    onOpenAddressBarSourceMenu,
+    onToolbarAddressSubmit,
   } = params;
 
   return {
-    onOpenAddressBarSourceMenu: requestOpenAddressBarSourceMenu,
+    onOpenAddressBarSourceMenu,
     onToolbarNavigateBack: () => {
       webContentNavigationModel.handleWebContentBack({
         webContentRuntime,
@@ -157,6 +157,6 @@ export function createEditorBrowserToolbarActions(
       }
     },
     onToolbarAddressChange: setWebUrl,
-    onToolbarAddressSubmit: requestTitlebarNavigateWeb,
+    onToolbarAddressSubmit,
   };
 }

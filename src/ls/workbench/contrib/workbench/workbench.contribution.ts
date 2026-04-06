@@ -13,13 +13,11 @@ import {
 import {
   localeService,
 } from 'ls/workbench/contrib/localization/browser/localeService';
-import { getWorkbenchTitlebarCommandHandlers } from 'ls/workbench/browser/titlebarCommands';
 import {
   getStatusbarStateSnapshot,
   subscribeStatusbarState,
 } from 'ls/workbench/browser/parts/statusbar/statusbarModel';
 import { StatusbarPart } from 'ls/workbench/browser/parts/statusbar/statusbarPart';
-import { subscribeTitlebarUiActions } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 
 export type Disposable = {
   dispose: () => void;
@@ -187,51 +185,9 @@ export function createWorkbenchDocumentLocaleContribution(): Disposable {
 }
 
 export function createWorkbenchTitlebarActionContribution(): Disposable {
-  const unsubscribeTitlebarUiActions = subscribeTitlebarUiActions((action) => {
-    const handlers = getWorkbenchTitlebarCommandHandlers();
-    if (!handlers) {
-      return;
-    }
-
-    if (action.type === 'TOGGLE_PRIMARY_SIDEBAR') {
-      handlers.onTogglePrimarySidebar();
-      return;
-    }
-
-    if (action.type === 'TOGGLE_AGENT_SIDEBAR') {
-      handlers.onToggleAgentSidebar();
-      return;
-    }
-
-    if (action.type === 'NAVIGATE_BACK') {
-      handlers.onNavigateBack();
-      return;
-    }
-
-    if (action.type === 'NAVIGATE_FORWARD') {
-      handlers.onNavigateForward();
-      return;
-    }
-
-    if (action.type === 'NAVIGATE_WEB') {
-      handlers.onNavigateWeb();
-      return;
-    }
-
-    if (action.type === 'TOGGLE_SETTINGS') {
-      handlers.onToggleSettings();
-      return;
-    }
-
-    if (action.type === 'EXPORT_DOCX') {
-      handlers.onExportDocx();
-    }
-  });
-
+  // LEGACY: the workbench no longer routes active UI through the titlebar bus.
   return {
-    dispose: () => {
-      unsubscribeTitlebarUiActions();
-    },
+    dispose: () => {},
   };
 }
 

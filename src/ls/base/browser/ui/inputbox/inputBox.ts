@@ -11,6 +11,11 @@ export interface IInputBoxOptions {
   readonly className?: string;
 }
 
+export type InputBoxSelectionRange = {
+  start: number;
+  end: number;
+};
+
 function addDisposableListener<K extends keyof HTMLElementEventMap>(
   target: HTMLElement,
   type: K,
@@ -87,6 +92,22 @@ export class InputBox extends LifecycleOwner {
   blur() {
     if (!this.disposed) {
       this.inputElement.blur();
+    }
+  }
+
+  hasFocus() {
+    return !this.disposed && document.activeElement === this.inputElement;
+  }
+
+  select(range: InputBoxSelectionRange | null = null) {
+    if (!this.disposed) {
+      this.inputElement.select();
+      if (range) {
+        this.inputElement.setSelectionRange(range.start, range.end);
+        if (range.end === this.inputElement.value.length) {
+          this.inputElement.scrollLeft = this.inputElement.scrollWidth;
+        }
+      }
     }
   }
 

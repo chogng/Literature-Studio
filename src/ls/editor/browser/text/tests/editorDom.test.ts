@@ -332,8 +332,8 @@ test('DraftEditorToolbar shows preset font labels for normalized browser font-fa
   document.body.append(toolbar.getElement());
 
   try {
-    const dropdownFields = toolbar.getElement().querySelectorAll('.dropdown-field');
-    const fontFamilyField = dropdownFields.item(0);
+    const splitLabels = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-btn-label');
+    const fontFamilyField = splitLabels.item(0);
     assert(fontFamilyField instanceof HTMLElement);
     assert.equal(fontFamilyField.textContent, 'Times New Roman');
   } finally {
@@ -386,7 +386,7 @@ test('DraftEditorToolbar shows Chinese named font-size presets for matching px v
 
   try {
     const splitLabels = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-btn-label');
-    const fontSizeLabel = splitLabels.item(0);
+    const fontSizeLabel = splitLabels.item(1);
     assert(fontSizeLabel instanceof HTMLElement);
     assert.equal(fontSizeLabel.textContent, '小四');
   } finally {
@@ -438,10 +438,8 @@ test('DraftEditorToolbar orders Chinese named font-size presets from large to sm
   document.body.append(toolbar.getElement());
 
   try {
-    const splitDropdowns = toolbar.getElement().querySelectorAll(
-      '.editor-draft-toolbar-split-dropdown',
-    );
-    const fontSizeDropdown = splitDropdowns.item(1);
+    const splitDropdowns = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-split-dropdown');
+    const fontSizeDropdown = splitDropdowns.item(2);
     assert(fontSizeDropdown instanceof HTMLElement);
     fontSizeDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
@@ -516,8 +514,8 @@ test('DraftEditorToolbar marks unavailable preset fonts in the dropdown', () => 
   document.body.append(toolbar.getElement());
 
   try {
-    const dropdowns = toolbar.getElement().querySelectorAll('.dropdown-wrapper');
-    const fontFamilyDropdown = dropdowns.item(0);
+    const splitDropdowns = toolbar.getElement().querySelectorAll('.editor-draft-toolbar-split-dropdown');
+    const fontFamilyDropdown = splitDropdowns.item(1);
     assert(fontFamilyDropdown instanceof HTMLElement);
     fontFamilyDropdown.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
@@ -646,14 +644,14 @@ test('DraftEditorToolbar renders draft-specific toolbar content classes', () => 
     const textStyleDropdown = toolbarElement.querySelector(
       '.editor-draft-toolbar-split .editor-draft-toolbar-split-dropdown.actionbar-action',
     );
-    const fontSizeLabel = toolbarElement.querySelector('.editor-draft-toolbar-btn-label');
+    const splitLabels = toolbarElement.querySelectorAll('.editor-draft-toolbar-btn-label');
 
     assert.equal(toolbarElement.classList.contains('editor-draft-toolbar'), true);
     assert(toolbarGroup instanceof HTMLElement);
     assert(toolbarAction instanceof HTMLButtonElement);
     assert(textStylePrimary instanceof HTMLButtonElement);
     assert(textStyleDropdown instanceof HTMLElement);
-    assert(fontSizeLabel instanceof HTMLElement);
+    assert.equal(splitLabels.length >= 2, true);
   } finally {
     toolbar.dispose();
     document.body.replaceChildren();

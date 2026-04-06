@@ -88,3 +88,25 @@ test('EditorPartController opens the browser pane as an empty about:blank tab', 
 
   controller.dispose();
 });
+
+test('EditorPartController reuses an existing empty browser tab for explicit browser creation', async () => {
+  const { EditorPartController } = await import('ls/workbench/browser/parts/editor/editorPart');
+  const controller = new EditorPartController({
+    ui: en,
+    browserUrl: '',
+    webUrl: '',
+    viewPartProps: defaultViewPartProps,
+  });
+
+  controller.getSnapshot().editorPartProps.onOpenBrowserPane();
+  await (controller.getSnapshot().editorPartProps.onCreateBrowserTab as unknown as () => Promise<void>)();
+
+  const browserTabs = controller
+    .getSnapshot()
+    .tabs.filter((tab) => tab.kind === 'browser');
+  assert.equal(browserTabs.length, 1);
+  assert.equal(browserTabs[0]?.url, 'about:blank');
+  assert.equal(controller.getSnapshot().activeTab?.id, browserTabs[0]?.id);
+
+  controller.dispose();
+});

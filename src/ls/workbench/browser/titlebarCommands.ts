@@ -1,3 +1,5 @@
+// LEGACY: the workbench no longer mounts or drives the titlebar as an active UI surface.
+// Keep this compatibility shim only for stale imports during the retirement period.
 export type WorkbenchTitlebarCommandHandlers = {
   onTogglePrimarySidebar: () => void;
   onToggleAgentSidebar: () => void;

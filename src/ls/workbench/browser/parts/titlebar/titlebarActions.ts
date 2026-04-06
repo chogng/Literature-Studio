@@ -1,12 +1,11 @@
+// LEGACY: titlebar-specific UI actions are retired from the active workbench path.
+// Keep this event bus only for compatibility while the old titlebar code is phased out.
 export type TitlebarUiAction =
-  | { type: 'OPEN_ADDRESS_BAR_SOURCE_MENU' }
-  | { type: 'FOCUS_WEB_URL_INPUT' }
   | { type: 'TOGGLE_PRIMARY_SIDEBAR' }
   | { type: 'TOGGLE_AGENT_SIDEBAR' }
   | { type: 'NAVIGATE_BACK' }
   | { type: 'NAVIGATE_FORWARD' }
   | { type: 'NAVIGATE_REFRESH' }
-  | { type: 'NAVIGATE_WEB' }
   | { type: 'TOGGLE_SETTINGS' }
   | { type: 'EXPORT_DOCX' };
 
@@ -27,14 +26,6 @@ export function subscribeTitlebarUiActions(listener: TitlebarUiActionListener) {
   };
 }
 
-export function requestOpenAddressBarSourceMenu() {
-  emitTitlebarUiAction({ type: 'OPEN_ADDRESS_BAR_SOURCE_MENU' });
-}
-
-export function requestFocusTitlebarWebUrlInput() {
-  emitTitlebarUiAction({ type: 'FOCUS_WEB_URL_INPUT' });
-}
-
 export function requestToggleTitlebarPrimarySidebar() {
   emitTitlebarUiAction({ type: 'TOGGLE_PRIMARY_SIDEBAR' });
 }
@@ -53,10 +44,6 @@ export function requestTitlebarNavigateForward() {
 
 export function requestTitlebarNavigateRefresh() {
   emitTitlebarUiAction({ type: 'NAVIGATE_REFRESH' });
-}
-
-export function requestTitlebarNavigateWeb() {
-  emitTitlebarUiAction({ type: 'NAVIGATE_WEB' });
 }
 
 export function requestToggleTitlebarSettings() {

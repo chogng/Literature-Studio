@@ -41,7 +41,7 @@ type RawWorkbenchLayoutViewProps = {
 function createSidebarTopbarActionsElement(props: {
   isPrimarySidebarVisible: boolean;
   primarySidebarToggleLabel: string;
-  commandPaletteLabel: string;
+  addressBarLabel: string;
   onTogglePrimarySidebar: () => void;
 }) {
   const view = new SidebarTopbarActionsView();
@@ -312,8 +312,6 @@ function createWorkbenchLayoutViewProps() {
     close: 'Close',
     emptyFiltered: 'No results',
     emptyAll: 'No articles',
-    emptyAllQuickSourceAction: 'Quick source',
-    emptyAllConnector: 'or',
     emptyAllInputLinkAction: 'Input link',
     emptyAllInputLinkSuffix: 'suffix',
     startDate: 'Start date',
@@ -373,6 +371,7 @@ function createWorkbenchLayoutViewProps() {
     hasData: false,
     locale: 'en' as const,
     labels: sidebarLabels,
+    onFocusWebUrlInput: () => {},
     fetchStartDate: '',
     onFetchStartDateChange: () => {},
     fetchEndDate: '',
@@ -461,13 +460,13 @@ function createWorkbenchLayoutViewProps() {
     sidebarTopbarActionsProps: {
       isPrimarySidebarVisible: false,
       primarySidebarToggleLabel: 'Show primary sidebar',
-      commandPaletteLabel: 'Quick access',
+      addressBarLabel: 'Address bar',
       onTogglePrimarySidebar: () => {},
     },
     sidebarTopbarActionsElement: createSidebarTopbarActionsElement({
       isPrimarySidebarVisible: false,
       primarySidebarToggleLabel: 'Show primary sidebar',
-      commandPaletteLabel: 'Quick access',
+      addressBarLabel: 'Address bar',
       onTogglePrimarySidebar: () => {},
     }),
     primaryBarFooterActionsElement: createPrimaryBarFooterActionsElement({
@@ -621,7 +620,7 @@ test('WorkbenchLayoutView mounts primary topbar actions into auxiliary topbar wh
     ...props.sidebarTopbarActionsProps,
     isPrimarySidebarVisible: true,
     primarySidebarToggleLabel: 'Hide primary sidebar',
-    commandPaletteLabel: 'Quick access',
+    addressBarLabel: 'Address bar',
     onTogglePrimarySidebar: () => {},
   };
 
@@ -651,7 +650,7 @@ test('WorkbenchLayoutView mounts primary topbar actions into auxiliary topbar wh
       sidebarTopbarActionsElement: createSidebarTopbarActionsElement({
         isPrimarySidebarVisible: false,
         primarySidebarToggleLabel: 'Show primary sidebar',
-        commandPaletteLabel: 'Quick access',
+        addressBarLabel: 'Address bar',
         onTogglePrimarySidebar: () => {},
       }),
     };
@@ -687,7 +686,7 @@ test('WorkbenchLayoutView mounts the editor collapse action into auxiliary topba
     ...props.sidebarTopbarActionsProps,
     isPrimarySidebarVisible: false,
     primarySidebarToggleLabel: 'Show primary sidebar',
-    commandPaletteLabel: 'Quick access',
+    addressBarLabel: 'Address bar',
     onTogglePrimarySidebar: () => {},
   };
 
@@ -1113,7 +1112,7 @@ test('WorkbenchLayoutView mounts the editor collapse action into agentbar topbar
     ...props.sidebarTopbarActionsProps,
     isPrimarySidebarVisible: true,
     primarySidebarToggleLabel: 'Hide primary sidebar',
-    commandPaletteLabel: 'Quick access',
+    addressBarLabel: 'Address bar',
     onTogglePrimarySidebar: () => {},
   };
 
@@ -1166,7 +1165,7 @@ test('WorkbenchLayoutView keeps primary width fixed and expands agentbar when th
       ...props.sidebarTopbarActionsProps,
       isPrimarySidebarVisible: true,
       primarySidebarToggleLabel: 'Hide primary sidebar',
-      commandPaletteLabel: 'Quick access',
+      addressBarLabel: 'Address bar',
       onTogglePrimarySidebar: () => {},
     };
 

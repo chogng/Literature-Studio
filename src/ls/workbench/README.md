@@ -27,7 +27,6 @@ A file belongs to the contribution layer when its main job is to attach a featur
 usually by doing one of the following:
 
 - registering a provider
-- registering a quick access source or action
 - connecting a platform capability into the browser workbench
 - creating a disposable startup hook that should be started and stopped with the workbench
 
@@ -39,8 +38,6 @@ A file does not belong to the contribution layer when it mainly owns state, rend
   - Shared entry that imports feature registrations and starts workbench contributions.
 - [`contrib/workbench/workbench.contribution.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/workbench/contrib/workbench/workbench.contribution.ts)
   - Contribution runtime for registering, starting, and disposing workbench-scoped contributions.
-- [`contrib/quickAccess/quickAccess.contribution.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/workbench/contrib/quickAccess/quickAccess.contribution.ts)
-  - Quick access feature registration.
 - [`contrib/desktop/desktop.contribution.ts`](/c:/Users/lanxi/Desktop/Literature-Studio/src/ls/workbench/contrib/desktop/desktop.contribution.ts)
   - Desktop-only feature registration imported by the desktop entry.
 

@@ -1,12 +1,12 @@
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import { requestToggleTitlebarSettings } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 
 import 'ls/workbench/browser/parts/primarybar/media/primarybarFooterActions.css';
 
 export type PrimaryBarFooterActionsProps = {
   accountLabel?: string;
   settingsLabel?: string;
+  onOpenSettings?: () => void;
 };
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -67,7 +67,7 @@ export class PrimaryBarFooterActionsView {
           mode: 'icon',
           buttonClassName: 'primarybar-footer-settings-btn',
           content: createLxIcon('gear'),
-          onClick: requestToggleTitlebarSettings,
+          onClick: () => props.onOpenSettings?.(),
         },
       ],
     });

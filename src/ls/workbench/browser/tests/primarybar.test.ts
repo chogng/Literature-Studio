@@ -9,7 +9,6 @@ let cleanupDomEnvironment: (() => void) | null = null;
 let createPrimaryBar: typeof import('ls/workbench/browser/parts/primarybar/primarybar').createPrimaryBar;
 let SidebarTopbarActionsView: typeof import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions').SidebarTopbarActionsView;
 let PrimaryBarFooterActionsView: typeof import('ls/workbench/browser/parts/primarybar/primarybarFooterActions').PrimaryBarFooterActionsView;
-let subscribeTitlebarUiActions: typeof import('ls/workbench/browser/parts/titlebar/titlebarActions').subscribeTitlebarUiActions;
 
 function createProps(): PrimaryBarProps {
   const labels = {
@@ -28,6 +27,7 @@ function createProps(): PrimaryBarProps {
     hasData: false,
     locale: 'en',
     labels,
+    onFocusWebUrlInput: () => {},
     fetchStartDate: '',
     onFetchStartDateChange: () => {},
     fetchEndDate: '',
@@ -63,7 +63,7 @@ function createTopbarActionsProps(): SidebarTopbarActionsProps {
   return {
     isPrimarySidebarVisible: true,
     primarySidebarToggleLabel: 'Hide primary sidebar',
-    commandPaletteLabel: 'Quick access',
+    addressBarLabel: 'Address bar',
   };
 }
 
@@ -73,7 +73,6 @@ before(async () => {
   ({ createPrimaryBar } = await import('ls/workbench/browser/parts/primarybar/primarybar'));
   ({ SidebarTopbarActionsView } = await import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions'));
   ({ PrimaryBarFooterActionsView } = await import('ls/workbench/browser/parts/primarybar/primarybarFooterActions'));
-  ({ subscribeTitlebarUiActions } = await import('ls/workbench/browser/parts/titlebar/titlebarActions'));
 });
 
 after(() => {
@@ -114,7 +113,7 @@ test('primary bar topbar exposes a primary sidebar toggle action', () => {
   }
 });
 
-test('primary bar topbar exposes a quick access action', () => {
+test('primary bar topbar exposes an address bar action', () => {
   const topbarActionsView = new SidebarTopbarActionsView(createTopbarActionsProps());
   const primaryBar = createPrimaryBar({
     ...createProps(),
@@ -128,7 +127,7 @@ test('primary bar topbar exposes a quick access action', () => {
       '.primarybar-topbar .sidebar-topbar-search-btn',
     );
     assert(searchButton instanceof HTMLButtonElement);
-    assert.equal(searchButton.getAttribute('aria-label'), 'Quick access');
+    assert.equal(searchButton.getAttribute('aria-label'), 'Address bar');
   } finally {
     primaryBar.dispose();
     topbarActionsView.dispose();
@@ -165,16 +164,14 @@ test('primary bar renders a footer at the bottom and mounts footer content', () 
   }
 });
 
-test('primary bar footer settings action reuses the titlebar settings event', () => {
+test('primary bar footer settings action dispatches the provided handler', () => {
   let triggered = false;
-  const unsubscribe = subscribeTitlebarUiActions((action) => {
-    if (action.type === 'TOGGLE_SETTINGS') {
-      triggered = true;
-    }
-  });
   const footerActionsView = new PrimaryBarFooterActionsView({
     accountLabel: 'Literature Studio',
     settingsLabel: 'Settings',
+    onOpenSettings: () => {
+      triggered = true;
+    },
   });
   const primaryBar = createPrimaryBar({
     ...createProps(),
@@ -192,7 +189,6 @@ test('primary bar footer settings action reuses the titlebar settings event', ()
     settingsButton.click();
     assert.equal(triggered, true);
   } finally {
-    unsubscribe();
     primaryBar.dispose();
     footerActionsView.dispose();
   }

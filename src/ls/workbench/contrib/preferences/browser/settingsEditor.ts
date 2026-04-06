@@ -25,7 +25,6 @@ import {
   createDisplayLanguageOptions,
   requestSetDisplayLanguage,
 } from 'ls/workbench/contrib/localization/browser/localizationsActions';
-import { requestToggleTitlebarSettings } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 import { batchLimitMax, batchLimitMin } from 'ls/workbench/services/config/configSchema';
 import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from 'ls/workbench/browser/layout';
 import 'ls/workbench/contrib/preferences/browser/media/settingsEditor.css';
@@ -466,7 +465,7 @@ export class SettingsPartView {
         button.classList.toggle('active', item.id === this.activePageId);
         button.addEventListener('click', () => {
           if (item.id === 'back') {
-            requestToggleTitlebarSettings();
+            this.props.onNavigateBack();
             return;
           }
           this.focusPage(item.id);

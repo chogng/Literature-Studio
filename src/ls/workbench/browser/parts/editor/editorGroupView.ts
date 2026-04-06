@@ -1,4 +1,5 @@
 import {
+  isEmptyBrowserTabInput,
   getEditorPaneMode,
   getEditorTabInputResourceKey,
   isEditorDraftTabInput,
@@ -45,7 +46,6 @@ import type {
 
 import { TabsTitleControl } from 'ls/workbench/browser/parts/editor/tabsTitleControl';
 import type { TitleControl, TitleControlProps } from 'ls/workbench/browser/parts/editor/titleControl';
-import { requestFocusTitlebarWebUrlInput } from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 
 export type EditorGroupViewProps = {
   labels: EditorPartLabels;
@@ -102,26 +102,27 @@ function createTitleControlProps(
   props: Pick<
     EditorGroupViewProps,
     | 'labels'
+    | 'tabs'
+    | 'activeTabId'
+    | 'activeTab'
     | 'onActivateTab'
     | 'onCloseTab'
     | 'onCreateDraftTab'
-    | 'onCreateBrowserTab'
     | 'onOpenBrowserPane'
     | 'onCreatePdfTab'
   >,
   group: EditorGroupModel,
+  requestBrowserPrimaryInputFocus: () => void,
 ): TitleControlProps {
-  const focusBrowserUrlInputForEmptyState = (tabId: string | null) => {
+  const focusBrowserUrlInputIfNeeded = (tabId: string | null) => {
     if (!tabId) {
-      return;
+      return false;
     }
 
     const targetTab = group.activeTabId === tabId
       ? group.activeTab
       : props.tabs.find((tab) => tab.id === tabId) ?? null;
-    if (targetTab?.kind === 'browser' && targetTab.url === 'about:blank') {
-      requestFocusTitlebarWebUrlInput();
-    }
+    return isEmptyBrowserTabInput(targetTab);
   };
 
   return {
@@ -131,7 +132,9 @@ function createTitleControlProps(
     },
     onActivateTab: (tabId) => {
       props.onActivateTab(tabId);
-      focusBrowserUrlInputForEmptyState(tabId);
+      if (focusBrowserUrlInputIfNeeded(tabId)) {
+        requestBrowserPrimaryInputFocus();
+      }
     },
     onCloseTab: props.onCloseTab,
     onOpenPaneMode: (paneMode) => {
@@ -142,7 +145,7 @@ function createTitleControlProps(
 
       if (paneMode === 'browser') {
         props.onOpenBrowserPane();
-        requestFocusTitlebarWebUrlInput();
+        requestBrowserPrimaryInputFocus();
         return;
       }
 
@@ -155,16 +158,21 @@ function createTitleControl(
   props: Pick<
     EditorGroupViewProps,
     | 'labels'
+    | 'tabs'
+    | 'activeTabId'
+    | 'activeTab'
     | 'onActivateTab'
     | 'onCloseTab'
     | 'onCreateDraftTab'
-    | 'onCreateBrowserTab'
     | 'onOpenBrowserPane'
     | 'onCreatePdfTab'
   >,
   group: EditorGroupModel,
+  requestBrowserPrimaryInputFocus: () => void,
 ): TitleControl {
-  return new TabsTitleControl(createTitleControlProps(props, group));
+  return new TabsTitleControl(
+    createTitleControlProps(props, group, requestBrowserPrimaryInputFocus),
+  );
 }
 
 function createEditorStatusLabels(labels: EditorPartLabels) {
@@ -330,7 +338,6 @@ export class EditorGroupView {
     },
     onCreateDraftTab: () => {},
     onCreateBrowserTab: () => {},
-    onOpenBrowserPane: () => {},
     onCreatePdfTab: () => {},
     onToggleEditorCollapse: () => {},
   });
@@ -347,6 +354,7 @@ export class EditorGroupView {
   private activePaneViewStateKey: EditorViewStateKey | null = null;
   private activePaneKey: string | null = null;
   private readonly pendingViewStateSaveByTabId = new Map<string, Promise<void>>();
+  private shouldFocusBrowserPrimaryInput = false;
 
   constructor(props: EditorGroupViewProps) {
     this.props = props;
@@ -361,6 +369,7 @@ export class EditorGroupView {
     this.titleAreaControl = createTitleControl(
       props,
       this.controller.getSnapshot().group,
+      this.requestBrowserPrimaryInputFocus,
     );
     this.emptyWorkspaceView = new EditorEmptyWorkspaceView({
       labels: props.labels,
@@ -396,6 +405,12 @@ export class EditorGroupView {
     return this.pendingViewStateSaveByTabId.get(tabId) ?? Promise.resolve();
   }
 
+  focusPrimaryInput() {
+    queueMicrotask(() => {
+      this.modeToolbarHost.focusPrimaryInput();
+    });
+  }
+
   setProps(props: EditorGroupViewProps) {
     if (props.groupId !== this.props.groupId) {
       this.saveActivePaneViewState();
@@ -428,7 +443,13 @@ export class EditorGroupView {
     const { group, editorStatus } = this.controller.getSnapshot();
     const resolverContext = this.createPaneResolverContext();
     this.props.onStatusChange?.(editorStatus);
-    this.titleAreaControl.setProps(createTitleControlProps(this.props, group));
+    this.titleAreaControl.setProps(
+      createTitleControlProps(
+        this.props,
+        group,
+        this.requestBrowserPrimaryInputFocus,
+      ),
+    );
     this.headerElement.classList.toggle('has-tabs', group.tabs.length > 0);
     this.topbarActionsView.setProps({
       isEditorCollapsed: Boolean(this.props.isEditorCollapsed),
@@ -443,7 +464,7 @@ export class EditorGroupView {
       onCreateDraftTab: this.props.onCreateDraftTab,
       onCreateBrowserTab: () => {
         this.props.onCreateBrowserTab();
-        requestFocusTitlebarWebUrlInput();
+        this.requestBrowserPrimaryInputFocus();
       },
       onCreatePdfTab: this.props.onCreatePdfTab,
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
@@ -496,6 +517,20 @@ export class EditorGroupView {
     }
 
     this.syncTopbarToolbar(this.resolveToolbarElement());
+    this.flushBrowserPrimaryInputFocus(group.activeTab);
+  }
+
+  private readonly requestBrowserPrimaryInputFocus = () => {
+    this.shouldFocusBrowserPrimaryInput = true;
+  };
+
+  private flushBrowserPrimaryInputFocus(activeTab: EditorWorkspaceTab | null) {
+    if (!this.shouldFocusBrowserPrimaryInput || !isEmptyBrowserTabInput(activeTab)) {
+      return;
+    }
+
+    this.shouldFocusBrowserPrimaryInput = false;
+    this.focusPrimaryInput();
   }
 
   private syncTopbarActions(topbarActionsElement: HTMLElement | null) {

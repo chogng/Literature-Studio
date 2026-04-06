@@ -74,6 +74,8 @@ export const PLANNED_EDITOR_PANE_MODES = [
   'git-changes',
 ] as const satisfies readonly EditorFuturePaneMode[];
 
+export const EMPTY_BROWSER_TAB_URL = 'about:blank';
+
 export type EditorFileTabInput = {
   id: string;
   kind: 'file';
@@ -160,7 +162,7 @@ function createEditorContentTabInput<K extends EditorContentTabInput['kind']>(
   const derivedTitle = getEditorContentTabTitle(normalizedUrl);
   const normalizedInitialTitle = initial?.title?.trim() ?? '';
   const resolvedTitle =
-    normalizedUrl === 'about:blank'
+    normalizedUrl === EMPTY_BROWSER_TAB_URL
       ? ''
       : normalizedInitialTitle || derivedTitle;
 
@@ -196,6 +198,12 @@ export function isEditorBrowserTabInput(
   input: EditorTabInput | null | undefined,
 ): input is EditorBrowserTabInput {
   return input?.kind === 'browser';
+}
+
+export function isEmptyBrowserTabInput(
+  input: EditorTabInput | null | undefined,
+): input is EditorBrowserTabInput {
+  return isEditorBrowserTabInput(input) && input.url === EMPTY_BROWSER_TAB_URL;
 }
 
 export function isEditorPdfTabInput(

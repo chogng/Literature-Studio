@@ -6,7 +6,6 @@
 }
 
 .sidebar-topbar-actions {
-  --ls-actionbar-item-size: 24px;
   display: inline-flex;
   align-items: center;
   min-width: 0;
@@ -35,6 +34,8 @@
 .sidebar-topbar-search-btn.actionbar-action,
 .editor-topbar-add-btn.actionbar-action,
 .editor-topbar-toggle-editor-btn.actionbar-action {
+  width: 24px;
+  height: 24px;
   border: none;
   background: transparent;
   color: var(--vscode-sideBar-foreground, #1f2d3a);
@@ -47,4 +48,13 @@
   transition: none;
   gap: 0;
   -webkit-app-region: no-drag;
+}
+
+.sidebar-topbar-toggle-btn.actionbar-action .lx-icon,
+.sidebar-topbar-search-btn.actionbar-action .lx-icon,
+.editor-topbar-add-btn.actionbar-action .lx-icon,
+.editor-topbar-toggle-editor-btn.actionbar-action .lx-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
 }

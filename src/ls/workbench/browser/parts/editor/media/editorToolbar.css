@@ -19,6 +19,8 @@
 }
 
 .editor-browser-toolbar-actions {
+  --editor-browser-toolbar-action-size: 24px;
+  --editor-browser-toolbar-icon-size: 16px;
   display: inline-flex;
   align-items: center;
   min-width: 0;
@@ -31,6 +33,8 @@
 }
 
 .editor-browser-toolbar-btn.actionbar-action {
+  width: var(--editor-browser-toolbar-action-size);
+  height: var(--editor-browser-toolbar-action-size);
   border: none;
   background: transparent;
   color: var(--vscode-sideBar-foreground, #1f2d3a);
@@ -38,6 +42,12 @@
   align-items: center;
   justify-content: center;
   padding: 0;
+}
+
+.editor-browser-toolbar-btn.actionbar-action .lx-icon {
+  width: var(--editor-browser-toolbar-icon-size);
+  height: var(--editor-browser-toolbar-icon-size);
+  font-size: var(--editor-browser-toolbar-icon-size);
 }
 
 .editor-browser-toolbar-address-input.inputbox {

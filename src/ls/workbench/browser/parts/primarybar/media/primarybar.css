@@ -94,12 +94,29 @@
 }
 
 .primarybar-pane-header .pane-header-actionbar {
+  --pane-header-actionbar-item-size: 24px;
+  --pane-header-actionbar-icon-size: 16px;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   padding: 0;
   border-bottom: 0;
   background: transparent;
+}
+
+.primarybar-pane-header .pane-header-actionbar .actionbar-action {
+  min-height: var(--pane-header-actionbar-item-size);
+}
+
+.primarybar-pane-header .pane-header-actionbar .actionbar-action.is-icon {
+  width: var(--pane-header-actionbar-item-size);
+  height: var(--pane-header-actionbar-item-size);
+}
+
+.primarybar-pane-header .pane-header-actionbar .actionbar-action .lx-icon {
+  width: var(--pane-header-actionbar-icon-size);
+  height: var(--pane-header-actionbar-icon-size);
+  font-size: var(--pane-header-actionbar-icon-size);
 }
 
 .primarybar-library-pane-content > .library-tree {
@@ -277,8 +294,8 @@ html[lang="en"] .fetch-pane-empty-state {
 }
 
 .fetch-pane-actionbar {
-  --ls-actionbar-item-size: 26px;
-  --ls-actionbar-icon-size: 16px;
+  --pane-header-actionbar-item-size: 26px;
+  --pane-header-actionbar-icon-size: 16px;
   --ls-actionbar-gap: 8px;
   --ls-actionbar-radius: 6px;
   --ls-actionbar-foreground: var(--vscode-sideBar-foreground, #1f2d3a);
@@ -288,6 +305,21 @@ html[lang="en"] .fetch-pane-empty-state {
   --ls-actionbar-active-background: var(--vscode-sideBar-actionActiveBackground, rgba(0, 0, 0, 0.1));
   --ls-actionbar-focus-outline: transparent;
   padding: 8px;
+}
+
+.fetch-pane-article-card-icon-btn.actionbar-action {
+  min-height: 24px;
+}
+
+.fetch-pane-article-card-icon-btn.actionbar-action.is-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.fetch-pane-article-card-icon-btn.actionbar-action .lx-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
 }
 
 .fetch-pane-trigger-btn {

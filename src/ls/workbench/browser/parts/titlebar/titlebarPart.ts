@@ -1,23 +1,18 @@
+// LEGACY: the workbench no longer mounts the titlebar part in normal runtime.
 import type { LocaleMessages } from 'language/locales';
-import type { QuickAccessSourceOption } from 'ls/workbench/services/quickAccess/quickAccessService';
 import type { WebContentState } from 'ls/workbench/services/webContent/webContentNavigationService';
 import type { TitlebarAction, TitlebarProps } from 'ls/workbench/browser/parts/titlebar/titlebarView';
 import type { WorkbenchPage } from 'ls/workbench/browser/workbench';
-import { createTitlebarQuickAccessProps } from 'ls/workbench/browser/parts/titlebar/quickAccess';
-import type { QuickAccessAction } from 'ls/workbench/browser/parts/titlebar/quickAccess';
 
 export type TitlebarPartState = {
   activePage: WorkbenchPage;
   ui: LocaleMessages;
-  webUrl: string;
   isWindowMaximized: boolean;
   isPrimarySidebarVisible: boolean;
   isAgentSidebarVisible: boolean;
   browserUrl: string;
   webContentState: Pick<WebContentState, 'canGoBack' | 'canGoForward'>;
   canExportDocx: boolean;
-  addressBarSourceOptions: QuickAccessSourceOption[];
-  selectedAddressBarSourceId: string;
 };
 
 export type TitlebarPartActions = {
@@ -27,7 +22,6 @@ export type TitlebarPartActions = {
   handleWebContentBack: () => void;
   handleWebContentForward: () => void;
   handleWebContentRefresh: () => void;
-  dispatchQuickAccessAction: (action: QuickAccessAction) => void;
 };
 
 export type CreateTitlebarPartPropsParams = {
@@ -40,15 +34,12 @@ export function createTitlebarPartProps({
   state: {
     activePage,
     ui,
-    webUrl,
     isWindowMaximized,
     isPrimarySidebarVisible,
     isAgentSidebarVisible,
     browserUrl,
     webContentState,
     canExportDocx,
-    addressBarSourceOptions,
-    selectedAddressBarSourceId,
   },
   actions: {
     handleWindowControl,
@@ -57,7 +48,6 @@ export function createTitlebarPartProps({
     handleWebContentBack,
     handleWebContentForward,
     handleWebContentRefresh,
-    dispatchQuickAccessAction,
   },
 }: CreateTitlebarPartPropsParams): TitlebarProps {
   return {
@@ -100,16 +90,5 @@ export function createTitlebarPartProps({
     onNavigateBack: handleWebContentBack,
     onNavigateForward: handleWebContentForward,
     onNavigateRefresh: handleWebContentRefresh,
-    ...createTitlebarQuickAccessProps({
-      state: {
-        ui,
-        webUrl,
-        addressBarSourceOptions,
-        selectedAddressBarSourceId,
-      },
-      actions: {
-        dispatchQuickAccessAction,
-      },
-    }),
   };
 }

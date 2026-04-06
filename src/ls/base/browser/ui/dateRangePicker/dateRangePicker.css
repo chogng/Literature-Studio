@@ -1,6 +1,6 @@
 .date-range-picker {
-  --date-range-trigger-min-width: var(--ls-actionbar-item-size, 56px);
-  --date-range-trigger-min-height: var(--ls-actionbar-item-size, 32px);
+  --date-range-trigger-min-width: 56px;
+  --date-range-trigger-min-height: 32px;
   --date-range-trigger-padding: 0 12px;
   --date-range-trigger-radius: var(--ls-actionbar-radius, 6px);
   --date-range-trigger-bg-hover: var(--ls-actionbar-hover-background, #eef3f8);

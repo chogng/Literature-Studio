@@ -141,6 +141,12 @@
   color: #304357;
 }
 
+.agentbar-model-switch .actionbar-action.agentbar-model-switch-btn .lx-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+
 .agentbar-model-switch .actionbar-action.agentbar-model-switch-btn:hover:not(:disabled),
 .agentbar-model-switch .actionbar-action.agentbar-model-switch-btn[aria-expanded='true'] {
   background: #f3f7fb;
@@ -273,8 +279,30 @@
   margin-left: auto;
 }
 
+.agentbar-composer-actions .actionbar-action {
+  min-height: 28px;
+}
+
+.agentbar-composer-actions .actionbar-action.is-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.agentbar-composer-actions .actionbar-action .lx-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
 .agentbar-composer-send-action.actionbar-action {
-  --ls-actionbar-icon-size: 22px;
+  width: 28px;
+  height: 28px;
+}
+
+.agentbar-composer-send-action.actionbar-action .lx-icon {
+  width: 22px;
+  height: 22px;
+  font-size: 22px;
 }
 
 .agentbar-composer-send-action.actionbar-action:hover:not(:disabled) {

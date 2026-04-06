@@ -145,6 +145,7 @@ export type WritingEditorToolbarSplitButtonConfig = {
     label: string;
     title?: string;
     checked?: boolean;
+    disabled?: boolean;
     onClick: () => void;
   }[];
 };
@@ -662,8 +663,40 @@ function createFontSizeToolbarSplitButton(params: {
       label: option.label,
       title: option.title ?? option.label,
       checked: option.value === currentValue,
+      disabled: option.disabled,
       onClick: () => {
         actions.setFontSize(option.value || null);
+      },
+    })),
+  };
+}
+
+function createFontFamilyToolbarSplitButton(params: {
+  labels: WritingEditorToolbarLabels;
+  toolbarState: WritingEditorToolbarState;
+  actions: WritingEditorToolbarActions;
+  options: readonly WritingEditorToolbarDropdownConfig['options'][number][];
+}): WritingEditorToolbarSplitButtonConfig {
+  const { labels, toolbarState, actions, options } = params;
+  const currentValue = toolbarState.fontFamily ?? '';
+  const currentOption = options.find((option) => option.value === currentValue) ?? null;
+  const currentLabel = (currentOption?.label ?? currentValue) || labels.defaultTextStyle;
+
+  return {
+    label: labels.fontFamily,
+    title: labels.fontFamily,
+    buttonLabel: currentLabel,
+    buttonText: currentLabel,
+    onClick: () => {
+      actions.setFontFamily(currentValue || null);
+    },
+    menu: options.map((option) => ({
+      label: option.label,
+      title: option.title ?? option.label,
+      checked: option.value === currentValue,
+      disabled: option.disabled,
+      onClick: () => {
+        actions.setFontFamily(option.value || null);
       },
     })),
   };
@@ -760,7 +793,16 @@ export function createWritingEditorToolbarButtonGroups(params: {
     const items = groups.get(toolbar.group) ?? [];
     if (toolbar.kind === 'dropdown') {
       const options = dropdownOptions[definition.id as 'setFontFamily' | 'setFontSize'] ?? [];
-      if (definition.id === 'setFontSize') {
+      if (definition.id === 'setFontFamily') {
+        items.push(
+          createFontFamilyToolbarSplitButton({
+            labels,
+            toolbarState,
+            actions,
+            options,
+          }),
+        );
+      } else if (definition.id === 'setFontSize') {
         items.push(
           createFontSizeToolbarSplitButton({
             labels,

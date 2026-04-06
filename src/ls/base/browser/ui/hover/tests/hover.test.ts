@@ -177,6 +177,30 @@ test('input box can be used with shared hover content instead of native title to
   }
 });
 
+test('input box exposes focus state and supports ranged selection', () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const inputBox = new InputBox(host, undefined, {
+    value: 'https://example.com/article',
+  });
+
+  try {
+    assert.equal(inputBox.hasFocus(), false);
+
+    inputBox.focus();
+    assert.equal(inputBox.hasFocus(), true);
+
+    inputBox.select({ start: 8, end: 19 });
+    assert.equal(inputBox.inputElement.selectionStart, 8);
+    assert.equal(inputBox.inputElement.selectionEnd, 19);
+
+    inputBox.blur();
+    assert.equal(inputBox.hasFocus(), false);
+  } finally {
+    inputBox.dispose();
+  }
+});
+
 test('dropdown view uses shared hover content instead of native title tooltips', async () => {
   const dropdownView = createDropdownView({
     title: 'Quick access source',

@@ -121,6 +121,10 @@ export class EditorPartView {
     return this.groupView.whenTabViewStateSettled(tabId);
   }
 
+  focusPrimaryInput() {
+    this.groupView.focusPrimaryInput();
+  }
+
   setProps(props: EditorPartProps) {
     this.groupView.setProps(props);
   }

@@ -5,7 +5,6 @@ import {
   createWorkbenchDocumentLocaleContribution,
   createWorkbenchServicesLifecycleContribution,
   createWorkbenchStatusbarContribution,
-  createWorkbenchTitlebarActionContribution,
   registerWorkbenchContribution,
 } from 'ls/workbench/contrib/workbench/workbench.contribution';
 import { createWorkbenchWebContentViewContribution } from 'ls/workbench/contrib/webContentView/webContentView.contribution';
@@ -21,6 +20,5 @@ registerWorkbenchContribution(createWorkbenchContainerStateContribution);
 registerWorkbenchContribution(createWorkbenchDocumentLocaleContribution);
 registerWorkbenchContribution(createWorkbenchServicesLifecycleContribution);
 registerWorkbenchContribution(createWorkbenchStatusbarContribution);
-registerWorkbenchContribution(createWorkbenchTitlebarActionContribution);
 registerWorkbenchContribution(createWorkbenchWebContentViewContribution);
 //#endregion

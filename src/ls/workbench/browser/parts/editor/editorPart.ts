@@ -1,6 +1,10 @@
 import type { LocaleMessages } from 'language/locales';
 import { normalizeUrl } from 'ls/workbench/common/url';
-import { toEditorTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
+import {
+  EMPTY_BROWSER_TAB_URL,
+  isEmptyBrowserTabInput,
+  toEditorTabInput,
+} from 'ls/workbench/browser/parts/editor/editorInput';
 import { createWebContentSurfaceSnapshot, resolveContentSourceUrl } from 'ls/workbench/browser/webContentSurfaceState';
 import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
 
@@ -330,8 +334,26 @@ export class EditorPartController {
     this.editorModel.createBrowserTab(url);
   };
 
+  readonly openBrowserPane = () => {
+    this.createOrRevealEmptyBrowserTab();
+  };
+
+  private readonly createOrRevealEmptyBrowserTab = () => {
+    const { activeTab, tabs } = this.editorModel.getSnapshot();
+    const existingEmptyBrowserTab = isEmptyBrowserTabInput(activeTab)
+      ? activeTab
+      : tabs.find((tab) => isEmptyBrowserTabInput(tab)) ?? null;
+    if (existingEmptyBrowserTab) {
+      this.editorModel.activateTab(existingEmptyBrowserTab.id);
+      return existingEmptyBrowserTab.id;
+    }
+
+    this.editorModel.createBrowserTab(EMPTY_BROWSER_TAB_URL);
+    return this.editorModel.getSnapshot().activeTabId;
+  };
+
   private readonly handleOpenBrowserPane = () => {
-    this.editorModel.createBrowserTab('about:blank');
+    this.openBrowserPane();
   };
 
   readonly createPdfTab = (url: string) => {
@@ -396,7 +418,7 @@ export class EditorPartController {
   };
 
   private readonly handleCreateBrowserTab = () => {
-    this.editorModel.createBrowserTab('about:blank');
+    this.createOrRevealEmptyBrowserTab();
   };
 
   private emitChange(reason: EditorPartChangeReason) {

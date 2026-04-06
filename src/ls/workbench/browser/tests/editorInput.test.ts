@@ -3,7 +3,9 @@ import test from 'node:test';
 import { createWritingEditorDocumentFromPlainText } from 'ls/editor/common/writingEditorDocument';
 import type { EditorWorkspaceDraftTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import {
+  EMPTY_BROWSER_TAB_URL,
   getEditorTabInputResourceKey,
+  isEmptyBrowserTabInput,
   normalizeEditorTabInput,
   toEditorTabInput,
 } from 'ls/workbench/browser/parts/editor/editorInput';
@@ -69,12 +71,33 @@ test('getEditorTabInputResourceKey uses stable kind-aware resource keys', () => 
 });
 
 test('getEditorContentTabTitle treats about:blank as an empty browser tab title', () => {
-  assert.equal(getEditorContentTabTitle('about:blank'), '');
+  assert.equal(getEditorContentTabTitle(EMPTY_BROWSER_TAB_URL), '');
 });
 
 test('getEditorContentDisplayUrl hides about:blank from url displays', () => {
-  assert.equal(getEditorContentDisplayUrl('about:blank'), '');
+  assert.equal(getEditorContentDisplayUrl(EMPTY_BROWSER_TAB_URL), '');
   assert.equal(getEditorContentDisplayUrl(' https://example.com/paper '), 'https://example.com/paper');
+});
+
+test('isEmptyBrowserTabInput matches only browser about:blank tabs', () => {
+  assert.equal(
+    isEmptyBrowserTabInput({
+      id: 'browser-blank',
+      kind: 'browser',
+      title: '',
+      url: EMPTY_BROWSER_TAB_URL,
+    }),
+    true,
+  );
+  assert.equal(
+    isEmptyBrowserTabInput({
+      id: 'browser-filled',
+      kind: 'browser',
+      title: 'Example',
+      url: 'https://example.com',
+    }),
+    false,
+  );
 });
 
 test('normalizeEditorTabInput clears stale about:blank browser titles from persisted state', () => {

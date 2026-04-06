@@ -20,8 +20,8 @@
 }
 
 .editor-draft-toolbar-group.actionbar {
-  --ls-actionbar-item-size: 26px;
-  --ls-actionbar-icon-size: 14px;
+  --editor-draft-toolbar-item-size: 24px;
+  --editor-draft-toolbar-icon-size: 14px;
   --ls-actionbar-gap: 4px;
   --ls-actionbar-radius: 6px;
   --ls-actionbar-foreground: #1f2d3a;
@@ -35,23 +35,19 @@
   background: transparent;
 }
 
-.editor-draft-toolbar-group .actionbar-actions-container {
-  gap: 4px;
+.editor-draft-toolbar-btn.actionbar-action {
+  min-height: var(--editor-draft-toolbar-item-size);
 }
 
-.editor-draft-toolbar-btn.actionbar-action {
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #1f2d3a;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  box-shadow: none;
-  transition: none;
+.editor-draft-toolbar-btn.actionbar-action.is-icon {
+  width: var(--editor-draft-toolbar-item-size);
+  height: var(--editor-draft-toolbar-item-size);
+}
+
+.editor-draft-toolbar-btn.actionbar-action .lx-icon {
+  width: var(--editor-draft-toolbar-icon-size);
+  height: var(--editor-draft-toolbar-icon-size);
+  font-size: var(--editor-draft-toolbar-icon-size);
 }
 
 .editor-draft-toolbar-btn-icon {
@@ -105,53 +101,32 @@
   pointer-events: none;
 }
 
-.editor-draft-toolbar-dropdown.dropdown-wrapper {
-  min-width: 88px;
-  max-width: 140px;
+.editor-draft-toolbar-split {
+  height: var(--editor-draft-toolbar-item-size);
 }
 
-.actionbar-split .action-dropdown-item-separator {
-  height: var(--ls-actionbar-item-size, 26px);
+.editor-draft-toolbar-split .action-dropdown-item-separator {
   padding: 6px 0;
 }
 
-.actionbar-split .action-dropdown-item-separator > div {
+.editor-draft-toolbar-split .action-dropdown-item-separator > div {
   height: 14px;
 }
 
 .editor-draft-toolbar-split-primary.actionbar-action {
-  height: 100%;
-  min-height: var(--ls-actionbar-item-size, 26px);
   min-width: 34px;
-  padding: 0 8px;
-  border-radius: var(--ls-actionbar-radius, 6px) 0 0 var(--ls-actionbar-radius, 6px);
+  padding: 0 6px;
 }
 
 .editor-draft-toolbar-split-dropdown.actionbar-action {
-  height: 100%;
-  min-height: var(--ls-actionbar-item-size, 26px);
   width: 16px;
   min-width: 16px;
   max-width: 16px;
-  padding: 0;
-  border-radius: 0 var(--ls-actionbar-radius, 6px) var(--ls-actionbar-radius, 6px) 0;
 }
 
 .editor-draft-toolbar-split-dropdown.actionbar-action .lx-icon {
   width: 12px;
   height: 12px;
-}
-
-.editor-draft-toolbar-dropdown .dropdown-field {
-  overflow: hidden;
-  font:
-    500 11px/1.2 -apple-system,
-    BlinkMacSystemFont,
-    "PingFang SC",
-    "Noto Sans CJK SC",
-    sans-serif;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pm-editor-host {

@@ -8,9 +8,6 @@ import {
   WEB_CONTENT_VIEW_STATE_CAPTURE_SCRIPT_MARKER,
   WEB_CONTENT_VIEW_STATE_RESTORE_SCRIPT_MARKER,
 } from 'ls/workbench/browser/parts/editor/panes/contentEditorViewState';
-import {
-  subscribeTitlebarUiActions,
-} from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let EditorGroupView: typeof import('ls/workbench/browser/parts/editor/editorGroupView').EditorGroupView;
@@ -267,11 +264,7 @@ test('EditorGroupView recreates draft pane instances and restores view state aft
   }
 });
 
-test('EditorGroupView focuses the URL input when opening browser mode from an empty pane entry', () => {
-  const actions: string[] = [];
-  const unsubscribe = subscribeTitlebarUiActions((action) => {
-    actions.push(action.type);
-  });
+test('EditorGroupView schedules browser primary input focus when opening browser mode from an empty pane entry', () => {
   const openedPaneModes: string[] = [];
   const view = new EditorGroupView({
     ...createProps(null, null, []),
@@ -290,25 +283,24 @@ test('EditorGroupView focuses the URL input when opening browser mode from an em
     browserButton.click();
 
     assert.deepEqual(openedPaneModes, ['browser']);
-    assert(actions.includes('FOCUS_WEB_URL_INPUT'));
+    assert.equal(
+      (view as unknown as { shouldFocusBrowserPrimaryInput: boolean })
+        .shouldFocusBrowserPrimaryInput,
+      true,
+    );
   } finally {
-    unsubscribe();
     view.dispose();
   }
 });
 
-test('EditorGroupView focuses the URL input when activating an empty browser tab', () => {
+test('EditorGroupView schedules browser primary input focus when activating an empty browser tab', () => {
   const browserTab = {
     id: 'browser-a',
     kind: 'browser' as const,
     title: '',
     url: 'about:blank',
   };
-  const actions: string[] = [];
   const activatedTabIds: string[] = [];
-  const unsubscribe = subscribeTitlebarUiActions((action) => {
-    actions.push(action.type);
-  });
   const view = new EditorGroupView({
     ...createProps(null, null, [browserTab]),
     onActivateTab: (tabId) => {
@@ -326,9 +318,12 @@ test('EditorGroupView focuses the URL input when activating an empty browser tab
     browserButton.click();
 
     assert.deepEqual(activatedTabIds, ['browser-a']);
-    assert(actions.includes('FOCUS_WEB_URL_INPUT'));
+    assert.equal(
+      (view as unknown as { shouldFocusBrowserPrimaryInput: boolean })
+        .shouldFocusBrowserPrimaryInput,
+      true,
+    );
   } finally {
-    unsubscribe();
     view.dispose();
   }
 });

@@ -2,15 +2,9 @@ import { toast } from 'ls/base/browser/ui/toast/toast';
 import { EventEmitter } from 'ls/base/common/event';
 import type { LocaleMessages } from 'language/locales';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
-import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 import { formatLocalized } from 'ls/workbench/services/desktop/desktopError';
 import { EMPTY_WEB_CONTENT_STATE, resolveWebContentNavigation, resolveWebContentRefreshMode, resolveWebContentStateUrlUpdate } from 'ls/workbench/services/webContent/webContentNavigationService';
 import type { WebContentState } from 'ls/workbench/services/webContent/webContentNavigationService';
-
-import type {
-  QuickAccessCycleDirection,
-  QuickAccessSourceOption,
-} from 'ls/workbench/services/quickAccess/quickAccessService';
 
 type StringSetter = (value: string) => void;
 type StringStateSetter = (value: string | ((current: string) => string)) => void;
@@ -45,31 +39,6 @@ type BrowserRefreshParams = {
 type WebContentNavigationButtonParams = {
   webContentRuntime: boolean;
   ui: LocaleMessages;
-};
-
-type WebContentNavigationQuickAccessProvider = {
-  applyUrlInput: (
-    nextUrl: string,
-    setWebUrl: StringSetter,
-    setFetchSeedUrl: StringSetter,
-  ) => void;
-  createSourceOptions: (
-    batchSources: ReadonlyArray<BatchSource>,
-  ) => QuickAccessSourceOption[];
-  findSourceOption: (
-    options: ReadonlyArray<QuickAccessSourceOption>,
-    sourceId: string,
-  ) => QuickAccessSourceOption | undefined;
-  resolveNextSourceOption: (
-    options: ReadonlyArray<QuickAccessSourceOption>,
-    selectedSourceId: string,
-    direction: QuickAccessCycleDirection,
-  ) => QuickAccessSourceOption | null;
-  resolveSourceId: (
-    fetchSeedUrl: string,
-    webUrl: string,
-    batchSources: ReadonlyArray<BatchSource>,
-  ) => string;
 };
 
 const DEFAULT_WEB_CONTENT_NAVIGATION_SNAPSHOT: WebContentNavigationSnapshot = {
@@ -114,32 +83,6 @@ function areWebContentNavigationSnapshotsEqual(
     previous.browserUrl === next.browserUrl &&
     areWebContentStatesEqual(previous.webContentState, next.webContentState)
   );
-}
-
-let webContentNavigationQuickAccessProvider: WebContentNavigationQuickAccessProvider | null = null;
-
-export function registerWebContentNavigationQuickAccess(
-  provider: WebContentNavigationQuickAccessProvider,
-) {
-  webContentNavigationQuickAccessProvider = provider;
-}
-
-function getWebContentNavigationQuickAccessProvider(): WebContentNavigationQuickAccessProvider {
-  if (!webContentNavigationQuickAccessProvider) {
-    return {
-      applyUrlInput: (nextUrl, setWebUrl, setFetchSeedUrl) => {
-        const normalized = nextUrl.trim();
-        setWebUrl(normalized);
-        setFetchSeedUrl(normalized);
-      },
-      createSourceOptions: () => [],
-      findSourceOption: () => undefined,
-      resolveNextSourceOption: () => null,
-      resolveSourceId: () => '',
-    };
-  }
-
-  return webContentNavigationQuickAccessProvider;
 }
 
 export class WebContentNavigationModel {
@@ -346,15 +289,6 @@ export class WebContentNavigationModel {
     return true;
   }
 
-  handleWebUrlChange(
-    nextUrl: string,
-    setWebUrl: StringSetter,
-    setFetchSeedUrl: StringSetter,
-  ): void {
-    const provider = getWebContentNavigationQuickAccessProvider();
-    provider.applyUrlInput(nextUrl, setWebUrl, setFetchSeedUrl);
-  }
-
   handleBrowserRefresh({
     electronRuntime,
     webContentRuntime,
@@ -425,37 +359,5 @@ export class WebContentNavigationModel {
     }
 
     webContent.clearHistory(this.activeTargetId);
-  }
-
-  createAddressBarSourceOptions(batchSources: ReadonlyArray<BatchSource>) {
-    const provider = getWebContentNavigationQuickAccessProvider();
-    return provider.createSourceOptions(batchSources);
-  }
-
-  resolveSelectedAddressBarSourceId(
-    fetchSeedUrl: string,
-    webUrl: string,
-    batchSources: ReadonlyArray<BatchSource>,
-  ) {
-    const provider = getWebContentNavigationQuickAccessProvider();
-    return provider.resolveSourceId(fetchSeedUrl, webUrl, batchSources);
-  }
-
-  cycleSelectedAddressBarSource(
-    options: ReadonlyArray<QuickAccessSourceOption>,
-    selectedSourceId: string,
-    direction: QuickAccessCycleDirection,
-  ) {
-    const provider = getWebContentNavigationQuickAccessProvider();
-    return provider.resolveNextSourceOption(options, selectedSourceId, direction);
-  }
-
-  applyAddressBarSource(
-    nextUrl: string,
-    setWebUrl: StringSetter,
-    setFetchSeedUrl: StringSetter,
-  ) {
-    const provider = getWebContentNavigationQuickAccessProvider();
-    provider.applyUrlInput(nextUrl, setWebUrl, setFetchSeedUrl);
   }
 }

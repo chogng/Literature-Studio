@@ -409,6 +409,9 @@ export class DraftEditorToolbar {
 
   private createToolbarSplitButton(splitButtonConfig: WritingEditorToolbarSplitButtonConfig) {
     const primaryContent = createElement('span', 'editor-draft-toolbar-btn-icon');
+    const usesCustomPrimaryContent =
+      Boolean(splitButtonConfig.buttonText) || !splitButtonConfig.buttonIcon;
+
     if (splitButtonConfig.buttonIcon) {
       primaryContent.append(createLxIcon(splitButtonConfig.buttonIcon));
     }
@@ -430,7 +433,7 @@ export class DraftEditorToolbar {
         label: splitButtonConfig.buttonLabel,
         hover: splitButtonConfig.buttonLabel,
         content: primaryContent,
-        mode: 'custom',
+        mode: usesCustomPrimaryContent ? 'custom' : 'icon',
         buttonClassName: 'editor-draft-toolbar-btn editor-draft-toolbar-split-primary',
         onClick: () => {
           splitButtonConfig.onClick();
@@ -441,13 +444,14 @@ export class DraftEditorToolbar {
         label: splitButtonConfig.label,
         title: splitButtonConfig.title,
         content: createLxIcon('chevron-down'),
-        mode: 'custom',
+        mode: 'icon',
         buttonClassName: 'editor-draft-toolbar-btn editor-draft-toolbar-split-dropdown',
         menu: splitButtonConfig.menu.map((item, index) => ({
           id: `${splitButtonConfig.label}-${index}`,
           label: item.label,
           title: item.title,
           checked: item.checked,
+          disabled: item.disabled,
           onClick: () => {
             item.onClick();
           },
@@ -459,6 +463,7 @@ export class DraftEditorToolbar {
 
   private createToolbarButton(buttonConfig: WritingEditorToolbarButtonConfig) {
     const iconSlot = createElement('span', 'editor-draft-toolbar-btn-icon');
+    const usesCustomContent = !buttonConfig.icon;
 
     if (buttonConfig.icon) {
       iconSlot.append(createLxIcon(buttonConfig.icon));
@@ -473,7 +478,7 @@ export class DraftEditorToolbar {
       label: buttonConfig.label,
       hover: buttonConfig.label,
       content: iconSlot,
-      mode: 'custom',
+      mode: usesCustomContent ? 'custom' : 'icon',
       active: Boolean(buttonConfig.isActive),
       disabled: Boolean(buttonConfig.disabled),
       buttonClassName: 'editor-draft-toolbar-btn',

@@ -4,10 +4,6 @@ import type {
 import { LifecycleOwner, LifecycleStore, toDisposable } from 'ls/base/common/lifecycle';
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
-import {
-  requestFocusTitlebarWebUrlInput,
-  requestOpenAddressBarSourceMenu,
-} from 'ls/workbench/browser/parts/titlebar/titlebarActions';
 import { ArticleCard } from 'ls/workbench/browser/parts/sidebar/articleCard';
 
 export type SidebarArticle = {
@@ -41,8 +37,6 @@ export type SidebarLabels = {
   close: string;
   emptyFiltered: string;
   emptyAll: string;
-  emptyAllQuickSourceAction: string;
-  emptyAllConnector: string;
   emptyAllInputLinkAction: string;
   emptyAllInputLinkSuffix: string;
   startDate: string;
@@ -104,6 +98,7 @@ export type FetchPaneProps = {
   hasData: boolean;
   locale: Locale;
   labels: SidebarLabels;
+  onFocusWebUrlInput: () => void;
   fetchStartDate: string;
   onFetchStartDateChange: (value: string) => void;
   fetchEndDate: string;
@@ -136,6 +131,7 @@ export type FetchPaneState = {
 };
 
 export type FetchPaneActions = {
+  onFocusWebUrlInput: () => void;
   onFetchStartDateChange: (value: string) => void;
   onFetchEndDateChange: (value: string) => void;
   onFetch: () => void;
@@ -196,8 +192,6 @@ export function createSidebarPartLabels({
     close: ui.titlebarClose,
     emptyFiltered: ui.emptyFiltered,
     emptyAll: ui.emptyAll,
-    emptyAllQuickSourceAction: ui.emptyAllQuickSourceAction,
-    emptyAllConnector: ui.emptyAllConnector,
     emptyAllInputLinkAction: ui.emptyAllInputLinkAction,
     emptyAllInputLinkSuffix: ui.emptyAllInputLinkSuffix,
     startDate: ui.startDate,
@@ -268,6 +262,7 @@ export function createFetchPaneProps({
     selectedArticleKeys,
   },
   actions: {
+    onFocusWebUrlInput,
     onFetchStartDateChange,
     onFetchEndDateChange,
     onFetch,
@@ -282,6 +277,7 @@ export function createFetchPaneProps({
     hasData,
     locale,
     labels: createSidebarPartLabels({ ui }),
+    onFocusWebUrlInput,
     fetchStartDate,
     onFetchStartDateChange,
     fetchEndDate,
@@ -430,16 +426,6 @@ export class FetchPaneContentView extends LifecycleOwner {
       return;
     }
 
-    const quickSource = createElement(
-      'button',
-      'fetch-pane-empty-state-action',
-    );
-    quickSource.type = 'button';
-    quickSource.textContent = this.props.labels.emptyAllQuickSourceAction;
-    this.renderDisposables.add(
-      addDisposableListener(quickSource, 'click', requestOpenAddressBarSourceMenu),
-    );
-
     const inputLink = createElement(
       'button',
       'fetch-pane-empty-state-action',
@@ -447,12 +433,10 @@ export class FetchPaneContentView extends LifecycleOwner {
     inputLink.type = 'button';
     inputLink.textContent = this.props.labels.emptyAllInputLinkAction;
     this.renderDisposables.add(
-      addDisposableListener(inputLink, 'click', requestFocusTitlebarWebUrlInput),
+      addDisposableListener(inputLink, 'click', this.props.onFocusWebUrlInput),
     );
 
     empty.append(
-      quickSource,
-      document.createTextNode(` ${this.props.labels.emptyAllConnector} `),
       inputLink,
       document.createTextNode(
         this.props.labels.emptyAllInputLinkSuffix

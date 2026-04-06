@@ -69,6 +69,11 @@ implements EditorModeToolbarContribution {
     this.render();
   }
 
+  focusPrimaryInput() {
+    this.addressInput.focus();
+    this.addressInput.select();
+  }
+
   dispose() {
     this.addressInput.dispose();
     this.leadingActionsView.dispose();
@@ -198,4 +203,3 @@ export function createEditorBrowserModeToolbarContribution(
 ) {
   return new EditorBrowserModeToolbarContribution(context);
 }
-
