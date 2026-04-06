@@ -2,14 +2,11 @@ import type { NodeType } from 'prosemirror-model';
 import { liftListItem, sinkListItem, splitListItem } from 'prosemirror-schema-list';
 
 import type { LocaleMessages } from 'language/locales';
-import {
-  DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
-  DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
-} from 'ls/base/common/editorFormat';
 import type {
   WritingEditorCommand,
   WritingEditorToolbarState,
 } from 'ls/editor/browser/text/commands';
+import type { EditorDraftToolbarStyleModel } from 'ls/editor/browser/text/editorDraftToolbarStyleModel';
 import {
   redoCommand,
   setParagraphCommand,
@@ -650,19 +647,14 @@ function createTextStyleToolbarSplitButton(params: {
 
 function createFontSizeToolbarSplitButton(params: {
   labels: WritingEditorToolbarLabels;
-  toolbarState: WritingEditorToolbarState;
   actions: WritingEditorToolbarActions;
+  model: EditorDraftToolbarStyleModel['fontSize'];
   options: readonly WritingEditorToolbarDropdownConfig['options'][number][];
 }): WritingEditorToolbarSplitButtonConfig {
-  const { labels, toolbarState, actions, options } = params;
-  const currentValue = toolbarState.fontSize ?? '';
-  const defaultOption = options.find((option) => option.value === DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE)
-    ?? options.find((option) => option.label === DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME)
-    ?? null;
-  const currentOption = options.find((option) => option.value === currentValue)
-    ?? (!currentValue ? defaultOption : null);
-  const currentLabel =
-    (currentOption?.label ?? currentValue) || defaultOption?.label || labels.defaultTextStyle;
+  const { labels, actions, model, options } = params;
+  const currentValue = model.currentValue;
+  const currentLabel = model.currentLabel;
+  const defaultValue = model.defaultValue;
 
   return {
     label: labels.fontSize,
@@ -673,7 +665,7 @@ function createFontSizeToolbarSplitButton(params: {
       actions.setFontSize(currentValue || null);
     },
     menu: options.map((option) => {
-      const isDefaultOption = option.value === (defaultOption?.value ?? '');
+      const isDefaultOption = option.value === defaultValue;
       return {
         label: option.label,
         title: option.title ?? option.label,
@@ -689,14 +681,13 @@ function createFontSizeToolbarSplitButton(params: {
 
 function createFontFamilyToolbarSplitButton(params: {
   labels: WritingEditorToolbarLabels;
-  toolbarState: WritingEditorToolbarState;
   actions: WritingEditorToolbarActions;
+  model: EditorDraftToolbarStyleModel['fontFamily'];
   options: readonly WritingEditorToolbarDropdownConfig['options'][number][];
 }): WritingEditorToolbarSplitButtonConfig {
-  const { labels, toolbarState, actions, options } = params;
-  const currentValue = toolbarState.fontFamily ?? '';
-  const currentOption = options.find((option) => option.value === currentValue) ?? null;
-  const currentLabel = (currentOption?.label ?? currentValue) || labels.defaultTextStyle;
+  const { labels, actions, model, options } = params;
+  const currentValue = model.currentValue;
+  const currentLabel = model.currentLabel;
 
   return {
     label: labels.fontFamily,
@@ -796,11 +787,18 @@ export function createWritingEditorToolbarButtonGroups(params: {
   toolbarState: WritingEditorToolbarState;
   actions: WritingEditorToolbarActions;
   dropdownOptions: Partial<Record<'setFontFamily' | 'setFontSize', WritingEditorToolbarDropdownConfig['options']>>;
+  styleModel: EditorDraftToolbarStyleModel;
 }): {
   groups: readonly WritingEditorToolbarButtonGroup[];
   overflowMenuItems: readonly WritingEditorToolbarMenuItemConfig[];
 } {
-  const { labels, toolbarState, actions, dropdownOptions } = params;
+  const {
+    labels,
+    toolbarState,
+    actions,
+    dropdownOptions,
+    styleModel,
+  } = params;
   const groups = new Map<WritingEditorToolbarGroupId, WritingEditorToolbarItemConfig[]>();
   const overflowMenuItems: WritingEditorToolbarMenuItemConfig[] = [];
 
@@ -817,8 +815,8 @@ export function createWritingEditorToolbarButtonGroups(params: {
         items.push(
           createFontFamilyToolbarSplitButton({
             labels,
-            toolbarState,
             actions,
+            model: styleModel.fontFamily,
             options,
           }),
         );
@@ -826,8 +824,8 @@ export function createWritingEditorToolbarButtonGroups(params: {
         items.push(
           createFontSizeToolbarSplitButton({
             labels,
-            toolbarState,
             actions,
+            model: styleModel.fontSize,
             options,
           }),
         );

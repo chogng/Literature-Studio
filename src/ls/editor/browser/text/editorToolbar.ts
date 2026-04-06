@@ -7,16 +7,12 @@ import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dr
 import {
   createDomDropdownMenuPresenter,
   createDropdownView,
-  type DropdownOption,
 } from 'ls/base/browser/ui/dropdown/dropdown';
 import { getHoverService } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import {
-  DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
-  EDITOR_NAMED_FONT_SIZE_PRESETS,
-} from 'ls/base/common/editorFormat';
 
 import type { WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
+import { createEditorDraftToolbarStyleModel } from 'ls/editor/browser/text/editorDraftToolbarStyleModel';
 import {
   createWritingEditorToolbarButtonGroups,
   type WritingEditorToolbarActions,
@@ -70,98 +66,6 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 const hoverService = getHoverService();
 const DRAFT_TOOLBAR_OVERFLOW_MENU_DATA = 'draft-toolbar-overflow';
 const DRAFT_TOOLBAR_SPLIT_MENU_DATA = 'draft-toolbar-split';
-
-function normalizeFontFamilyValue(value: string) {
-  return value
-    .split(',')
-    .map((family) => family.trim().replace(/^["']|["']$/g, '').replace(/\s+/g, ' ').toLowerCase())
-    .filter(Boolean)
-    .join(',');
-}
-
-const GENERIC_FONT_FAMILIES = new Set([
-  'serif',
-  'sans-serif',
-  'monospace',
-  'cursive',
-  'fantasy',
-  'system-ui',
-  'ui-serif',
-  'ui-sans-serif',
-  'ui-monospace',
-  'math',
-  'emoji',
-  'fangsong',
-]);
-
-const fontAvailabilityCache = new Map<string, boolean>();
-let cachedFontSetReference: object | null = null;
-
-function getPrimaryFontFamily(value: string) {
-  const [firstFamily] = value.split(',');
-  const normalized = firstFamily?.trim().replace(/^["']|["']$/g, '').replace(/\s+/g, ' ');
-  if (!normalized) {
-    return null;
-  }
-
-  return GENERIC_FONT_FAMILIES.has(normalized.toLowerCase()) ? null : normalized;
-}
-
-function isPrimaryFontAvailable(value: string) {
-  const primaryFamily = getPrimaryFontFamily(value);
-  if (!primaryFamily) {
-    return true;
-  }
-
-  const fontSet = (document as Document & {
-    fonts?: {
-      check?: (font: string, text?: string) => boolean;
-    };
-  }).fonts;
-  const fontSetReference = (fontSet ?? null) as object | null;
-
-  if (cachedFontSetReference !== fontSetReference) {
-    fontAvailabilityCache.clear();
-    cachedFontSetReference = fontSetReference;
-  }
-
-  const cachedResult = fontAvailabilityCache.get(primaryFamily);
-  if (cachedResult !== undefined) {
-    return cachedResult;
-  }
-
-  const isAvailable = typeof fontSet?.check === 'function'
-    ? fontSet.check(`12px "${primaryFamily}"`, 'A中')
-    : true;
-
-  fontAvailabilityCache.set(primaryFamily, isAvailable);
-  return isAvailable;
-}
-
-function withFontAvailability(option: DropdownOption) {
-  if (!option.value) {
-    return option;
-  }
-
-  if (isPrimaryFontAvailable(option.value)) {
-    return option;
-  }
-
-  return {
-    ...option,
-    label: `${option.label} (未安装)`,
-    title: `${option.title ?? option.label} · 当前系统未检测到该字体，实际显示会回退到后备字体`,
-    disabled: true,
-  } satisfies DropdownOption;
-}
-
-const FONT_SIZE_PRESETS: readonly DropdownOption[] = [
-  ...EDITOR_NAMED_FONT_SIZE_PRESETS.map((preset) => ({
-    value: `${preset.cssPx}px`,
-    label: preset.name,
-    title: `${preset.name} / ${preset.pointSize}pt / ${preset.cssPx}px`,
-  })),
-];
 
 function createGroupItemKey(groupIndex: number, itemIndex: number) {
   return `${groupIndex}:${itemIndex}`;
@@ -420,170 +324,23 @@ export class DraftEditorToolbar {
     return (contentWidth + trailingWidth + trailingMarginLeft) <= (toolbarWidth + 0.5);
   }
 
-  private createTextStyleOptions(
-    currentValue: string | null,
-    presetValues: readonly DropdownOption[],
-    defaultLabel: string,
-    config?: {
-      matchesPresetValue?: (currentValue: string, presetValue: string) => boolean;
-      includeDefaultOption?: boolean;
-    },
-  ) {
-    const options: DropdownOption[] = [];
-    if (config?.includeDefaultOption ?? true) {
-      options.push({
-        value: '',
-        label: defaultLabel,
-      });
-    }
-
-    const seenValues = new Set<string>();
-    const appendOption = (option: DropdownOption) => {
-      const normalized = option.value.trim();
-      if (!normalized || seenValues.has(normalized)) {
-        return;
-      }
-      seenValues.add(normalized);
-      options.push({
-        value: normalized,
-        label: option.label,
-        title: option.title ?? normalized,
-        disabled: option.disabled,
-      });
-    };
-
-    const appendAliasOption = (value: string, option: DropdownOption) => {
-      const normalized = value.trim();
-      if (!normalized || seenValues.has(normalized)) {
-        return;
-      }
-      seenValues.add(normalized);
-      options.push({
-        value: normalized,
-        label: option.label,
-        title: option.title ?? normalized,
-        disabled: option.disabled,
-      });
-    };
-
-    const appendRawValue = (value: string) => {
-      const normalized = value.trim();
-      if (!normalized || seenValues.has(normalized)) {
-        return;
-      }
-      seenValues.add(normalized);
-      options.push({
-        value: normalized,
-        label: normalized,
-        title: normalized,
-      });
-    };
-
-    const matchedPreset = currentValue
-      ? presetValues.find((option) => {
-          if (option.value.trim() === currentValue.trim()) {
-            return true;
-          }
-
-          return config?.matchesPresetValue?.(currentValue, option.value) ?? false;
-        }) ?? null
-      : null;
-
-    // Keep the current selection visible even when the browser normalizes
-    // the value format (for example, quoted/unquoted font-family lists).
-    if (currentValue && matchedPreset) {
-      appendAliasOption(currentValue, matchedPreset);
-    } else if (currentValue) {
-      appendRawValue(currentValue);
-    }
-
-    for (const presetValue of presetValues) {
-      appendOption(presetValue);
-    }
-
-    return options;
-  }
-
   private createToolbarLayout(): ToolbarLayoutConfig {
     const { labels, toolbarState, actions } = this.props;
-    const fontFamilyPresets: DropdownOption[] = [
-      {
-        value: '"Times New Roman", Times, serif',
-        label: 'Times New Roman',
-        title: 'Times New Roman',
-      },
-      {
-        value: 'Arial, sans-serif',
-        label: 'Arial',
-        title: 'Arial',
-      },
-      {
-        value: '"宋体", "SimSun", "Songti SC", "STSong", "Source Han Serif SC", "Noto Serif CJK SC", serif',
-        label: '宋体',
-        title: '宋体 / SimSun / Songti SC',
-      },
-      {
-        value: '"黑体", "SimHei", "Heiti SC", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif',
-        label: '黑体',
-        title: '黑体 / SimHei / Heiti SC',
-      },
-      {
-        value: '"楷体", "KaiTi", "Kaiti SC", "STKaiti", serif',
-        label: '楷体',
-        title: '楷体 / KaiTi / Kaiti SC',
-      },
-      {
-        value: '"Source Han Serif SC", "Noto Serif CJK SC", serif',
-        label: '中文衬线',
-        title: 'Source Han Serif SC',
-      },
-      {
-        value: '"Source Han Sans SC", "Noto Sans CJK SC", sans-serif',
-        label: '中文黑体',
-        title: 'Source Han Sans SC',
-      },
-      {
-        value: '"IBM Plex Serif", serif',
-        label: 'English Serif',
-        title: 'IBM Plex Serif',
-      },
-      {
-        value: '"IBM Plex Sans", sans-serif',
-        label: 'English Sans',
-        title: 'IBM Plex Sans',
-      },
-      {
-        value: '"JetBrains Mono", monospace',
-        label: 'Mono',
-        title: 'JetBrains Mono',
-      },
-    ];
-    const fontFamilyOptions = this.createTextStyleOptions(
-      toolbarState.fontFamily,
-      fontFamilyPresets.map(withFontAvailability),
-      labels.defaultTextStyle,
-      {
-        matchesPresetValue: (currentValue, presetValue) =>
-          normalizeFontFamilyValue(currentValue) === normalizeFontFamilyValue(presetValue),
-      },
-    );
-    const fontSizeOptions = this.createTextStyleOptions(
-      toolbarState.fontSize,
-      FONT_SIZE_PRESETS,
-      DEFAULT_EDITOR_BODY_FONT_SIZE_PRESET_NAME,
-      {
-        includeDefaultOption: false,
-      },
-    );
+    const styleModel = createEditorDraftToolbarStyleModel({
+      fontFamilyValue: toolbarState.fontFamily,
+      fontSizeValue: toolbarState.fontSize,
+      defaultTextStyleLabel: labels.defaultTextStyle,
+    });
 
     return createWritingEditorToolbarButtonGroups({
       labels,
       toolbarState,
       actions,
       dropdownOptions: {
-        setFontFamily: fontFamilyOptions,
-        setFontSize: fontSizeOptions,
+        setFontFamily: styleModel.fontFamily.options,
+        setFontSize: styleModel.fontSize.options,
       },
+      styleModel,
     });
   }
 

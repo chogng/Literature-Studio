@@ -6,12 +6,12 @@ import { keymap } from 'prosemirror-keymap';
 import { EditorView } from 'prosemirror-view';
 import { gapCursor } from 'prosemirror-gapcursor';
 import { dropCursor } from 'prosemirror-dropcursor';
-import { DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE } from 'ls/base/common/editorFormat';
 import { createDraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import type { DraftEditorStatusState } from 'ls/editor/browser/text/draftEditorStatusState';
 import { clearFontFamilyCommand, clearFontSizeCommand, clearInlineStylesCommand, getWritingEditorToolbarState, insertCitationCommand, insertFigureCommand, insertFigureRefCommand, insertPlainTextCommand, redoCommand, runWritingEditorCommand, setFontFamilyCommand, setFontSizeCommand, setParagraphCommand, setTextAlignCommand, toggleBlockquoteCommand, toggleBoldCommand, toggleBulletListCommand, toggleHeadingCommand, toggleItalicCommand, toggleOrderedListCommand, toggleUnderlineCommand, undoCommand } from 'ls/editor/browser/text/commands';
 import type { InsertFigurePayload, WritingEditorCommand, WritingEditorToolbarState } from 'ls/editor/browser/text/commands';
 import { createWritingEditorKeymapBindings } from 'ls/editor/browser/text/editorCommandRegistry';
+import { editorDraftStyleStore } from 'ls/editor/browser/text/editorDraftStyleStore';
 import { collectWritingEditorDerivedLabels, createWritingEditorDocumentModel, findWritingEditorNodeByBlockId, getWritingEditorNodeText, getWritingEditorTextUnitKind, isWritingEditorPlainTextEditableNode, normalizeWritingEditorDocument, syncWritingEditorDerivedLabels } from 'ls/editor/common/writingEditorDocument';
 import type { WritingEditorDocument, WritingEditorStableSelectionTarget, WritingEditorTextUnitKind } from 'ls/editor/common/writingEditorDocument';
 
@@ -321,7 +321,7 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.toolbar = new DraftEditorToolbar(this.createToolbarProps());
     this.editorRootElement.style.setProperty(
       '--ls-editor-default-font-size',
-      DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
+      editorDraftStyleStore.getSnapshot().defaultFontSizeValue,
     );
     this.hostWrapperElement.append(this.editorRootElement);
     this.scrollableElement = new DomScrollableElement(this.hostWrapperElement, {

@@ -8,6 +8,8 @@ import 'ls/base/browser/ui/dropdown/tests/dropdownMenuActionViewItem.test';
 import 'ls/base/browser/ui/tree/tests/simpleTree.test';
 import 'ls/base/browser/ui/toast/tests/toast.test';
 import 'ls/editor/browser/text/tests/fontSizePresets.test';
+import 'ls/editor/browser/text/tests/editorDraftStyleStore.test';
+import 'ls/editor/browser/text/tests/editorDraftToolbarStyleModel.test';
 import 'ls/editor/browser/text/tests/input.test';
 import 'ls/editor/browser/text/tests/editorCommandRegistry.test';
 import 'ls/editor/browser/text/tests/editorDom.test';
