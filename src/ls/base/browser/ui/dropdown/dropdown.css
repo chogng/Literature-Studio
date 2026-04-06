@@ -54,7 +54,7 @@
   pointer-events: none;
 }
 
-.dropdown-option-content {
+.dropdown-context-view .dropdown-option-content {
   width: 100%;
   min-width: 0;
   display: inline-flex;
@@ -62,7 +62,7 @@
   gap: 8px;
 }
 
-.dropdown-option-icon {
+.dropdown-context-view .dropdown-option-icon {
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
@@ -85,7 +85,8 @@
   color: var(--vscode-dropdown-iconDisabledForeground, #94a3b8);
 }
 
-.dropdown-menu {
+/* Keep DropdownView menu visuals local to dropdown overlays. */
+.dropdown-context-view .dropdown-menu {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -106,7 +107,7 @@
   color: var(--vscode-dropdown-menuForeground, #1a2530);
 }
 
-.dropdown-menu-portal {
+.dropdown-context-view .dropdown-menu-portal {
   position: fixed;
   min-width: 0;
   top: 0;
@@ -114,13 +115,13 @@
   bottom: auto;
 }
 
-.dropdown-menu-top {
+.dropdown-context-view .dropdown-menu-top {
   top: auto;
   bottom: calc(100% + 4px);
   animation-name: dropdown-fade-in-up;
 }
 
-.dropdown-menu-bottom {
+.dropdown-context-view .dropdown-menu-bottom {
   top: calc(100% + 4px);
   bottom: auto;
 }
@@ -149,7 +150,7 @@
   }
 }
 
-.dropdown-menu-item {
+.dropdown-context-view .dropdown-menu-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -163,7 +164,7 @@
   gap: 8px;
 }
 
-.dropdown-menu-item-content {
+.dropdown-context-view .dropdown-menu-item-content {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -171,27 +172,27 @@
   white-space: nowrap;
 }
 
-.dropdown-menu-item:hover,
-.dropdown-menu-item.hovered {
+.dropdown-context-view .dropdown-menu-item:hover,
+.dropdown-context-view .dropdown-menu-item.hovered {
   background: var(--dropdown-menu-item-hover-bg);
 }
 
-.dropdown-menu-item.selected {
+.dropdown-context-view .dropdown-menu-item.selected {
   background: var(--vscode-dropdown-itemSelectedBackground, #f1f6fc);
   color: var(--vscode-dropdown-itemSelectedForeground, #0a5fbf);
   font-weight: 500;
 }
 
-.dropdown-menu-item.disabled {
+.dropdown-context-view .dropdown-menu-item.disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.dropdown-menu-item.disabled:hover {
+.dropdown-context-view .dropdown-menu-item.disabled:hover {
   background: transparent;
 }
 
-.dropdown-menu-item-check {
+.dropdown-context-view .dropdown-menu-item-check {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -203,7 +204,7 @@
   opacity: 0.9;
 }
 
-.dropdown-menu-item-check.placeholder {
+.dropdown-context-view .dropdown-menu-item-check.placeholder {
   opacity: 0;
 }
 

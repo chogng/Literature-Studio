@@ -748,13 +748,18 @@ test('TabsTitleControl renders its DOM context menu below the cursor for availab
     await waitForAnimationFrame();
     await waitForAnimationFrame();
 
+    const contextView = document.body.querySelector('.ls-context-view');
     const menu = document.body.querySelector('.ls-context-view .ls-menu');
+    assert(contextView instanceof HTMLElement);
     assert(menu instanceof HTMLElement);
+    assert.equal(contextView.classList.contains('bottom'), true);
+    assert.equal(contextView.classList.contains('top'), false);
     assert.equal(menu.classList.contains('dropdown-menu-bottom'), true);
     assert.equal(menu.classList.contains('dropdown-menu-top'), false);
 
-    const menuRect = menu.getBoundingClientRect();
-    assert.equal(menuRect.top >= clientY, true);
+    const contextViewTop = Number.parseFloat(contextView.style.top);
+    assert.equal(Number.isFinite(contextViewTop), true);
+    assert.equal(contextViewTop >= clientY, true);
   } finally {
     control.dispose();
     document.body.replaceChildren();

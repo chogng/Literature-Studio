@@ -18,14 +18,11 @@ export interface MenuOptions {
   className?: string;
   placement?: 'top' | 'bottom';
   role?: string;
-  value?: string;
   onSelect?: (event: MenuSelectEvent) => void;
   onCancel?: () => void;
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-
-let menuIdPool = 0;
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -92,15 +89,6 @@ function createMenuItemContent(item: ContextMenuAction) {
   return content;
 }
 
-function resolveSelectedValue(options: MenuOptions) {
-  if (options.value !== undefined) {
-    return options.value;
-  }
-
-  const selectedItem = options.items.find((item) => item.checked);
-  return selectedItem?.value;
-}
-
 function resolvePlacement(options: MenuOptions) {
   return options.placement ?? 'bottom';
 }
@@ -118,7 +106,6 @@ function addDisposableListener<K extends keyof HTMLElementEventMap>(
 }
 
 export class Menu extends LifecycleOwner {
-  private readonly id = `ls-menu-${menuIdPool += 1}`;
   private readonly element = createElement('div');
   private readonly renderDisposables = new LifecycleStore();
   private options: MenuOptions;
@@ -130,7 +117,6 @@ export class Menu extends LifecycleOwner {
     super();
     this.register(this.renderDisposables);
     this.options = options;
-    this.element.id = this.id;
     this.register(addDisposableListener(this.element, 'keydown', this.handleKeyDown));
     this.render();
   }
@@ -153,7 +139,7 @@ export class Menu extends LifecycleOwner {
       return;
     }
 
-    this.element.focus();
+    this.focusActiveOrContainer();
   }
 
   focusFirst() {
@@ -161,9 +147,7 @@ export class Menu extends LifecycleOwner {
       return;
     }
 
-    const firstEnabled = this.findNextEnabledIndex(-1, 1, false);
-    this.setActiveIndex(firstEnabled);
-    this.focus();
+    this.focusByIndex(this.findNextEnabledIndex(-1, 1, false));
   }
 
   focusSelectedOrFirstEnabled() {
@@ -171,16 +155,10 @@ export class Menu extends LifecycleOwner {
       return;
     }
 
-    const selectedValue = resolveSelectedValue(this.options);
-    if (selectedValue !== undefined) {
-      const selectedIndex = this.options.items.findIndex((item) => (
-        item.value === selectedValue && !item.disabled
-      ));
-      if (selectedIndex >= 0) {
-        this.setActiveIndex(selectedIndex);
-        this.focus();
-        return;
-      }
+    const selectedIndex = this.findSelectedEnabledIndex();
+    if (selectedIndex >= 0) {
+      this.focusByIndex(selectedIndex);
+      return;
     }
 
     this.focusFirst();
@@ -191,9 +169,7 @@ export class Menu extends LifecycleOwner {
       return;
     }
 
-    const lastEnabled = this.findNextEnabledIndex(this.options.items.length, -1, false);
-    this.setActiveIndex(lastEnabled);
-    this.focus();
+    this.focusByIndex(this.findNextEnabledIndex(this.options.items.length, -1, false));
   }
 
   dispose() {
@@ -211,7 +187,6 @@ export class Menu extends LifecycleOwner {
 
   private render() {
     this.renderDisposables.clear();
-    const selectedValue = resolveSelectedValue(this.options);
     this.element.className = composeClassName([
       'ls-menu',
       'dropdown-menu',
@@ -224,7 +199,7 @@ export class Menu extends LifecycleOwner {
     const nodes: HTMLDivElement[] = [];
     for (let index = 0; index < this.options.items.length; index += 1) {
       const item = this.options.items[index];
-      const selected = item.checked || (selectedValue !== undefined && item.value === selectedValue);
+      const selected = Boolean(item.checked);
       const node = createElement(
         'div',
         composeClassName([
@@ -233,7 +208,7 @@ export class Menu extends LifecycleOwner {
           item.disabled ? 'disabled' : '',
         ]),
       );
-      node.id = `${this.id}-item-${index}`;
+      node.tabIndex = -1;
       node.dataset.index = String(index);
       node.setAttribute('role', 'menuitem');
       node.setAttribute('aria-disabled', item.disabled ? 'true' : 'false');
@@ -261,29 +236,31 @@ export class Menu extends LifecycleOwner {
   }
 
   private syncInitialActiveIndex() {
-    const selectedValue = resolveSelectedValue(this.options);
-    if (selectedValue !== undefined) {
-      const selectedIndex = this.options.items.findIndex((item) => (
-        item.value === selectedValue && !item.disabled
-      ));
-      if (selectedIndex >= 0) {
-        this.setActiveIndex(selectedIndex, false);
-        return;
-      }
+    const selectedIndex = this.findSelectedEnabledIndex();
+    if (selectedIndex >= 0) {
+      this.setActiveIndex(selectedIndex, false, false);
+      return;
     }
 
-    this.setActiveIndex(this.findNextEnabledIndex(-1, 1, false), false);
+    this.setActiveIndex(this.findNextEnabledIndex(-1, 1, false), false, false);
   }
 
-  private setActiveIndex(index: number, reveal = true) {
+  private setActiveIndex(index: number, reveal = true, focus = false) {
     const normalizedIndex =
       index < 0 || index >= this.itemElements.length ? -1 : index;
     if (normalizedIndex === this.activeIndex) {
+      if (focus) {
+        this.focusActiveOrContainer();
+      }
       return;
     }
 
     if (this.activeIndex >= 0) {
-      this.itemElements[this.activeIndex]?.classList.remove('hovered');
+      const previousElement = this.itemElements[this.activeIndex];
+      previousElement?.classList.remove('hovered');
+      if (previousElement) {
+        previousElement.tabIndex = -1;
+      }
     }
 
     this.activeIndex = normalizedIndex;
@@ -291,14 +268,36 @@ export class Menu extends LifecycleOwner {
     if (this.activeIndex >= 0) {
       const activeElement = this.itemElements[this.activeIndex];
       activeElement.classList.add('hovered');
-      this.element.setAttribute('aria-activedescendant', activeElement.id);
+      activeElement.tabIndex = 0;
       if (reveal) {
         activeElement.scrollIntoView({ block: 'nearest' });
+      }
+      if (focus) {
+        activeElement.focus();
       }
       return;
     }
 
-    this.element.removeAttribute('aria-activedescendant');
+    if (focus) {
+      this.element.focus();
+    }
+  }
+
+  private findSelectedEnabledIndex() {
+    return this.options.items.findIndex((item) => item.checked && !item.disabled);
+  }
+
+  private focusByIndex(index: number) {
+    this.setActiveIndex(index, true, true);
+  }
+
+  private focusActiveOrContainer() {
+    if (this.activeIndex >= 0) {
+      this.itemElements[this.activeIndex]?.focus();
+      return;
+    }
+
+    this.element.focus();
   }
 
   private findNextEnabledIndex(
@@ -357,7 +356,7 @@ export class Menu extends LifecycleOwner {
         clamp(this.activeIndex, -1, this.options.items.length - 1),
         1,
       );
-      this.setActiveIndex(nextIndex);
+      this.focusByIndex(nextIndex);
       return;
     }
 
@@ -369,19 +368,19 @@ export class Menu extends LifecycleOwner {
         clamp(startIndex, 0, this.options.items.length),
         -1,
       );
-      this.setActiveIndex(nextIndex);
+      this.focusByIndex(nextIndex);
       return;
     }
 
     if (event.key === 'Home') {
       event.preventDefault();
-      this.setActiveIndex(this.findNextEnabledIndex(-1, 1, false));
+      this.focusByIndex(this.findNextEnabledIndex(-1, 1, false));
       return;
     }
 
     if (event.key === 'End') {
       event.preventDefault();
-      this.setActiveIndex(this.findNextEnabledIndex(this.options.items.length, -1, false));
+      this.focusByIndex(this.findNextEnabledIndex(this.options.items.length, -1, false));
       return;
     }
 

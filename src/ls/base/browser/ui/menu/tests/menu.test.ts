@@ -34,3 +34,35 @@ test('menu renders requested placement class', () => {
     document.body.replaceChildren();
   }
 });
+
+test('menu uses roving item focus for keyboard navigation', () => {
+  const menu = new Menu({
+    items: [
+      { value: 'alpha', label: 'Alpha', disabled: true },
+      { value: 'beta', label: 'Beta' },
+      { value: 'gamma', label: 'Gamma' },
+    ],
+  });
+  document.body.append(menu.getElement());
+
+  try {
+    const menuItems = Array.from(
+      menu.getElement().querySelectorAll<HTMLDivElement>('.dropdown-menu-item'),
+    );
+    assert.equal(menuItems.length, 3);
+
+    menu.focusSelectedOrFirstEnabled();
+    assert.equal(document.activeElement, menuItems[1]);
+    assert.equal(menuItems[0]?.tabIndex, -1);
+    assert.equal(menuItems[1]?.tabIndex, 0);
+    assert.equal(menuItems[2]?.tabIndex, -1);
+
+    menuItems[1]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    assert.equal(document.activeElement, menuItems[2]);
+    assert.equal(menuItems[1]?.tabIndex, -1);
+    assert.equal(menuItems[2]?.tabIndex, 0);
+  } finally {
+    menu.dispose();
+    document.body.replaceChildren();
+  }
+});

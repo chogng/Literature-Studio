@@ -136,7 +136,6 @@ export class ContextMenuHandler {
       items: options,
       role: 'menu',
       placement: delegate.position === 'above' ? 'top' : 'bottom',
-      value: options.find((option) => option.checked)?.value,
       onSelect: ({ value }) => {
         delegate.onSelect?.(value);
         this.contextViewService.hideContextView({
@@ -158,7 +157,6 @@ export class ContextMenuHandler {
         items: options,
         role: 'menu',
         placement,
-        value: options.find((option) => option.checked)?.value,
         onSelect: ({ value }) => {
           delegate.onSelect?.(value);
           this.contextViewService.hideContextView({
