@@ -7,6 +7,8 @@
 }
 
 .editor-frame {
+  --editor-topbar-height: 36px;
+  --editor-toolbar-height: 36px;
   min-height: 0;
   height: 100%;
   flex: 1;
@@ -27,9 +29,9 @@
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  min-height: 38px;
+  min-height: var(--editor-topbar-height);
   box-sizing: border-box;
-  padding: 6px 8px;
+  padding: 0px 8px;
   background: transparent;
   overflow: hidden;
   -webkit-app-region: drag;
@@ -59,7 +61,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 36px;
+  min-height: var(--editor-toolbar-height);
   padding: 0 6px;
   box-sizing: border-box;
   border-top: 1px solid var(--vscode-editor-sourceHeaderBorder, #e1e1e1);

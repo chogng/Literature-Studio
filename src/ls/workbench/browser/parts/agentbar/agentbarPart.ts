@@ -112,7 +112,7 @@ export class AgentBarPartView {
   );
   private readonly topbarElement = createElement(
     'div',
-    'agentbar-topbar topbar-segment',
+    'agentbar-topbar',
   );
   private readonly topbarActionsElement = createElement(
     'div',
