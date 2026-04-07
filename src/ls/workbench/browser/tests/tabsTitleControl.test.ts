@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
 
-import { createEmptyWritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
+import {
+  createEmptyWritingEditorDocument,
+  createWritingEditorDocumentFromPlainText,
+} from 'ls/editor/common/writingEditorDocument';
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 import type {
   EditorGroupModel,
@@ -244,7 +247,7 @@ test('TabsTitleControl reuses tab nodes across prop updates', () => {
   control.dispose();
 });
 
-test('createEditorGroupModel always returns three fixed tabs and prefers the active tab for each kind', () => {
+test('createEditorGroupModel keeps fixed pane anchors first and appends additional tabs', () => {
   const model = createEditorGroupModel({
     tabs: [
       {
@@ -288,14 +291,16 @@ test('createEditorGroupModel always returns three fixed tabs and prefers the act
   });
 
   assert.deepEqual(
-    model.tabs.map((tab) => tab.kind),
-    ['draft', 'browser', 'pdf'],
+    model.tabs.map((tab) => tab.id),
+    ['draft-entry', 'browser-entry', 'pdf-entry', 'draft-b'],
   );
   assert.equal(model.tabs[0]?.targetTabId, 'draft-a');
   assert.equal(model.tabs[0]?.label, 'Draft A');
   assert.equal(model.tabs[1]?.targetTabId, 'browser-a');
   assert.equal(model.tabs[1]?.state.isClosable, true);
   assert.equal(model.tabs[2]?.targetTabId, 'pdf-a');
+  assert.equal(model.tabs[3]?.targetTabId, 'draft-b');
+  assert.equal(model.tabs[3]?.state.isActive, false);
 });
 
 test('createEditorGroupModel keeps an untitled browser tab icon-only while preserving its mode title', () => {
@@ -382,6 +387,38 @@ test('createEditorGroupModel keeps empty dirty draft tabs closable', () => {
 
   assert.equal(model.tabs[0]?.targetTabId, 'draft-a');
   assert.equal(model.tabs[0]?.state.isClosable, true);
+  assert.equal(model.tabs[0]?.label, '');
+  assert.equal(model.tabs[0]?.title, 'Draft');
+});
+
+test('createEditorGroupModel shows label for a single non-empty clean draft tab', () => {
+  const model = createEditorGroupModel({
+    tabs: [
+      {
+        id: 'draft-a',
+        kind: 'draft',
+        title: '',
+        document: createWritingEditorDocumentFromPlainText('saved content'),
+        viewMode: 'draft',
+      },
+    ],
+    activeTabId: 'draft-a',
+    activeTab: {
+      id: 'draft-a',
+      kind: 'draft',
+      title: '',
+      document: createWritingEditorDocumentFromPlainText('saved content'),
+      viewMode: 'draft',
+    },
+    labels: editorLabels,
+    draftStatusByTabId: {},
+    dirtyDraftTabIds: [],
+  });
+
+  assert.equal(model.tabs[0]?.targetTabId, 'draft-a');
+  assert.equal(model.tabs[0]?.state.isClosable, true);
+  assert.equal(model.tabs[0]?.label, 'Draft 1');
+  assert.equal(model.tabs[0]?.title, 'Draft 1');
 });
 
 test('createEditorGroupModel numbers untitled draft tabs when multiple drafts exist', () => {
@@ -418,6 +455,50 @@ test('createEditorGroupModel numbers untitled draft tabs when multiple drafts ex
   assert.equal(model.tabs[0]?.targetTabId, 'draft-a');
   assert.equal(model.tabs[0]?.label, 'Draft 1');
   assert.equal(model.tabs[0]?.title, 'Draft 1');
+  assert.equal(model.tabs[3]?.targetTabId, 'draft-b');
+  assert.equal(model.tabs[3]?.label, 'Draft 2');
+  assert.equal(model.tabs[3]?.title, 'Draft 2');
+});
+
+test('createEditorGroupModel keeps dirty fixed draft reachable when a clean draft is newly active', () => {
+  const model = createEditorGroupModel({
+    tabs: [
+      {
+        id: 'draft-a',
+        kind: 'draft',
+        title: '',
+        document: createWritingEditorDocumentFromPlainText('dirty'),
+        viewMode: 'draft',
+      },
+      {
+        id: 'draft-b',
+        kind: 'draft',
+        title: '',
+        document: createEmptyWritingEditorDocument(),
+        viewMode: 'draft',
+      },
+    ],
+    activeTabId: 'draft-b',
+    activeTab: {
+      id: 'draft-b',
+      kind: 'draft',
+      title: '',
+      document: createEmptyWritingEditorDocument(),
+      viewMode: 'draft',
+    },
+    labels: editorLabels,
+    draftStatusByTabId: {},
+    dirtyDraftTabIds: ['draft-a'],
+  });
+
+  assert.equal(model.tabs[0]?.id, 'draft-entry');
+  assert.equal(model.tabs[0]?.targetTabId, 'draft-a');
+  assert.equal(model.tabs[0]?.state.isDirty, true);
+  assert.equal(model.tabs[0]?.state.isClosable, true);
+  assert.equal(model.tabs[3]?.id, 'draft-b');
+  assert.equal(model.tabs[3]?.targetTabId, 'draft-b');
+  assert.equal(model.tabs[3]?.state.isActive, true);
+  assert.equal(model.tabs[3]?.state.isClosable, false);
 });
 
 test('TabsTitleControl opens a pane mode when its fixed tab has no target tab yet', () => {

@@ -16,6 +16,7 @@ import {
   createDirtyDraftTabIdSet,
   getDraftTabDisplayLabel as resolveDraftTabDisplayLabel,
   isClosableEditorTab,
+  isReusableEmptyDraftTab,
 } from 'ls/workbench/browser/parts/editor/editorTabPolicy';
 
 export type EditorGroupTabState = {
@@ -52,6 +53,8 @@ function getTabDisplayLabel(
   labels: EditorPartLabels,
   draftIndex: number,
   draftCount: number,
+  isReusableEmptyDraft: boolean,
+  isDirtyDraft: boolean,
 ) {
   const paneMode = getEditorPaneMode(tab);
 
@@ -63,6 +66,8 @@ function getTabDisplayLabel(
             draftModeLabel: labels.draftMode,
             draftIndex,
             draftCount,
+            isReusableEmpty: isReusableEmptyDraft,
+            isDirty: isDirtyDraft,
           })
         : labels.draftMode;
     case 'pdf':
@@ -100,13 +105,14 @@ function resolveRepresentativeTab(
     title: string;
     state: EditorGroupTabState;
   }>,
-  activeTabId: string | null,
 ) {
   if (tabs.length === 0) {
     return null;
   }
 
-  return tabs.find((tab) => tab.id === activeTabId) ?? tabs.at(-1) ?? null;
+  // Fixed entries are stable anchors per pane mode. The first concrete tab
+  // keeps ownership of that anchor; additional tabs are rendered behind it.
+  return tabs[0] ?? null;
 }
 
 function getFallbackTitleForPaneMode(
@@ -166,7 +172,6 @@ export function createEditorGroupModel({
   draftStatusByTabId: Record<string, DraftEditorStatusState>;
   dirtyDraftTabIds: readonly string[];
 }): EditorGroupModel {
-  const activePaneMode = activeTab ? getEditorPaneMode(activeTab) : null;
   // Keep close/label behavior centralized by evaluating tab policy once per render.
   const dirtyDraftTabIdSet = createDirtyDraftTabIdSet(dirtyDraftTabIds);
   const draftTabIds = tabs
@@ -175,20 +180,25 @@ export function createEditorGroupModel({
   const normalizedTabs = tabs.map((tab) => {
     const draftIndex =
       isEditorDraftTabInput(tab) ? draftTabIds.indexOf(tab.id) : -1;
+    const isDirty = isEditorDraftTabInput(tab)
+      ? dirtyDraftTabIdSet.has(tab.id)
+      : false;
+    const isReusableEmptyDraft = isEditorDraftTabInput(tab)
+      ? isReusableEmptyDraftTab(tab, dirtyDraftTabIdSet)
+      : false;
     const label = getTabDisplayLabel(
       tab,
       labels,
       Math.max(draftIndex, 0),
       draftTabIds.length,
+      isReusableEmptyDraft,
+      isDirty,
     );
     const draftStatus = isEditorDraftTabInput(tab)
       ? draftStatusByTabId[tab.id]
       : undefined;
     const canUndo = Boolean(draftStatus?.canUndo);
     const canRedo = Boolean(draftStatus?.canRedo);
-    const isDirty = isEditorDraftTabInput(tab)
-      ? dirtyDraftTabIdSet.has(tab.id)
-      : false;
     const isClosable = isClosableEditorTab(tab, dirtyDraftTabIdSet);
 
     return {
@@ -208,35 +218,52 @@ export function createEditorGroupModel({
     };
   });
 
-  return {
-    // The title strip renders fixed pane modes. Each entry points to the
-    // most recent concrete workspace tab for that pane mode when one exists.
-    tabs: FIXED_EDITOR_PANE_MODES.map((paneMode) => {
-      const matchingTabs = normalizedTabs.filter((tab) => tab.paneMode === paneMode);
-      const representativeTab = resolveRepresentativeTab(
-        matchingTabs,
-        activePaneMode === paneMode ? activeTabId : null,
-      );
+  const representativeTabIdByPaneMode = new Map<
+    EditorGroupTabItem['paneMode'],
+    string
+  >();
+  const fixedTabs = FIXED_EDITOR_PANE_MODES.map((paneMode) => {
+    const matchingTabs = normalizedTabs.filter((tab) => tab.paneMode === paneMode);
+    const representativeTab = resolveRepresentativeTab(matchingTabs);
+    if (representativeTab?.id) {
+      representativeTabIdByPaneMode.set(paneMode, representativeTab.id);
+    }
 
-      return {
-        id: `${paneMode}-entry`,
-        kind: representativeTab?.kind ?? getDefaultTabKindForPaneMode(paneMode),
-        paneMode: representativeTab?.paneMode ?? paneMode,
-        label: representativeTab?.label ?? getFallbackLabelForPaneMode(paneMode),
-        title: representativeTab?.title || getFallbackTitleForPaneMode(paneMode, labels),
-        targetTabId: representativeTab?.id ?? null,
-        state: {
-          isActive: activePaneMode === paneMode,
-          isClosable: Boolean(
-            representativeTab?.id && representativeTab.state.isClosable,
-          ),
-          isDirty: representativeTab?.state.isDirty ?? false,
-          hasLocalHistory: representativeTab?.state.hasLocalHistory ?? false,
-          canUndo: representativeTab?.state.canUndo ?? false,
-          canRedo: representativeTab?.state.canRedo ?? false,
-        },
-      };
-    }),
+    return {
+      id: `${paneMode}-entry`,
+      kind: representativeTab?.kind ?? getDefaultTabKindForPaneMode(paneMode),
+      paneMode: representativeTab?.paneMode ?? paneMode,
+      label: representativeTab?.label ?? getFallbackLabelForPaneMode(paneMode),
+      title: representativeTab?.title || getFallbackTitleForPaneMode(paneMode, labels),
+      targetTabId: representativeTab?.id ?? null,
+      state: {
+        isActive: representativeTab?.id === activeTabId,
+        isClosable: Boolean(
+          representativeTab?.id && representativeTab.state.isClosable,
+        ),
+        isDirty: representativeTab?.state.isDirty ?? false,
+        hasLocalHistory: representativeTab?.state.hasLocalHistory ?? false,
+        canUndo: representativeTab?.state.canUndo ?? false,
+        canRedo: representativeTab?.state.canRedo ?? false,
+      },
+    };
+  });
+
+  const extraTabs = normalizedTabs
+    .filter((tab) => representativeTabIdByPaneMode.get(tab.paneMode) !== tab.id)
+    .map((tab) => ({
+      id: tab.id,
+      kind: tab.kind,
+      paneMode: tab.paneMode,
+      label: tab.label,
+      title: tab.title,
+      targetTabId: tab.id,
+      state: tab.state,
+    }));
+
+  return {
+    // Keep fixed pane-mode anchors first, then append additional concrete tabs.
+    tabs: [...fixedTabs, ...extraTabs],
     activeTabId,
     activeTab,
   };
