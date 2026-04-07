@@ -462,7 +462,8 @@ export class SplitView<TLayoutContext = undefined> {
   }
 
   private handleSashChange(sashIndex: number, event: ISashEvent) {
-    if (!this.dragState || this.dragState.sashIndex !== sashIndex) {
+    const dragState = this.dragState;
+    if (!dragState || dragState.sashIndex !== sashIndex) {
       return;
     }
 
@@ -474,14 +475,14 @@ export class SplitView<TLayoutContext = undefined> {
 
     const delta =
       this.orientation === Orientation.VERTICAL
-        ? event.currentX - this.dragState.start
-        : event.currentY - this.dragState.start;
+        ? event.currentX - dragState.start
+        : event.currentY - dragState.start;
     const { delta: constrainedDelta, snapped } = this.resize(
       sashIndex,
       delta,
-      this.dragState.sizes,
-      this.dragState.snapBefore,
-      this.dragState.snapAfter,
+      dragState.sizes,
+      dragState.snapBefore,
+      dragState.snapAfter,
     );
     this.applyLayout();
     if (snapped) {
@@ -496,8 +497,8 @@ export class SplitView<TLayoutContext = undefined> {
       sashIndex,
       leftItemIndex: sashIndex,
       rightItemIndex: sashIndex + 1,
-      minDelta: this.dragState.minDelta,
-      maxDelta: this.dragState.maxDelta,
+      minDelta: dragState.minDelta,
+      maxDelta: dragState.maxDelta,
       rawDelta: delta,
       constrainedDelta,
       sashEvent: event,

@@ -23,6 +23,21 @@ class TestView implements IView {
   }
 }
 
+class ReentrantLayoutView extends TestView {
+  constructor(
+    minimumSize: number,
+    maximumSize: number,
+    private readonly onLayoutHook: () => void,
+  ) {
+    super(minimumSize, maximumSize);
+  }
+
+  layout(size: number) {
+    super.layout(size);
+    this.onLayoutHook();
+  }
+}
+
 function createPointerEvent(
   type: string,
   coordinates: {
@@ -340,6 +355,45 @@ test('splitview separator is only visible when both adjacent views are visible',
     splitView.layout(900, 520);
 
     assert.equal(separator.classList.contains('visible'), true);
+  } finally {
+    splitView.dispose();
+    splitView.element.remove();
+  }
+});
+
+test('splitview sash change does not crash when layout side effects clear drag state', () => {
+  const splitView = new SplitView(Orientation.VERTICAL, 10);
+  const leadingView = new TestView(120, 420);
+  let shouldRemoveViewOnLayout = false;
+  const centerView = new ReentrantLayoutView(220, Number.POSITIVE_INFINITY, () => {
+    if (!shouldRemoveViewOnLayout || splitView.length < 2) {
+      return;
+    }
+
+    shouldRemoveViewOnLayout = false;
+    splitView.removeView(0);
+  });
+
+  splitView.addView(leadingView, 200);
+  splitView.addView(centerView, 500, { flex: true });
+  document.body.append(splitView.element);
+
+  try {
+    splitView.layout(900, 520);
+
+    const firstSash = splitView.element.querySelector('.sash.vertical');
+    assert(firstSash);
+
+    shouldRemoveViewOnLayout = true;
+    assert.doesNotThrow(() => {
+      dispatchDrag(firstSash, {
+        startX: 200,
+        startY: 12,
+        endX: 250,
+        endY: 12,
+      });
+    });
+    assert.equal(splitView.length, 1);
   } finally {
     splitView.dispose();
     splitView.element.remove();
