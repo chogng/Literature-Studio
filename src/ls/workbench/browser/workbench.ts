@@ -37,6 +37,7 @@ import { SidebarTopbarActionsView } from 'ls/workbench/browser/parts/sidebar/sid
 import {
   createSettingsPartView,
   createSettingsPartProps,
+  createSettingsTopbarActionsView,
 } from 'ls/workbench/contrib/preferences/browser/settingsEditor';
 import { createAgentBarPartProps } from 'ls/workbench/browser/parts/agentbar/agentbarPart';
 import type { AgentBarPartProps } from 'ls/workbench/browser/parts/agentbar/agentbarPart';
@@ -138,6 +139,10 @@ type WorkbenchEvent =
       type: 'TOGGLE_SETTINGS';
     };
 
+export function resolveWorkbenchStatusbarVisibility(statusbarVisible: boolean) {
+  return statusbarVisible;
+}
+
 type DesktopInvokeArgs = Record<string, unknown> | undefined;
 
 const DEFAULT_WORKBENCH_STATE: WorkbenchStateSnapshot = {
@@ -226,6 +231,7 @@ function resolveRuntimeState() {
 }
 
 export type WorkbenchLayoutViewProps = {
+  mode?: 'content' | 'settings';
   isPrimarySidebarVisible: boolean;
   isAgentSidebarVisible: boolean;
   isLayoutEdgeSnappingEnabled: boolean;
@@ -249,6 +255,7 @@ function createWorkbenchLayoutElement<K extends keyof HTMLElementTagNameMap>(
 
 export class WorkbenchLayoutView {
   private props: WorkbenchLayoutViewProps;
+  private lastContentEditorSize: number | null = null;
   private readonly element = createWorkbenchLayoutElement('section', 'workbench-content-layout');
   private readonly mainElement = createWorkbenchLayoutElement('main');
   private readonly primarySidebarSlot = new WorkbenchLayoutSlotView(
@@ -315,6 +322,26 @@ export class WorkbenchLayoutView {
       return;
     }
 
+    const previousMode = this.resolveMode(this.props.mode);
+    const nextMode = this.resolveMode(props.mode);
+    if (previousMode === 'content' && nextMode === 'settings') {
+      const editorSize = this.layoutController.getEditorViewSize();
+      if (
+        typeof editorSize === 'number' &&
+        Number.isFinite(editorSize) &&
+        editorSize > 0
+      ) {
+        this.lastContentEditorSize = editorSize;
+      }
+    }
+    if (previousMode === 'settings' && nextMode === 'content') {
+      this.layoutController.setNextSyncCachedSizesOverride({
+        primarySidebarSize: props.primarySidebarSize,
+        editorSize: this.lastContentEditorSize ?? props.expandedEditorSize,
+        agentSidebarSize: props.agentSidebarSize,
+      });
+    }
+
     this.props = props;
     this.render();
   }
@@ -342,6 +369,10 @@ export class WorkbenchLayoutView {
 
     toggleEditorCollapsed();
   };
+
+  private resolveMode(mode: WorkbenchLayoutViewProps['mode']) {
+    return mode === 'settings' ? 'settings' : 'content';
+  }
 
   private render() {
     this.mainElement.className = getWorkbenchContentClassName({
@@ -558,6 +589,10 @@ class WorkbenchHost {
     onToggleEditorCollapse: toggleEditorCollapsed,
   });
   private readonly sidebarTopbarActionsView = new SidebarTopbarActionsView();
+  private readonly settingsTopbarActionsView = createSettingsTopbarActionsView({
+    backLabel: '',
+    onNavigateBack: () => {},
+  });
   private readonly primaryBarFooterActionsView = new PrimaryBarFooterActionsView();
   private settingsView: ReturnType<typeof createSettingsPartView> | null = null;
   private editorPartController: EditorPartModel | null = null;
@@ -637,6 +672,7 @@ class WorkbenchHost {
     this.retiredWorkbenchContentPartViews = null;
     this.auxiliaryEditorTopbarActionsView.dispose();
     this.sidebarTopbarActionsView.dispose();
+    this.settingsTopbarActionsView.dispose();
     this.primaryBarFooterActionsView.dispose();
     this.settingsView?.dispose();
     this.settingsView = null;
@@ -886,7 +922,7 @@ class WorkbenchHost {
     activePage: WorkbenchPage;
   }) {
     const { electronRuntime, useMica, statusbarVisible, activePage } = params;
-    const isStatusbarVisible = activePage === 'content' && statusbarVisible;
+    const isStatusbarVisible = resolveWorkbenchStatusbarVisibility(statusbarVisible);
 
     this.containerElement.className = [
       'app-window',
@@ -1005,6 +1041,7 @@ class WorkbenchHost {
       onOpenSettings: props.onOpenSettings,
     });
     const partViewProps = {
+      mode: 'content' as const,
       isPrimarySidebarVisible: props.isPrimarySidebarVisible,
       isAgentSidebarVisible: props.isAgentSidebarVisible,
       primaryBarProps: props.primaryBarProps,
@@ -1021,6 +1058,7 @@ class WorkbenchHost {
     }
     if (!this.workbenchLayoutView) {
       this.workbenchLayoutView = createWorkbenchLayoutView({
+        mode: 'content',
         isPrimarySidebarVisible: props.isPrimarySidebarVisible,
         isAgentSidebarVisible: props.isAgentSidebarVisible,
         isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
@@ -1032,6 +1070,7 @@ class WorkbenchHost {
       });
     } else {
       this.workbenchLayoutView.setProps({
+        mode: 'content',
         isPrimarySidebarVisible: props.isPrimarySidebarVisible,
         isAgentSidebarVisible: props.isAgentSidebarVisible,
         isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
@@ -1052,27 +1091,89 @@ class WorkbenchHost {
   }
 
   private renderSettingsPage(
-    settingsPartProps: ReturnType<typeof createSettingsPartProps>,
+    props: {
+      settingsPartProps: ReturnType<typeof createSettingsPartProps>;
+      isLayoutEdgeSnappingEnabled: boolean;
+      primarySidebarSize: number;
+      agentSidebarSize: number;
+      expandedEditorSize: number;
+      primaryBarProps: PrimaryBarProps;
+      agentBarProps: AgentBarPartProps;
+      editorPartProps: EditorPartProps;
+      onOpenSettings: () => void;
+      onApplyLayoutAgent: () => void;
+      onApplyLayoutFlow: () => void;
+    },
   ) {
-    if (this.workbenchLayoutView) {
-      this.workbenchLayoutView.dispose();
-      this.workbenchLayoutView = null;
-    }
-    if (this.workbenchContentPartViews) {
-      this.workbenchContentPartViews.dispose();
-      this.retiredWorkbenchContentPartViews = this.workbenchContentPartViews;
-      this.workbenchContentPartViews = null;
-    }
+    this.retiredWorkbenchContentPartViews = null;
     setWorkbenchEditorCommandHandlers(null);
     if (!this.settingsView) {
-      this.settingsView = createSettingsPartView(settingsPartProps);
+      this.settingsView = createSettingsPartView(props.settingsPartProps);
     } else {
-      this.settingsView.setProps(settingsPartProps);
+      this.settingsView.setProps(props.settingsPartProps);
     }
-    const settingsElement = this.settingsView.getElement();
-    if (this.pageMount.firstChild !== settingsElement) {
-      this.pageMount.replaceChildren(settingsElement);
+    this.settingsTopbarActionsView.setProps({
+      backLabel: props.settingsPartProps.labels.settingsNavigationBack,
+      onNavigateBack: props.settingsPartProps.onNavigateBack,
+    });
+    this.primaryBarFooterActionsView.setProps({
+      accountLabel: props.primaryBarProps.accountLabel,
+      moreLabel: props.primaryBarProps.moreLabel,
+      settingsLabel: props.primaryBarProps.settingsLabel,
+      onApplyLayoutAgent: props.onApplyLayoutAgent,
+      onApplyLayoutFlow: props.onApplyLayoutFlow,
+      onOpenSettings: props.onOpenSettings,
+    });
+    const partViewProps = {
+      mode: 'settings' as const,
+      isPrimarySidebarVisible: true,
+      isAgentSidebarVisible: false,
+      primaryBarProps: props.primaryBarProps,
+      settingsNavigationElement: this.settingsView.getNavigationElement(),
+      settingsTopbarActionsElement: this.settingsTopbarActionsView.getElement(),
+      agentBarProps: props.agentBarProps,
+      editorPartProps: props.editorPartProps,
+      settingsContentElement: this.settingsView.getContentElement(),
+      sidebarTopbarActionsElement: this.sidebarTopbarActionsView.getElement(),
+      primaryBarFooterActionsElement: this.primaryBarFooterActionsView.getElement(),
+      editorTopbarAuxiliaryActionsElement: null,
+    };
+    if (!this.workbenchContentPartViews) {
+      this.workbenchContentPartViews = createWorkbenchContentPartViews(partViewProps);
+    } else {
+      this.workbenchContentPartViews.setProps(partViewProps);
     }
+    if (!this.workbenchLayoutView) {
+      this.workbenchLayoutView = createWorkbenchLayoutView({
+        mode: 'settings',
+        isPrimarySidebarVisible: true,
+        isAgentSidebarVisible: false,
+        isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
+        primarySidebarSize: props.primarySidebarSize,
+        agentSidebarSize: props.agentSidebarSize,
+        isEditorCollapsed: false,
+        expandedEditorSize: props.expandedEditorSize,
+        partViews: this.workbenchContentPartViews,
+      });
+    } else {
+      this.workbenchLayoutView.setProps({
+        mode: 'settings',
+        isPrimarySidebarVisible: true,
+        isAgentSidebarVisible: false,
+        isLayoutEdgeSnappingEnabled: props.isLayoutEdgeSnappingEnabled,
+        primarySidebarSize: props.primarySidebarSize,
+        agentSidebarSize: props.agentSidebarSize,
+        isEditorCollapsed: false,
+        expandedEditorSize: props.expandedEditorSize,
+        partViews: this.workbenchContentPartViews,
+      });
+    }
+
+    const workbenchContentElement = this.workbenchLayoutView.getElement();
+    if (this.pageMount.firstChild !== workbenchContentElement) {
+      this.pageMount.replaceChildren(workbenchContentElement);
+    }
+    this.workbenchLayoutView.layout();
   }
 
   private performRender() {
@@ -1950,7 +2051,27 @@ class WorkbenchHost {
         editorPartProps: contentAwareEditorPartProps,
       });
     } else {
-      this.renderSettingsPage(settingsPartProps);
+      this.renderSettingsPage({
+        settingsPartProps,
+        isLayoutEdgeSnappingEnabled: isWindowFullscreen,
+        primarySidebarSize,
+        agentSidebarSize,
+        expandedEditorSize,
+        primaryBarProps,
+        agentBarProps,
+        editorPartProps: contentAwareEditorPartProps,
+        onOpenSettings: toggleWorkbenchSettings,
+        onApplyLayoutAgent: () => {
+          setPrimarySidebarVisible(true);
+          setAgentSidebarVisible(true);
+          setEditorCollapsed(false);
+        },
+        onApplyLayoutFlow: () => {
+          setPrimarySidebarVisible(true);
+          setAgentSidebarVisible(false);
+          setEditorCollapsed(false);
+        },
+      });
     }
 
     this.syncPostRenderState({

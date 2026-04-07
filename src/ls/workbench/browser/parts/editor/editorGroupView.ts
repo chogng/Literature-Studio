@@ -379,6 +379,8 @@ export class EditorGroupView {
   private activePaneKey: string | null = null;
   private readonly pendingViewStateSaveByTabId = new Map<string, Promise<void>>();
   private shouldFocusBrowserPrimaryInput = false;
+  private toolbarContentHeightResizeObserver: ResizeObserver | null = null;
+  private isToolbarContentWindowResizeBound = false;
 
   constructor(props: EditorGroupViewProps) {
     this.props = props;
@@ -399,6 +401,7 @@ export class EditorGroupView {
       labels: props.labels,
       onCreateDraftTab: props.onCreateDraftTab,
     });
+    this.bindToolbarContentHeightSync();
     this.tabsElement.append(this.titleAreaControl.getElement());
     this.headerElement.append(this.tabsElement, this.actionsElement);
     this.element.append(this.headerElement, this.toolbarElement, this.contentElement);
@@ -447,6 +450,7 @@ export class EditorGroupView {
   }
 
   dispose() {
+    this.unbindToolbarContentHeightSync();
     this.titleAreaControl.dispose();
     this.topbarActionsView.dispose();
     this.modeToolbarHost.dispose();
@@ -510,6 +514,7 @@ export class EditorGroupView {
         onCreateDraftTab: this.props.onCreateDraftTab,
       });
       this.contentElement.replaceChildren(this.emptyWorkspaceView.getElement());
+      this.syncToolbarContentHeight();
       return;
     }
 
@@ -543,6 +548,45 @@ export class EditorGroupView {
 
     this.syncTopbarToolbar(this.resolveToolbarElement());
     this.flushBrowserPrimaryInputFocus(group.activeTab);
+    this.syncToolbarContentHeight();
+  }
+
+  private bindToolbarContentHeightSync() {
+    if (typeof ResizeObserver !== 'undefined') {
+      this.toolbarContentHeightResizeObserver = new ResizeObserver(() => {
+        this.syncToolbarContentHeight();
+      });
+      this.toolbarContentHeightResizeObserver.observe(this.contentElement);
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.handleToolbarContentWindowResize);
+      this.isToolbarContentWindowResizeBound = true;
+    }
+  }
+
+  private unbindToolbarContentHeightSync() {
+    this.toolbarContentHeightResizeObserver?.disconnect();
+    this.toolbarContentHeightResizeObserver = null;
+    if (this.isToolbarContentWindowResizeBound && typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.handleToolbarContentWindowResize);
+      this.isToolbarContentWindowResizeBound = false;
+    }
+  }
+
+  private readonly handleToolbarContentWindowResize = () => {
+    this.syncToolbarContentHeight();
+  };
+
+  private syncToolbarContentHeight() {
+    const contentHeight = this.contentElement.clientHeight;
+    if (contentHeight <= 0) {
+      this.toolbarElement.style.removeProperty('--editor-content-height');
+      return;
+    }
+
+    this.toolbarElement.style.setProperty('--editor-content-height', `${contentHeight}px`);
   }
 
   private readonly requestBrowserPrimaryInputFocus = () => {

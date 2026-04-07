@@ -149,21 +149,42 @@ const workbenchPartRefCallbacks = new Map<
   WorkbenchPartId,
   WorkbenchPartRefCallback
 >();
+let activeContentLayoutOrientation: Orientation | null = null;
 
 function clampSidebarSize(target: 'primaryBar' | 'agentSidebar', size: number) {
-  const limits =
+  const limits = resolveActiveClampLimits();
+  const axisLimits =
     target === 'primaryBar'
-      ? WORKBENCH_SPLITVIEW_LIMITS.primaryBar
-      : WORKBENCH_SPLITVIEW_LIMITS.agentSidebar;
+      ? limits.primarySidebar
+      : limits.agentSidebar;
 
-  return Math.max(limits.minimum, Math.min(limits.maximum, Math.round(size)));
+  return Math.max(axisLimits.minimum, Math.min(axisLimits.maximum, Math.round(size)));
 }
 
 function clampExpandedEditorSize(size: number) {
+  const limits = resolveActiveClampLimits();
   return Math.max(
-    WORKBENCH_SPLITVIEW_LIMITS.editor.minimum,
-    Math.min(WORKBENCH_SPLITVIEW_LIMITS.editor.maximum, Math.round(size)),
+    limits.editor.minimum,
+    Math.min(limits.editor.maximum, Math.round(size)),
   );
+}
+
+function resolveActiveClampLimits() {
+  if (activeContentLayoutOrientation !== null) {
+    return getLayoutLimits(activeContentLayoutOrientation);
+  }
+
+  if (typeof window === 'undefined') {
+    return getLayoutLimits(Orientation.VERTICAL);
+  }
+
+  return getLayoutLimits(resolveOrientationFromWidth(window.innerWidth));
+}
+
+function resolveOrientationFromWidth(width: number) {
+  return width <= WORKBENCH_CONTENT_LAYOUT_BREAKPOINT
+    ? Orientation.HORIZONTAL
+    : Orientation.VERTICAL;
 }
 
 function normalizeEditorCollapseState(
@@ -540,6 +561,8 @@ export class WorkbenchContentLayoutController {
   private gridPrimarySidebarVisibleState: boolean | null = null;
   private gridEditorCollapsedState: boolean | null = null;
   private gridFlexStateKey: string | null = null;
+  private nextSyncCachedSizesOverride: SplitViewSizeSnapshot | null = null;
+  private reapplySidebarSizesAfterNextLayout = false;
   private splitConstraints = getLayoutLimits(Orientation.VERTICAL);
   private disposed = false;
   private readonly gridDisposables = new LifecycleStore();
@@ -568,10 +591,13 @@ export class WorkbenchContentLayoutController {
   sync() {
     const state = this.options.getState();
     const orientation = this.resolveSplitOrientation();
+    const cachedSizes = this.resolveSyncCachedSizes(state);
     this.syncSplitSlotConstraints(orientation);
-    this.syncLayoutTree(state, orientation, this.captureGridSizes(state));
-    this.ensureGridView(state, orientation);
+    this.syncLayoutTree(state, orientation, cachedSizes);
+    this.ensureGridView(state, orientation, cachedSizes);
     if (!this.gridView) {
+      this.nextSyncCachedSizesOverride = null;
+      this.reapplySidebarSizesAfterNextLayout = false;
       return;
     }
 
@@ -581,6 +607,7 @@ export class WorkbenchContentLayoutController {
     this.gridView.setViewVisible([AGENT_SIDEBAR_INDEX], state.isAgentSidebarVisible);
     this.applySidebarSizesToGridView(state);
     this.scheduleGridViewLayout();
+    this.nextSyncCachedSizesOverride = null;
   }
 
   layout() {
@@ -597,6 +624,7 @@ export class WorkbenchContentLayoutController {
     }
 
     this.disposed = true;
+    activeContentLayoutOrientation = null;
     this.resizeObserver.dispose();
     this.layoutAnimationFrame.dispose();
     this.disposeGridView();
@@ -604,6 +632,15 @@ export class WorkbenchContentLayoutController {
 
   getEditorViewSize() {
     return this.gridView?.getViewSize([EDITOR_INDEX]) ?? null;
+  }
+
+  setNextSyncCachedSizesOverride(cachedSizes: SplitViewSizeSnapshot | null) {
+    this.nextSyncCachedSizesOverride = cachedSizes;
+    this.reapplySidebarSizesAfterNextLayout = Boolean(cachedSizes);
+  }
+
+  private resolveSyncCachedSizes(state: WorkbenchContentLayoutControllerState) {
+    return this.nextSyncCachedSizesOverride ?? this.captureGridSizes(state);
   }
 
   private computeFlexState(
@@ -626,6 +663,7 @@ export class WorkbenchContentLayoutController {
   private ensureGridView(
     state: WorkbenchContentLayoutControllerState,
     orientation: Orientation,
+    cachedSizes: SplitViewSizeSnapshot,
   ) {
     const flexStateKey = this.resolveGridFlexStateKey(state);
     if (
@@ -640,7 +678,6 @@ export class WorkbenchContentLayoutController {
       return;
     }
 
-    const cachedSizes = this.captureGridSizes(state);
     this.disposeGridView();
     this.syncLayoutTree(state, orientation, cachedSizes);
     const layoutTree = this.layoutTree;
@@ -724,8 +761,9 @@ export class WorkbenchContentLayoutController {
   private handleContainerResize() {
     const state = this.options.getState();
     const orientation = this.resolveSplitOrientation();
+    const cachedSizes = this.captureGridSizes(state);
     this.syncSplitSlotConstraints(orientation);
-    this.ensureGridView(state, orientation);
+    this.ensureGridView(state, orientation, cachedSizes);
     this.scheduleGridViewLayout();
   }
 
@@ -753,7 +791,7 @@ export class WorkbenchContentLayoutController {
       const nextOrientation = this.resolveSplitOrientation();
       this.syncSplitSlotConstraints(nextOrientation);
       if (nextOrientation !== this.gridOrientation) {
-        this.ensureGridView(state, nextOrientation);
+        this.ensureGridView(state, nextOrientation, this.captureGridSizes(state));
         this.applySidebarSizesToGridView(state);
       }
 
@@ -761,6 +799,10 @@ export class WorkbenchContentLayoutController {
         this.options.contentHost.clientWidth,
         this.options.contentHost.clientHeight,
       );
+      if (this.reapplySidebarSizesAfterNextLayout) {
+        this.applySidebarSizesToGridView(this.options.getState());
+        this.reapplySidebarSizesAfterNextLayout = false;
+      }
     });
   }
 
@@ -769,9 +811,9 @@ export class WorkbenchContentLayoutController {
       this.options.contentHost.clientWidth ||
       this.options.container.clientWidth ||
       window.innerWidth;
-    return containerWidth <= WORKBENCH_CONTENT_LAYOUT_BREAKPOINT
-      ? Orientation.HORIZONTAL
-      : Orientation.VERTICAL;
+    const orientation = resolveOrientationFromWidth(containerWidth);
+    activeContentLayoutOrientation = orientation;
+    return orientation;
   }
 
   private syncSplitSlotConstraints(orientation: Orientation) {

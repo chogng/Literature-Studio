@@ -58,11 +58,13 @@
 }
 
 .editor-toolbar {
+  --editor-toolbar-horizontal-padding: 6px;
+  --editor-content-height: min(360px, calc(100vh - 180px));
   display: flex;
   align-items: center;
   min-width: 0;
   min-height: var(--editor-toolbar-height);
-  padding: 0 6px;
+  padding: 0 var(--editor-toolbar-horizontal-padding);
   box-sizing: border-box;
   border-top: 1px solid var(--vscode-editor-sourceHeaderBorder, #e1e1e1);
   border-bottom: 1px solid var(--vscode-editor-sourceHeaderBorder, #e1e1e1);

@@ -37,8 +37,11 @@ import {
   setWorkbenchSidebarSizes,
   subscribeWorkbenchLayoutState,
   subscribeWorkbenchPartDom,
+  WORKBENCH_CONTENT_LAYOUT_BREAKPOINT,
   WORKBENCH_PART_IDS,
 } from 'ls/workbench/browser/layout';
+import { Orientation } from 'ls/base/browser/ui/splitview/splitview';
+import { getLayoutLimits } from 'ls/workbench/browser/layoutLimits';
 import {
   getStatusbarStateSnapshot,
   setStatusbarState,
@@ -572,6 +575,40 @@ test('workbenchLayout subscriptions stop after disposal', () => {
   );
 });
 
+test('setWorkbenchSidebarSizes clamps with horizontal limits on narrow viewport', () => {
+  const previousInnerWidth = window.innerWidth;
+  const horizontalLimits = getLayoutLimits(Orientation.HORIZONTAL);
+
+  try {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: WORKBENCH_CONTENT_LAYOUT_BREAKPOINT,
+    });
+
+    setWorkbenchSidebarSizes({
+      primarySidebarSize: 0,
+      agentSidebarSize: 0,
+    });
+
+    const nextState = getWorkbenchLayoutStateSnapshot();
+    assert.equal(
+      nextState.primarySidebarSize,
+      horizontalLimits.primarySidebar.minimum,
+    );
+    assert.equal(
+      nextState.agentSidebarSize,
+      horizontalLimits.agentSidebar.minimum,
+    );
+  } finally {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: previousInnerWidth,
+    });
+  }
+});
+
 test('workbenchPartDom subscriptions stop after disposal', () => {
   const element = document.createElement('div');
   let notificationCount = 0;
@@ -611,4 +648,13 @@ test('workbenchState subscriptions stop after disposal', async () => {
   } finally {
     setWorkbenchActivePage(originalWorkbenchState.activePage);
   }
+});
+
+test('resolveWorkbenchStatusbarVisibility returns the toggle state directly', async () => {
+  const { resolveWorkbenchStatusbarVisibility } = await import(
+    'ls/workbench/browser/workbench'
+  );
+
+  assert.equal(resolveWorkbenchStatusbarVisibility(true), true);
+  assert.equal(resolveWorkbenchStatusbarVisibility(false), false);
 });

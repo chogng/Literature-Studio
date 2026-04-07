@@ -31,6 +31,7 @@ const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
 export type PrimaryBarLabels = SidebarLabels;
 
 export type PrimaryBarProps = {
+  mode?: 'content' | 'settings';
   labels: PrimaryBarLabels;
   accountLabel?: string;
   moreLabel?: string;
@@ -47,6 +48,7 @@ export type PrimaryBarProps = {
   onDocumentRename?: (document: LibraryDocumentSummary) => void;
   onDocumentEditSourceUrl?: (document: LibraryDocumentSummary) => void;
   onDocumentDelete?: (document: LibraryDocumentSummary) => void;
+  settingsNavigationElement?: HTMLElement | null;
   topbarActionsElement?: HTMLElement | null;
   footerActionsElement?: HTMLElement | null;
 };
@@ -236,6 +238,7 @@ export class PrimaryBar {
 
   private render() {
     const { labels } = this.props;
+    this.syncModeContent();
     this.syncTopbarActions(this.props.topbarActionsElement ?? null);
     this.syncFooterActions(this.props.footerActionsElement ?? null);
     this.actionsView.setProps({
@@ -294,12 +297,31 @@ export class PrimaryBar {
     this.layoutPanes();
   }
 
+  private syncModeContent() {
+    if (this.props.mode === 'settings') {
+      const settingsNavigationElement = this.props.settingsNavigationElement ?? null;
+      if (settingsNavigationElement) {
+        if (this.contentElement.firstElementChild !== settingsNavigationElement) {
+          this.contentElement.replaceChildren(settingsNavigationElement);
+        }
+      } else if (this.contentElement.firstElementChild) {
+        this.contentElement.replaceChildren();
+      }
+      return;
+    }
+
+    if (this.contentElement.firstElementChild !== this.paneView.element) {
+      this.contentElement.replaceChildren(this.paneView.element);
+    }
+  }
+
   private syncTopbarActions(topbarActionsElement: HTMLElement | null) {
     const currentTopbarActionsElement = this.topbarElement.querySelector(
       '.sidebar-topbar-actions-host',
     );
     if (topbarActionsElement) {
       if (currentTopbarActionsElement !== topbarActionsElement) {
+        currentTopbarActionsElement?.remove();
         this.topbarElement.append(topbarActionsElement);
       }
       return;
@@ -344,6 +366,14 @@ export class PrimaryBar {
   }
 
   private layoutPanes() {
+    if (this.props.mode === 'settings') {
+      return;
+    }
+
+    if (this.contentElement.firstElementChild !== this.paneView.element) {
+      return;
+    }
+
     this.paneView.layout(
       this.contentElement.clientWidth,
       this.contentElement.clientHeight,

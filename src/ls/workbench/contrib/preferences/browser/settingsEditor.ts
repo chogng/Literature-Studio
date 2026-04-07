@@ -355,11 +355,6 @@ function toColorPickerValue(colorValue: string) {
 
 export class SettingsPartView {
   private props: SettingsPartProps;
-  private readonly element = el('main', 'settings-page');
-  private readonly root = el('section', 'panel settings-card');
-  private readonly header = el('div', 'panel-title settings-header');
-  private readonly headerTitle = el('span');
-  private readonly body = el('div', 'settings-body');
   private readonly navigation = el('aside', 'settings-navigation');
   private readonly content = el('div', 'settings-content');
   private readonly loadingHint = buildHint('');
@@ -417,17 +412,21 @@ export class SettingsPartView {
       onTranslationProviderApiKeyChange: (provider, apiKey) => this.props.onTranslationProviderApiKeyChange(provider, apiKey),
       onTestTranslationConnection: () => this.props.onTestTranslationConnection(),
     });
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, this.element);
-    this.header.append(this.headerTitle);
-    this.body.append(this.navigation, this.content);
-    this.root.append(this.header, this.body);
-    this.element.append(this.root);
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, this.content);
     this.initializeSectionContainers();
     this.updateView(undefined, true);
   }
 
   getElement() {
-    return this.element;
+    return this.content;
+  }
+
+  getNavigationElement() {
+    return this.navigation;
+  }
+
+  getContentElement() {
+    return this.content;
   }
 
   setProps(props: SettingsPartProps) {
@@ -438,12 +437,28 @@ export class SettingsPartView {
 
   dispose() {
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, null);
-    this.element.replaceChildren();
+    this.navigation.replaceChildren();
+    this.content.replaceChildren();
+  }
+
+  private containsManagedElement(node: Node) {
+    return (
+      this.navigation.contains(node) ||
+      this.content.contains(node)
+    );
+  }
+
+  private queryManagedFocusTarget(key: string) {
+    const selector = `[data-focus-key="${key}"]`;
+    return (
+      this.content.querySelector<HTMLElement>(selector) ??
+      this.navigation.querySelector<HTMLElement>(selector)
+    );
   }
 
   private captureFocus(): FocusSnapshot {
     const active = document.activeElement;
-    if (!(active instanceof HTMLElement) || !this.element.contains(active)) {
+    if (!(active instanceof HTMLElement) || !this.containsManagedElement(active)) {
       return null;
     }
     const focusNode = active.closest<HTMLElement>('[data-focus-key]');
@@ -461,7 +476,7 @@ export class SettingsPartView {
     if (!snapshot) {
       return;
     }
-    const target = this.element.querySelector<HTMLElement>(`[data-focus-key="${snapshot.key}"]`);
+    const target = this.queryManagedFocusTarget(snapshot.key);
     if (!target) {
       return;
     }
@@ -589,7 +604,7 @@ export class SettingsPartView {
   }
 
   private renderNavigation() {
-    const items = getSettingsNavigationItems(this.props.labels);
+    const items = getSettingsPageNavigationItems(this.props.labels);
     this.navigation.replaceChildren(
       ...items.map((item) => {
         const button = el('button', 'settings-navigation-item');
@@ -603,10 +618,6 @@ export class SettingsPartView {
         button.dataset.pageTarget = item.id;
         button.classList.toggle('active', item.id === this.activePageId);
         button.addEventListener('click', () => {
-          if (item.id === 'back') {
-            this.props.onNavigateBack();
-            return;
-          }
           this.focusPage(item.id);
         });
         return button;
@@ -622,21 +633,13 @@ export class SettingsPartView {
 
   private renderActivePage() {
     const pageSectionIds = getSettingsPageSectionIds(this.activePageId);
-    this.content.replaceChildren(...pageSectionIds.map((sectionId) => this.sections[sectionId]));
+    const contentChildren = pageSectionIds.map((sectionId) => this.sections[sectionId]);
+    if (this.props.isSettingsLoading) {
+      contentChildren.unshift(this.loadingHint);
+    }
+    this.content.replaceChildren(...contentChildren);
     for (const [sectionId, section] of Object.entries(this.sections) as Array<[SettingsSectionId, HTMLElement]>) {
       section.classList.toggle('active', pageSectionIds.includes(sectionId));
-    }
-  }
-
-  private syncLoadingState() {
-    const shouldShowLoading = this.props.isSettingsLoading;
-    const isMounted = this.loadingHint.parentElement === this.content;
-    if (shouldShowLoading && !isMounted) {
-      this.content.prepend(this.loadingHint);
-      return;
-    }
-    if (!shouldShowLoading && isMounted) {
-      this.loadingHint.remove();
     }
   }
 
@@ -809,9 +812,7 @@ export class SettingsPartView {
 
   private updateView(previousProps?: SettingsPartProps, forceAll = false) {
     const focusSnapshot = this.captureFocus();
-    this.headerTitle.textContent = this.props.labels.settingsTitle;
     this.loadingHint.textContent = this.props.labels.settingsLoading;
-    this.syncLoadingState();
     this.renderNavigation();
 
     if (forceAll || this.shouldUpdateLocaleSection(previousProps)) {
@@ -1092,8 +1093,66 @@ export class SettingsPartView {
 
 }
 
+export type SettingsTopbarActionsProps = {
+  backLabel: string;
+  onNavigateBack: () => void;
+};
+
+export class SettingsTopbarActionsView {
+  private props: SettingsTopbarActionsProps;
+  private readonly actionBarView = createActionBarView({
+    className: 'sidebar-topbar-actions',
+    ariaRole: 'group',
+  });
+  private readonly hostElement = el('div', 'sidebar-topbar-actions-host');
+
+  constructor(props: SettingsTopbarActionsProps) {
+    this.props = props;
+    this.hostElement.append(this.actionBarView.getElement());
+    this.render();
+  }
+
+  getElement() {
+    return this.hostElement;
+  }
+
+  setProps(props: SettingsTopbarActionsProps) {
+    this.props = props;
+    this.render();
+  }
+
+  dispose() {
+    this.actionBarView.dispose();
+    this.hostElement.replaceChildren();
+  }
+
+  private render() {
+    const backLabel = this.props.backLabel.trim();
+    this.actionBarView.setProps({
+      className: 'sidebar-topbar-actions',
+      ariaRole: 'group',
+      items: [
+        {
+          label: backLabel,
+          title: backLabel,
+          mode: 'icon',
+          buttonClassName: 'sidebar-topbar-toggle-btn',
+          content: createLxIcon('arrow-left'),
+          onClick: () => this.props.onNavigateBack(),
+        },
+      ],
+    });
+  }
+}
+
 export function createSettingsPartView(props: SettingsPartProps) {
   return new SettingsPartView(props);
+}
+
+export function createSettingsTopbarActionsView(
+  props: SettingsTopbarActionsProps,
+) {
+  return new SettingsTopbarActionsView(props);
 }
 
 export default SettingsPartView;

@@ -20,11 +20,15 @@ import {
 } from 'ls/workbench/browser/parts/statusbar/statusbarActions';
 
 export type WorkbenchContentPartViewsProps = {
+  mode?: 'content' | 'settings';
   isPrimarySidebarVisible: boolean;
   isAgentSidebarVisible: boolean;
   primaryBarProps: PrimaryBarProps;
+  settingsNavigationElement?: HTMLElement | null;
+  settingsTopbarActionsElement?: HTMLElement | null;
   agentBarProps: AgentBarPartProps;
   editorPartProps: EditorPartProps;
+  settingsContentElement?: HTMLElement | null;
   sidebarTopbarActionsElement: HTMLElement;
   primaryBarFooterActionsElement: HTMLElement;
   editorTopbarAuxiliaryActionsElement?: HTMLElement | null;
@@ -80,6 +84,10 @@ export class WorkbenchContentPartViews {
   }
 
   getEditorElement() {
+    if (this.props.mode === 'settings') {
+      return this.props.settingsContentElement ?? null;
+    }
+
     return this.editorView?.getElement() ?? null;
   }
 
@@ -141,11 +149,20 @@ export class WorkbenchContentPartViews {
       return;
     }
 
+    const topbarActionsElement =
+      this.props.mode === 'settings'
+        ? (this.props.settingsTopbarActionsElement ?? null)
+        : this.layoutState.mountPrimarySidebarActionsInAgentBar
+          ? null
+          : this.props.sidebarTopbarActionsElement;
     const nextProps: PrimaryBarProps = {
       ...this.props.primaryBarProps,
-      topbarActionsElement: this.layoutState.mountPrimarySidebarActionsInAgentBar
-        ? null
-        : this.props.sidebarTopbarActionsElement,
+      mode: this.props.mode === 'settings' ? 'settings' : 'content',
+      settingsNavigationElement:
+        this.props.mode === 'settings'
+          ? (this.props.settingsNavigationElement ?? null)
+          : null,
+      topbarActionsElement,
       footerActionsElement: this.props.primaryBarFooterActionsElement,
     };
 
@@ -158,6 +175,14 @@ export class WorkbenchContentPartViews {
   }
 
   private renderEditor() {
+    if (this.props.mode === 'settings') {
+      this.retiredEditorView = this.editorView;
+      this.retiredEditorView?.dispose();
+      this.editorView = null;
+      clearStatusbarCommandHandlers();
+      return;
+    }
+
     const nextProps: EditorPartProps = {
       ...this.props.editorPartProps,
       showTopbarActions: !this.layoutState.isEditorCollapsed,
@@ -177,6 +202,12 @@ export class WorkbenchContentPartViews {
   }
 
   private renderAgentBar() {
+    if (this.props.mode === 'settings') {
+      this.agentBarView?.dispose();
+      this.agentBarView = null;
+      return;
+    }
+
     if (!this.props.isAgentSidebarVisible) {
       this.agentBarView?.dispose();
       this.agentBarView = null;

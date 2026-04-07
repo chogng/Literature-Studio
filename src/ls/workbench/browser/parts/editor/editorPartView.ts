@@ -18,6 +18,7 @@ import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartVie
 import { EditorGroupView } from 'ls/workbench/browser/parts/editor/editorGroupView';
 import 'ls/workbench/browser/parts/editor/media/editor.css';
 import 'ls/workbench/browser/parts/editor/media/editorToolbar.css';
+import 'ls/workbench/browser/parts/editor/media/editorBrowserSourcesPanel.css';
 import 'ls/workbench/browser/parts/editor/media/tabsTitleControl.css';
 
 export type EditorPartLabels = {
