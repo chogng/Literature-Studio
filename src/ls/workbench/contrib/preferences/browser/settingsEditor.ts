@@ -15,10 +15,15 @@ import type { KnowledgeBaseWidgetProps } from 'ls/workbench/contrib/preferences/
 import { LlmWidget } from 'ls/workbench/contrib/preferences/browser/llmWidget';
 import {
   createSettingsSectionMap,
+  getSettingsPageTitle,
   getSettingsPageSectionIds,
 } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 import type { SettingsPageId, SettingsSectionId } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 import { createSettingsNavigationView } from 'ls/workbench/contrib/preferences/browser/settingsNavigationView';
+import {
+  createSettingsPanelListView,
+  createSettingsToggleListItem,
+} from 'ls/workbench/contrib/preferences/browser/settingsWidgetScaffold';
 
 import type {
   SettingsPartActions,
@@ -59,7 +64,7 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
     settingsLibraryMaxConcurrentJobs: ui.settingsLibraryMaxConcurrentJobs, settingsLibraryMaxConcurrentJobsHint: ui.settingsLibraryMaxConcurrentJobsHint, settingsRagTitle: ui.settingsRagTitle, settingsRagProvider: ui.settingsRagProvider, settingsRagProviderHint: ui.settingsRagProviderHint,
     settingsRagProviderMoark: ui.settingsRagProviderMoark, settingsRagApiKey: ui.settingsRagApiKey, settingsRagApiKeyPlaceholder: ui.settingsRagApiKeyPlaceholder, settingsRagBaseUrl: ui.settingsRagBaseUrl, settingsRagEmbeddingModel: ui.settingsRagEmbeddingModel,
     settingsRagRerankerModel: ui.settingsRagRerankerModel, settingsRagEmbeddingPath: ui.settingsRagEmbeddingPath, settingsRagRerankPath: ui.settingsRagRerankPath, settingsRagCandidateCount: ui.settingsRagCandidateCount, settingsRagTopK: ui.settingsRagTopK,
-    settingsRagTestConnection: ui.settingsRagTestConnection, settingsRagShowApiKey: ui.settingsRagShowApiKey, settingsRagHideApiKey: ui.settingsRagHideApiKey, settingsRagHint: ui.settingsRagHint, settingsBatchHint: ui.settingsBatchHint, defaultPdfDir: ui.defaultPdfDir, settingsStatusbar: ui.settingsStatusbar, settingsStatusbarHint: ui.settingsStatusbarHint,
+    settingsRagTestConnection: ui.settingsRagTestConnection, settingsRagShowApiKey: ui.settingsRagShowApiKey, settingsRagHideApiKey: ui.settingsRagHideApiKey, settingsRagHint: ui.settingsRagHint, settingsBatchHint: ui.settingsBatchHint, defaultPdfDir: ui.defaultPdfDir, settingsLayoutTitle: ui.settingsLayoutTitle, settingsStatusbar: ui.settingsStatusbar, settingsStatusbarHint: ui.settingsStatusbarHint, settingsNotificationsTitle: ui.settingsNotificationsTitle, settingsNotificationsHint: ui.settingsNotificationsHint, settingsSystemNotifications: ui.settingsSystemNotifications, settingsSystemNotificationsHint: ui.settingsSystemNotificationsHint, settingsWarningNotifications: ui.settingsWarningNotifications, settingsWarningNotificationsHint: ui.settingsWarningNotificationsHint, settingsMenuBarIcon: ui.settingsMenuBarIcon, settingsMenuBarIconHint: ui.settingsMenuBarIconHint, settingsCompletionNotifications: ui.settingsCompletionNotifications, settingsCompletionNotificationsHint: ui.settingsCompletionNotificationsHint,
     pdfFileNameUseSelectionOrder: ui.pdfFileNameUseSelectionOrder, pdfFileNameUseSelectionOrderHint: ui.pdfFileNameUseSelectionOrderHint, downloadDirPlaceholder: ui.downloadDirPlaceholder, chooseDirectory: ui.chooseDirectory, openConfigLocation: ui.openConfigLocation,
     resetDefault: ui.resetDefault, settingsHintPath: ui.settingsHintPath, settingsConfigPath: ui.settingsConfigPath, currentDir: ui.currentDir, systemDownloads: ui.systemDownloads, settingsLlmTitle: ui.settingsLlmTitle, settingsLlmProvider: ui.settingsLlmProvider,
     settingsLlmProviderHint: ui.settingsLlmProviderHint, settingsLlmProviderGlm: ui.settingsLlmProviderGlm, settingsLlmProviderKimi: ui.settingsLlmProviderKimi, settingsLlmProviderDeepSeek: ui.settingsLlmProviderDeepSeek, settingsLlmProviderGemini: ui.settingsLlmProviderGemini, settingsLlmApiKey: ui.settingsLlmApiKey,
@@ -358,6 +363,8 @@ export class SettingsPartView {
   private props: SettingsPartProps;
   private readonly navigationView: ReturnType<typeof createSettingsNavigationView>;
   private readonly content = el('div', 'settings-content');
+  private readonly topbar = el('div', 'settings-page-topbar');
+  private readonly pageTitle = el('h2', 'settings-page-title');
   private readonly loadingHint = buildHint('');
   // Keep section containers stable so updates can replace only local content
   // without recreating the whole settings page.
@@ -378,6 +385,7 @@ export class SettingsPartView {
       title: this.props.labels.settingsTitle,
       activePageId: this.activePageId,
       onDidSelectPage: this.handleDidSelectPage,
+      onDidNavigateBack: this.props.onNavigateBack,
     });
     this.batchSourcesWidget = new BatchSourcesWidget({
       labels: this.props.labels,
@@ -618,6 +626,7 @@ export class SettingsPartView {
       title: this.props.labels.settingsTitle,
       activePageId: this.activePageId,
       onDidSelectPage: this.handleDidSelectPage,
+      onDidNavigateBack: this.props.onNavigateBack,
     });
   }
 
@@ -636,9 +645,14 @@ export class SettingsPartView {
 
   private renderActivePage() {
     const pageSectionIds = getSettingsPageSectionIds(this.activePageId);
-    const contentChildren = pageSectionIds.map((sectionId) => this.sections[sectionId]);
+    this.pageTitle.textContent = getSettingsPageTitle(this.activePageId, this.props.labels);
+    const contentChildren: Node[] = [
+      this.topbar,
+      this.pageTitle,
+      ...pageSectionIds.map((sectionId) => this.sections[sectionId]),
+    ];
     if (this.props.isSettingsLoading) {
-      contentChildren.unshift(this.loadingHint);
+      contentChildren.splice(2, 0, this.loadingHint);
     }
     this.content.replaceChildren(...contentChildren);
     for (const [sectionId, section] of Object.entries(this.sections) as Array<[SettingsSectionId, HTMLElement]>) {
@@ -689,12 +703,44 @@ export class SettingsPartView {
     );
   }
 
+  private shouldUpdateLayoutSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.statusbarVisible !== this.props.statusbarVisible ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.labels.settingsLayoutTitle !== this.props.labels.settingsLayoutTitle ||
+      previousProps.labels.settingsStatusbar !== this.props.labels.settingsStatusbar ||
+      previousProps.labels.settingsStatusbarHint !== this.props.labels.settingsStatusbarHint
+    );
+  }
+
+  private shouldUpdateNotificationsSection(previousProps?: SettingsPartProps) {
+    return (
+      !previousProps ||
+      previousProps.systemNotificationsEnabled !== this.props.systemNotificationsEnabled ||
+      previousProps.warningNotificationsEnabled !== this.props.warningNotificationsEnabled ||
+      previousProps.menuBarIconEnabled !== this.props.menuBarIconEnabled ||
+      previousProps.completionNotificationsEnabled !== this.props.completionNotificationsEnabled ||
+      previousProps.desktopRuntime !== this.props.desktopRuntime ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
+      previousProps.labels.settingsNotificationsTitle !== this.props.labels.settingsNotificationsTitle ||
+      previousProps.labels.settingsNotificationsHint !== this.props.labels.settingsNotificationsHint ||
+      previousProps.labels.settingsSystemNotifications !== this.props.labels.settingsSystemNotifications ||
+      previousProps.labels.settingsSystemNotificationsHint !== this.props.labels.settingsSystemNotificationsHint ||
+      previousProps.labels.settingsWarningNotifications !== this.props.labels.settingsWarningNotifications ||
+      previousProps.labels.settingsWarningNotificationsHint !== this.props.labels.settingsWarningNotificationsHint ||
+      previousProps.labels.settingsMenuBarIcon !== this.props.labels.settingsMenuBarIcon ||
+      previousProps.labels.settingsMenuBarIconHint !== this.props.labels.settingsMenuBarIconHint ||
+      previousProps.labels.settingsCompletionNotifications !== this.props.labels.settingsCompletionNotifications ||
+      previousProps.labels.settingsCompletionNotificationsHint !== this.props.labels.settingsCompletionNotificationsHint
+    );
+  }
+
   private shouldUpdateAppearanceSection(previousProps?: SettingsPartProps) {
     return (
       !previousProps ||
       previousProps.theme !== this.props.theme ||
       previousProps.useMica !== this.props.useMica ||
-      previousProps.statusbarVisible !== this.props.statusbarVisible ||
       previousProps.desktopRuntime !== this.props.desktopRuntime ||
       previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
       previousProps.labels.settingsAppearanceTitle !== this.props.labels.settingsAppearanceTitle ||
@@ -704,9 +750,7 @@ export class SettingsPartView {
       previousProps.labels.settingsThemeDark !== this.props.labels.settingsThemeDark ||
       previousProps.labels.settingsThemeSystem !== this.props.labels.settingsThemeSystem ||
       previousProps.labels.settingsUseMica !== this.props.labels.settingsUseMica ||
-      previousProps.labels.settingsUseMicaHint !== this.props.labels.settingsUseMicaHint ||
-      previousProps.labels.settingsStatusbar !== this.props.labels.settingsStatusbar ||
-      previousProps.labels.settingsStatusbarHint !== this.props.labels.settingsStatusbarHint
+      previousProps.labels.settingsUseMicaHint !== this.props.labels.settingsUseMicaHint
     );
   }
 
@@ -822,6 +866,12 @@ export class SettingsPartView {
     if (forceAll || this.shouldUpdateLocaleSection(previousProps)) {
       this.updateSection(this.sections.locale, this.renderLocaleField());
     }
+    if (forceAll || this.shouldUpdateLayoutSection(previousProps)) {
+      this.updateSection(this.sections.layout, this.renderLayoutField());
+    }
+    if (forceAll || this.shouldUpdateNotificationsSection(previousProps)) {
+      this.updateSection(this.sections.notifications, this.renderNotificationsField());
+    }
     if (forceAll || this.shouldUpdateBatchSourcesSection(previousProps)) {
       this.updateBatchSourcesWidget();
       this.updateSection(this.sections.batchSources, this.batchSourcesWidget.getElement());
@@ -859,10 +909,11 @@ export class SettingsPartView {
   }
 
   private renderLocaleField() {
-    const field = el('div', 'settings-field settings-language-field');
-    const row = el('div', 'settings-language-row');
-    const label = el('span');
-    label.textContent = this.props.labels.settingsLanguage;
+    const language = createSettingsPanelListView({
+      sectionClassName: 'settings-language-section',
+      panelClassName: 'settings-language-panel',
+      listClassName: 'settings-language-list',
+    });
     const select = buildSelect(
       createDisplayLanguageOptions(this.props.labels),
       this.props.locale,
@@ -870,9 +921,14 @@ export class SettingsPartView {
       (value) => requestSetDisplayLanguage(value as Locale),
       'settings-language-toggle',
     );
-    row.append(label, select);
-    field.append(row, buildHint(this.props.labels.settingsLanguageHint));
-    return field;
+    language.list.append(
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsLanguage,
+        description: this.props.labels.settingsLanguageHint,
+        control: select,
+      }),
+    );
+    return language.element;
   }
 
   private renderBatchOptionsField() {
@@ -919,6 +975,29 @@ export class SettingsPartView {
     return field;
   }
 
+  private renderLayoutField() {
+    const layout = createSettingsPanelListView({
+      title: this.props.labels.settingsLayoutTitle,
+      sectionClassName: 'settings-layout-section',
+      panelClassName: 'settings-layout-panel',
+      listClassName: 'settings-layout-list',
+    });
+    layout.list.append(
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsStatusbar,
+        description: this.props.labels.settingsStatusbarHint,
+        control: buildSwitch({
+          checked: this.props.statusbarVisible,
+          focusKey: 'settings.general.layout.statusbarVisible',
+          disabled: this.props.isSettingsSaving,
+          title: this.props.labels.settingsStatusbar,
+          onChange: this.props.onStatusbarVisibleChange,
+        }),
+      }),
+    );
+    return layout.element;
+  }
+
   private renderAppearanceField() {
     const field = el('div', 'settings-field');
     const title = el('span'); title.textContent = this.props.labels.settingsAppearanceTitle;
@@ -940,49 +1019,118 @@ export class SettingsPartView {
     );
     themeSelect.disabled = this.props.isSettingsSaving;
     themeRow.append(themeLabel, themeSelect);
+    const appearanceToggles = createSettingsPanelListView({
+      sectionClassName: 'settings-appearance-toggles-section',
+      panelClassName: 'settings-appearance-toggles-panel',
+      listClassName: 'settings-appearance-toggles-list',
+    });
+    appearanceToggles.list.append(
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsUseMica,
+        description: this.props.labels.settingsUseMicaHint,
+        control: buildSwitch({
+          checked: this.props.useMica,
+          focusKey: 'settings.appearance.useMica',
+          disabled: this.props.isSettingsSaving || !this.props.desktopRuntime,
+          title: this.props.labels.settingsUseMica,
+          onChange: this.props.onUseMicaChange,
+        }),
+      }),
+    );
     field.append(
       title,
       themeRow,
       buildHint(this.props.labels.settingsThemeHint),
-      this.renderToggleRow(
-        'settings.appearance.useMica',
-        this.props.labels.settingsUseMica,
-        this.props.labels.settingsUseMicaHint,
-        this.props.useMica,
-        this.props.isSettingsSaving || !this.props.desktopRuntime,
-        this.props.onUseMicaChange,
-      ),
-      this.renderToggleRow(
-        'settings.appearance.statusbarVisible',
-        this.props.labels.settingsStatusbar,
-        this.props.labels.settingsStatusbarHint,
-        this.props.statusbarVisible,
-        this.props.isSettingsSaving,
-        this.props.onStatusbarVisibleChange,
-      ),
+      appearanceToggles.element,
     );
     return field;
   }
 
+  private renderNotificationsField() {
+    const notifications = createSettingsPanelListView({
+      title: this.props.labels.settingsNotificationsTitle,
+      sectionClassName: 'settings-notifications-section',
+      panelClassName: 'settings-notifications-panel',
+      listClassName: 'settings-notifications-list',
+    });
+    const notificationsDisabled = this.props.isSettingsSaving || !this.props.desktopRuntime;
+    notifications.list.append(
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsSystemNotifications,
+        description: this.props.labels.settingsSystemNotificationsHint,
+        control: buildSwitch({
+          checked: this.props.systemNotificationsEnabled,
+          focusKey: 'settings.general.notifications.system',
+          disabled: notificationsDisabled,
+          title: this.props.labels.settingsSystemNotifications,
+          onChange: this.props.onSystemNotificationsEnabledChange,
+        }),
+      }),
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsWarningNotifications,
+        description: this.props.labels.settingsWarningNotificationsHint,
+        control: buildSwitch({
+          checked: this.props.warningNotificationsEnabled,
+          focusKey: 'settings.general.notifications.warning',
+          disabled: notificationsDisabled,
+          title: this.props.labels.settingsWarningNotifications,
+          onChange: this.props.onWarningNotificationsEnabledChange,
+        }),
+      }),
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsMenuBarIcon,
+        description: this.props.labels.settingsMenuBarIconHint,
+        control: buildSwitch({
+          checked: this.props.menuBarIconEnabled,
+          focusKey: 'settings.general.notifications.menuBarIcon',
+          disabled: notificationsDisabled,
+          title: this.props.labels.settingsMenuBarIcon,
+          onChange: this.props.onMenuBarIconEnabledChange,
+        }),
+      }),
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsCompletionNotifications,
+        description: this.props.labels.settingsCompletionNotificationsHint,
+        control: buildSwitch({
+          checked: this.props.completionNotificationsEnabled,
+          focusKey: 'settings.general.notifications.completion',
+          disabled: notificationsDisabled,
+          title: this.props.labels.settingsCompletionNotifications,
+          onChange: this.props.onCompletionNotificationsEnabledChange,
+        }),
+      }),
+    );
+    return notifications.element;
+  }
+
   private renderDownloadDirectoryField() {
-    const field = el('label', 'settings-field');
+    const field = el('div', 'settings-field');
+    const title = el('span');
+    title.textContent = this.props.labels.defaultPdfDir;
     const row = el('div', 'settings-input-row');
     row.append(
       buildInput({ value: this.props.pdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.download.dir', placeholder: this.props.labels.downloadDirPlaceholder, onInput: this.props.onPdfDownloadDirChange }),
       buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.download.choose', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChoosePdfDownloadDir }),
     );
-    const toggleRow = el('div', 'settings-toggle-row');
-    const textBlock = el('div');
-    const title = el('span', 'settings-hint'); title.textContent = this.props.labels.pdfFileNameUseSelectionOrder;
-    textBlock.append(title, buildHint(this.props.labels.pdfFileNameUseSelectionOrderHint, 'settings-hint settings-toggle-subtitle'));
-    toggleRow.append(textBlock, buildSwitch({
-      checked: this.props.pdfFileNameUseSelectionOrder,
-      focusKey: 'settings.download.selectionOrder',
-      disabled: this.props.isSettingsSaving,
-      title: this.props.labels.pdfFileNameUseSelectionOrder,
-      onChange: this.props.onPdfFileNameUseSelectionOrderChange,
-    }));
-    field.append(text(this.props.labels.defaultPdfDir), row, toggleRow);
+    const downloadOptions = createSettingsPanelListView({
+      sectionClassName: 'settings-download-options-section',
+      panelClassName: 'settings-download-options-panel',
+      listClassName: 'settings-download-options-list',
+    });
+    downloadOptions.list.append(
+      createSettingsToggleListItem({
+        title: this.props.labels.pdfFileNameUseSelectionOrder,
+        description: this.props.labels.pdfFileNameUseSelectionOrderHint,
+        control: buildSwitch({
+          checked: this.props.pdfFileNameUseSelectionOrder,
+          focusKey: 'settings.download.selectionOrder',
+          disabled: this.props.isSettingsSaving,
+          title: this.props.labels.pdfFileNameUseSelectionOrder,
+          onChange: this.props.onPdfFileNameUseSelectionOrderChange,
+        }),
+      }),
+    );
+    field.append(title, row, downloadOptions.element);
     return field;
   }
 
@@ -1092,15 +1240,6 @@ export class SettingsPartView {
     return field;
   }
 
-  private renderToggleRow(focusKey: string, title: string, hint: string, checked: boolean, disabled: boolean, onChange: (checked: boolean) => void) {
-    const row = el('div', 'settings-toggle-row');
-    const textBlock = el('div');
-    const label = el('span', 'settings-hint'); label.textContent = title;
-    textBlock.append(label, buildHint(hint, 'settings-hint settings-toggle-subtitle'));
-    row.append(textBlock, buildSwitch({ checked, focusKey, disabled, title, onChange }));
-    return row;
-  }
-
 }
 
 export type SettingsTopbarActionsProps = {
@@ -1109,15 +1248,13 @@ export type SettingsTopbarActionsProps = {
 };
 
 export class SettingsTopbarActionsView {
-  private props: SettingsTopbarActionsProps;
   private readonly actionBarView = createActionBarView({
     className: 'sidebar-topbar-actions',
     ariaRole: 'group',
   });
   private readonly hostElement = el('div', 'sidebar-topbar-actions-host');
 
-  constructor(props: SettingsTopbarActionsProps) {
-    this.props = props;
+  constructor(_props: SettingsTopbarActionsProps) {
     this.hostElement.append(this.actionBarView.getElement());
     this.render();
   }
@@ -1126,8 +1263,7 @@ export class SettingsTopbarActionsView {
     return this.hostElement;
   }
 
-  setProps(props: SettingsTopbarActionsProps) {
-    this.props = props;
+  setProps(_props: SettingsTopbarActionsProps) {
     this.render();
   }
 
@@ -1137,20 +1273,10 @@ export class SettingsTopbarActionsView {
   }
 
   private render() {
-    const backLabel = this.props.backLabel.trim();
     this.actionBarView.setProps({
       className: 'sidebar-topbar-actions',
       ariaRole: 'group',
-      items: [
-        {
-          label: backLabel,
-          title: backLabel,
-          mode: 'icon',
-          buttonClassName: 'sidebar-topbar-toggle-btn',
-          content: createLxIcon('arrow-left'),
-          onClick: () => this.props.onNavigateBack(),
-        },
-      ],
+      items: [],
     });
   }
 }

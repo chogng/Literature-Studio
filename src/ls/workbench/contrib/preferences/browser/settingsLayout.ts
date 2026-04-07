@@ -3,6 +3,8 @@ import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browse
 
 export type SettingsSectionId =
   | 'locale'
+  | 'layout'
+  | 'notifications'
   | 'appearance'
   | 'configPath'
   | 'textEditor'
@@ -36,7 +38,7 @@ const settingsPageLayout: SettingsPageDefinition[] = [
     id: 'general',
     label: (labels) => labels.settingsNavigationGeneral,
     icon: 'gear',
-    sections: ['locale', 'configPath'],
+    sections: ['locale', 'layout', 'notifications', 'configPath'],
   },
   {
     id: 'appearance',
@@ -64,6 +66,7 @@ const settingsPageLayout: SettingsPageDefinition[] = [
   {
     id: 'knowledgeBase',
     label: (labels) => labels.settingsNavigationKnowledgeBase,
+    icon: 'database-1',
     sections: ['knowledgeBase'],
   },
   {
@@ -116,4 +119,12 @@ export function getSettingsPageNavigationItems(
 
 export function getSettingsPageSectionIds(pageId: SettingsPageId): SettingsSectionId[] {
   return settingsPageLayout.find((page) => page.id === pageId)?.sections ?? [];
+}
+
+export function getSettingsPageTitle(
+  pageId: SettingsPageId,
+  labels: SettingsPartLabels,
+): string {
+  const page = settingsPageLayout.find((item) => item.id === pageId);
+  return page ? page.label(labels).trim() : '';
 }

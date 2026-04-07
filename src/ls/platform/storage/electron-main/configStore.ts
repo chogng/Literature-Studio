@@ -259,6 +259,22 @@ function normalizeSettings(
       typeof payload.defaultSameDomainOnly === 'boolean'
         ? payload.defaultSameDomainOnly
         : defaultSameDomainOnly,
+    systemNotificationsEnabled:
+      typeof payload.systemNotificationsEnabled === 'boolean'
+        ? payload.systemNotificationsEnabled
+        : true,
+    warningNotificationsEnabled:
+      typeof payload.warningNotificationsEnabled === 'boolean'
+        ? payload.warningNotificationsEnabled
+        : true,
+    menuBarIconEnabled:
+      typeof payload.menuBarIconEnabled === 'boolean'
+        ? payload.menuBarIconEnabled
+        : false,
+    completionNotificationsEnabled:
+      typeof payload.completionNotificationsEnabled === 'boolean'
+        ? payload.completionNotificationsEnabled
+        : true,
     statusbarVisible:
       typeof payload.statusbarVisible === 'boolean'
         ? payload.statusbarVisible

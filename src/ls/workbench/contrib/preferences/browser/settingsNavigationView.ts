@@ -1,7 +1,8 @@
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import {
-  getSettingsPageNavigationItems,
+  getSettingsNavigationItems,
+  type SettingsNavigationItemId,
   type SettingsPageId,
 } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
@@ -11,6 +12,7 @@ export type SettingsNavigationViewProps = {
   title: string;
   activePageId: SettingsPageId;
   onDidSelectPage: (pageId: SettingsPageId) => void;
+  onDidNavigateBack: () => void;
 };
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
@@ -45,30 +47,43 @@ export class SettingsNavigationView {
   }
 
   private render() {
-    const items = getSettingsPageNavigationItems(this.props.labels);
-    const entries: Array<
-      | {
-          kind: 'item';
-          itemId: string;
-          pageId: SettingsPageId;
-          label: string;
-          icon?: LxIconName;
-        }
-      | {
-          kind: 'spacer';
-          itemId: string;
-          height: number;
-        }
-    > = [];
+    type NavigationItemEntry = {
+      kind: 'item';
+      itemId: SettingsNavigationItemId;
+      label: string;
+      icon?: LxIconName;
+      action:
+        | { kind: 'back' }
+        | { kind: 'page'; pageId: SettingsPageId };
+    };
+    type NavigationSpacerEntry = {
+      kind: 'spacer';
+      itemId: string;
+      height: number;
+    };
+
+    const items = getSettingsNavigationItems(this.props.labels);
+    const entries: Array<NavigationItemEntry | NavigationSpacerEntry> = [];
 
     for (const item of items) {
       entries.push({
         kind: 'item',
         itemId: item.id,
-        pageId: item.id,
         label: item.label,
         icon: item.icon,
+        action:
+          item.id === 'back'
+            ? { kind: 'back' }
+            : { kind: 'page', pageId: item.id },
       });
+
+      if (item.id === 'back') {
+        entries.push({
+          kind: 'spacer',
+          itemId: 'back-spacer',
+          height: 12,
+        });
+      }
 
       if (item.id === 'appearance') {
         entries.push({
@@ -80,12 +95,17 @@ export class SettingsNavigationView {
     }
 
     const navigationItems = entries.filter(
-      (entry): entry is Extract<(typeof entries)[number], { kind: 'item' }> =>
+      (entry): entry is NavigationItemEntry =>
         entry.kind === 'item',
     );
-    const itemOrder = navigationItems.map((entry) => entry.itemId);
+    const pageItems = navigationItems.filter(
+      (entry): entry is NavigationItemEntry & {
+        action: { kind: 'page'; pageId: SettingsPageId };
+      } => entry.action.kind === 'page',
+    );
+    const itemOrder = pageItems.map((entry) => entry.itemId);
     const pageIdByItemId = new Map(
-      navigationItems.map((entry) => [entry.itemId, entry.pageId] as const),
+      pageItems.map((entry) => [entry.itemId, entry.action.pageId] as const),
     );
     const focusedItemBeforeRender = this.getFocusedItemId();
     const focusTargetItemId = this.pendingFocusItemId ?? focusedItemBeforeRender;
@@ -107,14 +127,20 @@ export class SettingsNavigationView {
         const entry = el('li', 'settings-navigation-item-entry');
         const button = el('button', 'settings-navigation-item');
         const label = el('span', 'settings-navigation-label');
-        const isActive = entryDataItem.itemId === this.props.activePageId;
+        const isActive =
+          entryDataItem.action.kind === 'page'
+            && entryDataItem.action.pageId === this.props.activePageId;
         button.type = 'button';
         if (entryDataItem.icon) {
           label.append(createLxIcon(entryDataItem.icon, 'settings-navigation-icon'));
         }
         label.append(document.createTextNode(entryDataItem.label));
         button.append(label);
-        button.dataset.pageTarget = entryDataItem.pageId;
+        if (entryDataItem.action.kind === 'page') {
+          button.dataset.pageTarget = entryDataItem.action.pageId;
+        } else {
+          delete button.dataset.pageTarget;
+        }
         button.dataset.navigationItemId = entryDataItem.itemId;
         button.classList.toggle('active', isActive);
         if (isActive) {
@@ -122,16 +148,29 @@ export class SettingsNavigationView {
         } else {
           button.removeAttribute('aria-current');
         }
-        button.addEventListener('keydown', (event) => {
-          this.handleItemKeyDown(
-            event,
-            entryDataItem.itemId,
-            itemOrder,
-            pageIdByItemId,
-          );
-        });
+        if (entryDataItem.action.kind === 'page') {
+          button.addEventListener('keydown', (event) => {
+            this.handleItemKeyDown(
+              event,
+              entryDataItem.itemId,
+              itemOrder,
+              pageIdByItemId,
+            );
+          });
+        } else {
+          button.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              this.props.onDidNavigateBack();
+              event.preventDefault();
+            }
+          });
+        }
         button.addEventListener('click', () => {
-          this.selectPage(entryDataItem.pageId, true, entryDataItem.itemId);
+          if (entryDataItem.action.kind === 'page') {
+            this.selectPage(entryDataItem.action.pageId, true, entryDataItem.itemId);
+            return;
+          }
+          this.props.onDidNavigateBack();
         });
         entry.append(button);
         return entry;

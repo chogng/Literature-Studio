@@ -164,6 +164,32 @@ export class SettingsController {
     this.scheduleImmediateAutoSave();
   };
 
+  readonly setSystemNotificationsEnabled = (
+    nextSystemNotificationsEnabled: boolean,
+  ) => {
+    this.settingsModel.setSystemNotificationsEnabled(nextSystemNotificationsEnabled);
+    this.scheduleImmediateAutoSave();
+  };
+
+  readonly setWarningNotificationsEnabled = (
+    nextWarningNotificationsEnabled: boolean,
+  ) => {
+    this.settingsModel.setWarningNotificationsEnabled(nextWarningNotificationsEnabled);
+    this.scheduleImmediateAutoSave();
+  };
+
+  readonly setMenuBarIconEnabled = (nextMenuBarIconEnabled: boolean) => {
+    this.settingsModel.setMenuBarIconEnabled(nextMenuBarIconEnabled);
+    this.scheduleImmediateAutoSave();
+  };
+
+  readonly setCompletionNotificationsEnabled = (
+    nextCompletionNotificationsEnabled: boolean,
+  ) => {
+    this.settingsModel.setCompletionNotificationsEnabled(nextCompletionNotificationsEnabled);
+    this.scheduleImmediateAutoSave();
+  };
+
   readonly setUseMica = (nextUseMica: boolean) => {
     this.settingsModel.setUseMica(nextUseMica);
     this.scheduleImmediateAutoSave();

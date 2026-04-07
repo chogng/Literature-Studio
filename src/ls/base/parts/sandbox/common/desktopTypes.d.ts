@@ -117,6 +117,10 @@ export interface StoredAppSettings {
   defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;
+  systemNotificationsEnabled: boolean;
+  warningNotificationsEnabled: boolean;
+  menuBarIconEnabled: boolean;
+  completionNotificationsEnabled: boolean;
   statusbarVisible: boolean;
   useMica: boolean;
   theme: AppTheme;

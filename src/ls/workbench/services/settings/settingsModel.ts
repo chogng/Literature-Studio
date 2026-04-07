@@ -59,6 +59,10 @@ export type SettingsModelSnapshot = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  systemNotificationsEnabled: boolean;
+  warningNotificationsEnabled: boolean;
+  menuBarIconEnabled: boolean;
+  completionNotificationsEnabled: boolean;
   statusbarVisible: boolean;
   useMica: boolean;
   theme: AppTheme;
@@ -133,6 +137,10 @@ function areSettingsModelSnapshotsEqual(
     previous.pdfFileNameUseSelectionOrder === next.pdfFileNameUseSelectionOrder &&
     previous.batchLimit === next.batchLimit &&
     previous.sameDomainOnly === next.sameDomainOnly &&
+    previous.systemNotificationsEnabled === next.systemNotificationsEnabled &&
+    previous.warningNotificationsEnabled === next.warningNotificationsEnabled &&
+    previous.menuBarIconEnabled === next.menuBarIconEnabled &&
+    previous.completionNotificationsEnabled === next.completionNotificationsEnabled &&
     previous.statusbarVisible === next.statusbarVisible &&
     previous.useMica === next.useMica &&
     previous.theme === next.theme &&
@@ -176,6 +184,10 @@ function createInitialSettingsModelSnapshot(
     batchSources: initialBatchSources,
     batchLimit: defaultBatchLimit,
     sameDomainOnly: defaultSameDomainOnly,
+    systemNotificationsEnabled: true,
+    warningNotificationsEnabled: true,
+    menuBarIconEnabled: false,
+    completionNotificationsEnabled: true,
     statusbarVisible: true,
     useMica: true,
     theme: 'light',
@@ -258,6 +270,50 @@ export class SettingsModel {
     this.updateSnapshot((snapshot) => ({
       ...snapshot,
       sameDomainOnly,
+    }));
+  };
+
+  readonly setSystemNotificationsEnabled = (systemNotificationsEnabled: boolean) => {
+    if (this.snapshot.systemNotificationsEnabled === systemNotificationsEnabled) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      systemNotificationsEnabled,
+    }));
+  };
+
+  readonly setWarningNotificationsEnabled = (warningNotificationsEnabled: boolean) => {
+    if (this.snapshot.warningNotificationsEnabled === warningNotificationsEnabled) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      warningNotificationsEnabled,
+    }));
+  };
+
+  readonly setMenuBarIconEnabled = (menuBarIconEnabled: boolean) => {
+    if (this.snapshot.menuBarIconEnabled === menuBarIconEnabled) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      menuBarIconEnabled,
+    }));
+  };
+
+  readonly setCompletionNotificationsEnabled = (completionNotificationsEnabled: boolean) => {
+    if (this.snapshot.completionNotificationsEnabled === completionNotificationsEnabled) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      completionNotificationsEnabled,
     }));
   };
 
@@ -853,6 +909,10 @@ export class SettingsModel {
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
+        systemNotificationsEnabled: resolved.systemNotificationsEnabled,
+        warningNotificationsEnabled: resolved.warningNotificationsEnabled,
+        menuBarIconEnabled: resolved.menuBarIconEnabled,
+        completionNotificationsEnabled: resolved.completionNotificationsEnabled,
         statusbarVisible: resolved.statusbarVisible,
         useMica: resolved.useMica,
         theme: resolved.theme,
@@ -978,6 +1038,10 @@ export class SettingsModel {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      systemNotificationsEnabled,
+      warningNotificationsEnabled,
+      menuBarIconEnabled,
+      completionNotificationsEnabled,
       statusbarVisible,
       useMica,
       theme,
@@ -1006,6 +1070,10 @@ export class SettingsModel {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      systemNotificationsEnabled,
+      warningNotificationsEnabled,
+      menuBarIconEnabled,
+      completionNotificationsEnabled,
       statusbarVisible,
       useMica,
       theme,
@@ -1061,6 +1129,10 @@ export class SettingsModel {
       batchSources: resolved.batchSources,
       batchLimit: resolved.batchLimit,
       sameDomainOnly: resolved.sameDomainOnly,
+      systemNotificationsEnabled: resolved.systemNotificationsEnabled,
+      warningNotificationsEnabled: resolved.warningNotificationsEnabled,
+      menuBarIconEnabled: resolved.menuBarIconEnabled,
+      completionNotificationsEnabled: resolved.completionNotificationsEnabled,
       statusbarVisible: resolved.statusbarVisible,
       useMica: resolved.useMica,
       theme: resolved.theme,
@@ -1100,6 +1172,10 @@ export class SettingsModel {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      systemNotificationsEnabled,
+      warningNotificationsEnabled,
+      menuBarIconEnabled,
+      completionNotificationsEnabled,
       statusbarVisible,
       useMica,
       theme,
@@ -1128,6 +1204,10 @@ export class SettingsModel {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      systemNotificationsEnabled,
+      warningNotificationsEnabled,
+      menuBarIconEnabled,
+      completionNotificationsEnabled,
       statusbarVisible,
       useMica,
       theme,
@@ -1185,6 +1265,10 @@ export class SettingsModel {
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
+        systemNotificationsEnabled: resolved.systemNotificationsEnabled,
+        warningNotificationsEnabled: resolved.warningNotificationsEnabled,
+        menuBarIconEnabled: resolved.menuBarIconEnabled,
+        completionNotificationsEnabled: resolved.completionNotificationsEnabled,
         statusbarVisible: resolved.statusbarVisible,
         useMica: resolved.useMica,
         theme: resolved.theme,

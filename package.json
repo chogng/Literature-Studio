@@ -21,6 +21,7 @@
     "test:workbench-browser": "node scripts/run-workbench-browser-tests.mjs",
     "test:editor": "node scripts/run-editor-tests.mjs",
     "test:library-store": "node scripts/run-library-store-tests.mjs",
+    "test:electron-main": "node scripts/run-electron-main-tests.mjs",
     "test:agent": "node scripts/run-agent-tests.mjs",
     "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
     "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never",

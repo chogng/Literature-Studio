@@ -277,6 +277,87 @@
   font-size: 14px;
 }
 
+.settings-block-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-block-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--vscode-settings-sectionTitleForeground, #203040);
+}
+
+.settings-block-description {
+  margin: 0;
+  color: var(--vscode-settings-mutedForeground, #64748b);
+  font-size: 13px;
+}
+
+.settings-block-panel {
+  display: grid;
+  min-width: 0;
+  border-radius: 18px;
+  background: var(--vscode-settings-panelBackground, #f6f6f6);
+}
+
+.settings-block-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+
+.settings-block-list-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+}
+
+.settings-block-list-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: var(--vscode-settings-separator, #e5e5e5);
+}
+
+.settings-block-list-item:first-child::before {
+  display: none;
+}
+
+.settings-block-list-item-content {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.settings-block-list-item-title {
+  color: var(--vscode-settings-panelForeground, #203040);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settings-block-list-item-description {
+  margin: 0;
+  color: var(--vscode-settings-mutedForeground, #64748b);
+  font-size: 13px;
+}
+
+.settings-block-list-item-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
 .settings-library-mode-note {
   margin: -2px 0 0;
   padding-left: 2px;

@@ -9,6 +9,7 @@ import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { createSwitchView } from 'ls/base/browser/ui/switch/switch';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
+import { createSettingsToggleRow } from 'ls/workbench/contrib/preferences/browser/settingsWidgetScaffold';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);
@@ -253,13 +254,11 @@ export class LibraryWidget {
   }
 
   private renderToggleRow(focusKey: string, title: string, hint: string, checked: boolean, disabled: boolean, onChange: (checked: boolean) => void) {
-    const row = el('div', 'settings-toggle-row');
-    const textBlock = el('div');
-    const label = el('span', 'settings-hint');
-    label.textContent = title;
-    textBlock.append(label, buildHint(hint, 'settings-hint settings-toggle-subtitle'));
-    row.append(textBlock, buildSwitch({ checked, focusKey, disabled, title, onChange }));
-    return row;
+    return createSettingsToggleRow({
+      title,
+      hint,
+      control: buildSwitch({ checked, focusKey, disabled, title, onChange }),
+    });
   }
 
   private renderLibraryStats() {

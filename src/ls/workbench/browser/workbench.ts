@@ -1219,6 +1219,10 @@ class WorkbenchHost {
       batchSources,
       batchLimit,
       sameDomainOnly,
+      systemNotificationsEnabled,
+      warningNotificationsEnabled,
+      menuBarIconEnabled,
+      completionNotificationsEnabled,
       statusbarVisible,
       useMica,
       theme,
@@ -1873,6 +1877,10 @@ class WorkbenchHost {
         sameDomainOnly,
         fetchStartDate: batchStartDate,
         fetchEndDate: batchEndDate,
+        systemNotificationsEnabled,
+        warningNotificationsEnabled,
+        menuBarIconEnabled,
+        completionNotificationsEnabled,
         useMica,
         statusbarVisible,
         theme,
@@ -1930,6 +1938,14 @@ class WorkbenchHost {
         onSameDomainOnlyChange: settingsControllerInstance.setSameDomainOnly,
         onFetchStartDateChange: setBatchStartDate,
         onFetchEndDateChange: setBatchEndDate,
+        onSystemNotificationsEnabledChange:
+          settingsControllerInstance.setSystemNotificationsEnabled,
+        onWarningNotificationsEnabledChange:
+          settingsControllerInstance.setWarningNotificationsEnabled,
+        onMenuBarIconEnabledChange:
+          settingsControllerInstance.setMenuBarIconEnabled,
+        onCompletionNotificationsEnabledChange:
+          settingsControllerInstance.setCompletionNotificationsEnabled,
         onUseMicaChange: settingsControllerInstance.setUseMica,
         onStatusbarVisibleChange: settingsControllerInstance.setStatusbarVisible,
         onThemeChange: settingsControllerInstance.setTheme,

@@ -37,6 +37,10 @@ export type ResolvedSettingsState = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  systemNotificationsEnabled: boolean;
+  warningNotificationsEnabled: boolean;
+  menuBarIconEnabled: boolean;
+  completionNotificationsEnabled: boolean;
   statusbarVisible: boolean;
   useMica: boolean;
   theme: AppTheme;
@@ -57,6 +61,10 @@ export type SaveSettingsDraft = {
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
+  systemNotificationsEnabled: boolean;
+  warningNotificationsEnabled: boolean;
+  menuBarIconEnabled: boolean;
+  completionNotificationsEnabled: boolean;
   statusbarVisible: boolean;
   useMica: boolean;
   theme: AppTheme;
@@ -105,6 +113,22 @@ export function resolveSettingsState(
       typeof loaded.defaultSameDomainOnly === 'boolean'
         ? loaded.defaultSameDomainOnly
         : defaultSameDomainOnly,
+    systemNotificationsEnabled:
+      typeof loaded.systemNotificationsEnabled === 'boolean'
+        ? loaded.systemNotificationsEnabled
+        : true,
+    warningNotificationsEnabled:
+      typeof loaded.warningNotificationsEnabled === 'boolean'
+        ? loaded.warningNotificationsEnabled
+        : true,
+    menuBarIconEnabled:
+      typeof loaded.menuBarIconEnabled === 'boolean'
+        ? loaded.menuBarIconEnabled
+        : false,
+    completionNotificationsEnabled:
+      typeof loaded.completionNotificationsEnabled === 'boolean'
+        ? loaded.completionNotificationsEnabled
+        : true,
     statusbarVisible:
       typeof loaded.statusbarVisible === 'boolean'
         ? loaded.statusbarVisible
@@ -145,6 +169,10 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
       defaultBatchSources: nextBatchSources,
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: draft.sameDomainOnly,
+      systemNotificationsEnabled: draft.systemNotificationsEnabled,
+      warningNotificationsEnabled: draft.warningNotificationsEnabled,
+      menuBarIconEnabled: draft.menuBarIconEnabled,
+      completionNotificationsEnabled: draft.completionNotificationsEnabled,
       statusbarVisible: draft.statusbarVisible,
       useMica: draft.useMica,
       theme: draft.theme,

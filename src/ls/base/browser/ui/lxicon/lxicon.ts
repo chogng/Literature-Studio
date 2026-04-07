@@ -324,6 +324,7 @@ export type LxIconName =
   | 'deepl-color'
   | 'deepseek-color'
   | 'database'
+  | 'database-1'
   | 'cursor'
   | 'corner-top-right'
   | 'corner-top-left'
@@ -514,6 +515,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'deepl-color': deeplColorSvg,
   'deepseek-color': deepseekColorSvg,
   'database': databaseSvg,
+  'database-1': databaseSvg,
   'cursor': cursorSvg,
   'corner-top-right': cornerTopRightSvg,
   'corner-top-left': cornerTopLeftSvg,

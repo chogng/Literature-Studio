@@ -4,6 +4,7 @@ import type { BrowserWindowConstructorOptions, WebContents } from 'electron';
 import type { WindowControlAction, WindowState } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { isCompatFetchEnvEnabled } from 'ls/code/electron-main/fetchTiming';
 import { disposeToastOverlay } from 'ls/platform/window/electron-main/toastOverlayView';
+import { setTrayMainWindow } from 'ls/platform/window/electron-main/trayIcon';
 import { disposeWebContentView, ensureWebContentView } from 'ls/platform/window/electron-main/webContentView';
 import {
   resolvePreloadScriptPath,
@@ -385,6 +386,7 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
   applyMainWindowBackgroundMaterial(useMica, window);
   wireRendererDiagnostics(window);
   ensureWebContentView(window);
+  setTrayMainWindow(window);
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
   if (devUrl) {
@@ -400,6 +402,7 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
   });
 
   window.on('closed', () => {
+    setTrayMainWindow(null);
     mainWindow = null;
   });
 

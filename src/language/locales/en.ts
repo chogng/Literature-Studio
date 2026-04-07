@@ -40,7 +40,7 @@ const en = {
   settingsNavigationAppearance: 'Appearance',
   settingsNavigationTextEditor: 'Editor',
   settingsNavigationChat: 'Chat',
-  settingsNavigationKnowledgeBase: 'Knowledge base',
+  settingsNavigationKnowledgeBase: 'Indexing',
   settingsNavigationLiterature: 'Literature',
   settingsTextEditorTitle: 'Editor',
   settingsTextEditorHint:
@@ -72,9 +72,25 @@ const en = {
   settingsUseMica: 'Transparent background',
   settingsUseMicaHint:
     'Available in the desktop app. The titlebar and app shell will pick up the system Mica material when Windows supports it.',
+  settingsLayoutTitle: 'Layout',
   settingsStatusbar: 'Status bar',
   settingsStatusbarHint:
     'Controls whether the bottom status bar is shown in the content workspace.',
+  settingsNotificationsTitle: 'Notifications',
+  settingsNotificationsHint:
+    'Control how desktop notifications and tray indicators behave for key events.',
+  settingsSystemNotifications: 'System notifications',
+  settingsSystemNotificationsHint:
+    'Show operating-system notifications for important app events.',
+  settingsWarningNotifications: 'Warning notifications',
+  settingsWarningNotificationsHint:
+    'Show warning-level notifications when operations need attention.',
+  settingsMenuBarIcon: 'Menu bar icon',
+  settingsMenuBarIconHint:
+    'Show the app icon in the menu bar / tray area while the app is running.',
+  settingsCompletionNotifications: 'Completion prompts',
+  settingsCompletionNotificationsHint:
+    'Notify when long-running background tasks finish.',
   settingsLibraryTitle: 'Knowledge base and library',
   settingsKnowledgeBaseTitle: 'Knowledge base',
   settingsKnowledgeBaseHint:
@@ -276,7 +292,7 @@ const en = {
   settingsConfigPath: 'Config file path: ',
   currentDir: 'Current active directory:',
   systemDownloads: 'System Downloads folder',
-  settingsLlmTitle: 'Model provider',
+  settingsLlmTitle: 'Models',
   settingsLlmProvider: 'Provider',
   settingsLlmProviderHint:
     'GLM, Kimi, and DeepSeek use OpenAI-compatible chat completion endpoints.',

@@ -14,6 +14,7 @@ import { registerAppIpc } from 'ls/code/electron-main/ipc';
 import { getDefaultBatchSources } from 'ls/platform/config/common/defaultBatchSources';
 import { createStorageService } from 'ls/platform/storage/electron-main/storageService';
 import { createMainWindow, getMainWindow } from 'ls/platform/window/electron-main/window';
+import { setMenuBarIconEnabled } from 'ls/platform/window/electron-main/trayIcon';
 
 const environmentMainPaths = resolveEnvironmentMainPaths();
 configureDevelopmentEnvironmentMain();
@@ -44,4 +45,5 @@ app.whenReady().then(async () => {
   registerAppIpc(storage);
   const settings = await storage.loadSettings();
   createMainWindow({ useMica: settings.useMica });
+  setMenuBarIconEnabled(settings.menuBarIconEnabled);
 });

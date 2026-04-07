@@ -40,7 +40,7 @@ const zh = {
   settingsNavigationAppearance: 'Appearance',
   settingsNavigationTextEditor: '编辑器',
   settingsNavigationChat: '聊天',
-  settingsNavigationKnowledgeBase: '知识库',
+  settingsNavigationKnowledgeBase: '索引',
   settingsNavigationLiterature: '文献',
   settingsTextEditorTitle: '编辑器',
   settingsTextEditorHint: '配置全局默认正文字体样式，未显式设置样式的文本会使用这里的默认值。',
@@ -71,9 +71,25 @@ const zh = {
   settingsUseMica: '透明背景',
   settingsUseMicaHint:
     '\u4ec5\u5728\u684c\u9762\u7aef\u751f\u6548\u3002Windows \u652f\u6301\u65f6\uff0c\u6807\u9898\u680f\u548c\u4e3b\u754c\u9762\u5e95\u5c42\u4f1a\u8ddf\u968f Mica \u6750\u8d28\u3002',
+  settingsLayoutTitle: '\u5e03\u5c40',
   settingsStatusbar: '状态栏',
   settingsStatusbarHint:
     '用于控制内容工作区底部 status bar 的显示与隐藏。',
+  settingsNotificationsTitle: '通知',
+  settingsNotificationsHint:
+    '控制桌面通知和托盘图标在关键事件下的行为。',
+  settingsSystemNotifications: '系统通知',
+  settingsSystemNotificationsHint:
+    '在重要应用事件发生时显示系统级通知。',
+  settingsWarningNotifications: '警告通知',
+  settingsWarningNotificationsHint:
+    '在需要注意的操作场景下显示警告级通知。',
+  settingsMenuBarIcon: '菜单栏图标',
+  settingsMenuBarIconHint:
+    '应用运行时在菜单栏 / 托盘区域显示图标。',
+  settingsCompletionNotifications: '完成提示',
+  settingsCompletionNotificationsHint:
+    '长耗时后台任务完成时给出提示通知。',
   settingsLibraryTitle: '知识库与文献管理',
   settingsKnowledgeBaseTitle: '知识库',
   settingsKnowledgeBaseHint:

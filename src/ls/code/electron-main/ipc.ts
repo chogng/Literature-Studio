@@ -1,15 +1,17 @@
-import { app, ipcMain, shell } from 'electron';
+import { Notification, app, ipcMain, shell } from 'electron';
 
 import type {
   AppCommand,
   AppCommandPayloadMap,
   AppCommandResultMap,
+  AppSettings,
   DeleteLibraryDocumentPayload,
   FetchArticlePayload,
   FetchLatestArticlesPayload,
   IndexDownloadedPdfPayload,
   LibraryDocumentStatusPayload,
   ListLibraryDocumentsPayload,
+  NativeToastOptions,
   OpenArticleDetailsModalPayload,
   OpenPathPayload,
   UpsertLibraryDocumentMetadataPayload,
@@ -85,6 +87,7 @@ import { testLlmConnection } from 'ls/code/electron-main/llm/llm';
 import { runMainAgentTurn } from 'ls/code/electron-main/agent/agent';
 import { answerQuestionFromArticles, testRagConnection } from 'ls/code/electron-main/rag/rag';
 import { testTranslationConnection } from 'ls/code/electron-main/translation/translation';
+import { resolveSystemNotificationPayloadFromToast } from 'ls/code/electron-main/notificationRouting';
 import {
   applyMainWindowBackgroundMaterial,
   getMainWindow,
@@ -92,6 +95,7 @@ import {
   performWindowControlAction,
   resolveWindowFromWebContents,
 } from 'ls/platform/window/electron-main/window';
+import { setMenuBarIconEnabled } from 'ls/platform/window/electron-main/trayIcon';
 const FETCH_STATUS_CHANNEL = 'app:fetch-status';
 type AppInvokeResponse<T> =
   | { ok: true; result: T }
@@ -110,6 +114,29 @@ async function showArticleDetailsModal(
 }
 
 let micaMaterialTimeout: ReturnType<typeof setTimeout> | null = null;
+let cachedSettings: AppSettings | null = null;
+
+function showSystemNotificationFromToast(options: NativeToastOptions, settings: AppSettings) {
+  const payload = resolveSystemNotificationPayloadFromToast(options, settings);
+  if (!payload || !Notification.isSupported()) {
+    return;
+  }
+
+  new Notification({
+    title: payload.title,
+    body: payload.body,
+  }).show();
+}
+
+async function loadSettingsWithCache(storage: StorageService) {
+  if (cachedSettings) {
+    return cachedSettings;
+  }
+
+  const loaded = await storage.loadSettings();
+  cachedSettings = loaded;
+  return loaded;
+}
 
 async function invokeCommand<TCommand extends AppCommand>(
   command: TCommand,
@@ -150,11 +177,16 @@ async function invokeCommand<TCommand extends AppCommand>(
       return clearWorkbenchSharedSessionCache() as Promise<AppCommandResultMap[TCommand]>;
     case 'clear_web_cookies':
       return clearWorkbenchSharedSessionCookies() as Promise<AppCommandResultMap[TCommand]>;
-    case 'load_settings':
-      return storage.loadSettings() as Promise<AppCommandResultMap[TCommand]>;
+    case 'load_settings': {
+      const loaded = await storage.loadSettings();
+      cachedSettings = loaded;
+      return loaded as AppCommandResultMap[TCommand];
+    }
     case 'save_settings':
       {
         const saved = await storage.saveSettings((payload as SaveSettingsPayload)?.settings ?? {});
+        cachedSettings = saved;
+        setMenuBarIconEnabled(saved.menuBarIconEnabled);
         if (micaMaterialTimeout) {
           clearTimeout(micaMaterialTimeout);
           micaMaterialTimeout = null;
@@ -402,8 +434,15 @@ export function registerAppIpc(storage: StorageService) {
     return state;
   });
 
-  ipcMain.on('app:native-toast-show', (event, options) => {
+  ipcMain.on('app:native-toast-show', (event, options: NativeToastOptions) => {
     showToast(resolveWindowFromWebContents(event.sender), options);
+    void loadSettingsWithCache(storage)
+      .then((settings) => {
+        showSystemNotificationFromToast(options, settings);
+      })
+      .catch((error) => {
+        console.error('Failed to resolve settings for system notification.', error);
+      });
   });
 
   ipcMain.on('app:native-toast-dismiss', (_event, id: number) => {
