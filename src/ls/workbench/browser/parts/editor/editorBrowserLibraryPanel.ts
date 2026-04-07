@@ -1,7 +1,6 @@
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 
 const EDITOR_BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
-const LEGACY_EDITOR_BROWSER_SOURCES_STORAGE_KEY = 'ls.editor.browser.sources.v1';
 const MAX_RECENT_BROWSER_LIBRARY_ENTRIES = 25;
 const MAX_FAVORITE_BROWSER_LIBRARY_ENTRIES = 25;
 
@@ -130,10 +129,7 @@ function readStoredBrowserLibraryStateFromStorage() {
   }
 
   try {
-    const serialized = (
-      storage.getItem(EDITOR_BROWSER_LIBRARY_STORAGE_KEY) ??
-      storage.getItem(LEGACY_EDITOR_BROWSER_SOURCES_STORAGE_KEY)
-    );
+    const serialized = storage.getItem(EDITOR_BROWSER_LIBRARY_STORAGE_KEY);
     if (!serialized) {
       return createStoredBrowserLibraryState();
     }
@@ -271,7 +267,6 @@ export class EditorBrowserLibraryPanel {
   private onDidChangeOpenState?: (isOpen: boolean) => void;
   private readonly element = createElement('div', 'editor-browser-library-panel');
   private readonly headerElement = createElement('header', 'editor-browser-library-header');
-  private readonly headerTitleElement = createElement('h3', 'editor-browser-library-header-title');
   private readonly searchInputHost = createElement('div', 'editor-browser-library-search-host');
   private readonly bodyElement = createElement('div', 'editor-browser-library-body');
   private readonly listElement = createElement('div', 'editor-browser-library-list');
@@ -304,7 +299,7 @@ export class EditorBrowserLibraryPanel {
     this.element.setAttribute('aria-hidden', 'true');
     this.element.setAttribute('aria-label', this.context.labels.title);
     this.bodyElement.append(this.listElement);
-    this.headerElement.append(this.headerTitleElement, this.searchInputHost);
+    this.headerElement.append(this.searchInputHost);
     this.element.append(this.headerElement, this.bodyElement);
     this.trackCurrentBrowserLibraryEntry();
     this.render();
@@ -561,7 +556,6 @@ export class EditorBrowserLibraryPanel {
     this.element.classList.toggle('is-open', this.isOpen);
     this.element.setAttribute('aria-hidden', String(!this.isOpen));
     this.element.setAttribute('aria-label', this.context.labels.title);
-    this.headerTitleElement.textContent = this.context.labels.title;
     this.searchInput.inputElement.setAttribute('aria-label', this.context.labels.title);
     this.searchInput.setPlaceHolder('');
     this.renderLibraryList();

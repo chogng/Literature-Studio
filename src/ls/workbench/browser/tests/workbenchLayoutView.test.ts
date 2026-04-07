@@ -1106,11 +1106,9 @@ test('WorkbenchLayoutView renders the browser toolbar below the editor topbar', 
 
 test('WorkbenchLayoutView shows browser library panel entries and navigates when a favorite is selected', async () => {
   const BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
-  const LEGACY_BROWSER_SOURCES_STORAGE_KEY = 'ls.editor.browser.sources.v1';
   const addressChanges: string[] = [];
   let navigateCount = 0;
   window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
-  window.localStorage?.removeItem(LEGACY_BROWSER_SOURCES_STORAGE_KEY);
 
   const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
@@ -1183,7 +1181,6 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
     view.dispose();
     document.body.replaceChildren();
     window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
-    window.localStorage?.removeItem(LEGACY_BROWSER_SOURCES_STORAGE_KEY);
   }
 });
 

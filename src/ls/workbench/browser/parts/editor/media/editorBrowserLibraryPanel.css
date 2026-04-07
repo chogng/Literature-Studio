@@ -37,15 +37,6 @@
   min-width: 0;
 }
 
-.editor-browser-library-header-title {
-  margin: 0;
-  color: var(--vscode-editor-sourceSubheadingForeground, #597086);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
 .editor-browser-library-search-host {
   min-width: 0;
 }
