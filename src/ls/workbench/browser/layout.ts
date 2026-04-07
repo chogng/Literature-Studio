@@ -848,6 +848,8 @@ export class WorkbenchContentLayoutController {
       };
     }
 
+    this.layoutGridViewForMeasurement();
+
     return {
       primarySidebarSize: this.gridView.getViewSize([PRIMARY_SIDEBAR_INDEX]),
       agentSidebarSize: this.gridView.getViewSize([AGENT_SIDEBAR_INDEX]),
@@ -855,6 +857,24 @@ export class WorkbenchContentLayoutController {
         ? state.expandedEditorSize
         : this.gridView.getViewSize([EDITOR_INDEX]),
     };
+  }
+
+  private layoutGridViewForMeasurement() {
+    if (!this.gridView || !this.rootGrid) {
+      return;
+    }
+
+    if (this.rootGrid.width > 0 && this.rootGrid.height > 0) {
+      return;
+    }
+
+    const width = this.options.contentHost.clientWidth;
+    const height = this.options.contentHost.clientHeight;
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    this.gridView.layout(width, height);
   }
 
   private buildBranchFromTree(node: LayoutNode): GridBranchView {
