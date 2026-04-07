@@ -990,6 +990,7 @@ class WorkbenchHost {
     this.sidebarTopbarActionsView.setProps(props.sidebarTopbarActionsProps);
     this.primaryBarFooterActionsView.setProps({
       accountLabel: props.primaryBarProps.accountLabel,
+      moreLabel: props.primaryBarProps.moreLabel,
       settingsLabel: props.primaryBarProps.settingsLabel,
       onOpenSettings: props.onOpenSettings,
     });
@@ -1663,6 +1664,7 @@ class WorkbenchHost {
     const primaryBarProps: PrimaryBarProps = {
       labels: fetchPaneProps.labels,
       accountLabel: ui.appName,
+      moreLabel: ui.agentbarToolbarMore,
       settingsLabel: ui.titlebarSettings,
       fetchPaneProps,
       librarySnapshot,

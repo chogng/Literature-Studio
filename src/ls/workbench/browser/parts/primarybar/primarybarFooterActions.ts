@@ -1,10 +1,14 @@
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
+import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 
 import 'ls/workbench/browser/parts/primarybar/media/primarybarFooterActions.css';
 
+const MORE_ACTIONS_LABEL = 'More';
+
 export type PrimaryBarFooterActionsProps = {
   accountLabel?: string;
+  moreLabel?: string;
   settingsLabel?: string;
   onOpenSettings?: () => void;
 };
@@ -18,6 +22,13 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.className = className;
   }
   return element;
+}
+
+function createEmptyMoreActionsOverlay() {
+  const menu = createElement('div', 'primarybar-footer-more-menu');
+  menu.dataset.menu = 'primarybar-footer-more';
+  menu.append(createElement('div', 'primarybar-footer-more-menu-empty'));
+  return menu;
 }
 
 export class PrimaryBarFooterActionsView {
@@ -57,10 +68,23 @@ export class PrimaryBarFooterActionsView {
 
   setProps(props: PrimaryBarFooterActionsProps) {
     this.accountLabelElement.textContent = props.accountLabel?.trim() || '';
+    const moreLabel = props.moreLabel?.trim() || MORE_ACTIONS_LABEL;
     this.actionBarView.setProps({
       className: 'primarybar-footer-actions',
       ariaRole: 'group',
       items: [
+        createDropdownMenuActionViewItem({
+          label: moreLabel,
+          title: moreLabel,
+          mode: 'icon',
+          buttonClassName: 'primarybar-footer-more-btn',
+          content: createLxIcon('more-2'),
+          overlayAlignment: 'end',
+          overlayRole: 'menu',
+          menuClassName: 'primarybar-footer-more-menu-overlay',
+          minWidth: 160,
+          renderOverlay: () => createEmptyMoreActionsOverlay(),
+        }),
         {
           label: props.settingsLabel ?? '',
           title: props.settingsLabel ?? '',

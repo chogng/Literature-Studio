@@ -58,6 +58,7 @@ import originSvg from 'ls/base/browser/ui/lxicon/svg/origin.svg?raw';
 import openaiSvg from 'ls/base/browser/ui/lxicon/svg/openai.svg?raw';
 import noteSvg from 'ls/base/browser/ui/lxicon/svg/note.svg?raw';
 import moreSvg from 'ls/base/browser/ui/lxicon/svg/more.svg?raw';
+import more2Svg from 'ls/base/browser/ui/lxicon/svg/more-2.svg?raw';
 import modelSvg from 'ls/base/browser/ui/lxicon/svg/model.svg?raw';
 import micSvg from 'ls/base/browser/ui/lxicon/svg/mic.svg?raw';
 import micFilledSvg from 'ls/base/browser/ui/lxicon/svg/mic-filled.svg?raw';
@@ -244,6 +245,7 @@ export type LxIconName =
   | 'openai'
   | 'note'
   | 'more'
+  | 'more-2'
   | 'model'
   | 'mic'
   | 'mic-filled'
@@ -430,6 +432,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'openai': openaiSvg,
   'note': noteSvg,
   'more': moreSvg,
+  'more-2': more2Svg,
   'model': modelSvg,
   'mic': micSvg,
   'mic-filled': micFilledSvg,

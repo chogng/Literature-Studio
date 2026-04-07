@@ -10,6 +10,10 @@ let createPrimaryBar: typeof import('ls/workbench/browser/parts/primarybar/prima
 let SidebarTopbarActionsView: typeof import('ls/workbench/browser/parts/sidebar/sidebarTopbarActions').SidebarTopbarActionsView;
 let PrimaryBarFooterActionsView: typeof import('ls/workbench/browser/parts/primarybar/primarybarFooterActions').PrimaryBarFooterActionsView;
 
+function delay(ms = 0) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function createProps(): PrimaryBarProps {
   const labels = {
     libraryTitle: 'Library',
@@ -188,6 +192,79 @@ test('primary bar footer settings action dispatches the provided handler', () =>
     assert.equal(settingsButton.getAttribute('aria-label'), 'Settings');
     settingsButton.click();
     assert.equal(triggered, true);
+  } finally {
+    primaryBar.dispose();
+    footerActionsView.dispose();
+  }
+});
+
+test('primary bar footer renders more action to the left of settings', () => {
+  const footerActionsView = new PrimaryBarFooterActionsView({
+    accountLabel: 'Literature Studio',
+    settingsLabel: 'Settings',
+  });
+  const primaryBar = createPrimaryBar({
+    ...createProps(),
+    footerActionsElement: footerActionsView.getElement(),
+  });
+  const element = primaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const actions = Array.from(
+      element.querySelectorAll('.primarybar-footer .actionbar-action'),
+    );
+    assert.equal(actions.length >= 2, true);
+    assert.equal(actions[0]?.classList.contains('primarybar-footer-more-btn'), true);
+    assert.equal(
+      actions[0]?.querySelector('.lx-icon')?.classList.contains('lx-icon-more-2'),
+      true,
+    );
+    assert.equal(actions[1]?.classList.contains('primarybar-footer-settings-btn'), true);
+  } finally {
+    primaryBar.dispose();
+    footerActionsView.dispose();
+  }
+});
+
+test('primary bar footer more action opens an empty overlay menu', async () => {
+  const footerActionsView = new PrimaryBarFooterActionsView({
+    accountLabel: 'Literature Studio',
+    settingsLabel: 'Settings',
+  });
+  const primaryBar = createPrimaryBar({
+    ...createProps(),
+    footerActionsElement: footerActionsView.getElement(),
+  });
+  const element = primaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    const moreButton = element.querySelector(
+      '.primarybar-footer .primarybar-footer-more-btn',
+    );
+    assert(moreButton instanceof HTMLButtonElement);
+    assert.equal(moreButton.getAttribute('aria-label'), 'More');
+
+    moreButton.click();
+    await delay(0);
+
+    const menu = document.body.querySelector(
+      '.actionbar-context-view.primarybar-footer-more-menu-overlay .primarybar-footer-more-menu',
+    );
+    assert(menu instanceof HTMLElement);
+    assert.equal(menu.getAttribute('data-menu'), 'primarybar-footer-more');
+    assert.equal(moreButton.getAttribute('aria-expanded'), 'true');
+
+    moreButton.click();
+    await delay(0);
+    assert.equal(
+      document.body.querySelector(
+        '.actionbar-context-view.primarybar-footer-more-menu-overlay .primarybar-footer-more-menu',
+      ),
+      null,
+    );
+    assert.equal(moreButton.getAttribute('aria-expanded'), 'false');
   } finally {
     primaryBar.dispose();
     footerActionsView.dispose();

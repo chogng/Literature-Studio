@@ -33,6 +33,7 @@ export type PrimaryBarLabels = SidebarLabels;
 export type PrimaryBarProps = {
   labels: PrimaryBarLabels;
   accountLabel?: string;
+  moreLabel?: string;
   settingsLabel?: string;
   fetchPaneProps: FetchPaneProps;
   librarySnapshot: LibraryDocumentsResult;
