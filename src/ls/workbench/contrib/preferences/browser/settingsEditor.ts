@@ -45,11 +45,11 @@ type CreateSettingsPartPropsParams = { state: SettingsPartState; actions: Settin
 export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams): SettingsPartLabels {
   return {
     settingsTitle: ui.settingsTitle, settingsLoading: ui.settingsLoading, settingsLanguage: ui.settingsLanguage, languageChinese: ui.languageChinese, languageEnglish: ui.languageEnglish, settingsLanguageHint: ui.settingsLanguageHint,
-    settingsNavigationBack: ui.settingsNavigationBack, settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
+    settingsNavigationBack: ui.settingsNavigationBack, settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationAppearance: ui.settingsNavigationAppearance, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
     settingsTextEditorDefaultBodyStyle: ui.settingsTextEditorDefaultBodyStyle, settingsTextEditorFontFamily: ui.settingsTextEditorFontFamily, settingsTextEditorFontSize: ui.settingsTextEditorFontSize, settingsTextEditorLineHeight: ui.settingsTextEditorLineHeight, settingsTextEditorColor: ui.settingsTextEditorColor, settingsTextEditorResetDefaultBodyStyle: ui.settingsTextEditorResetDefaultBodyStyle,
     settingsPageUrl: ui.settingsPageUrl, settingsPageUrlHint: ui.settingsPageUrlHint, pageUrlPlaceholder: ui.pageUrlPlaceholder, settingsBatchJournalTitle: ui.settingsBatchJournalTitle, batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
     addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly, startDate: ui.startDate, endDate: ui.endDate,
-    settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsTheme: ui.settingsTheme, settingsThemeHint: ui.settingsThemeHint, settingsThemeLight: ui.settingsThemeLight, settingsThemeDark: ui.settingsThemeDark, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
+    settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsTheme: ui.settingsTheme, settingsThemeHint: ui.settingsThemeHint, settingsThemeLight: ui.settingsThemeLight, settingsThemeDark: ui.settingsThemeDark, settingsThemeSystem: ui.settingsThemeSystem, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
     settingsKnowledgeBaseModeHint: ui.settingsKnowledgeBaseModeHint, settingsKnowledgeBaseModeDisabledHint: ui.settingsKnowledgeBaseModeDisabledHint, settingsKnowledgeBaseAutoIndex: ui.settingsKnowledgeBaseAutoIndex, settingsKnowledgeBaseAutoIndexHint: ui.settingsKnowledgeBaseAutoIndexHint,
     settingsKnowledgeBasePdfDownloadDir: ui.settingsKnowledgeBasePdfDownloadDir, settingsKnowledgeBasePdfDownloadDirPlaceholder: ui.settingsKnowledgeBasePdfDownloadDirPlaceholder, settingsKnowledgeBasePdfDownloadDirHint: ui.settingsKnowledgeBasePdfDownloadDirHint,
     settingsLibraryStorageMode: ui.settingsLibraryStorageMode, settingsLibraryStorageModeLinkedOriginal: ui.settingsLibraryStorageModeLinkedOriginal, settingsLibraryStorageModeManagedCopy: ui.settingsLibraryStorageModeManagedCopy, settingsLibraryDirectory: ui.settingsLibraryDirectory,
@@ -220,6 +220,7 @@ function createThemeOptions(labels: SettingsPartLabels): readonly SelectOption[]
   return [
     { value: 'light', label: labels.settingsThemeLight },
     { value: 'dark', label: labels.settingsThemeDark },
+    { value: 'system', label: labels.settingsThemeSystem },
   ];
 }
 
@@ -701,6 +702,7 @@ export class SettingsPartView {
       previousProps.labels.settingsThemeHint !== this.props.labels.settingsThemeHint ||
       previousProps.labels.settingsThemeLight !== this.props.labels.settingsThemeLight ||
       previousProps.labels.settingsThemeDark !== this.props.labels.settingsThemeDark ||
+      previousProps.labels.settingsThemeSystem !== this.props.labels.settingsThemeSystem ||
       previousProps.labels.settingsUseMica !== this.props.labels.settingsUseMica ||
       previousProps.labels.settingsUseMicaHint !== this.props.labels.settingsUseMicaHint ||
       previousProps.labels.settingsStatusbar !== this.props.labels.settingsStatusbar ||
@@ -927,7 +929,13 @@ export class SettingsPartView {
       createThemeOptions(this.props.labels),
       this.props.theme,
       'settings.appearance.theme',
-      (value) => this.props.onThemeChange(value as 'light' | 'dark'),
+      (value) => {
+        const nextTheme =
+          value === 'dark' || value === 'light' || value === 'system'
+            ? value
+            : 'light';
+        this.props.onThemeChange(nextTheme);
+      },
       'settings-language-toggle',
     );
     themeSelect.disabled = this.props.isSettingsSaving;

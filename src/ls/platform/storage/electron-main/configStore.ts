@@ -141,7 +141,7 @@ function normalizeLocale(value: unknown, defaultLocale: 'zh' | 'en'): 'zh' | 'en
 }
 
 function normalizeTheme(value: unknown): AppTheme {
-  return value === 'dark' ? 'dark' : 'light';
+  return value === 'dark' || value === 'system' ? value : 'light';
 }
 
 function normalizeThemeColorCustomizations(value: unknown): StoredAppSettings['workbench.colorCustomizations'] {

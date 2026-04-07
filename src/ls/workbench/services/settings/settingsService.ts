@@ -110,7 +110,10 @@ export function resolveSettingsState(
         ? loaded.statusbarVisible
         : true,
     useMica: typeof loaded.useMica === 'boolean' ? loaded.useMica : true,
-    theme: loaded.theme === 'dark' ? 'dark' : 'light',
+    theme:
+      loaded.theme === 'dark' || loaded.theme === 'system'
+        ? loaded.theme
+        : 'light',
     workbenchColorCustomizations: { ...(loaded['workbench.colorCustomizations'] ?? {}) },
     locale: loadedLocale,
     configPath: loadedConfigPath,

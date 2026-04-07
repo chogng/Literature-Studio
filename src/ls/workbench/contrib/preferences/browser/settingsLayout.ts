@@ -15,6 +15,7 @@ export type SettingsSectionId =
 
 export type SettingsPageId =
   | 'general'
+  | 'appearance'
   | 'textEditor'
   | 'model'
   | 'chat'
@@ -35,7 +36,13 @@ const settingsPageLayout: SettingsPageDefinition[] = [
     id: 'general',
     label: (labels) => labels.settingsNavigationGeneral,
     icon: 'gear',
-    sections: ['locale', 'appearance', 'configPath'],
+    sections: ['locale', 'configPath'],
+  },
+  {
+    id: 'appearance',
+    label: (labels) => labels.settingsNavigationAppearance,
+    icon: 'appearance',
+    sections: ['appearance'],
   },
   {
     id: 'textEditor',

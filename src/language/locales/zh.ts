@@ -37,6 +37,7 @@ const zh = {
   settingsLoading: '设置加载中...',
   settingsNavigationBack: 'Back',
   settingsNavigationGeneral: '通用设置',
+  settingsNavigationAppearance: 'Appearance',
   settingsNavigationTextEditor: '编辑器',
   settingsNavigationChat: '聊天',
   settingsNavigationKnowledgeBase: '知识库',
@@ -66,6 +67,7 @@ const zh = {
     '\u5de5\u4f5c\u53f0\u914d\u8272\u76ee\u524d\u76f4\u63a5\u6765\u81ea JSON \u4e3b\u9898\u6587\u4ef6\uff0c\u5728\u8fd9\u91cc\u5207\u6362\u4f1a\u7acb\u5373\u5e94\u7528\u5230\u5f53\u524d\u7a97\u53e3\u3002',
   settingsThemeLight: '\u6d45\u8272',
   settingsThemeDark: '\u6df1\u8272',
+  settingsThemeSystem: '\u8ddf\u968f\u7cfb\u7edf',
   settingsUseMica: '透明背景',
   settingsUseMicaHint:
     '\u4ec5\u5728\u684c\u9762\u7aef\u751f\u6548\u3002Windows \u652f\u6301\u65f6\uff0c\u6807\u9898\u680f\u548c\u4e3b\u754c\u9762\u5e95\u5c42\u4f1a\u8ddf\u968f Mica \u6750\u8d28\u3002',

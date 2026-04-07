@@ -24,11 +24,11 @@ export type SettingsDropdownOption = {
 // can depend on stable contracts without importing the editor host module.
 export type SettingsPartLabels = {
   settingsTitle: string; settingsLoading: string; settingsLanguage: string; languageChinese: string; languageEnglish: string; settingsLanguageHint: string;
-  settingsNavigationBack: string; settingsNavigationGeneral: string; settingsNavigationTextEditor: string; settingsNavigationChat: string; settingsNavigationKnowledgeBase: string; settingsNavigationLiterature: string; settingsTextEditorTitle: string; settingsTextEditorHint: string;
+  settingsNavigationBack: string; settingsNavigationGeneral: string; settingsNavigationAppearance: string; settingsNavigationTextEditor: string; settingsNavigationChat: string; settingsNavigationKnowledgeBase: string; settingsNavigationLiterature: string; settingsTextEditorTitle: string; settingsTextEditorHint: string;
   settingsTextEditorDefaultBodyStyle: string; settingsTextEditorFontFamily: string; settingsTextEditorFontSize: string; settingsTextEditorLineHeight: string; settingsTextEditorColor: string; settingsTextEditorResetDefaultBodyStyle: string;
   settingsPageUrl: string; settingsPageUrlHint: string; pageUrlPlaceholder: string; settingsBatchJournalTitle: string; batchJournalTitlePlaceholder: string;
   addBatchUrl: string; removeBatchUrl: string; moveBatchUrlUp: string; moveBatchUrlDown: string; settingsBatchOptions: string; batchCount: string; sameDomainOnly: string; startDate: string; endDate: string;
-  settingsAppearanceTitle: string; settingsTheme: string; settingsThemeHint: string; settingsThemeLight: string; settingsThemeDark: string; settingsUseMica: string; settingsUseMicaHint: string; settingsLibraryTitle: string; settingsKnowledgeBaseMode: string;
+  settingsAppearanceTitle: string; settingsTheme: string; settingsThemeHint: string; settingsThemeLight: string; settingsThemeDark: string; settingsThemeSystem: string; settingsUseMica: string; settingsUseMicaHint: string; settingsLibraryTitle: string; settingsKnowledgeBaseMode: string;
   settingsKnowledgeBaseTitle: string; settingsKnowledgeBaseHint: string; settingsKnowledgeBaseModeHint: string; settingsKnowledgeBaseModeDisabledHint: string; settingsKnowledgeBaseAutoIndex: string; settingsKnowledgeBaseAutoIndexHint: string;
   settingsKnowledgeBasePdfDownloadDir: string; settingsKnowledgeBasePdfDownloadDirPlaceholder: string; settingsKnowledgeBasePdfDownloadDirHint: string;
   settingsLibraryStorageMode: string; settingsLibraryStorageModeLinkedOriginal: string; settingsLibraryStorageModeManagedCopy: string; settingsLibraryDirectory: string;

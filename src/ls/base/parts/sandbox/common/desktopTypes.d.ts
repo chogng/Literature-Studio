@@ -5,7 +5,7 @@ import type {
 import type { EditorDraftStyleSettings } from 'ls/base/common/editorDraftStyle';
 
 export type Locale = 'zh' | 'en';
-export type AppTheme = 'light' | 'dark';
+export type AppTheme = 'light' | 'dark' | 'system';
 export type ThemeColorCustomizations = Record<string, string>;
 
 export interface ArticleFigure {

@@ -37,6 +37,7 @@ const en = {
   settingsLoading: 'Loading settings...',
   settingsNavigationBack: 'Back',
   settingsNavigationGeneral: 'General',
+  settingsNavigationAppearance: 'Appearance',
   settingsNavigationTextEditor: 'Editor',
   settingsNavigationChat: 'Chat',
   settingsNavigationKnowledgeBase: 'Knowledge base',
@@ -67,6 +68,7 @@ const en = {
     'Workbench colors are loaded from the bundled JSON theme definition. Switching here updates the current window immediately.',
   settingsThemeLight: 'Light',
   settingsThemeDark: 'Dark',
+  settingsThemeSystem: 'System',
   settingsUseMica: 'Transparent background',
   settingsUseMicaHint:
     'Available in the desktop app. The titlebar and app shell will pick up the system Mica material when Windows supports it.',

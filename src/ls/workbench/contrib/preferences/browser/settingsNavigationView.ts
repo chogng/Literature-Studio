@@ -70,17 +70,10 @@ export class SettingsNavigationView {
         icon: item.icon,
       });
 
-      if (item.id === 'general') {
-        entries.push({
-          kind: 'item',
-          itemId: 'appearance',
-          pageId: 'general',
-          label: 'Appearance',
-          icon: 'appearance',
-        });
+      if (item.id === 'appearance') {
         entries.push({
           kind: 'spacer',
-          itemId: 'general-spacer',
+          itemId: 'appearance-spacer',
           height: 12,
         });
       }
