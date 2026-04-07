@@ -40,6 +40,7 @@ const settingsPageLayout: SettingsPageDefinition[] = [
   {
     id: 'textEditor',
     label: (labels) => labels.settingsNavigationTextEditor,
+    icon: 'write',
     sections: ['textEditor'],
   },
   {

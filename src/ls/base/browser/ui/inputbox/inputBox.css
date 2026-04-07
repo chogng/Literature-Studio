@@ -1,7 +1,7 @@
 .inputbox {
   --inputbox-height: 26px;
   --inputbox-border-radius: 6px;
-  --inputbox-border: 0;
+  --inputbox-border: 1px solid transparent;
   --inputbox-background: transparent;
   --inputbox-background-hover: #e6e6e6;
   --inputbox-foreground: var(--vscode-input-foreground, #1a2530);

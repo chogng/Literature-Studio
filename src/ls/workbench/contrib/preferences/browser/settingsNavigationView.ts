@@ -1,4 +1,5 @@
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import {
   getSettingsPageNavigationItems,
   type SettingsPageId,
@@ -23,7 +24,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
 export class SettingsNavigationView {
   private props: SettingsNavigationViewProps;
   private readonly element = el('aside', 'settings-navigation');
-  private pendingFocusPageId: SettingsPageId | null = null;
+  private pendingFocusItemId: string | null = null;
 
   constructor(props: SettingsNavigationViewProps) {
     this.props = props;
@@ -45,27 +46,83 @@ export class SettingsNavigationView {
 
   private render() {
     const items = getSettingsPageNavigationItems(this.props.labels);
-    const pageOrder = items.map((item) => item.id);
-    const focusedPageBeforeRender = this.getFocusedPageId();
-    const focusTargetPageId = this.pendingFocusPageId ?? focusedPageBeforeRender;
-    this.pendingFocusPageId = null;
+    const entries: Array<
+      | {
+          kind: 'item';
+          itemId: string;
+          pageId: SettingsPageId;
+          label: string;
+          icon?: LxIconName;
+        }
+      | {
+          kind: 'spacer';
+          itemId: string;
+          height: number;
+        }
+    > = [];
+
+    for (const item of items) {
+      entries.push({
+        kind: 'item',
+        itemId: item.id,
+        pageId: item.id,
+        label: item.label,
+        icon: item.icon,
+      });
+
+      if (item.id === 'general') {
+        entries.push({
+          kind: 'item',
+          itemId: 'appearance',
+          pageId: 'general',
+          label: 'Appearance',
+          icon: 'appearance',
+        });
+        entries.push({
+          kind: 'spacer',
+          itemId: 'general-spacer',
+          height: 12,
+        });
+      }
+    }
+
+    const navigationItems = entries.filter(
+      (entry): entry is Extract<(typeof entries)[number], { kind: 'item' }> =>
+        entry.kind === 'item',
+    );
+    const itemOrder = navigationItems.map((entry) => entry.itemId);
+    const pageIdByItemId = new Map(
+      navigationItems.map((entry) => [entry.itemId, entry.pageId] as const),
+    );
+    const focusedItemBeforeRender = this.getFocusedItemId();
+    const focusTargetItemId = this.pendingFocusItemId ?? focusedItemBeforeRender;
+    this.pendingFocusItemId = null;
 
     const nav = el('nav', 'settings-navigation-nav');
     nav.ariaLabel = this.props.title;
     const list = el('ul', 'settings-navigation-list');
     list.replaceChildren(
-      ...items.map((item) => {
+      ...entries.map((entryData) => {
+        if (entryData.kind === 'spacer') {
+          const spacer = el('li', 'settings-navigation-spacer');
+          spacer.style.height = `${entryData.height}px`;
+          spacer.setAttribute('aria-hidden', 'true');
+          return spacer;
+        }
+
+        const entryDataItem = entryData;
         const entry = el('li', 'settings-navigation-item-entry');
         const button = el('button', 'settings-navigation-item');
         const label = el('span', 'settings-navigation-label');
-        const isActive = item.id === this.props.activePageId;
+        const isActive = entryDataItem.itemId === this.props.activePageId;
         button.type = 'button';
-        if (item.icon) {
-          label.append(createLxIcon(item.icon, 'settings-navigation-icon'));
+        if (entryDataItem.icon) {
+          label.append(createLxIcon(entryDataItem.icon, 'settings-navigation-icon'));
         }
-        label.append(document.createTextNode(item.label));
+        label.append(document.createTextNode(entryDataItem.label));
         button.append(label);
-        button.dataset.pageTarget = item.id;
+        button.dataset.pageTarget = entryDataItem.pageId;
+        button.dataset.navigationItemId = entryDataItem.itemId;
         button.classList.toggle('active', isActive);
         if (isActive) {
           button.setAttribute('aria-current', 'page');
@@ -73,10 +130,15 @@ export class SettingsNavigationView {
           button.removeAttribute('aria-current');
         }
         button.addEventListener('keydown', (event) => {
-          this.handleItemKeyDown(event, item.id, pageOrder);
+          this.handleItemKeyDown(
+            event,
+            entryDataItem.itemId,
+            itemOrder,
+            pageIdByItemId,
+          );
         });
         button.addEventListener('click', () => {
-          this.selectPage(item.id, true);
+          this.selectPage(entryDataItem.pageId, true, entryDataItem.itemId);
         });
         entry.append(button);
         return entry;
@@ -84,21 +146,22 @@ export class SettingsNavigationView {
     );
     nav.append(list);
     this.element.replaceChildren(nav);
-    if (focusTargetPageId) {
-      this.focusPageButton(focusTargetPageId);
+    if (focusTargetItemId) {
+      this.focusNavigationItemButton(focusTargetItemId);
     }
   }
 
   private handleItemKeyDown(
     event: KeyboardEvent,
-    pageId: SettingsPageId,
-    pageOrder: readonly SettingsPageId[],
+    itemId: string,
+    itemOrder: readonly string[],
+    pageIdByItemId: Map<string, SettingsPageId>,
   ) {
-    if (pageOrder.length === 0) {
+    if (itemOrder.length === 0) {
       return;
     }
 
-    const currentIndex = pageOrder.indexOf(pageId);
+    const currentIndex = itemOrder.indexOf(itemId);
     if (currentIndex < 0) {
       return;
     }
@@ -106,62 +169,83 @@ export class SettingsNavigationView {
     switch (event.key) {
       case 'ArrowDown':
       case 'ArrowRight': {
-        const nextIndex = (currentIndex + 1) % pageOrder.length;
-        this.selectPage(pageOrder[nextIndex], true);
+        const nextIndex = (currentIndex + 1) % itemOrder.length;
+        const nextItemId = itemOrder[nextIndex];
+        const nextPageId = nextItemId
+          ? (pageIdByItemId.get(nextItemId) ?? this.props.activePageId)
+          : this.props.activePageId;
+        this.selectPage(nextPageId, true, nextItemId);
         event.preventDefault();
         break;
       }
       case 'ArrowUp':
       case 'ArrowLeft': {
         const previousIndex =
-          (currentIndex - 1 + pageOrder.length) % pageOrder.length;
-        this.selectPage(pageOrder[previousIndex], true);
+          (currentIndex - 1 + itemOrder.length) % itemOrder.length;
+        const previousItemId = itemOrder[previousIndex];
+        const previousPageId = previousItemId
+          ? (pageIdByItemId.get(previousItemId) ?? this.props.activePageId)
+          : this.props.activePageId;
+        this.selectPage(previousPageId, true, previousItemId);
         event.preventDefault();
         break;
       }
       case 'Home': {
-        this.selectPage(pageOrder[0], true);
+        const firstItemId = itemOrder[0];
+        const firstPageId = firstItemId
+          ? (pageIdByItemId.get(firstItemId) ?? this.props.activePageId)
+          : this.props.activePageId;
+        this.selectPage(firstPageId, true, firstItemId);
         event.preventDefault();
         break;
       }
       case 'End': {
-        this.selectPage(pageOrder[pageOrder.length - 1], true);
+        const lastItemId = itemOrder[itemOrder.length - 1];
+        const lastPageId = lastItemId
+          ? (pageIdByItemId.get(lastItemId) ?? this.props.activePageId)
+          : this.props.activePageId;
+        this.selectPage(lastPageId, true, lastItemId);
         event.preventDefault();
         break;
       }
       case 'Enter':
       case ' ': {
-        this.selectPage(pageId, true);
+        const pageId = pageIdByItemId.get(itemId) ?? this.props.activePageId;
+        this.selectPage(pageId, true, itemId);
         event.preventDefault();
         break;
       }
     }
   }
 
-  private selectPage(pageId: SettingsPageId, restoreFocus: boolean) {
+  private selectPage(
+    pageId: SettingsPageId,
+    restoreFocus: boolean,
+    focusItemId: string,
+  ) {
     if (restoreFocus) {
-      this.pendingFocusPageId = pageId;
+      this.pendingFocusItemId = focusItemId;
     }
     if (pageId === this.props.activePageId) {
-      this.focusPageButton(pageId);
+      this.focusNavigationItemButton(focusItemId);
       return;
     }
     this.props.onDidSelectPage(pageId);
   }
 
-  private focusPageButton(pageId: SettingsPageId) {
+  private focusNavigationItemButton(itemId: string) {
     const buttons = this.element.querySelectorAll<HTMLButtonElement>(
       '.settings-navigation-item',
     );
     for (const button of buttons) {
-      if (button.dataset.pageTarget === pageId) {
+      if (button.dataset.navigationItemId === itemId) {
         button.focus({ preventScroll: true });
         return;
       }
     }
   }
 
-  private getFocusedPageId(): SettingsPageId | null {
+  private getFocusedItemId() {
     const activeElement = document.activeElement;
     if (!(activeElement instanceof HTMLElement) || !this.element.contains(activeElement)) {
       return null;
@@ -170,8 +254,8 @@ export class SettingsNavigationView {
     const activeButton = activeElement.closest<HTMLButtonElement>(
       '.settings-navigation-item',
     );
-    const pageTarget = activeButton?.dataset.pageTarget;
-    return pageTarget ? (pageTarget as SettingsPageId) : null;
+    const navigationItemId = activeButton?.dataset.navigationItemId;
+    return navigationItemId ?? null;
   }
 }
 

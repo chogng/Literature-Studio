@@ -329,7 +329,7 @@ test('splitview disables snapped edge sash when start snapping is turned off', (
   }
 });
 
-test('splitview separator is only visible when both adjacent views are visible', () => {
+test('splitview separator is visible only when there is a visible view after the left view', () => {
   const splitView = new SplitView(Orientation.VERTICAL, 10);
   const leadingView = new TestView(120, 420);
   const centerView = new TestView(220, Number.POSITIVE_INFINITY);
@@ -355,6 +355,47 @@ test('splitview separator is only visible when both adjacent views are visible',
     splitView.layout(900, 520);
 
     assert.equal(separator.classList.contains('visible'), true);
+  } finally {
+    splitView.dispose();
+    splitView.element.remove();
+  }
+});
+
+test('splitview keeps a single separator between non-adjacent visible views', () => {
+  const splitView = new SplitView(Orientation.VERTICAL, 10);
+  const leadingView = new TestView(120, 420);
+  const centerView = new TestView(220, Number.POSITIVE_INFINITY);
+  const trailingView = new TestView(120, 520);
+
+  splitView.addView(leadingView, 220);
+  splitView.addView(centerView, 320, { flex: true });
+  splitView.addView(trailingView, 220, { flex: true });
+  document.body.append(splitView.element);
+
+  try {
+    splitView.layout(900, 520);
+
+    const separators = Array.from(
+      splitView.element.querySelectorAll<HTMLElement>('.split-view-separator.vertical'),
+    );
+    assert.equal(separators.length, 2);
+    assert.equal(separators[0]?.classList.contains('visible'), true);
+    assert.equal(separators[1]?.classList.contains('visible'), true);
+
+    splitView.setViewVisible(1, false);
+    splitView.layout(900, 520);
+
+    const visibleSeparators = separators.filter((separator) =>
+      separator.classList.contains('visible'),
+    );
+    assert.equal(visibleSeparators.length, 1);
+    assert.equal(visibleSeparators[0], separators[0]);
+
+    splitView.setViewVisible(1, true);
+    splitView.layout(900, 520);
+
+    assert.equal(separators[0]?.classList.contains('visible'), true);
+    assert.equal(separators[1]?.classList.contains('visible'), true);
   } finally {
     splitView.dispose();
     splitView.element.remove();

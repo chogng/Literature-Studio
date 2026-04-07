@@ -85,6 +85,11 @@ export const settingsNavigationBorder = registerColor('settings.navigationBorder
   light: '#e6edf5',
 });
 
+export const settingsNavigationBackground = registerColor('settings.navigationBackground', {
+  dark: 'transparent',
+  light: 'transparent',
+});
+
 export const settingsNavigationBackgroundFrom = registerColor('settings.navigationBackgroundFrom', {
   dark: '#1d2934',
   light: '#f7fbff',
@@ -101,23 +106,23 @@ export const settingsNavigationItemForeground = registerColor('settings.navigati
 });
 
 export const settingsNavigationItemHoverBackground = registerColor('settings.navigationItemHoverBackground', {
-  dark: 'rgba(90, 169, 255, 0.12)',
-  light: 'rgba(10, 95, 191, 0.06)',
+  dark: '#ececec',
+  light: '#ececec',
 });
 
 export const settingsNavigationItemActiveBorder = registerColor('settings.navigationItemActiveBorder', {
-  dark: '#4c6892',
-  light: '#c9d7e6',
+  dark: 'transparent',
+  light: 'transparent',
 });
 
 export const settingsNavigationItemActiveBackground = registerColor('settings.navigationItemActiveBackground', {
-  dark: '#22344a',
-  light: '#ffffff',
+  dark: '#ececec',
+  light: '#ececec',
 });
 
 export const settingsNavigationItemActiveForeground = registerColor('settings.navigationItemActiveForeground', {
-  dark: '#8cb9ff',
-  light: '#0a5fbf',
+  dark: '#1f1f1f',
+  light: '#1f1f1f',
 });
 
 export const settingsContentBackground = registerColor('settings.contentBackground', {

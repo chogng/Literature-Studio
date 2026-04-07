@@ -16,6 +16,7 @@ import txSvg from 'ls/base/browser/ui/lxicon/svg/tx.svg?raw';
 import trashSvg from 'ls/base/browser/ui/lxicon/svg/trash.svg?raw';
 import translateSvg from 'ls/base/browser/ui/lxicon/svg/translate.svg?raw';
 import threeBarsSvg from 'ls/base/browser/ui/lxicon/svg/three-bars.svg?raw';
+import appearanceSvg from 'ls/base/browser/ui/lxicon/svg/appearance.svg?raw';
 import textSvg from 'ls/base/browser/ui/lxicon/svg/text.svg?raw';
 import textSizeSvg from 'ls/base/browser/ui/lxicon/svg/text-size.svg?raw';
 import terminalSvg from 'ls/base/browser/ui/lxicon/svg/terminal.svg?raw';
@@ -189,6 +190,7 @@ import underlineSvg from 'ls/base/browser/ui/lxicon/svg/underline.svg?raw';
 export type LxIconName =
   | 'agent'
   | 'agent-filled'
+  | 'appearance'
   | 'anthropic'
   | 'zoom-out'
   | 'zoom-in'
@@ -378,6 +380,7 @@ export type LxIconName =
 const SVG_BY_NAME: Record<LxIconName, string> = {
   agent: agentSvg,
   'agent-filled': agentFilledSvg,
+  appearance: appearanceSvg,
   anthropic: anthropicSvg,
   'zoom-out': zoomOutSvg,
   'zoom-in': zoomInSvg,

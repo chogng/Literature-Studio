@@ -39,7 +39,7 @@
   height: 100%;
   min-height: 0;
   overflow: auto;
-  padding: 16px 14px;
+  padding: 0 8px;
   border-right: 1px solid var(--vscode-settings-navigationBorder, #e6edf5);
   background: var(--vscode-settings-navigationBackground, transparent);
 }
@@ -54,7 +54,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 2px;
 }
 
 .settings-navigation-item-entry {
@@ -62,17 +62,26 @@
   padding: 0;
 }
 
+.settings-navigation-spacer {
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+/* 字体14才能等于curosor的12，好奇怪*/
 .settings-navigation-item {
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 34px;
-  padding: 6px 10px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
   color: var(--vscode-settings-navigationItemForeground, #304357);
   font: inherit;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
 }
@@ -89,16 +98,16 @@
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
+  color: currentColor;
 }
 
 .settings-navigation-item:hover {
-  background: var(--vscode-settings-navigationItemHoverBackground, rgba(0, 0, 0, 0.05));
+  background: var(--vscode-settings-navigationItemHoverBackground, #ececec);
 }
 
 .settings-navigation-item.active {
-  border-color: var(--vscode-settings-navigationItemActiveBorder, #d9d9d9);
-  background: var(--vscode-settings-navigationItemActiveBackground, #fff);
-  color: var(--vscode-settings-navigationItemActiveForeground, #1f2d3a);
+  background: var(--vscode-settings-navigationItemActiveBackground, #ececec);
+  color: var(--vscode-settings-navigationItemActiveForeground, #1f1f1f);
   box-shadow: none;
 }
 

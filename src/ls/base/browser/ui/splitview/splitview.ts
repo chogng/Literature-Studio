@@ -740,8 +740,10 @@ export class SplitView<TLayoutContext = undefined> {
       const sashItem = this.sashItems[index];
       const sash = sashItem.sash;
       const leftVisible = this.items[sashItem.leftItemIndex]?.visible === true;
-      const rightVisible = this.items[sashItem.rightItemIndex]?.visible === true;
-      sashItem.separator.classList.toggle('visible', leftVisible && rightVisible);
+      const hasVisibleAfter = this.items
+        .slice(sashItem.leftItemIndex + 1)
+        .some((item) => item.visible === true);
+      sashItem.separator.classList.toggle('visible', leftVisible && hasVisibleAfter);
       position += this.items[index].size;
 
       const min = !(collapsesDown[index] && expandsUp[index + 1]);

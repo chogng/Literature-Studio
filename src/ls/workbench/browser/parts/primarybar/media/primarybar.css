@@ -1,6 +1,6 @@
 .panel.primarybar-panel {
   --primarybar-topbar-height: 36px;
-  --primarybar-footer-height: 36px;
+  --primarybar-footer-height: 54px;
   display: flex;
   flex-direction: column;
   overflow: hidden;

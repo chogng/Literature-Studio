@@ -1,4 +1,5 @@
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 
 const EDITOR_BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
 const MAX_RECENT_BROWSER_LIBRARY_ENTRIES = 25;
@@ -269,7 +270,8 @@ export class EditorBrowserLibraryPanel {
   private readonly headerElement = createElement('header', 'editor-browser-library-header');
   private readonly searchInputHost = createElement('div', 'editor-browser-library-search-host');
   private readonly bodyElement = createElement('div', 'editor-browser-library-body');
-  private readonly listElement = createElement('div', 'editor-browser-library-list');
+  private listElement: HTMLElement | null = null;
+  private emptyStateElement: HTMLElement | null = null;
   private readonly searchInput: InputBox;
   private readonly panelId = `editor-browser-library-panel-${Math.random()
     .toString(36)
@@ -288,9 +290,9 @@ export class EditorBrowserLibraryPanel {
     this.onDidChangeOpenState = options.onDidChangeOpenState;
     this.searchInput = new InputBox(this.searchInputHost, undefined, {
       className: 'editor-browser-library-search-input',
-      type: 'search',
+      type: 'text',
       value: '',
-      placeholder: '',
+      placeholder: 'Search',
       ariaLabel: '',
     });
     this.searchInput.onDidChange(this.handleSearchInputChange);
@@ -298,7 +300,6 @@ export class EditorBrowserLibraryPanel {
     this.element.setAttribute('role', 'dialog');
     this.element.setAttribute('aria-hidden', 'true');
     this.element.setAttribute('aria-label', this.context.labels.title);
-    this.bodyElement.append(this.listElement);
     this.headerElement.append(this.searchInputHost);
     this.element.append(this.headerElement, this.bodyElement);
     this.trackCurrentBrowserLibraryEntry();
@@ -557,22 +558,27 @@ export class EditorBrowserLibraryPanel {
     this.element.setAttribute('aria-hidden', String(!this.isOpen));
     this.element.setAttribute('aria-label', this.context.labels.title);
     this.searchInput.inputElement.setAttribute('aria-label', this.context.labels.title);
-    this.searchInput.setPlaceHolder('');
+    this.searchInput.setPlaceHolder('Search');
     this.renderLibraryList();
   }
 
   private renderLibraryList() {
     const listItems = this.getFilteredLibraryListItems();
     if (listItems.length === 0) {
-      const emptyState = createElement(
-        'p',
-        'editor-browser-library-empty',
-        this.context.labels.emptyState,
-      );
-      this.listElement.replaceChildren(emptyState);
+      if (this.listElement) {
+        this.listElement.remove();
+        this.listElement = null;
+      }
+      this.renderEmptyState(normalizeSearchQuery(this.searchQuery).length > 0);
       return;
     }
 
+    if (this.emptyStateElement) {
+      this.emptyStateElement.remove();
+      this.emptyStateElement = null;
+    }
+
+    const listElement = this.getOrCreateListElement();
     const fragment = document.createDocumentFragment();
     for (const itemState of listItems) {
       const { url, title, sectionKind } = itemState;
@@ -608,6 +614,46 @@ export class EditorBrowserLibraryPanel {
       fragment.append(item);
     }
 
-    this.listElement.replaceChildren(fragment);
+    listElement.replaceChildren(fragment);
+  }
+
+  private getOrCreateListElement() {
+    if (this.listElement) {
+      return this.listElement;
+    }
+
+    const listElement = createElement('div', 'editor-browser-library-list');
+    this.listElement = listElement;
+    this.bodyElement.append(listElement);
+    return listElement;
+  }
+
+  private getOrCreateEmptyStateElement() {
+    if (this.emptyStateElement) {
+      return this.emptyStateElement;
+    }
+
+    this.emptyStateElement = createElement('div', 'editor-browser-library-empty');
+    this.bodyElement.append(this.emptyStateElement);
+    return this.emptyStateElement;
+  }
+
+  private renderEmptyState(isNoMatch: boolean) {
+    const emptyStateElement = this.getOrCreateEmptyStateElement();
+    const query = this.searchQuery.trim();
+    const iconName = isNoMatch ? 'search' : 'favorite';
+    const label = isNoMatch
+      ? `No matches for “${query}”`
+      : this.context.labels.emptyState;
+
+    const nextStateSignature = `${iconName}:${label}`;
+    if (emptyStateElement.dataset.state === nextStateSignature) {
+      return;
+    }
+
+    const emptyIconElement = createLxIcon(iconName, 'editor-browser-library-empty-icon');
+    const emptyLabelElement = createElement('p', 'editor-browser-library-empty-label', label);
+    emptyStateElement.replaceChildren(emptyIconElement, emptyLabelElement);
+    emptyStateElement.dataset.state = nextStateSignature;
   }
 }
