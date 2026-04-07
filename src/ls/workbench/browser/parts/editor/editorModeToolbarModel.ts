@@ -1,7 +1,7 @@
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { getEditorPaneMode } from 'ls/workbench/browser/parts/editor/editorInput';
 import type { EditorWorkspaceTab } from 'ls/workbench/browser/parts/editor/editorModel';
-import type { EditorBrowserSourcesPanel } from 'ls/workbench/browser/parts/editor/editorBrowserSourcesPanel';
+import type { EditorBrowserLibraryPanel } from 'ls/workbench/browser/parts/editor/editorBrowserLibraryPanel';
 import type { EditorModeToolbarContributionContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarContribution';
 
 type EditorModeToolbarSourceProps = {
@@ -23,7 +23,7 @@ type EditorModeToolbarSourceProps = {
   onToolbarAddressChange: (value: string) => void;
   onToolbarAddressSubmit: () => void;
   onToolbarNavigateToUrl: (url: string) => void;
-  browserSourcesPanel?: EditorBrowserSourcesPanel | null;
+  browserLibraryPanel?: EditorBrowserLibraryPanel | null;
 };
 
 export type EditorModeToolbarContext = EditorModeToolbarContributionContext;
@@ -51,9 +51,10 @@ export function createEditorModeToolbarContext(
       toolbarClearCache: props.labels.toolbarClearCache,
       toolbarAddressBar: props.labels.toolbarAddressBar,
       toolbarAddressPlaceholder: props.labels.toolbarAddressPlaceholder,
-      toolbarSourcesRecent: props.labels.toolbarSourcesRecent,
-      toolbarSourcesFavorites: props.labels.toolbarSourcesFavorites,
-      toolbarSourcesEmpty: props.labels.toolbarSourcesEmpty,
+      browserLibraryPanelTitle: props.labels.browserLibraryPanelTitle,
+      browserLibraryPanelRecentTitle: props.labels.browserLibraryPanelRecentTitle,
+      browserLibraryPanelFavoritesTitle: props.labels.browserLibraryPanelFavoritesTitle,
+      browserLibraryPanelEmptyState: props.labels.browserLibraryPanelEmptyState,
       pdfTitle: props.labels.pdfTitle,
     },
     onOpenSources: props.onOpenAddressBarSourceMenu,
@@ -68,6 +69,6 @@ export function createEditorModeToolbarContext(
     onAddressInputChange: props.onToolbarAddressChange,
     onAddressInputSubmit: props.onToolbarAddressSubmit,
     onNavigateToUrl: props.onToolbarNavigateToUrl,
-    browserSourcesPanel: props.browserSourcesPanel ?? null,
+    browserLibraryPanel: props.browserLibraryPanel ?? null,
   };
 }

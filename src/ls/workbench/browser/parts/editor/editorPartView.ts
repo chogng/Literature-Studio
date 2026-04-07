@@ -18,7 +18,7 @@ import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartVie
 import { EditorGroupView } from 'ls/workbench/browser/parts/editor/editorGroupView';
 import 'ls/workbench/browser/parts/editor/media/editor.css';
 import 'ls/workbench/browser/parts/editor/media/editorToolbar.css';
-import 'ls/workbench/browser/parts/editor/media/editorBrowserSourcesPanel.css';
+import 'ls/workbench/browser/parts/editor/media/editorBrowserLibraryPanel.css';
 import 'ls/workbench/browser/parts/editor/media/tabsTitleControl.css';
 
 export type EditorPartLabels = {
@@ -39,9 +39,10 @@ export type EditorPartLabels = {
   toolbarClearCache: string;
   toolbarAddressBar: string;
   toolbarAddressPlaceholder: string;
-  toolbarSourcesRecent: string;
-  toolbarSourcesFavorites: string;
-  toolbarSourcesEmpty: string;
+  browserLibraryPanelTitle: string;
+  browserLibraryPanelRecentTitle: string;
+  browserLibraryPanelFavoritesTitle: string;
+  browserLibraryPanelEmptyState: string;
   draftMode: string;
   sourceMode: string;
   pdfMode: string;

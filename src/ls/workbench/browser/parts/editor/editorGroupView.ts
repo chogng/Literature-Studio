@@ -25,7 +25,7 @@ import {
 import type { AnyEditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPane';
 
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
-import { EditorBrowserSourcesPanel } from 'ls/workbench/browser/parts/editor/editorBrowserSourcesPanel';
+import { EditorBrowserLibraryPanel } from 'ls/workbench/browser/parts/editor/editorBrowserLibraryPanel';
 import { EditorEmptyWorkspaceView } from 'ls/workbench/browser/parts/editor/editorEmptyWorkspaceView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { createEditorModeToolbarContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarModel';
@@ -369,7 +369,7 @@ export class EditorGroupView {
   private readonly modeToolbarHost: ReturnType<typeof createEditorModeToolbarHost>;
   private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div', 'editor-content');
-  private readonly browserSourcesPanel: EditorBrowserSourcesPanel;
+  private readonly browserLibraryPanel: EditorBrowserLibraryPanel;
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
   private readonly viewStateStore: ReturnType<typeof createEditorViewStateStore>;
   private readonly draftCommandExecutor = createActiveDraftEditorCommandExecutor(
@@ -386,8 +386,8 @@ export class EditorGroupView {
     this.props = props;
     this.controller = new EditorGroupController(props);
     this.viewStateStore = createEditorViewStateStore(props.viewStateEntries);
-    this.browserSourcesPanel = new EditorBrowserSourcesPanel(
-      this.createBrowserSourcesPanelContext(props),
+    this.browserLibraryPanel = new EditorBrowserLibraryPanel(
+      this.createBrowserLibraryPanelContext(props),
       {
         isInteractionWithin: (target) => this.toolbarElement.contains(target),
       },
@@ -395,7 +395,7 @@ export class EditorGroupView {
     this.modeToolbarHost = createEditorModeToolbarHost(
       createEditorModeToolbarContext({
         ...props,
-        browserSourcesPanel: this.browserSourcesPanel,
+        browserLibraryPanel: this.browserLibraryPanel,
       }),
     );
     setEditorFrameSlot(this.headerElement, EDITOR_FRAME_SLOTS.topbar);
@@ -458,7 +458,7 @@ export class EditorGroupView {
   }
 
   dispose() {
-    this.browserSourcesPanel.dispose();
+    this.browserLibraryPanel.dispose();
     this.titleAreaControl.dispose();
     this.topbarActionsView.dispose();
     this.modeToolbarHost.dispose();
@@ -505,10 +505,10 @@ export class EditorGroupView {
       onCreatePdfTab: this.props.onCreatePdfTab,
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
     });
-    this.browserSourcesPanel.setContext(this.createBrowserSourcesPanelContext(this.props));
+    this.browserLibraryPanel.setContext(this.createBrowserLibraryPanelContext(this.props));
     this.modeToolbarHost.setContext(createEditorModeToolbarContext({
       ...this.props,
-      browserSourcesPanel: this.browserSourcesPanel,
+      browserLibraryPanel: this.browserLibraryPanel,
     }));
     this.syncToolbarMode(group.activeTab);
     this.syncTopbarActions(
@@ -526,8 +526,8 @@ export class EditorGroupView {
         onCreateDraftTab: this.props.onCreateDraftTab,
       });
       this.contentElement.replaceChildren(this.emptyWorkspaceView.getElement());
-      this.browserSourcesPanel.close();
-      this.browserSourcesPanel.mountTo(null);
+      this.browserLibraryPanel.close();
+      this.browserLibraryPanel.mountTo(null);
       return;
     }
 
@@ -561,24 +561,29 @@ export class EditorGroupView {
 
     this.syncTopbarToolbar(this.resolveToolbarElement());
     this.flushBrowserPrimaryInputFocus(group.activeTab);
-    this.mountBrowserSourcesPanelForResolvedPane(resolvedPane.paneId);
+    this.mountBrowserLibraryPanelForResolvedPane(resolvedPane.paneId);
   }
 
-  private mountBrowserSourcesPanelForResolvedPane(paneId: string) {
+  private mountBrowserLibraryPanelForResolvedPane(paneId: string) {
     if (paneId !== 'browser') {
-      this.browserSourcesPanel.close();
-      this.browserSourcesPanel.mountTo(null);
+      this.browserLibraryPanel.close();
+      this.browserLibraryPanel.mountTo(null);
       return;
     }
 
     const panelHost = this.contentElement.querySelector('.browser-frame-container');
-    this.browserSourcesPanel.mountTo(panelHost instanceof HTMLElement ? panelHost : null);
+    this.browserLibraryPanel.mountTo(panelHost instanceof HTMLElement ? panelHost : null);
   }
 
-  private createBrowserSourcesPanelContext(props: EditorGroupViewProps) {
+  private createBrowserLibraryPanelContext(props: EditorGroupViewProps) {
     return {
       browserUrl: props.viewPartProps.browserUrl,
-      labels: props.labels,
+      labels: {
+        title: props.labels.browserLibraryPanelTitle,
+        recentTitle: props.labels.browserLibraryPanelRecentTitle,
+        favoritesTitle: props.labels.browserLibraryPanelFavoritesTitle,
+        emptyState: props.labels.browserLibraryPanelEmptyState,
+      },
       onNavigateToUrl: props.onToolbarNavigateToUrl,
     };
   }

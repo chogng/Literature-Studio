@@ -528,9 +528,10 @@ function createWorkbenchLayoutViewProps() {
         toolbarClearCache: 'Clear cache',
         toolbarAddressBar: 'Address bar',
         toolbarAddressPlaceholder: 'Search or enter URL',
-        toolbarSourcesRecent: 'Recent',
-        toolbarSourcesFavorites: 'Favorites',
-        toolbarSourcesEmpty: 'No links yet',
+        browserLibraryPanelTitle: 'Source menu',
+        browserLibraryPanelRecentTitle: 'Recent',
+        browserLibraryPanelFavoritesTitle: 'Favorites',
+        browserLibraryPanelEmptyState: 'No links yet',
         draftMode: 'Draft',
         sourceMode: 'Source',
         pdfMode: 'PDF',
@@ -1103,11 +1104,13 @@ test('WorkbenchLayoutView renders the browser toolbar below the editor topbar', 
   }
 });
 
-test('WorkbenchLayoutView shows browser sources panel entries and navigates when a source is selected', async () => {
-  const BROWSER_SOURCES_STORAGE_KEY = 'ls.editor.browser.sources.v1';
+test('WorkbenchLayoutView shows browser library panel entries and navigates when a favorite is selected', async () => {
+  const BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
+  const LEGACY_BROWSER_SOURCES_STORAGE_KEY = 'ls.editor.browser.sources.v1';
   const addressChanges: string[] = [];
   let navigateCount = 0;
-  window.localStorage?.removeItem(BROWSER_SOURCES_STORAGE_KEY);
+  window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+  window.localStorage?.removeItem(LEGACY_BROWSER_SOURCES_STORAGE_KEY);
 
   const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
@@ -1159,17 +1162,12 @@ test('WorkbenchLayoutView shows browser sources panel entries and navigates when
 
     const panel = view
       .getElement()
-      .querySelector('.editor-browser-sources-panel');
+      .querySelector('.editor-browser-library-panel');
     assert(panel instanceof HTMLElement);
     assert.equal(panel.classList.contains('is-open'), true);
 
-    const sections = Array.from(
-      panel.querySelectorAll('.editor-browser-sources-section'),
-    );
-    assert.equal(sections.length, 2);
-    const favoritesSection = sections[1];
     const favoriteItems = Array.from(
-      favoritesSection.querySelectorAll('.editor-browser-sources-item'),
+      panel.querySelectorAll('.editor-browser-library-item.is-favorite'),
     );
     assert.equal(favoriteItems.length, 1);
 
@@ -1184,7 +1182,8 @@ test('WorkbenchLayoutView shows browser sources panel entries and navigates when
   } finally {
     view.dispose();
     document.body.replaceChildren();
-    window.localStorage?.removeItem(BROWSER_SOURCES_STORAGE_KEY);
+    window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+    window.localStorage?.removeItem(LEGACY_BROWSER_SOURCES_STORAGE_KEY);
   }
 });
 
@@ -1793,6 +1792,51 @@ test('WorkbenchLayoutView clamps sidebar sizes with content layout orientation i
 
     assert.equal(props.primarySidebarSize, 160);
     assert.equal(props.agentSidebarSize, 160);
+
+    view.dispose();
+  } finally {
+    animationFrameSpy.restore();
+  }
+});
+
+test('WorkbenchLayoutView measures the pre-toggle editor size before the first animation frame when agentbar becomes visible', () => {
+  const animationFrameSpy = installAnimationFrameSpy();
+  setWindowInnerWidth(1280);
+
+  try {
+    const props = createWorkbenchLayoutViewProps();
+    props.isPrimarySidebarVisible = true;
+    props.isAgentSidebarVisible = false;
+    props.isEditorCollapsed = false;
+    props.primarySidebarSize = 320;
+    props.agentSidebarSize = 360;
+    props.sidebarTopbarActionsProps = {
+      ...props.sidebarTopbarActionsProps,
+      isPrimarySidebarVisible: true,
+      primarySidebarToggleLabel: 'Hide primary sidebar',
+      addressBarLabel: 'Address bar',
+      onTogglePrimarySidebar: () => {},
+    };
+
+    const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+    bindWorkbenchContentSize(view, 1280, 720);
+    document.body.append(view.getElement());
+
+    props.isAgentSidebarVisible = true;
+    view.setProps(materializeWorkbenchLayoutViewProps(props));
+    animationFrameSpy.flushAll();
+
+    const gridView = (view as unknown as {
+      gridView: {
+        getViewSize: (location: readonly number[]) => number;
+      } | null;
+    }).gridView;
+    assert(gridView);
+
+    const editorSize = gridView.getViewSize([2]);
+    const agentSize = gridView.getViewSize([1]);
+    assert(editorSize > props.expandedEditorSize);
+    assert(editorSize > agentSize);
 
     view.dispose();
   } finally {

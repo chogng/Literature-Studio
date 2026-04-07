@@ -1,4 +1,4 @@
-import type { EditorBrowserSourcesPanel } from 'ls/workbench/browser/parts/editor/editorBrowserSourcesPanel';
+import type { EditorBrowserLibraryPanel } from 'ls/workbench/browser/parts/editor/editorBrowserLibraryPanel';
 
 export type EditorModeToolbarKind = 'browser' | 'pdf';
 
@@ -20,9 +20,10 @@ export type EditorModeToolbarContributionContext = {
     toolbarClearCache: string;
     toolbarAddressBar: string;
     toolbarAddressPlaceholder: string;
-    toolbarSourcesRecent: string;
-    toolbarSourcesFavorites: string;
-    toolbarSourcesEmpty: string;
+    browserLibraryPanelTitle: string;
+    browserLibraryPanelRecentTitle: string;
+    browserLibraryPanelFavoritesTitle: string;
+    browserLibraryPanelEmptyState: string;
     pdfTitle: string;
   };
   onOpenSources: () => void;
@@ -37,7 +38,7 @@ export type EditorModeToolbarContributionContext = {
   onAddressInputChange: (value: string) => void;
   onAddressInputSubmit: () => void;
   onNavigateToUrl: (url: string) => void;
-  browserSourcesPanel: EditorBrowserSourcesPanel | null;
+  browserLibraryPanel: EditorBrowserLibraryPanel | null;
 };
 
 export interface EditorModeToolbarContribution {

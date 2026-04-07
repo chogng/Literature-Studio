@@ -1,4 +1,4 @@
-.editor-browser-sources-panel {
+.editor-browser-library-panel {
   position: absolute;
   top: 0;
   left: 0;
@@ -7,6 +7,7 @@
   height: 100%;
   max-height: 100%;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   padding: 12px;
   box-sizing: border-box;
@@ -14,7 +15,6 @@
   border-radius: 0;
   background: #fff;
   box-shadow: none;
-  overflow: auto;
   opacity: 0;
   pointer-events: none;
   transform: translateX(calc(-100% - 14px));
@@ -22,21 +22,22 @@
   transition:
     opacity 140ms ease,
     transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  overflow: hidden;
 }
 
-.editor-browser-sources-panel.is-open {
+.editor-browser-library-panel.is-open {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);
 }
 
-.editor-browser-sources-section {
+.editor-browser-library-header {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
-.editor-browser-sources-section-title {
+.editor-browser-library-header-title {
   margin: 0;
   color: var(--vscode-editor-sourceSubheadingForeground, #597086);
   font-size: 11px;
@@ -45,21 +46,42 @@
   text-transform: uppercase;
 }
 
-.editor-browser-sources-list {
-  display: grid;
-  gap: 6px;
+.editor-browser-library-search-host {
   min-width: 0;
 }
 
-.editor-browser-sources-item {
+.editor-browser-library-search-input.inputbox {
+  --inputbox-height: 26px;
+  --inputbox-border-radius: 7px;
+  --inputbox-background-hover: transparent;
+  --inputbox-foreground: var(--vscode-agentBar-inputForeground, #1f2d3a);
   width: 100%;
+}
+
+.editor-browser-library-body {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.editor-browser-library-list {
   display: grid;
-  gap: 3px;
+  gap: 4px;
+  min-width: 0;
+  padding-right: 2px;
+}
+
+.editor-browser-library-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--vscode-editor-sourceHeaderBorder, #dfe8f1);
-  border-radius: 8px;
-  background: var(--vscode-agentBar-inputBackground, #ffffff);
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
   color: var(--vscode-agentBar-inputForeground, #1f2d3a);
   font: inherit;
   text-align: left;
@@ -70,15 +92,15 @@
     color 120ms ease;
 }
 
-.editor-browser-sources-item:hover,
-.editor-browser-sources-item:focus-visible {
-  border-color: var(--vscode-agentBar-tabActiveForeground, #0a5fbf);
+.editor-browser-library-item:hover,
+.editor-browser-library-item:focus-visible {
+  border-color: var(--vscode-editor-sourceHeaderBorder, #dfe8f1);
   background: var(--vscode-agentBar-tabActiveBackground, #e8f1fc);
-  color: var(--vscode-agentBar-tabActiveForeground, #0a5fbf);
+  color: var(--vscode-agentBar-inputForeground, #1f2d3a);
   outline: none;
 }
 
-.editor-browser-sources-item-title {
+.editor-browser-library-item-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -86,7 +108,7 @@
   font-weight: 600;
 }
 
-.editor-browser-sources-item-meta {
+.editor-browser-library-item-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -94,11 +116,19 @@
   font-size: 11px;
 }
 
-.editor-browser-sources-empty {
+.editor-browser-library-item-kind {
+  color: var(--vscode-editor-sourceSubheadingForeground, #7a8ca0);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.editor-browser-library-empty {
   margin: 0;
-  padding: 8px 10px;
+  padding: 8px;
   border: 1px dashed var(--vscode-editor-sourceHeaderBorder, #d4dde7);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--vscode-editor-sourceSubheadingForeground, #7a8ca0);
   font-size: 12px;
 }

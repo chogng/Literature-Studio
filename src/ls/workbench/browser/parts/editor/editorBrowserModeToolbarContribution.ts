@@ -73,7 +73,7 @@ implements EditorModeToolbarContribution {
   setContext(context: EditorModeToolbarContributionContext) {
     this.context = context;
     if (context.mode !== this.mode) {
-      this.getSourcesPanelView()?.close();
+      this.getLibraryPanelView()?.close();
     }
     this.render();
   }
@@ -84,7 +84,7 @@ implements EditorModeToolbarContribution {
   }
 
   dispose() {
-    this.getSourcesPanelView()?.setOnDidChangeOpenState(undefined);
+    this.getLibraryPanelView()?.setOnDidChangeOpenState(undefined);
     this.addressInput.inputElement.removeEventListener('keydown', this.handleAddressInputKeyDown);
     this.addressInput.inputElement.removeEventListener('blur', this.handleAddressInputBlur);
     this.addressInput.dispose();
@@ -94,7 +94,7 @@ implements EditorModeToolbarContribution {
   }
 
   private render() {
-    this.bindSourcesPanelView();
+    this.bindLibraryPanelView();
     this.updateLeadingActions();
     this.trailingActionsView.setProps({
       className: 'editor-browser-toolbar-actions',
@@ -110,14 +110,14 @@ implements EditorModeToolbarContribution {
     this.addressInput.setPlaceHolder(this.context.labels.toolbarAddressPlaceholder);
   }
 
-  private bindSourcesPanelView() {
-    const panel = this.getSourcesPanelView();
+  private bindLibraryPanelView() {
+    const panel = this.getLibraryPanelView();
     if (!panel) {
       return;
     }
 
-    panel.setOnDidChangeOpenState(this.handleSourcesPanelOpenStateChange);
-    panel.setContext(this.createSourcesPanelContext());
+    panel.setOnDidChangeOpenState(this.handleLibraryPanelOpenStateChange);
+    panel.setContext(this.createLibraryPanelContext());
   }
 
   private updateLeadingActions() {
@@ -128,22 +128,27 @@ implements EditorModeToolbarContribution {
     });
   }
 
-  private getSourcesPanelView() {
-    return this.context.browserSourcesPanel;
+  private getLibraryPanelView() {
+    return this.context.browserLibraryPanel;
   }
 
-  private getSourcesButtonAttributes() {
-    return this.getSourcesPanelView()?.getToggleButtonAttributes() ?? {
+  private getLibraryButtonAttributes() {
+    return this.getLibraryPanelView()?.getToggleButtonAttributes() ?? {
       'aria-haspopup': 'dialog',
       'aria-expanded': 'false',
     };
   }
 
-  private createSourcesPanelContext() {
+  private createLibraryPanelContext() {
     return {
       browserUrl: this.context.browserUrl,
-      labels: this.context.labels,
-      onNavigateToUrl: this.handleSourceItemNavigate,
+      labels: {
+        title: this.context.labels.browserLibraryPanelTitle,
+        recentTitle: this.context.labels.browserLibraryPanelRecentTitle,
+        favoritesTitle: this.context.labels.browserLibraryPanelFavoritesTitle,
+        emptyState: this.context.labels.browserLibraryPanelEmptyState,
+      },
+      onNavigateToUrl: this.handleLibraryItemNavigate,
     };
   }
 
@@ -167,11 +172,11 @@ implements EditorModeToolbarContribution {
     this.syncAddressInputFromContext(true);
   };
 
-  private readonly handleSourcesPanelOpenStateChange = () => {
+  private readonly handleLibraryPanelOpenStateChange = () => {
     this.updateLeadingActions();
   };
 
-  private readonly handleSourceItemNavigate = (url: string) => {
+  private readonly handleLibraryItemNavigate = (url: string) => {
     this.isAddressInputEdited = false;
     this.context.onNavigateToUrl(url);
   };
@@ -188,8 +193,8 @@ implements EditorModeToolbarContribution {
     }
   }
 
-  private readonly handleSourceButtonClick = () => {
-    const panel = this.getSourcesPanelView();
+  private readonly handleLibraryButtonClick = () => {
+    const panel = this.getLibraryPanelView();
     if (!panel) {
       return;
     }
@@ -199,7 +204,7 @@ implements EditorModeToolbarContribution {
   };
 
   private readonly handleFavoriteButtonClick = () => {
-    const panel = this.getSourcesPanelView();
+    const panel = this.getLibraryPanelView();
     if (!panel) {
       return;
     }
@@ -213,7 +218,7 @@ implements EditorModeToolbarContribution {
   };
 
   private createLeadingItems(): ActionBarItem[] {
-    const panel = this.getSourcesPanelView();
+    const panel = this.getLibraryPanelView();
     const isCurrentUrlFavorited = panel?.isCurrentBrowserUrlFavorited() ?? false;
 
     return [
@@ -224,8 +229,8 @@ implements EditorModeToolbarContribution {
         buttonClassName: 'editor-browser-toolbar-btn',
         content: createLxIcon('list-unordered'),
         active: panel?.getIsOpen() ?? false,
-        buttonAttributes: this.getSourcesButtonAttributes(),
-        onClick: this.handleSourceButtonClick,
+        buttonAttributes: this.getLibraryButtonAttributes(),
+        onClick: this.handleLibraryButtonClick,
       },
       {
         label: this.context.labels.toolbarBack,
@@ -294,7 +299,7 @@ implements EditorModeToolbarContribution {
           {
             label: this.context.labels.toolbarClearBrowsingHistory,
             onClick: () => {
-              this.getSourcesPanelView()?.clearRecentSources();
+              this.getLibraryPanelView()?.clearRecentLibraryEntries();
               this.context.onClearBrowsingHistory();
             },
             disabled: !this.context.browserUrl,
