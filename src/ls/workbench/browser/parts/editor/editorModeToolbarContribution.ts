@@ -1,3 +1,5 @@
+import type { EditorBrowserSourcesPanel } from 'ls/workbench/browser/parts/editor/editorBrowserSourcesPanel';
+
 export type EditorModeToolbarKind = 'browser' | 'pdf';
 
 export type EditorModeToolbarContributionContext = {
@@ -35,6 +37,7 @@ export type EditorModeToolbarContributionContext = {
   onAddressInputChange: (value: string) => void;
   onAddressInputSubmit: () => void;
   onNavigateToUrl: (url: string) => void;
+  browserSourcesPanel: EditorBrowserSourcesPanel | null;
 };
 
 export interface EditorModeToolbarContribution {

@@ -1,18 +1,17 @@
-.editor-browser-toolbar-sources-panel {
+.editor-browser-sources-panel {
   position: absolute;
-  top: calc(100% + 1px);
-  left: calc(-1 * var(--editor-toolbar-horizontal-padding, 6px));
+  top: 0;
+  left: 0;
   z-index: 12;
   width: 200px;
-  height: var(--editor-content-height, min(360px, calc(100vh - 180px)));
-  max-height: var(--editor-content-height, min(360px, calc(100vh - 180px)));
+  height: 100%;
+  max-height: 100%;
   display: grid;
   gap: 10px;
   padding: 12px;
   box-sizing: border-box;
-  border: 1px solid var(--vscode-editor-sourceHeaderBorder, #dce6ef);
-  border-left: none;
-  border-radius: 0 12px 12px 0;
+  border: none;
+  border-radius: 0;
   background: #fff;
   box-shadow: none;
   overflow: auto;
@@ -25,19 +24,19 @@
     transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
-.editor-browser-toolbar-sources-panel.is-open {
+.editor-browser-sources-panel.is-open {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);
 }
 
-.editor-browser-toolbar-sources-section {
+.editor-browser-sources-section {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
-.editor-browser-toolbar-sources-section-title {
+.editor-browser-sources-section-title {
   margin: 0;
   color: var(--vscode-editor-sourceSubheadingForeground, #597086);
   font-size: 11px;
@@ -46,13 +45,13 @@
   text-transform: uppercase;
 }
 
-.editor-browser-toolbar-sources-list {
+.editor-browser-sources-list {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
-.editor-browser-toolbar-sources-item {
+.editor-browser-sources-item {
   width: 100%;
   display: grid;
   gap: 3px;
@@ -71,15 +70,15 @@
     color 120ms ease;
 }
 
-.editor-browser-toolbar-sources-item:hover,
-.editor-browser-toolbar-sources-item:focus-visible {
+.editor-browser-sources-item:hover,
+.editor-browser-sources-item:focus-visible {
   border-color: var(--vscode-agentBar-tabActiveForeground, #0a5fbf);
   background: var(--vscode-agentBar-tabActiveBackground, #e8f1fc);
   color: var(--vscode-agentBar-tabActiveForeground, #0a5fbf);
   outline: none;
 }
 
-.editor-browser-toolbar-sources-item-title {
+.editor-browser-sources-item-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -87,7 +86,7 @@
   font-weight: 600;
 }
 
-.editor-browser-toolbar-sources-item-meta {
+.editor-browser-sources-item-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -95,7 +94,7 @@
   font-size: 11px;
 }
 
-.editor-browser-toolbar-sources-empty {
+.editor-browser-sources-empty {
   margin: 0;
   padding: 8px 10px;
   border: 1px dashed var(--vscode-editor-sourceHeaderBorder, #d4dde7);

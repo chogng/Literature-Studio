@@ -1,6 +1,7 @@
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { getEditorPaneMode } from 'ls/workbench/browser/parts/editor/editorInput';
 import type { EditorWorkspaceTab } from 'ls/workbench/browser/parts/editor/editorModel';
+import type { EditorBrowserSourcesPanel } from 'ls/workbench/browser/parts/editor/editorBrowserSourcesPanel';
 import type { EditorModeToolbarContributionContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarContribution';
 
 type EditorModeToolbarSourceProps = {
@@ -22,6 +23,7 @@ type EditorModeToolbarSourceProps = {
   onToolbarAddressChange: (value: string) => void;
   onToolbarAddressSubmit: () => void;
   onToolbarNavigateToUrl: (url: string) => void;
+  browserSourcesPanel?: EditorBrowserSourcesPanel | null;
 };
 
 export type EditorModeToolbarContext = EditorModeToolbarContributionContext;
@@ -66,5 +68,6 @@ export function createEditorModeToolbarContext(
     onAddressInputChange: props.onToolbarAddressChange,
     onAddressInputSubmit: props.onToolbarAddressSubmit,
     onNavigateToUrl: props.onToolbarNavigateToUrl,
+    browserSourcesPanel: props.browserSourcesPanel ?? null,
   };
 }

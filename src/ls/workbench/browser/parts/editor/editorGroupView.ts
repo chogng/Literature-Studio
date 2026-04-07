@@ -25,6 +25,7 @@ import {
 import type { AnyEditorPane } from 'ls/workbench/browser/parts/editor/panes/editorPane';
 
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
+import { EditorBrowserSourcesPanel } from 'ls/workbench/browser/parts/editor/editorBrowserSourcesPanel';
 import { EditorEmptyWorkspaceView } from 'ls/workbench/browser/parts/editor/editorEmptyWorkspaceView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { createEditorModeToolbarContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarModel';
@@ -368,6 +369,7 @@ export class EditorGroupView {
   private readonly modeToolbarHost: ReturnType<typeof createEditorModeToolbarHost>;
   private readonly titleAreaControl: TitleControl;
   private readonly contentElement = createElement('div', 'editor-content');
+  private readonly browserSourcesPanel: EditorBrowserSourcesPanel;
   private readonly emptyWorkspaceView: EditorEmptyWorkspaceView;
   private readonly viewStateStore: ReturnType<typeof createEditorViewStateStore>;
   private readonly draftCommandExecutor = createActiveDraftEditorCommandExecutor(
@@ -379,15 +381,22 @@ export class EditorGroupView {
   private activePaneKey: string | null = null;
   private readonly pendingViewStateSaveByTabId = new Map<string, Promise<void>>();
   private shouldFocusBrowserPrimaryInput = false;
-  private toolbarContentHeightResizeObserver: ResizeObserver | null = null;
-  private isToolbarContentWindowResizeBound = false;
 
   constructor(props: EditorGroupViewProps) {
     this.props = props;
     this.controller = new EditorGroupController(props);
     this.viewStateStore = createEditorViewStateStore(props.viewStateEntries);
+    this.browserSourcesPanel = new EditorBrowserSourcesPanel(
+      this.createBrowserSourcesPanelContext(props),
+      {
+        isInteractionWithin: (target) => this.toolbarElement.contains(target),
+      },
+    );
     this.modeToolbarHost = createEditorModeToolbarHost(
-      createEditorModeToolbarContext(props),
+      createEditorModeToolbarContext({
+        ...props,
+        browserSourcesPanel: this.browserSourcesPanel,
+      }),
     );
     setEditorFrameSlot(this.headerElement, EDITOR_FRAME_SLOTS.topbar);
     setEditorFrameSlot(this.toolbarElement, EDITOR_FRAME_SLOTS.toolbar);
@@ -401,7 +410,6 @@ export class EditorGroupView {
       labels: props.labels,
       onCreateDraftTab: props.onCreateDraftTab,
     });
-    this.bindToolbarContentHeightSync();
     this.tabsElement.append(this.titleAreaControl.getElement());
     this.headerElement.append(this.tabsElement, this.actionsElement);
     this.element.append(this.headerElement, this.toolbarElement, this.contentElement);
@@ -450,7 +458,7 @@ export class EditorGroupView {
   }
 
   dispose() {
-    this.unbindToolbarContentHeightSync();
+    this.browserSourcesPanel.dispose();
     this.titleAreaControl.dispose();
     this.topbarActionsView.dispose();
     this.modeToolbarHost.dispose();
@@ -497,7 +505,11 @@ export class EditorGroupView {
       onCreatePdfTab: this.props.onCreatePdfTab,
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
     });
-    this.modeToolbarHost.setContext(createEditorModeToolbarContext(this.props));
+    this.browserSourcesPanel.setContext(this.createBrowserSourcesPanelContext(this.props));
+    this.modeToolbarHost.setContext(createEditorModeToolbarContext({
+      ...this.props,
+      browserSourcesPanel: this.browserSourcesPanel,
+    }));
     this.syncToolbarMode(group.activeTab);
     this.syncTopbarActions(
       this.props.showTopbarActions ? this.topbarActionsView.getElement() : null,
@@ -514,7 +526,8 @@ export class EditorGroupView {
         onCreateDraftTab: this.props.onCreateDraftTab,
       });
       this.contentElement.replaceChildren(this.emptyWorkspaceView.getElement());
-      this.syncToolbarContentHeight();
+      this.browserSourcesPanel.close();
+      this.browserSourcesPanel.mountTo(null);
       return;
     }
 
@@ -548,45 +561,26 @@ export class EditorGroupView {
 
     this.syncTopbarToolbar(this.resolveToolbarElement());
     this.flushBrowserPrimaryInputFocus(group.activeTab);
-    this.syncToolbarContentHeight();
+    this.mountBrowserSourcesPanelForResolvedPane(resolvedPane.paneId);
   }
 
-  private bindToolbarContentHeightSync() {
-    if (typeof ResizeObserver !== 'undefined') {
-      this.toolbarContentHeightResizeObserver = new ResizeObserver(() => {
-        this.syncToolbarContentHeight();
-      });
-      this.toolbarContentHeightResizeObserver.observe(this.contentElement);
+  private mountBrowserSourcesPanelForResolvedPane(paneId: string) {
+    if (paneId !== 'browser') {
+      this.browserSourcesPanel.close();
+      this.browserSourcesPanel.mountTo(null);
       return;
     }
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('resize', this.handleToolbarContentWindowResize);
-      this.isToolbarContentWindowResizeBound = true;
-    }
+    const panelHost = this.contentElement.querySelector('.browser-frame-container');
+    this.browserSourcesPanel.mountTo(panelHost instanceof HTMLElement ? panelHost : null);
   }
 
-  private unbindToolbarContentHeightSync() {
-    this.toolbarContentHeightResizeObserver?.disconnect();
-    this.toolbarContentHeightResizeObserver = null;
-    if (this.isToolbarContentWindowResizeBound && typeof window !== 'undefined') {
-      window.removeEventListener('resize', this.handleToolbarContentWindowResize);
-      this.isToolbarContentWindowResizeBound = false;
-    }
-  }
-
-  private readonly handleToolbarContentWindowResize = () => {
-    this.syncToolbarContentHeight();
-  };
-
-  private syncToolbarContentHeight() {
-    const contentHeight = this.contentElement.clientHeight;
-    if (contentHeight <= 0) {
-      this.toolbarElement.style.removeProperty('--editor-content-height');
-      return;
-    }
-
-    this.toolbarElement.style.setProperty('--editor-content-height', `${contentHeight}px`);
+  private createBrowserSourcesPanelContext(props: EditorGroupViewProps) {
+    return {
+      browserUrl: props.viewPartProps.browserUrl,
+      labels: props.labels,
+      onNavigateToUrl: props.onToolbarNavigateToUrl,
+    };
   }
 
   private readonly requestBrowserPrimaryInputFocus = () => {

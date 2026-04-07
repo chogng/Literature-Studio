@@ -1159,17 +1159,17 @@ test('WorkbenchLayoutView shows browser sources panel entries and navigates when
 
     const panel = view
       .getElement()
-      .querySelector('.editor-browser-toolbar-sources-panel');
+      .querySelector('.editor-browser-sources-panel');
     assert(panel instanceof HTMLElement);
     assert.equal(panel.classList.contains('is-open'), true);
 
     const sections = Array.from(
-      panel.querySelectorAll('.editor-browser-toolbar-sources-section'),
+      panel.querySelectorAll('.editor-browser-sources-section'),
     );
     assert.equal(sections.length, 2);
     const favoritesSection = sections[1];
     const favoriteItems = Array.from(
-      favoritesSection.querySelectorAll('.editor-browser-toolbar-sources-item'),
+      favoritesSection.querySelectorAll('.editor-browser-sources-item'),
     );
     assert.equal(favoriteItems.length, 1);
 

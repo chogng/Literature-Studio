@@ -1,5 +1,3 @@
-import type { EditorModeToolbarContributionContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarContribution';
-
 const EDITOR_BROWSER_SOURCES_STORAGE_KEY = 'ls.editor.browser.sources.v1';
 const MAX_RECENT_BROWSER_SOURCES = 25;
 const MAX_FAVORITE_BROWSER_SOURCES = 25;
@@ -11,13 +9,21 @@ type StoredBrowserSourcesState = {
 
 type BrowserSourcesSectionKind = 'recent' | 'favorites';
 
-type EditorBrowserSourcesPanelContext = Pick<
-  EditorModeToolbarContributionContext,
-  'browserUrl' | 'labels' | 'onNavigateToUrl'
->;
+export type EditorBrowserSourcesPanelLabels = {
+  toolbarSources: string;
+  toolbarSourcesRecent: string;
+  toolbarSourcesFavorites: string;
+  toolbarSourcesEmpty: string;
+};
+
+export type EditorBrowserSourcesPanelContext = {
+  browserUrl: string;
+  labels: EditorBrowserSourcesPanelLabels;
+  onNavigateToUrl: (url: string) => void;
+};
 
 type EditorBrowserSourcesPanelOptions = {
-  interactionBoundary: HTMLElement;
+  isInteractionWithin?: (target: Node) => boolean;
   onDidChangeOpenState?: (isOpen: boolean) => void;
 };
 
@@ -245,21 +251,22 @@ function resolveBrowserSourceTitle(url: string) {
 
 export class EditorBrowserSourcesPanel {
   private context: EditorBrowserSourcesPanelContext;
-  private readonly interactionBoundary: HTMLElement;
-  private readonly onDidChangeOpenState?: (isOpen: boolean) => void;
-  private readonly element = createElement('div', 'editor-browser-toolbar-sources-panel');
-  private readonly panelId = `editor-browser-toolbar-sources-panel-${Math.random()
+  private isInteractionWithin?: (target: Node) => boolean;
+  private onDidChangeOpenState?: (isOpen: boolean) => void;
+  private readonly element = createElement('div', 'editor-browser-sources-panel');
+  private readonly panelId = `editor-browser-sources-panel-${Math.random()
     .toString(36)
     .slice(2, 10)}`;
   private isOpen = false;
   private isGlobalListenersBound = false;
+  private hostElement: HTMLElement | null = null;
 
   constructor(
     context: EditorBrowserSourcesPanelContext,
-    options: EditorBrowserSourcesPanelOptions,
+    options: EditorBrowserSourcesPanelOptions = {},
   ) {
     this.context = context;
-    this.interactionBoundary = options.interactionBoundary;
+    this.isInteractionWithin = options.isInteractionWithin;
     this.onDidChangeOpenState = options.onDidChangeOpenState;
     this.element.id = this.panelId;
     this.element.setAttribute('role', 'dialog');
@@ -271,6 +278,30 @@ export class EditorBrowserSourcesPanel {
 
   getElement() {
     return this.element;
+  }
+
+  mountTo(hostElement: HTMLElement | null) {
+    if (this.hostElement === hostElement) {
+      return;
+    }
+
+    this.hostElement = hostElement;
+    if (!hostElement) {
+      this.element.remove();
+      return;
+    }
+
+    hostElement.append(this.element);
+  }
+
+  setInteractionBoundaryResolver(
+    resolver: ((target: Node) => boolean) | undefined,
+  ) {
+    this.isInteractionWithin = resolver;
+  }
+
+  setOnDidChangeOpenState(listener: ((isOpen: boolean) => void) | undefined) {
+    this.onDidChangeOpenState = listener;
   }
 
   getPanelId() {
@@ -350,6 +381,8 @@ export class EditorBrowserSourcesPanel {
 
   dispose() {
     this.unbindGlobalListeners();
+    this.hostElement = null;
+    this.element.remove();
     this.element.replaceChildren();
   }
 
@@ -387,7 +420,7 @@ export class EditorBrowserSourcesPanel {
       return;
     }
 
-    if (!this.element.isConnected || !this.interactionBoundary.isConnected) {
+    if (!this.element.isConnected) {
       this.setOpen(false);
       return;
     }
@@ -396,7 +429,11 @@ export class EditorBrowserSourcesPanel {
       return;
     }
 
-    if (this.interactionBoundary.contains(event.target)) {
+    if (this.element.contains(event.target)) {
+      return;
+    }
+
+    if (this.isInteractionWithin?.(event.target)) {
       return;
     }
 
@@ -442,18 +479,18 @@ export class EditorBrowserSourcesPanel {
     urls: string[],
     sectionKind: BrowserSourcesSectionKind,
   ) {
-    const section = createElement('section', 'editor-browser-toolbar-sources-section');
+    const section = createElement('section', 'editor-browser-sources-section');
     const heading = createElement(
       'h3',
-      'editor-browser-toolbar-sources-section-title',
+      'editor-browser-sources-section-title',
       title,
     );
-    const list = createElement('div', 'editor-browser-toolbar-sources-list');
+    const list = createElement('div', 'editor-browser-sources-list');
 
     if (urls.length === 0) {
       const emptyState = createElement(
         'p',
-        'editor-browser-toolbar-sources-empty',
+        'editor-browser-sources-empty',
         this.context.labels.toolbarSourcesEmpty,
       );
       emptyState.setAttribute('data-section-kind', sectionKind);
@@ -463,7 +500,7 @@ export class EditorBrowserSourcesPanel {
     }
 
     for (const url of urls) {
-      const item = createElement('button', 'editor-browser-toolbar-sources-item');
+      const item = createElement('button', 'editor-browser-sources-item');
       item.type = 'button';
       item.title = url;
       if (sectionKind === 'favorites') {
@@ -476,12 +513,12 @@ export class EditorBrowserSourcesPanel {
       });
       const titleElement = createElement(
         'span',
-        'editor-browser-toolbar-sources-item-title',
+        'editor-browser-sources-item-title',
         resolveBrowserSourceTitle(url),
       );
       const metaElement = createElement(
         'span',
-        'editor-browser-toolbar-sources-item-meta',
+        'editor-browser-sources-item-meta',
         url,
       );
       item.append(titleElement, metaElement);

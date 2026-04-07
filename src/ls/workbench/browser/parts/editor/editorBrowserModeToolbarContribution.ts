@@ -3,7 +3,6 @@ import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import { EditorBrowserSourcesPanel } from 'ls/workbench/browser/parts/editor/editorBrowserSourcesPanel';
 import { getEditorContentDisplayUrl } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
 import type {
   EditorModeToolbarContribution,
@@ -49,20 +48,12 @@ implements EditorModeToolbarContribution {
     value: '',
     placeholder: '',
   });
-  private readonly sourcesPanelView: EditorBrowserSourcesPanel;
   private isAddressInputEdited = false;
 
   constructor(context: EditorModeToolbarContributionContext) {
     this.context = context;
     this.leadingHost.append(this.leadingActionsView.getElement());
     this.trailingHost.append(this.trailingActionsView.getElement());
-    this.sourcesPanelView = new EditorBrowserSourcesPanel(
-      this.createSourcesPanelContext(),
-      {
-        interactionBoundary: this.element,
-        onDidChangeOpenState: this.handleSourcesPanelOpenStateChange,
-      },
-    );
     this.addressInput.inputElement.setAttribute('spellcheck', 'false');
     this.addressInput.inputElement.addEventListener('keydown', this.handleAddressInputKeyDown);
     this.addressInput.inputElement.addEventListener('blur', this.handleAddressInputBlur);
@@ -71,7 +62,7 @@ implements EditorModeToolbarContribution {
       this.context.onAddressInputChange(value);
     });
     this.toolbarRow.append(this.leadingHost, this.addressHost, this.trailingHost);
-    this.element.append(this.toolbarRow, this.sourcesPanelView.getElement());
+    this.element.append(this.toolbarRow);
     this.render();
   }
 
@@ -82,7 +73,7 @@ implements EditorModeToolbarContribution {
   setContext(context: EditorModeToolbarContributionContext) {
     this.context = context;
     if (context.mode !== this.mode) {
-      this.sourcesPanelView.close();
+      this.getSourcesPanelView()?.close();
     }
     this.render();
   }
@@ -93,7 +84,7 @@ implements EditorModeToolbarContribution {
   }
 
   dispose() {
-    this.sourcesPanelView.dispose();
+    this.getSourcesPanelView()?.setOnDidChangeOpenState(undefined);
     this.addressInput.inputElement.removeEventListener('keydown', this.handleAddressInputKeyDown);
     this.addressInput.inputElement.removeEventListener('blur', this.handleAddressInputBlur);
     this.addressInput.dispose();
@@ -103,7 +94,7 @@ implements EditorModeToolbarContribution {
   }
 
   private render() {
-    this.sourcesPanelView.setContext(this.createSourcesPanelContext());
+    this.bindSourcesPanelView();
     this.updateLeadingActions();
     this.trailingActionsView.setProps({
       className: 'editor-browser-toolbar-actions',
@@ -119,12 +110,33 @@ implements EditorModeToolbarContribution {
     this.addressInput.setPlaceHolder(this.context.labels.toolbarAddressPlaceholder);
   }
 
+  private bindSourcesPanelView() {
+    const panel = this.getSourcesPanelView();
+    if (!panel) {
+      return;
+    }
+
+    panel.setOnDidChangeOpenState(this.handleSourcesPanelOpenStateChange);
+    panel.setContext(this.createSourcesPanelContext());
+  }
+
   private updateLeadingActions() {
     this.leadingActionsView.setProps({
       className: 'editor-browser-toolbar-actions',
       ariaRole: 'group',
       items: this.createLeadingItems(),
     });
+  }
+
+  private getSourcesPanelView() {
+    return this.context.browserSourcesPanel;
+  }
+
+  private getSourcesButtonAttributes() {
+    return this.getSourcesPanelView()?.getToggleButtonAttributes() ?? {
+      'aria-haspopup': 'dialog',
+      'aria-expanded': 'false',
+    };
   }
 
   private createSourcesPanelContext() {
@@ -177,11 +189,22 @@ implements EditorModeToolbarContribution {
   }
 
   private readonly handleSourceButtonClick = () => {
-    this.sourcesPanelView.toggleOpen();
+    const panel = this.getSourcesPanelView();
+    if (!panel) {
+      return;
+    }
+
+    panel.toggleOpen();
+    this.updateLeadingActions();
   };
 
   private readonly handleFavoriteButtonClick = () => {
-    const changed = this.sourcesPanelView.toggleCurrentBrowserUrlFavorite();
+    const panel = this.getSourcesPanelView();
+    if (!panel) {
+      return;
+    }
+
+    const changed = panel.toggleCurrentBrowserUrlFavorite();
     if (!changed) {
       return;
     }
@@ -190,7 +213,8 @@ implements EditorModeToolbarContribution {
   };
 
   private createLeadingItems(): ActionBarItem[] {
-    const isCurrentUrlFavorited = this.sourcesPanelView.isCurrentBrowserUrlFavorited();
+    const panel = this.getSourcesPanelView();
+    const isCurrentUrlFavorited = panel?.isCurrentBrowserUrlFavorited() ?? false;
 
     return [
       {
@@ -199,8 +223,8 @@ implements EditorModeToolbarContribution {
         mode: 'icon',
         buttonClassName: 'editor-browser-toolbar-btn',
         content: createLxIcon('list-unordered'),
-        active: this.sourcesPanelView.getIsOpen(),
-        buttonAttributes: this.sourcesPanelView.getToggleButtonAttributes(),
+        active: panel?.getIsOpen() ?? false,
+        buttonAttributes: this.getSourcesButtonAttributes(),
         onClick: this.handleSourceButtonClick,
       },
       {
@@ -236,7 +260,7 @@ implements EditorModeToolbarContribution {
         mode: 'icon',
         buttonClassName: 'editor-browser-toolbar-btn',
         content: createLxIcon('favorite'),
-        disabled: !this.sourcesPanelView.canToggleCurrentBrowserUrlFavorite(),
+        disabled: !(panel?.canToggleCurrentBrowserUrlFavorite() ?? false),
         checked: isCurrentUrlFavorited,
         active: isCurrentUrlFavorited,
         onClick: this.handleFavoriteButtonClick,
@@ -270,7 +294,7 @@ implements EditorModeToolbarContribution {
           {
             label: this.context.labels.toolbarClearBrowsingHistory,
             onClick: () => {
-              this.sourcesPanelView.clearRecentSources();
+              this.getSourcesPanelView()?.clearRecentSources();
               this.context.onClearBrowsingHistory();
             },
             disabled: !this.context.browserUrl,
