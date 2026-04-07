@@ -244,23 +244,108 @@ function ensureCurrentSelectOption(
   ];
 }
 
+function toHexChannel(value: number) {
+  const clamped = Math.min(255, Math.max(0, Math.round(value)));
+  return clamped.toString(16).padStart(2, '0');
+}
+
+function parseRgbChannel(value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.endsWith('%')) {
+    const numericPercent = Number.parseFloat(normalized.slice(0, -1));
+    if (!Number.isFinite(numericPercent)) {
+      return null;
+    }
+    return (numericPercent / 100) * 255;
+  }
+
+  const numericValue = Number.parseFloat(normalized);
+  if (!Number.isFinite(numericValue)) {
+    return null;
+  }
+
+  return numericValue;
+}
+
+function rgbFunctionToHex(value: string) {
+  const trimmedValue = value.trim();
+  const match = trimmedValue.match(/^rgba?\((.*)\)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const content = match[1].trim();
+  const slashIndex = content.indexOf('/');
+  const channelsPart = slashIndex >= 0 ? content.slice(0, slashIndex) : content;
+  const channelTokens = channelsPart.includes(',')
+    ? channelsPart.split(',').map((token) => token.trim()).filter(Boolean)
+    : channelsPart.split(/\s+/).filter(Boolean);
+  if (channelTokens.length < 3) {
+    return null;
+  }
+
+  const red = parseRgbChannel(channelTokens[0]);
+  const green = parseRgbChannel(channelTokens[1]);
+  const blue = parseRgbChannel(channelTokens[2]);
+  if (red === null || green === null || blue === null) {
+    return null;
+  }
+
+  return `#${toHexChannel(red)}${toHexChannel(green)}${toHexChannel(blue)}`;
+}
+
+function normalizeHexColor(value: string) {
+  const normalizedValue = value.trim();
+  if (/^#(?:[0-9a-fA-F]{6})$/.test(normalizedValue)) {
+    return normalizedValue.toLowerCase();
+  }
+
+  const shortHexMatch = normalizedValue.match(/^#([0-9a-fA-F]{3})$/);
+  if (!shortHexMatch) {
+    return null;
+  }
+
+  const [, shortHex] = shortHexMatch;
+  const expandedHex = shortHex
+    .split('')
+    .map((channel) => `${channel}${channel}`)
+    .join('');
+  return `#${expandedHex}`.toLowerCase();
+}
+
+function resolveColorToHex(colorValue: string) {
+  const normalizedHexColor = normalizeHexColor(colorValue);
+  if (normalizedHexColor) {
+    return normalizedHexColor;
+  }
+
+  const normalizedRgbColor = rgbFunctionToHex(colorValue);
+  if (normalizedRgbColor) {
+    return normalizedRgbColor;
+  }
+
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const probe = document.createElement('span');
+  probe.style.color = '';
+  probe.style.color = colorValue.trim();
+  if (!probe.style.color) {
+    return null;
+  }
+
+  return normalizeHexColor(probe.style.color) ?? rgbFunctionToHex(probe.style.color);
+}
+
 function toColorPickerValue(colorValue: string) {
-  const normalizedColorValue = colorValue.trim();
-  if (/^#(?:[0-9a-fA-F]{6})$/.test(normalizedColorValue)) {
-    return normalizedColorValue;
-  }
-
-  const shortHexMatch = normalizedColorValue.match(/^#([0-9a-fA-F]{3})$/);
-  if (shortHexMatch) {
-    const [, shortHex] = shortHexMatch;
-    const expandedHex = shortHex
-      .split('')
-      .map((channel) => `${channel}${channel}`)
-      .join('');
-    return `#${expandedHex}`;
-  }
-
-  return DEFAULT_EDITOR_DRAFT_BODY_COLOR;
+  return resolveColorToHex(colorValue)
+    ?? resolveColorToHex(DEFAULT_EDITOR_DRAFT_BODY_COLOR)
+    ?? '#000000';
 }
 
 export class SettingsPartView {

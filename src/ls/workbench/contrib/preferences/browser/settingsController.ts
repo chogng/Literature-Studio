@@ -194,10 +194,29 @@ export class SettingsController {
   };
 
   readonly setEditorDraftLineHeight = (nextLineHeight: number) => {
+    if (!Number.isFinite(nextLineHeight)) {
+      return;
+    }
+
+    const clampedLineHeight = Math.min(4, Math.max(0.5, nextLineHeight));
     this.updateEditorDraftDefaultBodyStyle((defaultBodyStyle) => ({
       ...defaultBodyStyle,
-      lineHeight: nextLineHeight,
+      lineHeight: clampedLineHeight,
     }));
+  };
+
+  readonly setEditorDraftLineHeightFromInput = (value: string) => {
+    const normalizedLineHeightValue = value.trim();
+    if (!normalizedLineHeightValue || normalizedLineHeightValue === '.') {
+      return;
+    }
+
+    const parsedLineHeight = Number.parseFloat(normalizedLineHeightValue);
+    if (!Number.isFinite(parsedLineHeight)) {
+      return;
+    }
+
+    this.setEditorDraftLineHeight(parsedLineHeight);
   };
 
   readonly setEditorDraftColor = (nextColor: string) => {
@@ -208,8 +227,21 @@ export class SettingsController {
   };
 
   readonly handleResetEditorDraftStyle = () => {
+    const defaultBodyStyle = createDefaultEditorDraftStyleSettings().defaultBodyStyle;
+    const currentInlineDefaults =
+      editorDraftStyleService.getSnapshot().defaultBodyStyle.inlineStyleDefaults;
     editorDraftStyleService.setDefaultBodyStyle(
-      createDefaultEditorDraftStyleSettings().defaultBodyStyle,
+      {
+        fontFamilyValue: defaultBodyStyle.fontFamilyValue,
+        fontSizeValue: defaultBodyStyle.fontSizeValue,
+        lineHeight: defaultBodyStyle.lineHeight,
+        color: defaultBodyStyle.color,
+        inlineStyleDefaults: {
+          bold: currentInlineDefaults.bold,
+          italic: currentInlineDefaults.italic,
+          underline: currentInlineDefaults.underline,
+        },
+      },
     );
   };
 

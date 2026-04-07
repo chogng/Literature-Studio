@@ -121,8 +121,17 @@ test('SettingsController syncs editorDraftStyleService through load and autosave
 
 test('SettingsController editorDraft style handlers update service snapshot and persist changes', async () => {
   editorDraftStyleService.resetToCatalog();
+  const snapshotBeforeCustomize = editorDraftStyleService.getSnapshot();
   editorDraftStyleService.setSnapshot({
-    ...editorDraftStyleService.getSnapshot(),
+    ...snapshotBeforeCustomize,
+    defaultBodyStyle: {
+      ...snapshotBeforeCustomize.defaultBodyStyle,
+      inlineStyleDefaults: {
+        bold: true,
+        italic: true,
+        underline: true,
+      },
+    },
     fontFamilyPresets: [
       {
         value: '"Custom Sans", sans-serif',
@@ -180,6 +189,7 @@ test('SettingsController editorDraft style handlers update service snapshot and 
     controller.setEditorDraftFontSize('16px');
     controller.setEditorDraftLineHeight(1.6);
     controller.setEditorDraftColor('#112233');
+    controller.setEditorDraftLineHeightFromInput('1.');
 
     assert.equal(
       editorDraftStyleService.getSnapshot().defaultBodyStyle.fontFamilyValue,
@@ -191,12 +201,14 @@ test('SettingsController editorDraft style handlers update service snapshot and 
     );
     assert.equal(
       editorDraftStyleService.getSnapshot().defaultBodyStyle.lineHeight,
-      1.6,
+      1,
     );
     assert.equal(
       editorDraftStyleService.getSnapshot().defaultBodyStyle.color,
       '#112233',
     );
+    controller.setEditorDraftLineHeightFromInput('.');
+    assert.equal(editorDraftStyleService.getSnapshot().defaultBodyStyle.lineHeight, 1);
 
     controller.handleResetEditorDraftStyle();
 
@@ -216,6 +228,14 @@ test('SettingsController editorDraft style handlers update service snapshot and 
     assert.equal(
       editorDraftStyleService.getSnapshot().defaultBodyStyle.color,
       resetDefaults.color,
+    );
+    assert.deepEqual(
+      editorDraftStyleService.getSnapshot().defaultBodyStyle.inlineStyleDefaults,
+      {
+        bold: true,
+        italic: true,
+        underline: true,
+      },
     );
     assert.deepEqual(
       editorDraftStyleService.getSnapshot().fontFamilyPresets,

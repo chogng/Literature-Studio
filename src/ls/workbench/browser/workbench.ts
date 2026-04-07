@@ -1814,20 +1814,8 @@ class WorkbenchHost {
           settingsControllerInstance.setEditorDraftFontFamily,
         onEditorDraftFontSizeChange:
           settingsControllerInstance.setEditorDraftFontSize,
-        onEditorDraftLineHeightChange: (value) => {
-          const normalizedLineHeightValue = value.trim();
-          if (!/^\d+(?:\.\d+)?$/.test(normalizedLineHeightValue)) {
-            return;
-          }
-
-          const parsedLineHeight = Number.parseFloat(normalizedLineHeightValue);
-          if (!Number.isFinite(parsedLineHeight) || parsedLineHeight <= 0) {
-            return;
-          }
-          settingsControllerInstance.setEditorDraftLineHeight(
-            Math.min(4, Math.max(0.5, parsedLineHeight)),
-          );
-        },
+        onEditorDraftLineHeightChange:
+          settingsControllerInstance.setEditorDraftLineHeightFromInput,
         onEditorDraftColorChange: settingsControllerInstance.setEditorDraftColor,
         onResetEditorDraftStyle:
           settingsControllerInstance.handleResetEditorDraftStyle,
