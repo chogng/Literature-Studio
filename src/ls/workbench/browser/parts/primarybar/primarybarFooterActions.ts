@@ -82,6 +82,7 @@ export class PrimaryBarFooterActionsView {
             {
               id: 'primarybar-footer-more-layout',
               label: MORE_LAYOUT_LABEL,
+              icon: 'layout',
               submenu: [
                 {
                   id: 'primarybar-footer-more-layout-agent',

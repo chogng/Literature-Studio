@@ -260,6 +260,7 @@ test('primary bar footer more action opens a layout submenu placeholder', async 
       (node) => node.textContent?.includes('Layout'),
     );
     assert(layoutItem instanceof HTMLElement);
+    assert(layoutItem.querySelector('.dropdown-option-icon.lx-icon-layout') instanceof HTMLElement);
     layoutItem.click();
     await delay(0);
     const submenu = document.body.querySelector(

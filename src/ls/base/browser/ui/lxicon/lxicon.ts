@@ -82,6 +82,7 @@ import layoutSidebarLeftSvg from 'ls/base/browser/ui/lxicon/svg/layout-sidebar-l
 import layoutSidebarLeftOffSvg from 'ls/base/browser/ui/lxicon/svg/layout-sidebar-left-off.svg?raw';
 import layoutPanelSvg from 'ls/base/browser/ui/lxicon/svg/layout-panel.svg?raw';
 import layoutPanelOffSvg from 'ls/base/browser/ui/lxicon/svg/layout-panel-off.svg?raw';
+import layoutSvg from 'ls/base/browser/ui/lxicon/svg/layout.svg?raw';
 import latticeDarkSvg from 'ls/base/browser/ui/lxicon/svg/lattice-dark.svg?raw';
 import keyboardTabSvg from 'ls/base/browser/ui/lxicon/svg/keyboard-tab.svg?raw';
 import jsSvg from 'ls/base/browser/ui/lxicon/svg/js.svg?raw';
@@ -269,6 +270,7 @@ export type LxIconName =
   | 'layout-sidebar-left-off'
   | 'layout-panel'
   | 'layout-panel-off'
+  | 'layout'
   | 'lattice-dark'
   | 'keyboard-tab'
   | 'js'
@@ -456,6 +458,7 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'layout-sidebar-left-off': layoutSidebarLeftOffSvg,
   'layout-panel': layoutPanelSvg,
   'layout-panel-off': layoutPanelOffSvg,
+  'layout': layoutSvg,
   'lattice-dark': latticeDarkSvg,
   'keyboard-tab': keyboardTabSvg,
   'js': jsSvg,
