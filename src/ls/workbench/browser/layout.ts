@@ -12,17 +12,18 @@ import {
 } from 'ls/base/common/lifecycle';
 import type { WorkbenchPage } from 'ls/workbench/browser/workbench';
 import {
-  getWorkbenchContentSplitConstraints,
-  type SplitViewConstraints,
-} from 'ls/workbench/browser/workbenchContentLayoutSizing';
+  getLayoutLimits,
+  type LayoutAxisLimits,
+} from 'ls/workbench/browser/layoutLimits';
 import type {
-  WorkbenchContentLayoutLeafId,
-  WorkbenchContentLayoutNode,
-} from 'ls/workbench/browser/workbenchContentLayoutTree';
+  LayoutLeafId,
+  LayoutNode,
+} from 'ls/workbench/browser/layoutModel';
 import {
-  reconcileWorkbenchContentLayoutTree,
+  reconcileLayoutTree,
+  resolveFlexState,
   updateLeaf,
-} from 'ls/workbench/browser/workbenchContentLayoutTree';
+} from 'ls/workbench/browser/layoutModel';
 
 export type WorkbenchLayoutStateSnapshot = {
   isPrimarySidebarVisible: boolean;
@@ -180,6 +181,19 @@ function clampExpandedEditorSize(size: number) {
   );
 }
 
+function normalizeEditorCollapseState(
+  state: WorkbenchLayoutStateSnapshot,
+) {
+  if (!state.isAgentSidebarVisible && state.isEditorCollapsed) {
+    return {
+      ...state,
+      isEditorCollapsed: false,
+    };
+  }
+
+  return state;
+}
+
 function reduceWorkbenchLayoutState(
   state: WorkbenchLayoutStateSnapshot,
   event: WorkbenchLayoutEvent,
@@ -233,17 +247,18 @@ function reduceWorkbenchLayoutState(
     }
     case 'SET_AGENT_SIDEBAR_VISIBLE':
       if (state.isAgentSidebarVisible === event.visible) {
-        return state;
+        return normalizeEditorCollapseState(state);
       }
-      return {
+      return normalizeEditorCollapseState({
         ...state,
         isAgentSidebarVisible: event.visible,
-      };
-    case 'TOGGLE_AGENT_SIDEBAR_VISIBILITY':
-      return {
+      });
+    case 'TOGGLE_AGENT_SIDEBAR_VISIBILITY': {
+      return normalizeEditorCollapseState({
         ...state,
         isAgentSidebarVisible: !state.isAgentSidebarVisible,
-      };
+      });
+    }
     case 'SET_AGENT_SIDEBAR_SIZE': {
       const nextSize = clampSidebarSize('agentSidebar', event.size);
       if (state.agentSidebarSize === nextSize) {
@@ -267,11 +282,20 @@ function reduceWorkbenchLayoutState(
         return state;
       }
 
-      return {
+      const nextState = normalizeEditorCollapseState({
         ...state,
         isEditorCollapsed: event.collapsed,
         expandedEditorSize: nextExpandedEditorSize,
-      };
+      });
+
+      if (
+        state.isEditorCollapsed === nextState.isEditorCollapsed &&
+        state.expandedEditorSize === nextState.expandedEditorSize
+      ) {
+        return state;
+      }
+
+      return nextState;
     }
     default:
       return state;
@@ -498,7 +522,7 @@ export class WorkbenchLayoutSlotView implements IGridView {
 
   setConstraints(
     orientation: Orientation,
-    constraints: SplitViewConstraints,
+    constraints: LayoutAxisLimits,
   ) {
     if (orientation === Orientation.VERTICAL) {
       this.minimumWidthValue = constraints.minimum;
@@ -524,14 +548,14 @@ export class WorkbenchLayoutSlotView implements IGridView {
 }
 
 export class WorkbenchContentLayoutController {
-  private layoutTree: WorkbenchContentLayoutNode | null = null;
+  private layoutTree: LayoutNode | null = null;
   private gridView: GridView | null = null;
   private rootGrid: GridBranchView | null = null;
   private gridOrientation: Orientation | null = null;
   private gridPrimarySidebarVisibleState: boolean | null = null;
   private gridEditorCollapsedState: boolean | null = null;
   private gridFlexStateKey: string | null = null;
-  private splitConstraints = getWorkbenchContentSplitConstraints(Orientation.VERTICAL);
+  private splitConstraints = getLayoutLimits(Orientation.VERTICAL);
   private disposed = false;
   private readonly gridDisposables = new LifecycleStore();
   private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
@@ -597,10 +621,21 @@ export class WorkbenchContentLayoutController {
     return this.gridView?.getViewSize([EDITOR_INDEX]) ?? null;
   }
 
+  private computeFlexState(
+    state: Pick<
+      WorkbenchContentLayoutControllerState,
+      'isAgentSidebarVisible' | 'isEditorCollapsed'
+    >,
+  ) {
+    return resolveFlexState({
+      isAgentSidebarVisible: state.isAgentSidebarVisible,
+      isEditorVisible: !state.isEditorCollapsed,
+    });
+  }
+
   private resolveGridFlexStateKey(state: WorkbenchContentLayoutControllerState) {
-    const agentSidebarFlex = state.isAgentSidebarVisible;
-    const editorFlex = !state.isEditorCollapsed && !state.isAgentSidebarVisible;
-    return `${agentSidebarFlex ? 1 : 0}:${editorFlex ? 1 : 0}`;
+    const flexState = this.computeFlexState(state);
+    return `${flexState.agentSidebarFlex ? 1 : 0}:${flexState.editorFlex ? 1 : 0}`;
   }
 
   private ensureGridView(
@@ -755,7 +790,7 @@ export class WorkbenchContentLayoutController {
   }
 
   private syncSplitSlotConstraints(orientation: Orientation) {
-    this.splitConstraints = getWorkbenchContentSplitConstraints(orientation);
+    this.splitConstraints = getLayoutLimits(orientation);
 
     this.options.primarySidebarSlot.setConstraints(
       orientation,
@@ -795,7 +830,7 @@ export class WorkbenchContentLayoutController {
     };
   }
 
-  private buildBranchFromTree(node: WorkbenchContentLayoutNode): GridBranchView {
+  private buildBranchFromTree(node: LayoutNode): GridBranchView {
     if (node.type !== 'branch') {
       throw new Error('Root workbench content layout node must be a branch.');
     }
@@ -816,7 +851,7 @@ export class WorkbenchContentLayoutController {
     );
   }
 
-  private getSlotView(id: WorkbenchContentLayoutLeafId) {
+  private getSlotView(id: LayoutLeafId) {
     switch (id) {
       case 'primarySidebar':
         return this.options.primarySidebarSlot;
@@ -827,7 +862,7 @@ export class WorkbenchContentLayoutController {
     }
   }
 
-  private isNodeVisible(node: WorkbenchContentLayoutNode): boolean {
+  private isNodeVisible(node: LayoutNode): boolean {
     return node.type === 'leaf'
       ? node.visible
       : node.children.some((child) => this.isNodeVisible(child));
@@ -838,7 +873,7 @@ export class WorkbenchContentLayoutController {
     orientation: Orientation,
     cachedSizes: SplitViewSizeSnapshot,
   ) {
-    let nextTree = reconcileWorkbenchContentLayoutTree(this.layoutTree, {
+    let nextTree = reconcileLayoutTree(this.layoutTree, {
       orientation,
       isPrimarySidebarVisible: state.isPrimarySidebarVisible,
       isEditorVisible: !state.isEditorCollapsed,
@@ -862,6 +897,7 @@ export class WorkbenchContentLayoutController {
       return;
     }
 
+    const flexState = this.computeFlexState(state);
     let nextTree = updateLeaf(this.layoutTree, 'primarySidebar', {
       size: this.gridView.getViewSize([PRIMARY_SIDEBAR_INDEX]),
       visible: state.isPrimarySidebarVisible,
@@ -871,12 +907,12 @@ export class WorkbenchContentLayoutController {
         ? state.expandedEditorSize
         : this.gridView.getViewSize([EDITOR_INDEX]),
       visible: !state.isEditorCollapsed,
-      flex: !state.isEditorCollapsed && !state.isAgentSidebarVisible,
+      flex: flexState.editorFlex,
     });
     nextTree = updateLeaf(nextTree, 'agentSidebar', {
       size: this.gridView.getViewSize([AGENT_SIDEBAR_INDEX]),
       visible: state.isAgentSidebarVisible,
-      flex: state.isAgentSidebarVisible,
+      flex: flexState.agentSidebarFlex,
     });
 
     this.layoutTree = this.updateTreeBranchSizes(state, nextTree, {
@@ -888,7 +924,7 @@ export class WorkbenchContentLayoutController {
 
   private updateTreeBranchSizes(
     state: WorkbenchContentLayoutControllerState,
-    tree: WorkbenchContentLayoutNode,
+    tree: LayoutNode,
     sizes: SplitViewSizeSnapshot,
   ) {
     if (tree.type !== 'branch') {

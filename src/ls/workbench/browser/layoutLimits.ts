@@ -1,15 +1,15 @@
 import { Orientation } from 'ls/base/browser/ui/splitview/splitview';
 import { WORKBENCH_SPLITVIEW_LIMITS } from 'ls/workbench/browser/layout';
 
-export type SplitViewConstraints = {
+export type LayoutAxisLimits = {
   minimum: number;
   maximum: number;
 };
 
-export type WorkbenchContentSplitConstraints = {
-  primarySidebar: SplitViewConstraints;
-  editor: SplitViewConstraints;
-  agentSidebar: SplitViewConstraints;
+export type LayoutLimits = {
+  primarySidebar: LayoutAxisLimits;
+  editor: LayoutAxisLimits;
+  agentSidebar: LayoutAxisLimits;
 };
 
 const MOBILE_SPLITVIEW_LIMITS = {
@@ -27,9 +27,9 @@ const MOBILE_SPLITVIEW_LIMITS = {
   },
 } as const;
 
-export function getWorkbenchContentSplitConstraints(
+export function getLayoutLimits(
   orientation: Orientation,
-): WorkbenchContentSplitConstraints {
+): LayoutLimits {
   const desktop = WORKBENCH_SPLITVIEW_LIMITS;
   const isHorizontal = orientation === Orientation.HORIZONTAL;
 

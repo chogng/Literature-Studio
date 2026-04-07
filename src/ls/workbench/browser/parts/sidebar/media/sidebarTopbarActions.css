@@ -32,6 +32,7 @@
 }
 
 .sidebar-topbar-toggle-btn.actionbar-action,
+.sidebar-topbar-agent-btn.actionbar-action,
 .sidebar-topbar-search-btn.actionbar-action,
 .editor-topbar-add-btn.actionbar-action,
 .editor-topbar-toggle-editor-btn.actionbar-action {
@@ -52,6 +53,7 @@
 }
 
 .sidebar-topbar-toggle-btn.actionbar-action .lx-icon,
+.sidebar-topbar-agent-btn.actionbar-action .lx-icon,
 .sidebar-topbar-search-btn.actionbar-action .lx-icon,
 .editor-topbar-add-btn.actionbar-action .lx-icon,
 .editor-topbar-toggle-editor-btn.actionbar-action .lx-icon {

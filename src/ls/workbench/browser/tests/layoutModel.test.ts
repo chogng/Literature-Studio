@@ -3,21 +3,21 @@ import test from 'node:test';
 
 import { Orientation } from 'ls/base/browser/ui/grid/gridview';
 import {
-  cloneWorkbenchContentLayoutTree,
-  createWorkbenchContentLayoutTree,
+  cloneLayoutTree,
+  createLayoutTree,
   findLeafPath,
   getNodeAtPath,
   insertLeaf,
-  reconcileWorkbenchContentLayoutTree,
+  reconcileLayoutTree,
   removeLeaf,
-  serializeWorkbenchContentLayoutTree,
+  serializeLayoutTree,
   splitLeaf,
   updateNodeAtPath,
   updateLeaf,
-} from 'ls/workbench/browser/workbenchContentLayoutTree';
+} from 'ls/workbench/browser/layoutModel';
 
 function createDefaultTree() {
-  return createWorkbenchContentLayoutTree({
+  return createLayoutTree({
     orientation: Orientation.VERTICAL,
     isPrimarySidebarVisible: true,
     isEditorVisible: true,
@@ -28,7 +28,7 @@ function createDefaultTree() {
   });
 }
 
-test('workbench content layout tree creates the current shell topology', () => {
+test('layout model creates the current shell topology', () => {
   const tree = createDefaultTree();
 
   assert.equal(tree.type, 'branch');
@@ -43,10 +43,10 @@ test('workbench content layout tree creates the current shell topology', () => {
   assert.deepEqual(findLeafPath(tree, 'editor'), [2]);
 });
 
-test('workbench content layout tree clone and serialize do not mutate the source tree', () => {
+test('layout model clone and serialize do not mutate the source tree', () => {
   const tree = createDefaultTree();
-  const clonedTree = cloneWorkbenchContentLayoutTree(tree);
-  const serializedTree = serializeWorkbenchContentLayoutTree(tree);
+  const clonedTree = cloneLayoutTree(tree);
+  const serializedTree = serializeLayoutTree(tree);
 
   assert.deepEqual(clonedTree, tree);
   assert.deepEqual(serializedTree, tree);
@@ -65,7 +65,7 @@ test('workbench content layout tree clone and serialize do not mutate the source
   assert.equal(tree.children[0].visible, true);
 });
 
-test('workbench content layout tree can split a leaf into a new branch', () => {
+test('layout model can split a leaf into a new branch', () => {
   const tree = removeLeaf(createDefaultTree(), 'agentSidebar');
   assert(tree);
 
@@ -98,9 +98,9 @@ test('workbench content layout tree can split a leaf into a new branch', () => {
   assert.deepEqual(findLeafPath(splitTree, 'editor'), [1, 1]);
 });
 
-test('workbench content layout tree removes leaves and collapses redundant branches', () => {
+test('layout model removes leaves and collapses redundant branches', () => {
   const treeWithoutPrimary = removeLeaf(
-    createWorkbenchContentLayoutTree({
+    createLayoutTree({
       orientation: Orientation.VERTICAL,
       isPrimarySidebarVisible: false,
       isEditorVisible: true,
@@ -119,7 +119,7 @@ test('workbench content layout tree removes leaves and collapses redundant branc
   assert.equal(onlyEditor.id, 'editor');
 });
 
-test('workbench content layout tree updates leaf data immutably', () => {
+test('layout model updates leaf data immutably', () => {
   const tree = createDefaultTree();
   assert.equal(tree.type, 'branch');
   const updatedTree = updateLeaf(tree, 'agentSidebar', {
@@ -144,7 +144,7 @@ test('workbench content layout tree updates leaf data immutably', () => {
   assert.equal(originalAuxiliary.flex, true);
 });
 
-test('workbench content layout tree can read and update the root branch by path', () => {
+test('layout model can read and update the root branch by path', () => {
   const tree = createDefaultTree();
   const rootBranch = getNodeAtPath(tree, []);
 
@@ -171,7 +171,7 @@ test('workbench content layout tree can read and update the root branch by path'
   assert.equal(originalRootBranch.size, 1220);
 });
 
-test('workbench content layout tree can insert a sibling leaf next to editor without wrapping a new branch', () => {
+test('layout model can insert a sibling leaf next to editor without wrapping a new branch', () => {
   const tree = removeLeaf(createDefaultTree(), 'agentSidebar');
   assert(tree);
 
@@ -192,9 +192,9 @@ test('workbench content layout tree can insert a sibling leaf next to editor wit
   assert.deepEqual(findLeafPath(nextTree, 'agentSidebar'), [2]);
 });
 
-test('workbench content layout tree reconcile keeps three top-level panes and updates visibility', () => {
+test('layout model reconcile keeps three top-level panes and updates visibility', () => {
   const baseTree = createDefaultTree();
-  const hiddenTree = reconcileWorkbenchContentLayoutTree(baseTree, {
+  const hiddenTree = reconcileLayoutTree(baseTree, {
     orientation: Orientation.VERTICAL,
     isPrimarySidebarVisible: true,
     isEditorVisible: true,
@@ -215,7 +215,7 @@ test('workbench content layout tree reconcile keeps three top-level panes and up
   assert.equal(hiddenTree.children[0].visible, true);
   assert.equal(hiddenTree.children[1].visible, false);
 
-  const restoredTree = reconcileWorkbenchContentLayoutTree(hiddenTree, {
+  const restoredTree = reconcileLayoutTree(hiddenTree, {
     orientation: Orientation.HORIZONTAL,
     isPrimarySidebarVisible: true,
     isEditorVisible: true,

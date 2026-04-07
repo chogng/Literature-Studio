@@ -92,12 +92,18 @@ export function getSettingsNavigationItems(labels: SettingsPartLabels): Settings
       label: labels.settingsNavigationBack.trim(),
       icon: 'arrow-left',
     },
-    ...settingsPageLayout.map((page) => ({
-      id: page.id,
-      label: page.label(labels).trim(),
-      icon: page.icon,
-    })),
+    ...getSettingsPageNavigationItems(labels),
   ];
+}
+
+export function getSettingsPageNavigationItems(
+  labels: SettingsPartLabels,
+): Array<SettingsNavigationItem & { id: SettingsPageId }> {
+  return settingsPageLayout.map((page) => ({
+    id: page.id,
+    label: page.label(labels).trim(),
+    icon: page.icon,
+  }));
 }
 
 export function getSettingsPageSectionIds(pageId: SettingsPageId): SettingsSectionId[] {

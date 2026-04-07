@@ -1,30 +1,30 @@
 import { Orientation } from 'ls/base/browser/ui/grid/gridview';
 
-export type WorkbenchContentLayoutLeafId =
+export type LayoutLeafId =
   | 'primarySidebar'
   | 'editor'
   | 'agentSidebar';
 
-export type WorkbenchContentLayoutLeafNode = {
+export type LayoutLeafNode = {
   type: 'leaf';
-  id: WorkbenchContentLayoutLeafId;
+  id: LayoutLeafId;
   size: number;
   visible: boolean;
   flex?: boolean;
 };
 
-export type WorkbenchContentLayoutBranchNode = {
+export type LayoutBranchNode = {
   type: 'branch';
   orientation: Orientation;
   size: number;
-  children: WorkbenchContentLayoutNode[];
+  children: LayoutNode[];
 };
 
-export type WorkbenchContentLayoutNode =
-  | WorkbenchContentLayoutBranchNode
-  | WorkbenchContentLayoutLeafNode;
+export type LayoutNode =
+  | LayoutBranchNode
+  | LayoutLeafNode;
 
-export type WorkbenchContentLayoutTreeParams = {
+export type LayoutTreeParams = {
   orientation: Orientation;
   isPrimarySidebarVisible: boolean;
   isEditorVisible: boolean;
@@ -34,16 +34,21 @@ export type WorkbenchContentLayoutTreeParams = {
   editorSize: number;
 };
 
+export type LayoutFlexState = {
+  agentSidebarFlex: boolean;
+  editorFlex: boolean;
+};
+
 export type SplitLeafParams = {
-  targetId: WorkbenchContentLayoutLeafId;
+  targetId: LayoutLeafId;
   orientation: Orientation;
-  newLeaf: WorkbenchContentLayoutLeafNode;
+  newLeaf: LayoutLeafNode;
   side?: 'before' | 'after';
   targetSize?: number;
   newSize?: number;
 };
 
-function cloneNode(node: WorkbenchContentLayoutNode): WorkbenchContentLayoutNode {
+function cloneNode(node: LayoutNode): LayoutNode {
   if (node.type === 'leaf') {
     return { ...node };
   }
@@ -57,9 +62,9 @@ function cloneNode(node: WorkbenchContentLayoutNode): WorkbenchContentLayoutNode
 }
 
 function mapNode(
-  node: WorkbenchContentLayoutNode,
-  visit: (node: WorkbenchContentLayoutNode) => WorkbenchContentLayoutNode | null,
-): WorkbenchContentLayoutNode | null {
+  node: LayoutNode,
+  visit: (node: LayoutNode) => LayoutNode | null,
+): LayoutNode | null {
   const nextNode =
     node.type === 'branch'
       ? {
@@ -68,7 +73,7 @@ function mapNode(
           size: node.size,
           children: node.children
             .map((child) => mapNode(child, visit))
-            .filter((child): child is WorkbenchContentLayoutNode => Boolean(child)),
+            .filter((child): child is LayoutNode => Boolean(child)),
         }
       : { ...node };
 
@@ -76,8 +81,8 @@ function mapNode(
 }
 
 function normalizeNode(
-  node: WorkbenchContentLayoutNode | null,
-): WorkbenchContentLayoutNode | null {
+  node: LayoutNode | null,
+): LayoutNode | null {
   if (!node) {
     return null;
   }
@@ -88,7 +93,7 @@ function normalizeNode(
 
   const children = node.children
     .map((child) => normalizeNode(child))
-    .filter((child): child is WorkbenchContentLayoutNode => Boolean(child));
+    .filter((child): child is LayoutNode => Boolean(child));
   if (children.length === 0) {
     return null;
   }
@@ -107,15 +112,15 @@ function normalizeNode(
   };
 }
 
-export function cloneWorkbenchContentLayoutTree(tree: WorkbenchContentLayoutNode) {
+export function cloneLayoutTree(tree: LayoutNode) {
   return cloneNode(tree);
 }
 
-export function serializeWorkbenchContentLayoutTree(tree: WorkbenchContentLayoutNode) {
-  return JSON.parse(JSON.stringify(tree)) as WorkbenchContentLayoutNode;
+export function serializeLayoutTree(tree: LayoutNode) {
+  return JSON.parse(JSON.stringify(tree)) as LayoutNode;
 }
 
-function getRootSize(params: WorkbenchContentLayoutTreeParams) {
+function getRootSize(params: LayoutTreeParams) {
   return (
     (params.isPrimarySidebarVisible ? params.primarySidebarSize : 0) +
     (params.isEditorVisible ? params.editorSize : 0) +
@@ -123,7 +128,19 @@ function getRootSize(params: WorkbenchContentLayoutTreeParams) {
   );
 }
 
-export function createWorkbenchContentLayoutTree({
+export function resolveFlexState(params: {
+  isAgentSidebarVisible: boolean;
+  isEditorVisible: boolean;
+}): LayoutFlexState {
+  const agentSidebarFlex = params.isAgentSidebarVisible;
+  const editorFlex = params.isEditorVisible && !params.isAgentSidebarVisible;
+  return {
+    agentSidebarFlex,
+    editorFlex,
+  };
+}
+
+export function createLayoutTree({
   orientation,
   isPrimarySidebarVisible,
   isEditorVisible,
@@ -131,7 +148,12 @@ export function createWorkbenchContentLayoutTree({
   primarySidebarSize,
   agentSidebarSize,
   editorSize,
-}: WorkbenchContentLayoutTreeParams): WorkbenchContentLayoutNode {
+}: LayoutTreeParams): LayoutNode {
+  const flexState = resolveFlexState({
+    isAgentSidebarVisible,
+    isEditorVisible,
+  });
+
   return {
     type: 'branch',
     orientation,
@@ -156,22 +178,22 @@ export function createWorkbenchContentLayoutTree({
         id: 'agentSidebar',
         size: agentSidebarSize,
         visible: isAgentSidebarVisible,
-        flex: isAgentSidebarVisible,
+        flex: flexState.agentSidebarFlex,
       },
       {
         type: 'leaf',
         id: 'editor',
         size: editorSize,
         visible: isEditorVisible,
-        flex: isEditorVisible && !isAgentSidebarVisible,
+        flex: flexState.editorFlex,
       },
     ],
   };
 }
 
 export function findLeafPath(
-  tree: WorkbenchContentLayoutNode,
-  targetId: WorkbenchContentLayoutLeafId,
+  tree: LayoutNode,
+  targetId: LayoutLeafId,
 ): number[] | null {
   if (tree.type === 'leaf') {
     return tree.id === targetId ? [] : null;
@@ -188,10 +210,10 @@ export function findLeafPath(
 }
 
 export function getNodeAtPath(
-  tree: WorkbenchContentLayoutNode,
+  tree: LayoutNode,
   path: readonly number[],
-): WorkbenchContentLayoutNode | null {
-  let current: WorkbenchContentLayoutNode = tree;
+): LayoutNode | null {
+  let current: LayoutNode = tree;
 
   for (const index of path) {
     if (current.type !== 'branch') {
@@ -209,10 +231,10 @@ export function getNodeAtPath(
 }
 
 export function updateNodeAtPath(
-  tree: WorkbenchContentLayoutNode,
+  tree: LayoutNode,
   path: readonly number[],
-  updater: (node: WorkbenchContentLayoutNode) => WorkbenchContentLayoutNode,
-): WorkbenchContentLayoutNode {
+  updater: (node: LayoutNode) => LayoutNode,
+): LayoutNode {
   if (path.length === 0) {
     return updater(cloneNode(tree));
   }
@@ -231,11 +253,11 @@ export function updateNodeAtPath(
 }
 
 export function insertLeaf(
-  tree: WorkbenchContentLayoutNode,
-  targetId: WorkbenchContentLayoutLeafId,
-  newLeaf: WorkbenchContentLayoutLeafNode,
+  tree: LayoutNode,
+  targetId: LayoutLeafId,
+  newLeaf: LayoutLeafNode,
   side: 'before' | 'after',
-): WorkbenchContentLayoutNode {
+): LayoutNode {
   const targetPath = findLeafPath(tree, targetId);
   if (!targetPath || targetPath.length === 0) {
     return tree;
@@ -261,7 +283,7 @@ export function insertLeaf(
 }
 
 export function splitLeaf(
-  tree: WorkbenchContentLayoutNode,
+  tree: LayoutNode,
   {
     targetId,
     orientation,
@@ -270,7 +292,7 @@ export function splitLeaf(
     targetSize,
     newSize,
   }: SplitLeafParams,
-): WorkbenchContentLayoutNode {
+): LayoutNode {
   return normalizeNode(
     mapNode(tree, (node) => {
       if (node.type !== 'leaf' || node.id !== targetId) {
@@ -302,13 +324,13 @@ export function splitLeaf(
             : [currentLeaf, insertedLeaf],
       };
     }),
-  ) as WorkbenchContentLayoutNode;
+  ) as LayoutNode;
 }
 
 export function removeLeaf(
-  tree: WorkbenchContentLayoutNode,
-  targetId: WorkbenchContentLayoutLeafId,
-): WorkbenchContentLayoutNode | null {
+  tree: LayoutNode,
+  targetId: LayoutLeafId,
+): LayoutNode | null {
   return normalizeNode(
     mapNode(tree, (node) => {
       if (node.type === 'leaf' && node.id === targetId) {
@@ -320,10 +342,10 @@ export function removeLeaf(
 }
 
 export function updateLeaf(
-  tree: WorkbenchContentLayoutNode,
-  targetId: WorkbenchContentLayoutLeafId,
-  patch: Partial<Omit<WorkbenchContentLayoutLeafNode, 'type' | 'id'>>,
-): WorkbenchContentLayoutNode {
+  tree: LayoutNode,
+  targetId: LayoutLeafId,
+  patch: Partial<Omit<LayoutLeafNode, 'type' | 'id'>>,
+): LayoutNode {
   return mapNode(tree, (node) => {
     if (node.type === 'leaf' && node.id === targetId) {
       return {
@@ -332,16 +354,16 @@ export function updateLeaf(
       };
     }
     return node;
-  }) as WorkbenchContentLayoutNode;
+  }) as LayoutNode;
 }
 
-export function reconcileWorkbenchContentLayoutTree(
-  tree: WorkbenchContentLayoutNode | null,
-  params: WorkbenchContentLayoutTreeParams,
-): WorkbenchContentLayoutNode {
+export function reconcileLayoutTree(
+  tree: LayoutNode | null,
+  params: LayoutTreeParams,
+): LayoutNode {
   if (!tree) {
-    return createWorkbenchContentLayoutTree(params);
+    return createLayoutTree(params);
   }
 
-  return createWorkbenchContentLayoutTree(params);
+  return createLayoutTree(params);
 }

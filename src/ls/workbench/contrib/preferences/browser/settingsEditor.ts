@@ -1,5 +1,6 @@
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
+import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -12,7 +13,11 @@ import { KnowledgeBaseWidget } from 'ls/workbench/contrib/preferences/browser/kn
 import type { KnowledgeBaseWidgetProps } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseWidget';
 
 import { LlmWidget } from 'ls/workbench/contrib/preferences/browser/llmWidget';
-import { createSettingsSectionMap, getSettingsNavigationItems, getSettingsPageSectionIds } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
+import {
+  createSettingsSectionMap,
+  getSettingsPageNavigationItems,
+  getSettingsPageSectionIds,
+} from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 import type { SettingsPageId, SettingsSectionId } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 
 import type {

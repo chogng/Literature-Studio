@@ -16,9 +16,11 @@ import {
   WorkbenchContentLayoutController,
   WorkbenchLayoutSlotView,
   setAgentSidebarVisible,
+  setEditorCollapsed,
   setWorkbenchSidebarSizes,
   setPrimarySidebarVisible,
   subscribeWorkbenchLayoutState,
+  toggleAgentSidebarVisibility,
   toggleEditorCollapsed,
   togglePrimarySidebarVisibility,
   WORKBENCH_PART_IDS,
@@ -975,12 +977,18 @@ class WorkbenchHost {
     agentBarProps: AgentBarPartProps;
     sidebarTopbarActionsProps: {
       isPrimarySidebarVisible: boolean;
+      isAgentSidebarVisible: boolean;
       primarySidebarToggleLabel: string;
+      agentSidebarToggleLabel: string;
       addressBarLabel: string;
+      showAgentSidebarToggle: boolean;
       onTogglePrimarySidebar: () => void;
+      onToggleAgentSidebar: () => void;
       onFocusAddressBar: () => void;
     };
     onOpenSettings: () => void;
+    onApplyLayoutAgent: () => void;
+    onApplyLayoutFlow: () => void;
     editorTopbarAuxiliaryActionsElement?: HTMLElement | null;
     editorPartProps: EditorPartProps;
   }) {
@@ -992,6 +1000,8 @@ class WorkbenchHost {
       accountLabel: props.primaryBarProps.accountLabel,
       moreLabel: props.primaryBarProps.moreLabel,
       settingsLabel: props.primaryBarProps.settingsLabel,
+      onApplyLayoutAgent: props.onApplyLayoutAgent,
+      onApplyLayoutFlow: props.onApplyLayoutFlow,
       onOpenSettings: props.onOpenSettings,
     });
     const partViewProps = {
@@ -1738,11 +1748,17 @@ class WorkbenchHost {
     });
     const sidebarTopbarActionsProps = {
       isPrimarySidebarVisible,
+      isAgentSidebarVisible,
       primarySidebarToggleLabel: isPrimarySidebarVisible
         ? ui.titlebarHidePrimarySidebar
         : ui.titlebarShowPrimarySidebar,
+      agentSidebarToggleLabel: isAgentSidebarVisible
+        ? ui.titlebarHideAssistant
+        : ui.titlebarShowAssistant,
       addressBarLabel: ui.agentbarToolbarAddressBar,
+      showAgentSidebarToggle: isPrimarySidebarVisible,
       onTogglePrimarySidebar: togglePrimarySidebarVisibility,
+      onToggleAgentSidebar: toggleAgentSidebarVisibility,
       onFocusAddressBar: focusWorkbenchWebUrlInput,
     };
 
@@ -1919,6 +1935,16 @@ class WorkbenchHost {
         agentBarProps,
         sidebarTopbarActionsProps,
         onOpenSettings: toggleWorkbenchSettings,
+        onApplyLayoutAgent: () => {
+          setPrimarySidebarVisible(true);
+          setAgentSidebarVisible(true);
+          setEditorCollapsed(false);
+        },
+        onApplyLayoutFlow: () => {
+          setPrimarySidebarVisible(true);
+          setAgentSidebarVisible(false);
+          setEditorCollapsed(false);
+        },
         editorTopbarAuxiliaryActionsElement:
           this.auxiliaryEditorTopbarActionsView.getElement(),
         editorPartProps: contentAwareEditorPartProps,
