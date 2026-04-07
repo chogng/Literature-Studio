@@ -1,5 +1,21 @@
 import { Orientation } from 'ls/base/browser/ui/splitview/splitview';
-import { WORKBENCH_SPLITVIEW_LIMITS } from 'ls/workbench/browser/layout';
+
+export const WORKBENCH_SPLITVIEW_LIMITS = {
+  primaryBar: {
+    minimum: 170,
+    maximum: Number.POSITIVE_INFINITY,
+    defaultSize: 220,
+  },
+  editor: {
+    minimum: 220,
+    maximum: Number.POSITIVE_INFINITY,
+  },
+  agentSidebar: {
+    minimum: 332,
+    maximum: Number.POSITIVE_INFINITY,
+    defaultSize: 360,
+  },
+} as const;
 
 export type LayoutAxisLimits = {
   minimum: number;

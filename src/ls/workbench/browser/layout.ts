@@ -14,6 +14,7 @@ import type { WorkbenchPage } from 'ls/workbench/browser/workbench';
 import {
   getLayoutLimits,
   type LayoutAxisLimits,
+  WORKBENCH_SPLITVIEW_LIMITS,
 } from 'ls/workbench/browser/layoutLimits';
 import type {
   LayoutLeafId,
@@ -114,22 +115,6 @@ export const WORKBENCH_PART_IDS = {
 
 export const WORKBENCH_CONTENT_LAYOUT_BREAKPOINT = 980;
 export const WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE = false;
-export const WORKBENCH_SPLITVIEW_LIMITS = {
-  primaryBar: {
-    minimum: 170,
-    maximum: Number.POSITIVE_INFINITY,
-    defaultSize: 220,
-  },
-  editor: {
-    minimum: 220,
-    maximum: Number.POSITIVE_INFINITY,
-  },
-  agentSidebar: {
-    minimum: 332,
-    maximum: Number.POSITIVE_INFINITY,
-    defaultSize: 360,
-  },
-} as const;
 
 export type WorkbenchPartId =
   (typeof WORKBENCH_PART_IDS)[keyof typeof WORKBENCH_PART_IDS];

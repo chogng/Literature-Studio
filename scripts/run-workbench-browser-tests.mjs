@@ -22,7 +22,7 @@ const entryPoints = [
     'workbench',
     'browser',
     'tests',
-    'workbenchContentLayoutTree.test.ts',
+    'layoutModel.test.ts',
   ),
 ];
 
