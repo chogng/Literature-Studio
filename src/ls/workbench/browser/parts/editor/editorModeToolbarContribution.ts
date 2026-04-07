@@ -18,6 +18,9 @@ export type EditorModeToolbarContributionContext = {
     toolbarClearCache: string;
     toolbarAddressBar: string;
     toolbarAddressPlaceholder: string;
+    toolbarSourcesRecent: string;
+    toolbarSourcesFavorites: string;
+    toolbarSourcesEmpty: string;
     pdfTitle: string;
   };
   onOpenSources: () => void;
@@ -31,6 +34,7 @@ export type EditorModeToolbarContributionContext = {
   onClearCache: () => void | Promise<void>;
   onAddressInputChange: (value: string) => void;
   onAddressInputSubmit: () => void;
+  onNavigateToUrl: (url: string) => void;
 };
 
 export interface EditorModeToolbarContribution {

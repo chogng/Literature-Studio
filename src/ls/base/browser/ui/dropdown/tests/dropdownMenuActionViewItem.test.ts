@@ -328,6 +328,90 @@ test('DropdownMenuActionViewItem forwards requested menu position to the context
   }
 });
 
+test('DropdownMenuActionViewItem forwards menu header and supports dynamic menu updates', async () => {
+  const delegates: import('ls/base/browser/contextmenu').ContextMenuDelegate[] = [];
+  const contextMenuService: import('ls/base/browser/contextmenu').ContextMenuService = {
+    showContextMenu(delegate) {
+      delegates.push(delegate);
+    },
+    hideContextMenu() {},
+    isVisible() {
+      return false;
+    },
+    dispose() {},
+  };
+  let selected = '';
+  const item = new DropdownMenuActionViewItem({
+    label: 'History',
+    content: 'History',
+    contextMenuService,
+    menu: [
+      {
+        id: 'alpha',
+        label: 'Alpha',
+        onClick: () => {
+          selected = 'alpha';
+        },
+      },
+    ],
+    menuHeader: {
+      className: 'history-header',
+      autoFocusOnShow: true,
+      render: ({ updateMenu }) => {
+        updateMenu([
+          {
+            id: 'beta',
+            label: 'Beta',
+            onClick: () => {
+              selected = 'beta';
+            },
+          },
+        ]);
+        const header = document.createElement('div');
+        header.className = 'history-header-node';
+        return header;
+      },
+    },
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+
+    assert.equal(delegates.length, 1);
+    const delegate = delegates[0];
+    assert.equal(delegate.getActions().at(0)?.label, 'Alpha');
+
+    const header = delegate.getMenuHeader?.();
+    assert(header);
+    assert.equal(header.autoFocusOnShow, true);
+    assert.equal(header.className, 'history-header');
+
+    let updatedActions: readonly import('ls/base/browser/contextmenu').ContextMenuAction[] = [];
+    const headerNode = header.render({
+      updateActions: (actions) => {
+        updatedActions = actions;
+      },
+      hide: () => {},
+    });
+    assert.equal(headerNode.classList.contains('history-header-node'), true);
+    assert.equal(updatedActions.length, 1);
+    assert.equal(updatedActions[0]?.label, 'Beta');
+
+    delegate.onSelect?.(updatedActions[0]!.value);
+    assert.equal(selected, 'beta');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+  }
+});
+
 test('DropdownMenuActionViewItem syncs menu placement class from the resolved context view position', async () => {
   const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
   const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
@@ -777,6 +861,191 @@ test('DropdownMenuActionViewItem can opt into end alignment for menu placement',
     if (originalInnerHeight) {
       Object.defineProperty(window, 'innerHeight', originalInnerHeight);
     }
+  }
+});
+
+test('DropdownMenuActionViewItem uses edge-aware policy near viewport edge', async () => {
+  const delegates: import('ls/base/browser/contextmenu').ContextMenuDelegate[] = [];
+  const contextMenuService: import('ls/base/browser/contextmenu').ContextMenuService = {
+    showContextMenu(delegate) {
+      delegates.push(delegate);
+    },
+    hideContextMenu() {},
+    isVisible() {
+      return false;
+    },
+    dispose() {},
+  };
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 320,
+  });
+
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.tagName === 'BUTTON') {
+      return {
+        x: 280,
+        y: 40,
+        width: 20,
+        height: 20,
+        top: 40,
+        left: 280,
+        right: 300,
+        bottom: 60,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    contextMenuService,
+    overlayAlignmentPolicy: 'edge-aware',
+    minWidth: 180,
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+
+    assert.equal(delegates.length, 1);
+    assert.equal(delegates[0]?.alignment, 'end');
+    assert.equal(delegates[0]?.anchorAlignment, 'right');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth);
+    }
+  }
+});
+
+test('DropdownMenuActionViewItem uses prefer-start policy to flip when start cannot fit', async () => {
+  const delegates: import('ls/base/browser/contextmenu').ContextMenuDelegate[] = [];
+  const contextMenuService: import('ls/base/browser/contextmenu').ContextMenuService = {
+    showContextMenu(delegate) {
+      delegates.push(delegate);
+    },
+    hideContextMenu() {},
+    isVisible() {
+      return false;
+    },
+    dispose() {},
+  };
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+  const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    value: 320,
+  });
+
+  HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.tagName === 'BUTTON') {
+      return {
+        x: 280,
+        y: 40,
+        width: 20,
+        height: 20,
+        top: 40,
+        left: 280,
+        right: 300,
+        bottom: 60,
+        toJSON() {
+          return this;
+        },
+      } as DOMRect;
+    }
+
+    return originalGetBoundingClientRect.call(this);
+  };
+
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    contextMenuService,
+    overlayAlignmentPolicy: 'prefer-start',
+    minWidth: 180,
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+
+    assert.equal(delegates.length, 1);
+    assert.equal(delegates[0]?.alignment, 'end');
+    assert.equal(delegates[0]?.anchorAlignment, 'right');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
+    HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    if (originalInnerWidth) {
+      Object.defineProperty(window, 'innerWidth', originalInnerWidth);
+    }
+  }
+});
+
+test('DropdownMenuActionViewItem allows alignment provider to override static alignment', async () => {
+  const delegates: import('ls/base/browser/contextmenu').ContextMenuDelegate[] = [];
+  const contextMenuService: import('ls/base/browser/contextmenu').ContextMenuService = {
+    showContextMenu(delegate) {
+      delegates.push(delegate);
+    },
+    hideContextMenu() {},
+    isVisible() {
+      return false;
+    },
+    dispose() {},
+  };
+
+  const item = new DropdownMenuActionViewItem({
+    label: 'More',
+    content: 'More',
+    contextMenuService,
+    overlayAlignment: 'start',
+    overlayAlignmentProvider: () => 'end',
+    menu: [{ label: 'Archive' }],
+  });
+  const host = document.createElement('div');
+  document.body.append(host);
+
+  try {
+    item.render(host);
+    const button = host.querySelector('button');
+    assert(button instanceof HTMLButtonElement);
+
+    button.click();
+    await delay(0);
+
+    assert.equal(delegates.length, 1);
+    assert.equal(delegates[0]?.alignment, 'end');
+    assert.equal(delegates[0]?.anchorAlignment, 'right');
+  } finally {
+    item.dispose();
+    document.body.replaceChildren();
   }
 });
 

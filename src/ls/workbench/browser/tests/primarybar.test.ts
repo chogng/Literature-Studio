@@ -227,7 +227,7 @@ test('primary bar footer renders more action to the left of settings', () => {
   }
 });
 
-test('primary bar footer more action opens an empty overlay menu', async () => {
+test('primary bar footer more action opens a layout submenu placeholder', async () => {
   const footerActionsView = new PrimaryBarFooterActionsView({
     accountLabel: 'Literature Studio',
     settingsLabel: 'Settings',
@@ -250,17 +250,32 @@ test('primary bar footer more action opens an empty overlay menu', async () => {
     await delay(0);
 
     const menu = document.body.querySelector(
-      '.actionbar-context-view.primarybar-footer-more-menu-overlay .primarybar-footer-more-menu',
+      '.actionbar-context-view.primarybar-footer-more-menu-overlay .dropdown-menu',
     );
     assert(menu instanceof HTMLElement);
     assert.equal(menu.getAttribute('data-menu'), 'primarybar-footer-more');
     assert.equal(moreButton.getAttribute('aria-expanded'), 'true');
 
+    const layoutItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.includes('Layout'),
+    );
+    assert(layoutItem instanceof HTMLElement);
+    layoutItem.click();
+    await delay(0);
+    const submenu = document.body.querySelector(
+      '.actionbar-context-view.primarybar-footer-more-menu-overlay .ls-menu-submenu',
+    );
+    assert(submenu instanceof HTMLElement);
+    const submenuLabels = Array.from(
+      submenu.querySelectorAll('.dropdown-menu-item .dropdown-menu-item-content'),
+    ).map((node) => node.textContent?.trim());
+    assert.deepEqual(submenuLabels, ['Agent', 'Editor']);
+
     moreButton.click();
     await delay(0);
     assert.equal(
       document.body.querySelector(
-        '.actionbar-context-view.primarybar-footer-more-menu-overlay .primarybar-footer-more-menu',
+        '.actionbar-context-view.primarybar-footer-more-menu-overlay .dropdown-menu',
       ),
       null,
     );

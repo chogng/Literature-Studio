@@ -18,12 +18,27 @@ export interface MenuOptions {
   className?: string;
   dataMenu?: string;
   placement?: 'top' | 'bottom';
+  variant?: 'root' | 'submenu';
   role?: string;
+  header?: MenuHeaderOptions;
   onSelect?: (event: MenuSelectEvent) => void;
   onCancel?: () => void;
 }
 
+export interface MenuHeaderContext {
+  updateItems: (items: readonly ContextMenuAction[]) => void;
+  hide: () => void;
+}
+
+export interface MenuHeaderOptions {
+  className?: string;
+  autoFocusOnShow?: boolean;
+  render: (context: MenuHeaderContext) => HTMLElement;
+}
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const SUBMENU_OFFSET_PX = 4;
+const VIEWPORT_MARGIN_PX = 8;
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -81,6 +96,28 @@ function createCheckSlot(isSelected: boolean) {
   return slot;
 }
 
+function hasSubmenu(item: ContextMenuAction | undefined): item is ContextMenuAction & {
+  submenu: readonly ContextMenuAction[];
+} {
+  return Boolean(item?.submenu && item.submenu.length > 0);
+}
+
+function createSubmenuIndicator() {
+  const slot = createElement('span', 'dropdown-menu-item-submenu-indicator');
+  slot.setAttribute('aria-hidden', 'true');
+  slot.append(createLxIcon('chevron-right'));
+  return slot;
+}
+
+function createTrailingSlot(item: ContextMenuAction, isSelected: boolean) {
+  const trailing = createElement('span', 'dropdown-menu-item-trailing');
+  trailing.append(createCheckSlot(isSelected));
+  if (hasSubmenu(item)) {
+    trailing.append(createSubmenuIndicator());
+  }
+  return trailing;
+}
+
 function createMenuItemContent(item: ContextMenuAction) {
   const content = createElement('div', 'dropdown-option-content');
   if (item.icon) {
@@ -92,6 +129,10 @@ function createMenuItemContent(item: ContextMenuAction) {
 
 function resolvePlacement(options: MenuOptions) {
   return options.placement ?? 'bottom';
+}
+
+function resolveVariant(options: MenuOptions) {
+  return options.variant ?? 'root';
 }
 
 function addDisposableListener<K extends keyof HTMLElementEventMap>(
@@ -106,11 +147,51 @@ function addDisposableListener<K extends keyof HTMLElementEventMap>(
   });
 }
 
+function isEditableElement(target: EventTarget | null): target is HTMLElement {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  if (target instanceof HTMLTextAreaElement) {
+    return !target.readOnly && !target.disabled;
+  }
+
+  if (target instanceof HTMLInputElement) {
+    if (target.readOnly || target.disabled) {
+      return false;
+    }
+    return ![
+      'button',
+      'checkbox',
+      'color',
+      'file',
+      'hidden',
+      'image',
+      'radio',
+      'range',
+      'reset',
+      'submit',
+    ].includes(target.type);
+  }
+
+  return false;
+}
+
 export class Menu extends LifecycleOwner {
   private readonly element = createElement('div');
   private readonly renderDisposables = new LifecycleStore();
   private options: MenuOptions;
   private itemElements: HTMLDivElement[] = [];
+  private submenuState: {
+    parentIndex: number;
+    parentElement: HTMLDivElement;
+    menu: Menu;
+    element: HTMLElement;
+  } | null = null;
   private activeIndex = -1;
   private disposed = false;
 
@@ -179,6 +260,7 @@ export class Menu extends LifecycleOwner {
     }
 
     this.disposed = true;
+    this.closeSubmenu();
     super.dispose();
     this.element.replaceChildren();
     this.itemElements = [];
@@ -187,9 +269,11 @@ export class Menu extends LifecycleOwner {
   }
 
   private render() {
+    this.closeSubmenu();
     this.renderDisposables.clear();
     this.element.className = composeClassName([
       'ls-menu',
+      `ls-menu-${resolveVariant(this.options)}`,
       'dropdown-menu',
       `dropdown-menu-${resolvePlacement(this.options)}`,
       this.options.className,
@@ -203,43 +287,45 @@ export class Menu extends LifecycleOwner {
     }
     this.element.tabIndex = 0;
 
-    const nodes: HTMLDivElement[] = [];
-    for (let index = 0; index < this.options.items.length; index += 1) {
-      const item = this.options.items[index];
-      const selected = Boolean(item.checked);
-      const node = createElement(
-        'div',
-        composeClassName([
-          'dropdown-menu-item',
-          selected ? 'selected' : '',
-          item.disabled ? 'disabled' : '',
-        ]),
-      );
-      node.tabIndex = -1;
-      node.dataset.index = String(index);
-      node.setAttribute('role', 'menuitem');
-      node.setAttribute('aria-disabled', item.disabled ? 'true' : 'false');
-      node.append(createMenuItemContent(item), createCheckSlot(selected));
-      this.renderDisposables.add(
-        addDisposableListener(node, 'mouseenter', () => {
-          if (item.disabled) {
-            return;
-          }
-          this.setActiveIndex(index, false);
-        }),
-      );
-      this.renderDisposables.add(
-        addDisposableListener(node, 'click', (event) => {
-          event.stopPropagation();
-          this.selectByIndex(index, 'pointer');
-        }),
-      );
-      nodes.push(node);
+    const headerNode = this.renderHeader();
+    this.applyItemNodes(this.buildItemNodes(), {
+      headerNode,
+      preserveExistingHeader: false,
+    });
+    this.syncInitialActiveIndex();
+  }
+
+  private renderHeader() {
+    const header = this.options.header;
+    if (!header) {
+      return null;
     }
 
-    this.itemElements = nodes;
-    this.element.replaceChildren(...nodes);
-    this.syncInitialActiveIndex();
+    const node = header.render({
+      updateItems: (items) => {
+        if (this.disposed) {
+          return;
+        }
+        this.options = {
+          ...this.options,
+          items: [...items],
+        };
+        this.closeSubmenu();
+        this.renderDisposables.clear();
+        this.applyItemNodes(this.buildItemNodes(), {
+          preserveExistingHeader: true,
+        });
+        this.syncInitialActiveIndex();
+      },
+      hide: () => {
+        this.options.onCancel?.();
+      },
+    });
+    node.classList.add('ls-menu-header');
+    if (header.className) {
+      node.classList.add(...header.className.split(/\s+/).filter(Boolean));
+    }
+    return node;
   }
 
   private syncInitialActiveIndex() {
@@ -250,6 +336,85 @@ export class Menu extends LifecycleOwner {
     }
 
     this.setActiveIndex(this.findNextEnabledIndex(-1, 1, false), false, false);
+  }
+
+  private buildItemNodes() {
+    const nodes: HTMLDivElement[] = [];
+    for (let index = 0; index < this.options.items.length; index += 1) {
+      const item = this.options.items[index];
+      const selected = Boolean(item.checked);
+      const node = createElement(
+        'div',
+        composeClassName([
+          'dropdown-menu-item',
+          hasSubmenu(item) ? 'has-submenu' : '',
+          selected ? 'selected' : '',
+          item.disabled ? 'disabled' : '',
+        ]),
+      );
+      node.tabIndex = -1;
+      node.dataset.index = String(index);
+      node.setAttribute('role', 'menuitem');
+      node.setAttribute('aria-disabled', item.disabled ? 'true' : 'false');
+      if (hasSubmenu(item)) {
+        node.setAttribute('aria-haspopup', 'menu');
+        node.setAttribute('aria-expanded', 'false');
+      } else {
+        node.removeAttribute('aria-haspopup');
+        node.removeAttribute('aria-expanded');
+      }
+      node.append(createMenuItemContent(item), createTrailingSlot(item, selected));
+      this.renderDisposables.add(
+        addDisposableListener(node, 'mouseenter', () => {
+          if (item.disabled) {
+            this.closeSubmenu();
+            return;
+          }
+          this.setActiveIndex(index, false);
+          if (hasSubmenu(item)) {
+            this.openSubmenu(index, 'pointer');
+          } else {
+            this.closeSubmenu();
+          }
+        }),
+      );
+      this.renderDisposables.add(
+        addDisposableListener(node, 'click', (event) => {
+          event.stopPropagation();
+          if (hasSubmenu(item)) {
+            this.setActiveIndex(index, false, true);
+            this.openSubmenu(index, 'pointer');
+            return;
+          }
+          this.selectByIndex(index, 'pointer');
+        }),
+      );
+      nodes.push(node);
+    }
+    return nodes;
+  }
+
+  private applyItemNodes(
+    nodes: HTMLDivElement[],
+    options?: {
+      headerNode?: HTMLElement | null;
+      preserveExistingHeader?: boolean;
+    },
+  ) {
+    this.itemElements = nodes;
+
+    const explicitHeaderNode = options?.headerNode ?? null;
+    const preservedHeaderNode = options?.preserveExistingHeader
+      ? this.element.querySelector(':scope > .ls-menu-header')
+      : null;
+    const headerNode = explicitHeaderNode ?? preservedHeaderNode;
+
+    if (headerNode instanceof HTMLElement) {
+      this.element.replaceChildren(headerNode, ...nodes);
+      return;
+    }
+
+    this.element.replaceChildren(...nodes);
   }
 
   private setActiveIndex(index: number, reveal = true, focus = false) {
@@ -276,6 +441,9 @@ export class Menu extends LifecycleOwner {
       const activeElement = this.itemElements[this.activeIndex];
       activeElement.classList.add('hovered');
       activeElement.tabIndex = 0;
+      if (this.submenuState && this.submenuState.parentIndex !== this.activeIndex) {
+        this.closeSubmenu();
+      }
       if (reveal) {
         activeElement.scrollIntoView({ block: 'nearest' });
       }
@@ -352,6 +520,50 @@ export class Menu extends LifecycleOwner {
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+
+    if (isEditableElement(event.target)) {
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        return;
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        const nextIndex = this.findNextEnabledIndex(
+          clamp(this.activeIndex, -1, this.options.items.length - 1),
+          1,
+        );
+        this.focusByIndex(nextIndex);
+        return;
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        const startIndex =
+          this.activeIndex === -1 ? this.options.items.length : this.activeIndex;
+        const nextIndex = this.findNextEnabledIndex(
+          clamp(startIndex, 0, this.options.items.length),
+          -1,
+        );
+        this.focusByIndex(nextIndex);
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (this.submenuState) {
+          this.closeSubmenu();
+          this.focusActiveOrContainer();
+          return;
+        }
+        this.options.onCancel?.();
+      }
+      return;
+    }
+
     if (event.key === 'Tab') {
       event.preventDefault();
       return;
@@ -394,14 +606,125 @@ export class Menu extends LifecycleOwner {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       if (this.activeIndex >= 0) {
+        if (hasSubmenu(this.options.items[this.activeIndex])) {
+          this.openSubmenu(this.activeIndex, 'keyboard');
+          return;
+        }
         this.selectByIndex(this.activeIndex, 'keyboard');
       }
       return;
     }
 
+    if (event.key === 'ArrowRight') {
+      if (this.activeIndex >= 0 && hasSubmenu(this.options.items[this.activeIndex])) {
+        event.preventDefault();
+        this.openSubmenu(this.activeIndex, 'keyboard');
+      }
+      return;
+    }
+
+    if (event.key === 'ArrowLeft') {
+      if (this.submenuState) {
+        event.preventDefault();
+        this.closeSubmenu();
+        this.focusActiveOrContainer();
+        return;
+      }
+      event.preventDefault();
+      this.options.onCancel?.();
+      return;
+    }
+
     if (event.key === 'Escape') {
       event.preventDefault();
+      if (this.submenuState) {
+        this.closeSubmenu();
+        this.focusActiveOrContainer();
+        return;
+      }
       this.options.onCancel?.();
     }
   };
+
+  private openSubmenu(index: number, source: MenuSelectionSource) {
+    const item = this.options.items[index];
+    const parentElement = this.itemElements[index];
+    if (!item || !parentElement || item.disabled || !hasSubmenu(item)) {
+      return;
+    }
+
+    if (this.submenuState?.parentIndex === index) {
+      if (source === 'keyboard') {
+        this.submenuState.menu.focusSelectedOrFirstEnabled();
+      }
+      return;
+    }
+
+    this.closeSubmenu();
+
+    const submenu = new Menu({
+      items: item.submenu,
+      variant: 'submenu',
+      role: 'menu',
+      onSelect: (nextEvent) => {
+        this.options.onSelect?.(nextEvent);
+      },
+      onCancel: () => {
+        this.closeSubmenu();
+        parentElement.focus();
+      },
+    });
+    const submenuElement = submenu.getElement();
+    submenuElement.classList.add('ls-menu-submenu');
+    const host = this.element.parentElement ?? this.element;
+    host.append(submenuElement);
+    this.layoutSubmenu(submenuElement, parentElement);
+    parentElement.setAttribute('aria-expanded', 'true');
+    this.submenuState = {
+      parentIndex: index,
+      parentElement,
+      menu: submenu,
+      element: submenuElement,
+    };
+    if (source === 'keyboard') {
+      submenu.focusSelectedOrFirstEnabled();
+    }
+  }
+
+  private closeSubmenu() {
+    if (!this.submenuState) {
+      return;
+    }
+
+    this.submenuState.parentElement.setAttribute('aria-expanded', 'false');
+    this.submenuState.menu.dispose();
+    this.submenuState = null;
+  }
+
+  private layoutSubmenu(submenuElement: HTMLElement, parentElement: HTMLElement) {
+    const parentRect = parentElement.getBoundingClientRect();
+    const submenuRect = submenuElement.getBoundingClientRect();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+    const opensToLeft =
+      parentRect.right + SUBMENU_OFFSET_PX + submenuRect.width > viewportWidth - VIEWPORT_MARGIN_PX;
+    const left = opensToLeft
+      ? Math.max(
+          VIEWPORT_MARGIN_PX,
+          parentRect.left - SUBMENU_OFFSET_PX - submenuRect.width,
+        )
+      : parentRect.right + SUBMENU_OFFSET_PX;
+    const maxTop = Math.max(
+      VIEWPORT_MARGIN_PX,
+      viewportHeight - submenuRect.height - VIEWPORT_MARGIN_PX,
+    );
+    const top = clamp(parentRect.top, VIEWPORT_MARGIN_PX, maxTop);
+
+    submenuElement.classList.toggle('is-left', opensToLeft);
+    submenuElement.classList.toggle('is-right', !opensToLeft);
+    submenuElement.style.position = 'fixed';
+    submenuElement.style.left = `${Math.round(left)}px`;
+    submenuElement.style.top = `${Math.round(top)}px`;
+  }
 }

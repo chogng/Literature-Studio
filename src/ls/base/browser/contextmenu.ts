@@ -16,11 +16,24 @@ export type ContextMenuAnchorAxisAlignment = 'vertical' | 'horizontal';
 export interface ContextMenuAction extends BaseAction {
   value: string;
   icon?: LxIconName;
+  submenu?: readonly ContextMenuAction[];
+}
+
+export interface ContextMenuHeaderContext {
+  updateActions: (actions: readonly ContextMenuAction[]) => void;
+  hide: () => void;
+}
+
+export interface ContextMenuHeader {
+  className?: string;
+  autoFocusOnShow?: boolean;
+  render: (context: ContextMenuHeaderContext) => HTMLElement;
 }
 
 export interface ContextMenuDelegate {
   getAnchor: () => ContextMenuAnchor;
   getActions: () => readonly ContextMenuAction[];
+  getMenuHeader?: () => ContextMenuHeader | undefined;
   onSelect?: (value: string) => void;
   onHide?: (didCancel: boolean) => void;
   autoFocusOnShow?: boolean;

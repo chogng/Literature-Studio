@@ -1,5 +1,6 @@
 import type {
   ContextMenuAction,
+  ContextMenuHeader,
 } from 'ls/base/browser/contextmenu';
 import type {
   AnchorAlignment,
@@ -49,6 +50,7 @@ export interface ContextViewService {
 export interface ContextMenuDelegate {
   getAnchor: () => ContextViewAnchor;
   getActions: () => readonly ContextMenuAction[];
+  getMenuHeader?: () => ContextMenuHeader | undefined;
   onSelect?: (value: string) => void;
   onHide?: (didCancel: boolean) => void;
   autoFocusOnShow?: boolean;

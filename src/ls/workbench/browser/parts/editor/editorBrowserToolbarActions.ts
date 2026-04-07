@@ -17,6 +17,7 @@ type CreateEditorBrowserToolbarActionsParams = {
   webContentNavigationModel: WebContentNavigationModel;
   onOpenAddressBarSourceMenu: () => void;
   onToolbarAddressSubmit: () => void;
+  onToolbarNavigateToUrl: (url: string) => void;
 };
 
 async function copyTextToClipboard(value: string) {
@@ -57,6 +58,7 @@ export function createEditorBrowserToolbarActions(
     webContentNavigationModel,
     onOpenAddressBarSourceMenu,
     onToolbarAddressSubmit,
+    onToolbarNavigateToUrl,
   } = params;
 
   return {
@@ -145,5 +147,6 @@ export function createEditorBrowserToolbarActions(
     },
     onToolbarAddressChange: setWebUrl,
     onToolbarAddressSubmit,
+    onToolbarNavigateToUrl,
   };
 }

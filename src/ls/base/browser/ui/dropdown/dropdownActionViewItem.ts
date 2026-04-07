@@ -20,9 +20,30 @@ import { createPlatformContextMenuService } from 'ls/platform/contextview/browse
 
 export type DropdownMenuActionAlignment = 'start' | 'end';
 export type DropdownMenuActionPosition = 'auto' | 'above' | 'below';
+export type DropdownMenuActionAlignmentPolicy =
+  | 'strict-start'
+  | 'strict-end'
+  | 'prefer-start'
+  | 'prefer-end'
+  | 'edge-aware';
+export type DropdownMenuActionAlignmentProvider = (
+  anchor: HTMLElement,
+) => DropdownMenuActionAlignment | undefined;
+type ResolvedDropdownMenuActionAlignment = DropdownMenuActionAlignment;
 
 export type DropdownMenuActionOverlayContext = {
   hide: () => void;
+};
+
+export type DropdownMenuHeaderContext = {
+  updateMenu: (menu: readonly ActionBarMenuItem[]) => void;
+  hide: () => void;
+};
+
+export type DropdownMenuHeader = {
+  className?: string;
+  autoFocusOnShow?: boolean;
+  render: (context: DropdownMenuHeaderContext) => HTMLElement;
 };
 
 export type DropdownMenuActionViewItemOptions = {
@@ -39,6 +60,7 @@ export type DropdownMenuActionViewItemOptions = {
   buttonAttributes?: Record<string, string | null | undefined | false>;
   hover?: import('ls/base/browser/ui/hover/hover').HoverInput;
   menu?: readonly ActionBarMenuItem[];
+  menuHeader?: DropdownMenuHeader;
   renderOverlay?: (context: DropdownMenuActionOverlayContext) => HTMLElement;
   overlayRole?: string;
   menuClassName?: string;
@@ -47,6 +69,8 @@ export type DropdownMenuActionViewItemOptions = {
   hoverService?: HoverService;
   contextMenuService?: ContextMenuService;
   overlayAlignment?: DropdownMenuActionAlignment;
+  overlayAlignmentPolicy?: DropdownMenuActionAlignmentPolicy;
+  overlayAlignmentProvider?: DropdownMenuActionAlignmentProvider;
   overlayPosition?: DropdownMenuActionPosition;
   offset?: number;
 };
@@ -71,7 +95,7 @@ type DropdownActionOverlayRequest = {
   anchor: HTMLElement;
   className?: string;
   minWidth?: number;
-  alignment?: DropdownMenuActionAlignment;
+  alignment?: ResolvedDropdownMenuActionAlignment;
   position?: DropdownMenuActionPosition;
   offset?: number;
   render: (context: DropdownMenuActionOverlayContext) => HTMLElement;
@@ -79,30 +103,130 @@ type DropdownActionOverlayRequest = {
 };
 
 type DropdownMenuOpenSource = 'keyboard' | 'pointer';
+const VIEWPORT_MARGIN_PX = 8;
+const DEFAULT_MENU_MIN_WIDTH_PX = 180;
 
-function createContextMenuValue(action: Pick<ActionBarMenuItem, 'id'>, index: number) {
-  return action.id ?? `dropdown-menu-action-option-${index}`;
+function resolvePolicyAlignment(options: {
+  anchor: HTMLElement;
+  minWidth?: number;
+  policy: DropdownMenuActionAlignmentPolicy;
+}): ResolvedDropdownMenuActionAlignment {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  if (viewportWidth <= 0) {
+    return options.policy === 'strict-end' || options.policy === 'prefer-end'
+      ? 'end'
+      : 'start';
+  }
+
+  const anchorRect = options.anchor.getBoundingClientRect();
+  const estimatedWidth = Math.max(options.minWidth ?? DEFAULT_MENU_MIN_WIDTH_PX, 1);
+  const spaceToRight = viewportWidth - anchorRect.left - VIEWPORT_MARGIN_PX;
+  const spaceToLeft = anchorRect.right - VIEWPORT_MARGIN_PX;
+  const canFitStart = spaceToRight >= estimatedWidth;
+  const canFitEnd = spaceToLeft >= estimatedWidth;
+
+  if (options.policy === 'strict-start') {
+    return 'start';
+  }
+
+  if (options.policy === 'strict-end') {
+    return 'end';
+  }
+
+  if (options.policy === 'prefer-start') {
+    return canFitStart || !canFitEnd ? 'start' : 'end';
+  }
+
+  if (options.policy === 'prefer-end') {
+    return canFitEnd || !canFitStart ? 'end' : 'start';
+  }
+
+  if (canFitStart && !canFitEnd) {
+    return 'start';
+  }
+
+  if (canFitEnd && !canFitStart) {
+    return 'end';
+  }
+
+  if (canFitStart && canFitEnd) {
+    return 'start';
+  }
+
+  return spaceToRight >= spaceToLeft ? 'start' : 'end';
 }
 
-function toContextMenuActions(menuItems: readonly ActionBarMenuItem[]): ContextMenuAction[] {
-  return menuItems.map((menuItem, index) => ({
-    value: createContextMenuValue(menuItem, index),
-    label: menuItem.label,
-    title: menuItem.title,
-    icon: menuItem.icon,
-    disabled: menuItem.disabled,
-    checked: menuItem.checked,
-    run: menuItem.run,
-  }));
+function resolveDropdownAlignment(
+  options: Pick<
+    DropdownMenuActionViewItemOptions,
+    'overlayAlignment' | 'overlayAlignmentPolicy' | 'overlayAlignmentProvider' | 'minWidth'
+  >,
+  anchor: HTMLElement,
+): ResolvedDropdownMenuActionAlignment {
+  const providedAlignment = options.overlayAlignmentProvider?.(anchor);
+  if (providedAlignment) {
+    return providedAlignment;
+  }
+
+  if (options.overlayAlignment) {
+    return options.overlayAlignment;
+  }
+
+  const policy = options.overlayAlignmentPolicy;
+  if (!policy) {
+    return 'start';
+  }
+
+  return resolvePolicyAlignment({
+    anchor,
+    minWidth: options.minWidth,
+    policy,
+  });
+}
+
+function createContextMenuValue(
+  action: Pick<ActionBarMenuItem, 'id'>,
+  fallbackValue: string,
+) {
+  return action.id ?? fallbackValue;
+}
+
+function toContextMenuActions(
+  menuItems: readonly ActionBarMenuItem[],
+  valueToMenuItem: Map<string, ActionBarMenuItem>,
+  parentKey = 'dropdown-menu-action-option',
+): ContextMenuAction[] {
+  return menuItems.map((menuItem, index) => {
+    const value = createContextMenuValue(
+      menuItem,
+      `${parentKey}-${index}`,
+    );
+    valueToMenuItem.set(value, menuItem);
+
+    return {
+      value,
+      label: menuItem.label,
+      title: menuItem.title,
+      icon: menuItem.icon,
+      disabled: menuItem.disabled,
+      checked: menuItem.checked,
+      run: menuItem.run,
+      submenu: menuItem.submenu
+        ? toContextMenuActions(
+            menuItem.submenu,
+            valueToMenuItem,
+            `${parentKey}-${index}`,
+          )
+        : undefined,
+    };
+  });
 }
 
 function runContextMenuAction(
-  menuItems: readonly ActionBarMenuItem[] | undefined,
-  menuActions: readonly ContextMenuAction[],
+  valueToMenuItem: ReadonlyMap<string, ActionBarMenuItem>,
   value: string,
 ) {
-  const menuItemIndex = menuActions.findIndex((option) => option.value === value);
-  const menuItem = menuItemIndex >= 0 ? menuItems?.[menuItemIndex] : null;
+  const menuItem = valueToMenuItem.get(value) ?? null;
   if (!menuItem || menuItem.disabled) {
     return;
   }
@@ -169,21 +293,45 @@ class ContextMenuDropdownActionPresenter {
 
   show = (source: DropdownMenuOpenSource) => {
     const options = this.getOptions();
-    const menuItems = options.menu ?? [];
-    const menuActions = toContextMenuActions(menuItems);
+    const anchor = this.getAnchor();
+    const resolvedAlignment = resolveDropdownAlignment(
+      options,
+      anchor,
+    );
+    let valueToMenuItem = new Map<string, ActionBarMenuItem>();
+    let menuActions = toContextMenuActions(options.menu ?? [], valueToMenuItem);
+    const menuHeader = options.menuHeader;
     const menuData = options.menuData?.trim();
     const openedFromKeyboard = source === 'keyboard';
-    if (menuActions.length === 0) {
+    if (menuActions.length === 0 && !menuHeader) {
       return;
     }
 
     this.getOrCreateContextMenuService().showContextMenu({
-      getAnchor: this.getAnchor,
+      getAnchor: () => anchor,
       getActions: () => menuActions,
+      getMenuHeader: menuHeader
+        ? () => ({
+            className: menuHeader.className,
+            autoFocusOnShow: menuHeader.autoFocusOnShow,
+            render: ({ updateActions, hide }) =>
+              menuHeader.render({
+                hide,
+                updateMenu: (nextMenuItems) => {
+                  valueToMenuItem = new Map<string, ActionBarMenuItem>();
+                  menuActions = toContextMenuActions(
+                    nextMenuItems,
+                    valueToMenuItem,
+                  );
+                  updateActions(menuActions);
+                },
+              }),
+          })
+        : undefined,
       getMenuClassName: options.menuClassName ? () => options.menuClassName! : undefined,
       getMenuData: menuData ? () => menuData : undefined,
-      anchorAlignment: options.overlayAlignment === 'end' ? 'right' : 'left',
-      alignment: options.overlayAlignment ?? 'start',
+      anchorAlignment: resolvedAlignment === 'end' ? 'right' : 'left',
+      alignment: resolvedAlignment,
       position: options.overlayPosition ?? 'below',
       offset: options.offset,
       minWidth: options.minWidth,
@@ -191,7 +339,7 @@ class ContextMenuDropdownActionPresenter {
       restoreFocusOnHide: openedFromKeyboard,
       onHide: this.onHide,
       onSelect: (value: string) => {
-        runContextMenuAction(options.menu, menuActions, value);
+        runContextMenuAction(valueToMenuItem, value);
       },
     });
   };
@@ -278,6 +426,8 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
       return;
     }
 
+    // Custom overlays are intentionally prioritized over menu mode so callers
+    // can host rich panels (history/model switch/popovers) in the same trigger.
     if (this.options.renderOverlay) {
       this.isOpen = true;
       this.button.setAttribute('aria-expanded', 'true');
@@ -285,7 +435,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
       return;
     }
 
-    if ((this.options.menu?.length ?? 0) === 0) {
+    if ((this.options.menu?.length ?? 0) === 0 && !this.options.menuHeader) {
       return;
     }
 
@@ -315,11 +465,17 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
   }
 
   private createOverlayRequest(): DropdownActionOverlayRequest {
+    const anchor = this.anchorElement ?? this.button;
+    const resolvedAlignment = resolveDropdownAlignment(
+      this.options,
+      anchor,
+    );
+
     return {
-      anchor: this.anchorElement ?? this.button,
+      anchor,
       className: DOM.composeClassName(['actionbar-context-view', this.options.menuClassName]),
       minWidth: this.options.minWidth,
-      alignment: this.options.overlayAlignment ?? 'start',
+      alignment: resolvedAlignment,
       position: this.options.overlayPosition ?? 'below',
       offset: this.options.offset,
       render: (context) => this.options.renderOverlay?.(context) ?? DOM.createElement('div'),

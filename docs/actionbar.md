@@ -203,6 +203,20 @@
 
 如果后续新增 actionbar 宿主，默认照这套落。
 
+## ActionBar 弹出策略
+
+`ActionBar` 相关弹出内容默认只看两种 DOM 形态：
+
+1. `menu`：标准动作菜单
+2. `renderOverlay`：自定义面板
+
+默认优先级：
+
+1. 能用 `menu` 就用 `menu`
+2. 只有标准菜单表达不了时，才用 `renderOverlay`
+
+`contextview` 仍然只是承载与定位层，不承担菜单视觉规范；具体规范见 [`docs/dropdown.md`](/Users/lance/Desktop/Literature-Studio/docs/dropdown.md)。
+
 ## 组合式 Split Action
 
 ### 背景

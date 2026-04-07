@@ -1,4 +1,7 @@
-import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
+import type {
+  ContextMenuAction,
+  ContextMenuHeader,
+} from 'ls/base/browser/contextmenu';
 import {
   resolveAnchoredVerticalPlacement,
   resolveAnchoredVerticalPlacementWithFallback,
@@ -79,7 +82,8 @@ export class ContextMenuHandler {
 
   showContextMenu(delegate: ContextMenuDelegate) {
     const options = [...delegate.getActions()];
-    if (options.length === 0) {
+    const header = delegate.getMenuHeader?.();
+    if (options.length === 0 && !header) {
       return;
     }
 
@@ -104,9 +108,12 @@ export class ContextMenuHandler {
       offset: resolveContextMenuOffset(delegate),
       minWidth: delegate.minWidth,
       render: (container) => {
-        const menu = this.renderMenu(options, delegate);
+        const menu = this.renderMenu(options, delegate, header);
         container.append(menu.getElement());
         queueMicrotask(() => {
+          if (header?.autoFocusOnShow) {
+            return;
+          }
           if (shouldAutoFocusOnShow) {
             menu.focusSelectedOrFirstEnabled();
             return;
@@ -143,13 +150,26 @@ export class ContextMenuHandler {
   private renderMenu(
     options: readonly ContextMenuAction[],
     delegate: ContextMenuDelegate,
+    header?: ContextMenuHeader,
   ) {
     const dataMenu = delegate.getMenuData?.();
+    const menuHeader = header
+      ? {
+          className: header.className,
+          autoFocusOnShow: header.autoFocusOnShow,
+          render: ({ updateItems, hide }: { updateItems: (items: readonly ContextMenuAction[]) => void; hide: () => void }) =>
+            header.render({
+              updateActions: updateItems,
+              hide,
+            }),
+        }
+      : undefined;
     const menu = new Menu({
       items: options,
       dataMenu,
       role: 'menu',
       placement: delegate.position === 'above' ? 'top' : 'bottom',
+      header: menuHeader,
       onSelect: ({ value }) => {
         delegate.onSelect?.(value);
         this.contextViewService.hideContextView({
@@ -172,6 +192,7 @@ export class ContextMenuHandler {
         dataMenu,
         role: 'menu',
         placement,
+        header: menuHeader,
         onSelect: ({ value }) => {
           delegate.onSelect?.(value);
           this.contextViewService.hideContextView({

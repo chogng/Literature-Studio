@@ -16,6 +16,7 @@ export type ActionBarActionMode = 'icon' | 'text' | 'custom';
 export type ActionBarRenderable = string | Node | (() => string | Node);
 export type ActionBarMenuItem = BaseAction & {
   icon?: LxIconName;
+  submenu?: readonly ActionBarMenuItem[];
   onClick?: (event: MouseEvent) => void;
 };
 
@@ -60,6 +61,13 @@ export type ActionBarSplitItem = {
     menuData?: string;
     minWidth?: number;
     overlayAlignment?: 'start' | 'end';
+    overlayAlignmentPolicy?:
+      | 'strict-start'
+      | 'strict-end'
+      | 'prefer-start'
+      | 'prefer-end'
+      | 'edge-aware';
+    overlayAlignmentProvider?: (anchor: HTMLElement) => 'start' | 'end' | undefined;
     overlayPosition?: 'auto' | 'above' | 'below';
   };
 };

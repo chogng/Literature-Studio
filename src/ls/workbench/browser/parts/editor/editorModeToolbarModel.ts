@@ -21,6 +21,7 @@ type EditorModeToolbarSourceProps = {
   onToolbarClearCache: () => void | Promise<void>;
   onToolbarAddressChange: (value: string) => void;
   onToolbarAddressSubmit: () => void;
+  onToolbarNavigateToUrl: (url: string) => void;
 };
 
 export type EditorModeToolbarContext = EditorModeToolbarContributionContext;
@@ -48,6 +49,9 @@ export function createEditorModeToolbarContext(
       toolbarClearCache: props.labels.toolbarClearCache,
       toolbarAddressBar: props.labels.toolbarAddressBar,
       toolbarAddressPlaceholder: props.labels.toolbarAddressPlaceholder,
+      toolbarSourcesRecent: props.labels.toolbarSourcesRecent,
+      toolbarSourcesFavorites: props.labels.toolbarSourcesFavorites,
+      toolbarSourcesEmpty: props.labels.toolbarSourcesEmpty,
       pdfTitle: props.labels.pdfTitle,
     },
     onOpenSources: props.onOpenAddressBarSourceMenu,
@@ -61,6 +65,6 @@ export function createEditorModeToolbarContext(
     onClearCache: props.onToolbarClearCache,
     onAddressInputChange: props.onToolbarAddressChange,
     onAddressInputSubmit: props.onToolbarAddressSubmit,
+    onNavigateToUrl: props.onToolbarNavigateToUrl,
   };
 }
-

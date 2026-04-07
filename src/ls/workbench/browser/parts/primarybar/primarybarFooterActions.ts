@@ -5,6 +5,9 @@ import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import 'ls/workbench/browser/parts/primarybar/media/primarybarFooterActions.css';
 
 const MORE_ACTIONS_LABEL = 'More';
+const MORE_LAYOUT_LABEL = 'Layout';
+const MORE_LAYOUT_AGENT_LABEL = 'Agent';
+const MORE_LAYOUT_EDITOR_LABEL = 'Editor';
 
 export type PrimaryBarFooterActionsProps = {
   accountLabel?: string;
@@ -22,13 +25,6 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
     element.className = className;
   }
   return element;
-}
-
-function createEmptyMoreActionsOverlay() {
-  const menu = createElement('div', 'primarybar-footer-more-menu');
-  menu.dataset.menu = 'primarybar-footer-more';
-  menu.append(createElement('div', 'primarybar-footer-more-menu-empty'));
-  return menu;
 }
 
 export class PrimaryBarFooterActionsView {
@@ -79,11 +75,25 @@ export class PrimaryBarFooterActionsView {
           mode: 'icon',
           buttonClassName: 'primarybar-footer-more-btn',
           content: createLxIcon('more-2'),
-          overlayAlignment: 'end',
-          overlayRole: 'menu',
           menuClassName: 'primarybar-footer-more-menu-overlay',
           minWidth: 160,
-          renderOverlay: () => createEmptyMoreActionsOverlay(),
+          menuData: 'primarybar-footer-more',
+          menu: [
+            {
+              id: 'primarybar-footer-more-layout',
+              label: MORE_LAYOUT_LABEL,
+              submenu: [
+                {
+                  id: 'primarybar-footer-more-layout-agent',
+                  label: MORE_LAYOUT_AGENT_LABEL,
+                },
+                {
+                  id: 'primarybar-footer-more-layout-editor',
+                  label: MORE_LAYOUT_EDITOR_LABEL,
+                },
+              ],
+            },
+          ],
         }),
         {
           label: props.settingsLabel ?? '',

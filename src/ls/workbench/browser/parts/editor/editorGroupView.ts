@@ -76,6 +76,7 @@ export type EditorGroupViewProps = {
   onToolbarClearCache: () => void | Promise<void>;
   onToolbarAddressChange: (value: string) => void;
   onToolbarAddressSubmit: () => void;
+  onToolbarNavigateToUrl: (url: string) => void;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
   onDeleteEditorViewState: (key: EditorViewStateKey) => void;

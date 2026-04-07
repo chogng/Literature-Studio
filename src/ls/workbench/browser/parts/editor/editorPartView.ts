@@ -38,6 +38,9 @@ export type EditorPartLabels = {
   toolbarClearCache: string;
   toolbarAddressBar: string;
   toolbarAddressPlaceholder: string;
+  toolbarSourcesRecent: string;
+  toolbarSourcesFavorites: string;
+  toolbarSourcesEmpty: string;
   draftMode: string;
   sourceMode: string;
   pdfMode: string;
@@ -68,6 +71,7 @@ export type EditorPartBrowserToolbarActions = {
   onToolbarClearCache: () => void | Promise<void>;
   onToolbarAddressChange: (value: string) => void;
   onToolbarAddressSubmit: () => void;
+  onToolbarNavigateToUrl: (url: string) => void;
 };
 
 export type EditorPartBaseProps = {

@@ -6,7 +6,7 @@
 
   position: relative;
   width: max-content;
-  min-width: max(180px, 100%);
+  min-width: 180px;
   max-width: min(360px, calc(100vw - 16px));
   background: var(--vscode-menu-background, #ffffff);
   border: 1px solid var(--vscode-menu-border, rgba(0, 0, 0, 0.08));
@@ -21,6 +21,18 @@
   animation: ls-menu-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   color: var(--vscode-menu-foreground, #1a2530);
   outline: none;
+}
+
+.ls-menu .ls-menu-header {
+  flex: 0 0 auto;
+}
+
+.ls-menu.ls-menu-root {
+  min-width: max(180px, 100%);
+}
+
+.ls-menu.ls-menu-submenu {
+  min-width: 180px;
 }
 
 .ls-menu.dropdown-menu-top {
@@ -63,6 +75,14 @@
   user-select: none;
   color: var(--vscode-menu-itemForeground, #304357);
   gap: 8px;
+}
+
+.ls-menu .dropdown-menu-item-trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
 .ls-menu .dropdown-menu-item:hover,
@@ -126,4 +146,24 @@
 
 .ls-menu .dropdown-menu-item-check.placeholder {
   opacity: 0;
+}
+
+.ls-menu .dropdown-menu-item-submenu-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--vscode-menu-itemForeground, #304357);
+  opacity: 0.75;
+}
+
+.ls-menu .dropdown-menu-item-submenu-indicator .lx-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+}
+
+.ls-menu-submenu {
+  z-index: 1001;
 }

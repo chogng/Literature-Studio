@@ -97,7 +97,7 @@ test('agent bar action buttons expose labels and shared hover', async () => {
 
     const historyButton = actionButtons[1];
     assert(historyButton instanceof HTMLButtonElement);
-    assert.equal(historyButton.getAttribute('aria-haspopup'), 'dialog');
+    assert.equal(historyButton.getAttribute('aria-haspopup'), 'menu');
 
     document.dispatchEvent(
       new window.KeyboardEvent('keydown', { bubbles: true, key: 'Tab' }),
@@ -216,7 +216,7 @@ test('agent bar more action uses dropdown action view item', async () => {
   }
 });
 
-test('agent bar history action uses custom dropdown overlay', async () => {
+test('agent bar history action supports search and empty states', async () => {
   let activatedConversationId = '';
   const agentBar = createAgentChatWidget({
     ...createProps(),
@@ -259,19 +259,76 @@ test('agent bar history action uses custom dropdown overlay', async () => {
     historyButton.click();
     await delay(0);
 
-    const popover = document.body.querySelector('.actionbar-context-view .agentbar-popover');
-    assert(popover instanceof HTMLElement);
+    const menu = document.body.querySelector('.actionbar-context-view .dropdown-menu');
+    assert(menu instanceof HTMLElement);
+    assert.equal(menu.getAttribute('data-menu'), 'agentbar-topbar-history');
     assert.equal(historyButton.getAttribute('aria-expanded'), 'true');
+    const searchInput = menu.querySelector('.ls-menu-header .agentbar-history-search-input .input');
+    assert(searchInput instanceof HTMLInputElement);
+    assert.equal(menu.firstElementChild?.classList.contains('ls-menu-header'), true);
 
-    const historyItem = Array.from(popover.querySelectorAll('.agentbar-history-item')).find(
+    searchInput.value = 'conversation 2';
+    searchInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+    await delay(0);
+
+    const historyItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
       (node) => node.textContent?.includes('Conversation 2'),
     );
-    assert(historyItem instanceof HTMLButtonElement);
+    assert(historyItem instanceof HTMLElement);
     historyItem.click();
     await delay(0);
 
     assert.equal(activatedConversationId, 'conversation-2');
     assert.equal(historyButton.getAttribute('aria-expanded'), 'false');
+
+    historyButton.click();
+    await delay(0);
+    const reopenedMenu = document.body.querySelector('.actionbar-context-view .dropdown-menu');
+    assert(reopenedMenu instanceof HTMLElement);
+    const reopenedSearchInput = reopenedMenu.querySelector(
+      '.ls-menu-header .agentbar-history-search-input .input',
+    );
+    assert(reopenedSearchInput instanceof HTMLInputElement);
+    reopenedSearchInput.value = 'not-found';
+    reopenedSearchInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+    await delay(0);
+    const emptyState = Array.from(reopenedMenu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.includes('no matching agents'),
+    );
+    assert(emptyState instanceof HTMLElement);
+    assert.equal(emptyState.textContent?.trim(), 'no matching agents');
+  } finally {
+    agentBar.dispose();
+  }
+});
+
+test('agent bar history action shows no matching agents when there is no history', async () => {
+  const agentBar = createAgentChatWidget({
+    ...createProps(),
+    conversations: [],
+    activeConversationId: '',
+  });
+  const element = agentBar.getElement();
+  document.body.append(element);
+
+  try {
+    const actionButtons = Array.from(
+      element.querySelectorAll('.sidebar-action-bar .sidebar-action-btn'),
+    );
+    const historyButton = actionButtons[1];
+    assert(historyButton instanceof HTMLButtonElement);
+
+    historyButton.click();
+    await delay(0);
+
+    const menu = document.body.querySelector('.actionbar-context-view .dropdown-menu');
+    assert(menu instanceof HTMLElement);
+    assert.equal(menu.getAttribute('data-menu'), 'agentbar-topbar-history');
+    const emptyState = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.includes('no matching agents'),
+    );
+    assert(emptyState instanceof HTMLElement);
+    assert.equal(emptyState.textContent?.trim(), 'no matching agents');
   } finally {
     agentBar.dispose();
   }

@@ -86,10 +86,19 @@ function createNativePopupContextMenuItems(
     label: option.label,
     enabled: !option.disabled,
     checked: option.checked,
-    type: option.checked ? 'checkbox' : 'normal',
-    click: () => {
-      onSelect?.(option.value);
-    },
+    type: option.submenu
+      ? 'submenu'
+      : option.checked
+        ? 'checkbox'
+        : 'normal',
+    submenu: option.submenu
+      ? createNativePopupContextMenuItems(option.submenu, onSelect)
+      : undefined,
+    click: option.submenu
+      ? undefined
+      : () => {
+          onSelect?.(option.value);
+        },
   }));
 }
 
@@ -112,6 +121,7 @@ class ContextMenuService implements WorkbenchContextMenuService {
 
     if (
       backend === 'native-popup' &&
+      !delegate.getMenuHeader?.() &&
       this.showNativePopupContextMenu(delegate)
     ) {
       return;
@@ -139,6 +149,7 @@ class ContextMenuService implements WorkbenchContextMenuService {
     this.domContextMenu.showContextMenu({
       getAnchor: delegate.getAnchor,
       getActions: delegate.getActions,
+      getMenuHeader: delegate.getMenuHeader,
       autoFocusOnShow: delegate.autoFocusOnShow,
       restoreFocusOnHide: delegate.restoreFocusOnHide,
       getMenuClassName: delegate.getMenuClassName,

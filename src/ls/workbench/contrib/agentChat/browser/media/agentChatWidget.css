@@ -274,6 +274,34 @@
   color: #2e6fd8;
 }
 
+.ls-menu[data-menu='agentbar-topbar-history'] {
+  min-width: 280px;
+  max-width: 340px;
+  max-height: min(360px, calc(100vh - 64px));
+}
+
+.ls-menu[data-menu='agentbar-topbar-history'] .ls-menu-header {
+  padding: 4px;
+}
+
+.ls-menu[data-menu='agentbar-topbar-history'] .inputbox.agentbar-history-search-input {
+  --inputbox-height: 28px;
+  --inputbox-border-radius: 6px;
+  --inputbox-border: 1px solid var(--vscode-agentBar-inputBorder, #d6e0e8);
+  --inputbox-background: var(--vscode-agentBar-inputBackground, #ffffff);
+  --inputbox-background-hover: var(--vscode-agentBar-inputBackground, #ffffff);
+  --inputbox-foreground: var(--vscode-agentBar-inputForeground, #1f2d3a);
+  --inputbox-padding-y: 0;
+  --inputbox-padding-x: 8px;
+  --inputbox-font-size: 12px;
+
+  width: 100%;
+}
+
+.ls-menu[data-menu='agentbar-topbar-history'] .dropdown-menu-item.disabled {
+  cursor: default;
+}
+
 .agentbar-composer-actions.actionbar {
   flex: 0 0 auto;
   margin-left: auto;

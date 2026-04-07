@@ -1462,7 +1462,11 @@ class WorkbenchHost {
       webContentNavigationModel: webContentNavigationModelInstance,
       onOpenAddressBarSourceMenu: focusWorkbenchWebUrlInput,
       onToolbarAddressSubmit: () => {
-        navigateToAddressBarUrl(webUrl, true);
+        const { webUrl: latestWebUrl } = getWorkbenchSessionSnapshot();
+        navigateToAddressBarUrl(latestWebUrl, true);
+      },
+      onToolbarNavigateToUrl: (url) => {
+        navigateToAddressBarUrl(url, true);
       },
     });
     const contentAwareEditorPartProps: EditorPartProps = {

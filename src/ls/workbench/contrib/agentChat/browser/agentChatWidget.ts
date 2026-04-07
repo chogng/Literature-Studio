@@ -3,6 +3,7 @@ import {
   createActionBarView,
   type ActionBarActionItem,
   type ActionBarItem,
+  type ActionBarMenuItem,
 } from 'ls/base/browser/ui/actionbar/actionbar';
 import {
   createDropdownMenuActionViewItem,
@@ -10,6 +11,7 @@ import {
 } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
 import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
+import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -54,6 +56,7 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 }
 
 const AGENTBAR_TOPBAR_MORE_MENU_DATA = 'agentbar-topbar-more';
+const AGENTBAR_TOPBAR_HISTORY_MENU_DATA = 'agentbar-topbar-history';
 
 export class AgentChatWidget {
   private props: AgentChatWidgetProps;
@@ -202,36 +205,6 @@ export class AgentChatWidget {
     }
     shell.append(this.renderThread(), this.renderComposer(canSend));
     return shell;
-  }
-
-  private renderHistoryPopover() {
-    const popover = createElement('div', 'agentbar-popover');
-    const section = createElement('div', 'agentbar-popover-section');
-    const title = createElement('strong', 'agentbar-popover-title');
-    title.textContent = this.props.labels.assistantHistory;
-    const list = createElement('div', 'agentbar-history-list');
-    for (const conversation of this.props.conversations) {
-      const item = createElement(
-        'button',
-        [
-          'agentbar-history-item',
-          conversation.id === this.props.activeConversationId ? 'is-active' : '',
-        ]
-          .filter(Boolean)
-          .join(' '),
-      );
-      item.type = 'button';
-      item.addEventListener('click', () => this.props.onActivateConversation(conversation.id));
-      const titleNode = createElement('span', 'agentbar-history-item-title');
-      titleNode.textContent = conversation.title;
-      const meta = createElement('span', 'agentbar-history-item-meta');
-      meta.textContent = `${conversation.messages.length} messages`;
-      item.append(titleNode, meta);
-      list.append(item);
-    }
-    section.append(title, list);
-    popover.append(section);
-    return popover;
   }
 
   private renderThread() {
@@ -627,13 +600,75 @@ export class AgentChatWidget {
     };
   }
 
+  private createHistoryMenuItems(keyword: string): ActionBarMenuItem[] {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    const matchedConversations = this.props.conversations.filter((conversation) =>
+      conversation.title.toLowerCase().includes(normalizedKeyword),
+    );
+
+    if (matchedConversations.length === 0) {
+      return [
+        {
+          id: 'agentbar-history-empty',
+          label: 'no matching agents',
+          disabled: true,
+        },
+      ];
+    }
+
+    return matchedConversations.map((conversation, index) => ({
+      id: `agentbar-history-${conversation.id}-${index}`,
+      label: conversation.title,
+      title: `${conversation.title} (${conversation.messages.length} messages)`,
+      checked: conversation.id === this.props.activeConversationId,
+      onClick: () => {
+        this.props.onActivateConversation(conversation.id);
+      },
+    }));
+  }
+
+  private renderHistoryMenuHeader(context: {
+    updateMenu: (menu: readonly ActionBarMenuItem[]) => void;
+    hide: () => void;
+  }) {
+    const searchContainer = createElement(
+      'div',
+      'agentbar-history-menu-header',
+    );
+    const searchInputHost = createElement('div');
+    const searchInputBox = new InputBox(searchInputHost, undefined, {
+      className: 'agentbar-history-search-input',
+      type: 'search',
+      value: '',
+      placeholder: 'Search history',
+      ariaLabel: 'Search history',
+    });
+    searchInputBox.onDidChange((value) => {
+      context.updateMenu(this.createHistoryMenuItems(value));
+    });
+    searchInputBox.inputElement.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      context.hide();
+    });
+    searchContainer.append(searchInputHost);
+    queueMicrotask(() => {
+      searchInputBox.focus();
+      searchInputBox.select();
+    });
+    return searchContainer;
+  }
+
   private createTopbarMoreActionItem(): ActionBarItem {
     return createDropdownMenuActionViewItem({
       label: this.props.labels.assistantMore,
       title: this.props.labels.assistantMore,
       content: createLxIcon(lxIconSemanticMap.assistant.more),
       buttonClassName: 'sidebar-action-btn',
-      overlayAlignment: 'end',
+      overlayAlignment: 'start',
       menuData: AGENTBAR_TOPBAR_MORE_MENU_DATA,
       menu: [
         {
@@ -653,15 +688,13 @@ export class AgentChatWidget {
       content: createLxIcon(lxIconSemanticMap.assistant.history),
       buttonClassName: 'sidebar-action-btn',
       overlayAlignment: 'end',
-      overlayRole: 'dialog',
-      minWidth: 280,
-      renderOverlay: ({ hide }) => {
-        const popover = this.renderHistoryPopover();
-        for (const button of popover.querySelectorAll<HTMLButtonElement>('.agentbar-history-item')) {
-          button.addEventListener('click', () => hide(), { once: true });
-        }
-        return popover;
+      menuData: AGENTBAR_TOPBAR_HISTORY_MENU_DATA,
+      menu: this.createHistoryMenuItems(''),
+      menuHeader: {
+        autoFocusOnShow: true,
+        render: (context) => this.renderHistoryMenuHeader(context),
       },
+      minWidth: 280,
     });
   }
 

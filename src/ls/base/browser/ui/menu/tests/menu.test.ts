@@ -27,6 +27,7 @@ test('menu renders requested placement class', () => {
   document.body.append(menu.getElement());
 
   try {
+    assert.equal(menu.getElement().classList.contains('ls-menu-root'), true);
     assert.equal(menu.getElement().classList.contains('dropdown-menu-top'), true);
     assert.equal(menu.getElement().classList.contains('dropdown-menu-bottom'), false);
   } finally {
@@ -86,6 +87,143 @@ test('menu applies and clears the data-menu attribute from options', () => {
     });
 
     assert.equal(menu.getElement().hasAttribute('data-menu'), false);
+  } finally {
+    menu.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('menu header can update menu items and request hide', () => {
+  let cancelCount = 0;
+  const menu = new Menu({
+    items: [
+      { value: 'alpha', label: 'Alpha' },
+    ],
+    header: {
+      className: 'menu-header-test',
+      render: ({ updateItems, hide }) => {
+        const input = document.createElement('input');
+        input.className = 'menu-header-input';
+        input.addEventListener('input', () => {
+          updateItems([
+            { value: 'beta', label: 'Beta' },
+          ]);
+        });
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            hide();
+          }
+        });
+        return input;
+      },
+    },
+    onCancel: () => {
+      cancelCount += 1;
+    },
+  });
+  document.body.append(menu.getElement());
+
+  try {
+    const input = menu.getElement().querySelector('.ls-menu-header.menu-header-test.menu-header-input');
+    assert(input instanceof HTMLInputElement);
+    input.value = 'b';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const menuItems = Array.from(
+      menu.getElement().querySelectorAll<HTMLDivElement>('.dropdown-menu-item'),
+    );
+    assert.equal(menuItems.some((item) => item.textContent?.includes('Beta')), true);
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert.equal(cancelCount, 1);
+  } finally {
+    menu.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('menu opens submenu with ArrowRight and selects submenu action', () => {
+  const selections: string[] = [];
+  const menu = new Menu({
+    items: [
+      {
+        value: 'parent',
+        label: 'Parent',
+        submenu: [
+          { value: 'child', label: 'Child' },
+        ],
+      },
+      { value: 'other', label: 'Other' },
+    ],
+    onSelect: (event) => {
+      selections.push(event.value);
+    },
+  });
+  document.body.append(menu.getElement());
+
+  try {
+    const menuItems = Array.from(
+      menu.getElement().querySelectorAll<HTMLDivElement>('.dropdown-menu-item'),
+    );
+    assert.equal(menuItems.length, 2);
+    menu.focusSelectedOrFirstEnabled();
+    assert.equal(document.activeElement, menuItems[0]);
+
+    menuItems[0]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    const submenu = document.body.querySelector('.ls-menu-submenu');
+    assert(submenu instanceof HTMLElement);
+    assert.equal(submenu.classList.contains('ls-menu-submenu'), true);
+    const submenuItems = Array.from(
+      submenu.querySelectorAll<HTMLDivElement>('.dropdown-menu-item'),
+    );
+    assert.equal(submenuItems.length, 1);
+    assert.equal(document.activeElement, submenuItems[0]);
+
+    submenuItems[0]?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    assert.deepEqual(selections, ['child']);
+  } finally {
+    menu.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('menu closes only submenu on first Escape and root menu on second Escape', () => {
+  let cancelCount = 0;
+  const menu = new Menu({
+    items: [
+      {
+        value: 'parent',
+        label: 'Parent',
+        submenu: [
+          { value: 'child', label: 'Child' },
+        ],
+      },
+    ],
+    onCancel: () => {
+      cancelCount += 1;
+    },
+  });
+  document.body.append(menu.getElement());
+
+  try {
+    menu.focusSelectedOrFirstEnabled();
+    const parentItem = menu.getElement().querySelector('.dropdown-menu-item');
+    assert(parentItem instanceof HTMLDivElement);
+
+    parentItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    const submenuItem = document.body.querySelector('.ls-menu-submenu .dropdown-menu-item');
+    assert(submenuItem instanceof HTMLDivElement);
+    assert.equal(document.activeElement, submenuItem);
+
+    submenuItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert.equal(document.body.querySelector('.ls-menu-submenu'), null);
+    assert.equal(cancelCount, 0);
+    assert.equal(document.activeElement, parentItem);
+
+    parentItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert.equal(cancelCount, 1);
   } finally {
     menu.dispose();
     document.body.replaceChildren();

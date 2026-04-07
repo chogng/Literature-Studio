@@ -494,6 +494,9 @@ function createWorkbenchLayoutViewProps() {
         toolbarClearCache: 'Clear cache',
         toolbarAddressBar: 'Address bar',
         toolbarAddressPlaceholder: 'Search or enter URL',
+        toolbarSourcesRecent: 'Recent',
+        toolbarSourcesFavorites: 'Favorites',
+        toolbarSourcesEmpty: 'No links yet',
         draftMode: 'Draft',
         sourceMode: 'Source',
         pdfMode: 'PDF',
@@ -581,6 +584,7 @@ function createWorkbenchLayoutViewProps() {
       onToolbarClearCache: () => {},
       onToolbarAddressChange: () => {},
       onToolbarAddressSubmit: () => {},
+      onToolbarNavigateToUrl: () => {},
       onDraftDocumentChange: () => {},
       onSetEditorViewState: () => {},
       onDeleteEditorViewState: () => {},
@@ -845,6 +849,91 @@ test('WorkbenchLayoutView renders the browser toolbar below the editor topbar', 
   } finally {
     view.dispose();
     document.body.replaceChildren();
+  }
+});
+
+test('WorkbenchLayoutView shows browser sources panel entries and navigates when a source is selected', async () => {
+  const BROWSER_SOURCES_STORAGE_KEY = 'ls.editor.browser.sources.v1';
+  const addressChanges: string[] = [];
+  let navigateCount = 0;
+  window.localStorage?.removeItem(BROWSER_SOURCES_STORAGE_KEY);
+
+  const props = createWorkbenchLayoutViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-history',
+        kind: 'browser',
+        title: 'Example',
+        url: 'https://example.com/current',
+      },
+    ],
+    activeTabId: 'browser-tab-history',
+    activeTab: {
+      id: 'browser-tab-history',
+      kind: 'browser',
+      title: 'Example',
+      url: 'https://example.com/current',
+    },
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: 'https://example.com/current',
+    },
+    onToolbarAddressChange: (value: string) => {
+      addressChanges.push(value);
+    },
+    onToolbarNavigateToUrl: (value: string) => {
+      addressChanges.push(value);
+      navigateCount += 1;
+    },
+  };
+
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    const favoriteButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Favorite"]');
+    assert(favoriteButton instanceof HTMLButtonElement);
+    favoriteButton.click();
+
+    const sourcesButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Source menu"]');
+    assert(sourcesButton instanceof HTMLButtonElement);
+    sourcesButton.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const panel = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-sources-panel');
+    assert(panel instanceof HTMLElement);
+    assert.equal(panel.classList.contains('is-open'), true);
+
+    const sections = Array.from(
+      panel.querySelectorAll('.editor-browser-toolbar-sources-section'),
+    );
+    assert.equal(sections.length, 2);
+    const favoritesSection = sections[1];
+    const favoriteItems = Array.from(
+      favoritesSection.querySelectorAll('.editor-browser-toolbar-sources-item'),
+    );
+    assert.equal(favoriteItems.length, 1);
+
+    const [sourceItem] = favoriteItems;
+    assert(sourceItem instanceof HTMLButtonElement);
+    sourceItem.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(addressChanges.at(-1), 'https://example.com/current');
+    assert.equal(navigateCount, 1);
+    assert.equal(panel.classList.contains('is-open'), false);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+    window.localStorage?.removeItem(BROWSER_SOURCES_STORAGE_KEY);
   }
 });
 
