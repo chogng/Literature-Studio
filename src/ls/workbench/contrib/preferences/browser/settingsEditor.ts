@@ -15,10 +15,10 @@ import type { KnowledgeBaseWidgetProps } from 'ls/workbench/contrib/preferences/
 import { LlmWidget } from 'ls/workbench/contrib/preferences/browser/llmWidget';
 import {
   createSettingsSectionMap,
-  getSettingsPageNavigationItems,
   getSettingsPageSectionIds,
 } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 import type { SettingsPageId, SettingsSectionId } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
+import { createSettingsNavigationView } from 'ls/workbench/contrib/preferences/browser/settingsNavigationView';
 
 import type {
   SettingsPartActions,
@@ -355,7 +355,7 @@ function toColorPickerValue(colorValue: string) {
 
 export class SettingsPartView {
   private props: SettingsPartProps;
-  private readonly navigation = el('aside', 'settings-navigation');
+  private readonly navigationView: ReturnType<typeof createSettingsNavigationView>;
   private readonly content = el('div', 'settings-content');
   private readonly loadingHint = buildHint('');
   // Keep section containers stable so updates can replace only local content
@@ -372,6 +372,12 @@ export class SettingsPartView {
 
   constructor(props: SettingsPartProps) {
     this.props = props;
+    this.navigationView = createSettingsNavigationView({
+      labels: this.props.labels,
+      title: this.props.labels.settingsTitle,
+      activePageId: this.activePageId,
+      onDidSelectPage: this.handleDidSelectPage,
+    });
     this.batchSourcesWidget = new BatchSourcesWidget({
       labels: this.props.labels,
       batchSources: this.props.batchSources,
@@ -422,7 +428,7 @@ export class SettingsPartView {
   }
 
   getNavigationElement() {
-    return this.navigation;
+    return this.navigationView.getElement();
   }
 
   getContentElement() {
@@ -437,22 +443,24 @@ export class SettingsPartView {
 
   dispose() {
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, null);
-    this.navigation.replaceChildren();
+    this.navigationView.dispose();
     this.content.replaceChildren();
   }
 
   private containsManagedElement(node: Node) {
+    const navigationElement = this.navigationView.getElement();
     return (
-      this.navigation.contains(node) ||
+      navigationElement.contains(node) ||
       this.content.contains(node)
     );
   }
 
   private queryManagedFocusTarget(key: string) {
     const selector = `[data-focus-key="${key}"]`;
+    const navigationElement = this.navigationView.getElement();
     return (
       this.content.querySelector<HTMLElement>(selector) ??
-      this.navigation.querySelector<HTMLElement>(selector)
+      navigationElement.querySelector<HTMLElement>(selector)
     );
   }
 
@@ -603,32 +611,26 @@ export class SettingsPartView {
     }
   }
 
-  private renderNavigation() {
-    const items = getSettingsPageNavigationItems(this.props.labels);
-    this.navigation.replaceChildren(
-      ...items.map((item) => {
-        const button = el('button', 'settings-navigation-item');
-        const label = el('span', 'settings-navigation-label');
-        button.type = 'button';
-        if (item.icon) {
-          label.append(createLxIcon(item.icon, 'settings-navigation-icon'));
-        }
-        label.append(document.createTextNode(item.label));
-        button.append(label);
-        button.dataset.pageTarget = item.id;
-        button.classList.toggle('active', item.id === this.activePageId);
-        button.addEventListener('click', () => {
-          this.focusPage(item.id);
-        });
-        return button;
-      }),
-    );
+  private syncNavigationView() {
+    this.navigationView.setProps({
+      labels: this.props.labels,
+      title: this.props.labels.settingsTitle,
+      activePageId: this.activePageId,
+      onDidSelectPage: this.handleDidSelectPage,
+    });
   }
 
+  private readonly handleDidSelectPage = (pageId: SettingsPageId) => {
+    this.focusPage(pageId);
+  };
+
   private focusPage(pageId: SettingsPageId) {
+    if (this.activePageId === pageId) {
+      return;
+    }
     this.activePageId = pageId;
     this.renderActivePage();
-    this.renderNavigation();
+    this.syncNavigationView();
   }
 
   private renderActivePage() {
@@ -813,7 +815,7 @@ export class SettingsPartView {
   private updateView(previousProps?: SettingsPartProps, forceAll = false) {
     const focusSnapshot = this.captureFocus();
     this.loadingHint.textContent = this.props.labels.settingsLoading;
-    this.renderNavigation();
+    this.syncNavigationView();
 
     if (forceAll || this.shouldUpdateLocaleSection(previousProps)) {
       this.updateSection(this.sections.locale, this.renderLocaleField());

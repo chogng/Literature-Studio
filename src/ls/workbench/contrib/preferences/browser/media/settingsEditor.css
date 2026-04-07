@@ -34,7 +34,6 @@
 .settings-navigation {
   display: grid;
   align-content: start;
-  gap: 12px;
   width: 100%;
   min-width: 0;
   height: 100%;
@@ -42,8 +41,25 @@
   overflow: auto;
   padding: 16px 14px;
   border-right: 1px solid var(--vscode-settings-navigationBorder, #e6edf5);
-  background:
-    linear-gradient(180deg, var(--vscode-settings-navigationBackgroundFrom, #f7fbff) 0%, var(--vscode-settings-navigationBackgroundTo, #f2f7fc) 100%);
+  background: var(--vscode-settings-navigationBackground, transparent);
+}
+
+.settings-navigation-nav {
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-navigation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.settings-navigation-item-entry {
+  margin: 0;
+  padding: 0;
 }
 
 .settings-navigation-item {
@@ -76,13 +92,13 @@
 }
 
 .settings-navigation-item:hover {
-  background: var(--vscode-settings-navigationItemHoverBackground, rgba(10, 95, 191, 0.06));
+  background: var(--vscode-settings-navigationItemHoverBackground, rgba(0, 0, 0, 0.05));
 }
 
 .settings-navigation-item.active {
-  border-color: var(--vscode-settings-navigationItemActiveBorder, #c9d7e6);
+  border-color: var(--vscode-settings-navigationItemActiveBorder, #d9d9d9);
   background: var(--vscode-settings-navigationItemActiveBackground, #fff);
-  color: var(--vscode-settings-navigationItemActiveForeground, #0a5fbf);
+  color: var(--vscode-settings-navigationItemActiveForeground, #1f2d3a);
   box-shadow: none;
 }
 

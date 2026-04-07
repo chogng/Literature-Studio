@@ -3,9 +3,9 @@
   --ls-actionbar-radius: 6px;
   --ls-actionbar-foreground: #425468;
   --ls-actionbar-hover-foreground: #1a2530;
-  --ls-actionbar-hover-background: rgba(0, 0, 0, 0.04);
+  --ls-actionbar-hover-background: #EAEAEA;
   --ls-actionbar-active-foreground: #0a5fbf;
-  --ls-actionbar-active-background: #e8f1fc;
+  --ls-actionbar-active-background: #EAEAEA;
   --ls-actionbar-focus-outline: #0a5fbf;
   --ls-actionbar-separator: rgba(66, 84, 104, 0.18);
   --ls-actionbar-disabled-opacity: 0.5;

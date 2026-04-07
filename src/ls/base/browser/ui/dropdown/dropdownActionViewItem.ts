@@ -383,8 +383,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     () => this.options,
     () => this.anchorElement ?? this.button,
     () => {
-      this.isOpen = false;
-      this.button.setAttribute('aria-expanded', 'false');
+      this.updateOpenState(false);
     },
   );
   private isOpen = false;
@@ -421,6 +420,17 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     this.button.setAttribute('aria-expanded', String(this.isOpen));
   }
 
+  protected override updateContainerClassName() {
+    this.element.className = DOM.composeClassName([
+      'actionbar-item',
+      'is-action',
+      this.item.disabled ? 'is-disabled' : '',
+      this.item.active || this.isOpen ? 'is-active' : '',
+      this.item.checked ? 'is-checked' : '',
+      this.item.className,
+    ]);
+  }
+
   show(source: DropdownMenuOpenSource = 'pointer') {
     if (this.item.disabled || this.isDisposed() || this.isOpen) {
       return;
@@ -429,8 +439,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
     // Custom overlays are intentionally prioritized over menu mode so callers
     // can host rich panels (history/model switch/popovers) in the same trigger.
     if (this.options.renderOverlay) {
-      this.isOpen = true;
-      this.button.setAttribute('aria-expanded', 'true');
+      this.updateOpenState(true);
       this.overlayPresenter.show(this.createOverlayRequest());
       return;
     }
@@ -439,8 +448,7 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
       return;
     }
 
-    this.isOpen = true;
-    this.button.setAttribute('aria-expanded', 'true');
+    this.updateOpenState(true);
     this.menuPresenter.show(source);
   }
 
@@ -480,10 +488,15 @@ export class DropdownMenuActionViewItem extends ActionViewItem {
       offset: this.options.offset,
       render: (context) => this.options.renderOverlay?.(context) ?? DOM.createElement('div'),
       onHide: () => {
-        this.isOpen = false;
-        this.button.setAttribute('aria-expanded', 'false');
+        this.updateOpenState(false);
       },
     };
+  }
+
+  private updateOpenState(isOpen: boolean) {
+    this.isOpen = isOpen;
+    this.button.setAttribute('aria-expanded', String(isOpen));
+    this.updateContainerClassName();
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent) => {
