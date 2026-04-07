@@ -421,6 +421,42 @@ test('composer toolbar uses actionbar icon controls', () => {
   }
 });
 
+test('agent bar model menu supports search filtering', async () => {
+  const agentBar = createAgentChatWidget({
+    ...createProps(),
+    llmModelOptions: [
+      { value: 'auto', label: 'Auto' },
+      { value: 'glm:glm-4.7-flash', label: 'GLM-4.7-Flash' },
+      { value: 'openai:gpt-5.4:medium', label: 'GPT-5.4 · medium' },
+    ],
+  });
+  const element = agentBar.getElement();
+  document.body.append(element);
+
+  try {
+    const dropdownButton = element.querySelector('.agentbar-model-switch-btn');
+    assert(dropdownButton instanceof HTMLButtonElement);
+    dropdownButton.click();
+    await delay(0);
+
+    const menu = document.body.querySelector('.agentbar-model-menu');
+    assert(menu instanceof HTMLElement);
+    const searchInput = menu.querySelector('.dropdown-menu-search-input .input');
+    assert(searchInput instanceof HTMLInputElement);
+
+    searchInput.value = 'gpt';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await delay(0);
+
+    const menuItemLabels = Array.from(
+      menu.querySelectorAll('.agentbar-model-menu-item .agentbar-model-menu-item-label'),
+    ).map((node) => node.textContent?.trim());
+    assert.deepEqual(menuItemLabels, ['GPT-5.4 · medium']);
+  } finally {
+    agentBar.dispose();
+  }
+});
+
 test('horizontal scrollbar handles wheel events from the strip content', async () => {
   const host = document.createElement('div');
   const strip = document.createElement('div');

@@ -782,6 +782,39 @@ test('WorkbenchLayoutView renders an add dropdown before the collapse action and
   }
 });
 
+test('WorkbenchLayoutView add dropdown supports search header filtering', async () => {
+  const props = createWorkbenchLayoutViewProps();
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    const addButton = view
+      .getElement()
+      .querySelector('.editor-topbar .editor-topbar-add-btn');
+    assert(addButton instanceof HTMLButtonElement);
+
+    addButton.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const menu = document.body.querySelector('.dropdown-menu[data-menu=\"editor-topbar-add\"]');
+    assert(menu instanceof HTMLElement);
+    const searchInput = menu.querySelector('.ls-menu-header .dropdown-menu-search-input .input');
+    assert(searchInput instanceof HTMLInputElement);
+
+    searchInput.value = 'bro';
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const menuItemLabels = Array.from(
+      menu.querySelectorAll('.dropdown-menu-item .dropdown-menu-item-content'),
+    ).map((node) => node.textContent?.trim());
+    assert.deepEqual(menuItemLabels, ['Browser']);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+  }
+});
+
 test('WorkbenchLayoutView renders the browser toolbar below the editor topbar', () => {
   const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {

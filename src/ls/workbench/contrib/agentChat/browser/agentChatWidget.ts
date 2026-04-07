@@ -9,9 +9,12 @@ import {
   createDropdownMenuActionViewItem,
   DropdownMenuActionViewItem,
 } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
+import {
+  createDropdownSearchInputView,
+  createFilterMenuHeader,
+} from 'ls/base/browser/ui/dropdown/dropdownSearchHeader';
 import type { DropdownOption } from 'ls/base/browser/ui/dropdown/dropdown';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
-import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
@@ -57,6 +60,11 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 
 const AGENTBAR_TOPBAR_MORE_MENU_DATA = 'agentbar-topbar-more';
 const AGENTBAR_TOPBAR_HISTORY_MENU_DATA = 'agentbar-topbar-history';
+const AGENTBAR_HISTORY_SEARCH_PLACEHOLDER = 'Search history';
+const AGENTBAR_HISTORY_SEARCH_ARIA_LABEL = 'Search history';
+const AGENTBAR_MODEL_SEARCH_PLACEHOLDER = 'Search models';
+const AGENTBAR_MODEL_SEARCH_ARIA_LABEL = 'Search models';
+const AGENTBAR_MODEL_SEARCH_EMPTY_LABEL = 'No matching models';
 
 export class AgentChatWidget {
   private props: AgentChatWidgetProps;
@@ -384,52 +392,122 @@ export class AgentChatWidget {
   private renderModelDropdownMenu(hide: () => void) {
     const menu = createElement('div', 'agentbar-model-menu');
     menu.setAttribute('role', 'group');
-    menu.append(
-      this.renderModelMenuSectionLabel('Mode'),
-      this.createModelMenuItem({
+    const content = createElement('div', 'agentbar-model-menu-content');
+    const searchInput = createDropdownSearchInputView({
+      className: 'agentbar-model-menu-search-header',
+      inputClassName: 'agentbar-model-menu-search-input',
+      placeholder: AGENTBAR_MODEL_SEARCH_PLACEHOLDER,
+      ariaLabel: AGENTBAR_MODEL_SEARCH_ARIA_LABEL,
+      onChange: (value) => {
+        this.renderModelDropdownMenuContent(content, hide, value);
+      },
+      onEscape: hide,
+    });
+    menu.append(searchInput.element, content);
+    this.renderModelDropdownMenuContent(content, hide, '');
+    return menu;
+  }
+
+  private renderModelDropdownMenuContent(
+    container: HTMLElement,
+    hide: () => void,
+    keyword: string,
+  ) {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    const matchesKeyword = (value: string | undefined) =>
+      !normalizedKeyword || value?.toLowerCase().includes(normalizedKeyword);
+
+    const modeItems = [
+      {
         label: 'Auto Max mode',
         description: 'Let the app route to the recommended model automatically.',
-        icon: 'agent',
+        icon: 'agent' as LxIconName,
         checked: this.props.activeLlmModelOptionValue === 'auto',
         onClick: () => {
           this.props.onSelectLlmModel('auto');
           hide();
         },
-      }),
-      this.createModelMenuItem({
+      },
+      {
         label: 'Use multiple models',
         description: 'Not available yet.',
-        icon: 'reasoning',
+        icon: 'reasoning' as LxIconName,
         disabled: true,
-      }),
-      this.renderModelMenuSeparator(),
-      this.renderModelMenuSectionLabel('Models'),
-      ...this.props.llmModelOptions
-        .filter((option) => option.value !== 'auto')
-        .map((option) =>
-          this.createModelMenuItem({
-            label: option.label,
-            description: option.title,
-            icon: option.icon,
-            checked: this.props.activeLlmModelOptionValue === option.value,
-            disabled: option.disabled,
-            onClick: () => {
-              this.props.onSelectLlmModel(option.value);
-              hide();
-            },
-          })),
-      this.renderModelMenuSeparator(),
-      this.createModelMenuItem({
-        label: 'Add models',
-        description: 'Open Settings to manage enabled models.',
-        icon: 'gear',
-        onClick: () => {
-          this.props.onOpenModelSettings();
-          hide();
-        },
-      }),
-    );
-    return menu;
+      },
+    ]
+      .filter((item) =>
+        [
+          item.label,
+          item.description,
+        ]
+          .filter(Boolean)
+          .some((value) => matchesKeyword(value)),
+      )
+      .map((item) => this.createModelMenuItem(item));
+
+    const modelItems = this.props.llmModelOptions
+      .filter((option) => option.value !== 'auto')
+      .filter((option) =>
+        [
+          option.label,
+          option.title,
+          option.value,
+        ]
+          .filter(Boolean)
+          .some((value) => matchesKeyword(value)),
+      )
+      .map((option) =>
+        this.createModelMenuItem({
+          label: option.label,
+          description: option.title,
+          icon: option.icon,
+          checked: this.props.activeLlmModelOptionValue === option.value,
+          disabled: option.disabled,
+          onClick: () => {
+            this.props.onSelectLlmModel(option.value);
+            hide();
+          },
+        }),
+      );
+
+    const addModelsItem = matchesKeyword('Add models Open Settings to manage enabled models.')
+      ? this.createModelMenuItem({
+          label: 'Add models',
+          description: 'Open Settings to manage enabled models.',
+          icon: 'gear',
+          onClick: () => {
+            this.props.onOpenModelSettings();
+            hide();
+          },
+        })
+      : null;
+
+    const nodes: HTMLElement[] = [];
+    if (modeItems.length > 0) {
+      nodes.push(this.renderModelMenuSectionLabel('Mode'));
+      nodes.push(...modeItems);
+    }
+    if (modeItems.length > 0 && modelItems.length > 0) {
+      nodes.push(this.renderModelMenuSeparator());
+    }
+    if (modelItems.length > 0) {
+      nodes.push(this.renderModelMenuSectionLabel('Models'));
+      nodes.push(...modelItems);
+    }
+    if ((modeItems.length > 0 || modelItems.length > 0) && addModelsItem) {
+      nodes.push(this.renderModelMenuSeparator());
+    }
+    if (addModelsItem) {
+      nodes.push(addModelsItem);
+    }
+    if (nodes.length === 0) {
+      const emptyState = createElement('div', 'agentbar-model-menu-empty');
+      emptyState.textContent = AGENTBAR_MODEL_SEARCH_EMPTY_LABEL;
+      container.replaceChildren(emptyState);
+      return;
+    }
+
+    container.replaceChildren(...nodes);
   }
 
   private renderModelMenuSectionLabel(label: string) {
@@ -627,41 +705,6 @@ export class AgentChatWidget {
     }));
   }
 
-  private renderHistoryMenuHeader(context: {
-    updateMenu: (menu: readonly ActionBarMenuItem[]) => void;
-    hide: () => void;
-  }) {
-    const searchContainer = createElement(
-      'div',
-      'agentbar-history-menu-header',
-    );
-    const searchInputHost = createElement('div');
-    const searchInputBox = new InputBox(searchInputHost, undefined, {
-      className: 'agentbar-history-search-input',
-      type: 'search',
-      value: '',
-      placeholder: 'Search history',
-      ariaLabel: 'Search history',
-    });
-    searchInputBox.onDidChange((value) => {
-      context.updateMenu(this.createHistoryMenuItems(value));
-    });
-    searchInputBox.inputElement.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape') {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      context.hide();
-    });
-    searchContainer.append(searchInputHost);
-    queueMicrotask(() => {
-      searchInputBox.focus();
-      searchInputBox.select();
-    });
-    return searchContainer;
-  }
-
   private createTopbarMoreActionItem(): ActionBarItem {
     return createDropdownMenuActionViewItem({
       label: this.props.labels.assistantMore,
@@ -690,11 +733,13 @@ export class AgentChatWidget {
       overlayAlignment: 'end',
       menuData: AGENTBAR_TOPBAR_HISTORY_MENU_DATA,
       menu: this.createHistoryMenuItems(''),
-      menuHeader: {
-        autoFocusOnShow: true,
-        render: (context) => this.renderHistoryMenuHeader(context),
-      },
-      minWidth: 280,
+      menuHeader: createFilterMenuHeader({
+        className: 'agentbar-history-menu-header',
+        inputClassName: 'agentbar-history-search-input',
+        placeholder: AGENTBAR_HISTORY_SEARCH_PLACEHOLDER,
+        ariaLabel: AGENTBAR_HISTORY_SEARCH_ARIA_LABEL,
+        getMenuItems: (query) => this.createHistoryMenuItems(query),
+      }),
     });
   }
 
