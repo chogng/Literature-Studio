@@ -39,27 +39,11 @@ export type LayoutFlexState = {
   editorFlex: boolean;
 };
 
-export type SplitLeafParams = {
-  targetId: LayoutLeafId;
-  orientation: Orientation;
-  newLeaf: LayoutLeafNode;
-  side?: 'before' | 'after';
-  targetSize?: number;
-  newSize?: number;
-};
-
-function cloneNode(node: LayoutNode): LayoutNode {
-  if (node.type === 'leaf') {
-    return { ...node };
-  }
-
-  return {
-    type: 'branch',
-    orientation: node.orientation,
-    size: node.size,
-    children: node.children.map(cloneNode),
-  };
-}
+const CANONICAL_LEAF_ORDER: readonly LayoutLeafId[] = [
+  'primarySidebar',
+  'agentSidebar',
+  'editor',
+];
 
 function mapNode(
   node: LayoutNode,
@@ -80,52 +64,95 @@ function mapNode(
   return visit(nextNode);
 }
 
-function normalizeNode(
-  node: LayoutNode | null,
-): LayoutNode | null {
-  if (!node) {
-    return null;
-  }
-
-  if (node.type === 'leaf') {
-    return node;
-  }
-
-  const children = node.children
-    .map((child) => normalizeNode(child))
-    .filter((child): child is LayoutNode => Boolean(child));
-  if (children.length === 0) {
-    return null;
-  }
-  if (children.length === 1) {
-    return {
-      ...children[0],
-      size: node.size,
-    };
-  }
-
-  return {
-    type: 'branch',
-    orientation: node.orientation,
-    size: node.size,
-    children,
-  };
-}
-
-export function cloneLayoutTree(tree: LayoutNode) {
-  return cloneNode(tree);
-}
-
-export function serializeLayoutTree(tree: LayoutNode) {
-  return JSON.parse(JSON.stringify(tree)) as LayoutNode;
-}
-
 function getRootSize(params: LayoutTreeParams) {
   return (
     (params.isPrimarySidebarVisible ? params.primarySidebarSize : 0) +
     (params.isEditorVisible ? params.editorSize : 0) +
     (params.isAgentSidebarVisible ? params.agentSidebarSize : 0)
   );
+}
+
+function createCanonicalLayoutTree(params: LayoutTreeParams): LayoutBranchNode {
+  const flexState = resolveFlexState({
+    isAgentSidebarVisible: params.isAgentSidebarVisible,
+    isEditorVisible: params.isEditorVisible,
+  });
+
+  return {
+    type: 'branch',
+    orientation: params.orientation,
+    size: getRootSize(params),
+    children: [
+      {
+        type: 'leaf',
+        id: 'primarySidebar',
+        size: params.primarySidebarSize,
+        visible: params.isPrimarySidebarVisible,
+      },
+      {
+        type: 'leaf',
+        id: 'agentSidebar',
+        size: params.agentSidebarSize,
+        visible: params.isAgentSidebarVisible,
+        flex: flexState.agentSidebarFlex,
+      },
+      {
+        type: 'leaf',
+        id: 'editor',
+        size: params.editorSize,
+        visible: params.isEditorVisible,
+        flex: flexState.editorFlex,
+      },
+    ],
+  };
+}
+
+function isCanonicalLayoutTree(tree: LayoutNode): tree is LayoutBranchNode {
+  if (tree.type !== 'branch' || tree.children.length !== CANONICAL_LEAF_ORDER.length) {
+    return false;
+  }
+
+  return tree.children.every(
+    (child, index) =>
+      child.type === 'leaf' && child.id === CANONICAL_LEAF_ORDER[index],
+  );
+}
+
+function isLayoutTreeEqual(left: LayoutNode, right: LayoutNode): boolean {
+  if (left.type !== right.type) {
+    return false;
+  }
+
+  if (left.type === 'leaf' && right.type === 'leaf') {
+    return (
+      left.id === right.id &&
+      left.size === right.size &&
+      left.visible === right.visible &&
+      left.flex === right.flex
+    );
+  }
+
+  if (left.type === 'branch' && right.type === 'branch') {
+    if (
+      left.orientation !== right.orientation ||
+      left.size !== right.size ||
+      left.children.length !== right.children.length
+    ) {
+      return false;
+    }
+
+    for (let index = 0; index < left.children.length; index += 1) {
+      const leftChild = left.children[index];
+      const rightChild = right.children[index];
+      if (!leftChild || !rightChild || !isLayoutTreeEqual(leftChild, rightChild)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  return false;
 }
 
 export function resolveFlexState(params: {
@@ -149,196 +176,15 @@ export function createLayoutTree({
   agentSidebarSize,
   editorSize,
 }: LayoutTreeParams): LayoutNode {
-  const flexState = resolveFlexState({
-    isAgentSidebarVisible,
+  return createCanonicalLayoutTree({
+    orientation,
+    isPrimarySidebarVisible,
     isEditorVisible,
+    isAgentSidebarVisible,
+    primarySidebarSize,
+    agentSidebarSize,
+    editorSize,
   });
-
-  return {
-    type: 'branch',
-    orientation,
-    size: getRootSize({
-      orientation,
-      isPrimarySidebarVisible,
-      isEditorVisible,
-      isAgentSidebarVisible,
-      primarySidebarSize,
-      agentSidebarSize,
-      editorSize,
-    }),
-    children: [
-      {
-        type: 'leaf',
-        id: 'primarySidebar',
-        size: primarySidebarSize,
-        visible: isPrimarySidebarVisible,
-      },
-      {
-        type: 'leaf',
-        id: 'agentSidebar',
-        size: agentSidebarSize,
-        visible: isAgentSidebarVisible,
-        flex: flexState.agentSidebarFlex,
-      },
-      {
-        type: 'leaf',
-        id: 'editor',
-        size: editorSize,
-        visible: isEditorVisible,
-        flex: flexState.editorFlex,
-      },
-    ],
-  };
-}
-
-export function findLeafPath(
-  tree: LayoutNode,
-  targetId: LayoutLeafId,
-): number[] | null {
-  if (tree.type === 'leaf') {
-    return tree.id === targetId ? [] : null;
-  }
-
-  for (let index = 0; index < tree.children.length; index += 1) {
-    const childPath = findLeafPath(tree.children[index], targetId);
-    if (childPath) {
-      return [index, ...childPath];
-    }
-  }
-
-  return null;
-}
-
-export function getNodeAtPath(
-  tree: LayoutNode,
-  path: readonly number[],
-): LayoutNode | null {
-  let current: LayoutNode = tree;
-
-  for (const index of path) {
-    if (current.type !== 'branch') {
-      return null;
-    }
-
-    const child = current.children[index];
-    if (!child) {
-      return null;
-    }
-    current = child;
-  }
-
-  return current;
-}
-
-export function updateNodeAtPath(
-  tree: LayoutNode,
-  path: readonly number[],
-  updater: (node: LayoutNode) => LayoutNode,
-): LayoutNode {
-  if (path.length === 0) {
-    return updater(cloneNode(tree));
-  }
-
-  const [index, ...rest] = path;
-  if (tree.type !== 'branch' || !tree.children[index]) {
-    return tree;
-  }
-
-  return {
-    ...tree,
-    children: tree.children.map((child, childIndex) =>
-      childIndex === index ? updateNodeAtPath(child, rest, updater) : cloneNode(child),
-    ),
-  };
-}
-
-export function insertLeaf(
-  tree: LayoutNode,
-  targetId: LayoutLeafId,
-  newLeaf: LayoutLeafNode,
-  side: 'before' | 'after',
-): LayoutNode {
-  const targetPath = findLeafPath(tree, targetId);
-  if (!targetPath || targetPath.length === 0) {
-    return tree;
-  }
-
-  const parentPath = targetPath.slice(0, -1);
-  const targetIndex = targetPath[targetPath.length - 1] ?? 0;
-
-  return updateNodeAtPath(tree, parentPath, (node) => {
-    if (node.type !== 'branch') {
-      return node;
-    }
-
-    const insertIndex = side === 'before' ? targetIndex : targetIndex + 1;
-    const nextChildren = [...node.children];
-    nextChildren.splice(insertIndex, 0, { ...newLeaf });
-
-    return {
-      ...node,
-      children: nextChildren,
-    };
-  });
-}
-
-export function splitLeaf(
-  tree: LayoutNode,
-  {
-    targetId,
-    orientation,
-    newLeaf,
-    side = 'after',
-    targetSize,
-    newSize,
-  }: SplitLeafParams,
-): LayoutNode {
-  return normalizeNode(
-    mapNode(tree, (node) => {
-      if (node.type !== 'leaf' || node.id !== targetId) {
-        return node;
-      }
-
-      const currentSize = node.size;
-      const nextTargetSize = Math.max(0, Math.round(targetSize ?? currentSize / 2));
-      const nextNewSize = Math.max(
-        0,
-        Math.round(newSize ?? Math.max(0, currentSize - nextTargetSize)),
-      );
-      const currentLeaf = {
-        ...node,
-        size: nextTargetSize,
-      };
-      const insertedLeaf = {
-        ...newLeaf,
-        size: nextNewSize,
-      };
-
-      return {
-        type: 'branch',
-        orientation,
-        size: currentSize,
-        children:
-          side === 'before'
-            ? [insertedLeaf, currentLeaf]
-            : [currentLeaf, insertedLeaf],
-      };
-    }),
-  ) as LayoutNode;
-}
-
-export function removeLeaf(
-  tree: LayoutNode,
-  targetId: LayoutLeafId,
-): LayoutNode | null {
-  return normalizeNode(
-    mapNode(tree, (node) => {
-      if (node.type === 'leaf' && node.id === targetId) {
-        return null;
-      }
-      return node;
-    }),
-  );
 }
 
 export function updateLeaf(
@@ -361,9 +207,11 @@ export function reconcileLayoutTree(
   tree: LayoutNode | null,
   params: LayoutTreeParams,
 ): LayoutNode {
-  if (!tree) {
-    return createLayoutTree(params);
+  const nextTree = createCanonicalLayoutTree(params);
+
+  if (!tree || !isCanonicalLayoutTree(tree)) {
+    return nextTree;
   }
 
-  return createLayoutTree(params);
+  return isLayoutTreeEqual(tree, nextTree) ? tree : nextTree;
 }

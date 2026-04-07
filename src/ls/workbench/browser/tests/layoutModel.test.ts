@@ -3,18 +3,20 @@ import test from 'node:test';
 
 import { Orientation } from 'ls/base/browser/ui/grid/gridview';
 import {
-  cloneLayoutTree,
   createLayoutTree,
+  reconcileLayoutTree,
+  updateLeaf,
+} from 'ls/workbench/browser/layoutModel';
+import {
+  cloneLayoutTree,
   findLeafPath,
   getNodeAtPath,
   insertLeaf,
-  reconcileLayoutTree,
   removeLeaf,
   serializeLayoutTree,
   splitLeaf,
   updateNodeAtPath,
-  updateLeaf,
-} from 'ls/workbench/browser/layoutModel';
+} from 'ls/workbench/browser/tests/layoutTreeOps';
 
 function createDefaultTree() {
   return createLayoutTree({
@@ -236,4 +238,20 @@ test('layout model reconcile keeps three top-level panes and updates visibility'
   assert.equal(restoredTree.children[2]?.type, 'leaf');
   assert.equal(restoredTree.children[0].visible, true);
   assert.equal(restoredTree.children[1].visible, true);
+});
+
+test('layout model reconcile reuses canonical tree when params are unchanged', () => {
+  const tree = createDefaultTree();
+
+  const nextTree = reconcileLayoutTree(tree, {
+    orientation: Orientation.VERTICAL,
+    isPrimarySidebarVisible: true,
+    isEditorVisible: true,
+    isAgentSidebarVisible: true,
+    primarySidebarSize: 320,
+    agentSidebarSize: 260,
+    editorSize: 640,
+  });
+
+  assert.equal(nextTree, tree);
 });
