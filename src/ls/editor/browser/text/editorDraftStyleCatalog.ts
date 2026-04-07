@@ -2,6 +2,8 @@ import {
   areEditorDraftStyleSettingsEqual,
   createDefaultEditorDraftStyleSettings,
   normalizeEditorDraftStyleSettings,
+  type EditorDraftDefaultBodyStyle,
+  type EditorDraftInlineStyleDefaults,
   type EditorDraftStyleSettings,
 } from 'ls/base/common/editorDraftStyle';
 import {
@@ -12,7 +14,7 @@ export type {
   EditorDraftDefaultBodyStyle,
   EditorDraftInlineStyleDefaults,
   EditorDraftStyleSettings,
-} from 'ls/base/common/editorDraftStyle';
+};
 
 export type EditorDraftStyleOption = {
   value: string;

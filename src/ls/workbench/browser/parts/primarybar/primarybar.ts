@@ -21,7 +21,7 @@ import {
   FetchPaneContentView,
   type FetchPaneProps,
   type SidebarLabels,
-} from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+} from 'ls/workbench/browser/parts/sidebar/fetchPanePart';
 import { getWindowChromeLayout } from 'ls/platform/window/common/window';
 
 import 'ls/workbench/browser/parts/primarybar/media/primarybar.css';

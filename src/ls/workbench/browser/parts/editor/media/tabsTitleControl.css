@@ -123,9 +123,9 @@
   pointer-events: auto;
 }
 /* When the tab is hovered or focused, we apply a mask to the label to fade out the text towards the right edge, revealing the close button. */
-.editor-tab.has-title.is-closable[data-hovered='true'] .editor-tab-label,
-.editor-tab.has-title.is-closable:focus-within .editor-tab-label,
-.editor-tab.has-title.is-closable.is-dirty .editor-tab-label {
+.editor-tab.is-closable[data-hovered='true'] .editor-tab-label,
+.editor-tab.is-closable:focus-within .editor-tab-label,
+.editor-tab.is-closable.is-dirty .editor-tab-label {
   mask-image: linear-gradient(
     to right,
     black calc(100% - 36px),

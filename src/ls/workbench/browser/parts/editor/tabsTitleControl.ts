@@ -236,15 +236,9 @@ export class TabsTitleControl extends TitleControl {
     tabView.element.classList.toggle('is-active', tab.state.isActive);
     tabView.element.classList.toggle('is-closable', closable);
     tabView.element.classList.toggle('is-dirty', tab.state.isDirty);
-    tabView.element.classList.toggle(
-      'has-local-history',
-      tab.state.hasLocalHistory,
-    );
     tabView.element.classList.toggle('has-title', Boolean(tab.label.trim()));
     tabView.element.classList.toggle('is-available', Boolean(tab.targetTabId));
     tabView.element.dataset.paneMode = tab.paneMode;
-    tabView.element.dataset.isDirty = String(tab.state.isDirty);
-    tabView.element.dataset.hasLocalHistory = String(tab.state.hasLocalHistory);
     tabView.element.dataset.tabId = tab.id;
 
     tabView.mainButton.setAttribute('aria-selected', String(tab.state.isActive));

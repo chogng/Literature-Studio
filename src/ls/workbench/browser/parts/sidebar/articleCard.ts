@@ -10,7 +10,7 @@ import {
   getPdfDownloadStatus,
   subscribePdfDownloadStatus,
 } from 'ls/workbench/browser/pdfDownloadStatus';
-import type { SidebarArticle } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+import type { SidebarArticle } from 'ls/workbench/browser/parts/sidebar/fetchPanePart';
 
 type ArticleCardLabels = ArticleDetailsModalLabels;
 

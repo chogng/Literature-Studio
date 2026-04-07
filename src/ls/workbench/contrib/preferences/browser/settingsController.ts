@@ -4,7 +4,12 @@ import type {
   ElectronInvoke,
   LlmProviderId,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
-import { cloneEditorDraftStyleSettings } from 'ls/base/common/editorDraftStyle';
+import {
+  areEditorDraftStyleSettingsEqual,
+  cloneEditorDraftStyleSettings,
+  createDefaultEditorDraftStyleSettings,
+  type EditorDraftDefaultBodyStyle,
+} from 'ls/base/common/editorDraftStyle';
 import { editorDraftStyleService } from 'ls/editor/browser/text/editorDraftStyleService';
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
@@ -172,6 +177,40 @@ export class SettingsController {
   readonly setTheme = (nextTheme: AppTheme) => {
     this.settingsModel.setTheme(nextTheme);
     this.scheduleImmediateAutoSave();
+  };
+
+  readonly setEditorDraftFontFamily = (nextFontFamilyValue: string) => {
+    this.updateEditorDraftDefaultBodyStyle((defaultBodyStyle) => ({
+      ...defaultBodyStyle,
+      fontFamilyValue: nextFontFamilyValue,
+    }));
+  };
+
+  readonly setEditorDraftFontSize = (nextFontSizeValue: string) => {
+    this.updateEditorDraftDefaultBodyStyle((defaultBodyStyle) => ({
+      ...defaultBodyStyle,
+      fontSizeValue: nextFontSizeValue,
+    }));
+  };
+
+  readonly setEditorDraftLineHeight = (nextLineHeight: number) => {
+    this.updateEditorDraftDefaultBodyStyle((defaultBodyStyle) => ({
+      ...defaultBodyStyle,
+      lineHeight: nextLineHeight,
+    }));
+  };
+
+  readonly setEditorDraftColor = (nextColor: string) => {
+    this.updateEditorDraftDefaultBodyStyle((defaultBodyStyle) => ({
+      ...defaultBodyStyle,
+      color: nextColor,
+    }));
+  };
+
+  readonly handleResetEditorDraftStyle = () => {
+    editorDraftStyleService.setDefaultBodyStyle(
+      createDefaultEditorDraftStyleSettings().defaultBodyStyle,
+    );
   };
 
   readonly setPdfDownloadDir = (nextPdfDownloadDir: string) => {
@@ -477,8 +516,9 @@ export class SettingsController {
 
       this.isApplyingLoadedEditorDraftStyle = true;
       try {
-        editorDraftStyleService.setSnapshot(
-          cloneEditorDraftStyleSettings(this.settingsModel.getSnapshot().editorDraftStyle),
+        editorDraftStyleService.setDefaultBodyStyle(
+          cloneEditorDraftStyleSettings(this.settingsModel.getSnapshot().editorDraftStyle)
+            .defaultBodyStyle,
         );
       } finally {
         this.isApplyingLoadedEditorDraftStyle = false;
@@ -501,11 +541,34 @@ export class SettingsController {
       return;
     }
 
-    this.settingsModel.setEditorDraftStyle(
-      cloneEditorDraftStyleSettings(editorDraftStyleService.getSnapshot()),
+    const nextEditorDraftStyle = cloneEditorDraftStyleSettings(
+      editorDraftStyleService.getSnapshot(),
     );
+    const previousEditorDraftStyle = this.settingsModel.getSnapshot().editorDraftStyle;
+    if (areEditorDraftStyleSettingsEqual(previousEditorDraftStyle, nextEditorDraftStyle)) {
+      return;
+    }
+
+    this.settingsModel.setEditorDraftStyle(nextEditorDraftStyle);
     this.scheduleDebouncedAutoSave();
   };
+
+  private updateEditorDraftDefaultBodyStyle(
+    updater: (defaultBodyStyle: EditorDraftDefaultBodyStyle) => EditorDraftDefaultBodyStyle,
+  ) {
+    const snapshot = editorDraftStyleService.getSnapshot();
+    const nextDefaultBodyStyle = updater({
+      fontFamilyValue: snapshot.defaultBodyStyle.fontFamilyValue,
+      fontSizeValue: snapshot.defaultBodyStyle.fontSizeValue,
+      lineHeight: snapshot.defaultBodyStyle.lineHeight,
+      color: snapshot.defaultBodyStyle.color,
+      inlineStyleDefaults: {
+        ...snapshot.defaultBodyStyle.inlineStyleDefaults,
+      },
+    });
+
+    editorDraftStyleService.setDefaultBodyStyle(nextDefaultBodyStyle);
+  }
 
   private flushAutoSave = () => {
     const { locale } = this.context;

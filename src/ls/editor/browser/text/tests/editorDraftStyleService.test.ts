@@ -90,6 +90,36 @@ test('EditorDraftStyleService snapshots are frozen and detached from caller-owne
   assert.notEqual(service.getSnapshot().fontFamilyPresets[0].label, 'Mutated');
 });
 
+test('EditorDraftStyleService setDefaultBodyStyle preserves runtime preset lists', () => {
+  const initialSnapshot = getEditorDraftStyleCatalogSnapshot();
+  const service = createEditorDraftStyleService({
+    ...initialSnapshot,
+    fontFamilyPresets: [
+      {
+        value: '"Custom Sans", sans-serif',
+        label: 'Custom Sans',
+      },
+    ],
+    fontSizePresets: [
+      {
+        value: '15px',
+        label: 'Custom Size',
+      },
+    ],
+  });
+
+  const beforeUpdate = service.getSnapshot();
+  service.setDefaultBodyStyle({
+    ...beforeUpdate.defaultBodyStyle,
+    fontSizeValue: '16px',
+  });
+
+  const afterUpdate = service.getSnapshot();
+  assert.deepEqual(afterUpdate.fontFamilyPresets, beforeUpdate.fontFamilyPresets);
+  assert.deepEqual(afterUpdate.fontSizePresets, beforeUpdate.fontSizePresets);
+  assert.equal(afterUpdate.defaultBodyStyle.fontSizeValue, '16px');
+});
+
 test('normalizeEditorDraftStyleSettings tolerates partial or malformed persisted values', () => {
   const normalizedFromEmpty = normalizeEditorDraftStyleSettings(
     {} as unknown as Parameters<typeof normalizeEditorDraftStyleSettings>[0],

@@ -125,7 +125,7 @@ test('workbench content layout tree updates leaf data immutably', () => {
   const updatedTree = updateLeaf(tree, 'agentSidebar', {
     size: 300,
     visible: false,
-    flex: true,
+    flex: false,
   });
 
   assert.equal(updatedTree.type, 'branch');
@@ -134,14 +134,14 @@ test('workbench content layout tree updates leaf data immutably', () => {
   assert.equal(updatedAuxiliary.type, 'leaf');
   assert.equal(updatedAuxiliary.size, 300);
   assert.equal(updatedAuxiliary.visible, false);
-  assert.equal(updatedAuxiliary.flex, true);
+  assert.equal(updatedAuxiliary.flex, false);
 
   const originalAuxiliary = tree.children[1];
   assert(originalAuxiliary);
   assert.equal(originalAuxiliary.type, 'leaf');
   assert.equal(originalAuxiliary.size, 260);
   assert.equal(originalAuxiliary.visible, true);
-  assert.equal(originalAuxiliary.flex, false);
+  assert.equal(originalAuxiliary.flex, true);
 });
 
 test('workbench content layout tree can read and update the root branch by path', () => {

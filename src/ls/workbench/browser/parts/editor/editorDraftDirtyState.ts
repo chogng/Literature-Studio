@@ -6,7 +6,7 @@ import type { EditorTabViewMode } from 'ls/workbench/browser/parts/editor/editor
 
 export type EditorDraftSavedState = {
   title: string;
-  document: WritingEditorDocument;
+  documentKey: string;
   viewMode: EditorTabViewMode;
 };
 
@@ -25,20 +25,20 @@ type WorkspaceTabLike = {
   kind: string;
 };
 
+function normalizeDraftViewMode(viewMode: EditorTabViewMode) {
+  return viewMode === 'draft' ? viewMode : 'draft';
+}
+
+function createDraftDocumentKey(document: WritingEditorDocument) {
+  return JSON.stringify(normalizeWritingEditorDocument(document));
+}
+
 function toSavedState(value: DraftTabLike): EditorDraftSavedState {
   return {
     title: value.title,
-    document: normalizeWritingEditorDocument(value.document),
-    viewMode: value.viewMode === 'draft' ? value.viewMode : 'draft',
+    documentKey: createDraftDocumentKey(value.document),
+    viewMode: normalizeDraftViewMode(value.viewMode),
   };
-}
-
-function createSavedStateKey(value: EditorDraftSavedState) {
-  return JSON.stringify({
-    title: value.title,
-    viewMode: value.viewMode,
-    document: normalizeWritingEditorDocument(value.document),
-  });
 }
 
 function isDraftTab(tab: WorkspaceTabLike): tab is DraftTabLike {
@@ -107,10 +107,20 @@ export class EditorDraftDirtyState {
   }
 
   private isDraftTabDirty(tab: DraftTabLike) {
-    const currentState = toSavedState(tab);
-    const savedState = this.savedStateByTabId[tab.id] ?? currentState;
+    const savedState = this.savedStateByTabId[tab.id];
+    if (!savedState) {
+      return false;
+    }
 
-    return createSavedStateKey(currentState) !== createSavedStateKey(savedState);
+    const currentViewMode = normalizeDraftViewMode(tab.viewMode);
+    if (
+      tab.title !== savedState.title ||
+      currentViewMode !== savedState.viewMode
+    ) {
+      return true;
+    }
+
+    return createDraftDocumentKey(tab.document) !== savedState.documentKey;
   }
 }
 
@@ -119,4 +129,3 @@ export function createEditorDraftDirtyState(
 ) {
   return new EditorDraftDirtyState(initialSavedStateByTabId);
 }
-

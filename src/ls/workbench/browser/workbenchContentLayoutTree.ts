@@ -156,14 +156,14 @@ export function createWorkbenchContentLayoutTree({
         id: 'agentSidebar',
         size: agentSidebarSize,
         visible: isAgentSidebarVisible,
-        flex: !isEditorVisible && isAgentSidebarVisible,
+        flex: isAgentSidebarVisible,
       },
       {
         type: 'leaf',
         id: 'editor',
         size: editorSize,
         visible: isEditorVisible,
-        flex: isEditorVisible,
+        flex: isEditorVisible && !isAgentSidebarVisible,
       },
     ],
   };

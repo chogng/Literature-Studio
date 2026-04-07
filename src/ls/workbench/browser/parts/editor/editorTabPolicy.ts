@@ -53,16 +53,25 @@ export function getDraftTabDisplayLabel(params: {
   draftModeLabel: string;
   draftIndex: number;
   draftCount: number;
+  isReusableEmpty: boolean;
+  isDirty: boolean;
 }) {
-  const { tab, draftModeLabel, draftIndex, draftCount } = params;
+  const {
+    tab,
+    draftModeLabel,
+    draftIndex,
+    draftCount,
+    isReusableEmpty,
+    isDirty,
+  } = params;
   const normalizedTitle = tab.title.trim();
   if (normalizedTitle) {
     return normalizedTitle;
   }
 
-  // Keep the initial fixed draft tab icon-only. Once multiple draft tabs exist,
-  // switch to numbered labels so they are distinguishable.
-  if (draftCount <= 1) {
+  // In single-draft mode, keep the fixed draft entry icon-only when it is
+  // either a reusable placeholder or currently unsaved (dirty).
+  if (draftCount <= 1 && (isReusableEmpty || isDirty)) {
     return '';
   }
 

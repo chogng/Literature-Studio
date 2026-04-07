@@ -130,8 +130,8 @@ const workbenchDependencyModules = [
     load: () => import('ls/workbench/contrib/preferences/browser/settingsEditor'),
   },
   {
-    label: 'ls/workbench/browser/parts/sidebar/secondarySidebarPart',
-    load: () => import('ls/workbench/browser/parts/sidebar/secondarySidebarPart'),
+    label: 'ls/workbench/browser/parts/sidebar/fetchPanePart',
+    load: () => import('ls/workbench/browser/parts/sidebar/fetchPanePart'),
   },
   {
     label: 'ls/workbench/browser/parts/titlebar/titlebarPart',

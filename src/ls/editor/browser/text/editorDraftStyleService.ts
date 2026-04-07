@@ -5,7 +5,10 @@ import {
   normalizeEditorDraftStyleCatalogSnapshot,
   type EditorDraftStyleCatalogSnapshot,
 } from 'ls/editor/browser/text/editorDraftStyleCatalog';
-import type { EditorDraftStyleSettings } from 'ls/base/common/editorDraftStyle';
+import type {
+  EditorDraftDefaultBodyStyle,
+  EditorDraftStyleSettings,
+} from 'ls/base/common/editorDraftStyle';
 
 export type EditorDraftStyleServiceSnapshot = EditorDraftStyleCatalogSnapshot;
 type EditorDraftStyleServiceInput = EditorDraftStyleSettings | EditorDraftStyleCatalogSnapshot;
@@ -36,6 +39,23 @@ export class EditorDraftStyleService {
 
     this.snapshot = normalizedSnapshot;
     this.onDidChangeEmitter.fire();
+  }
+
+  setDefaultBodyStyle(nextDefaultBodyStyle: EditorDraftDefaultBodyStyle) {
+    this.setSnapshot({
+      ...this.snapshot,
+      defaultBodyStyle: {
+        fontFamilyValue: nextDefaultBodyStyle.fontFamilyValue,
+        fontSizeValue: nextDefaultBodyStyle.fontSizeValue,
+        lineHeight: nextDefaultBodyStyle.lineHeight,
+        color: nextDefaultBodyStyle.color,
+        inlineStyleDefaults: {
+          bold: nextDefaultBodyStyle.inlineStyleDefaults.bold,
+          italic: nextDefaultBodyStyle.inlineStyleDefaults.italic,
+          underline: nextDefaultBodyStyle.inlineStyleDefaults.underline,
+        },
+      },
+    });
   }
 
   resetToCatalog() {

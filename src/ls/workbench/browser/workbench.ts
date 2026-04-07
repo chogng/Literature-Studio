@@ -40,7 +40,7 @@ import { createAgentBarPartProps } from 'ls/workbench/browser/parts/agentbar/age
 import type { AgentBarPartProps } from 'ls/workbench/browser/parts/agentbar/agentbarPart';
 
 import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybarPart';
-import { createFetchPaneProps } from 'ls/workbench/browser/parts/sidebar/secondarySidebarPart';
+import { createFetchPaneProps } from 'ls/workbench/browser/parts/sidebar/fetchPanePart';
 
 import { createToastOverlayWindowView } from 'ls/workbench/browser/toastOverlayWindow';
 import { createArticleDetailsModalWindowView } from 'ls/workbench/browser/articleDetailsModalWindow';
@@ -95,6 +95,7 @@ import {
 import { isEditorContentTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
 import type { EditorWorkspaceTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { WritingEditorStableSelectionTarget } from 'ls/editor/common/writingEditorDocument';
+import { editorDraftStyleService } from 'ls/editor/browser/text/editorDraftStyleService';
 import {
   hasDesktopRuntime,
   hasWebContentRuntime,
@@ -603,6 +604,7 @@ class WorkbenchHost {
       subscribeWorkbenchLayoutState(this.requestRender),
       subscribeWindowState(this.requestRender),
       subscribeWorkbenchContentState(this.requestRender),
+      editorDraftStyleService.subscribe(this.requestRender),
     );
 
     this.requestRender();
@@ -1100,6 +1102,7 @@ class WorkbenchHost {
       initialBatchSources: INITIAL_BATCH_SOURCES,
     });
     const settingsSnapshot = settingsControllerInstance.getSnapshot();
+    const editorDraftStyleSnapshot = editorDraftStyleService.getSnapshot();
     const {
       batchSources,
       batchLimit,
@@ -1750,6 +1753,16 @@ class WorkbenchHost {
         useMica,
         statusbarVisible,
         theme,
+        editorDraftStyle: {
+          defaultBodyStyle: {
+            ...editorDraftStyleSnapshot.defaultBodyStyle,
+            inlineStyleDefaults: {
+              ...editorDraftStyleSnapshot.defaultBodyStyle.inlineStyleDefaults,
+            },
+          },
+        },
+        editorDraftFontFamilyOptions: editorDraftStyleSnapshot.fontFamilyPresets,
+        editorDraftFontSizeOptions: editorDraftStyleSnapshot.fontSizePresets,
         knowledgeBaseEnabled,
         autoIndexDownloadedPdf,
         knowledgeBasePdfDownloadDir,
@@ -1797,6 +1810,27 @@ class WorkbenchHost {
         onUseMicaChange: settingsControllerInstance.setUseMica,
         onStatusbarVisibleChange: settingsControllerInstance.setStatusbarVisible,
         onThemeChange: settingsControllerInstance.setTheme,
+        onEditorDraftFontFamilyChange:
+          settingsControllerInstance.setEditorDraftFontFamily,
+        onEditorDraftFontSizeChange:
+          settingsControllerInstance.setEditorDraftFontSize,
+        onEditorDraftLineHeightChange: (value) => {
+          const normalizedLineHeightValue = value.trim();
+          if (!/^\d+(?:\.\d+)?$/.test(normalizedLineHeightValue)) {
+            return;
+          }
+
+          const parsedLineHeight = Number.parseFloat(normalizedLineHeightValue);
+          if (!Number.isFinite(parsedLineHeight) || parsedLineHeight <= 0) {
+            return;
+          }
+          settingsControllerInstance.setEditorDraftLineHeight(
+            Math.min(4, Math.max(0.5, parsedLineHeight)),
+          );
+        },
+        onEditorDraftColorChange: settingsControllerInstance.setEditorDraftColor,
+        onResetEditorDraftStyle:
+          settingsControllerInstance.handleResetEditorDraftStyle,
         onKnowledgeBaseEnabledChange: settingsControllerInstance.setKnowledgeBaseEnabled,
         onAutoIndexDownloadedPdfChange:
           settingsControllerInstance.setAutoIndexDownloadedPdf,

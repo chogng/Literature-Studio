@@ -12,12 +12,20 @@ import type {
   TranslationProviderSettings,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
+import type { EditorDraftStyleSettings } from 'ls/base/common/editorDraftStyle';
+
+export type SettingsDropdownOption = {
+  value: string;
+  label: string;
+  title?: string;
+};
 
 // Keep preferences types separate from the editor implementation so field views
 // can depend on stable contracts without importing the editor host module.
 export type SettingsPartLabels = {
   settingsTitle: string; settingsLoading: string; settingsLanguage: string; languageChinese: string; languageEnglish: string; settingsLanguageHint: string;
   settingsNavigationBack: string; settingsNavigationGeneral: string; settingsNavigationTextEditor: string; settingsNavigationChat: string; settingsNavigationKnowledgeBase: string; settingsNavigationLiterature: string; settingsTextEditorTitle: string; settingsTextEditorHint: string;
+  settingsTextEditorDefaultBodyStyle: string; settingsTextEditorFontFamily: string; settingsTextEditorFontSize: string; settingsTextEditorLineHeight: string; settingsTextEditorColor: string; settingsTextEditorResetDefaultBodyStyle: string;
   settingsPageUrl: string; settingsPageUrlHint: string; pageUrlPlaceholder: string; settingsBatchJournalTitle: string; batchJournalTitlePlaceholder: string;
   addBatchUrl: string; removeBatchUrl: string; moveBatchUrlUp: string; moveBatchUrlDown: string; settingsBatchOptions: string; batchCount: string; sameDomainOnly: string; startDate: string; endDate: string;
   settingsAppearanceTitle: string; settingsTheme: string; settingsThemeHint: string; settingsThemeLight: string; settingsThemeDark: string; settingsUseMica: string; settingsUseMicaHint: string; settingsLibraryTitle: string; settingsKnowledgeBaseMode: string;
@@ -43,6 +51,9 @@ export type SettingsPartLabels = {
 
 export type SettingsPartProps = {
   labels: SettingsPartLabels; isSettingsLoading: boolean; locale: Locale; batchSources: BatchSource[];
+  editorDraftStyle: EditorDraftStyleSettings;
+  editorDraftFontFamilyOptions: readonly SettingsDropdownOption[];
+  editorDraftFontSizeOptions: readonly SettingsDropdownOption[];
   onNavigateBack: () => void;
   onBatchSourceUrlChange: (index: number, url: string) => void; onBatchSourceJournalTitleChange: (index: number, journalTitle: string) => void; onAddBatchSource: () => void;
   onRemoveBatchSource: (index: number) => void; onMoveBatchSource: (index: number, direction: 'up' | 'down') => void; batchLimit: number; onBatchLimitChange: (value: string) => void;
@@ -60,12 +71,16 @@ export type SettingsPartProps = {
   llmProviders: Record<LlmProviderId, LlmProviderSettings>; onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void; onLlmProviderModelChange: (provider: LlmProviderId, model: string) => void; onLlmProviderSelectedModelOption: (provider: LlmProviderId, optionValue: string) => void; onLlmProviderReasoningEffortChange: (provider: LlmProviderId, reasoningEffort: import('ls/workbench/services/llm/types').LlmReasoningEffort | undefined) => void; onLlmProviderModelEnabledChange: (provider: LlmProviderId, optionValue: string, enabled: boolean) => void; onLlmProviderUseMaxContextWindowChange: (provider: LlmProviderId, useMaxContextWindow: boolean) => void;
   activeTranslationProvider: TranslationProviderId; onActiveTranslationProviderChange: (provider: TranslationProviderId) => void; translationProviders: Record<TranslationProviderId, TranslationProviderSettings>;
   onTranslationProviderApiKeyChange: (provider: TranslationProviderId, apiKey: string) => void; onTestLlmConnection: () => void; onTestTranslationConnection: () => void;
+  onEditorDraftFontFamilyChange: (value: string) => void; onEditorDraftFontSizeChange: (value: string) => void; onEditorDraftLineHeightChange: (value: string) => void; onEditorDraftColorChange: (value: string) => void; onResetEditorDraftStyle: () => void;
   onOpenConfigLocation: () => void; desktopRuntime: boolean; configPath: string; isSettingsSaving: boolean; isTestingRagConnection: boolean; isTestingLlmConnection: boolean;
   isTestingTranslationConnection: boolean; onResetDownloadDir: () => void;
 };
 
 export type SettingsPartState = {
   ui: LocaleMessages; isSettingsLoading: boolean; locale: Locale; batchSources: BatchSource[]; batchLimit: number; sameDomainOnly: boolean; fetchStartDate: string; fetchEndDate: string; useMica: boolean; statusbarVisible: boolean; theme: AppTheme;
+  editorDraftStyle: EditorDraftStyleSettings;
+  editorDraftFontFamilyOptions: readonly SettingsDropdownOption[];
+  editorDraftFontSizeOptions: readonly SettingsDropdownOption[];
   knowledgeBaseEnabled: boolean; autoIndexDownloadedPdf: boolean; knowledgeBasePdfDownloadDir: string; libraryStorageMode: LibraryStorageMode; libraryDirectory: string; maxConcurrentIndexJobs: number; activeRagProvider: RagProviderId;
   ragProviders: Record<RagProviderId, RagProviderSettings>; retrievalCandidateCount: number; retrievalTopK: number; pdfDownloadDir: string; pdfFileNameUseSelectionOrder: boolean;
   activeLlmProvider: LlmProviderId; llmProviders: Record<LlmProviderId, LlmProviderSettings>; activeTranslationProvider: TranslationProviderId; translationProviders: Record<TranslationProviderId, TranslationProviderSettings>;
@@ -84,5 +99,6 @@ export type SettingsPartActions = {
   onRetrievalCandidateCountChange: (value: string) => void; onRetrievalTopKChange: (value: string) => void; onPdfDownloadDirChange: (value: string) => void; onPdfFileNameUseSelectionOrderChange: (checked: boolean) => void;
   onChoosePdfDownloadDir: () => void; onActiveLlmProviderChange: (provider: LlmProviderId) => void; onLlmProviderApiKeyChange: (provider: LlmProviderId, apiKey: string) => void; onLlmProviderModelChange: (provider: LlmProviderId, model: string) => void; onLlmProviderSelectedModelOption: (provider: LlmProviderId, optionValue: string) => void; onLlmProviderReasoningEffortChange: (provider: LlmProviderId, reasoningEffort: import('ls/workbench/services/llm/types').LlmReasoningEffort | undefined) => void; onLlmProviderModelEnabledChange: (provider: LlmProviderId, optionValue: string, enabled: boolean) => void; onLlmProviderUseMaxContextWindowChange: (provider: LlmProviderId, useMaxContextWindow: boolean) => void;
   onActiveTranslationProviderChange: (provider: TranslationProviderId) => void; onTranslationProviderApiKeyChange: (provider: TranslationProviderId, apiKey: string) => void; onTestRagConnection: () => void;
+  onEditorDraftFontFamilyChange: (value: string) => void; onEditorDraftFontSizeChange: (value: string) => void; onEditorDraftLineHeightChange: (value: string) => void; onEditorDraftColorChange: (value: string) => void; onResetEditorDraftStyle: () => void;
   onTestLlmConnection: () => void; onTestTranslationConnection: () => void; onOpenConfigLocation: () => void; onResetDownloadDir: () => void;
 };

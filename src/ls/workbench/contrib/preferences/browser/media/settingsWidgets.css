@@ -54,6 +54,48 @@
   align-content: start;
 }
 
+.settings-text-editor-field {
+  align-content: start;
+}
+
+.settings-text-editor-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-settings-fieldForeground, #2d4052);
+}
+
+.settings-text-editor-select {
+  min-width: 220px;
+}
+
+.settings-text-editor-line-height-input {
+  max-width: 140px;
+  min-width: 120px;
+}
+
+.settings-text-editor-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-native-input.settings-text-editor-color-picker {
+  width: 48px;
+  min-width: 48px;
+  flex: 0 0 48px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.settings-native-input.settings-text-editor-color-value {
+  max-width: 160px;
+  min-width: 140px;
+}
+
+.settings-text-editor-reset-button {
+  justify-self: start;
+}
+
 .settings-knowledge-base-field {
   gap: 14px;
 }

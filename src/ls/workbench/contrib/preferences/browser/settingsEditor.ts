@@ -4,6 +4,7 @@ import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
+import { DEFAULT_EDITOR_DRAFT_BODY_COLOR } from 'ls/base/common/editorDraftStyle';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { createSwitchView } from 'ls/base/browser/ui/switch/switch';
 import { BatchSourcesWidget } from 'ls/workbench/contrib/preferences/browser/batchSourcesWidget';
@@ -16,6 +17,7 @@ import type { SettingsPageId, SettingsSectionId } from 'ls/workbench/contrib/pre
 
 import type {
   SettingsPartActions,
+  SettingsDropdownOption,
   SettingsPartLabels,
   SettingsPartProps,
   SettingsPartState,
@@ -30,7 +32,7 @@ import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from 'ls/workbench/b
 import 'ls/workbench/contrib/preferences/browser/media/settingsEditor.css';
 import 'ls/workbench/contrib/preferences/browser/media/settingsWidgets.css';
 
-type SelectOption = { value: string; label: string };
+type SelectOption = SettingsDropdownOption;
 
 type CreateSettingsPartLabelsParams = { ui: LocaleMessages };
 type CreateSettingsPartPropsParams = { state: SettingsPartState; actions: SettingsPartActions };
@@ -39,6 +41,7 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
   return {
     settingsTitle: ui.settingsTitle, settingsLoading: ui.settingsLoading, settingsLanguage: ui.settingsLanguage, languageChinese: ui.languageChinese, languageEnglish: ui.languageEnglish, settingsLanguageHint: ui.settingsLanguageHint,
     settingsNavigationBack: ui.settingsNavigationBack, settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
+    settingsTextEditorDefaultBodyStyle: ui.settingsTextEditorDefaultBodyStyle, settingsTextEditorFontFamily: ui.settingsTextEditorFontFamily, settingsTextEditorFontSize: ui.settingsTextEditorFontSize, settingsTextEditorLineHeight: ui.settingsTextEditorLineHeight, settingsTextEditorColor: ui.settingsTextEditorColor, settingsTextEditorResetDefaultBodyStyle: ui.settingsTextEditorResetDefaultBodyStyle,
     settingsPageUrl: ui.settingsPageUrl, settingsPageUrlHint: ui.settingsPageUrlHint, pageUrlPlaceholder: ui.pageUrlPlaceholder, settingsBatchJournalTitle: ui.settingsBatchJournalTitle, batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
     addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly, startDate: ui.startDate, endDate: ui.endDate,
     settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsTheme: ui.settingsTheme, settingsThemeHint: ui.settingsThemeHint, settingsThemeLight: ui.settingsThemeLight, settingsThemeDark: ui.settingsThemeDark, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
@@ -95,6 +98,7 @@ function buildSelect(options: readonly SelectOption[], value: string, focusKey: 
     const optionElement = document.createElement('option');
     optionElement.value = option.value;
     optionElement.text = option.label;
+    optionElement.title = option.title ?? option.label;
     select.append(optionElement);
   }
   select.value = value;
@@ -212,6 +216,51 @@ function createThemeOptions(labels: SettingsPartLabels): readonly SelectOption[]
     { value: 'light', label: labels.settingsThemeLight },
     { value: 'dark', label: labels.settingsThemeDark },
   ];
+}
+
+function ensureCurrentSelectOption(
+  options: readonly SelectOption[],
+  currentValue: string,
+): readonly SelectOption[] {
+  const normalizedCurrentValue = currentValue.trim();
+  if (!normalizedCurrentValue) {
+    return options;
+  }
+
+  const hasCurrentValue = options.some(
+    (option) => option.value.trim() === normalizedCurrentValue,
+  );
+  if (hasCurrentValue) {
+    return options;
+  }
+
+  return [
+    {
+      value: normalizedCurrentValue,
+      label: normalizedCurrentValue,
+      title: normalizedCurrentValue,
+    },
+    ...options,
+  ];
+}
+
+function toColorPickerValue(colorValue: string) {
+  const normalizedColorValue = colorValue.trim();
+  if (/^#(?:[0-9a-fA-F]{6})$/.test(normalizedColorValue)) {
+    return normalizedColorValue;
+  }
+
+  const shortHexMatch = normalizedColorValue.match(/^#([0-9a-fA-F]{3})$/);
+  if (shortHexMatch) {
+    const [, shortHex] = shortHexMatch;
+    const expandedHex = shortHex
+      .split('')
+      .map((channel) => `${channel}${channel}`)
+      .join('');
+    return `#${expandedHex}`;
+  }
+
+  return DEFAULT_EDITOR_DRAFT_BODY_COLOR;
 }
 
 export class SettingsPartView {
@@ -565,10 +614,29 @@ export class SettingsPartView {
   }
 
   private shouldUpdateTextEditorSection(previousProps?: SettingsPartProps) {
+    if (!previousProps) {
+      return true;
+    }
+
+    const previousDefaultBodyStyle = previousProps.editorDraftStyle.defaultBodyStyle;
+    const currentDefaultBodyStyle = this.props.editorDraftStyle.defaultBodyStyle;
+
     return (
-      !previousProps ||
+      previousDefaultBodyStyle.fontFamilyValue !== currentDefaultBodyStyle.fontFamilyValue ||
+      previousDefaultBodyStyle.fontSizeValue !== currentDefaultBodyStyle.fontSizeValue ||
+      previousDefaultBodyStyle.lineHeight !== currentDefaultBodyStyle.lineHeight ||
+      previousDefaultBodyStyle.color !== currentDefaultBodyStyle.color ||
+      previousProps.editorDraftFontFamilyOptions !== this.props.editorDraftFontFamilyOptions ||
+      previousProps.editorDraftFontSizeOptions !== this.props.editorDraftFontSizeOptions ||
+      previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
       previousProps.labels.settingsTextEditorTitle !== this.props.labels.settingsTextEditorTitle ||
-      previousProps.labels.settingsTextEditorHint !== this.props.labels.settingsTextEditorHint
+      previousProps.labels.settingsTextEditorHint !== this.props.labels.settingsTextEditorHint ||
+      previousProps.labels.settingsTextEditorDefaultBodyStyle !== this.props.labels.settingsTextEditorDefaultBodyStyle ||
+      previousProps.labels.settingsTextEditorFontFamily !== this.props.labels.settingsTextEditorFontFamily ||
+      previousProps.labels.settingsTextEditorFontSize !== this.props.labels.settingsTextEditorFontSize ||
+      previousProps.labels.settingsTextEditorLineHeight !== this.props.labels.settingsTextEditorLineHeight ||
+      previousProps.labels.settingsTextEditorColor !== this.props.labels.settingsTextEditorColor ||
+      previousProps.labels.settingsTextEditorResetDefaultBodyStyle !== this.props.labels.settingsTextEditorResetDefaultBodyStyle
     );
   }
 
@@ -829,10 +897,97 @@ export class SettingsPartView {
   }
 
   private renderTextEditorField() {
-    const field = el('div', 'settings-field settings-placeholder-field');
+    const field = el('div', 'settings-field settings-text-editor-field');
     const title = el('span', 'settings-section-title');
+    const defaultBodyStyle = this.props.editorDraftStyle.defaultBodyStyle;
+    const isDisabled = this.props.isSettingsSaving;
+
     title.textContent = this.props.labels.settingsTextEditorTitle;
-    field.append(title, buildHint(this.props.labels.settingsTextEditorHint));
+    const subtitle = buildHint(this.props.labels.settingsTextEditorHint);
+
+    const defaultBodyStyleTitle = el('span', 'settings-text-editor-group-title');
+    defaultBodyStyleTitle.textContent = this.props.labels.settingsTextEditorDefaultBodyStyle;
+
+    const fontFamilyField = el('label', 'settings-field');
+    const fontFamilySelect = buildSelect(
+      ensureCurrentSelectOption(
+        this.props.editorDraftFontFamilyOptions,
+        defaultBodyStyle.fontFamilyValue,
+      ),
+      defaultBodyStyle.fontFamilyValue,
+      'settings.textEditor.fontFamily',
+      this.props.onEditorDraftFontFamilyChange,
+      'settings-text-editor-select',
+    );
+    fontFamilySelect.disabled = isDisabled;
+    fontFamilyField.append(text(this.props.labels.settingsTextEditorFontFamily), fontFamilySelect);
+
+    const fontSizeField = el('label', 'settings-field');
+    const fontSizeSelect = buildSelect(
+      ensureCurrentSelectOption(
+        this.props.editorDraftFontSizeOptions,
+        defaultBodyStyle.fontSizeValue,
+      ),
+      defaultBodyStyle.fontSizeValue,
+      'settings.textEditor.fontSize',
+      this.props.onEditorDraftFontSizeChange,
+      'settings-text-editor-select',
+    );
+    fontSizeSelect.disabled = isDisabled;
+    fontSizeField.append(text(this.props.labels.settingsTextEditorFontSize), fontSizeSelect);
+
+    const lineHeightField = el('label', 'settings-field');
+    const lineHeightInput = buildInput({
+      type: 'number',
+      value: defaultBodyStyle.lineHeight,
+      className: 'settings-input-control settings-text-editor-line-height-input',
+      focusKey: 'settings.textEditor.lineHeight',
+      min: '0.5',
+      max: '4',
+      inputMode: 'decimal',
+      onInput: this.props.onEditorDraftLineHeightChange,
+    });
+    lineHeightInput.step = '0.1';
+    lineHeightInput.disabled = isDisabled;
+    lineHeightField.append(text(this.props.labels.settingsTextEditorLineHeight), lineHeightInput);
+
+    const colorField = el('label', 'settings-field');
+    const colorRow = el('div', 'settings-text-editor-color-row');
+    const colorPickerInput = buildInput({
+      type: 'color',
+      value: toColorPickerValue(defaultBodyStyle.color),
+      className: 'settings-text-editor-color-picker',
+      focusKey: 'settings.textEditor.colorPicker',
+      onInput: this.props.onEditorDraftColorChange,
+    });
+    colorPickerInput.disabled = isDisabled;
+    const colorValueInput = buildInput({
+      value: defaultBodyStyle.color,
+      className: 'settings-input-control settings-text-editor-color-value',
+      focusKey: 'settings.textEditor.colorValue',
+      readOnly: true,
+    });
+    colorRow.append(colorPickerInput, colorValueInput);
+    colorField.append(text(this.props.labels.settingsTextEditorColor), colorRow);
+
+    const resetButton = buildButton({
+      label: this.props.labels.settingsTextEditorResetDefaultBodyStyle,
+      className: 'settings-text-editor-reset-button',
+      focusKey: 'settings.textEditor.resetDefaultBodyStyle',
+      disabled: isDisabled,
+      onClick: this.props.onResetEditorDraftStyle,
+    });
+
+    field.append(
+      title,
+      subtitle,
+      defaultBodyStyleTitle,
+      fontFamilyField,
+      fontSizeField,
+      lineHeightField,
+      colorField,
+      resetButton,
+    );
     return field;
   }
 

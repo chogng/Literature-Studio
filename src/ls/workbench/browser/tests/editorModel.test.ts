@@ -554,3 +554,52 @@ test('editor model restores saved draft checkpoints from persisted workspace sta
     restoreWindow();
   }
 });
+
+test('editor model restores saved draft checkpoints from persisted document keys', () => {
+  const localStorage = createLocalStorage({
+    'ls.writingWorkspace.state': JSON.stringify({
+      groups: [
+        {
+          groupId: 'editor-group-a',
+          inputs: [
+            {
+              id: 'draft-a',
+              kind: 'draft',
+              title: 'Draft A',
+              viewMode: 'draft',
+            },
+          ],
+          activeTabId: 'draft-a',
+          mruTabIds: ['draft-a'],
+        },
+      ],
+      activeGroupId: 'editor-group-a',
+      draftStateByInputId: {
+        'draft-a': {
+          title: 'Draft A',
+          viewMode: 'draft',
+          document: createWritingEditorDocumentFromPlainText('changed'),
+        },
+      },
+      savedDraftStateByInputId: {
+        'draft-a': {
+          title: 'Draft A',
+          viewMode: 'draft',
+          documentKey: JSON.stringify(
+            createWritingEditorDocumentFromPlainText('saved'),
+          ),
+        },
+      },
+      viewStateEntries: [],
+    }),
+  });
+  const restoreWindow = installMockWindow(localStorage);
+
+  try {
+    const model = createEditorModel();
+    assert.deepEqual(model.getSnapshot().dirtyDraftTabIds, ['draft-a']);
+    model.dispose();
+  } finally {
+    restoreWindow();
+  }
+});

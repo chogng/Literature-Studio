@@ -115,9 +115,9 @@ export const WORKBENCH_CONTENT_LAYOUT_BREAKPOINT = 980;
 export const WORKBENCH_SPLITVIEW_RESERVE_SASH_SPACE = false;
 export const WORKBENCH_SPLITVIEW_LIMITS = {
   primaryBar: {
-    minimum: 280,
+    minimum: 170,
     maximum: Number.POSITIVE_INFINITY,
-    defaultSize: 320,
+    defaultSize: 220,
   },
   editor: {
     minimum: 220,
@@ -430,32 +430,6 @@ export function getWorkbenchContentClassName({
     .join(' ');
 }
 
-export function getWorkbenchContentStyle({
-  isPrimarySidebarVisible,
-  isAgentSidebarVisible,
-}: WorkbenchContentLayoutParams) {
-  const desktopColumns = [
-    isPrimarySidebarVisible ? 'minmax(280px, 320px)' : null,
-    'minmax(0, 1fr)',
-    isAgentSidebarVisible ? 'minmax(332px, 380px)' : null,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .join(' ');
-
-  const mobileRows = [
-    isPrimarySidebarVisible ? 'minmax(220px, 28%)' : null,
-    'minmax(0, 1fr)',
-    isAgentSidebarVisible ? 'minmax(208px, 30%)' : null,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .join(' ');
-
-  return {
-    '--workbench-content-columns': desktopColumns,
-    '--workbench-content-mobile-rows': mobileRows,
-  };
-}
-
 function addDisposableListener(
   target: EventTarget,
   type: string,
@@ -554,7 +528,9 @@ export class WorkbenchContentLayoutController {
   private gridView: GridView | null = null;
   private rootGrid: GridBranchView | null = null;
   private gridOrientation: Orientation | null = null;
+  private gridPrimarySidebarVisibleState: boolean | null = null;
   private gridEditorCollapsedState: boolean | null = null;
+  private gridFlexStateKey: string | null = null;
   private splitConstraints = getWorkbenchContentSplitConstraints(Orientation.VERTICAL);
   private disposed = false;
   private readonly gridDisposables = new LifecycleStore();
@@ -621,15 +597,24 @@ export class WorkbenchContentLayoutController {
     return this.gridView?.getViewSize([EDITOR_INDEX]) ?? null;
   }
 
+  private resolveGridFlexStateKey(state: WorkbenchContentLayoutControllerState) {
+    const agentSidebarFlex = state.isAgentSidebarVisible;
+    const editorFlex = !state.isEditorCollapsed && !state.isAgentSidebarVisible;
+    return `${agentSidebarFlex ? 1 : 0}:${editorFlex ? 1 : 0}`;
+  }
+
   private ensureGridView(
     state: WorkbenchContentLayoutControllerState,
     orientation: Orientation,
   ) {
+    const flexStateKey = this.resolveGridFlexStateKey(state);
     if (
       this.gridView &&
       this.rootGrid &&
       this.gridOrientation === orientation &&
+      this.gridPrimarySidebarVisibleState === state.isPrimarySidebarVisible &&
       this.gridEditorCollapsedState === state.isEditorCollapsed &&
+      this.gridFlexStateKey === flexStateKey &&
       this.options.contentHost.firstChild === this.gridView.element
     ) {
       return;
@@ -652,7 +637,9 @@ export class WorkbenchContentLayoutController {
     this.rootGrid = rootGrid;
     this.gridView = gridView;
     this.gridOrientation = orientation;
+    this.gridPrimarySidebarVisibleState = state.isPrimarySidebarVisible;
     this.gridEditorCollapsedState = state.isEditorCollapsed;
+    this.gridFlexStateKey = flexStateKey;
     this.options.contentHost.replaceChildren(gridView.element);
   }
 
@@ -663,7 +650,9 @@ export class WorkbenchContentLayoutController {
     this.layoutTree = null;
     this.rootGrid = null;
     this.gridOrientation = null;
+    this.gridPrimarySidebarVisibleState = null;
     this.gridEditorCollapsedState = null;
+    this.gridFlexStateKey = null;
   }
 
   private readonly handleGridSashSnap = (event: GridSashSnapEvent) => {
@@ -882,12 +871,12 @@ export class WorkbenchContentLayoutController {
         ? state.expandedEditorSize
         : this.gridView.getViewSize([EDITOR_INDEX]),
       visible: !state.isEditorCollapsed,
-      flex: !state.isEditorCollapsed,
+      flex: !state.isEditorCollapsed && !state.isAgentSidebarVisible,
     });
     nextTree = updateLeaf(nextTree, 'agentSidebar', {
       size: this.gridView.getViewSize([AGENT_SIDEBAR_INDEX]),
       visible: state.isAgentSidebarVisible,
-      flex: state.isEditorCollapsed && state.isAgentSidebarVisible,
+      flex: state.isAgentSidebarVisible,
     });
 
     this.layoutTree = this.updateTreeBranchSizes(state, nextTree, {

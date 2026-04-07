@@ -111,7 +111,7 @@ function createDraftTab(
   };
 }
 
-function createNormalizedDocumentKey(document: WritingEditorDocument) {
+function createNormalizedDocumentKey(document: unknown) {
   return JSON.stringify(normalizeWritingEditorDocument(document));
 }
 
@@ -214,14 +214,19 @@ function normalizeStoredSavedDraftState(
     return null;
   }
 
-  const candidate = value as Partial<EditorWorkspaceDraftTab>;
+  const candidate = value as Partial<EditorWorkspaceDraftTab> & {
+    documentKey?: unknown;
+  };
   if (typeof candidate.title !== 'string') {
     return null;
   }
 
   return {
     title: candidate.title,
-    document: normalizeWritingEditorDocument(candidate.document),
+    documentKey:
+      typeof candidate.documentKey === 'string'
+        ? candidate.documentKey
+        : createNormalizedDocumentKey(candidate.document),
     viewMode: candidate.viewMode === 'draft' ? candidate.viewMode : 'draft',
   };
 }
@@ -569,8 +574,6 @@ export class EditorModel {
   readonly getSnapshot = () => this.snapshot;
   readonly getDraftBody = () => this.liveDraftState.getContextDraftBody();
   readonly getDraftDocument = () => this.liveDraftState.getActiveDraftDocument();
-  readonly isTabDirty = (tabId: string) =>
-    this.draftDirtyState.isTabDirty(tabId, this.snapshot.tabs);
   readonly getDirtyDraftTabIds = (tabIds?: readonly string[]) => {
     const tabs = tabIds
       ? this.snapshot.tabs.filter((tab) => tabIds.includes(tab.id))

@@ -1362,6 +1362,123 @@ test('WorkbenchLayoutView keeps primary width fixed and expands agentbar when th
   }
 });
 
+test('WorkbenchLayoutView keeps editor width fixed and expands agentbar when the primary sidebar is hidden', () => {
+  const animationFrameSpy = installAnimationFrameSpy();
+  setWindowInnerWidth(1280);
+
+  try {
+    const props = createWorkbenchLayoutViewProps();
+    props.isPrimarySidebarVisible = true;
+    props.isAgentSidebarVisible = true;
+    props.isEditorCollapsed = false;
+    props.primarySidebarSize = 320;
+    props.agentSidebarSize = 360;
+    props.sidebarTopbarActionsProps = {
+      ...props.sidebarTopbarActionsProps,
+      isPrimarySidebarVisible: true,
+      primarySidebarToggleLabel: 'Hide primary sidebar',
+      addressBarLabel: 'Address bar',
+      onTogglePrimarySidebar: () => {},
+    };
+
+    const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+    bindWorkbenchContentSize(view, 1280, 720);
+    document.body.append(view.getElement());
+    animationFrameSpy.flushAll();
+
+    const gridView = (view as unknown as {
+      gridView: {
+        getViewSize: (location: readonly number[]) => number;
+      } | null;
+    }).gridView;
+    assert(gridView);
+
+    const editorSizeBefore = gridView.getViewSize([2]);
+    const agentSizeBefore = gridView.getViewSize([1]);
+
+    props.isPrimarySidebarVisible = false;
+    props.sidebarTopbarActionsProps = {
+      ...props.sidebarTopbarActionsProps,
+      isPrimarySidebarVisible: false,
+      primarySidebarToggleLabel: 'Show primary sidebar',
+    };
+    props.sidebarTopbarActionsElement = createSidebarTopbarActionsElement({
+      isPrimarySidebarVisible: false,
+      primarySidebarToggleLabel: 'Show primary sidebar',
+      addressBarLabel: 'Address bar',
+      onTogglePrimarySidebar: () => {},
+    });
+    view.setProps(materializeWorkbenchLayoutViewProps(props));
+    animationFrameSpy.flushAll();
+
+    const nextGridView = (view as unknown as {
+      gridView: {
+        getViewSize: (location: readonly number[]) => number;
+      } | null;
+    }).gridView;
+    assert(nextGridView);
+
+    assert.equal(nextGridView.getViewSize([2]), editorSizeBefore);
+    assert(nextGridView.getViewSize([1]) > agentSizeBefore);
+
+    view.dispose();
+  } finally {
+    animationFrameSpy.restore();
+  }
+});
+
+test('WorkbenchLayoutView keeps primary width fixed when agentbar becomes visible in collapsed mode', () => {
+  const animationFrameSpy = installAnimationFrameSpy();
+  setWindowInnerWidth(1280);
+
+  try {
+    const props = createWorkbenchLayoutViewProps();
+    props.isPrimarySidebarVisible = true;
+    props.isAgentSidebarVisible = false;
+    props.isEditorCollapsed = true;
+    props.expandedEditorSize = 600;
+    props.primarySidebarSize = 320;
+    props.agentSidebarSize = 360;
+    props.sidebarTopbarActionsProps = {
+      ...props.sidebarTopbarActionsProps,
+      isPrimarySidebarVisible: true,
+      primarySidebarToggleLabel: 'Hide primary sidebar',
+      addressBarLabel: 'Address bar',
+      onTogglePrimarySidebar: () => {},
+    };
+
+    const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+    bindWorkbenchContentSize(view, 1280, 720);
+    document.body.append(view.getElement());
+    animationFrameSpy.flushAll();
+
+    const gridView = (view as unknown as {
+      gridView: {
+        getViewSize: (location: readonly number[]) => number;
+      } | null;
+    }).gridView;
+    assert(gridView);
+
+    props.isAgentSidebarVisible = true;
+    view.setProps(materializeWorkbenchLayoutViewProps(props));
+    animationFrameSpy.flushAll();
+
+    const nextGridView = (view as unknown as {
+      gridView: {
+        getViewSize: (location: readonly number[]) => number;
+      } | null;
+    }).gridView;
+    assert(nextGridView);
+
+    assert.equal(nextGridView.getViewSize([0]), props.primarySidebarSize);
+    assert(nextGridView.getViewSize([1]) > props.agentSidebarSize);
+
+    view.dispose();
+  } finally {
+    animationFrameSpy.restore();
+  }
+});
+
 test('WorkbenchLayoutView dispose cancels a pending layout animation frame', () => {
   const animationFrameSpy = installAnimationFrameSpy();
   setWindowInnerWidth(1280);

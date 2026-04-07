@@ -189,7 +189,9 @@ test('editor storage persists editor inputs separately from draft state payload'
     savedDraftStateByInputId: {
       'draft-a': {
         title: 'Draft A',
-        document: createWritingEditorDocumentFromPlainText('alpha'),
+        documentKey: JSON.stringify(
+          createWritingEditorDocumentFromPlainText('alpha'),
+        ),
         viewMode: 'draft',
       },
     },
@@ -215,7 +217,7 @@ test('editor storage persists editor inputs separately from draft state payload'
     draftStateByInputId: Record<string, { document: unknown }>;
     savedDraftStateByInputId: Record<string, {
       title: string;
-      document: unknown;
+      documentKey: string;
       viewMode: string;
     }>;
     viewStateEntries: unknown[];
@@ -267,8 +269,9 @@ test('editor storage persists editor inputs separately from draft state payload'
   assert.equal(storedWorkspace.savedDraftStateByInputId['draft-a'].viewMode, 'draft');
   assert.equal(
     writingEditorDocumentToPlainText(
-      storedWorkspace.savedDraftStateByInputId['draft-a']
-        .document as import('ls/editor/common/writingEditorDocument').WritingEditorDocument,
+      JSON.parse(
+        storedWorkspace.savedDraftStateByInputId['draft-a'].documentKey,
+      ) as import('ls/editor/common/writingEditorDocument').WritingEditorDocument,
     ),
     'alpha',
   );
