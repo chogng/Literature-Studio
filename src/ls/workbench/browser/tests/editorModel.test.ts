@@ -469,6 +469,88 @@ test('editor model can close other tabs, rename a tab, preserve a custom title, 
   }
 });
 
+test('editor model updates active browser tab title from page title without overriding custom names', () => {
+  const model = createEditorModel({
+    groups: [
+      {
+        groupId: DEFAULT_EDITOR_GROUP_ID,
+        tabs: [
+          {
+            id: 'browser-a',
+            kind: 'browser',
+            title: 'example.com/article',
+            url: 'https://example.com/article',
+          },
+        ],
+        activeTabId: 'browser-a',
+        mruTabIds: ['browser-a'],
+      },
+    ],
+    activeGroupId: DEFAULT_EDITOR_GROUP_ID,
+    viewStateEntries: [],
+  });
+
+  try {
+    model.updateActiveBrowserTabPageTitle('Article Title');
+    let snapshot = model.getSnapshot();
+    assert.equal(snapshot.tabs[0]?.title, 'Article Title');
+
+    model.updateActiveBrowserTabPageTitle('Article Title v2', 'Article Title');
+    snapshot = model.getSnapshot();
+    assert.equal(snapshot.tabs[0]?.title, 'Article Title v2');
+
+    model.renameTab('browser-a', 'Pinned Article');
+    model.updateActiveBrowserTabPageTitle('Should Not Override', 'Article Title v2');
+    snapshot = model.getSnapshot();
+    assert.equal(snapshot.tabs[0]?.title, 'Pinned Article');
+  } finally {
+    model.dispose();
+  }
+});
+
+test('editor model clears browser tab title for about:blank and ignores about:blank page titles', () => {
+  const model = createEditorModel({
+    groups: [
+      {
+        groupId: DEFAULT_EDITOR_GROUP_ID,
+        tabs: [
+          {
+            id: 'browser-a',
+            kind: 'browser',
+            title: 'example.com/article',
+            url: 'https://example.com/article',
+          },
+        ],
+        activeTabId: 'browser-a',
+        mruTabIds: ['browser-a'],
+      },
+    ],
+    activeGroupId: DEFAULT_EDITOR_GROUP_ID,
+    viewStateEntries: [],
+  });
+
+  try {
+    model.updateActiveBrowserTabPageTitle('Article Title');
+    model.updateActiveContentTabUrl('about:blank');
+    let snapshot = model.getSnapshot();
+
+    const activeTab = snapshot.tabs[0];
+    assert(activeTab);
+    assert.equal(activeTab.kind, 'browser');
+    assert.equal(activeTab.url, 'about:blank');
+    assert.equal(activeTab.title, '');
+
+    model.updateActiveBrowserTabPageTitle('about:blank');
+    snapshot = model.getSnapshot();
+    const nextTab = snapshot.tabs[0];
+    assert(nextTab);
+    assert.equal(nextTab.kind, 'browser');
+    assert.equal(nextTab.title, '');
+  } finally {
+    model.dispose();
+  }
+});
+
 test('editor model tracks dirty draft tabs against explicit save checkpoints', () => {
   const model = createEditorModel({
     groups: [

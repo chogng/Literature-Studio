@@ -68,6 +68,8 @@ function areWebContentStatesEqual(previous: WebContentState, next: WebContentSta
     previous.ownership === next.ownership &&
     previous.layoutPhase === next.layoutPhase &&
     previous.url === next.url &&
+    (previous.pageTitle ?? '') === (next.pageTitle ?? '') &&
+    (previous.faviconUrl ?? '') === (next.faviconUrl ?? '') &&
     previous.canGoBack === next.canGoBack &&
     previous.canGoForward === next.canGoForward &&
     previous.isLoading === next.isLoading &&

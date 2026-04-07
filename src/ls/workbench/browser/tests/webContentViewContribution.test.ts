@@ -619,3 +619,180 @@ test('web content contribution still uses src when a recreated webview is dom-re
     host.remove();
   }
 });
+
+test('web content contribution reports favicon url from page-favicon-updated', async () => {
+  const resizeObserverSpy = installResizeObserverSpy();
+  const animationFrameSpy = installAnimationFrameSpy();
+  const webviewSpy = installWebviewSpy();
+  const reportedStates: DesktopWebContentState[] = [];
+  const host = document.createElement('div');
+
+  host.dataset.webcontentActive = 'true';
+  Object.defineProperty(host, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => createDomRect(0, 0, 480, 320),
+  });
+  document.body.append(host);
+  registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, host);
+
+  try {
+    await withElectronApi(
+      createElectronApi({
+        webContent: {
+          async navigate() {
+            return {
+              targetId: null,
+              activeTargetId: null,
+              ownership: 'inactive',
+              layoutPhase: 'hidden',
+              url: '',
+              canGoBack: false,
+              canGoForward: false,
+              isLoading: false,
+              visible: false,
+            } satisfies DesktopWebContentState;
+          },
+          reportState(state: DesktopWebContentState) {
+            reportedStates.push(state);
+          },
+          reportBridgeReady() {},
+        } as unknown as NonNullable<ElectronAPI['webContent']>,
+      }),
+      async () => {
+        const contribution = createWorkbenchWebContentViewContribution();
+        assert(contribution);
+        animationFrameSpy.flushUntilIdle();
+
+        const bridge = (window as typeof window & {
+          __lsWebContentBridge?: {
+            activateTarget: (targetId?: string | null) => Promise<DesktopWebContentState>;
+            navigateTo: (
+              url: string,
+              targetId?: string | null,
+              mode?: 'browser' | 'strict',
+            ) => Promise<DesktopWebContentState>;
+          };
+        }).__lsWebContentBridge;
+        assert(bridge);
+
+        await bridge.activateTarget('target-favicon');
+        await bridge.navigateTo(
+          'https://example.com/with-favicon',
+          'target-favicon',
+          'browser',
+        );
+
+        const [webview] = webviewSpy.getCreatedWebviews();
+        assert(webview);
+        webview.dispatchEvent(
+          Object.assign(new Event('page-favicon-updated'), {
+            favicons: ['https://example.com/favicon.ico'],
+          }),
+        );
+
+        await waitForCondition(
+          () =>
+            reportedStates.at(-1)?.faviconUrl ===
+            'https://example.com/favicon.ico',
+        );
+        assert.equal(
+          reportedStates.at(-1)?.faviconUrl,
+          'https://example.com/favicon.ico',
+        );
+
+        contribution.dispose();
+      },
+    );
+  } finally {
+    webviewSpy.restore();
+    resizeObserverSpy.restore();
+    animationFrameSpy.restore();
+    host.remove();
+  }
+});
+
+test('web content contribution reports page title from page-title-updated', async () => {
+  const resizeObserverSpy = installResizeObserverSpy();
+  const animationFrameSpy = installAnimationFrameSpy();
+  const webviewSpy = installWebviewSpy();
+  const reportedStates: DesktopWebContentState[] = [];
+  const host = document.createElement('div');
+
+  host.dataset.webcontentActive = 'true';
+  Object.defineProperty(host, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => createDomRect(0, 0, 480, 320),
+  });
+  document.body.append(host);
+  registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, host);
+
+  try {
+    await withElectronApi(
+      createElectronApi({
+        webContent: {
+          async navigate() {
+            return {
+              targetId: null,
+              activeTargetId: null,
+              ownership: 'inactive',
+              layoutPhase: 'hidden',
+              url: '',
+              canGoBack: false,
+              canGoForward: false,
+              isLoading: false,
+              visible: false,
+            } satisfies DesktopWebContentState;
+          },
+          reportState(state: DesktopWebContentState) {
+            reportedStates.push(state);
+          },
+          reportBridgeReady() {},
+        } as unknown as NonNullable<ElectronAPI['webContent']>,
+      }),
+      async () => {
+        const contribution = createWorkbenchWebContentViewContribution();
+        assert(contribution);
+        animationFrameSpy.flushUntilIdle();
+
+        const bridge = (window as typeof window & {
+          __lsWebContentBridge?: {
+            activateTarget: (targetId?: string | null) => Promise<DesktopWebContentState>;
+            navigateTo: (
+              url: string,
+              targetId?: string | null,
+              mode?: 'browser' | 'strict',
+            ) => Promise<DesktopWebContentState>;
+          };
+        }).__lsWebContentBridge;
+        assert(bridge);
+
+        await bridge.activateTarget('target-title');
+        await bridge.navigateTo(
+          'https://example.com/with-title',
+          'target-title',
+          'browser',
+        );
+
+        const [webview] = webviewSpy.getCreatedWebviews();
+        assert(webview);
+        webview.dispatchEvent(
+          Object.assign(new Event('page-title-updated'), {
+            title: 'AI / LLM Models',
+          }),
+        );
+
+        await waitForCondition(
+          () => reportedStates.at(-1)?.pageTitle === 'AI / LLM Models',
+        );
+        assert.equal(reportedStates.at(-1)?.pageTitle, 'AI / LLM Models');
+
+        contribution.dispose();
+      },
+    );
+  } finally {
+    webviewSpy.restore();
+    resizeObserverSpy.restore();
+    animationFrameSpy.restore();
+    host.remove();
+  }
+});

@@ -87,6 +87,25 @@ function createDirtyCloseButtonContent() {
   return container;
 }
 
+function normalizeTabFaviconUrl(value: string | undefined) {
+  return String(value ?? '').trim();
+}
+
+function createTabFaviconImageElement(
+  faviconUrl: string,
+  onError: () => void,
+) {
+  const faviconImage = createElement('img', 'editor-tab-favicon');
+  faviconImage.alt = '';
+  faviconImage.decoding = 'async';
+  faviconImage.draggable = false;
+  faviconImage.loading = 'eager';
+  faviconImage.referrerPolicy = 'no-referrer';
+  faviconImage.src = faviconUrl;
+  faviconImage.addEventListener('error', onError, { once: true });
+  return faviconImage;
+}
+
 export class TabsTitleControl extends TitleControl {
   private readonly disposables = new LifecycleStore();
   private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
@@ -259,9 +278,24 @@ export class TabsTitleControl extends TitleControl {
       this.props.onOpenPaneMode(tab.paneMode);
     };
 
-    tabView.icon.replaceChildren(
-      createLxIcon(getTabPaneModeIconName(tab.paneMode, tab.state.isActive)),
-    );
+    const createFallbackPaneIcon = () =>
+      createLxIcon(getTabPaneModeIconName(tab.paneMode, tab.state.isActive));
+    const faviconUrl =
+      tab.paneMode === 'browser'
+        ? normalizeTabFaviconUrl(tab.faviconUrl)
+        : '';
+
+    if (faviconUrl) {
+      const faviconImage = createTabFaviconImageElement(faviconUrl, () => {
+        if (tabView.icon.contains(faviconImage)) {
+          tabView.icon.replaceChildren(createFallbackPaneIcon());
+        }
+      });
+      tabView.icon.replaceChildren(faviconImage);
+    } else {
+      tabView.icon.replaceChildren(createFallbackPaneIcon());
+    }
+
     tabView.labelText.textContent = tab.label;
     tabView.actionsView.setProps({
       className: 'editor-tab-actions',

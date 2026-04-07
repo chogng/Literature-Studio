@@ -1131,6 +1131,9 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
     viewPartProps: {
       ...props.editorPartProps.viewPartProps,
       browserUrl: 'https://example.com/current',
+      browserFaviconUrl: 'https://example.com/favicon.ico',
+      electronRuntime: true,
+      webContentRuntime: true,
     },
     onToolbarAddressChange: (value: string) => {
       addressChanges.push(value);
@@ -1158,16 +1161,29 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
     sourcesButton.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const panel = view
-      .getElement()
-      .querySelector('.editor-browser-library-panel');
+    const panel = document.body.querySelector('.editor-browser-library-panel');
     assert(panel instanceof HTMLElement);
     assert.equal(panel.classList.contains('is-open'), true);
+    assert.equal(
+      panel.classList.contains('is-desktop-overlay'),
+      true,
+    );
+    const panelBackdrop = document.body.querySelector(
+      '.editor-browser-library-panel-backdrop',
+    );
+    assert(panelBackdrop instanceof HTMLElement);
+    assert.equal(panelBackdrop.classList.contains('is-open'), true);
 
     const favoriteItems = Array.from(
       panel.querySelectorAll('.editor-browser-library-item.is-favorite'),
     );
     assert.equal(favoriteItems.length, 1);
+    const favoriteFavicon = favoriteItems[0]?.querySelector(
+      '.editor-browser-library-item-favicon',
+    );
+    assert(favoriteFavicon instanceof HTMLElement);
+    assert.equal(favoriteFavicon.tagName, 'IMG');
+    assert.equal(favoriteFavicon.getAttribute('src'), 'https://example.com/favicon.ico');
 
     const [sourceItem] = favoriteItems;
     assert(sourceItem instanceof HTMLButtonElement);
@@ -1177,6 +1193,11 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
     assert.equal(addressChanges.at(-1), 'https://example.com/current');
     assert.equal(navigateCount, 1);
     assert.equal(panel.classList.contains('is-open'), false);
+    assert.equal(
+      panel.classList.contains('is-desktop-overlay'),
+      true,
+    );
+    assert.equal(panelBackdrop.classList.contains('is-open'), false);
   } finally {
     view.dispose();
     document.body.replaceChildren();

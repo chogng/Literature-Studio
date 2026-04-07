@@ -202,6 +202,8 @@ export interface WebContentState {
   ownership: WebContentOwnership;
   layoutPhase: WebContentLayoutPhase;
   url: string;
+  pageTitle?: string;
+  faviconUrl?: string;
   canGoBack: boolean;
   canGoForward: boolean;
   isLoading: boolean;

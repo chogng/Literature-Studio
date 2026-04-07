@@ -34,6 +34,7 @@ export type EditorGroupTabItem = {
   paneMode: EditorPaneMode;
   label: string;
   title: string;
+  faviconUrl?: string;
   targetTabId: string | null;
   state: EditorGroupTabState;
 };
@@ -103,6 +104,7 @@ function resolveRepresentativeTab(
     paneMode: EditorGroupTabItem['paneMode'];
     label: string;
     title: string;
+    faviconUrl?: string;
     state: EditorGroupTabState;
   }>,
 ) {
@@ -157,6 +159,23 @@ function getDefaultTabKindForPaneMode(
   return paneMode;
 }
 
+function sanitizeTabFaviconUrl(value: string | undefined) {
+  return String(value ?? '').trim();
+}
+
+function resolveTabFaviconUrl(
+  paneMode: EditorPaneMode,
+  tabId: string,
+  activeTabId: string | null,
+  browserFaviconUrl: string | undefined,
+) {
+  if (paneMode !== 'browser' || tabId !== activeTabId) {
+    return '';
+  }
+
+  return sanitizeTabFaviconUrl(browserFaviconUrl);
+}
+
 export function createEditorGroupModel({
   tabs,
   activeTabId,
@@ -164,6 +183,7 @@ export function createEditorGroupModel({
   labels,
   draftStatusByTabId,
   dirtyDraftTabIds,
+  browserFaviconUrl,
 }: {
   tabs: EditorWorkspaceTab[];
   activeTabId: string | null;
@@ -171,6 +191,7 @@ export function createEditorGroupModel({
   labels: EditorPartLabels;
   draftStatusByTabId: Record<string, DraftEditorStatusState>;
   dirtyDraftTabIds: readonly string[];
+  browserFaviconUrl?: string;
 }): EditorGroupModel {
   // Keep close/label behavior centralized by evaluating tab policy once per render.
   const dirtyDraftTabIdSet = createDirtyDraftTabIdSet(dirtyDraftTabIds);
@@ -178,6 +199,7 @@ export function createEditorGroupModel({
     .filter((tab) => isEditorDraftTabInput(tab))
     .map((tab) => tab.id);
   const normalizedTabs = tabs.map((tab) => {
+    const paneMode = getEditorPaneMode(tab);
     const draftIndex =
       isEditorDraftTabInput(tab) ? draftTabIds.indexOf(tab.id) : -1;
     const isDirty = isEditorDraftTabInput(tab)
@@ -204,9 +226,15 @@ export function createEditorGroupModel({
     return {
       id: tab.id,
       kind: tab.kind,
-      paneMode: getEditorPaneMode(tab),
+      paneMode,
       label,
       title: getTabDisplayTitle(tab, labels, label),
+      faviconUrl: resolveTabFaviconUrl(
+        paneMode,
+        tab.id,
+        activeTabId,
+        browserFaviconUrl,
+      ),
       state: {
         isActive: tab.id === activeTabId,
         isClosable,
@@ -235,6 +263,7 @@ export function createEditorGroupModel({
       paneMode: representativeTab?.paneMode ?? paneMode,
       label: representativeTab?.label ?? getFallbackLabelForPaneMode(paneMode),
       title: representativeTab?.title || getFallbackTitleForPaneMode(paneMode, labels),
+      faviconUrl: representativeTab?.faviconUrl ?? '',
       targetTabId: representativeTab?.id ?? null,
       state: {
         isActive: representativeTab?.id === activeTabId,
@@ -257,6 +286,7 @@ export function createEditorGroupModel({
       paneMode: tab.paneMode,
       label: tab.label,
       title: tab.title,
+      faviconUrl: tab.faviconUrl ?? '',
       targetTabId: tab.id,
       state: tab.state,
     }));

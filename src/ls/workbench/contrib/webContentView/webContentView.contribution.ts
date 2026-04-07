@@ -36,7 +36,12 @@ type WebContentLayoutSnapshot = {
 
 type WebContentTargetSnapshot = Pick<
   WebContentState,
-  'url' | 'canGoBack' | 'canGoForward' | 'isLoading'
+  | 'url'
+  | 'pageTitle'
+  | 'faviconUrl'
+  | 'canGoBack'
+  | 'canGoForward'
+  | 'isLoading'
 >;
 
 type ManagedWebviewElement = HTMLElement & {
@@ -48,6 +53,7 @@ type ManagedWebviewElement = HTMLElement & {
     userGesture?: boolean,
   ) => Promise<T>;
   getURL?: () => string;
+  getTitle?: () => string;
   goBack?: () => void;
   goForward?: () => void;
   isLoading?: () => boolean;
@@ -184,6 +190,8 @@ function normalizeWebContentTargetId(targetId?: string | null) {
 function createDefaultTargetSnapshot(): WebContentTargetSnapshot {
   return {
     url: '',
+    pageTitle: '',
+    faviconUrl: '',
     canGoBack: false,
     canGoForward: false,
     isLoading: false,
@@ -210,11 +218,54 @@ function areWebContentStatesEqual(previous: WebContentState, next: WebContentSta
     previous.ownership === next.ownership &&
     previous.layoutPhase === next.layoutPhase &&
     previous.url === next.url &&
+    (previous.pageTitle ?? '') === (next.pageTitle ?? '') &&
+    (previous.faviconUrl ?? '') === (next.faviconUrl ?? '') &&
     previous.canGoBack === next.canGoBack &&
     previous.canGoForward === next.canGoForward &&
     previous.isLoading === next.isLoading &&
     previous.visible === next.visible
   );
+}
+
+function resolveWebContentFaviconUrl(event: Event) {
+  const faviconCandidates = (event as Event & { favicons?: unknown }).favicons;
+  if (!Array.isArray(faviconCandidates)) {
+    return '';
+  }
+
+  for (const candidate of faviconCandidates) {
+    const faviconUrl = String(candidate ?? '').trim();
+    if (faviconUrl) {
+      return faviconUrl;
+    }
+  }
+
+  return '';
+}
+
+function resolveWebContentPageTitle(event: Event) {
+  return String((event as Event & { title?: unknown }).title ?? '').trim();
+}
+
+function sanitizeWebContentPageTitle(
+  pageTitle: string,
+  currentUrl: string,
+) {
+  const normalizedPageTitle = String(pageTitle ?? '').trim();
+  if (!normalizedPageTitle) {
+    return '';
+  }
+
+  if (
+    /^about:blank$/i.test(normalizedPageTitle) ||
+    /^https?:\/\/about:blank$/i.test(normalizedPageTitle)
+  ) {
+    return '';
+  }
+
+  return coerceWebviewNavigationUrl(currentUrl) === 'about:blank'
+    ? ''
+    : normalizedPageTitle;
 }
 
 function normalizeComparableWebContentUrl(value: string) {
@@ -566,6 +617,51 @@ class WebContentDomManager {
       entry.cleanup.push(() => disposable.dispose());
     }
 
+    const faviconUpdatedDisposable = addDisposableListener(
+      webview,
+      'page-favicon-updated',
+      (event: Event) => {
+        const faviconUrl = resolveWebContentFaviconUrl(event);
+        if ((entry.state.faviconUrl ?? '') === faviconUrl) {
+          return;
+        }
+
+        entry.state = {
+          ...entry.state,
+          faviconUrl,
+        };
+
+        if (normalizedTargetId === this.activeTargetId) {
+          this.reportActiveState();
+        }
+      },
+    );
+    entry.cleanup.push(() => faviconUpdatedDisposable.dispose());
+
+    const pageTitleUpdatedDisposable = addDisposableListener(
+      webview,
+      'page-title-updated',
+      (event: Event) => {
+        const pageTitle = sanitizeWebContentPageTitle(
+          resolveWebContentPageTitle(event),
+          entry.state.url ?? '',
+        );
+        if ((entry.state.pageTitle ?? '') === pageTitle) {
+          return;
+        }
+
+        entry.state = {
+          ...entry.state,
+          pageTitle,
+        };
+
+        if (normalizedTargetId === this.activeTargetId) {
+          this.reportActiveState();
+        }
+      },
+    );
+    entry.cleanup.push(() => pageTitleUpdatedDisposable.dispose());
+
     const domReadyDisposable = addDisposableListener(webview, 'dom-ready', () => {
       if (!entry.domReady) {
         entry.domReady = true;
@@ -620,12 +716,25 @@ class WebContentDomManager {
 
     let nextState = createDefaultTargetSnapshot();
     try {
+      const previousState = entry.state;
+      const nextUrl = String(entry.webview.getURL?.() ?? '').trim();
+      const previousUrl = String(previousState.url ?? '').trim();
+      const nextComparableUrl = normalizeComparableWebContentUrl(nextUrl);
+      const previousComparableUrl = normalizeComparableWebContentUrl(previousUrl);
+      const isNavigationTargetChanged =
+        Boolean(nextComparableUrl) &&
+        Boolean(previousComparableUrl) &&
+        nextComparableUrl !== previousComparableUrl;
       nextState = {
-        url: String(entry.webview.getURL?.() ?? '').trim(),
+        url: nextUrl,
+        pageTitle: isNavigationTargetChanged ? '' : (previousState.pageTitle ?? ''),
+        faviconUrl: isNavigationTargetChanged ? '' : (previousState.faviconUrl ?? ''),
         canGoBack: Boolean(entry.webview.canGoBack?.()),
         canGoForward: Boolean(entry.webview.canGoForward?.()),
         isLoading: Boolean(entry.webview.isLoading?.()),
       };
+      const nextPageTitle = String(entry.webview.getTitle?.() ?? '').trim();
+      nextState.pageTitle = sanitizeWebContentPageTitle(nextPageTitle, nextUrl);
     } catch {
       nextState = createDefaultTargetSnapshot();
     }

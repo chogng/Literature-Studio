@@ -4,6 +4,7 @@ import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import { SelectBox } from 'ls/base/browser/ui/selectbox/selectBox';
 
 import { DEFAULT_EDITOR_DRAFT_BODY_COLOR } from 'ls/base/common/editorDraftStyle';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
@@ -114,6 +115,27 @@ function buildSelect(options: readonly SelectOption[], value: string, focusKey: 
   select.value = value;
   select.addEventListener('change', () => onChange(select.value));
   return select;
+}
+
+function buildSelectBox(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
+  const selectBox = new SelectBox(
+    options.map((option) => ({
+      text: option.label,
+      value: option.value,
+      title: option.title ?? option.label,
+    })),
+    Math.max(0, options.findIndex((option) => option.value === value)),
+    undefined,
+    {},
+    {
+      useCustomDrawn: true,
+      className: `settings-native-select ${className}`.trim(),
+    },
+  );
+  const host = el('div');
+  selectBox.render(host);
+  selectBox.onDidSelect(({ selected }) => onChange(selected));
+  return setFocusKey(selectBox.domNode, focusKey);
 }
 
 function buildInput(config: {
@@ -914,7 +936,7 @@ export class SettingsPartView {
       panelClassName: 'settings-language-panel',
       listClassName: 'settings-language-list',
     });
-    const select = buildSelect(
+    const select = buildSelectBox(
       createDisplayLanguageOptions(this.props.labels),
       this.props.locale,
       'settings.locale',
@@ -1001,9 +1023,6 @@ export class SettingsPartView {
   private renderAppearanceField() {
     const field = el('div', 'settings-field');
     const title = el('span'); title.textContent = this.props.labels.settingsAppearanceTitle;
-    const themeRow = el('div', 'settings-language-row');
-    const themeLabel = el('span');
-    themeLabel.textContent = this.props.labels.settingsTheme;
     const themeSelect = buildSelect(
       createThemeOptions(this.props.labels),
       this.props.theme,
@@ -1015,10 +1034,21 @@ export class SettingsPartView {
             : 'light';
         this.props.onThemeChange(nextTheme);
       },
-      'settings-language-toggle',
+      'settings-appearance-theme-select',
     );
     themeSelect.disabled = this.props.isSettingsSaving;
-    themeRow.append(themeLabel, themeSelect);
+    const appearanceTheme = createSettingsPanelListView({
+      sectionClassName: 'settings-appearance-theme-section',
+      panelClassName: 'settings-appearance-theme-panel',
+      listClassName: 'settings-appearance-theme-list',
+    });
+    appearanceTheme.list.append(
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsTheme,
+        description: this.props.labels.settingsThemeHint,
+        control: themeSelect,
+      }),
+    );
     const appearanceToggles = createSettingsPanelListView({
       sectionClassName: 'settings-appearance-toggles-section',
       panelClassName: 'settings-appearance-toggles-panel',
@@ -1039,8 +1069,7 @@ export class SettingsPartView {
     );
     field.append(
       title,
-      themeRow,
-      buildHint(this.props.labels.settingsThemeHint),
+      appearanceTheme.element,
       appearanceToggles.element,
     );
     return field;
@@ -1147,17 +1176,16 @@ export class SettingsPartView {
 
   private renderTextEditorField() {
     const field = el('div', 'settings-field settings-text-editor-field');
-    const title = el('span', 'settings-section-title');
     const defaultBodyStyle = this.props.editorDraftStyle.defaultBodyStyle;
     const isDisabled = this.props.isSettingsSaving;
+    const textEditorPanel = createSettingsPanelListView({
+      title: this.props.labels.settingsTextEditorDefaultBodyStyle,
+      description: this.props.labels.settingsTextEditorHint,
+      sectionClassName: 'settings-text-editor-section',
+      panelClassName: 'settings-text-editor-panel',
+      listClassName: 'settings-text-editor-list',
+    });
 
-    title.textContent = this.props.labels.settingsTextEditorTitle;
-    const subtitle = buildHint(this.props.labels.settingsTextEditorHint);
-
-    const defaultBodyStyleTitle = el('span', 'settings-text-editor-group-title');
-    defaultBodyStyleTitle.textContent = this.props.labels.settingsTextEditorDefaultBodyStyle;
-
-    const fontFamilyField = el('label', 'settings-field');
     const fontFamilySelect = buildSelect(
       ensureCurrentSelectOption(
         this.props.editorDraftFontFamilyOptions,
@@ -1169,9 +1197,6 @@ export class SettingsPartView {
       'settings-text-editor-select',
     );
     fontFamilySelect.disabled = isDisabled;
-    fontFamilyField.append(text(this.props.labels.settingsTextEditorFontFamily), fontFamilySelect);
-
-    const fontSizeField = el('label', 'settings-field');
     const fontSizeSelect = buildSelect(
       ensureCurrentSelectOption(
         this.props.editorDraftFontSizeOptions,
@@ -1183,13 +1208,10 @@ export class SettingsPartView {
       'settings-text-editor-select',
     );
     fontSizeSelect.disabled = isDisabled;
-    fontSizeField.append(text(this.props.labels.settingsTextEditorFontSize), fontSizeSelect);
-
-    const lineHeightField = el('label', 'settings-field');
     const lineHeightInput = buildInput({
       type: 'number',
       value: defaultBodyStyle.lineHeight,
-      className: 'settings-input-control settings-text-editor-line-height-input',
+      className: 'settings-text-editor-line-height-input',
       focusKey: 'settings.textEditor.lineHeight',
       min: '0.5',
       max: '4',
@@ -1198,9 +1220,6 @@ export class SettingsPartView {
     });
     lineHeightInput.step = '0.1';
     lineHeightInput.disabled = isDisabled;
-    lineHeightField.append(text(this.props.labels.settingsTextEditorLineHeight), lineHeightInput);
-
-    const colorField = el('label', 'settings-field');
     const colorRow = el('div', 'settings-text-editor-color-row');
     const colorPickerInput = buildInput({
       type: 'color',
@@ -1217,7 +1236,6 @@ export class SettingsPartView {
       readOnly: true,
     });
     colorRow.append(colorPickerInput, colorValueInput);
-    colorField.append(text(this.props.labels.settingsTextEditorColor), colorRow);
 
     const resetButton = buildButton({
       label: this.props.labels.settingsTextEditorResetDefaultBodyStyle,
@@ -1227,16 +1245,30 @@ export class SettingsPartView {
       onClick: this.props.onResetEditorDraftStyle,
     });
 
-    field.append(
-      title,
-      subtitle,
-      defaultBodyStyleTitle,
-      fontFamilyField,
-      fontSizeField,
-      lineHeightField,
-      colorField,
-      resetButton,
+    textEditorPanel.list.append(
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsTextEditorFontFamily,
+        control: fontFamilySelect,
+      }),
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsTextEditorFontSize,
+        control: fontSizeSelect,
+      }),
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsTextEditorLineHeight,
+        control: lineHeightInput,
+      }),
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsTextEditorColor,
+        control: colorRow,
+      }),
+      createSettingsToggleListItem({
+        title: this.props.labels.settingsTextEditorResetDefaultBodyStyle,
+        control: resetButton,
+      }),
     );
+
+    field.append(textEditorPanel.element);
     return field;
   }
 

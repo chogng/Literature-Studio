@@ -42,6 +42,7 @@ function createGroupModel(
 function createTabItem(
   tab: Pick<EditorGroupTabItem, 'id' | 'kind' | 'label' | 'title'> & {
     paneMode?: EditorGroupTabItem['paneMode'];
+    faviconUrl?: string;
     isActive?: boolean;
     isClosable?: boolean;
     isDirty?: boolean;
@@ -64,6 +65,7 @@ function createTabItem(
     paneMode: tab.paneMode ?? fallbackPaneModeByKind[tab.kind],
     label: tab.label,
     title: tab.title,
+    faviconUrl: tab.faviconUrl,
     targetTabId:
       Object.prototype.hasOwnProperty.call(tab, 'targetTabId')
         ? tab.targetTabId ?? null
@@ -608,6 +610,43 @@ test('TabsTitleControl uses file-pdf for inactive pdf tabs and pdf for the activ
 
   assert.equal(getPdfIcon()?.classList.contains('lx-icon-file-pdf'), false);
   assert.equal(getPdfIcon()?.classList.contains('lx-icon-pdf'), true);
+
+  control.dispose();
+});
+
+test('TabsTitleControl replaces browser pane icon with favicon when available', () => {
+  const control = new TabsTitleControl({
+    group: createGroupModel('browser-a', [
+      createTabItem({
+        id: 'browser-a',
+        kind: 'browser',
+        label: 'Browser',
+        title: 'Browser',
+        faviconUrl: 'https://example.com/favicon.ico',
+        isActive: true,
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+  const container = control.getElement();
+  document.body.append(container);
+
+  const iconContainer = container.children[0]?.querySelector('.editor-tab-icon');
+  assert(iconContainer instanceof HTMLElement);
+  const favicon = iconContainer.querySelector('.editor-tab-favicon');
+  assert(favicon instanceof HTMLElement);
+  assert.equal(favicon.tagName, 'IMG');
+  assert.equal(favicon.getAttribute('src'), 'https://example.com/favicon.ico');
+
+  favicon.dispatchEvent(new Event('error'));
+  const fallbackIcon = iconContainer.querySelector('.lx-icon');
+  assert(fallbackIcon instanceof HTMLElement);
+  assert.equal(fallbackIcon.classList.contains('lx-icon-broswer-1'), true);
 
   control.dispose();
 });

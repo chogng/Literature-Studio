@@ -8,6 +8,8 @@ export const EMPTY_WEB_CONTENT_STATE: WebContentState = {
   ownership: 'inactive',
   layoutPhase: 'hidden',
   url: '',
+  pageTitle: '',
+  faviconUrl: '',
   canGoBack: false,
   canGoForward: false,
   isLoading: false,

@@ -142,6 +142,7 @@ implements EditorModeToolbarContribution {
   private createLibraryPanelContext() {
     return {
       browserUrl: this.context.browserUrl,
+      browserFaviconUrl: this.context.browserFaviconUrl ?? '',
       labels: {
         title: this.context.labels.browserLibraryPanelTitle,
         recentTitle: this.context.labels.browserLibraryPanelRecentTitle,

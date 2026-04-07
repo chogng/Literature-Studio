@@ -240,6 +240,10 @@
   width: 140px;
 }
 
+.settings-appearance-theme-select {
+  width: 140px;
+}
+
 .settings-batch-options {
   display: flex;
   flex-wrap: wrap;

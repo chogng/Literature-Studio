@@ -293,6 +293,8 @@ function areEditorPartControllerContextsEqual(
     previous.browserUrl === next.browserUrl &&
     previous.webUrl === next.webUrl &&
     previous.viewPartProps.browserUrl === next.viewPartProps.browserUrl &&
+    (previous.viewPartProps.browserFaviconUrl ?? '') ===
+      (next.viewPartProps.browserFaviconUrl ?? '') &&
     previous.viewPartProps.electronRuntime === next.viewPartProps.electronRuntime &&
     previous.viewPartProps.webContentRuntime === next.viewPartProps.webContentRuntime &&
     previous.viewPartProps.labels.emptyState === next.viewPartProps.labels.emptyState &&
@@ -424,6 +426,13 @@ export class EditorPartController {
 
   readonly updateActiveContentTabUrl = (url: string) => {
     this.editorModel.updateActiveContentTabUrl(url);
+  };
+
+  readonly updateActiveBrowserTabPageTitle = (
+    pageTitle: string,
+    previousPageTitle?: string,
+  ) => {
+    this.editorModel.updateActiveBrowserTabPageTitle(pageTitle, previousPageTitle);
   };
 
   readonly getDraftBody = () => this.editorModel.getDraftBody();

@@ -2,6 +2,7 @@ import { createEmptyWritingEditorDocument, normalizeWritingEditorDocument } from
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
 import {
+  EMPTY_BROWSER_TAB_URL,
   createEditorBrowserTabInput,
   createEditorDraftTabInput,
   createEditorPdfTabInput,
@@ -516,6 +517,42 @@ function hasDerivedContentTabTitle(tab: EditorWorkspaceContentTab) {
   return tab.title.trim() === getEditorContentTabTitle(tab.url);
 }
 
+function hasAutoManagedBrowserTabTitle(
+  tab: EditorWorkspaceBrowserTab,
+  previousPageTitle?: string,
+) {
+  const currentTitle = tab.title.trim();
+  if (!currentTitle) {
+    return true;
+  }
+
+  if (currentTitle === getEditorContentTabTitle(tab.url)) {
+    return true;
+  }
+
+  const normalizedPreviousPageTitle = String(previousPageTitle ?? '').trim();
+  return Boolean(normalizedPreviousPageTitle && currentTitle === normalizedPreviousPageTitle);
+}
+
+function sanitizeBrowserTabPageTitle(
+  pageTitle: string,
+  tabUrl: string,
+) {
+  const normalizedPageTitle = pageTitle.trim();
+  if (!normalizedPageTitle) {
+    return '';
+  }
+
+  if (
+    /^about:blank$/i.test(normalizedPageTitle) ||
+    /^https?:\/\/about:blank$/i.test(normalizedPageTitle)
+  ) {
+    return '';
+  }
+
+  return tabUrl.trim() === EMPTY_BROWSER_TAB_URL ? '' : normalizedPageTitle;
+}
+
 function createEditorModelSnapshot(
   workspaceState: EditorWorkspaceState,
   draftDirtyState: ReturnType<typeof createEditorDraftDirtyState>,
@@ -831,9 +868,12 @@ export class EditorModel {
       return;
     }
 
-    const nextTitle = hasDerivedContentTabTitle(activeTab)
-      ? getEditorContentTabTitle(normalizedUrl)
-      : activeTab.title;
+    const nextTitle =
+      isEditorBrowserTabInput(activeTab) && normalizedUrl === EMPTY_BROWSER_TAB_URL
+        ? ''
+        : hasDerivedContentTabTitle(activeTab)
+          ? getEditorContentTabTitle(normalizedUrl)
+          : activeTab.title;
     if (activeTab.url === normalizedUrl && activeTab.title === nextTitle) {
       return;
     }
@@ -847,9 +887,46 @@ export class EditorModel {
           ? {
               ...tab,
               url: normalizedUrl,
-              title: hasDerivedContentTabTitle(tab)
-                ? getEditorContentTabTitle(normalizedUrl)
-                : tab.title,
+              title: nextTitle,
+            }
+          : tab,
+      ),
+    }));
+  };
+
+  readonly updateActiveBrowserTabPageTitle = (
+    pageTitle: string,
+    previousPageTitle?: string,
+  ) => {
+    const activeGroup = resolveActiveGroup(this.workspaceState);
+    const activeTab = resolveActiveTab(activeGroup);
+    if (!activeTab || !isEditorBrowserTabInput(activeTab)) {
+      return;
+    }
+
+    const normalizedPageTitle = sanitizeBrowserTabPageTitle(
+      pageTitle,
+      activeTab.url,
+    );
+    if (!normalizedPageTitle) {
+      return;
+    }
+
+    if (!hasAutoManagedBrowserTabTitle(activeTab, previousPageTitle)) {
+      return;
+    }
+
+    if (activeTab.title.trim() === normalizedPageTitle) {
+      return;
+    }
+
+    this.updateActiveGroupState((group) => ({
+      ...group,
+      tabs: group.tabs.map((tab) =>
+        tab.id === group.activeTabId && isEditorBrowserTabInput(tab)
+          ? {
+              ...tab,
+              title: normalizedPageTitle,
             }
           : tab,
       ),

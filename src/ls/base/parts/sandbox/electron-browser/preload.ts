@@ -197,6 +197,8 @@ const electronAPI: ElectronAPI = {
         ownership: 'inactive',
         layoutPhase: 'hidden',
         url: '',
+        pageTitle: '',
+        faviconUrl: '',
         canGoBack: false,
         canGoForward: false,
         isLoading: false,

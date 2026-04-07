@@ -1,9 +1,35 @@
+.editor-browser-library-panel-overlay {
+  position: fixed;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.editor-browser-library-panel-backdrop {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: var(--vscode-editor-browserLibraryMaskBackground, rgba(14, 23, 33, 0.24));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.editor-browser-library-panel-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .editor-browser-library-panel {
+  --editor-browser-library-panel-width: 220px;
+  --editor-browser-library-panel-closed-offset: calc(-100% - 14px);
   position: absolute;
   top: 0;
   left: 0;
   z-index: 12;
-  width: 220px;
+  width: var(--editor-browser-library-panel-width);
   height: 100%;
   max-height: 100%;
   display: grid;
@@ -17,12 +43,16 @@
   box-shadow: none;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(calc(-100% - 14px));
+  transform: translateX(var(--editor-browser-library-panel-closed-offset));
   transform-origin: left top;
   transition:
     opacity 140ms ease,
     transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
   overflow: hidden;
+}
+
+.editor-browser-library-panel.is-desktop-overlay {
+  --editor-browser-library-panel-closed-offset: -100%;
 }
 
 .editor-browser-library-panel.is-open {
@@ -122,6 +152,26 @@
   white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
+}
+
+.editor-browser-library-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.editor-browser-library-item-favicon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  object-fit: contain;
+}
+
+.editor-browser-library-item-favicon.is-fallback {
+  color: var(--vscode-editor-sourceSubheadingForeground, #7a8ca0);
+  font-size: 12px;
 }
 
 .editor-browser-library-item-meta {

@@ -604,6 +604,7 @@ class WorkbenchHost {
   private renderPending = false;
   private webContentRuntime = false;
   private previousBrowserUrl = '';
+  private previousBrowserPageTitle = '';
   private previousActiveContentTabId: string | null = null;
   private previousContentTargetId: string | null = null;
   private previousContentTargetUrl = '';
@@ -795,19 +796,26 @@ class WorkbenchHost {
 
   private syncWebContentSurfaceState(params: {
     browserUrl: string;
+    browserPageTitle: string;
     tabs: EditorWorkspaceTab[];
     webContentNavigationModel: WebContentNavigationModel;
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
     updateActiveContentTabUrl: (url: string) => void;
+    updateActiveBrowserTabPageTitle: (
+      pageTitle: string,
+      previousPageTitle?: string,
+    ) => void;
   }) {
     const {
       browserUrl,
+      browserPageTitle,
       tabs,
       webContentNavigationModel,
       webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
       updateActiveContentTabUrl,
+      updateActiveBrowserTabPageTitle,
     } = params;
 
     const syncContentTarget = (targetId: string | null, targetUrl: string) => {
@@ -893,7 +901,13 @@ class WorkbenchHost {
       updateActiveContentTabUrl(browserUrl);
     }
 
+    updateActiveBrowserTabPageTitle(
+      browserPageTitle,
+      this.previousBrowserPageTitle,
+    );
+
     this.previousBrowserUrl = browserUrl;
+    this.previousBrowserPageTitle = browserPageTitle;
     this.previousActiveContentTabId = webContentSurfaceSnapshot.activeContentTabId;
   }
 
@@ -958,22 +972,29 @@ class WorkbenchHost {
     selectedArticleKeysInOrder: readonly string[];
     filteredArticleKeysInOrder: string[];
     browserUrl: string;
+    browserPageTitle: string;
     editorTabs: EditorWorkspaceTab[];
     webContentNavigationModel: WebContentNavigationModel;
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
     updateActiveContentTabUrl: (url: string) => void;
+    updateActiveBrowserTabPageTitle: (
+      pageTitle: string,
+      previousPageTitle?: string,
+    ) => void;
   }) {
     const {
       selectionModePhase,
       selectedArticleKeysInOrder,
       filteredArticleKeysInOrder,
       browserUrl,
+      browserPageTitle,
       editorTabs,
       webContentNavigationModel,
       webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
       updateActiveContentTabUrl,
+      updateActiveBrowserTabPageTitle,
     } = params;
 
     const needsSelectionSync =
@@ -992,11 +1013,13 @@ class WorkbenchHost {
 
     this.syncWebContentSurfaceState({
       browserUrl,
+      browserPageTitle,
       tabs: editorTabs,
       webContentNavigationModel,
       webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
       updateActiveContentTabUrl,
+      updateActiveBrowserTabPageTitle,
     });
   }
 
@@ -1314,9 +1337,16 @@ class WorkbenchHost {
 
     const webContentNavigationModelInstance = getWorkbenchWebContentNavigationModel();
     this.syncWebContentRuntime(webContentNavigationModelInstance, webContentRuntime);
-    const { browserUrl } = webContentNavigationModelInstance.getSnapshot();
+    const {
+      browserUrl,
+      webContentState: {
+        pageTitle: browserPageTitle = '',
+        faviconUrl: browserFaviconUrl = '',
+      },
+    } = webContentNavigationModelInstance.getSnapshot();
     const viewPartProps = {
       browserUrl,
+      browserFaviconUrl,
       electronRuntime,
       webContentRuntime,
       labels: {
@@ -1341,6 +1371,7 @@ class WorkbenchHost {
       createPdfTab: handleCreatePdfTab,
       webContentSurfaceSnapshot,
       updateActiveContentTabUrl,
+      updateActiveBrowserTabPageTitle,
       editorPartProps,
     } = {
       ...editorPartSnapshot,
@@ -1349,6 +1380,8 @@ class WorkbenchHost {
       createPdfTab: editorPartControllerInstance.createPdfTab,
       updateActiveContentTabUrl:
         editorPartControllerInstance.updateActiveContentTabUrl,
+      updateActiveBrowserTabPageTitle:
+        editorPartControllerInstance.updateActiveBrowserTabPageTitle,
     };
 
     const assistantModelInstance = getWorkbenchAssistantModel({
@@ -2095,11 +2128,13 @@ class WorkbenchHost {
       selectedArticleKeysInOrder,
       filteredArticleKeysInOrder,
       browserUrl,
+      browserPageTitle,
       editorTabs,
       webContentNavigationModel: webContentNavigationModelInstance,
       webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
       updateActiveContentTabUrl,
+      updateActiveBrowserTabPageTitle,
     });
 
     this.toastHost.render(ui.toastClose);

@@ -4,10 +4,14 @@ import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 const EDITOR_BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
 const MAX_RECENT_BROWSER_LIBRARY_ENTRIES = 25;
 const MAX_FAVORITE_BROWSER_LIBRARY_ENTRIES = 25;
+const EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS = 'is-desktop-overlay';
+const NATIVE_WEBCONTENT_ACTIVE_SELECTOR =
+  '.browser-frame-placeholder[data-webcontent-active="true"]';
 
 type StoredBrowserLibraryState = {
   recentUrls: string[];
   favoriteUrls: string[];
+  faviconByUrl: Record<string, string>;
 };
 
 type BrowserLibrarySectionKind = 'recent' | 'favorites';
@@ -15,6 +19,7 @@ type BrowserLibrarySectionKind = 'recent' | 'favorites';
 type BrowserLibraryListItem = {
   url: string;
   title: string;
+  faviconUrl: string;
   sectionKind: BrowserLibrarySectionKind;
 };
 
@@ -27,6 +32,7 @@ export type EditorBrowserLibraryPanelLabels = {
 
 export type EditorBrowserLibraryPanelContext = {
   browserUrl: string;
+  browserFaviconUrl?: string;
   labels: EditorBrowserLibraryPanelLabels;
   onNavigateToUrl: (url: string) => void;
 };
@@ -88,7 +94,56 @@ function createStoredBrowserLibraryState(): StoredBrowserLibraryState {
   return {
     recentUrls: [],
     favoriteUrls: [],
+    faviconByUrl: {},
   };
+}
+
+function sanitizeBrowserLibraryFaviconUrl(value: unknown) {
+  return String(value ?? '').trim();
+}
+
+function sanitizeStoredBrowserLibraryFaviconByUrl(
+  value: unknown,
+  validUrls: Set<string>,
+) {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const faviconByUrl: Record<string, string> = {};
+  for (const [url, favicon] of Object.entries(value)) {
+    const normalizedUrl = normalizeBrowserLibraryUrl(url);
+    if (!validUrls.has(normalizedUrl)) {
+      continue;
+    }
+
+    const normalizedFavicon = sanitizeBrowserLibraryFaviconUrl(favicon);
+    if (!normalizedFavicon) {
+      continue;
+    }
+    faviconByUrl[normalizedUrl] = normalizedFavicon;
+  }
+
+  return faviconByUrl;
+}
+
+function areStoredBrowserLibraryFaviconMapsEqual(
+  left: Record<string, string>,
+  right: Record<string, string>,
+) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+
+  for (const key of leftKeys) {
+    if (left[key] !== right[key]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function sanitizeStoredBrowserLibraryState(
@@ -104,10 +159,26 @@ function sanitizeStoredBrowserLibraryState(
   const favoriteUrls = Array.isArray(value.favoriteUrls)
     ? value.favoriteUrls.map((url) => String(url))
     : [];
+  const sanitizedRecentUrls = trimUrlList(
+    dedupeUrlList(recentUrls),
+    MAX_RECENT_BROWSER_LIBRARY_ENTRIES,
+  );
+  const sanitizedFavoriteUrls = trimUrlList(
+    dedupeUrlList(favoriteUrls),
+    MAX_FAVORITE_BROWSER_LIBRARY_ENTRIES,
+  );
+  const validUrls = new Set<string>([
+    ...sanitizedRecentUrls,
+    ...sanitizedFavoriteUrls,
+  ]);
 
   return {
-    recentUrls: trimUrlList(dedupeUrlList(recentUrls), MAX_RECENT_BROWSER_LIBRARY_ENTRIES),
-    favoriteUrls: trimUrlList(dedupeUrlList(favoriteUrls), MAX_FAVORITE_BROWSER_LIBRARY_ENTRIES),
+    recentUrls: sanitizedRecentUrls,
+    favoriteUrls: sanitizedFavoriteUrls,
+    faviconByUrl: sanitizeStoredBrowserLibraryFaviconByUrl(
+      (value as { faviconByUrl?: unknown }).faviconByUrl,
+      validUrls,
+    ),
   };
 }
 
@@ -168,7 +239,11 @@ function updateStoredBrowserLibraryState(
     nextState.recentUrls.length === storedBrowserLibraryState.recentUrls.length &&
     nextState.favoriteUrls.length === storedBrowserLibraryState.favoriteUrls.length &&
     nextState.recentUrls.every((url, index) => url === storedBrowserLibraryState.recentUrls[index]) &&
-    nextState.favoriteUrls.every((url, index) => url === storedBrowserLibraryState.favoriteUrls[index])
+    nextState.favoriteUrls.every((url, index) => url === storedBrowserLibraryState.favoriteUrls[index]) &&
+    areStoredBrowserLibraryFaviconMapsEqual(
+      nextState.faviconByUrl,
+      storedBrowserLibraryState.faviconByUrl,
+    )
   ) {
     return false;
   }
@@ -222,10 +297,21 @@ function toggleFavoriteBrowserLibraryEntry(url: string) {
 }
 
 function clearRecentBrowserLibraryEntries() {
-  return updateStoredBrowserLibraryState((state) => ({
-    ...state,
-    recentUrls: [],
-  }));
+  return updateStoredBrowserLibraryState((state) => {
+    const favoriteUrlSet = new Set(state.favoriteUrls);
+    const nextFaviconByUrl: Record<string, string> = {};
+    for (const [url, faviconUrl] of Object.entries(state.faviconByUrl)) {
+      if (favoriteUrlSet.has(url)) {
+        nextFaviconByUrl[url] = faviconUrl;
+      }
+    }
+
+    return {
+      ...state,
+      recentUrls: [],
+      faviconByUrl: nextFaviconByUrl,
+    };
+  });
 }
 
 function isFavoriteBrowserLibraryEntry(url: string) {
@@ -243,6 +329,34 @@ function getRecentBrowserLibraryEntries() {
 
 function getFavoriteBrowserLibraryEntries() {
   return [...storedBrowserLibraryState.favoriteUrls];
+}
+
+function setBrowserLibraryEntryFavicon(url: string, faviconUrl: string) {
+  const normalizedUrl = toTrackableBrowserLibraryUrl(url);
+  if (!normalizedUrl) {
+    return false;
+  }
+
+  const normalizedFaviconUrl = sanitizeBrowserLibraryFaviconUrl(faviconUrl);
+  return updateStoredBrowserLibraryState((state) => {
+    const nextFaviconByUrl = {
+      ...state.faviconByUrl,
+    };
+    if (normalizedFaviconUrl) {
+      nextFaviconByUrl[normalizedUrl] = normalizedFaviconUrl;
+    } else {
+      delete nextFaviconByUrl[normalizedUrl];
+    }
+
+    return {
+      ...state,
+      faviconByUrl: nextFaviconByUrl,
+    };
+  });
+}
+
+function getBrowserLibraryEntryFavicon(url: string) {
+  return storedBrowserLibraryState.faviconByUrl[url] ?? '';
 }
 
 function resolveBrowserLibraryTitle(url: string) {
@@ -266,7 +380,15 @@ export class EditorBrowserLibraryPanel {
   private context: EditorBrowserLibraryPanelContext;
   private isInteractionWithin?: (target: Node) => boolean;
   private onDidChangeOpenState?: (isOpen: boolean) => void;
+  private readonly backdropElement = createElement(
+    'div',
+    'editor-browser-library-panel-backdrop',
+  );
   private readonly element = createElement('div', 'editor-browser-library-panel');
+  private readonly desktopOverlayContainer = createElement(
+    'div',
+    'editor-browser-library-panel-overlay',
+  );
   private readonly headerElement = createElement('header', 'editor-browser-library-header');
   private readonly searchInputHost = createElement('div', 'editor-browser-library-search-host');
   private readonly bodyElement = createElement('div', 'editor-browser-library-body');
@@ -280,6 +402,7 @@ export class EditorBrowserLibraryPanel {
   private searchQuery = '';
   private isGlobalListenersBound = false;
   private hostElement: HTMLElement | null = null;
+  private overlayPositionFrame = 0;
 
   constructor(
     context: EditorBrowserLibraryPanelContext,
@@ -296,6 +419,7 @@ export class EditorBrowserLibraryPanel {
       ariaLabel: '',
     });
     this.searchInput.onDidChange(this.handleSearchInputChange);
+    this.backdropElement.setAttribute('aria-hidden', 'true');
     this.element.id = this.panelId;
     this.element.setAttribute('role', 'dialog');
     this.element.setAttribute('aria-hidden', 'true');
@@ -312,16 +436,12 @@ export class EditorBrowserLibraryPanel {
 
   mountTo(hostElement: HTMLElement | null) {
     if (this.hostElement === hostElement) {
+      this.mountElementToHost();
       return;
     }
 
     this.hostElement = hostElement;
-    if (!hostElement) {
-      this.element.remove();
-      return;
-    }
-
-    hostElement.append(this.element);
+    this.mountElementToHost();
   }
 
   setInteractionBoundaryResolver(
@@ -418,6 +538,11 @@ export class EditorBrowserLibraryPanel {
 
   dispose() {
     this.unbindGlobalListeners();
+    this.stopOverlayPositionSync();
+    this.clearDesktopOverlayPosition();
+    this.removeDesktopOverlayContainer();
+    this.backdropElement.remove();
+    this.element.classList.remove(EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS);
     this.hostElement = null;
     this.searchInput.dispose();
     this.element.remove();
@@ -431,6 +556,14 @@ export class EditorBrowserLibraryPanel {
     }
 
     recordRecentBrowserLibraryEntry(libraryUrl);
+    const faviconUrl = sanitizeBrowserLibraryFaviconUrl(
+      this.context.browserFaviconUrl,
+    );
+    if (!faviconUrl) {
+      return;
+    }
+
+    setBrowserLibraryEntryFavicon(libraryUrl, faviconUrl);
   }
 
   private bindGlobalListeners() {
@@ -521,6 +654,7 @@ export class EditorBrowserLibraryPanel {
       listItems.push({
         url,
         title: resolveBrowserLibraryTitle(url),
+        faviconUrl: getBrowserLibraryEntryFavicon(url),
         sectionKind,
       });
     };
@@ -554,12 +688,139 @@ export class EditorBrowserLibraryPanel {
   }
 
   private render() {
+    this.mountElementToHost();
+    this.backdropElement.classList.toggle('is-open', this.isOpen);
     this.element.classList.toggle('is-open', this.isOpen);
     this.element.setAttribute('aria-hidden', String(!this.isOpen));
     this.element.setAttribute('aria-label', this.context.labels.title);
     this.searchInput.inputElement.setAttribute('aria-label', this.context.labels.title);
     this.searchInput.setPlaceHolder('Search');
+    if (this.isOpen) {
+      this.startOverlayPositionSync();
+    } else {
+      this.stopOverlayPositionSync();
+    }
     this.renderLibraryList();
+  }
+
+  private mountElementToHost() {
+    const hostElement = this.hostElement;
+    if (!hostElement) {
+      this.stopOverlayPositionSync();
+      this.clearDesktopOverlayPosition();
+      this.removeDesktopOverlayContainer();
+      this.backdropElement.remove();
+      this.element.classList.remove(EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS);
+      this.element.remove();
+      return;
+    }
+
+    const useDesktopOverlay = this.hasActiveNativeWebContent(hostElement);
+    const mountAsDesktopOverlay = useDesktopOverlay;
+    if (mountAsDesktopOverlay) {
+      const overlayContainer = this.getOrCreateDesktopOverlayContainer();
+      this.appendPanelSurface(overlayContainer);
+      this.element.classList.add(EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS);
+      this.syncDesktopOverlayPosition();
+      return;
+    }
+
+    this.removeDesktopOverlayContainer();
+    this.appendPanelSurface(hostElement);
+    this.element.classList.remove(EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS);
+    this.stopOverlayPositionSync();
+    this.clearDesktopOverlayPosition();
+  }
+
+  private appendPanelSurface(target: HTMLElement) {
+    target.append(this.backdropElement);
+    target.append(this.element);
+  }
+
+  private getOrCreateDesktopOverlayContainer() {
+    if (typeof document === 'undefined') {
+      return this.desktopOverlayContainer;
+    }
+
+    if (this.desktopOverlayContainer.parentElement !== document.body) {
+      document.body.append(this.desktopOverlayContainer);
+    }
+    return this.desktopOverlayContainer;
+  }
+
+  private removeDesktopOverlayContainer() {
+    this.desktopOverlayContainer.remove();
+  }
+
+  private hasActiveNativeWebContent(hostElement: HTMLElement) {
+    return Boolean(hostElement.querySelector(NATIVE_WEBCONTENT_ACTIVE_SELECTOR));
+  }
+
+  private syncDesktopOverlayPosition() {
+    if (
+      !this.hostElement ||
+      !this.element.classList.contains(EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS) ||
+      this.element.parentElement !== this.desktopOverlayContainer
+    ) {
+      return;
+    }
+
+    const hostRect = this.hostElement.getBoundingClientRect();
+    this.desktopOverlayContainer.style.left = `${Math.round(hostRect.left)}px`;
+    this.desktopOverlayContainer.style.top = `${Math.round(hostRect.top)}px`;
+    this.desktopOverlayContainer.style.width = `${Math.max(0, Math.round(hostRect.width))}px`;
+    this.desktopOverlayContainer.style.height = `${Math.max(0, Math.round(hostRect.height))}px`;
+  }
+
+  private clearDesktopOverlayPosition() {
+    this.desktopOverlayContainer.style.removeProperty('left');
+    this.desktopOverlayContainer.style.removeProperty('top');
+    this.desktopOverlayContainer.style.removeProperty('width');
+    this.desktopOverlayContainer.style.removeProperty('height');
+    this.element.style.removeProperty('left');
+    this.element.style.removeProperty('top');
+    this.element.style.removeProperty('height');
+  }
+
+  private startOverlayPositionSync() {
+    if (
+      this.overlayPositionFrame ||
+      typeof window === 'undefined' ||
+      typeof window.requestAnimationFrame !== 'function' ||
+      !this.element.classList.contains(EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS)
+    ) {
+      return;
+    }
+
+    const schedule = () => {
+      this.overlayPositionFrame = window.requestAnimationFrame(() => {
+        this.overlayPositionFrame = 0;
+        if (
+          !this.isOpen ||
+          !this.element.classList.contains(EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS)
+        ) {
+          return;
+        }
+        this.syncDesktopOverlayPosition();
+        schedule();
+      });
+    };
+
+    schedule();
+  }
+
+  private stopOverlayPositionSync() {
+    if (
+      !this.overlayPositionFrame ||
+      typeof window === 'undefined' ||
+      typeof window.cancelAnimationFrame !== 'function'
+    ) {
+      this.overlayPositionFrame = 0;
+      return;
+    }
+
+    window.cancelAnimationFrame(this.overlayPositionFrame);
+    this.overlayPositionFrame = 0;
   }
 
   private renderLibraryList() {
@@ -581,7 +842,7 @@ export class EditorBrowserLibraryPanel {
     const listElement = this.getOrCreateListElement();
     const fragment = document.createDocumentFragment();
     for (const itemState of listItems) {
-      const { url, title, sectionKind } = itemState;
+      const { url, title, faviconUrl, sectionKind } = itemState;
       const item = createElement('button', 'editor-browser-library-item');
       item.type = 'button';
       item.title = url;
@@ -593,6 +854,11 @@ export class EditorBrowserLibraryPanel {
         event.stopPropagation();
         this.handleLibraryItemClick(url);
       });
+      const headerElement = createElement(
+        'span',
+        'editor-browser-library-item-header',
+      );
+      const faviconElement = this.createLibraryItemFaviconElement(faviconUrl);
       const titleElement = createElement(
         'span',
         'editor-browser-library-item-title',
@@ -610,11 +876,43 @@ export class EditorBrowserLibraryPanel {
           ? this.context.labels.favoritesTitle
           : this.context.labels.recentTitle,
       );
-      item.append(titleElement, metaElement, kindElement);
+      headerElement.append(faviconElement, titleElement);
+      item.append(headerElement, metaElement, kindElement);
       fragment.append(item);
     }
 
     listElement.replaceChildren(fragment);
+  }
+
+  private createLibraryItemFaviconElement(faviconUrl: string) {
+    const normalizedFaviconUrl = sanitizeBrowserLibraryFaviconUrl(faviconUrl);
+    if (!normalizedFaviconUrl) {
+      return createLxIcon(
+        'link-external',
+        'editor-browser-library-item-favicon is-fallback',
+      );
+    }
+
+    const image = createElement(
+      'img',
+      'editor-browser-library-item-favicon',
+    ) as HTMLImageElement;
+    image.alt = '';
+    image.src = normalizedFaviconUrl;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => {
+      if (!image.parentElement) {
+        return;
+      }
+      const fallback = createLxIcon(
+        'link-external',
+        'editor-browser-library-item-favicon is-fallback',
+      );
+      image.replaceWith(fallback);
+    });
+    return image;
   }
 
   private getOrCreateListElement() {

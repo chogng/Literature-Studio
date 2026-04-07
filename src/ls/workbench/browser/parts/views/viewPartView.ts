@@ -12,6 +12,7 @@ export type ViewPartLabels = {
 
 export type ViewPartProps = {
   browserUrl: string;
+  browserFaviconUrl?: string;
   electronRuntime: boolean;
   webContentRuntime: boolean;
   labels: ViewPartLabels;
