@@ -1,6 +1,7 @@
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import type { EditorStatusState } from 'ls/workbench/browser/parts/editor/editorStatus';
 import { createStatusbarItemElement } from 'ls/workbench/browser/parts/statusbar/statusbarItem';
+import { renderStatusbarMode } from 'ls/workbench/browser/parts/statusbar/statusbarModeRenderers';
 import 'ls/workbench/browser/parts/statusbar/media/statusbar.css';
 
 function createTextElement(className: string, text: string, title?: string) {
@@ -47,28 +48,12 @@ export class StatusbarPart {
       `is-pane-mode-${status.paneMode}`,
     ].join(' ');
     this.statusbarElement.setAttribute('aria-label', status.ariaLabel);
-    this.primaryGroupElement.replaceChildren();
-    this.secondaryGroupElement.replaceChildren();
-
-    if (status.modeLabel) {
-      this.primaryGroupElement.append(
-        createTextElement('editor-statusbar-mode-pill', status.modeLabel),
-      );
-    }
-
-    if (status.summary) {
-      this.primaryGroupElement.append(
-        createTextElement('editor-statusbar-summary', status.summary, status.summary),
-      );
-    }
-
-    for (const item of status.leftItems) {
-      this.primaryGroupElement.append(createStatusbarItemElement(item));
-    }
-
-    for (const item of status.rightItems) {
-      this.secondaryGroupElement.append(createStatusbarItemElement(item));
-    }
+    renderStatusbarMode(status, {
+      primaryGroupElement: this.primaryGroupElement,
+      secondaryGroupElement: this.secondaryGroupElement,
+      createTextElement,
+      createStatusbarItemElement,
+    });
   }
 
   dispose() {
