@@ -1,9 +1,5 @@
 .horizontal-scrollbar-host {
   --horizontal-scrollbar-size: 4px;
-  --horizontal-scrollbar-track: rgba(208, 218, 228, 0.72);
-  --horizontal-scrollbar-thumb: rgba(132, 152, 173, 0.92);
-  --horizontal-scrollbar-thumb-hover: rgba(107, 128, 151, 0.96);
-  --horizontal-scrollbar-thumb-active: rgba(82, 103, 127, 0.98);
   position: relative;
 }
 
@@ -39,7 +35,7 @@
 .horizontal-scrollbar-host.is-scrollbar-dragging .horizontal-scrollbar-track {
   opacity: 1;
   pointer-events: auto;
-  background: var(--horizontal-scrollbar-track);
+  background: var(--vscode-scrollbar-shadow);
 }
 
 .horizontal-scrollbar-thumb {
@@ -49,17 +45,17 @@
   height: 100%;
   min-width: 24px;
   border-radius: 999px;
-  background: var(--horizontal-scrollbar-thumb);
+  background: var(--vscode-scrollbarSlider-background);
   cursor: grab;
   touch-action: none;
   transition: background-color 120ms ease;
 }
 
 .horizontal-scrollbar-thumb:hover {
-  background: var(--horizontal-scrollbar-thumb-hover);
+  background: var(--vscode-scrollbarSlider-hoverBackground);
 }
 
 .horizontal-scrollbar-host.is-scrollbar-dragging .horizontal-scrollbar-thumb {
-  background: var(--horizontal-scrollbar-thumb-active);
+  background: var(--vscode-scrollbarSlider-activeBackground);
   cursor: grabbing;
 }

@@ -4,6 +4,7 @@ import {
   type HoverHandle,
 } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon, type LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import { HorizontalScrollbar } from 'ls/base/browser/ui/scrollbar/horizontalScrollbar';
 import type { ContextMenuAction } from 'ls/base/browser/contextmenu';
 import {
   LifecycleStore,
@@ -110,8 +111,10 @@ export class TabsTitleControl extends TitleControl {
   private readonly disposables = new LifecycleStore();
   private readonly resizeObserver = new MutableLifecycle<DisposableLike>();
   private readonly layoutAnimationFrame = new MutableLifecycle<DisposableLike>();
+  private readonly tabsScrollbar = new MutableLifecycle<HorizontalScrollbar>();
   private readonly contextMenuService: WorkbenchContextMenuService;
   private container: HTMLDivElement | null = null;
+  private scrollableRoot: HTMLDivElement | null = null;
   private readonly tabViews = new Map<string, TabView>();
   private shouldRevealActiveTab = false;
   private readonly hoverService = getHoverService();
@@ -128,8 +131,37 @@ export class TabsTitleControl extends TitleControl {
   }
 
   protected override create() {
-    this.container = createElement('div', 'editor-tabs-container');
+    this.container = createElement('div', 'editor-tabs-container horizontal-scrollbar-strip');
     this.container.setAttribute('role', 'tablist');
+    const scrollHost = createElement(
+      'div',
+      'editor-tabs-scroll-host horizontal-scrollbar-host',
+    );
+    const scrollbarTrack = createElement(
+      'div',
+      'editor-tabs-scrollbar horizontal-scrollbar-track',
+    );
+    scrollbarTrack.setAttribute('aria-hidden', 'true');
+    const scrollbarThumb = createElement(
+      'div',
+      'editor-tabs-scrollbar-thumb horizontal-scrollbar-thumb',
+    );
+    scrollbarThumb.setAttribute('aria-hidden', 'true');
+    scrollbarTrack.append(scrollbarThumb);
+    scrollHost.append(this.container, scrollbarTrack);
+    const tabsScrollbar = new HorizontalScrollbar(
+      scrollHost,
+      this.container,
+      scrollbarTrack,
+      scrollbarThumb,
+      {
+        scrollYToX: true,
+        mouseWheelSmoothScroll: false,
+        consumeMouseWheelIfScrollbarIsNeeded: true,
+      },
+    );
+    this.tabsScrollbar.value = tabsScrollbar;
+    this.scrollableRoot = scrollHost;
     this.disposables.add(addDisposableListener(this.container, 'scroll', this.handleContainerScroll, {
       passive: true,
     }));
@@ -138,6 +170,9 @@ export class TabsTitleControl extends TitleControl {
         this.scheduleLayoutSync(false);
       });
       resizeObserver.observe(this.container);
+      if (this.scrollableRoot) {
+        resizeObserver.observe(this.scrollableRoot);
+      }
       this.resizeObserver.value = toDisposable(() => {
         resizeObserver.disconnect();
       });
@@ -146,7 +181,7 @@ export class TabsTitleControl extends TitleControl {
     }
     this.redraw();
 
-    return this.container;
+    return this.scrollableRoot ?? this.container;
   }
 
   protected override update() {
@@ -156,12 +191,14 @@ export class TabsTitleControl extends TitleControl {
   override dispose() {
     this.layoutAnimationFrame.dispose();
     this.resizeObserver.dispose();
+    this.tabsScrollbar.dispose();
     this.disposables.dispose();
     this.contextMenuService.dispose();
     for (const tabView of this.tabViews.values()) {
       tabView.dispose();
     }
     this.tabViews.clear();
+    this.scrollableRoot = null;
     this.container = null;
 
     super.dispose();
@@ -431,12 +468,14 @@ export class TabsTitleControl extends TitleControl {
       if (this.layoutAnimationFrame.value === animationFrameDisposable) {
         this.layoutAnimationFrame.clearAndLeak();
       }
+      this.tabsScrollbar.value?.renderNow();
       this.syncOverflowState();
       if (this.shouldRevealActiveTab) {
         this.revealActiveTab();
       }
       this.shouldRevealActiveTab = false;
       this.syncOverflowState();
+      this.tabsScrollbar.value?.renderNow();
     });
   }
 

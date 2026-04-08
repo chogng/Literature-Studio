@@ -4,17 +4,29 @@
   --editor-tab-max-width: 280px;
 }
 
+.editor-tabs-scroll-host.horizontal-scrollbar-host {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--editor-topbar-height, 36px);
+}
+
 .editor-tabs-container {
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-width: 0;
   gap: 2px;
   height: var(--editor-tabs-strip-height);
   position: relative;
   background: transparent;
-  overflow: visible;
   padding: 0;
+}
+
+.editor-tabs-scroll-host .horizontal-scrollbar-track {
+  bottom: 0;
 }
 
 .editor-tab {

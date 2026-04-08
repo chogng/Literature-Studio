@@ -171,6 +171,7 @@ export class AgentChatWidget {
       {
         activeItem: activeTabButton,
         initialScrollLeft: this.tabStripScrollLeft,
+        scrollYToX: true,
         mouseWheelSmoothScroll: false,
         consumeMouseWheelIfScrollbarIsNeeded: true,
         onScrollLeftChange: (scrollLeft) => {

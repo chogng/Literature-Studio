@@ -492,7 +492,7 @@ test('horizontal scrollbar handles wheel events from the strip content', async (
     const event = new window.WheelEvent('wheel', {
       bubbles: true,
       cancelable: true,
-      deltaY: 48,
+      deltaX: 48,
     });
     strip.dispatchEvent(event);
 
@@ -541,7 +541,7 @@ test('horizontal scrollbar applies mouse wheel sensitivity', async () => {
     const event = new window.WheelEvent('wheel', {
       bubbles: true,
       cancelable: true,
-      deltaY: 24,
+      deltaX: 24,
     });
     strip.dispatchEvent(event);
 
@@ -591,7 +591,7 @@ test('horizontal scrollbar can avoid consuming mouse wheel events', async () => 
     const event = new window.WheelEvent('wheel', {
       bubbles: true,
       cancelable: true,
-      deltaY: 24,
+      deltaX: 24,
     });
     strip.dispatchEvent(event);
 
@@ -656,7 +656,7 @@ test('horizontal scrollbar can use smooth mouse wheel scrolling', async () => {
     const event = new window.WheelEvent('wheel', {
       bubbles: true,
       cancelable: true,
-      deltaY: 24,
+      deltaX: 24,
     });
     strip.dispatchEvent(event);
 
@@ -708,6 +708,55 @@ test('horizontal scrollbar converts vertical wheel to horizontal when shift is h
       cancelable: true,
       deltaY: 24,
       shiftKey: true,
+    });
+    strip.dispatchEvent(event);
+
+    assert.equal(strip.scrollLeft, 24);
+    assert.equal(event.defaultPrevented, true);
+  } finally {
+    scrollbar.dispose();
+    host.remove();
+  }
+});
+
+test('horizontal scrollbar converts vertical wheel to horizontal when scrollYToX is enabled', async () => {
+  const host = document.createElement('div');
+  const strip = document.createElement('div');
+  const track = document.createElement('div');
+  const thumb = document.createElement('div');
+  host.append(strip, track);
+  track.append(thumb);
+  document.body.append(host);
+
+  Object.defineProperty(strip, 'clientWidth', {
+    configurable: true,
+    value: 120,
+  });
+  Object.defineProperty(strip, 'scrollWidth', {
+    configurable: true,
+    value: 320,
+  });
+  Object.defineProperty(track, 'clientWidth', {
+    configurable: true,
+    value: 120,
+  });
+  Object.defineProperty(track, 'clientHeight', {
+    configurable: true,
+    value: 4,
+  });
+
+  const scrollbar = new HorizontalScrollbar(host, strip, track, thumb, {
+    scrollYToX: true,
+  });
+
+  try {
+    scrollbar.renderNow();
+    await delay(0);
+
+    const event = new window.WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 24,
     });
     strip.dispatchEvent(event);
 

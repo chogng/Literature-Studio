@@ -153,6 +153,12 @@ function createContextMenuServiceSpy() {
   };
 }
 
+function getTabsContainer(rootElement: HTMLElement) {
+  const tabsContainer = rootElement.querySelector('.editor-tabs-container');
+  assert(tabsContainer instanceof HTMLDivElement);
+  return tabsContainer;
+}
+
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
@@ -198,8 +204,9 @@ test('TabsTitleControl reuses tab nodes across prop updates', () => {
     onCloseTab: () => {},
     onOpenPaneMode: () => {},
   });
-  const container = control.getElement();
-  document.body.append(container);
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
 
   const draftTab = container.children[0];
   const browserTab = container.children[1];
@@ -573,8 +580,9 @@ test('TabsTitleControl opens a pane mode when its fixed tab has no target tab ye
       openedPaneModes.push(paneMode);
     },
   });
-  const container = control.getElement();
-  document.body.append(container);
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
 
   const browserButton = container.children[1]?.querySelector('.editor-tab-main');
   assert(browserButton instanceof HTMLButtonElement);
@@ -610,8 +618,9 @@ test('TabsTitleControl uses file-pdf for inactive pdf tabs and pdf for the activ
     onCloseTab: () => {},
     onOpenPaneMode: () => {},
   });
-  const container = control.getElement();
-  document.body.append(container);
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
 
   const getPdfIcon = () =>
     container.children[1]?.querySelector('.editor-tab-icon .lx-icon');
@@ -668,8 +677,9 @@ test('TabsTitleControl replaces browser pane icon with favicon when available', 
     onCloseTab: () => {},
     onOpenPaneMode: () => {},
   });
-  const container = control.getElement();
-  document.body.append(container);
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
 
   const iconContainer = container.children[0]?.querySelector('.editor-tab-icon');
   assert(iconContainer instanceof HTMLElement);
@@ -706,8 +716,9 @@ test('TabsTitleControl renders unsave for dirty closable tabs and close for clea
     onCloseTab: () => {},
     onOpenPaneMode: () => {},
   });
-  const container = control.getElement();
-  document.body.append(container);
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
 
   const getCloseActionIcon = () =>
     container.children[0]?.querySelector('.editor-tab-close-btn.actionbar-action .lx-icon');
@@ -771,8 +782,9 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
     onCloseTab: () => {},
     onOpenPaneMode: () => {},
   });
-  const container = control.getElement();
-  document.body.append(container);
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
 
   let scrollLeft = 0;
   Object.defineProperty(container, 'clientWidth', {
@@ -872,7 +884,7 @@ test('TabsTitleControl disconnects resize observers on dispose', () => {
     });
     document.body.append(control.getElement());
 
-    assert.equal(resizeObserverSpy.getActiveObservers(), 1);
+    assert.equal(resizeObserverSpy.getActiveObservers(), 2);
 
     control.dispose();
 
@@ -938,8 +950,9 @@ test('TabsTitleControl opens a context menu with close, close others, close all,
       contextMenuService: contextMenuSpy.contextMenuService,
     },
   );
-  const container = control.getElement();
-  document.body.append(container);
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
 
   const browserTab = container.children[1];
   const contextMenuEvent = new MouseEvent('contextmenu', {
@@ -1047,8 +1060,9 @@ test('TabsTitleControl renders its DOM context menu below the cursor for availab
     onCloseTab: () => {},
     onOpenPaneMode: () => {},
   });
-  const container = control.getElement();
-  document.body.append(container);
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
 
   try {
     const tab = container.querySelector('.editor-tab');

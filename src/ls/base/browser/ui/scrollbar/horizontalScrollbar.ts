@@ -343,7 +343,7 @@ export class HorizontalScrollbar extends LifecycleOwner {
 
     if (
       this.alwaysConsumeMouseWheel ||
-      (this.consumeMouseWheelIfScrollbarIsNeeded && wheelDelta !== 0) ||
+      (this.consumeMouseWheelIfScrollbarIsNeeded && isScrollable) ||
       didScroll
     ) {
       event.preventDefault();
@@ -385,20 +385,19 @@ export class HorizontalScrollbar extends LifecycleOwner {
       deltaY *= this.fastScrollSensitivity;
     }
 
-    const rawDelta = deltaX !== 0 ? deltaX : deltaY;
-    if (rawDelta === 0) {
+    if (deltaX === 0) {
       return 0;
     }
 
     if (event.deltaMode === DOM_DELTA_LINE) {
-      return rawDelta * WHEEL_LINE_SIZE;
+      return deltaX * WHEEL_LINE_SIZE;
     }
 
     if (event.deltaMode === DOM_DELTA_PAGE) {
-      return rawDelta * this.strip.clientWidth;
+      return deltaX * this.strip.clientWidth;
     }
 
-    return rawDelta;
+    return deltaX;
   }
 
   private setScrollLeft(scrollLeft: number) {
