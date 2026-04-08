@@ -246,6 +246,24 @@
   justify-content: center;
 }
 
+.editor-tab:not(.has-title) .editor-tab-label {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+.editor-tab:not(.has-title) .editor-tab-actions.actionbar {
+  width: 100%;
+  padding-right: 0;
+  justify-content: center;
+}
+
+.editor-tab:not(.has-title).is-closable[data-hovered='true'] .editor-tab-label,
+.editor-tab:not(.has-title).is-closable:focus-within .editor-tab-label,
+.editor-tab:not(.has-title).is-closable.is-dirty .editor-tab-label {
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
 .editor-tab:not(.is-closable) .editor-tab-actions.actionbar {
   display: none;
 }
