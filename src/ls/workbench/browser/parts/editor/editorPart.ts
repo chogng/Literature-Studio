@@ -428,11 +428,8 @@ export class EditorPartController {
     this.editorModel.updateActiveContentTabUrl(url);
   };
 
-  readonly updateActiveBrowserTabPageTitle = (
-    pageTitle: string,
-    previousPageTitle?: string,
-  ) => {
-    this.editorModel.updateActiveBrowserTabPageTitle(pageTitle, previousPageTitle);
+  readonly updateActiveBrowserTabPageTitle = (pageTitle: string) => {
+    this.editorModel.updateActiveBrowserTabPageTitle(pageTitle);
   };
 
   readonly getDraftBody = () => this.editorModel.getDraftBody();

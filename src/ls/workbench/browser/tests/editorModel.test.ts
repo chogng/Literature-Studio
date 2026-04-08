@@ -495,12 +495,16 @@ test('editor model updates active browser tab title from page title without over
     let snapshot = model.getSnapshot();
     assert.equal(snapshot.tabs[0]?.title, 'Article Title');
 
-    model.updateActiveBrowserTabPageTitle('Article Title v2', 'Article Title');
+    model.updateActiveContentTabUrl('https://example.com/next');
+    snapshot = model.getSnapshot();
+    assert.equal(snapshot.tabs[0]?.title, 'example.com/next');
+
+    model.updateActiveBrowserTabPageTitle('Article Title v2');
     snapshot = model.getSnapshot();
     assert.equal(snapshot.tabs[0]?.title, 'Article Title v2');
 
     model.renameTab('browser-a', 'Pinned Article');
-    model.updateActiveBrowserTabPageTitle('Should Not Override', 'Article Title v2');
+    model.updateActiveBrowserTabPageTitle('Should Not Override');
     snapshot = model.getSnapshot();
     assert.equal(snapshot.tabs[0]?.title, 'Pinned Article');
   } finally {

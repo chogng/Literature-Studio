@@ -97,6 +97,17 @@ type ResolvedEditorGroupTarget = {
   activateGroup: boolean;
 };
 
+type BrowserTabTitleSource =
+  | 'custom'
+  | 'auto-page'
+  | 'auto-url'
+  | 'empty';
+
+type BrowserTabMetadata = {
+  titleSource: BrowserTabTitleSource;
+  lastPageTitle: string;
+};
+
 function createDraftTab(
   initial?: Partial<Pick<EditorWorkspaceDraftTab, 'id' | 'title' | 'document' | 'viewMode'>>,
 ): EditorWorkspaceDraftTab {
@@ -517,21 +528,20 @@ function hasDerivedContentTabTitle(tab: EditorWorkspaceContentTab) {
   return tab.title.trim() === getEditorContentTabTitle(tab.url);
 }
 
-function hasAutoManagedBrowserTabTitle(
+function inferBrowserTabTitleSource(
   tab: EditorWorkspaceBrowserTab,
-  previousPageTitle?: string,
-) {
-  const currentTitle = tab.title.trim();
-  if (!currentTitle) {
-    return true;
+): BrowserTabTitleSource {
+  const normalizedUrl = tab.url.trim();
+  const normalizedTitle = tab.title.trim();
+  if (normalizedUrl === EMPTY_BROWSER_TAB_URL) {
+    return 'empty';
   }
 
-  if (currentTitle === getEditorContentTabTitle(tab.url)) {
-    return true;
+  if (!normalizedTitle || normalizedTitle === getEditorContentTabTitle(normalizedUrl)) {
+    return 'auto-url';
   }
 
-  const normalizedPreviousPageTitle = String(previousPageTitle ?? '').trim();
-  return Boolean(normalizedPreviousPageTitle && currentTitle === normalizedPreviousPageTitle);
+  return 'custom';
 }
 
 function sanitizeBrowserTabPageTitle(
@@ -551,6 +561,21 @@ function sanitizeBrowserTabPageTitle(
   }
 
   return tabUrl.trim() === EMPTY_BROWSER_TAB_URL ? '' : normalizedPageTitle;
+}
+
+function resolveBrowserTabTitleFromSource(
+  tab: EditorWorkspaceBrowserTab,
+  titleSource: BrowserTabTitleSource,
+) {
+  if (titleSource === 'empty') {
+    return '';
+  }
+
+  if (titleSource === 'auto-url') {
+    return getEditorContentTabTitle(tab.url);
+  }
+
+  return tab.title;
 }
 
 function createEditorModelSnapshot(
@@ -582,6 +607,7 @@ export class EditorModel {
   private readonly draftDirtyState: ReturnType<typeof createEditorDraftDirtyState>;
   private readonly liveDraftState = createEditorLiveDraftState();
   private readonly storage = createEditorStorage();
+  private readonly browserTabMetadataById = new Map<string, BrowserTabMetadata>();
   private listeners = new Set<EditorModelListener>();
 
   constructor(
@@ -589,6 +615,7 @@ export class EditorModel {
     initialSavedDraftStateByInputId: EditorDraftSavedStateByInputId = {},
   ) {
     this.workspaceState = normalizeWorkspaceState(initialState);
+    this.syncBrowserTabMetadata();
     this.draftDirtyState = createEditorDraftDirtyState(
       initialSavedDraftStateByInputId,
     );
@@ -868,12 +895,30 @@ export class EditorModel {
       return;
     }
 
-    const nextTitle =
-      isEditorBrowserTabInput(activeTab) && normalizedUrl === EMPTY_BROWSER_TAB_URL
-        ? ''
-        : hasDerivedContentTabTitle(activeTab)
-          ? getEditorContentTabTitle(normalizedUrl)
-          : activeTab.title;
+    const nextTitle = isEditorBrowserTabInput(activeTab)
+      ? (() => {
+          const metadata = this.getBrowserTabMetadata(activeTab);
+          const nextTitleSource: BrowserTabTitleSource =
+            normalizedUrl === EMPTY_BROWSER_TAB_URL
+              ? 'empty'
+              : metadata.titleSource === 'custom'
+                ? 'custom'
+                : 'auto-url';
+          const nextTab = {
+            ...activeTab,
+            url: normalizedUrl,
+          } as EditorWorkspaceBrowserTab;
+          const resolvedTitle = resolveBrowserTabTitleFromSource(nextTab, nextTitleSource);
+
+          this.browserTabMetadataById.set(activeTab.id, {
+            titleSource: nextTitleSource,
+            lastPageTitle: '',
+          });
+          return resolvedTitle;
+        })()
+      : hasDerivedContentTabTitle(activeTab)
+        ? getEditorContentTabTitle(normalizedUrl)
+        : activeTab.title;
     if (activeTab.url === normalizedUrl && activeTab.title === nextTitle) {
       return;
     }
@@ -894,10 +939,7 @@ export class EditorModel {
     }));
   };
 
-  readonly updateActiveBrowserTabPageTitle = (
-    pageTitle: string,
-    previousPageTitle?: string,
-  ) => {
+  readonly updateActiveBrowserTabPageTitle = (pageTitle: string) => {
     const activeGroup = resolveActiveGroup(this.workspaceState);
     const activeTab = resolveActiveTab(activeGroup);
     if (!activeTab || !isEditorBrowserTabInput(activeTab)) {
@@ -912,14 +954,23 @@ export class EditorModel {
       return;
     }
 
-    if (!hasAutoManagedBrowserTabTitle(activeTab, previousPageTitle)) {
+    const metadata = this.getBrowserTabMetadata(activeTab);
+    if (metadata.titleSource === 'custom') {
       return;
     }
 
     if (activeTab.title.trim() === normalizedPageTitle) {
+      this.browserTabMetadataById.set(activeTab.id, {
+        titleSource: 'auto-page',
+        lastPageTitle: normalizedPageTitle,
+      });
       return;
     }
 
+    this.browserTabMetadataById.set(activeTab.id, {
+      titleSource: 'auto-page',
+      lastPageTitle: normalizedPageTitle,
+    });
     this.updateActiveGroupState((group) => ({
       ...group,
       tabs: group.tabs.map((tab) =>
@@ -943,6 +994,13 @@ export class EditorModel {
     const targetTab = activeGroup.tabs.find((tab) => tab.id === tabId);
     if (!targetTab || targetTab.title === nextTitle) {
       return;
+    }
+
+    if (isEditorBrowserTabInput(targetTab)) {
+      this.browserTabMetadataById.set(targetTab.id, {
+        titleSource: 'custom',
+        lastPageTitle: '',
+      });
     }
 
     this.updateActiveGroupState((group) => ({
@@ -1002,11 +1060,52 @@ export class EditorModel {
     }
   }
 
+  private syncBrowserTabMetadata() {
+    const browserTabs = this.workspaceState.groups
+      .flatMap((group) => group.tabs)
+      .filter((tab): tab is EditorWorkspaceBrowserTab => isEditorBrowserTabInput(tab));
+    const browserTabIdSet = new Set(browserTabs.map((tab) => tab.id));
+
+    for (const tabId of this.browserTabMetadataById.keys()) {
+      if (!browserTabIdSet.has(tabId)) {
+        this.browserTabMetadataById.delete(tabId);
+      }
+    }
+
+    for (const tab of browserTabs) {
+      if (this.browserTabMetadataById.has(tab.id)) {
+        continue;
+      }
+
+      this.browserTabMetadataById.set(tab.id, {
+        titleSource: inferBrowserTabTitleSource(tab),
+        lastPageTitle: '',
+      });
+    }
+  }
+
+  private getBrowserTabMetadata(
+    tab: EditorWorkspaceBrowserTab,
+  ): BrowserTabMetadata {
+    const existing = this.browserTabMetadataById.get(tab.id);
+    if (existing) {
+      return existing;
+    }
+
+    const nextMetadata = {
+      titleSource: inferBrowserTabTitleSource(tab),
+      lastPageTitle: '',
+    } satisfies BrowserTabMetadata;
+    this.browserTabMetadataById.set(tab.id, nextMetadata);
+    return nextMetadata;
+  }
+
   private updateWorkspaceState(
     updater: (state: EditorWorkspaceState) => EditorWorkspaceState,
     options: { persist?: 'immediate' | 'debounced' } = {},
   ) {
     this.workspaceState = normalizeWorkspaceState(updater(this.workspaceState));
+    this.syncBrowserTabMetadata();
     this.syncDraftDirtyState();
     this.syncLiveDraftState();
     this.snapshot = createEditorModelSnapshot(

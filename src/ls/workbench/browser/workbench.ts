@@ -604,7 +604,6 @@ class WorkbenchHost {
   private renderPending = false;
   private webContentRuntime = false;
   private previousBrowserUrl = '';
-  private previousBrowserPageTitle = '';
   private previousActiveContentTabId: string | null = null;
   private previousContentTargetId: string | null = null;
   private previousContentTargetUrl = '';
@@ -802,10 +801,7 @@ class WorkbenchHost {
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
     updateActiveContentTabUrl: (url: string) => void;
-    updateActiveBrowserTabPageTitle: (
-      pageTitle: string,
-      previousPageTitle?: string,
-    ) => void;
+    updateActiveBrowserTabPageTitle: (pageTitle: string) => void;
   }) {
     const {
       browserUrl,
@@ -901,13 +897,9 @@ class WorkbenchHost {
       updateActiveContentTabUrl(browserUrl);
     }
 
-    updateActiveBrowserTabPageTitle(
-      browserPageTitle,
-      this.previousBrowserPageTitle,
-    );
+    updateActiveBrowserTabPageTitle(browserPageTitle);
 
     this.previousBrowserUrl = browserUrl;
-    this.previousBrowserPageTitle = browserPageTitle;
     this.previousActiveContentTabId = webContentSurfaceSnapshot.activeContentTabId;
   }
 
@@ -978,10 +970,7 @@ class WorkbenchHost {
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
     updateActiveContentTabUrl: (url: string) => void;
-    updateActiveBrowserTabPageTitle: (
-      pageTitle: string,
-      previousPageTitle?: string,
-    ) => void;
+    updateActiveBrowserTabPageTitle: (pageTitle: string) => void;
   }) {
     const {
       selectionModePhase,
