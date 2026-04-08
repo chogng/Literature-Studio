@@ -379,6 +379,7 @@ function toColorPickerValue(colorValue: string) {
 export class SettingsPartView {
   private props: SettingsPartProps;
   private readonly navigationView: ReturnType<typeof createSettingsNavigationView>;
+  private readonly container = el('div', 'settings-page');
   private readonly content = el('div', 'settings-content');
   private readonly topbar = el('div', 'settings-page-topbar');
   private readonly pageTitle = el('h2', 'settings-page-title');
@@ -444,13 +445,14 @@ export class SettingsPartView {
       onTranslationProviderApiKeyChange: (provider, apiKey) => this.props.onTranslationProviderApiKeyChange(provider, apiKey),
       onTestTranslationConnection: () => this.props.onTestTranslationConnection(),
     });
-    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, this.content);
+    this.container.append(this.topbar, this.content);
+    registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, this.container);
     this.initializeSectionContainers();
     this.updateView(undefined, true);
   }
 
   getElement() {
-    return this.content;
+    return this.container;
   }
 
   getNavigationElement() {
@@ -458,7 +460,7 @@ export class SettingsPartView {
   }
 
   getContentElement() {
-    return this.content;
+    return this.container;
   }
 
   setProps(props: SettingsPartProps) {
@@ -470,14 +472,14 @@ export class SettingsPartView {
   dispose() {
     registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.settings, null);
     this.navigationView.dispose();
-    this.content.replaceChildren();
+    this.container.replaceChildren();
   }
 
   private containsManagedElement(node: Node) {
     const navigationElement = this.navigationView.getElement();
     return (
       navigationElement.contains(node) ||
-      this.content.contains(node)
+      this.container.contains(node)
     );
   }
 
@@ -664,12 +666,11 @@ export class SettingsPartView {
     const pageSectionIds = getSettingsPageSectionIds(this.activePageId);
     this.pageTitle.textContent = getSettingsPageTitle(this.activePageId, this.props.labels);
     const contentChildren: Node[] = [
-      this.topbar,
       this.pageTitle,
       ...pageSectionIds.map((sectionId) => this.sections[sectionId]),
     ];
     if (this.props.isSettingsLoading) {
-      contentChildren.splice(2, 0, this.loadingHint);
+      contentChildren.splice(1, 0, this.loadingHint);
     }
     this.content.replaceChildren(...contentChildren);
     for (const [sectionId, section] of Object.entries(this.sections) as Array<[SettingsSectionId, HTMLElement]>) {

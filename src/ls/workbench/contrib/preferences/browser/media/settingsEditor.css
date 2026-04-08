@@ -1,4 +1,5 @@
 .settings-page {
+  --settings-page-content-background: var(--vscode-settings-contentBackground, #fff);
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -119,7 +120,7 @@
   align-content: start;
   min-height: 0;
   overflow: auto;
-  background: var(--vscode-settings-contentBackground, #fff);
+  background: var(--settings-page-content-background);
 }
 
 .settings-section {
@@ -167,6 +168,7 @@
   min-height: 36px;
   display: flex;
   align-items: center;
+  background: var(--settings-page-content-background);
   -webkit-app-region: drag;
 }
 
