@@ -3,6 +3,7 @@ import type {
   EditorWorkspaceContentTab,
   EditorWorkspaceTab,
 } from 'ls/workbench/browser/parts/editor/editorModel';
+import type { WebContentState } from 'ls/workbench/services/webContent/webContentNavigationService';
 
 export type WebContentSurfaceOwner = 'shared-content' | 'editor-content-tab';
 
@@ -69,6 +70,19 @@ export function shouldSyncActiveContentTabFromBrowserUrl(
     Boolean(snapshot.activeContentTabId) &&
     snapshot.activeContentTabUrl === previousBrowserUrl &&
     shouldSyncContentTabFromSharedContent(snapshot, browserUrl)
+  );
+}
+
+export function shouldSyncActiveContentTabMetadataFromWebContentState(
+  snapshot: WebContentSurfaceSnapshot,
+  webContentState: Pick<WebContentState, 'ownership' | 'targetId' | 'activeTargetId'>,
+) {
+  return (
+    snapshot.owner === 'editor-content-tab' &&
+    Boolean(snapshot.activeContentTabId) &&
+    webContentState.ownership === 'active' &&
+    webContentState.targetId === snapshot.activeContentTabId &&
+    webContentState.activeTargetId === snapshot.activeContentTabId
   );
 }
 
