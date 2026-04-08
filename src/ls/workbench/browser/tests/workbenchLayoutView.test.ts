@@ -1215,6 +1215,96 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
   }
 });
 
+test('WorkbenchLayoutView removes a recent browser library entry without triggering navigation', async () => {
+  const BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
+  const RECENT_ENTRY_URL = 'https://example.com/recent-delete-target';
+  const RECENT_ENTRY_TITLE = 'Recent Delete Target';
+  const addressChanges: string[] = [];
+  let navigateCount = 0;
+  window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+
+  const props = createWorkbenchLayoutViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-recent-delete',
+        kind: 'browser',
+        title: 'Example',
+        url: RECENT_ENTRY_URL,
+      },
+    ],
+    activeTabId: 'browser-tab-recent-delete',
+    activeTab: {
+      id: 'browser-tab-recent-delete',
+      kind: 'browser',
+      title: 'Example',
+      url: RECENT_ENTRY_URL,
+    },
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: RECENT_ENTRY_URL,
+      browserPageTitle: RECENT_ENTRY_TITLE,
+      browserFaviconUrl: 'https://example.com/favicon.ico',
+      electronRuntime: true,
+      webContentRuntime: true,
+    },
+    onToolbarAddressChange: (value: string) => {
+      addressChanges.push(value);
+    },
+    onToolbarNavigateToUrl: (value: string) => {
+      addressChanges.push(value);
+      navigateCount += 1;
+    },
+  };
+
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    const sourcesButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Source menu"]');
+    assert(sourcesButton instanceof HTMLButtonElement);
+    sourcesButton.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const panel = document.body.querySelector('.editor-browser-library-panel');
+    assert(panel instanceof HTMLElement);
+    assert.equal(panel.classList.contains('is-open'), true);
+    const recentItem = Array.from(
+      panel.querySelectorAll('.editor-browser-library-item'),
+    ).find((node) => {
+      const titleElement = node.querySelector('.editor-browser-library-item-title');
+      return titleElement?.textContent === RECENT_ENTRY_TITLE;
+    });
+    assert(recentItem instanceof HTMLButtonElement);
+    const deleteButton = recentItem.parentElement?.querySelector(
+      '.editor-browser-library-item-delete-btn',
+    );
+    assert(deleteButton instanceof HTMLButtonElement);
+    deleteButton.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.equal(navigateCount, 0);
+    assert.deepEqual(addressChanges, []);
+    const remainingItemTitles = Array.from(
+      panel.querySelectorAll('.editor-browser-library-item-title'),
+    ).map((node) => node.textContent ?? '');
+    assert.equal(remainingItemTitles.includes(RECENT_ENTRY_TITLE), false);
+    const serializedState = window.localStorage?.getItem(BROWSER_LIBRARY_STORAGE_KEY);
+    assert(serializedState);
+    const parsedState = JSON.parse(serializedState) as {
+      recentUrls?: string[];
+    };
+    assert.equal((parsedState.recentUrls ?? []).includes(RECENT_ENTRY_URL), false);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+    window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+  }
+});
+
 test('WorkbenchLayoutView opens the browser toolbar more menu and dispatches handlers', async () => {
   const calls: string[] = [];
   const props = createWorkbenchLayoutViewProps();

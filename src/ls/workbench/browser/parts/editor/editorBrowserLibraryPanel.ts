@@ -29,6 +29,7 @@ export type EditorBrowserLibraryPanelLabels = {
   recentTitle: string;
   favoritesTitle: string;
   emptyState: string;
+  deleteHistoryEntry?: string;
 };
 
 export type EditorBrowserLibraryPanelContext = {
@@ -406,6 +407,39 @@ function clearRecentBrowserLibraryEntries() {
   });
 }
 
+function removeRecentBrowserLibraryEntry(url: string) {
+  const normalizedUrl = toTrackableBrowserLibraryUrl(url);
+  if (!normalizedUrl) {
+    return false;
+  }
+
+  return updateStoredBrowserLibraryState((state) => {
+    if (!state.recentUrls.includes(normalizedUrl)) {
+      return state;
+    }
+
+    const recentUrls = state.recentUrls.filter((entry) => entry !== normalizedUrl);
+    if (state.favoriteUrls.includes(normalizedUrl)) {
+      return {
+        ...state,
+        recentUrls,
+      };
+    }
+
+    const faviconByUrl = { ...state.faviconByUrl };
+    const pageTitleByUrl = { ...state.pageTitleByUrl };
+    delete faviconByUrl[normalizedUrl];
+    delete pageTitleByUrl[normalizedUrl];
+
+    return {
+      ...state,
+      recentUrls,
+      faviconByUrl,
+      pageTitleByUrl,
+    };
+  });
+}
+
 function isFavoriteBrowserLibraryEntry(url: string) {
   const normalizedUrl = toTrackableBrowserLibraryUrl(url);
   if (!normalizedUrl) {
@@ -694,10 +728,24 @@ export class EditorBrowserLibraryPanel {
     this.setOpen(false);
   };
 
+  private readonly handleLibraryItemDelete = (url: string) => {
+    const changed = removeRecentBrowserLibraryEntry(url);
+    if (!changed) {
+      return;
+    }
+
+    this.renderLibraryList();
+  };
+
   private readonly handleSearchInputChange = (value: string) => {
     this.searchQuery = value;
     this.renderLibraryList();
   };
+
+  private getDeleteHistoryEntryLabel() {
+    const configuredLabel = String(this.context.labels.deleteHistoryEntry ?? '').trim();
+    return configuredLabel || 'Delete history entry';
+  }
 
   private resetSearchQuery() {
     if (!this.searchQuery && this.searchInput.value.length === 0) {
@@ -952,6 +1000,9 @@ export class EditorBrowserLibraryPanel {
 
       for (const itemState of sectionItems) {
         const { url, title, faviconUrl, sectionKind } = itemState;
+        const canDeleteHistory = sectionKind === 'recent';
+        const itemRow = createElement('div', 'editor-browser-library-item-row');
+        itemRow.classList.toggle('is-deletable', canDeleteHistory);
         const item = createElement('button', 'editor-browser-library-item');
         item.type = 'button';
         item.title = url;
@@ -975,7 +1026,25 @@ export class EditorBrowserLibraryPanel {
         );
         headerElement.append(faviconElement, titleElement);
         item.append(headerElement);
-        sectionListElement.append(item);
+        itemRow.append(item);
+        if (canDeleteHistory) {
+          const deleteButton = createElement(
+            'button',
+            'editor-browser-library-item-delete-btn btn-base btn-md',
+          ) as HTMLButtonElement;
+          const deleteLabel = this.getDeleteHistoryEntryLabel();
+          deleteButton.type = 'button';
+          deleteButton.title = deleteLabel;
+          deleteButton.setAttribute('aria-label', deleteLabel);
+          deleteButton.append(createLxIcon('trash'));
+          deleteButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.handleLibraryItemDelete(url);
+          });
+          itemRow.append(deleteButton);
+        }
+        sectionListElement.append(itemRow);
       }
 
       fragment.append(sectionElement);
