@@ -16,10 +16,14 @@ export type MenuSelectEvent = {
 export interface MenuOptions {
   items: readonly ContextMenuAction[];
   className?: string;
+  itemClassName?: string;
   dataMenu?: string;
   placement?: 'top' | 'bottom';
   variant?: 'root' | 'submenu';
   role?: string;
+  itemRole?: 'menuitem' | 'option';
+  itemId?: (index: number, item: ContextMenuAction) => string;
+  activeIndex?: number;
   header?: MenuHeaderOptions;
   onSelect?: (event: MenuSelectEvent) => void;
   onCancel?: () => void;
@@ -207,6 +211,10 @@ export class Menu extends LifecycleOwner {
     return this.element;
   }
 
+  getActiveIndex() {
+    return this.activeIndex;
+  }
+
   setOptions(options: MenuOptions) {
     if (this.disposed) {
       return;
@@ -329,6 +337,12 @@ export class Menu extends LifecycleOwner {
   }
 
   private syncInitialActiveIndex() {
+    const configuredActiveIndex = this.resolveConfiguredActiveIndex();
+    if (configuredActiveIndex >= 0) {
+      this.setActiveIndex(configuredActiveIndex, false, false);
+      return;
+    }
+
     const selectedIndex = this.findSelectedEnabledIndex();
     if (selectedIndex >= 0) {
       this.setActiveIndex(selectedIndex, false, false);
@@ -340,6 +354,9 @@ export class Menu extends LifecycleOwner {
 
   private buildItemNodes() {
     const nodes: HTMLDivElement[] = [];
+    const itemRole =
+      this.options.itemRole
+      ?? (this.options.role === 'listbox' ? 'option' : 'menuitem');
     for (let index = 0; index < this.options.items.length; index += 1) {
       const item = this.options.items[index];
       const selected = Boolean(item.checked);
@@ -347,6 +364,7 @@ export class Menu extends LifecycleOwner {
         'div',
         composeClassName([
           'dropdown-menu-item',
+          this.options.itemClassName,
           hasSubmenu(item) ? 'has-submenu' : '',
           selected ? 'selected' : '',
           item.disabled ? 'disabled' : '',
@@ -354,8 +372,19 @@ export class Menu extends LifecycleOwner {
       );
       node.tabIndex = -1;
       node.dataset.index = String(index);
-      node.setAttribute('role', 'menuitem');
+      node.setAttribute('role', itemRole);
       node.setAttribute('aria-disabled', item.disabled ? 'true' : 'false');
+      if (itemRole === 'option') {
+        node.setAttribute('aria-selected', selected ? 'true' : 'false');
+      } else {
+        node.removeAttribute('aria-selected');
+      }
+      const itemId = this.options.itemId?.(index, item) ?? '';
+      if (itemId) {
+        node.id = itemId;
+      } else {
+        node.removeAttribute('id');
+      }
       if (hasSubmenu(item)) {
         node.setAttribute('aria-haspopup', 'menu');
         node.setAttribute('aria-expanded', 'false');
@@ -392,6 +421,23 @@ export class Menu extends LifecycleOwner {
       nodes.push(node);
     }
     return nodes;
+  }
+
+  private resolveConfiguredActiveIndex() {
+    const configuredIndex = this.options.activeIndex;
+    if (typeof configuredIndex !== 'number') {
+      return -1;
+    }
+
+    if (
+      configuredIndex < 0 ||
+      configuredIndex >= this.options.items.length ||
+      this.options.items[configuredIndex]?.disabled
+    ) {
+      return -1;
+    }
+
+    return configuredIndex;
   }
 
   private applyItemNodes(

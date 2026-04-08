@@ -2,6 +2,7 @@ import 'ls/base/browser/ui/selectbox/selectBox.css';
 import { EventEmitter, type Event as LsEvent } from 'ls/base/common/event';
 import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 import { SelectBoxCustom } from 'ls/base/browser/ui/selectbox/selectBoxCustom';
+import unfoldSvg from 'ls/base/browser/ui/lxicon/svg/unfold.svg?raw';
 
 export interface ISelectBoxOptions {
   useCustomDrawn?: boolean;
@@ -64,14 +65,31 @@ function clampSelectedIndex(index: number, optionCount: number) {
   return index;
 }
 
+function createDecoratorIconElement() {
+  const decorator = document.createElement('span');
+  decorator.className = 'ls-select-box-decorator';
+  decorator.setAttribute('aria-hidden', 'true');
+  const template = document.createElement('template');
+  template.innerHTML = unfoldSvg.trim();
+  const icon = template.content.firstElementChild;
+  if (icon instanceof SVGElement) {
+    icon.removeAttribute('width');
+    icon.removeAttribute('height');
+    decorator.append(icon);
+  }
+  return decorator;
+}
+
 export class SelectBox extends LifecycleOwner {
   private options: ISelectOptionItem[] = [];
   private selected = 0;
   private styles: ISelectBoxStyles;
   private readonly selectBoxOptions: ISelectBoxOptions;
   private readonly selectElement = document.createElement('select');
+  private readonly decoratorElement = createDecoratorIconElement();
   private readonly customSelectBox: SelectBoxCustom | null;
   private readonly selectEmitter = new EventEmitter<ISelectData>();
+  private renderContainer: HTMLElement | null = null;
   private disposed = false;
 
   readonly onDidSelect: LsEvent<ISelectData> = this.selectEmitter.event;
@@ -93,7 +111,6 @@ export class SelectBox extends LifecycleOwner {
           contextViewProvider,
           getOptions: () => this.options,
           getSelectedIndex: () => this.selected,
-          getStyles: () => this.styles,
           onSelectIndex: (index) => this.commitCustomSelection(index),
         })
       : null;
@@ -202,8 +219,9 @@ export class SelectBox extends LifecycleOwner {
       return;
     }
 
+    this.renderContainer = container;
     container.classList.add('ls-select-container');
-    container.append(this.selectElement);
+    container.append(this.selectElement, this.decoratorElement);
     this.applyStyles();
   }
 
@@ -221,6 +239,11 @@ export class SelectBox extends LifecycleOwner {
       return;
     }
 
+    if (this.renderContainer) {
+      this.renderContainer.style.color =
+        this.styles.selectForeground
+        ?? 'var(--vscode-select-foreground, #203040)';
+    }
     this.selectElement.style.backgroundColor = this.styles.selectBackground ?? '';
     this.selectElement.style.color = this.styles.selectForeground ?? '';
     this.selectElement.style.borderColor = this.styles.selectBorder ?? '';
@@ -229,7 +252,6 @@ export class SelectBox extends LifecycleOwner {
     } else {
       this.selectElement.style.removeProperty('--ls-select-focusBorder');
     }
-    this.customSelectBox?.applyMenuStyles();
   }
 
   dispose(): void {
@@ -238,8 +260,10 @@ export class SelectBox extends LifecycleOwner {
     }
 
     this.disposed = true;
+    this.renderContainer = null;
     super.dispose();
     this.selectElement.remove();
+    this.decoratorElement.remove();
   }
 
   private readonly handleClick = (event: MouseEvent) => {

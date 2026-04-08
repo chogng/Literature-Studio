@@ -7,7 +7,6 @@
   --dropdown-bg: var(--vscode-dropdown-background, #ffffff);
   --dropdown-bg-hover: var(--vscode-dropdown-backgroundHover, rgba(0, 0, 0, 0.04));
   --dropdown-bg-focus: var(--vscode-dropdown-backgroundFocus, #ffffff);
-  --dropdown-menu-item-hover-bg: var(--vscode-dropdown-itemHoverBackground, rgba(0, 0, 0, 0.04));
 
   position: relative;
   display: flex;
@@ -54,20 +53,6 @@
   pointer-events: none;
 }
 
-.dropdown-context-view .dropdown-option-content {
-  width: 100%;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dropdown-context-view .dropdown-option-icon {
-  flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
-}
-
 .dropdown-icon-wrapper {
   position: absolute;
   right: 10px;
@@ -83,129 +68,6 @@
 
 .dropdown-wrapper.dropdown-disabled .dropdown-icon-wrapper {
   color: var(--vscode-dropdown-iconDisabledForeground, #94a3b8);
-}
-
-/* Keep DropdownView menu visuals local to dropdown overlays. */
-.dropdown-context-view .dropdown-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  width: max-content;
-  min-width: 100%;
-  max-width: 320px;
-  background: var(--vscode-dropdown-menuBackground, #ffffff);
-  border: 1px solid var(--vscode-dropdown-menuBorder, rgba(0, 0, 0, 0.08));
-  border-radius: 8px;
-  box-shadow: var(--vscode-dropdown-menuShadow, 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06));
-  padding: 4px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow-y: auto;
-  animation: dropdown-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  color: var(--vscode-dropdown-menuForeground, #1a2530);
-}
-
-.dropdown-context-view .dropdown-menu-portal {
-  position: fixed;
-  min-width: 0;
-  top: 0;
-  left: 0;
-  bottom: auto;
-}
-
-.dropdown-context-view .dropdown-menu-top {
-  top: auto;
-  bottom: calc(100% + 4px);
-  animation-name: dropdown-fade-in-up;
-}
-
-.dropdown-context-view .dropdown-menu-bottom {
-  top: calc(100% + 4px);
-  bottom: auto;
-}
-
-@keyframes dropdown-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes dropdown-fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dropdown-context-view .dropdown-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  user-select: none;
-  color: var(--vscode-dropdown-itemForeground, #304357);
-  gap: 8px;
-}
-
-.dropdown-context-view .dropdown-menu-item-content {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dropdown-context-view .dropdown-menu-item:hover,
-.dropdown-context-view .dropdown-menu-item.hovered {
-  background: var(--dropdown-menu-item-hover-bg);
-}
-
-.dropdown-context-view .dropdown-menu-item.selected {
-  background: var(--vscode-dropdown-itemSelectedBackground, #f1f6fc);
-  color: var(--vscode-dropdown-itemSelectedForeground, #0a5fbf);
-  font-weight: 500;
-}
-
-.dropdown-context-view .dropdown-menu-item.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.dropdown-context-view .dropdown-menu-item.disabled:hover {
-  background: transparent;
-}
-
-.dropdown-context-view .dropdown-menu-item-check {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  min-width: 14px;
-  height: 14px;
-  color: var(--vscode-dropdown-itemCheckForeground, rgba(10, 95, 191, 0.72));
-  opacity: 0.9;
-}
-
-.dropdown-context-view .dropdown-menu-item-check.placeholder {
-  opacity: 0;
 }
 
 .dropdown-chevron {

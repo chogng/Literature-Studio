@@ -37,6 +37,10 @@ test('selectbox renders a native select with configured options', () => {
     if (!(select instanceof HTMLElement)) {
       throw new Error('Expected a native select element.');
     }
+    const decorator = container.querySelector('.ls-select-box-decorator');
+    if (!(decorator instanceof HTMLElement)) {
+      throw new Error('Expected select trigger decorator icon element.');
+    }
 
     assert.equal(select.classList.contains('ls-select-box'), true);
     assert.equal(select.getAttribute('aria-label'), null);
@@ -158,12 +162,12 @@ test('selectbox custom drawn mode opens contextview menu and selects an option',
     selectBox.render(container);
     selectBox.domNode.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    const menu = document.body.querySelector('.ls-select-box-dropdown');
+    const menu = document.body.querySelector('.ls-menu[role="listbox"]');
     if (!(menu instanceof HTMLElement)) {
       throw new Error('Expected custom drawn selectbox menu.');
     }
 
-    const options = menu.querySelectorAll<HTMLElement>('.ls-select-box-option');
+    const options = menu.querySelectorAll<HTMLElement>('.dropdown-menu-item');
     assert.equal(options.length, 2);
     options[1]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 

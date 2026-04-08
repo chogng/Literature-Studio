@@ -49,7 +49,7 @@
 }
 
 .switch-input:checked + .switch-slider {
-  background: #0a5fbf;
+  background: #147F5A;
 }
 
 .switch-input:checked + .switch-slider::after {
@@ -70,7 +70,7 @@
 }
 
 .switch-input:focus-visible + .switch-slider {
-  outline: 2px solid #0a5fbf;
+  outline: 2px solid #147F5A;
   outline-offset: 2px;
 }
 

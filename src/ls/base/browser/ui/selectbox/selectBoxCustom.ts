@@ -3,9 +3,9 @@ import {
   createContextViewController,
   type ContextViewHandle,
 } from 'ls/base/browser/ui/contextview/contextview';
+import { Menu } from 'ls/base/browser/ui/menu/menu';
 import { LifecycleOwner, toDisposable } from 'ls/base/common/lifecycle';
 import type {
-  ISelectBoxStyles,
   ISelectOptionItem,
 } from 'ls/base/browser/ui/selectbox/selectBox';
 
@@ -14,7 +14,6 @@ type SelectBoxCustomOptions = {
   contextViewProvider: unknown;
   getOptions: () => readonly ISelectOptionItem[];
   getSelectedIndex: () => number;
-  getStyles: () => ISelectBoxStyles;
   onSelectIndex: (index: number) => void;
 };
 
@@ -49,11 +48,11 @@ export class SelectBoxCustom extends LifecycleOwner {
   private readonly selectElement: HTMLSelectElement;
   private readonly getOptions: () => readonly ISelectOptionItem[];
   private readonly getSelectedIndex: () => number;
-  private readonly getStyles: () => ISelectBoxStyles;
   private readonly onSelectIndex: (index: number) => void;
   private readonly contextView: ContextViewHandle;
   private readonly ownsContextView: boolean;
-  private menuView: HTMLDivElement | null = null;
+  private menuView: HTMLElement | null = null;
+  private menu: Menu | null = null;
   private isMenuVisible = false;
   private activeOptionIndex = -1;
   private disposed = false;
@@ -63,7 +62,6 @@ export class SelectBoxCustom extends LifecycleOwner {
     this.selectElement = options.selectElement;
     this.getOptions = options.getOptions;
     this.getSelectedIndex = options.getSelectedIndex;
-    this.getStyles = options.getStyles;
     this.onSelectIndex = options.onSelectIndex;
 
     if (isContextViewHandle(options.contextViewProvider)) {
@@ -90,17 +88,6 @@ export class SelectBoxCustom extends LifecycleOwner {
   onSelectionChanged() {
     this.activeOptionIndex = this.resolveInitialActiveOptionIndex();
     this.syncMenuState();
-  }
-
-  applyMenuStyles() {
-    if (!this.menuView) {
-      return;
-    }
-
-    const styles = this.getStyles();
-    this.menuView.style.backgroundColor = styles.selectListBackground ?? '';
-    this.menuView.style.borderColor = styles.selectListBorder ?? '';
-    this.menuView.style.color = styles.selectForeground ?? '';
   }
 
   override dispose(): void {
@@ -175,7 +162,7 @@ export class SelectBoxCustom extends LifecycleOwner {
         this.showMenu();
         return;
       }
-      this.commitSelection(this.activeOptionIndex);
+      this.commitSelection(this.menu?.getActiveIndex() ?? this.activeOptionIndex);
       return;
     }
 
@@ -189,6 +176,8 @@ export class SelectBoxCustom extends LifecycleOwner {
 
   private readonly handleMenuHide = () => {
     this.isMenuVisible = false;
+    this.menu?.dispose();
+    this.menu = null;
     this.menuView = null;
   };
 
@@ -206,19 +195,23 @@ export class SelectBoxCustom extends LifecycleOwner {
     }
 
     this.activeOptionIndex = this.resolveInitialActiveOptionIndex();
-    const menu = this.renderMenu();
-    this.menuView = menu;
+    this.menu?.dispose();
+    this.menu = this.createMenu();
+    const menuElement = this.menu.getElement();
+    menuElement.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+    });
+    this.menuView = menuElement;
     this.isMenuVisible = true;
     this.contextView.show({
       anchor: this.selectElement,
       className: 'ls-select-box-context-view',
-      render: () => menu,
+      render: () => menuElement,
       onHide: this.handleMenuHide,
       alignment: 'start',
       offset: 4,
       matchAnchorWidth: true,
     });
-    this.applyMenuStyles();
     this.syncMenuState();
   }
 
@@ -272,62 +265,50 @@ export class SelectBoxCustom extends LifecycleOwner {
     this.selectElement.focus();
   }
 
-  private renderMenu() {
-    const menu = document.createElement('div');
-    menu.className = 'ls-select-box-dropdown';
-    menu.setAttribute('role', 'listbox');
-    menu.addEventListener('mousedown', (event) => {
-      event.preventDefault();
+  private createMenu() {
+    const menu = new Menu({
+      items: this.createMenuItems(),
+      role: 'listbox',
+      itemRole: 'option',
+      activeIndex: this.activeOptionIndex,
+      onSelect: (event) => {
+        this.commitSelection(event.index);
+      },
+      onCancel: () => {
+        this.hideMenu();
+      },
     });
-
-    const options = this.getOptions();
-    for (let index = 0; index < options.length; index += 1) {
-      const option = options[index];
-      const optionElement = document.createElement('div');
-      optionElement.className = 'ls-select-box-option';
-      optionElement.dataset.index = String(index);
-      optionElement.textContent = option.text;
-      optionElement.setAttribute('role', 'option');
-      optionElement.setAttribute('aria-disabled', option.isDisabled ? 'true' : 'false');
-      optionElement.setAttribute('aria-selected', 'false');
-      if (option.title) {
-        optionElement.title = option.title;
-      }
-
-      if (option.isDisabled) {
-        optionElement.classList.add('disabled');
-      } else {
-        optionElement.addEventListener('mouseenter', () => {
-          this.activeOptionIndex = index;
-          this.syncMenuState();
-        });
-        optionElement.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          this.commitSelection(index);
-        });
-      }
-
-      menu.append(optionElement);
-    }
-
     return menu;
   }
 
+  private createMenuItems() {
+    const selectedIndex = this.getSelectedIndex();
+    const options = this.getOptions();
+    return options.map((option, index) => ({
+      value: String(index),
+      label: option.text,
+      title: option.title ?? option.text,
+      checked: index === selectedIndex,
+      disabled: option.isDisabled,
+    }));
+  }
+
   private syncMenuState() {
-    if (!this.menuView) {
+    if (!this.menu) {
       return;
     }
 
-    const selectedIndex = this.getSelectedIndex();
-    const items = this.menuView.querySelectorAll<HTMLElement>('.ls-select-box-option');
-    for (const item of items) {
-      const index = Number.parseInt(item.dataset.index ?? '-1', 10);
-      const isSelected = index === selectedIndex;
-      const isActive = index === this.activeOptionIndex;
-      item.classList.toggle('selected', isSelected);
-      item.classList.toggle('active', isActive);
-      item.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-    }
+    this.menu.setOptions({
+      items: this.createMenuItems(),
+      role: 'listbox',
+      itemRole: 'option',
+      activeIndex: this.activeOptionIndex,
+      onSelect: (event) => {
+        this.commitSelection(event.index);
+      },
+      onCancel: () => {
+        this.hideMenu();
+      },
+    });
   }
 }

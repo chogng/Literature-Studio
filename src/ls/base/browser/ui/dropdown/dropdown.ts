@@ -12,6 +12,7 @@ import {
 } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import { Menu } from 'ls/base/browser/ui/menu/menu';
 import {
   LifecycleOwner,
   MutableLifecycle,
@@ -118,39 +119,6 @@ function createChevronIcon() {
   return icon;
 }
 
-function createCheckIcon() {
-  const icon = document.createElementNS(SVG_NS, 'svg');
-  icon.setAttribute('viewBox', '0 0 16 16');
-  icon.setAttribute('width', '12');
-  icon.setAttribute('height', '12');
-  icon.setAttribute('aria-hidden', 'true');
-  icon.classList.add('dropdown-menu-item-check');
-
-  const path = document.createElementNS(SVG_NS, 'path');
-  path.setAttribute('d', 'M3.5 8.2l2.4 2.4 6-6');
-  path.setAttribute('fill', 'none');
-  path.setAttribute('stroke', 'currentColor');
-  path.setAttribute('stroke-width', '1.8');
-  path.setAttribute('stroke-linecap', 'round');
-  path.setAttribute('stroke-linejoin', 'round');
-  icon.append(path);
-
-  return icon;
-}
-
-function createCheckSlot(isSelected: boolean) {
-  const slot = createElement('span', 'dropdown-menu-item-check');
-  slot.setAttribute('aria-hidden', 'true');
-
-  if (isSelected) {
-    slot.append(createCheckIcon());
-  } else {
-    slot.classList.add('placeholder');
-  }
-
-  return slot;
-}
-
 function createOptionContent(option: DropdownOption) {
   const content = createElement('div', 'dropdown-option-content');
   if (option.icon) {
@@ -244,31 +212,33 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
   readonly supportsActiveDescendant = true;
   readonly respondsToViewportChanges = true;
   private readonly contextView = createContextViewController();
-  private menuView: HTMLDivElement | null = null;
+  private menuView: HTMLElement | null = null;
+  private menu: Menu | null = null;
   private currentRequest: DropdownMenuRequest | null = null;
 
   show = (request: DropdownMenuRequest) => {
     this.currentRequest = request;
-    const menu = this.renderMenu(request);
-    this.menuView?.remove();
-    this.menuView = menu;
+    this.menu?.dispose();
+    this.menu = this.createMenu(request);
+    const menuElement = this.menu.getElement();
+    this.menuView = menuElement;
 
     this.contextView.show({
       anchor: request.anchor,
       className: 'dropdown-context-view',
-      render: () => menu,
+      render: () => menuElement,
       onHide: this.handlePortalHide,
       alignment: request.align,
       offset: 4,
       matchAnchorWidth: request.matchTriggerWidth,
     });
-    this.updateMenuLayout(menu, request);
+    this.updateMenuLayout(menuElement, request);
     requestAnimationFrame(() => {
-      if (this.menuView !== menu || this.currentRequest !== request) {
+      if (this.menuView !== menuElement || this.currentRequest !== request) {
         return;
       }
 
-      this.updateMenuLayout(menu, request);
+      this.updateMenuLayout(menuElement, request);
     });
   };
 
@@ -281,6 +251,8 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
   containsTarget = (target: Node) => this.menuView?.contains(target) ?? false;
 
   dispose = () => {
+    this.menu?.dispose();
+    this.menu = null;
     this.menuView?.remove();
     this.menuView = null;
     this.currentRequest = null;
@@ -289,59 +261,46 @@ class DomDropdownMenuPresenter implements DropdownMenuPresenter {
 
   private readonly handlePortalHide = () => {
     const request = this.currentRequest;
+    this.menu?.dispose();
+    this.menu = null;
     this.menuView = null;
     this.currentRequest = null;
     request?.onHide();
   };
 
-  private renderMenu(request: DropdownMenuRequest) {
-    const menu = createElement(
-      'div',
-      composeClassName([
-        'dropdown-menu',
-        'dropdown-menu-portal',
-      ]),
-    );
-    menu.id = request.menuId;
-    menu.setAttribute('role', 'listbox');
-    menu.style.position = 'static';
-    menu.style.left = 'auto';
-    menu.style.top = 'auto';
-    menu.style.bottom = 'auto';
-    menu.style.minWidth = request.matchTriggerWidth ? '100%' : '0px';
-
-    const selectedValue = request.value;
-    menu.append(
-      ...request.options.map((option, index) => {
-        const item = createElement(
-          'div',
-          composeClassName([
-            'dropdown-menu-item',
-            selectedValue === option.value ? 'selected' : '',
-            request.activeOptionIndex === index ? 'hovered' : '',
-            option.disabled ? 'disabled' : '',
-          ]),
-        );
-        item.id = request.getMenuItemId(index);
-        item.setAttribute('role', 'option');
-        item.setAttribute('aria-selected', String(selectedValue === option.value));
-        item.setAttribute('aria-disabled', option.disabled ? 'true' : 'false');
-        item.append(createOptionContent(option), createCheckSlot(selectedValue === option.value));
-        item.addEventListener('click', (event) => {
-          event.stopPropagation();
-          if (option.disabled) {
-            return;
-          }
-          request.onSelect(option.value);
-        });
-        return item;
-      }),
-    );
-
+  private createMenu(request: DropdownMenuRequest) {
+    const menu = new Menu({
+      items: request.options.map((option) => ({
+        value: option.value,
+        label: option.label,
+        title: option.title,
+        icon: option.icon,
+        disabled: option.disabled,
+        checked: request.value === option.value,
+      })),
+      className: 'dropdown-menu-portal',
+      role: 'listbox',
+      itemRole: 'option',
+      itemId: (index) => request.getMenuItemId(index),
+      activeIndex: request.activeOptionIndex,
+      onSelect: (event) => {
+        request.onSelect(event.value);
+      },
+      onCancel: () => {
+        this.contextView.hide();
+      },
+    });
+    const element = menu.getElement();
+    element.id = request.menuId;
+    element.style.position = 'static';
+    element.style.left = 'auto';
+    element.style.top = 'auto';
+    element.style.bottom = 'auto';
+    element.style.minWidth = request.matchTriggerWidth ? '100%' : '0px';
     return menu;
   }
 
-  private updateMenuLayout(menu: HTMLDivElement, request: DropdownMenuRequest) {
+  private updateMenuLayout(menu: HTMLElement, request: DropdownMenuRequest) {
     const viewportPadding = 8;
     const menuOffset = 4;
     const triggerRect = request.triggerRect;
