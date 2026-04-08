@@ -22,9 +22,9 @@ import {
 import type { SettingsPageId, SettingsSectionId } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
 import { createSettingsNavigationView } from 'ls/workbench/contrib/preferences/browser/settingsNavigationView';
 import {
-  createSettingsPanelListView,
-  createSettingsToggleListItem,
-} from 'ls/workbench/contrib/preferences/browser/settingsWidgetScaffold';
+  createSettingsSection,
+  createSettingsRow,
+} from 'ls/workbench/contrib/preferences/browser/section';
 
 import type {
   SettingsPartActions,
@@ -103,26 +103,20 @@ function setFocusKey<T extends HTMLElement>(node: T, key: string) {
   return node;
 }
 
-function buildSelect(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
-  const select = setFocusKey(el('select', `settings-native-select ${className}`.trim()), focusKey);
-  for (const option of options) {
-    const optionElement = document.createElement('option');
-    optionElement.value = option.value;
-    optionElement.text = option.label;
-    optionElement.title = option.title ?? option.label;
-    select.append(optionElement);
+function setSelectHostDisabled(host: HTMLElement, disabled: boolean) {
+  const selectElement = host.querySelector<HTMLSelectElement>('.ls-select-box');
+  if (selectElement) {
+    selectElement.disabled = disabled;
   }
-  select.value = value;
-  select.addEventListener('change', () => onChange(select.value));
-  return select;
 }
 
-function buildSelectBox(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
+function buildSelect(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
   const selectBox = new SelectBox(
     options.map((option) => ({
       text: option.label,
       value: option.value,
       title: option.title ?? option.label,
+      isDisabled: option.isDisabled,
     })),
     Math.max(0, options.findIndex((option) => option.value === value)),
     undefined,
@@ -135,7 +129,8 @@ function buildSelectBox(options: readonly SelectOption[], value: string, focusKe
   const host = el('div');
   selectBox.render(host);
   selectBox.onDidSelect(({ selected }) => onChange(selected));
-  return setFocusKey(selectBox.domNode, focusKey);
+  setFocusKey(selectBox.domNode, focusKey);
+  return host;
 }
 
 function buildInput(config: {
@@ -931,12 +926,12 @@ export class SettingsPartView {
   }
 
   private renderLocaleField() {
-    const language = createSettingsPanelListView({
+    const language = createSettingsSection({
       sectionClassName: 'settings-language-section',
       panelClassName: 'settings-language-panel',
       listClassName: 'settings-language-list',
     });
-    const select = buildSelectBox(
+    const select = buildSelect(
       createDisplayLanguageOptions(this.props.labels),
       this.props.locale,
       'settings.locale',
@@ -944,7 +939,7 @@ export class SettingsPartView {
       'settings-language-toggle',
     );
     language.list.append(
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsLanguage,
         description: this.props.labels.settingsLanguageHint,
         control: select,
@@ -998,14 +993,14 @@ export class SettingsPartView {
   }
 
   private renderLayoutField() {
-    const layout = createSettingsPanelListView({
+    const layout = createSettingsSection({
       title: this.props.labels.settingsLayoutTitle,
       sectionClassName: 'settings-layout-section',
       panelClassName: 'settings-layout-panel',
       listClassName: 'settings-layout-list',
     });
     layout.list.append(
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsStatusbar,
         description: this.props.labels.settingsStatusbarHint,
         control: buildSwitch({
@@ -1036,26 +1031,26 @@ export class SettingsPartView {
       },
       'settings-appearance-theme-select',
     );
-    themeSelect.disabled = this.props.isSettingsSaving;
-    const appearanceTheme = createSettingsPanelListView({
+    setSelectHostDisabled(themeSelect, this.props.isSettingsSaving);
+    const appearanceTheme = createSettingsSection({
       sectionClassName: 'settings-appearance-theme-section',
       panelClassName: 'settings-appearance-theme-panel',
       listClassName: 'settings-appearance-theme-list',
     });
     appearanceTheme.list.append(
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsTheme,
         description: this.props.labels.settingsThemeHint,
         control: themeSelect,
       }),
     );
-    const appearanceToggles = createSettingsPanelListView({
+    const appearanceToggles = createSettingsSection({
       sectionClassName: 'settings-appearance-toggles-section',
       panelClassName: 'settings-appearance-toggles-panel',
       listClassName: 'settings-appearance-toggles-list',
     });
     appearanceToggles.list.append(
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsUseMica,
         description: this.props.labels.settingsUseMicaHint,
         control: buildSwitch({
@@ -1076,7 +1071,7 @@ export class SettingsPartView {
   }
 
   private renderNotificationsField() {
-    const notifications = createSettingsPanelListView({
+    const notifications = createSettingsSection({
       title: this.props.labels.settingsNotificationsTitle,
       sectionClassName: 'settings-notifications-section',
       panelClassName: 'settings-notifications-panel',
@@ -1084,7 +1079,7 @@ export class SettingsPartView {
     });
     const notificationsDisabled = this.props.isSettingsSaving || !this.props.desktopRuntime;
     notifications.list.append(
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsSystemNotifications,
         description: this.props.labels.settingsSystemNotificationsHint,
         control: buildSwitch({
@@ -1095,7 +1090,7 @@ export class SettingsPartView {
           onChange: this.props.onSystemNotificationsEnabledChange,
         }),
       }),
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsWarningNotifications,
         description: this.props.labels.settingsWarningNotificationsHint,
         control: buildSwitch({
@@ -1106,7 +1101,7 @@ export class SettingsPartView {
           onChange: this.props.onWarningNotificationsEnabledChange,
         }),
       }),
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsMenuBarIcon,
         description: this.props.labels.settingsMenuBarIconHint,
         control: buildSwitch({
@@ -1117,7 +1112,7 @@ export class SettingsPartView {
           onChange: this.props.onMenuBarIconEnabledChange,
         }),
       }),
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsCompletionNotifications,
         description: this.props.labels.settingsCompletionNotificationsHint,
         control: buildSwitch({
@@ -1141,13 +1136,13 @@ export class SettingsPartView {
       buildInput({ value: this.props.pdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.download.dir', placeholder: this.props.labels.downloadDirPlaceholder, onInput: this.props.onPdfDownloadDirChange }),
       buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.download.choose', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChoosePdfDownloadDir }),
     );
-    const downloadOptions = createSettingsPanelListView({
+    const downloadOptions = createSettingsSection({
       sectionClassName: 'settings-download-options-section',
       panelClassName: 'settings-download-options-panel',
       listClassName: 'settings-download-options-list',
     });
     downloadOptions.list.append(
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.pdfFileNameUseSelectionOrder,
         description: this.props.labels.pdfFileNameUseSelectionOrderHint,
         control: buildSwitch({
@@ -1178,7 +1173,7 @@ export class SettingsPartView {
     const field = el('div', 'settings-field settings-text-editor-field');
     const defaultBodyStyle = this.props.editorDraftStyle.defaultBodyStyle;
     const isDisabled = this.props.isSettingsSaving;
-    const textEditorPanel = createSettingsPanelListView({
+    const textEditorPanel = createSettingsSection({
       title: this.props.labels.settingsTextEditorDefaultBodyStyle,
       description: this.props.labels.settingsTextEditorHint,
       sectionClassName: 'settings-text-editor-section',
@@ -1196,7 +1191,7 @@ export class SettingsPartView {
       this.props.onEditorDraftFontFamilyChange,
       'settings-text-editor-select',
     );
-    fontFamilySelect.disabled = isDisabled;
+    setSelectHostDisabled(fontFamilySelect, isDisabled);
     const fontSizeSelect = buildSelect(
       ensureCurrentSelectOption(
         this.props.editorDraftFontSizeOptions,
@@ -1207,7 +1202,7 @@ export class SettingsPartView {
       this.props.onEditorDraftFontSizeChange,
       'settings-text-editor-select',
     );
-    fontSizeSelect.disabled = isDisabled;
+    setSelectHostDisabled(fontSizeSelect, isDisabled);
     const lineHeightInput = buildInput({
       type: 'number',
       value: defaultBodyStyle.lineHeight,
@@ -1246,23 +1241,23 @@ export class SettingsPartView {
     });
 
     textEditorPanel.list.append(
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsTextEditorFontFamily,
         control: fontFamilySelect,
       }),
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsTextEditorFontSize,
         control: fontSizeSelect,
       }),
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsTextEditorLineHeight,
         control: lineHeightInput,
       }),
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsTextEditorColor,
         control: colorRow,
       }),
-      createSettingsToggleListItem({
+      createSettingsRow({
         title: this.props.labels.settingsTextEditorResetDefaultBodyStyle,
         control: resetButton,
       }),

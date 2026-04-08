@@ -6,20 +6,20 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   return node;
 }
 
-function joinClassNames(...classNames: Array<string | undefined>) {
-  return classNames
+function classNames(...names: Array<string | undefined>) {
+  return names
     .map((className) => className?.trim() ?? '')
     .filter(Boolean)
     .join(' ');
 }
 
-export type SettingsPanelListView = {
+export type SettingsSection = {
   element: HTMLElement;
   panel: HTMLDivElement;
   list: HTMLUListElement;
 };
 
-export type CreateSettingsPanelListViewOptions = {
+export type CreateSettingsSectionOptions = {
   sectionClassName?: string;
   title?: string;
   titleClassName?: string;
@@ -29,18 +29,18 @@ export type CreateSettingsPanelListViewOptions = {
   listClassName?: string;
 };
 
-export function createSettingsPanelListView(
-  options: CreateSettingsPanelListViewOptions = {},
-): SettingsPanelListView {
+export function createSettingsSection(
+  options: CreateSettingsSectionOptions = {},
+): SettingsSection {
   const section = el(
     'section',
-    joinClassNames('settings-block-section', options.sectionClassName),
+    classNames('settings-block-section', options.sectionClassName),
   );
 
   if (options.title) {
     const title = el(
       'h3',
-      joinClassNames('settings-block-title', options.titleClassName),
+      classNames('settings-block-title', options.titleClassName),
     );
     title.textContent = options.title;
     section.append(title);
@@ -49,7 +49,7 @@ export function createSettingsPanelListView(
   if (options.description) {
     const description = el(
       'p',
-      joinClassNames('settings-block-description', options.descriptionClassName),
+      classNames('settings-block-description', options.descriptionClassName),
     );
     description.textContent = options.description;
     section.append(description);
@@ -57,11 +57,11 @@ export function createSettingsPanelListView(
 
   const panel = el(
     'div',
-    joinClassNames('settings-block-panel', options.panelClassName),
+    classNames('settings-block-panel', options.panelClassName),
   );
   const list = el(
     'ul',
-    joinClassNames('settings-block-list', options.listClassName),
+    classNames('settings-block-list', options.listClassName),
   );
   panel.append(list);
   section.append(panel);
@@ -73,7 +73,7 @@ export function createSettingsPanelListView(
   };
 }
 
-export type CreateSettingsToggleListItemOptions = {
+export type CreateSettingsRowOptions = {
   title: string;
   description?: string;
   control: HTMLElement;
@@ -84,27 +84,27 @@ export type CreateSettingsToggleListItemOptions = {
   controlClassName?: string;
 };
 
-export function createSettingsToggleListItem(
-  options: CreateSettingsToggleListItemOptions,
+export function createSettingsRow(
+  options: CreateSettingsRowOptions,
 ): HTMLLIElement {
   const item = el(
     'li',
-    joinClassNames('settings-block-list-item', options.itemClassName),
+    classNames('settings-block-list-item', options.itemClassName),
   );
   const content = el(
     'div',
-    joinClassNames('settings-block-list-item-content', options.contentClassName),
+    classNames('settings-block-list-item-content', options.contentClassName),
   );
   const title = el(
     'span',
-    joinClassNames('settings-block-list-item-title', options.titleClassName),
+    classNames('settings-block-list-item-title', options.titleClassName),
   );
   title.textContent = options.title;
   content.append(title);
   if (options.description) {
     const description = el(
       'p',
-      joinClassNames(
+      classNames(
         'settings-block-list-item-description',
         options.descriptionClassName,
       ),
@@ -114,14 +114,14 @@ export function createSettingsToggleListItem(
   }
   const control = el(
     'div',
-    joinClassNames('settings-block-list-item-control', options.controlClassName),
+    classNames('settings-block-list-item-control', options.controlClassName),
   );
   control.append(options.control);
   item.append(content, control);
   return item;
 }
 
-export type CreateSettingsToggleRowOptions = {
+export type CreateSettingsSwitchRowOptions = {
   title: string;
   hint?: string;
   control: HTMLElement;
@@ -131,12 +131,12 @@ export type CreateSettingsToggleRowOptions = {
   hintClassName?: string;
 };
 
-export function createSettingsToggleRow(
-  options: CreateSettingsToggleRowOptions,
+export function createSettingsSwitchRow(
+  options: CreateSettingsSwitchRowOptions,
 ): HTMLDivElement {
   const row = el(
     'div',
-    joinClassNames('settings-toggle-row', options.rowClassName),
+    classNames('settings-toggle-row', options.rowClassName),
   );
   const textBlock = el('div', options.textBlockClassName);
   const label = el('span', options.labelClassName ?? 'settings-hint');

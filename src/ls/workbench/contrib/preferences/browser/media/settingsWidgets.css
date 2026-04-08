@@ -168,6 +168,13 @@
   box-sizing: border-box;
 }
 
+.settings-native-select.ls-select-box {
+  height: 24px;
+  min-height: 24px;
+  padding: 2px 28px 2px 10px;
+  border-color: #d3d3d3;
+}
+
 .settings-native-input:focus,
 .settings-native-select:focus {
   outline: 2px solid var(--vscode-settings-inputFocusOutline, rgba(10, 95, 191, 0.18));
@@ -365,6 +372,14 @@
 .settings-library-mode-note {
   margin: -2px 0 0;
   padding-left: 2px;
+}
+
+.settings-library-sections {
+  gap: 16px;
+}
+
+.settings-library-section {
+  gap: 10px;
 }
 
 .settings-llm-span-2 > span:first-child {

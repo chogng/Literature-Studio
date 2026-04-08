@@ -5,11 +5,15 @@ import type {
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
+import { SelectBox } from 'ls/base/browser/ui/selectbox/selectBox';
 
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { createSwitchView } from 'ls/base/browser/ui/switch/switch';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
-import { createSettingsToggleRow } from 'ls/workbench/contrib/preferences/browser/settingsWidgetScaffold';
+import {
+  createSettingsSection,
+  createSettingsRow,
+} from 'ls/workbench/contrib/preferences/browser/section';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
   const node = document.createElement(tag);
@@ -27,6 +31,13 @@ function setFocusKey<T extends HTMLElement>(node: T, key: string) {
   node.dataset.focusKey = key;
   return node;
 }
+
+type SelectOption = {
+  value: string;
+  label: string;
+  title?: string;
+  isDisabled?: boolean;
+};
 
 function buildInput(config: {
   type?: string;
@@ -54,17 +65,27 @@ function buildInput(config: {
   return input;
 }
 
-function buildSelect(options: readonly { value: string; label: string }[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
-  const select = setFocusKey(el('select', `settings-native-select ${className}`.trim()), focusKey);
-  for (const option of options) {
-    const optionElement = document.createElement('option');
-    optionElement.value = option.value;
-    optionElement.text = option.label;
-    select.append(optionElement);
-  }
-  select.value = value;
-  select.addEventListener('change', () => onChange(select.value));
-  return select;
+function buildSelect(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
+  const selectBox = new SelectBox(
+    options.map((option) => ({
+      text: option.label,
+      value: option.value,
+      title: option.title ?? option.label,
+      isDisabled: option.isDisabled,
+    })),
+    Math.max(0, options.findIndex((option) => option.value === value)),
+    undefined,
+    {},
+    {
+      useCustomDrawn: true,
+      className: `settings-native-select ${className}`.trim(),
+    },
+  );
+  const host = el('div');
+  selectBox.render(host);
+  selectBox.onDidSelect(({ selected }) => onChange(selected));
+  setFocusKey(selectBox.domNode, focusKey);
+  return host;
 }
 
 function buildButton(config: {
@@ -185,47 +206,33 @@ export class LibraryWidget {
   }
 
   private render() {
-    const field = el('div', 'settings-field');
-    const title = el('span');
-    title.textContent = this.props.labels.settingsLibraryTitle;
+    const field = el('div', 'settings-field settings-library-sections');
     const effectiveManagedDirectory = this.props.libraryDirectory.trim() || this.props.defaultManagedDirectory;
 
-    field.append(title);
-    field.append(this.renderToggleRow('settings.library.enabled', this.props.labels.settingsKnowledgeBaseMode, this.props.labels.settingsKnowledgeBaseModeHint, this.props.knowledgeBaseEnabled, this.props.isSettingsSaving, this.props.onKnowledgeBaseEnabledChange));
-    if (!this.props.knowledgeBaseEnabled) {
-      field.append(buildHint(this.props.labels.settingsKnowledgeBaseModeDisabledHint, 'settings-hint settings-library-mode-note'));
-    }
-    field.append(this.renderToggleRow('settings.library.autoIndex', this.props.labels.settingsKnowledgeBaseAutoIndex, this.props.labels.settingsKnowledgeBaseAutoIndexHint, this.props.autoIndexDownloadedPdf, this.props.isSettingsSaving || !this.props.knowledgeBaseEnabled, this.props.onAutoIndexDownloadedPdfChange));
+    field.append(
+      this.renderStorageSection(effectiveManagedDirectory),
+      this.renderIndexingSection(),
+    );
+    return field;
+  }
 
-    const downloadDirectoryField = el('label', 'settings-field');
-    const downloadDirectoryRow = el('div', 'settings-input-row');
-    downloadDirectoryRow.append(
-      buildInput({ value: this.props.knowledgeBasePdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.library.downloadDirectory', placeholder: this.props.labels.settingsKnowledgeBasePdfDownloadDirPlaceholder, onInput: this.props.onKnowledgeBasePdfDownloadDirChange }),
-      buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.library.chooseDownloadDirectory', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChooseKnowledgeBasePdfDownloadDir }),
+  private renderStorageSection(effectiveManagedDirectory: string) {
+    const section = createSettingsSection({
+      title: this.props.labels.settingsLibraryTitle,
+      titleClassName: 'settings-section-title',
+      sectionClassName: 'settings-library-section settings-library-storage-section',
+      panelClassName: 'settings-library-storage-panel',
+      listClassName: 'settings-library-storage-list',
+    });
+    section.list.append(
+      createSettingsRow({
+        title: this.props.labels.settingsLibraryStorageMode,
+        control: buildSelect([
+          { value: 'linked-original', label: this.props.labels.settingsLibraryStorageModeLinkedOriginal },
+          { value: 'managed-copy', label: this.props.labels.settingsLibraryStorageModeManagedCopy },
+        ], this.props.libraryStorageMode, 'settings.library.storage', (value) => this.props.onLibraryStorageModeChange(value as LibraryStorageMode), 'settings-llm-provider'),
+      }),
     );
-    downloadDirectoryField.append(
-      text(this.props.labels.settingsKnowledgeBasePdfDownloadDir),
-      downloadDirectoryRow,
-      buildHint(this.props.labels.settingsKnowledgeBasePdfDownloadDirHint),
-      buildHint(`${this.props.labels.currentDir} ${this.props.knowledgeBasePdfDownloadDir.trim() || this.props.labels.systemDownloads}`),
-    );
-    field.append(downloadDirectoryField);
-
-    const grid = el('div', 'settings-llm-grid');
-    const storageField = el('label', 'settings-field');
-    storageField.append(
-      text(this.props.labels.settingsLibraryStorageMode),
-      buildSelect([
-        { value: 'linked-original', label: this.props.labels.settingsLibraryStorageModeLinkedOriginal },
-        { value: 'managed-copy', label: this.props.labels.settingsLibraryStorageModeManagedCopy },
-      ], this.props.libraryStorageMode, 'settings.library.storage', (value) => this.props.onLibraryStorageModeChange(value as LibraryStorageMode), 'settings-llm-provider'),
-    );
-    const jobsField = el('label', 'settings-field');
-    const jobsWrap = el('div', 'settings-limit-input-wrap');
-    jobsWrap.append(buildInput({ type: 'number', value: this.props.maxConcurrentIndexJobs, className: 'settings-limit-input', focusKey: 'settings.library.maxJobs', min: '1', max: '4', onInput: this.props.onMaxConcurrentIndexJobsChange }));
-    jobsField.append(text(this.props.labels.settingsLibraryMaxConcurrentJobs), jobsWrap);
-    grid.append(storageField, jobsField);
-    field.append(grid);
 
     const directoryField = el('label', 'settings-field');
     const directoryRow = el('div', 'settings-input-row');
@@ -238,27 +245,87 @@ export class LibraryWidget {
       directoryRow,
       buildHint(this.props.labels.settingsLibraryDirectoryHint),
       buildHint(`${this.props.labels.currentDir} ${effectiveManagedDirectory || '-'}`),
-      buildHint(this.props.labels.settingsLibraryMaxConcurrentJobsHint),
     );
 
-    field.append(
+    section.element.append(
       directoryField,
-      this.renderLibraryStats(),
-      this.renderLibraryRecentDocuments(),
       this.renderReadOnlyField(this.props.labels.settingsLibraryDbFile, this.props.libraryDbFile, 'settings.library.db'),
       this.renderReadOnlyField(this.props.labels.settingsLibraryFilesDir, effectiveManagedDirectory, 'settings.library.filesDir'),
       this.renderReadOnlyField(this.props.labels.settingsLibraryCacheDir, this.props.ragCacheDir, 'settings.library.cacheDir'),
     );
-
-    return field;
+    return section.element;
   }
 
-  private renderToggleRow(focusKey: string, title: string, hint: string, checked: boolean, disabled: boolean, onChange: (checked: boolean) => void) {
-    return createSettingsToggleRow({
-      title,
-      hint,
-      control: buildSwitch({ checked, focusKey, disabled, title, onChange }),
+  private renderIndexingSection() {
+    const section = createSettingsSection({
+      title: this.props.labels.settingsNavigationKnowledgeBase,
+      titleClassName: 'settings-section-title',
+      sectionClassName: 'settings-library-section settings-library-indexing-section',
+      panelClassName: 'settings-library-indexing-panel',
+      listClassName: 'settings-library-indexing-list',
     });
+    section.list.append(
+      createSettingsRow({
+        title: this.props.labels.settingsKnowledgeBaseMode,
+        description: this.props.labels.settingsKnowledgeBaseModeHint,
+        control: buildSwitch({
+          checked: this.props.knowledgeBaseEnabled,
+          focusKey: 'settings.library.enabled',
+          disabled: this.props.isSettingsSaving,
+          title: this.props.labels.settingsKnowledgeBaseMode,
+          onChange: this.props.onKnowledgeBaseEnabledChange,
+        }),
+      }),
+      createSettingsRow({
+        title: this.props.labels.settingsKnowledgeBaseAutoIndex,
+        description: this.props.labels.settingsKnowledgeBaseAutoIndexHint,
+        control: buildSwitch({
+          checked: this.props.autoIndexDownloadedPdf,
+          focusKey: 'settings.library.autoIndex',
+          disabled: this.props.isSettingsSaving || !this.props.knowledgeBaseEnabled,
+          title: this.props.labels.settingsKnowledgeBaseAutoIndex,
+          onChange: this.props.onAutoIndexDownloadedPdfChange,
+        }),
+      }),
+    );
+    if (!this.props.knowledgeBaseEnabled) {
+      section.element.append(buildHint(this.props.labels.settingsKnowledgeBaseModeDisabledHint, 'settings-hint settings-library-mode-note'));
+    }
+    section.element.append(
+      this.renderDownloadDirectoryField(),
+      this.renderMaxConcurrentJobsField(),
+      this.renderLibraryStats(),
+      this.renderLibraryRecentDocuments(),
+    );
+    return section.element;
+  }
+
+  private renderDownloadDirectoryField() {
+    const downloadDirectoryField = el('label', 'settings-field');
+    const downloadDirectoryRow = el('div', 'settings-input-row');
+    downloadDirectoryRow.append(
+      buildInput({ value: this.props.knowledgeBasePdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.library.downloadDirectory', placeholder: this.props.labels.settingsKnowledgeBasePdfDownloadDirPlaceholder, onInput: this.props.onKnowledgeBasePdfDownloadDirChange }),
+      buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.library.chooseDownloadDirectory', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChooseKnowledgeBasePdfDownloadDir }),
+    );
+    downloadDirectoryField.append(
+      text(this.props.labels.settingsKnowledgeBasePdfDownloadDir),
+      downloadDirectoryRow,
+      buildHint(this.props.labels.settingsKnowledgeBasePdfDownloadDirHint),
+      buildHint(`${this.props.labels.currentDir} ${this.props.knowledgeBasePdfDownloadDir.trim() || this.props.labels.systemDownloads}`),
+    );
+    return downloadDirectoryField;
+  }
+
+  private renderMaxConcurrentJobsField() {
+    const jobsField = el('label', 'settings-field');
+    const jobsWrap = el('div', 'settings-limit-input-wrap');
+    jobsWrap.append(buildInput({ type: 'number', value: this.props.maxConcurrentIndexJobs, className: 'settings-limit-input', focusKey: 'settings.library.maxJobs', min: '1', max: '4', onInput: this.props.onMaxConcurrentIndexJobsChange }));
+    jobsField.append(
+      text(this.props.labels.settingsLibraryMaxConcurrentJobs),
+      jobsWrap,
+      buildHint(this.props.labels.settingsLibraryMaxConcurrentJobsHint),
+    );
+    return jobsField;
   }
 
   private renderLibraryStats() {

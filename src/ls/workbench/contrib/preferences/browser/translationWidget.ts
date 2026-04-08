@@ -1,4 +1,5 @@
 import type { TranslationProviderId, TranslationProviderSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
+import { SelectBox } from 'ls/base/browser/ui/selectbox/selectBox';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
 import { ApiKeyWidget } from 'ls/workbench/contrib/preferences/browser/apiKeyWidget';
 
@@ -14,28 +15,40 @@ function text(value: string | number) {
   return document.createTextNode(String(value));
 }
 
-function setFocusKey<T extends HTMLElement>(node: T, key: string) {
-  node.dataset.focusKey = key;
-  return node;
-}
-
 function buildHint(value: string, className = 'settings-hint') {
   const hint = el('p', className);
   hint.textContent = value;
   return hint;
 }
 
-function buildSelect(options: readonly { value: string; label: string }[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
-  const select = setFocusKey(el('select', `settings-native-select ${className}`.trim()), focusKey);
-  for (const option of options) {
-    const optionElement = document.createElement('option');
-    optionElement.value = option.value;
-    optionElement.text = option.label;
-    select.append(optionElement);
-  }
-  select.value = value;
-  select.addEventListener('change', () => onChange(select.value));
-  return select;
+type SelectOption = {
+  value: string;
+  label: string;
+  title?: string;
+  isDisabled?: boolean;
+};
+
+function buildSelect(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
+  const selectBox = new SelectBox(
+    options.map((option) => ({
+      text: option.label,
+      value: option.value,
+      title: option.title ?? option.label,
+      isDisabled: option.isDisabled,
+    })),
+    Math.max(0, options.findIndex((option) => option.value === value)),
+    undefined,
+    {},
+    {
+      useCustomDrawn: true,
+      className: `settings-native-select ${className}`.trim(),
+    },
+  );
+  const host = el('div');
+  selectBox.render(host);
+  selectBox.onDidSelect(({ selected }) => onChange(selected));
+  selectBox.domNode.dataset.focusKey = focusKey;
+  return host;
 }
 
 export type TranslationWidgetProps = {
