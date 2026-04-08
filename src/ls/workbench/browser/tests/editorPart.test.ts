@@ -155,6 +155,34 @@ test('EditorPartController reuses an existing empty browser tab for explicit bro
   controller.dispose();
 });
 
+test('EditorPartController keeps browser pane active as about:blank when closing the last browser tab', async () => {
+  const { EditorPartController } = await import('ls/workbench/browser/parts/editor/editorPart');
+  const controller = new EditorPartController({
+    ui: en,
+    browserUrl: '',
+    webUrl: '',
+    viewPartProps: defaultViewPartProps,
+  });
+
+  controller.createBrowserTab('https://example.com/article');
+  const browserTab = controller
+    .getSnapshot()
+    .tabs.find((tab) => tab.kind === 'browser' && tab.url === 'https://example.com/article');
+  assert(browserTab);
+
+  await controller.onCloseTab(browserTab.id);
+
+  const snapshot = controller.getSnapshot();
+  const browserTabs = snapshot.tabs.filter((tab) => tab.kind === 'browser');
+  assert.equal(browserTabs.length, 1);
+  assert.equal(browserTabs[0]?.url, 'about:blank');
+  assert.equal(browserTabs[0]?.title, '');
+  assert.equal(snapshot.activeTab?.id, browserTabs[0]?.id);
+  assert.equal(snapshot.activeTab?.kind, 'browser');
+
+  controller.dispose();
+});
+
 test('EditorPartController serializes close requests while unsaved confirm is open', async () => {
   const { EditorPartController } = await import('ls/workbench/browser/parts/editor/editorPart');
   const controller = new EditorPartController({

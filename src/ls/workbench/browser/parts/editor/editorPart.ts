@@ -467,7 +467,11 @@ export class EditorPartController {
         return false;
       }
 
+      const shouldKeepBrowserPane = this.shouldKeepBrowserPaneAfterClosingTab(tabId);
       this.editorModel.closeTab(tabId);
+      if (shouldKeepBrowserPane) {
+        this.createOrRevealEmptyBrowserTab();
+      }
       return true;
     });
 
@@ -611,6 +615,22 @@ export class EditorPartController {
     return this.editorModel
       .getSnapshot()
       .tabs.some((tab) => tab.id === tabId);
+  }
+
+  private shouldKeepBrowserPaneAfterClosingTab(tabId: string) {
+    const { tabs, activeTabId } = this.editorModel.getSnapshot();
+    const closingTab = tabs.find((tab) => tab.id === tabId);
+    if (!closingTab || closingTab.kind !== 'browser') {
+      return false;
+    }
+
+    if (activeTabId !== tabId) {
+      return false;
+    }
+
+    return !tabs.some(
+      (tab) => tab.id !== tabId && tab.kind === 'browser',
+    );
   }
 
   private enqueueCloseOperation<T>(operation: () => Promise<T>) {
