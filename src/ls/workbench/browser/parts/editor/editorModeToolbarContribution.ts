@@ -7,6 +7,7 @@ export type EditorModeToolbarContributionContext = {
   browserUrl: string;
   browserPageTitle?: string;
   browserFaviconUrl?: string;
+  browserTabTitle?: string;
   electronRuntime: boolean;
   labels: {
     toolbarSources: string;

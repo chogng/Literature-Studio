@@ -36,6 +36,7 @@ export type EditorBrowserLibraryPanelContext = {
   browserUrl: string;
   browserPageTitle?: string;
   browserFaviconUrl?: string;
+  browserTabTitle?: string;
   labels: EditorBrowserLibraryPanelLabels;
   onNavigateToUrl: (url: string) => void;
 };
@@ -509,6 +510,8 @@ export class EditorBrowserLibraryPanel {
   private isGlobalListenersBound = false;
   private hostElement: HTMLElement | null = null;
   private overlayPositionFrame = 0;
+  private lastTrackedEntryUrl = '';
+  private lastTrackedEntryPageTitle = '';
 
   constructor(
     context: EditorBrowserLibraryPanelContext,
@@ -577,8 +580,18 @@ export class EditorBrowserLibraryPanel {
   }
 
   setContext(context: EditorBrowserLibraryPanelContext) {
+    const didEntryMetadataChange =
+      toTrackableBrowserLibraryUrl(this.context.browserUrl) !==
+        toTrackableBrowserLibraryUrl(context.browserUrl) ||
+      sanitizeBrowserLibraryPageTitle(this.context.browserPageTitle) !==
+        sanitizeBrowserLibraryPageTitle(context.browserPageTitle) ||
+      sanitizeBrowserLibraryFaviconUrl(this.context.browserFaviconUrl) !==
+        sanitizeBrowserLibraryFaviconUrl(context.browserFaviconUrl);
+
     this.context = context;
-    this.trackCurrentBrowserLibraryEntry();
+    if (didEntryMetadataChange) {
+      this.trackCurrentBrowserLibraryEntry();
+    }
     this.render();
   }
 
@@ -661,12 +674,36 @@ export class EditorBrowserLibraryPanel {
       return;
     }
 
+    const normalizedPageTitle = sanitizeBrowserLibraryPageTitle(
+      this.context.browserPageTitle,
+    );
+    let nextPageTitleToPersist = normalizedPageTitle;
+
+    // Ignore one-frame title carry-over when URL has switched but metadata still lags behind.
+    if (
+      normalizedPageTitle &&
+      this.lastTrackedEntryUrl &&
+      this.lastTrackedEntryUrl !== libraryUrl &&
+      this.lastTrackedEntryPageTitle === normalizedPageTitle &&
+      !sanitizeBrowserLibraryPageTitle(getBrowserLibraryEntryPageTitle(libraryUrl))
+    ) {
+      const fallbackTabTitle = sanitizeBrowserLibraryPageTitle(
+        this.context.browserTabTitle,
+      );
+      nextPageTitleToPersist =
+        fallbackTabTitle && fallbackTabTitle !== normalizedPageTitle
+          ? fallbackTabTitle
+          : '';
+    }
+
     // Persist visit metadata in a single state update to avoid redundant storage writes.
     recordBrowserLibraryEntryVisit({
       url: libraryUrl,
       faviconUrl: this.context.browserFaviconUrl,
-      pageTitle: this.context.browserPageTitle,
+      pageTitle: nextPageTitleToPersist,
     });
+    this.lastTrackedEntryUrl = libraryUrl;
+    this.lastTrackedEntryPageTitle = normalizedPageTitle;
   }
 
   private bindGlobalListeners() {

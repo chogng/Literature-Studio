@@ -760,6 +760,58 @@ test('WorkbenchLayoutView mounts the editor collapse action into auxiliary topba
   }
 });
 
+test('WorkbenchLayoutView applies editor topbar leading inset only when sidebars are hidden', () => {
+  const props = createWorkbenchLayoutViewProps();
+  props.isPrimarySidebarVisible = false;
+  props.isAgentSidebarVisible = false;
+
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    const hiddenSidebarsTopbar = view
+      .getElement()
+      .querySelector('.editor-topbar');
+    assert(hiddenSidebarsTopbar instanceof HTMLElement);
+    assert.equal(
+      hiddenSidebarsTopbar.classList.contains('has-leading-window-controls-inset'),
+      true,
+    );
+
+    const primaryVisibleProps = {
+      ...props,
+      isPrimarySidebarVisible: true,
+      isAgentSidebarVisible: false,
+    };
+    view.setProps(materializeWorkbenchLayoutViewProps(primaryVisibleProps));
+    const primaryVisibleTopbar = view
+      .getElement()
+      .querySelector('.editor-topbar');
+    assert(primaryVisibleTopbar instanceof HTMLElement);
+    assert.equal(
+      primaryVisibleTopbar.classList.contains('has-leading-window-controls-inset'),
+      false,
+    );
+
+    const agentVisibleProps = {
+      ...props,
+      isPrimarySidebarVisible: false,
+      isAgentSidebarVisible: true,
+    };
+    view.setProps(materializeWorkbenchLayoutViewProps(agentVisibleProps));
+    const agentVisibleTopbar = view
+      .getElement()
+      .querySelector('.editor-topbar');
+    assert(agentVisibleTopbar instanceof HTMLElement);
+    assert.equal(
+      agentVisibleTopbar.classList.contains('has-leading-window-controls-inset'),
+      false,
+    );
+  } finally {
+    view.dispose();
+  }
+});
+
 test('WorkbenchLayoutView switches from content mode to settings mode using dedicated slots', () => {
   const props = createWorkbenchLayoutViewProps();
   props.mode = 'content';
@@ -1298,6 +1350,141 @@ test('WorkbenchLayoutView removes a recent browser library entry without trigger
       recentUrls?: string[];
     };
     assert.equal((parsedState.recentUrls ?? []).includes(RECENT_ENTRY_URL), false);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+    window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+  }
+});
+
+test('WorkbenchLayoutView keeps browser library titles scoped to each URL across tab-close metadata lag', async () => {
+  const BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
+  const tabA = {
+    id: 'browser-tab-history-a',
+    kind: 'browser' as const,
+    title: 'History Page A',
+    url: 'https://example.com/history-a',
+  };
+  const tabB = {
+    id: 'browser-tab-history-b',
+    kind: 'browser' as const,
+    title: 'History Page B',
+    url: 'https://example.com/history-b',
+  };
+  const blankTab = {
+    id: 'browser-tab-history-blank',
+    kind: 'browser' as const,
+    title: '',
+    url: 'about:blank',
+  };
+
+  window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+
+  const props = createWorkbenchLayoutViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [tabA, tabB],
+    activeTabId: tabB.id,
+    activeTab: tabB,
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: tabB.url,
+      browserPageTitle: tabB.title,
+      browserFaviconUrl: 'https://example.com/history-b.ico',
+      electronRuntime: true,
+      webContentRuntime: true,
+    },
+  };
+
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    // Simulate a close-transition frame where URL has switched but page title is still stale.
+    view.setProps(
+      materializeWorkbenchLayoutViewProps({
+        ...props,
+        editorPartProps: {
+          ...props.editorPartProps,
+          tabs: [tabA],
+          activeTabId: tabA.id,
+          activeTab: tabA,
+          viewPartProps: {
+            ...props.editorPartProps.viewPartProps,
+            browserUrl: tabA.url,
+            browserPageTitle: tabB.title,
+            browserFaviconUrl: 'https://example.com/history-a.ico',
+            electronRuntime: true,
+            webContentRuntime: true,
+          },
+        },
+      }),
+    );
+
+    view.setProps(
+      materializeWorkbenchLayoutViewProps({
+        ...props,
+        editorPartProps: {
+          ...props.editorPartProps,
+          tabs: [],
+          activeTabId: null,
+          activeTab: null,
+          viewPartProps: {
+            ...props.editorPartProps.viewPartProps,
+            browserUrl: tabA.url,
+            browserPageTitle: tabB.title,
+            browserFaviconUrl: '',
+            electronRuntime: true,
+            webContentRuntime: true,
+          },
+        },
+      }),
+    );
+
+    view.setProps(
+      materializeWorkbenchLayoutViewProps({
+        ...props,
+        editorPartProps: {
+          ...props.editorPartProps,
+          tabs: [blankTab],
+          activeTabId: blankTab.id,
+          activeTab: blankTab,
+          viewPartProps: {
+            ...props.editorPartProps.viewPartProps,
+            browserUrl: blankTab.url,
+            browserPageTitle: '',
+            browserFaviconUrl: '',
+            electronRuntime: true,
+            webContentRuntime: true,
+          },
+        },
+      }),
+    );
+
+    const sourcesButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Source menu"]');
+    assert(sourcesButton instanceof HTMLButtonElement);
+    sourcesButton.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const panel = document.body.querySelector('.editor-browser-library-panel');
+    assert(panel instanceof HTMLElement);
+    const itemTitlesByUrl = new Map(
+      Array.from(panel.querySelectorAll('.editor-browser-library-item')).flatMap((node) => {
+        if (!(node instanceof HTMLButtonElement)) {
+          return [];
+        }
+        const title = node
+          .querySelector('.editor-browser-library-item-title')
+          ?.textContent
+          ?.trim() ?? '';
+        return [[node.title, title] as const];
+      }),
+    );
+
+    assert.equal(itemTitlesByUrl.get(tabA.url), tabA.title);
+    assert.equal(itemTitlesByUrl.get(tabB.url), tabB.title);
   } finally {
     view.dispose();
     document.body.replaceChildren();

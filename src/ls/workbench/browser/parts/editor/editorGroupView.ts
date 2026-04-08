@@ -28,7 +28,10 @@ import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/pan
 import { EditorBrowserLibraryPanel } from 'ls/workbench/browser/parts/editor/editorBrowserLibraryPanel';
 import { EditorEmptyWorkspaceView } from 'ls/workbench/browser/parts/editor/editorEmptyWorkspaceView';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
-import { createEditorModeToolbarContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarModel';
+import {
+  createEditorModeToolbarContext,
+  resolveActiveBrowserMetadata,
+} from 'ls/workbench/browser/parts/editor/editorModeToolbarModel';
 import { createEditorModeToolbarHost } from 'ls/workbench/browser/parts/editor/editorModeToolbarHost';
 import { createEditorTopbarActionsView } from 'ls/workbench/browser/parts/editor/editorTopbarActionsView';
 import { createEditorGroupModel } from 'ls/workbench/browser/parts/editor/editorGroupModel';
@@ -47,6 +50,9 @@ import type {
 
 import { TabsTitleControl } from 'ls/workbench/browser/parts/editor/tabsTitleControl';
 import type { TitleControl, TitleControlProps } from 'ls/workbench/browser/parts/editor/titleControl';
+import { getWindowChromeLayout } from 'ls/platform/window/common/window';
+
+const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
 
 export type EditorGroupViewProps = {
   labels: EditorPartLabels;
@@ -85,6 +91,7 @@ export type EditorGroupViewProps = {
   showTopbarToolbar?: boolean;
   isEditorCollapsed?: boolean;
   onToggleEditorCollapse?: () => void;
+  hasLeadingWindowControlsInset?: boolean;
   onStatusChange?: (status: EditorStatusState) => void;
 };
 
@@ -401,6 +408,12 @@ export class EditorGroupView {
     setEditorFrameSlot(this.headerElement, EDITOR_FRAME_SLOTS.topbar);
     setEditorFrameSlot(this.toolbarElement, EDITOR_FRAME_SLOTS.toolbar);
     setEditorFrameSlot(this.contentElement, EDITOR_FRAME_SLOTS.content);
+    if (WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx > 0) {
+      this.headerElement.style.setProperty(
+        '--editor-topbar-leading-window-controls-width',
+        `${WINDOW_CHROME_LAYOUT.leadingWindowControlsWidthPx}px`,
+      );
+    }
     this.titleAreaControl = createTitleControl(
       props,
       this.controller.getSnapshot().group,
@@ -487,6 +500,10 @@ export class EditorGroupView {
       ),
     );
     this.headerElement.classList.toggle('has-tabs', group.tabs.length > 0);
+    this.headerElement.classList.toggle(
+      'has-leading-window-controls-inset',
+      Boolean(this.props.hasLeadingWindowControlsInset),
+    );
     this.topbarActionsView.setProps({
       isEditorCollapsed: Boolean(this.props.isEditorCollapsed),
       labels: {
@@ -576,10 +593,28 @@ export class EditorGroupView {
   }
 
   private createBrowserLibraryPanelContext(props: EditorGroupViewProps) {
+    const activeBrowserMetadata = resolveActiveBrowserMetadata({
+      activeTab: props.activeTab,
+      viewPartProps: props.viewPartProps,
+    });
+    const browserUrl = activeBrowserMetadata.hasActiveBrowserTab
+      ? activeBrowserMetadata.browserUrl
+      : '';
+    const browserPageTitle = activeBrowserMetadata.hasActiveBrowserTab
+      ? activeBrowserMetadata.browserPageTitle
+      : '';
+    const browserFaviconUrl = activeBrowserMetadata.hasActiveBrowserTab
+      ? activeBrowserMetadata.browserFaviconUrl
+      : '';
+    const browserTabTitle = activeBrowserMetadata.hasActiveBrowserTab
+      ? activeBrowserMetadata.browserTabTitle
+      : '';
+
     return {
-      browserUrl: props.viewPartProps.browserUrl,
-      browserPageTitle: props.viewPartProps.browserPageTitle ?? '',
-      browserFaviconUrl: props.viewPartProps.browserFaviconUrl ?? '',
+      browserUrl,
+      browserPageTitle,
+      browserFaviconUrl,
+      browserTabTitle,
       labels: {
         title: props.labels.browserLibraryPanelTitle,
         recentTitle: props.labels.browserLibraryPanelRecentTitle,

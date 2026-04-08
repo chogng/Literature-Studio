@@ -1,8 +1,9 @@
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
-import { getEditorPaneMode } from 'ls/workbench/browser/parts/editor/editorInput';
+import { getEditorPaneMode, isEditorBrowserTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
 import type { EditorWorkspaceTab } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { EditorBrowserLibraryPanel } from 'ls/workbench/browser/parts/editor/editorBrowserLibraryPanel';
 import type { EditorModeToolbarContributionContext } from 'ls/workbench/browser/parts/editor/editorModeToolbarContribution';
+import { getEditorContentTabTitle } from 'ls/workbench/browser/parts/editor/editorUrlPresentation';
 
 type EditorModeToolbarSourceProps = {
   activeTab: EditorWorkspaceTab | null;
@@ -30,16 +31,78 @@ type EditorModeToolbarSourceProps = {
 
 export type EditorModeToolbarContext = EditorModeToolbarContributionContext;
 
+type ResolvedActiveBrowserMetadata = {
+  browserUrl: string;
+  browserPageTitle: string;
+  browserFaviconUrl: string;
+  browserTabTitle: string;
+  hasActiveBrowserTab: boolean;
+};
+
+function normalizeBrowserMetadataValue(value: unknown) {
+  return String(value ?? '').trim();
+}
+
+export function resolveActiveBrowserMetadata(
+  props: Pick<EditorModeToolbarSourceProps, 'activeTab' | 'viewPartProps'>,
+): ResolvedActiveBrowserMetadata {
+  const viewPartBrowserUrl = normalizeBrowserMetadataValue(props.viewPartProps.browserUrl);
+  const viewPartBrowserPageTitle = normalizeBrowserMetadataValue(
+    props.viewPartProps.browserPageTitle,
+  );
+  const viewPartBrowserFaviconUrl = normalizeBrowserMetadataValue(
+    props.viewPartProps.browserFaviconUrl,
+  );
+
+  if (!isEditorBrowserTabInput(props.activeTab)) {
+    return {
+      browserUrl: viewPartBrowserUrl,
+      browserPageTitle: viewPartBrowserPageTitle,
+      browserFaviconUrl: viewPartBrowserFaviconUrl,
+      browserTabTitle: '',
+      hasActiveBrowserTab: false,
+    };
+  }
+
+  const browserUrl = normalizeBrowserMetadataValue(props.activeTab.url);
+  const activeTabTitle = normalizeBrowserMetadataValue(props.activeTab.title);
+  const derivedTitle = normalizeBrowserMetadataValue(
+    getEditorContentTabTitle(browserUrl),
+  );
+  const activeTabFaviconUrl = normalizeBrowserMetadataValue(
+    props.activeTab.faviconUrl,
+  );
+  const isViewPartUrlAligned = viewPartBrowserUrl === browserUrl;
+  const fallbackPageTitle =
+    activeTabTitle && activeTabTitle !== derivedTitle
+      ? activeTabTitle
+      : '';
+
+  return {
+    browserUrl,
+    browserPageTitle: isViewPartUrlAligned
+      ? viewPartBrowserPageTitle || fallbackPageTitle
+      : fallbackPageTitle,
+    browserFaviconUrl:
+      (isViewPartUrlAligned ? viewPartBrowserFaviconUrl : '') ||
+      activeTabFaviconUrl,
+    browserTabTitle: activeTabTitle,
+    hasActiveBrowserTab: true,
+  };
+}
+
 export function createEditorModeToolbarContext(
   props: EditorModeToolbarSourceProps,
 ): EditorModeToolbarContext {
   const mode = props.activeTab ? getEditorPaneMode(props.activeTab) : null;
+  const activeBrowserMetadata = resolveActiveBrowserMetadata(props);
 
   return {
     mode: mode === 'browser' || mode === 'pdf' ? mode : null,
-    browserUrl: props.viewPartProps.browserUrl,
-    browserPageTitle: props.viewPartProps.browserPageTitle ?? '',
-    browserFaviconUrl: props.viewPartProps.browserFaviconUrl ?? '',
+    browserUrl: activeBrowserMetadata.browserUrl,
+    browserPageTitle: activeBrowserMetadata.browserPageTitle,
+    browserFaviconUrl: activeBrowserMetadata.browserFaviconUrl,
+    browserTabTitle: activeBrowserMetadata.browserTabTitle,
     electronRuntime: props.viewPartProps.electronRuntime,
     labels: {
       toolbarSources: props.labels.toolbarSources,

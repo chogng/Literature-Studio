@@ -144,6 +144,7 @@ implements EditorModeToolbarContribution {
       browserUrl: this.context.browserUrl,
       browserPageTitle: this.context.browserPageTitle ?? '',
       browserFaviconUrl: this.context.browserFaviconUrl ?? '',
+      browserTabTitle: this.context.browserTabTitle ?? '',
       labels: {
         title: this.context.labels.browserLibraryPanelTitle,
         recentTitle: this.context.labels.browserLibraryPanelRecentTitle,
