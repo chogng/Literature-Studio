@@ -305,6 +305,41 @@ test('createEditorGroupModel keeps fixed pane anchors first and appends addition
   assert.equal(model.tabs[3]?.state.isActive, false);
 });
 
+test('createEditorGroupModel keeps browser favicons on tabs even when inactive', () => {
+  const model = createEditorGroupModel({
+    tabs: [
+      {
+        id: 'draft-a',
+        kind: 'draft',
+        title: 'Draft A',
+        document: createEmptyWritingEditorDocument(),
+        viewMode: 'draft',
+      },
+      {
+        id: 'browser-a',
+        kind: 'browser',
+        title: 'Example A',
+        url: 'https://a.test',
+        faviconUrl: 'https://a.test/favicon.ico',
+      },
+    ],
+    activeTabId: 'draft-a',
+    activeTab: {
+      id: 'draft-a',
+      kind: 'draft',
+      title: 'Draft A',
+      document: createEmptyWritingEditorDocument(),
+      viewMode: 'draft',
+    },
+    labels: editorLabels,
+    draftStatusByTabId: {},
+    dirtyDraftTabIds: [],
+  });
+
+  assert.equal(model.tabs[1]?.targetTabId, 'browser-a');
+  assert.equal(model.tabs[1]?.faviconUrl, 'https://a.test/favicon.ico');
+});
+
 test('createEditorGroupModel keeps an untitled browser tab icon-only while preserving its mode title', () => {
   const model = createEditorGroupModel({
     tabs: [
@@ -646,7 +681,7 @@ test('TabsTitleControl replaces browser pane icon with favicon when available', 
   favicon.dispatchEvent(new Event('error'));
   const fallbackIcon = iconContainer.querySelector('.lx-icon');
   assert(fallbackIcon instanceof HTMLElement);
-  assert.equal(fallbackIcon.classList.contains('lx-icon-broswer-1'), true);
+  assert.equal(fallbackIcon.classList.contains('lx-icon-browser-1'), true);
 
   control.dispose();
 });

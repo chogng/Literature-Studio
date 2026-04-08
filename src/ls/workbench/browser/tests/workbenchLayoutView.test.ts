@@ -529,7 +529,7 @@ function createWorkbenchLayoutViewProps() {
         toolbarAddressBar: 'Address bar',
         toolbarAddressPlaceholder: 'Search or enter URL',
         browserLibraryPanelTitle: 'Source menu',
-        browserLibraryPanelRecentTitle: 'Recent',
+        browserLibraryPanelRecentTitle: 'Today',
         browserLibraryPanelFavoritesTitle: 'Favorites',
         browserLibraryPanelEmptyState: 'No links yet',
         draftMode: 'Draft',
@@ -1131,6 +1131,7 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
     viewPartProps: {
       ...props.editorPartProps.viewPartProps,
       browserUrl: 'https://example.com/current',
+      browserPageTitle: 'Example Current Page',
       browserFaviconUrl: 'https://example.com/favicon.ico',
       electronRuntime: true,
       webContentRuntime: true,
@@ -1178,12 +1179,21 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
       panel.querySelectorAll('.editor-browser-library-item.is-favorite'),
     );
     assert.equal(favoriteItems.length, 1);
+    const sectionTitles = Array.from(
+      panel.querySelectorAll('.editor-browser-library-section-title'),
+    );
+    assert.deepEqual(sectionTitles.map((node) => node.textContent), ['Favorites']);
     const favoriteFavicon = favoriteItems[0]?.querySelector(
       '.editor-browser-library-item-favicon',
     );
     assert(favoriteFavicon instanceof HTMLElement);
     assert.equal(favoriteFavicon.tagName, 'IMG');
     assert.equal(favoriteFavicon.getAttribute('src'), 'https://example.com/favicon.ico');
+    const favoriteTitle = favoriteItems[0]?.querySelector(
+      '.editor-browser-library-item-title',
+    );
+    assert(favoriteTitle instanceof HTMLElement);
+    assert.equal(favoriteTitle.textContent, 'Example Current Page');
 
     const [sourceItem] = favoriteItems;
     assert(sourceItem instanceof HTMLButtonElement);

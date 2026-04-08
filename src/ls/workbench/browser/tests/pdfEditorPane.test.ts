@@ -26,7 +26,7 @@ const labels = {
   toolbarAddressBar: 'Address bar',
   toolbarAddressPlaceholder: 'Search or enter URL',
   browserLibraryPanelTitle: 'Source menu',
-  browserLibraryPanelRecentTitle: 'Recent',
+  browserLibraryPanelRecentTitle: 'Today',
   browserLibraryPanelFavoritesTitle: 'Favorites',
   browserLibraryPanelEmptyState: 'No links yet',
   draftMode: 'Draft',

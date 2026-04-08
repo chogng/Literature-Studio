@@ -127,6 +127,9 @@ const electronAPI: ElectronAPI = {
     activate(targetId?: string | null) {
       sendIpc('app:web-content-activate', { targetId: targetId ?? null });
     },
+    dispose(targetId?: string | null) {
+      sendIpc('app:web-content-dispose', { targetId: targetId ?? null });
+    },
     release(targetId?: string | null) {
       sendIpc('app:web-content-release', { targetId: targetId ?? null });
     },

@@ -70,7 +70,7 @@ function getTabPaneModeIconName(
     case 'git-changes':
       return 'git-branch';
     default:
-      return 'broswer-1';
+      return 'browser-1';
   }
 }
 

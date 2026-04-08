@@ -9,6 +9,7 @@ type EditorModeToolbarSourceProps = {
   labels: EditorPartLabels;
   viewPartProps: {
     browserUrl: string;
+    browserPageTitle?: string;
     browserFaviconUrl?: string;
     electronRuntime: boolean;
   };
@@ -37,6 +38,7 @@ export function createEditorModeToolbarContext(
   return {
     mode: mode === 'browser' || mode === 'pdf' ? mode : null,
     browserUrl: props.viewPartProps.browserUrl,
+    browserPageTitle: props.viewPartProps.browserPageTitle ?? '',
     browserFaviconUrl: props.viewPartProps.browserFaviconUrl ?? '',
     electronRuntime: props.viewPartProps.electronRuntime,
     labels: {

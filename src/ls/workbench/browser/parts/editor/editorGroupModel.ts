@@ -3,6 +3,7 @@ import {
   type EditorPaneMode,
   type EditorPlannedTabKind,
   getEditorPaneMode,
+  isEditorBrowserTabInput,
   isEditorDraftTabInput,
 } from 'ls/workbench/browser/parts/editor/editorInput';
 import type {
@@ -164,16 +165,13 @@ function sanitizeTabFaviconUrl(value: string | undefined) {
 }
 
 function resolveTabFaviconUrl(
-  paneMode: EditorPaneMode,
-  tabId: string,
-  activeTabId: string | null,
-  browserFaviconUrl: string | undefined,
+  tab: EditorWorkspaceTab,
 ) {
-  if (paneMode !== 'browser' || tabId !== activeTabId) {
+  if (!isEditorBrowserTabInput(tab)) {
     return '';
   }
 
-  return sanitizeTabFaviconUrl(browserFaviconUrl);
+  return sanitizeTabFaviconUrl(tab.faviconUrl);
 }
 
 export function createEditorGroupModel({
@@ -183,7 +181,6 @@ export function createEditorGroupModel({
   labels,
   draftStatusByTabId,
   dirtyDraftTabIds,
-  browserFaviconUrl,
 }: {
   tabs: EditorWorkspaceTab[];
   activeTabId: string | null;
@@ -191,7 +188,6 @@ export function createEditorGroupModel({
   labels: EditorPartLabels;
   draftStatusByTabId: Record<string, DraftEditorStatusState>;
   dirtyDraftTabIds: readonly string[];
-  browserFaviconUrl?: string;
 }): EditorGroupModel {
   // Keep close/label behavior centralized by evaluating tab policy once per render.
   const dirtyDraftTabIdSet = createDirtyDraftTabIdSet(dirtyDraftTabIds);
@@ -229,12 +225,7 @@ export function createEditorGroupModel({
       paneMode,
       label,
       title: getTabDisplayTitle(tab, labels, label),
-      faviconUrl: resolveTabFaviconUrl(
-        paneMode,
-        tab.id,
-        activeTabId,
-        browserFaviconUrl,
-      ),
+      faviconUrl: resolveTabFaviconUrl(tab),
       state: {
         isActive: tab.id === activeTabId,
         isClosable,

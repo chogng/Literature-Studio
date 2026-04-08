@@ -21,7 +21,12 @@ const WEB_CONTENT_BRIDGE_REQUEST_TIMEOUT_MS = 15000;
 
 type WebContentTargetState = Pick<
   WebContentState,
-  'url' | 'canGoBack' | 'canGoForward' | 'isLoading'
+  | 'url'
+  | 'pageTitle'
+  | 'faviconUrl'
+  | 'canGoBack'
+  | 'canGoForward'
+  | 'isLoading'
 >;
 
 type PendingRendererBridgeRequest = {
@@ -48,6 +53,8 @@ const rendererBridgeReadyWaiters = new Set<RendererBridgeReadyWaiter>();
 function createDefaultWebContentTargetState(): WebContentTargetState {
   return {
     url: '',
+    pageTitle: '',
+    faviconUrl: '',
     canGoBack: false,
     canGoForward: false,
     isLoading: false,
@@ -1250,6 +1257,14 @@ function coerceWebContentState(value: unknown, targetId?: string | null): WebCon
 
   return {
     url: typeof value.url === 'string' ? value.url : fallback.url,
+    pageTitle:
+      typeof value.pageTitle === 'string'
+        ? value.pageTitle
+        : (fallback.pageTitle ?? ''),
+    faviconUrl:
+      typeof value.faviconUrl === 'string'
+        ? value.faviconUrl
+        : (fallback.faviconUrl ?? ''),
     canGoBack:
       typeof value.canGoBack === 'boolean' ? value.canGoBack : fallback.canGoBack,
     canGoForward:
@@ -1290,6 +1305,8 @@ function rememberWebContentState(state: WebContentState) {
   );
   cachedWebContentTargetStatesByTargetId.set(normalizedTargetId, {
     url: state.url,
+    pageTitle: String(state.pageTitle ?? '').trim(),
+    faviconUrl: String(state.faviconUrl ?? '').trim(),
     canGoBack: state.canGoBack,
     canGoForward: state.canGoForward,
     isLoading: state.isLoading,
@@ -1681,14 +1698,25 @@ export function releaseWebContentTarget(targetId?: string | null) {
     return;
   }
 
+  void invokeRendererWebContentBridge<void>('releaseTarget', [normalizedTargetId]).catch(() => {
+    // Ignore fire-and-forget release failures.
+  });
+}
+
+export function disposeWebContentTarget(targetId?: string | null) {
+  const normalizedTargetId = normalizeWebContentTargetId(targetId);
+  if (normalizedTargetId === DEFAULT_WEB_CONTENT_TARGET_ID) {
+    return;
+  }
+
   cachedWebContentTargetStatesByTargetId.delete(normalizedTargetId);
   if (activeWebContentTargetId === normalizedTargetId) {
     activeWebContentTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
     lastReportedWebContentState = createDefaultWebContentState();
   }
 
-  void invokeRendererWebContentBridge<void>('releaseTarget', [normalizedTargetId]).catch(() => {
-    // Ignore fire-and-forget release failures.
+  void invokeRendererWebContentBridge<void>('disposeTarget', [normalizedTargetId]).catch(() => {
+    // Ignore fire-and-forget dispose failures.
   });
 }
 

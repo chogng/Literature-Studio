@@ -226,6 +226,7 @@ export type WebContentNavigationMode = 'browser' | 'strict';
 export type WebContentBridgeMethod =
   | 'activateTarget'
   | 'clearHistory'
+  | 'disposeTarget'
   | 'executeJavaScript'
   | 'getState'
   | 'goBack'
@@ -713,6 +714,7 @@ export interface ElectronWindowControls {
 
 export interface ElectronWebContentApi {
   activate: (targetId?: string | null) => void;
+  dispose: (targetId?: string | null) => void;
   release: (targetId?: string | null) => void;
   navigate: (
     url: string,

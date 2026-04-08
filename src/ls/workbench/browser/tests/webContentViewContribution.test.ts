@@ -161,12 +161,14 @@ type TestWebviewElement = HTMLElement & {
   __historyIndex: number;
   __loadURLCalls: string[];
   __loading: boolean;
+  __title: string;
   canGoBack?: () => boolean;
   canGoForward?: () => boolean;
   executeJavaScript?: <T = unknown>(
     code: string,
     userGesture?: boolean,
   ) => Promise<T>;
+  getTitle?: () => string;
   getURL?: () => string;
   goBack?: () => void;
   goForward?: () => void;
@@ -190,6 +192,7 @@ function installWebviewSpy() {
     queueMicrotask(() => {
       webview.__loading = false;
       webview.__domReady = true;
+      webview.__title = '';
 
       if (webview.__history[webview.__historyIndex] !== url) {
         webview.__history = webview.__history.slice(0, webview.__historyIndex + 1);
@@ -219,6 +222,7 @@ function installWebviewSpy() {
     webview.__historyIndex = -1;
     webview.__loadURLCalls = [];
     webview.__loading = false;
+    webview.__title = '';
 
     const originalSetAttribute = webview.setAttribute.bind(webview);
     webview.setAttribute = ((name: string, value: string) => {
@@ -234,6 +238,7 @@ function installWebviewSpy() {
       }
       return String(webview.getAttribute('src') ?? '').trim();
     };
+    webview.getTitle = () => webview.__title;
     webview.isLoading = () => webview.__loading;
     webview.canGoBack = () => webview.__historyIndex > 0;
     webview.canGoForward = () => webview.__historyIndex < webview.__history.length - 1;
@@ -620,6 +625,175 @@ test('web content contribution still uses src when a recreated webview is dom-re
   }
 });
 
+test('web content contribution keeps released targets warm for quick reactivation', async () => {
+  const resizeObserverSpy = installResizeObserverSpy();
+  const animationFrameSpy = installAnimationFrameSpy();
+  const webviewSpy = installWebviewSpy();
+  const host = document.createElement('div');
+
+  host.dataset.webcontentActive = 'true';
+  Object.defineProperty(host, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => createDomRect(0, 0, 480, 320),
+  });
+  document.body.append(host);
+  registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, host);
+
+  try {
+    await withElectronApi(
+      createElectronApi({
+        webContent: {
+          async navigate() {
+            return {
+              targetId: null,
+              activeTargetId: null,
+              ownership: 'inactive',
+              layoutPhase: 'hidden',
+              url: '',
+              canGoBack: false,
+              canGoForward: false,
+              isLoading: false,
+              visible: false,
+            } satisfies DesktopWebContentState;
+          },
+          onBridgeCommand() {
+            return () => {};
+          },
+          respondToBridgeCommand() {},
+          reportBridgeReady() {},
+          reportState() {},
+        } as unknown as NonNullable<ElectronAPI['webContent']>,
+      }),
+      async () => {
+        const contribution = createWorkbenchWebContentViewContribution();
+        assert(contribution);
+        animationFrameSpy.flushUntilIdle();
+
+        const bridge = (window as typeof window & {
+          __lsWebContentBridge?: {
+            activateTarget: (targetId?: string | null) => Promise<DesktopWebContentState>;
+            navigateTo: (
+              url: string,
+              targetId?: string | null,
+              mode?: 'browser' | 'strict',
+            ) => Promise<DesktopWebContentState>;
+            releaseTarget: (targetId?: string | null) => Promise<void>;
+          };
+        }).__lsWebContentBridge;
+        assert(bridge);
+
+        await bridge.navigateTo(
+          'https://example.com/warm',
+          'target-warm',
+          'browser',
+        );
+        const [webview] = webviewSpy.getCreatedWebviews();
+        assert(webview);
+        assert.equal(webview.isConnected, true);
+
+        await bridge.releaseTarget('target-warm');
+        assert.equal(webview.isConnected, true);
+
+        const state = await bridge.activateTarget('target-warm');
+        assert.equal(state.url, 'https://example.com/warm');
+        assert.equal(webviewSpy.getCreatedWebviews().length, 1);
+
+        contribution.dispose();
+      },
+    );
+  } finally {
+    webviewSpy.restore();
+    resizeObserverSpy.restore();
+    animationFrameSpy.restore();
+    host.remove();
+  }
+});
+
+test('web content contribution evicts retained targets by LRU and disposeTarget tears down immediately', async () => {
+  const resizeObserverSpy = installResizeObserverSpy();
+  const animationFrameSpy = installAnimationFrameSpy();
+  const webviewSpy = installWebviewSpy();
+  const host = document.createElement('div');
+
+  host.dataset.webcontentActive = 'true';
+  Object.defineProperty(host, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => createDomRect(0, 0, 480, 320),
+  });
+  document.body.append(host);
+  registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, host);
+
+  try {
+    await withElectronApi(
+      createElectronApi({
+        webContent: {
+          async navigate() {
+            return {
+              targetId: null,
+              activeTargetId: null,
+              ownership: 'inactive',
+              layoutPhase: 'hidden',
+              url: '',
+              canGoBack: false,
+              canGoForward: false,
+              isLoading: false,
+              visible: false,
+            } satisfies DesktopWebContentState;
+          },
+          onBridgeCommand() {
+            return () => {};
+          },
+          respondToBridgeCommand() {},
+          reportBridgeReady() {},
+          reportState() {},
+        } as unknown as NonNullable<ElectronAPI['webContent']>,
+      }),
+      async () => {
+        const contribution = createWorkbenchWebContentViewContribution();
+        assert(contribution);
+        animationFrameSpy.flushUntilIdle();
+
+        const bridge = (window as typeof window & {
+          __lsWebContentBridge?: {
+            disposeTarget: (targetId?: string | null) => Promise<void>;
+            navigateTo: (
+              url: string,
+              targetId?: string | null,
+              mode?: 'browser' | 'strict',
+            ) => Promise<DesktopWebContentState>;
+            releaseTarget: (targetId?: string | null) => Promise<void>;
+          };
+        }).__lsWebContentBridge;
+        assert(bridge);
+
+        await bridge.navigateTo('https://example.com/one', 'target-1', 'browser');
+        await bridge.navigateTo('https://example.com/two', 'target-2', 'browser');
+        await bridge.navigateTo('https://example.com/three', 'target-3', 'browser');
+
+        const [first, second, third] = webviewSpy.getCreatedWebviews();
+        assert(first && second && third);
+        await bridge.releaseTarget('target-1');
+        await bridge.releaseTarget('target-2');
+        await bridge.releaseTarget('target-3');
+
+        assert.equal(first.isConnected, false);
+        assert.equal(second.isConnected, true);
+        assert.equal(third.isConnected, true);
+
+        await bridge.disposeTarget('target-2');
+        assert.equal(second.isConnected, false);
+
+        contribution.dispose();
+      },
+    );
+  } finally {
+    webviewSpy.restore();
+    resizeObserverSpy.restore();
+    animationFrameSpy.restore();
+    host.remove();
+  }
+});
+
 test('web content contribution reports favicon url from page-favicon-updated', async () => {
   const resizeObserverSpy = installResizeObserverSpy();
   const animationFrameSpy = installAnimationFrameSpy();
@@ -785,6 +959,109 @@ test('web content contribution reports page title from page-title-updated', asyn
           () => reportedStates.at(-1)?.pageTitle === 'AI / LLM Models',
         );
         assert.equal(reportedStates.at(-1)?.pageTitle, 'AI / LLM Models');
+
+        contribution.dispose();
+      },
+    );
+  } finally {
+    webviewSpy.restore();
+    resizeObserverSpy.restore();
+    animationFrameSpy.restore();
+    host.remove();
+  }
+});
+
+test('web content contribution ignores stale page-title updates after navigation', async () => {
+  const resizeObserverSpy = installResizeObserverSpy();
+  const animationFrameSpy = installAnimationFrameSpy();
+  const webviewSpy = installWebviewSpy();
+  const reportedStates: DesktopWebContentState[] = [];
+  const host = document.createElement('div');
+
+  host.dataset.webcontentActive = 'true';
+  Object.defineProperty(host, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => createDomRect(0, 0, 480, 320),
+  });
+  document.body.append(host);
+  registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, host);
+
+  try {
+    await withElectronApi(
+      createElectronApi({
+        webContent: {
+          async navigate() {
+            return {
+              targetId: null,
+              activeTargetId: null,
+              ownership: 'inactive',
+              layoutPhase: 'hidden',
+              url: '',
+              canGoBack: false,
+              canGoForward: false,
+              isLoading: false,
+              visible: false,
+            } satisfies DesktopWebContentState;
+          },
+          reportState(state: DesktopWebContentState) {
+            reportedStates.push(state);
+          },
+          reportBridgeReady() {},
+        } as unknown as NonNullable<ElectronAPI['webContent']>,
+      }),
+      async () => {
+        const contribution = createWorkbenchWebContentViewContribution();
+        assert(contribution);
+        animationFrameSpy.flushUntilIdle();
+
+        const bridge = (window as typeof window & {
+          __lsWebContentBridge?: {
+            activateTarget: (targetId?: string | null) => Promise<DesktopWebContentState>;
+            navigateTo: (
+              url: string,
+              targetId?: string | null,
+              mode?: 'browser' | 'strict',
+            ) => Promise<DesktopWebContentState>;
+          };
+        }).__lsWebContentBridge;
+        assert(bridge);
+
+        await bridge.activateTarget('target-title-stale');
+        await bridge.navigateTo(
+          'https://example.com/first',
+          'target-title-stale',
+          'browser',
+        );
+
+        const [webview] = webviewSpy.getCreatedWebviews();
+        assert(webview);
+        webview.dispatchEvent(
+          Object.assign(new Event('page-title-updated'), {
+            title: 'First Title',
+          }),
+        );
+        await waitForCondition(
+          () => reportedStates.at(-1)?.pageTitle === 'First Title',
+        );
+
+        await bridge.navigateTo(
+          'https://example.com/second',
+          'target-title-stale',
+          'browser',
+        );
+        webview.__title = 'Second Title';
+        webview.dispatchEvent(
+          Object.assign(new Event('page-title-updated'), {
+            title: 'First Title',
+          }),
+        );
+
+        await waitForCondition(
+          () =>
+            reportedStates.at(-1)?.url === 'https://example.com/second' &&
+            reportedStates.at(-1)?.pageTitle === 'Second Title',
+        );
+        assert.equal(reportedStates.at(-1)?.pageTitle, 'Second Title');
 
         contribution.dispose();
       },

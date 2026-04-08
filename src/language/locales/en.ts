@@ -199,7 +199,7 @@ const en = {
   editorToolbarClearBrowsingHistory: 'Clear browsing history',
   editorToolbarClearCookies: 'Clear cookies',
   editorToolbarClearCache: 'Clear cache',
-  editorToolbarSourcesRecent: 'Recent',
+  editorToolbarSourcesRecent: 'Today',
   editorToolbarSourcesFavorites: 'Favorites',
   editorToolbarSourcesEmpty: 'No favorites or history yet.',
   editorTitle: 'Writing Workspace',

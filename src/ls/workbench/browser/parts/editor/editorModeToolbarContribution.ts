@@ -5,6 +5,7 @@ export type EditorModeToolbarKind = 'browser' | 'pdf';
 export type EditorModeToolbarContributionContext = {
   mode: EditorModeToolbarKind | null;
   browserUrl: string;
+  browserPageTitle?: string;
   browserFaviconUrl?: string;
   electronRuntime: boolean;
   labels: {

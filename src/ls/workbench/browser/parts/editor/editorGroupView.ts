@@ -238,7 +238,6 @@ function createEditorGroupControllerSnapshot(
     labels: context.labels,
     draftStatusByTabId,
     dirtyDraftTabIds: context.dirtyDraftTabIds,
-    browserFaviconUrl: context.viewPartProps.browserFaviconUrl,
   });
   const activeDraftStatus =
     isEditorDraftTabInput(group.activeTab)
@@ -579,6 +578,7 @@ export class EditorGroupView {
   private createBrowserLibraryPanelContext(props: EditorGroupViewProps) {
     return {
       browserUrl: props.viewPartProps.browserUrl,
+      browserPageTitle: props.viewPartProps.browserPageTitle ?? '',
       browserFaviconUrl: props.viewPartProps.browserFaviconUrl ?? '',
       labels: {
         title: props.labels.browserLibraryPanelTitle,

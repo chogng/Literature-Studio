@@ -198,6 +198,15 @@ export class WebContentNavigationModel {
     webContent.release(targetId);
   }
 
+  disposeTarget(targetId: string | null) {
+    const webContent = nativeHostService.webContent;
+    if (!webContent) {
+      return;
+    }
+
+    webContent.dispose(targetId);
+  }
+
   connectWebContentState({
     webContentRuntime,
     setWebUrl,

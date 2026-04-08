@@ -12,6 +12,7 @@ type StoredBrowserLibraryState = {
   recentUrls: string[];
   favoriteUrls: string[];
   faviconByUrl: Record<string, string>;
+  pageTitleByUrl: Record<string, string>;
 };
 
 type BrowserLibrarySectionKind = 'recent' | 'favorites';
@@ -32,6 +33,7 @@ export type EditorBrowserLibraryPanelLabels = {
 
 export type EditorBrowserLibraryPanelContext = {
   browserUrl: string;
+  browserPageTitle?: string;
   browserFaviconUrl?: string;
   labels: EditorBrowserLibraryPanelLabels;
   onNavigateToUrl: (url: string) => void;
@@ -95,11 +97,28 @@ function createStoredBrowserLibraryState(): StoredBrowserLibraryState {
     recentUrls: [],
     favoriteUrls: [],
     faviconByUrl: {},
+    pageTitleByUrl: {},
   };
 }
 
 function sanitizeBrowserLibraryFaviconUrl(value: unknown) {
   return String(value ?? '').trim();
+}
+
+function sanitizeBrowserLibraryPageTitle(value: unknown) {
+  const normalizedPageTitle = String(value ?? '').trim();
+  if (!normalizedPageTitle) {
+    return '';
+  }
+
+  if (
+    /^about:blank$/i.test(normalizedPageTitle) ||
+    /^https?:\/\/about:blank$/i.test(normalizedPageTitle)
+  ) {
+    return '';
+  }
+
+  return normalizedPageTitle;
 }
 
 function sanitizeStoredBrowserLibraryFaviconByUrl(
@@ -127,7 +146,32 @@ function sanitizeStoredBrowserLibraryFaviconByUrl(
   return faviconByUrl;
 }
 
-function areStoredBrowserLibraryFaviconMapsEqual(
+function sanitizeStoredBrowserLibraryPageTitleByUrl(
+  value: unknown,
+  validUrls: Set<string>,
+) {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const pageTitleByUrl: Record<string, string> = {};
+  for (const [url, pageTitle] of Object.entries(value)) {
+    const normalizedUrl = normalizeBrowserLibraryUrl(url);
+    if (!validUrls.has(normalizedUrl)) {
+      continue;
+    }
+
+    const normalizedPageTitle = sanitizeBrowserLibraryPageTitle(pageTitle);
+    if (!normalizedPageTitle) {
+      continue;
+    }
+    pageTitleByUrl[normalizedUrl] = normalizedPageTitle;
+  }
+
+  return pageTitleByUrl;
+}
+
+function areStoredBrowserLibraryStringMapsEqual(
   left: Record<string, string>,
   right: Record<string, string>,
 ) {
@@ -177,6 +221,10 @@ function sanitizeStoredBrowserLibraryState(
     favoriteUrls: sanitizedFavoriteUrls,
     faviconByUrl: sanitizeStoredBrowserLibraryFaviconByUrl(
       (value as { faviconByUrl?: unknown }).faviconByUrl,
+      validUrls,
+    ),
+    pageTitleByUrl: sanitizeStoredBrowserLibraryPageTitleByUrl(
+      (value as { pageTitleByUrl?: unknown }).pageTitleByUrl,
       validUrls,
     ),
   };
@@ -240,9 +288,13 @@ function updateStoredBrowserLibraryState(
     nextState.favoriteUrls.length === storedBrowserLibraryState.favoriteUrls.length &&
     nextState.recentUrls.every((url, index) => url === storedBrowserLibraryState.recentUrls[index]) &&
     nextState.favoriteUrls.every((url, index) => url === storedBrowserLibraryState.favoriteUrls[index]) &&
-    areStoredBrowserLibraryFaviconMapsEqual(
+    areStoredBrowserLibraryStringMapsEqual(
       nextState.faviconByUrl,
       storedBrowserLibraryState.faviconByUrl,
+    ) &&
+    areStoredBrowserLibraryStringMapsEqual(
+      nextState.pageTitleByUrl,
+      storedBrowserLibraryState.pageTitleByUrl,
     )
   ) {
     return false;
@@ -253,19 +305,52 @@ function updateStoredBrowserLibraryState(
   return true;
 }
 
-function recordRecentBrowserLibraryEntry(url: string) {
+function recordBrowserLibraryEntryVisit({
+  url,
+  faviconUrl,
+  pageTitle,
+}: {
+  url: string;
+  faviconUrl?: string;
+  pageTitle?: string;
+}) {
   const normalizedUrl = toTrackableBrowserLibraryUrl(url);
   if (!normalizedUrl) {
     return false;
   }
 
-  return updateStoredBrowserLibraryState((state) => ({
-    ...state,
-    recentUrls: trimUrlList(
+  const normalizedFaviconUrl = sanitizeBrowserLibraryFaviconUrl(faviconUrl);
+  const normalizedPageTitle = sanitizeBrowserLibraryPageTitle(pageTitle);
+
+  return updateStoredBrowserLibraryState((state) => {
+    const recentUrls = trimUrlList(
       [normalizedUrl, ...state.recentUrls.filter((entry) => entry !== normalizedUrl)],
       MAX_RECENT_BROWSER_LIBRARY_ENTRIES,
-    ),
-  }));
+    );
+
+    let faviconByUrl = state.faviconByUrl;
+    if (normalizedFaviconUrl) {
+      faviconByUrl = {
+        ...faviconByUrl,
+        [normalizedUrl]: normalizedFaviconUrl,
+      };
+    }
+
+    let pageTitleByUrl = state.pageTitleByUrl;
+    if (normalizedPageTitle) {
+      pageTitleByUrl = {
+        ...pageTitleByUrl,
+        [normalizedUrl]: normalizedPageTitle,
+      };
+    }
+
+    return {
+      ...state,
+      recentUrls,
+      faviconByUrl,
+      pageTitleByUrl,
+    };
+  });
 }
 
 function toggleFavoriteBrowserLibraryEntry(url: string) {
@@ -300,9 +385,15 @@ function clearRecentBrowserLibraryEntries() {
   return updateStoredBrowserLibraryState((state) => {
     const favoriteUrlSet = new Set(state.favoriteUrls);
     const nextFaviconByUrl: Record<string, string> = {};
+    const nextPageTitleByUrl: Record<string, string> = {};
     for (const [url, faviconUrl] of Object.entries(state.faviconByUrl)) {
       if (favoriteUrlSet.has(url)) {
         nextFaviconByUrl[url] = faviconUrl;
+      }
+    }
+    for (const [url, pageTitle] of Object.entries(state.pageTitleByUrl)) {
+      if (favoriteUrlSet.has(url)) {
+        nextPageTitleByUrl[url] = pageTitle;
       }
     }
 
@@ -310,6 +401,7 @@ function clearRecentBrowserLibraryEntries() {
       ...state,
       recentUrls: [],
       faviconByUrl: nextFaviconByUrl,
+      pageTitleByUrl: nextPageTitleByUrl,
     };
   });
 }
@@ -331,32 +423,12 @@ function getFavoriteBrowserLibraryEntries() {
   return [...storedBrowserLibraryState.favoriteUrls];
 }
 
-function setBrowserLibraryEntryFavicon(url: string, faviconUrl: string) {
-  const normalizedUrl = toTrackableBrowserLibraryUrl(url);
-  if (!normalizedUrl) {
-    return false;
-  }
-
-  const normalizedFaviconUrl = sanitizeBrowserLibraryFaviconUrl(faviconUrl);
-  return updateStoredBrowserLibraryState((state) => {
-    const nextFaviconByUrl = {
-      ...state.faviconByUrl,
-    };
-    if (normalizedFaviconUrl) {
-      nextFaviconByUrl[normalizedUrl] = normalizedFaviconUrl;
-    } else {
-      delete nextFaviconByUrl[normalizedUrl];
-    }
-
-    return {
-      ...state,
-      faviconByUrl: nextFaviconByUrl,
-    };
-  });
-}
-
 function getBrowserLibraryEntryFavicon(url: string) {
   return storedBrowserLibraryState.faviconByUrl[url] ?? '';
+}
+
+function getBrowserLibraryEntryPageTitle(url: string) {
+  return storedBrowserLibraryState.pageTitleByUrl[url] ?? '';
 }
 
 function resolveBrowserLibraryTitle(url: string) {
@@ -555,15 +627,12 @@ export class EditorBrowserLibraryPanel {
       return;
     }
 
-    recordRecentBrowserLibraryEntry(libraryUrl);
-    const faviconUrl = sanitizeBrowserLibraryFaviconUrl(
-      this.context.browserFaviconUrl,
-    );
-    if (!faviconUrl) {
-      return;
-    }
-
-    setBrowserLibraryEntryFavicon(libraryUrl, faviconUrl);
+    // Persist visit metadata in a single state update to avoid redundant storage writes.
+    recordBrowserLibraryEntryVisit({
+      url: libraryUrl,
+      faviconUrl: this.context.browserFaviconUrl,
+      pageTitle: this.context.browserPageTitle,
+    });
   }
 
   private bindGlobalListeners() {
@@ -651,9 +720,12 @@ export class EditorBrowserLibraryPanel {
       }
 
       seenUrls.add(url);
+      const pageTitle = sanitizeBrowserLibraryPageTitle(
+        getBrowserLibraryEntryPageTitle(url),
+      );
       listItems.push({
         url,
-        title: resolveBrowserLibraryTitle(url),
+        title: pageTitle || resolveBrowserLibraryTitle(url),
         faviconUrl: getBrowserLibraryEntryFavicon(url),
         sectionKind,
       });
@@ -841,44 +913,72 @@ export class EditorBrowserLibraryPanel {
 
     const listElement = this.getOrCreateListElement();
     const fragment = document.createDocumentFragment();
+    const listItemsBySection: Record<BrowserLibrarySectionKind, BrowserLibraryListItem[]> = {
+      favorites: [],
+      recent: [],
+    };
     for (const itemState of listItems) {
-      const { url, title, faviconUrl, sectionKind } = itemState;
-      const item = createElement('button', 'editor-browser-library-item');
-      item.type = 'button';
-      item.title = url;
-      if (sectionKind === 'favorites') {
-        item.classList.add('is-favorite');
+      listItemsBySection[itemState.sectionKind].push(itemState);
+    }
+
+    const orderedSections: Array<{
+      kind: BrowserLibrarySectionKind;
+      title: string;
+    }> = [
+      {
+        kind: 'favorites',
+        title: this.context.labels.favoritesTitle,
+      },
+      {
+        kind: 'recent',
+        title: this.context.labels.recentTitle,
+      },
+    ];
+
+    for (const section of orderedSections) {
+      const sectionItems = listItemsBySection[section.kind];
+      if (!sectionItems || sectionItems.length === 0) {
+        continue;
       }
-      item.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        this.handleLibraryItemClick(url);
-      });
-      const headerElement = createElement(
-        'span',
-        'editor-browser-library-item-header',
+
+      const sectionElement = createElement('section', 'editor-browser-library-section');
+      const sectionTitleElement = createElement(
+        'p',
+        'editor-browser-library-section-title',
+        section.title,
       );
-      const faviconElement = this.createLibraryItemFaviconElement(faviconUrl);
-      const titleElement = createElement(
-        'span',
-        'editor-browser-library-item-title',
-        title,
-      );
-      const metaElement = createElement(
-        'span',
-        'editor-browser-library-item-meta',
-        url,
-      );
-      const kindElement = createElement(
-        'span',
-        'editor-browser-library-item-kind',
-        sectionKind === 'favorites'
-          ? this.context.labels.favoritesTitle
-          : this.context.labels.recentTitle,
-      );
-      headerElement.append(faviconElement, titleElement);
-      item.append(headerElement, metaElement, kindElement);
-      fragment.append(item);
+      const sectionListElement = createElement('div', 'editor-browser-library-section-list');
+      sectionElement.append(sectionTitleElement, sectionListElement);
+
+      for (const itemState of sectionItems) {
+        const { url, title, faviconUrl, sectionKind } = itemState;
+        const item = createElement('button', 'editor-browser-library-item');
+        item.type = 'button';
+        item.title = url;
+        if (sectionKind === 'favorites') {
+          item.classList.add('is-favorite');
+        }
+        item.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.handleLibraryItemClick(url);
+        });
+        const headerElement = createElement(
+          'span',
+          'editor-browser-library-item-header',
+        );
+        const faviconElement = this.createLibraryItemFaviconElement(faviconUrl);
+        const titleElement = createElement(
+          'span',
+          'editor-browser-library-item-title',
+          title,
+        );
+        headerElement.append(faviconElement, titleElement);
+        item.append(headerElement);
+        sectionListElement.append(item);
+      }
+
+      fragment.append(sectionElement);
     }
 
     listElement.replaceChildren(fragment);
@@ -888,7 +988,7 @@ export class EditorBrowserLibraryPanel {
     const normalizedFaviconUrl = sanitizeBrowserLibraryFaviconUrl(faviconUrl);
     if (!normalizedFaviconUrl) {
       return createLxIcon(
-        'link-external',
+        'browser-1',
         'editor-browser-library-item-favicon is-fallback',
       );
     }
@@ -907,7 +1007,7 @@ export class EditorBrowserLibraryPanel {
         return;
       }
       const fallback = createLxIcon(
-        'link-external',
+        'browser-1',
         'editor-browser-library-item-favicon is-fallback',
       );
       image.replaceWith(fallback);

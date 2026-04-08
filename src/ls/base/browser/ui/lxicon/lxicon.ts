@@ -164,8 +164,8 @@ import chevronDownSvg from 'ls/base/browser/ui/lxicon/svg/chevron-down.svg?raw';
 import calendarSvg from 'ls/base/browser/ui/lxicon/svg/calendar.svg?raw';
 import checklistSvg from 'ls/base/browser/ui/lxicon/svg/checklist.svg?raw';
 import checkSvg from 'ls/base/browser/ui/lxicon/svg/check.svg?raw';
-import broswer1Svg from 'ls/base/browser/ui/lxicon/svg/broswer-1.svg?raw';
-import broswerSvg from 'ls/base/browser/ui/lxicon/svg/broswer.svg?raw';
+import browser1Svg from 'ls/base/browser/ui/lxicon/svg/browser-1.svg?raw';
+import browserSvg from 'ls/base/browser/ui/lxicon/svg/browser.svg?raw';
 import brainSvg from 'ls/base/browser/ui/lxicon/svg/brain.svg?raw';
 import bracketSvg from 'ls/base/browser/ui/lxicon/svg/bracket.svg?raw';
 import bookSvg from 'ls/base/browser/ui/lxicon/svg/book.svg?raw';
@@ -355,8 +355,8 @@ export type LxIconName =
   | 'calendar'
   | 'checklist'
   | 'check'
-  | 'broswer-1'
-  | 'broswer'
+  | 'browser-1'
+  | 'browser'
   | 'brain'
   | 'bracket'
   | 'book'
@@ -546,8 +546,8 @@ const SVG_BY_NAME: Record<LxIconName, string> = {
   'calendar': calendarSvg,
   'checklist': checklistSvg,
   'check': checkSvg,
-  'broswer-1': broswer1Svg,
-  'broswer': broswerSvg,
+  'browser-1': browser1Svg,
+  'browser': browserSvg,
   'brain': brainSvg,
   'bracket': bracketSvg,
   'book': bookSvg,

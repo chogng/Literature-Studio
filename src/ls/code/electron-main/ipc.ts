@@ -33,6 +33,7 @@ import type { StorageService } from 'ls/platform/storage/common/storage';
 import {
   getWebContentState,
   clearWebContentHistory,
+  disposeWebContentTarget,
   executeWebContentTargetScript,
   getWebContentSelection,
   activateWebContentTarget,
@@ -467,6 +468,10 @@ export function registerAppIpc(storage: StorageService) {
 
   ipcMain.on('app:web-content-release', (_event, payload?: { targetId?: string | null }) => {
     releaseWebContentTarget(payload?.targetId);
+  });
+
+  ipcMain.on('app:web-content-dispose', (_event, payload?: { targetId?: string | null }) => {
+    disposeWebContentTarget(payload?.targetId);
   });
 
   ipcMain.handle('app:web-content-navigate', async (_event, payload: WebContentNavigatePayload) => {

@@ -178,7 +178,6 @@ const llmProviderIconMap: Record<LlmProviderId, LxIconName> = {
 };
 
 const AGENT_CHAT_AUTO_MODEL_OPTION_VALUE = 'auto';
-
 function getArticleSelectionKey(article: Pick<Article, 'sourceUrl' | 'fetchedAt'>) {
   return `${article.sourceUrl}::${article.fetchedAt}`;
 }
@@ -608,6 +607,7 @@ class WorkbenchHost {
   private previousContentTargetId: string | null = null;
   private previousContentTargetUrl = '';
   private previousContentTabIds = new Set<string>();
+  private readonly pendingContentTargetReleaseIds = new Set<string>();
   private appliedKnowledgeBaseModeEnabled: boolean | null = null;
   private readonly handleWindowKeydown = (event: KeyboardEvent) => {
     handleWorkbenchEditorShortcut(event);
@@ -679,6 +679,36 @@ class WorkbenchHost {
     this.editorPartController = null;
     this.toastHost.dispose();
     this.rootElement.replaceChildren();
+  }
+
+  private releaseContentTarget(
+    webContentNavigationModel: WebContentNavigationModel,
+    targetId: string | null,
+    mode: 'soft' | 'dispose' = 'soft',
+  ) {
+    if (!targetId || this.pendingContentTargetReleaseIds.has(targetId)) {
+      return;
+    }
+
+    this.pendingContentTargetReleaseIds.add(targetId);
+    const pendingViewStateSave =
+      (
+        this.workbenchContentPartViews ?? this.retiredWorkbenchContentPartViews
+      )?.whenEditorTabViewStateSettled(targetId) ?? Promise.resolve();
+
+    void pendingViewStateSave.finally(() => {
+      this.pendingContentTargetReleaseIds.delete(targetId);
+      if (this.previousActiveContentTabId === targetId) {
+        return;
+      }
+
+      if (mode === 'dispose') {
+        webContentNavigationModel.disposeTarget(targetId);
+        return;
+      }
+
+      webContentNavigationModel.releaseTarget(targetId);
+    });
   }
 
   private readonly requestRender = () => {
@@ -796,23 +826,28 @@ class WorkbenchHost {
   private syncWebContentSurfaceState(params: {
     browserUrl: string;
     browserPageTitle: string;
+    browserFaviconUrl: string;
     tabs: EditorWorkspaceTab[];
     webContentNavigationModel: WebContentNavigationModel;
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
     updateActiveContentTabUrl: (url: string) => void;
     updateActiveBrowserTabPageTitle: (pageTitle: string) => void;
+    updateActiveBrowserTabFaviconUrl: (faviconUrl: string) => void;
   }) {
     const {
       browserUrl,
       browserPageTitle,
+      browserFaviconUrl,
       tabs,
       webContentNavigationModel,
       webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
       updateActiveContentTabUrl,
       updateActiveBrowserTabPageTitle,
+      updateActiveBrowserTabFaviconUrl,
     } = params;
+    const activeContentTabId = webContentSurfaceSnapshot.activeContentTabId;
 
     const syncContentTarget = (targetId: string | null, targetUrl: string) => {
       void webContentNavigationModel
@@ -836,52 +871,37 @@ class WorkbenchHost {
         });
     };
 
-    const releasedContentTargetIds = new Set<string>();
-    const releaseContentTarget = (targetId: string | null) => {
-      if (!targetId || releasedContentTargetIds.has(targetId)) {
-        return;
-      }
-
-      releasedContentTargetIds.add(targetId);
-      const pendingViewStateSave =
-        (
-          this.workbenchContentPartViews ?? this.retiredWorkbenchContentPartViews
-        )?.whenEditorTabViewStateSettled(targetId) ??
-        Promise.resolve();
-      void pendingViewStateSave.finally(() => {
-        if (this.previousActiveContentTabId === targetId) {
-          return;
-        }
-
-        webContentNavigationModel.releaseTarget(targetId);
-      });
-    };
-
     if (
-      this.previousContentTargetId !== webContentSurfaceSnapshot.activeContentTabId ||
+      this.previousContentTargetId !== activeContentTabId ||
       this.previousContentTargetUrl !== webContentSurfaceSnapshot.activeContentTabUrl
     ) {
       syncContentTarget(
-        webContentSurfaceSnapshot.activeContentTabId,
+        activeContentTabId,
         webContentSurfaceSnapshot.activeContentTabUrl,
       );
-      this.previousContentTargetId = webContentSurfaceSnapshot.activeContentTabId;
+      this.previousContentTargetId = activeContentTabId;
       this.previousContentTargetUrl = webContentSurfaceSnapshot.activeContentTabUrl;
     }
 
-    // Keep content tabs lightweight: once a tab is inactive, drop its live target
-    // and restore from persisted URL/view state when it becomes active again.
     if (
       this.previousActiveContentTabId &&
-      this.previousActiveContentTabId !== webContentSurfaceSnapshot.activeContentTabId
+      this.previousActiveContentTabId !== activeContentTabId
     ) {
-      releaseContentTarget(this.previousActiveContentTabId);
+      this.releaseContentTarget(
+        webContentNavigationModel,
+        this.previousActiveContentTabId,
+        'soft',
+      );
     }
 
     const nextContentTabIds = toContentTabIdSet(tabs);
     for (const previousTabId of this.previousContentTabIds) {
       if (!nextContentTabIds.has(previousTabId)) {
-        releaseContentTarget(previousTabId);
+        this.releaseContentTarget(
+          webContentNavigationModel,
+          previousTabId,
+          'dispose',
+        );
       }
     }
     this.previousContentTabIds = nextContentTabIds;
@@ -898,9 +918,10 @@ class WorkbenchHost {
     }
 
     updateActiveBrowserTabPageTitle(browserPageTitle);
+    updateActiveBrowserTabFaviconUrl(browserFaviconUrl);
 
     this.previousBrowserUrl = browserUrl;
-    this.previousActiveContentTabId = webContentSurfaceSnapshot.activeContentTabId;
+    this.previousActiveContentTabId = activeContentTabId;
   }
 
   private syncStatusbarVisibility(statusbarVisible: boolean) {
@@ -965,12 +986,14 @@ class WorkbenchHost {
     filteredArticleKeysInOrder: string[];
     browserUrl: string;
     browserPageTitle: string;
+    browserFaviconUrl: string;
     editorTabs: EditorWorkspaceTab[];
     webContentNavigationModel: WebContentNavigationModel;
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
     updateActiveContentTabUrl: (url: string) => void;
     updateActiveBrowserTabPageTitle: (pageTitle: string) => void;
+    updateActiveBrowserTabFaviconUrl: (faviconUrl: string) => void;
   }) {
     const {
       selectionModePhase,
@@ -978,12 +1001,14 @@ class WorkbenchHost {
       filteredArticleKeysInOrder,
       browserUrl,
       browserPageTitle,
+      browserFaviconUrl,
       editorTabs,
       webContentNavigationModel,
       webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
       updateActiveContentTabUrl,
       updateActiveBrowserTabPageTitle,
+      updateActiveBrowserTabFaviconUrl,
     } = params;
 
     const needsSelectionSync =
@@ -1003,12 +1028,14 @@ class WorkbenchHost {
     this.syncWebContentSurfaceState({
       browserUrl,
       browserPageTitle,
+      browserFaviconUrl,
       tabs: editorTabs,
       webContentNavigationModel,
       webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
       updateActiveContentTabUrl,
       updateActiveBrowserTabPageTitle,
+      updateActiveBrowserTabFaviconUrl,
     });
   }
 
@@ -1335,6 +1362,7 @@ class WorkbenchHost {
     } = webContentNavigationModelInstance.getSnapshot();
     const viewPartProps = {
       browserUrl,
+      browserPageTitle,
       browserFaviconUrl,
       electronRuntime,
       webContentRuntime,
@@ -1361,6 +1389,7 @@ class WorkbenchHost {
       webContentSurfaceSnapshot,
       updateActiveContentTabUrl,
       updateActiveBrowserTabPageTitle,
+      updateActiveBrowserTabFaviconUrl,
       editorPartProps,
     } = {
       ...editorPartSnapshot,
@@ -1371,6 +1400,8 @@ class WorkbenchHost {
         editorPartControllerInstance.updateActiveContentTabUrl,
       updateActiveBrowserTabPageTitle:
         editorPartControllerInstance.updateActiveBrowserTabPageTitle,
+      updateActiveBrowserTabFaviconUrl:
+        editorPartControllerInstance.updateActiveBrowserTabFaviconUrl,
     };
 
     const assistantModelInstance = getWorkbenchAssistantModel({
@@ -2118,12 +2149,14 @@ class WorkbenchHost {
       filteredArticleKeysInOrder,
       browserUrl,
       browserPageTitle,
+      browserFaviconUrl,
       editorTabs,
       webContentNavigationModel: webContentNavigationModelInstance,
       webContentSurfaceSnapshot,
       navigateToAddressBarUrl,
       updateActiveContentTabUrl,
       updateActiveBrowserTabPageTitle,
+      updateActiveBrowserTabFaviconUrl,
     });
 
     this.toastHost.render(ui.toastClose);

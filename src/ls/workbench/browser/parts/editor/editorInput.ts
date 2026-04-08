@@ -14,6 +14,7 @@ export type EditorBrowserTabInput = {
   kind: 'browser';
   title: string;
   url: string;
+  faviconUrl?: string;
 };
 
 export type EditorPdfTabInput = {
@@ -176,9 +177,17 @@ function createEditorContentTabInput<K extends EditorContentTabInput['kind']>(
 
 export function createEditorBrowserTabInput(
   url: string,
-  initial?: Partial<Pick<EditorBrowserTabInput, 'id' | 'title'>>,
+  initial?: Partial<Pick<EditorBrowserTabInput, 'id' | 'title' | 'faviconUrl'>>,
 ): EditorBrowserTabInput {
-  return createEditorContentTabInput('browser', url, initial);
+  const base = createEditorContentTabInput('browser', url, initial);
+  const normalizedFaviconUrl = String(initial?.faviconUrl ?? '').trim();
+
+  return normalizedFaviconUrl
+    ? {
+        ...base,
+        faviconUrl: normalizedFaviconUrl,
+      }
+    : base;
 }
 
 export function createEditorPdfTabInput(
@@ -241,6 +250,10 @@ export function normalizeEditorTabInput(value: unknown): EditorTabInput | null {
     return createEditorBrowserTabInput(rawCandidate.url, {
       id: candidate.id,
       title: typeof candidate.title === 'string' ? candidate.title : '',
+      faviconUrl:
+        typeof (candidate as { faviconUrl?: unknown }).faviconUrl === 'string'
+          ? (candidate as { faviconUrl?: string }).faviconUrl
+          : '',
     });
   }
 

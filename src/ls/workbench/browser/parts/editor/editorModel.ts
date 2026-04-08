@@ -563,6 +563,10 @@ function sanitizeBrowserTabPageTitle(
   return tabUrl.trim() === EMPTY_BROWSER_TAB_URL ? '' : normalizedPageTitle;
 }
 
+function sanitizeBrowserTabFaviconUrl(value: unknown) {
+  return String(value ?? '').trim();
+}
+
 function resolveBrowserTabTitleFromSource(
   tab: EditorWorkspaceBrowserTab,
   titleSource: BrowserTabTitleSource,
@@ -919,7 +923,15 @@ export class EditorModel {
       : hasDerivedContentTabTitle(activeTab)
         ? getEditorContentTabTitle(normalizedUrl)
         : activeTab.title;
-    if (activeTab.url === normalizedUrl && activeTab.title === nextTitle) {
+    const hasFaviconToReset =
+      isEditorBrowserTabInput(activeTab) &&
+      activeTab.url !== normalizedUrl &&
+      Boolean(sanitizeBrowserTabFaviconUrl(activeTab.faviconUrl));
+    if (
+      activeTab.url === normalizedUrl &&
+      activeTab.title === nextTitle &&
+      !hasFaviconToReset
+    ) {
       return;
     }
 
@@ -929,11 +941,25 @@ export class EditorModel {
         // When the shared web content view navigates while a content tab owns it, update that tab's
         // input so the tab title/url stay consistent with the visible editor content.
         tab.id === group.activeTabId && !isEditorDraftTabInput(tab)
-          ? {
-              ...tab,
-              url: normalizedUrl,
-              title: nextTitle,
-            }
+          ? isEditorBrowserTabInput(tab)
+            ? (() => {
+                const nextBrowserTab: EditorWorkspaceBrowserTab = {
+                  ...tab,
+                  url: normalizedUrl,
+                  title: nextTitle,
+                };
+                if (tab.url === normalizedUrl) {
+                  return nextBrowserTab;
+                }
+                const { faviconUrl: _ignoredFavicon, ...tabWithoutFavicon } =
+                  nextBrowserTab;
+                return tabWithoutFavicon;
+              })()
+            : {
+                ...tab,
+                url: normalizedUrl,
+                title: nextTitle,
+              }
           : tab,
       ),
     }));
@@ -978,6 +1004,41 @@ export class EditorModel {
           ? {
               ...tab,
               title: normalizedPageTitle,
+            }
+          : tab,
+      ),
+    }));
+  };
+
+  readonly updateActiveBrowserTabFaviconUrl = (faviconUrl: string) => {
+    const activeGroup = resolveActiveGroup(this.workspaceState);
+    const activeTab = resolveActiveTab(activeGroup);
+    if (!activeTab || !isEditorBrowserTabInput(activeTab)) {
+      return;
+    }
+
+    if (activeTab.url.trim() === EMPTY_BROWSER_TAB_URL) {
+      return;
+    }
+
+    const normalizedFaviconUrl = sanitizeBrowserTabFaviconUrl(faviconUrl);
+    if (!normalizedFaviconUrl) {
+      return;
+    }
+
+    if (
+      sanitizeBrowserTabFaviconUrl(activeTab.faviconUrl) === normalizedFaviconUrl
+    ) {
+      return;
+    }
+
+    this.updateActiveGroupState((group) => ({
+      ...group,
+      tabs: group.tabs.map((tab) =>
+        tab.id === group.activeTabId && isEditorBrowserTabInput(tab)
+          ? {
+              ...tab,
+              faviconUrl: normalizedFaviconUrl,
             }
           : tab,
       ),

@@ -198,7 +198,7 @@ const zh = {
   editorToolbarClearBrowsingHistory: '清除浏览历史',
   editorToolbarClearCookies: '清除 Cookies',
   editorToolbarClearCache: '清除缓存',
-  editorToolbarSourcesRecent: '最近浏览',
+  editorToolbarSourcesRecent: '今日',
   editorToolbarSourcesFavorites: '收藏',
   editorToolbarSourcesEmpty: '暂无收藏或历史记录',
   editorTitle: '写作工作台',

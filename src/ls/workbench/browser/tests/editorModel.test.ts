@@ -555,6 +555,65 @@ test('editor model clears browser tab title for about:blank and ignores about:bl
   }
 });
 
+test('editor model stores favicon per browser tab and resets favicon when url changes', () => {
+  const model = createEditorModel({
+    groups: [
+      {
+        groupId: DEFAULT_EDITOR_GROUP_ID,
+        tabs: [
+          {
+            id: 'browser-a',
+            kind: 'browser',
+            title: 'example.com/article-a',
+            url: 'https://example.com/article-a',
+          },
+          {
+            id: 'browser-b',
+            kind: 'browser',
+            title: 'example.com/article-b',
+            url: 'https://example.com/article-b',
+          },
+        ],
+        activeTabId: 'browser-a',
+        mruTabIds: ['browser-a', 'browser-b'],
+      },
+    ],
+    activeGroupId: DEFAULT_EDITOR_GROUP_ID,
+    viewStateEntries: [],
+  });
+
+  try {
+    model.updateActiveBrowserTabFaviconUrl('https://example.com/a.ico');
+    let snapshot = model.getSnapshot();
+    const tabA = snapshot.tabs.find((tab) => tab.id === 'browser-a');
+    const tabB = snapshot.tabs.find((tab) => tab.id === 'browser-b');
+    assert(tabA && tabA.kind === 'browser');
+    assert(tabB && tabB.kind === 'browser');
+    assert.equal(tabA.faviconUrl, 'https://example.com/a.ico');
+    assert.equal(tabB.faviconUrl ?? '', '');
+
+    model.activateTab('browser-b');
+    model.updateActiveBrowserTabFaviconUrl('https://example.com/b.ico');
+    snapshot = model.getSnapshot();
+    const nextTabA = snapshot.tabs.find((tab) => tab.id === 'browser-a');
+    const nextTabB = snapshot.tabs.find((tab) => tab.id === 'browser-b');
+    assert(nextTabA && nextTabA.kind === 'browser');
+    assert(nextTabB && nextTabB.kind === 'browser');
+    assert.equal(nextTabA.faviconUrl, 'https://example.com/a.ico');
+    assert.equal(nextTabB.faviconUrl, 'https://example.com/b.ico');
+
+    model.activateTab('browser-a');
+    model.updateActiveContentTabUrl('https://example.com/next');
+    snapshot = model.getSnapshot();
+    const movedTabA = snapshot.tabs.find((tab) => tab.id === 'browser-a');
+    assert(movedTabA && movedTabA.kind === 'browser');
+    assert.equal(movedTabA.url, 'https://example.com/next');
+    assert.equal(movedTabA.faviconUrl ?? '', '');
+  } finally {
+    model.dispose();
+  }
+});
+
 test('editor model tracks dirty draft tabs against explicit save checkpoints', () => {
   const model = createEditorModel({
     groups: [

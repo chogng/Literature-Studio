@@ -23,6 +23,8 @@ import type { Disposable } from 'ls/workbench/contrib/workbench/workbench.contri
 const DEFAULT_WEB_CONTENT_TARGET_ID = '__shared__';
 const WEB_CONTENT_BRIDGE_KEY = '__lsWebContentBridge';
 const WEB_CONTENT_ROOT_ID = 'ls-webcontent-root';
+const MAX_RETAINED_WEB_CONTENT_TARGETS = 2;
+const RETAINED_WEB_CONTENT_TARGET_TTL_MS = 3 * 60 * 1000;
 
 type WebContentLayoutSnapshot = {
   visible: boolean;
@@ -43,6 +45,15 @@ type WebContentTargetSnapshot = Pick<
   | 'canGoForward'
   | 'isLoading'
 >;
+
+type WebContentTargetMetadataPhase = 'idle' | 'loading' | 'ready';
+
+type WebContentTargetMetadataMachine = {
+  phase: WebContentTargetMetadataPhase;
+  comparableUrl: string;
+  pendingPageTitle: string;
+  pendingFaviconUrl: string;
+};
 
 type ManagedWebviewElement = HTMLElement & {
   canGoBack?: () => boolean;
@@ -69,11 +80,16 @@ type ManagedWebviewEntry = {
   domReady: boolean;
   domReadyPromise: Promise<void>;
   hasCommittedNavigation: boolean;
+  metadataMachine: WebContentTargetMetadataMachine;
   rejectDomReady: (error?: unknown) => void;
   resolveDomReady: () => void;
   state: WebContentTargetSnapshot;
   targetId: string;
   webview: ManagedWebviewElement;
+};
+
+type RetainedTargetEntry = {
+  releasedAt: number;
 };
 
 type BridgeExecuteTimeout = {
@@ -83,6 +99,7 @@ type BridgeExecuteTimeout = {
 type WebContentDomBridge = {
   activateTarget: (targetId?: string | null) => Promise<WebContentState>;
   clearHistory: (targetId?: string | null) => Promise<WebContentState>;
+  disposeTarget: (targetId?: string | null) => Promise<void>;
   executeJavaScript: (
     targetId: string | null | undefined,
     script: string,
@@ -195,6 +212,30 @@ function createDefaultTargetSnapshot(): WebContentTargetSnapshot {
     canGoBack: false,
     canGoForward: false,
     isLoading: false,
+  };
+}
+
+function sanitizeWebContentFaviconUrl(value: unknown) {
+  return String(value ?? '').trim();
+}
+
+function resolveWebContentTargetMetadataPhase(
+  comparableUrl: string,
+  isLoading: boolean,
+): WebContentTargetMetadataPhase {
+  if (!comparableUrl || isWebContentFailureUrl(comparableUrl)) {
+    return 'idle';
+  }
+
+  return isLoading ? 'loading' : 'ready';
+}
+
+function createDefaultTargetMetadataMachine(): WebContentTargetMetadataMachine {
+  return {
+    phase: 'idle',
+    comparableUrl: '',
+    pendingPageTitle: '',
+    pendingFaviconUrl: '',
   };
 }
 
@@ -379,12 +420,15 @@ class WebContentDomManager {
   private surfaceBounds: WebContentLayoutSnapshot['bounds'] = null;
   private surfaceVisible = false;
   private readonly targetEntries = new Map<string, ManagedWebviewEntry>();
+  private readonly retainedTargetEntries = new Map<string, RetainedTargetEntry>();
+  private retentionSweepTimer: number | null = null;
   private readonly bridge: WebContentDomBridge;
 
   constructor() {
     this.bridge = {
       activateTarget: (targetId) => this.activateTarget(targetId),
       clearHistory: (targetId) => this.clearHistory(targetId),
+      disposeTarget: (targetId) => this.disposeTargetImmediately(targetId),
       executeJavaScript: (targetId, script, timeoutMs) =>
         this.executeTargetScript(targetId, script, timeoutMs),
       getState: (targetId) => this.getState(targetId),
@@ -405,6 +449,8 @@ class WebContentDomManager {
       delete rendererWindow[WEB_CONTENT_BRIDGE_KEY];
     }
 
+    this.clearRetentionSweepTimer();
+    this.retainedTargetEntries.clear();
     for (const targetId of [...this.targetEntries.keys()]) {
       this.disposeTarget(targetId);
     }
@@ -412,6 +458,100 @@ class WebContentDomManager {
     this.targetEntries.clear();
     this.rootElement?.remove();
     this.rootElement = null;
+  }
+
+  private clearRetentionSweepTimer() {
+    if (this.retentionSweepTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.retentionSweepTimer);
+    this.retentionSweepTimer = null;
+  }
+
+  private scheduleRetentionSweep(nextSweepDelayMs: number | null) {
+    this.clearRetentionSweepTimer();
+    if (nextSweepDelayMs === null || this.retainedTargetEntries.size === 0) {
+      return;
+    }
+
+    this.retentionSweepTimer = window.setTimeout(() => {
+      this.retentionSweepTimer = null;
+      this.sweepReleasedTargets(Date.now());
+    }, nextSweepDelayMs);
+  }
+
+  private markTargetAsRetained(targetId: string, now = Date.now()) {
+    if (
+      targetId === DEFAULT_WEB_CONTENT_TARGET_ID ||
+      !this.targetEntries.has(targetId)
+    ) {
+      this.retainedTargetEntries.delete(targetId);
+      return;
+    }
+
+    this.retainedTargetEntries.set(targetId, { releasedAt: now });
+  }
+
+  private markTargetAsActive(targetId: string) {
+    this.retainedTargetEntries.delete(targetId);
+  }
+
+  private sweepReleasedTargets(now = Date.now()) {
+    this.retainedTargetEntries.delete(this.activeTargetId);
+
+    for (const targetId of [...this.retainedTargetEntries.keys()]) {
+      if (!this.targetEntries.has(targetId)) {
+        this.retainedTargetEntries.delete(targetId);
+      }
+    }
+
+    const evictedTargetIds: string[] = [];
+    for (const [targetId, retentionEntry] of this.retainedTargetEntries) {
+      if (now - retentionEntry.releasedAt < RETAINED_WEB_CONTENT_TARGET_TTL_MS) {
+        continue;
+      }
+
+      evictedTargetIds.push(targetId);
+    }
+
+    if (this.retainedTargetEntries.size - evictedTargetIds.length > MAX_RETAINED_WEB_CONTENT_TARGETS) {
+      const overflowCount =
+        this.retainedTargetEntries.size -
+        evictedTargetIds.length -
+        MAX_RETAINED_WEB_CONTENT_TARGETS;
+      if (overflowCount > 0) {
+        const overflowEvictions = [...this.retainedTargetEntries.entries()]
+          .filter(([targetId]) => !evictedTargetIds.includes(targetId))
+          .sort(
+            ([, left], [, right]) =>
+              left.releasedAt - right.releasedAt,
+          )
+          .slice(0, overflowCount)
+          .map(([targetId]) => targetId);
+        evictedTargetIds.push(...overflowEvictions);
+      }
+    }
+
+    if (evictedTargetIds.length > 0) {
+      for (const targetId of evictedTargetIds) {
+        this.retainedTargetEntries.delete(targetId);
+        this.disposeTarget(targetId);
+      }
+    }
+
+    let nextSweepDelayMs: number | null = null;
+    for (const retentionEntry of this.retainedTargetEntries.values()) {
+      const delayMs = Math.max(
+        0,
+        retentionEntry.releasedAt + RETAINED_WEB_CONTENT_TARGET_TTL_MS - now,
+      );
+      nextSweepDelayMs =
+        nextSweepDelayMs === null ? delayMs : Math.min(nextSweepDelayMs, delayMs);
+    }
+
+    this.scheduleRetentionSweep(nextSweepDelayMs);
+    this.syncDomPlacement();
   }
 
   setSurfaceState(
@@ -589,6 +729,7 @@ class WebContentDomManager {
       domReady: false,
       domReadyPromise: Promise.resolve(),
       hasCommittedNavigation: false,
+      metadataMachine: createDefaultTargetMetadataMachine(),
       rejectDomReady: (_error?: unknown) => {},
       resolveDomReady: () => {},
       state: createDefaultTargetSnapshot(),
@@ -607,7 +748,6 @@ class WebContentDomManager {
       'did-finish-load',
       'did-navigate',
       'did-navigate-in-page',
-      'page-title-updated',
       'dom-ready',
       'did-fail-load',
     ];
@@ -621,19 +761,25 @@ class WebContentDomManager {
       webview,
       'page-favicon-updated',
       (event: Event) => {
-        const faviconUrl = resolveWebContentFaviconUrl(event);
-        if ((entry.state.faviconUrl ?? '') === faviconUrl) {
+        const faviconUrl = sanitizeWebContentFaviconUrl(
+          resolveWebContentFaviconUrl(event),
+        );
+        if (!faviconUrl) {
           return;
         }
 
-        entry.state = {
-          ...entry.state,
-          faviconUrl,
-        };
-
-        if (normalizedTargetId === this.activeTargetId) {
-          this.reportActiveState();
+        if (
+          entry.metadataMachine.pendingFaviconUrl === faviconUrl &&
+          sanitizeWebContentFaviconUrl(entry.state.faviconUrl) === faviconUrl
+        ) {
+          return;
         }
+
+        entry.metadataMachine = {
+          ...entry.metadataMachine,
+          pendingFaviconUrl: faviconUrl,
+        };
+        syncState();
       },
     );
     entry.cleanup.push(() => faviconUpdatedDisposable.dispose());
@@ -642,22 +788,23 @@ class WebContentDomManager {
       webview,
       'page-title-updated',
       (event: Event) => {
-        const pageTitle = sanitizeWebContentPageTitle(
-          resolveWebContentPageTitle(event),
-          entry.state.url ?? '',
-        );
-        if ((entry.state.pageTitle ?? '') === pageTitle) {
+        const pageTitle = resolveWebContentPageTitle(event);
+        if (!pageTitle) {
           return;
         }
 
-        entry.state = {
-          ...entry.state,
-          pageTitle,
-        };
-
-        if (normalizedTargetId === this.activeTargetId) {
-          this.reportActiveState();
+        if (
+          entry.metadataMachine.pendingPageTitle === pageTitle &&
+          String(entry.state.pageTitle ?? '').trim() === pageTitle
+        ) {
+          return;
         }
+
+        entry.metadataMachine = {
+          ...entry.metadataMachine,
+          pendingPageTitle: pageTitle,
+        };
+        syncState();
       },
     );
     entry.cleanup.push(() => pageTitleUpdatedDisposable.dispose());
@@ -687,6 +834,7 @@ class WebContentDomManager {
 
   private disposeTarget(targetId?: string | null) {
     const normalizedTargetId = normalizeWebContentTargetId(targetId);
+    this.retainedTargetEntries.delete(normalizedTargetId);
     const entry = this.targetEntries.get(normalizedTargetId);
     if (!entry) {
       return;
@@ -717,26 +865,71 @@ class WebContentDomManager {
     let nextState = createDefaultTargetSnapshot();
     try {
       const previousState = entry.state;
+      const previousMetadataMachine = entry.metadataMachine;
       const nextUrl = String(entry.webview.getURL?.() ?? '').trim();
-      const previousUrl = String(previousState.url ?? '').trim();
       const nextComparableUrl = normalizeComparableWebContentUrl(nextUrl);
-      const previousComparableUrl = normalizeComparableWebContentUrl(previousUrl);
+      const nextIsLoading = Boolean(entry.webview.isLoading?.());
       const isNavigationTargetChanged =
-        Boolean(nextComparableUrl) &&
-        Boolean(previousComparableUrl) &&
-        nextComparableUrl !== previousComparableUrl;
+        nextComparableUrl !== previousMetadataMachine.comparableUrl;
+
+      const nextMetadataPhase = resolveWebContentTargetMetadataPhase(
+        nextComparableUrl,
+        nextIsLoading,
+      );
+      const pendingPageTitle = isNavigationTargetChanged
+        ? ''
+        : sanitizeWebContentPageTitle(
+            previousMetadataMachine.pendingPageTitle,
+            nextUrl,
+          );
+      const pendingFaviconUrl = isNavigationTargetChanged
+        ? ''
+        : sanitizeWebContentFaviconUrl(
+            previousMetadataMachine.pendingFaviconUrl,
+          );
+      const sampledPageTitle = sanitizeWebContentPageTitle(
+        String(entry.webview.getTitle?.() ?? '').trim(),
+        nextUrl,
+      );
+      const previousPageTitle = isNavigationTargetChanged
+        ? ''
+        : String(previousState.pageTitle ?? '').trim();
+      const previousFaviconUrl = isNavigationTargetChanged
+        ? ''
+        : sanitizeWebContentFaviconUrl(previousState.faviconUrl);
+      const canApplyPendingPageTitle =
+        Boolean(pendingPageTitle) &&
+        !nextIsLoading &&
+        (!sampledPageTitle || sampledPageTitle === pendingPageTitle);
+      const canApplyPendingFaviconUrl =
+        Boolean(pendingFaviconUrl) &&
+        !nextIsLoading;
+      const resolvedPageTitle = canApplyPendingPageTitle
+        ? pendingPageTitle
+        : !nextIsLoading && sampledPageTitle
+          ? sampledPageTitle
+          : previousPageTitle;
+      const resolvedFaviconUrl = canApplyPendingFaviconUrl
+        ? pendingFaviconUrl
+        : previousFaviconUrl;
+
+      entry.metadataMachine = {
+        phase: nextMetadataPhase,
+        comparableUrl: nextComparableUrl,
+        pendingPageTitle: canApplyPendingPageTitle ? '' : pendingPageTitle,
+        pendingFaviconUrl: canApplyPendingFaviconUrl ? '' : pendingFaviconUrl,
+      };
       nextState = {
         url: nextUrl,
-        pageTitle: isNavigationTargetChanged ? '' : (previousState.pageTitle ?? ''),
-        faviconUrl: isNavigationTargetChanged ? '' : (previousState.faviconUrl ?? ''),
+        pageTitle: resolvedPageTitle,
+        faviconUrl: resolvedFaviconUrl,
         canGoBack: Boolean(entry.webview.canGoBack?.()),
         canGoForward: Boolean(entry.webview.canGoForward?.()),
-        isLoading: Boolean(entry.webview.isLoading?.()),
+        isLoading: nextIsLoading,
       };
-      const nextPageTitle = String(entry.webview.getTitle?.() ?? '').trim();
-      nextState.pageTitle = sanitizeWebContentPageTitle(nextPageTitle, nextUrl);
     } catch {
       nextState = createDefaultTargetSnapshot();
+      entry.metadataMachine = createDefaultTargetMetadataMachine();
     }
 
     entry.state = nextState;
@@ -788,6 +981,7 @@ class WebContentDomManager {
   private async activateTarget(targetId?: string | null) {
     const normalizedTargetId = normalizeWebContentTargetId(targetId);
     this.ensureTargetEntry(normalizedTargetId);
+    this.markTargetAsActive(normalizedTargetId);
     this.activeTargetId = normalizedTargetId;
     this.syncDomPlacement();
     await this.syncTargetState(normalizedTargetId);
@@ -800,6 +994,23 @@ class WebContentDomManager {
       return;
     }
 
+    if (this.activeTargetId === normalizedTargetId) {
+      this.activeTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
+    }
+    this.markTargetAsRetained(normalizedTargetId);
+    this.sweepReleasedTargets(Date.now());
+
+    this.syncDomPlacement();
+    this.reportActiveState();
+  }
+
+  private async disposeTargetImmediately(targetId?: string | null) {
+    const normalizedTargetId = normalizeWebContentTargetId(targetId);
+    if (normalizedTargetId === DEFAULT_WEB_CONTENT_TARGET_ID) {
+      return;
+    }
+
+    this.retainedTargetEntries.delete(normalizedTargetId);
     this.disposeTarget(normalizedTargetId);
     if (this.activeTargetId === normalizedTargetId) {
       this.activeTargetId = DEFAULT_WEB_CONTENT_TARGET_ID;
@@ -825,6 +1036,7 @@ class WebContentDomManager {
     const resolvedUrl = coerceWebviewNavigationUrl(url);
     const normalizedTargetId = normalizeWebContentTargetId(targetId);
     const entry = this.ensureTargetEntry(normalizedTargetId);
+    this.markTargetAsActive(normalizedTargetId);
     this.activeTargetId = normalizedTargetId;
     this.syncDomPlacement();
     await this.syncTargetState(normalizedTargetId);
@@ -835,6 +1047,7 @@ class WebContentDomManager {
       entry.webview.setAttribute('src', 'about:blank');
       entry.state = createDefaultTargetSnapshot();
       entry.state.url = 'about:blank';
+      entry.metadataMachine = createDefaultTargetMetadataMachine();
       this.reportActiveState();
       return this.buildState(normalizedTargetId);
     }
@@ -918,6 +1131,7 @@ class WebContentDomManager {
   private async reload(targetId?: string | null) {
     const normalizedTargetId = normalizeWebContentTargetId(targetId);
     const entry = this.ensureTargetEntry(normalizedTargetId);
+    this.markTargetAsActive(normalizedTargetId);
     this.activeTargetId = normalizedTargetId;
     this.syncDomPlacement();
     entry.webview.reload?.();
@@ -928,6 +1142,7 @@ class WebContentDomManager {
   private async hardReload(targetId?: string | null) {
     const normalizedTargetId = normalizeWebContentTargetId(targetId);
     const entry = this.ensureTargetEntry(normalizedTargetId);
+    this.markTargetAsActive(normalizedTargetId);
     this.activeTargetId = normalizedTargetId;
     this.syncDomPlacement();
     entry.webview.reloadIgnoringCache?.();
@@ -938,6 +1153,7 @@ class WebContentDomManager {
   private async clearHistory(targetId?: string | null) {
     const normalizedTargetId = normalizeWebContentTargetId(targetId);
     const entry = this.ensureTargetEntry(normalizedTargetId);
+    this.markTargetAsActive(normalizedTargetId);
     this.activeTargetId = normalizedTargetId;
     this.syncDomPlacement();
     entry.webview.clearHistory?.();
@@ -948,6 +1164,7 @@ class WebContentDomManager {
   private async goBack(targetId?: string | null) {
     const normalizedTargetId = normalizeWebContentTargetId(targetId);
     const entry = this.ensureTargetEntry(normalizedTargetId);
+    this.markTargetAsActive(normalizedTargetId);
     this.activeTargetId = normalizedTargetId;
     this.syncDomPlacement();
     if (entry.webview.canGoBack?.()) {
@@ -960,6 +1177,7 @@ class WebContentDomManager {
   private async goForward(targetId?: string | null) {
     const normalizedTargetId = normalizeWebContentTargetId(targetId);
     const entry = this.ensureTargetEntry(normalizedTargetId);
+    this.markTargetAsActive(normalizedTargetId);
     this.activeTargetId = normalizedTargetId;
     this.syncDomPlacement();
     if (entry.webview.canGoForward?.()) {
