@@ -849,7 +849,12 @@ class WorkbenchHost {
     webContentNavigationModel: WebContentNavigationModel;
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
-    updateActiveContentTabUrl: (url: string) => void;
+    updateActiveContentTabUrl: (
+      url: string,
+      options?: {
+        isLoading?: boolean;
+      },
+    ) => void;
     updateActiveBrowserTabPageTitle: (pageTitle: string) => void;
     updateActiveBrowserTabFaviconUrl: (faviconUrl: string) => void;
   }) {
@@ -933,7 +938,9 @@ class WorkbenchHost {
         this.previousActiveContentTabId,
       )
     ) {
-      updateActiveContentTabUrl(browserUrl);
+      updateActiveContentTabUrl(browserUrl, {
+        isLoading: webContentState.isLoading,
+      });
     }
 
     if (
@@ -1018,7 +1025,12 @@ class WorkbenchHost {
     webContentNavigationModel: WebContentNavigationModel;
     webContentSurfaceSnapshot: WebContentSurfaceSnapshot;
     navigateToAddressBarUrl: (nextUrl: string, showToast?: boolean) => boolean;
-    updateActiveContentTabUrl: (url: string) => void;
+    updateActiveContentTabUrl: (
+      url: string,
+      options?: {
+        isLoading?: boolean;
+      },
+    ) => void;
     updateActiveBrowserTabPageTitle: (pageTitle: string) => void;
     updateActiveBrowserTabFaviconUrl: (faviconUrl: string) => void;
   }) {

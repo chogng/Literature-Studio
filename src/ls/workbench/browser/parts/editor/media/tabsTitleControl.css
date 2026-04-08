@@ -1,7 +1,6 @@
 :root {
   --editor-tabs-strip-height: 26px;
-  --editor-tab-min-width: 40px;
-  --editor-tab-max-width: 280px;
+  --editor-tab-fixed-width: 180px;
 }
 
 .editor-tabs-scroll-host.horizontal-scrollbar-host {
@@ -35,8 +34,9 @@
   align-items: stretch;
   flex: 0 0 auto;
   height: var(--editor-tabs-strip-height);
-  min-width: var(--editor-tab-min-width);
-  max-width: var(--editor-tab-max-width);
+  width: var(--editor-tab-fixed-width);
+  min-width: var(--editor-tab-fixed-width);
+  max-width: var(--editor-tab-fixed-width);
   border-radius: 6px;
   background: transparent;
   overflow: hidden;
@@ -182,6 +182,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -222,6 +223,7 @@
 }
 
 .editor-tab-label-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -253,7 +255,7 @@
 }
 
 @media (max-width: 760px) {
-  .editor-tab {
-    max-width: 180px;
+  :root {
+    --editor-tab-fixed-width: 120px;
   }
 }

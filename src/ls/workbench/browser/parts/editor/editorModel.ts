@@ -891,8 +891,14 @@ export class EditorModel {
     );
   };
 
-  readonly updateActiveContentTabUrl = (url: string) => {
+  readonly updateActiveContentTabUrl = (
+    url: string,
+    options: {
+      isLoading?: boolean;
+    } = {},
+  ) => {
     const normalizedUrl = url.trim();
+    const isLoading = Boolean(options.isLoading);
     const activeGroup = resolveActiveGroup(this.workspaceState);
     const activeTab = resolveActiveTab(activeGroup);
     if (!activeTab || isEditorDraftTabInput(activeTab)) {
@@ -912,11 +918,21 @@ export class EditorModel {
             ...activeTab,
             url: normalizedUrl,
           } as EditorWorkspaceBrowserTab;
-          const resolvedTitle = resolveBrowserTabTitleFromSource(nextTab, nextTitleSource);
+          // Prevent label jitter while native webview navigates/redirects: keep the
+          // current tab title until loading settles or a new page-title arrives.
+          const shouldKeepCurrentTitleDuringNavigation =
+            nextTitleSource === 'auto-url' &&
+            Boolean(activeTab.title.trim()) &&
+            (metadata.titleSource === 'auto-page' || isLoading);
+          const resolvedTitle = shouldKeepCurrentTitleDuringNavigation
+            ? activeTab.title
+            : resolveBrowserTabTitleFromSource(nextTab, nextTitleSource);
 
           this.browserTabMetadataById.set(activeTab.id, {
             titleSource: nextTitleSource,
-            lastPageTitle: '',
+            lastPageTitle: shouldKeepCurrentTitleDuringNavigation
+              ? sanitizeBrowserTabPageTitle(activeTab.title, normalizedUrl)
+              : '',
           });
           return resolvedTitle;
         })()

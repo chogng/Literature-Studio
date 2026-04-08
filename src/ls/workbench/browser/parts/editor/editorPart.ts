@@ -426,8 +426,13 @@ export class EditorPartController {
 
   readonly saveActiveDraft = () => this.editorModel.saveActiveDraft();
 
-  readonly updateActiveContentTabUrl = (url: string) => {
-    this.editorModel.updateActiveContentTabUrl(url);
+  readonly updateActiveContentTabUrl = (
+    url: string,
+    options: {
+      isLoading?: boolean;
+    } = {},
+  ) => {
+    this.editorModel.updateActiveContentTabUrl(url, options);
   };
 
   readonly updateActiveBrowserTabPageTitle = (pageTitle: string) => {
