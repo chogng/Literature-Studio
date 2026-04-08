@@ -78,7 +78,7 @@ function buildSelect(options: readonly SelectOption[], value: string, focusKey: 
     {},
     {
       useCustomDrawn: true,
-      className: `settings-native-select ${className}`.trim(),
+      className: `settings-select-trigger ${className}`.trim(),
     },
   );
   const host = el('div');
