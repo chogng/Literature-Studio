@@ -1,5 +1,6 @@
 import {
   createActionBarView,
+  type ActionBarItem,
   type ActionBarMenuItem,
 } from 'ls/base/browser/ui/actionbar/actionbar';
 import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dropdownActionViewItem';
@@ -14,6 +15,9 @@ const ADD_MENU_EMPTY_LABEL = 'No matching actions';
 
 export type EditorTopbarActionsViewProps = {
   isEditorCollapsed: boolean;
+  isAgentSidebarVisible?: boolean;
+  showAgentSidebarToggle?: boolean;
+  agentSidebarToggleLabel?: string;
   labels: Pick<
     EditorPartLabels,
     | 'topbarAddAction'
@@ -27,6 +31,7 @@ export type EditorTopbarActionsViewProps = {
   onCreateBrowserTab: () => void;
   onCreatePdfTab: () => void;
   onToggleEditorCollapse: () => void;
+  onToggleAgentSidebar?: () => void;
 };
 
 export class EditorTopbarActionsView {
@@ -92,41 +97,55 @@ export class EditorTopbarActionsView {
   }
 
   private render() {
+    const actionItems: ActionBarItem[] = [
+      createDropdownMenuActionViewItem({
+        label: this.props.labels.topbarAddAction,
+        title: this.props.labels.topbarAddAction,
+        content: createLxIcon('add'),
+        buttonClassName: 'editor-topbar-add-btn',
+        overlayAlignment: 'end',
+        menuData: EDITOR_TOPBAR_ADD_MENU_DATA,
+        menu: this.createAddMenuItems(''),
+        menuHeader: createFilterMenuHeader({
+          placeholder: ADD_MENU_SEARCH_PLACEHOLDER,
+          ariaLabel: ADD_MENU_SEARCH_ARIA_LABEL,
+          getMenuItems: (query) => this.createAddMenuItems(query),
+        }),
+      }),
+    ];
+    if (this.props.showAgentSidebarToggle && this.props.agentSidebarToggleLabel) {
+      actionItems.push({
+        label: this.props.agentSidebarToggleLabel,
+        title: this.props.agentSidebarToggleLabel,
+        mode: 'icon' as const,
+        buttonClassName: 'editor-topbar-agent-btn',
+        content: createLxIcon(
+          this.props.isAgentSidebarVisible ? 'agent-filled' : 'agent',
+        ),
+        onClick: () => this.props.onToggleAgentSidebar?.(),
+      });
+    }
+    actionItems.push({
+      label: this.props.isEditorCollapsed
+        ? this.props.labels.expandEditor
+        : this.props.labels.collapseEditor,
+      title: this.props.isEditorCollapsed
+        ? this.props.labels.expandEditor
+        : this.props.labels.collapseEditor,
+      mode: 'icon' as const,
+      buttonClassName: 'editor-topbar-toggle-editor-btn',
+      content: createLxIcon(
+        this.props.isEditorCollapsed
+          ? 'layout-sidebar-right-off'
+          : 'layout-sidebar-right',
+      ),
+      onClick: this.props.onToggleEditorCollapse,
+    });
+
     this.actionsView.setProps({
       className: 'sidebar-topbar-actions',
       ariaRole: 'group',
-      items: [
-        createDropdownMenuActionViewItem({
-          label: this.props.labels.topbarAddAction,
-          title: this.props.labels.topbarAddAction,
-          content: createLxIcon('add'),
-          buttonClassName: 'editor-topbar-add-btn',
-          overlayAlignment: 'end',
-          menuData: EDITOR_TOPBAR_ADD_MENU_DATA,
-          menu: this.createAddMenuItems(''),
-          menuHeader: createFilterMenuHeader({
-            placeholder: ADD_MENU_SEARCH_PLACEHOLDER,
-            ariaLabel: ADD_MENU_SEARCH_ARIA_LABEL,
-            getMenuItems: (query) => this.createAddMenuItems(query),
-          }),
-        }),
-        {
-          label: this.props.isEditorCollapsed
-            ? this.props.labels.expandEditor
-            : this.props.labels.collapseEditor,
-          title: this.props.isEditorCollapsed
-            ? this.props.labels.expandEditor
-            : this.props.labels.collapseEditor,
-          mode: 'icon',
-          buttonClassName: 'editor-topbar-toggle-editor-btn',
-          content: createLxIcon(
-            this.props.isEditorCollapsed
-              ? 'layout-sidebar-right-off'
-              : 'layout-sidebar-right',
-          ),
-          onClick: this.props.onToggleEditorCollapse,
-        },
-      ],
+      items: actionItems,
     });
   }
 }

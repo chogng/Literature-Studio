@@ -30,6 +30,27 @@
   user-select: none;
 }
 
+.primarybar-topbar-actions-host {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  padding-right: 8px;
+}
+
+.primarybar-topbar-leading,
+.primarybar-topbar-trailing {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+}
+
+.primarybar-topbar-trailing {
+  margin-left: auto;
+}
+
 .primarybar-footer {
   display: flex;
   align-items: center;

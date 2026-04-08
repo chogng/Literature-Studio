@@ -386,10 +386,6 @@ export class WorkbenchLayoutView {
 
     this.props.partViews.setLayoutState({
       isEditorCollapsed: this.props.isEditorCollapsed,
-      mountPrimarySidebarActionsInAgentBar:
-        this.props.isAgentSidebarVisible && !this.props.isPrimarySidebarVisible,
-      mountEditorActionsInAgentBar:
-        this.props.isAgentSidebarVisible && this.props.isEditorCollapsed,
       onToggleEditorCollapse: this.handleToggleEditorCollapse,
     });
     this.primarySidebarSlot.setContent(this.props.partViews.getPrimarySidebarElement());
@@ -579,6 +575,9 @@ class WorkbenchHost {
     | null = null;
   private readonly auxiliaryEditorTopbarActionsView = createEditorTopbarActionsView({
     isEditorCollapsed: true,
+    isAgentSidebarVisible: false,
+    showAgentSidebarToggle: true,
+    agentSidebarToggleLabel: '',
     labels: {
       topbarAddAction: '',
       createDraft: '',
@@ -591,6 +590,7 @@ class WorkbenchHost {
     onCreateBrowserTab: () => {},
     onCreatePdfTab: () => {},
     onToggleEditorCollapse: toggleEditorCollapsed,
+    onToggleAgentSidebar: () => {},
   });
   private readonly sidebarTopbarActionsView = new SidebarTopbarActionsView();
   private readonly settingsTopbarActionsView = createSettingsTopbarActionsView({
@@ -1081,13 +1081,9 @@ class WorkbenchHost {
     agentBarProps: AgentBarPartProps;
     sidebarTopbarActionsProps: {
       isPrimarySidebarVisible: boolean;
-      isAgentSidebarVisible: boolean;
       primarySidebarToggleLabel: string;
-      agentSidebarToggleLabel: string;
       addressBarLabel: string;
-      showAgentSidebarToggle: boolean;
       onTogglePrimarySidebar: () => void;
-      onToggleAgentSidebar: () => void;
       onFocusAddressBar: () => void;
     };
     onOpenSettings: () => void;
@@ -1669,6 +1665,11 @@ class WorkbenchHost {
     };
     this.auxiliaryEditorTopbarActionsView.setProps({
       isEditorCollapsed: true,
+      isAgentSidebarVisible,
+      showAgentSidebarToggle: true,
+      agentSidebarToggleLabel: isAgentSidebarVisible
+        ? ui.titlebarHideAssistant
+        : ui.titlebarShowAssistant,
       labels: {
         topbarAddAction: contentAwareEditorPartProps.labels.topbarAddAction,
         createDraft: contentAwareEditorPartProps.labels.createDraft,
@@ -1681,6 +1682,7 @@ class WorkbenchHost {
       onCreateBrowserTab: contentAwareEditorPartProps.onCreateBrowserTab,
       onCreatePdfTab: contentAwareEditorPartProps.onCreatePdfTab,
       onToggleEditorCollapse: toggleEditorCollapsed,
+      onToggleAgentSidebar: toggleAgentSidebarVisibility,
     });
 
     const handleBatchFetchStart = () => {
@@ -1932,17 +1934,11 @@ class WorkbenchHost {
     });
     const sidebarTopbarActionsProps = {
       isPrimarySidebarVisible,
-      isAgentSidebarVisible,
       primarySidebarToggleLabel: isPrimarySidebarVisible
         ? ui.titlebarHidePrimarySidebar
         : ui.titlebarShowPrimarySidebar,
-      agentSidebarToggleLabel: isAgentSidebarVisible
-        ? ui.titlebarHideAssistant
-        : ui.titlebarShowAssistant,
       addressBarLabel: ui.agentbarToolbarAddressBar,
-      showAgentSidebarToggle: isPrimarySidebarVisible,
       onTogglePrimarySidebar: togglePrimarySidebarVisibility,
-      onToggleAgentSidebar: toggleAgentSidebarVisibility,
       onFocusAddressBar: focusWorkbenchWebUrlInput,
     };
 
@@ -2143,7 +2139,15 @@ class WorkbenchHost {
         },
         editorTopbarAuxiliaryActionsElement:
           this.auxiliaryEditorTopbarActionsView.getElement(),
-        editorPartProps: contentAwareEditorPartProps,
+        editorPartProps: {
+          ...contentAwareEditorPartProps,
+          isAgentSidebarVisible,
+          showAgentSidebarToggle: true,
+          agentSidebarToggleLabel: isAgentSidebarVisible
+            ? ui.titlebarHideAssistant
+            : ui.titlebarShowAssistant,
+          onToggleAgentSidebar: toggleAgentSidebarVisibility,
+        },
       });
     } else {
       this.renderSettingsPage({

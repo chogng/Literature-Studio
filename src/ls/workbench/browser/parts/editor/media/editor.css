@@ -37,6 +37,10 @@
   -webkit-app-region: drag;
 }
 
+.editor-topbar.has-leading-window-controls-inset {
+  padding-left: calc(8px + var(--editor-topbar-leading-window-controls-width, 0px));
+}
+
 .editor-topbar-tabs {
   flex: 1;
   min-width: 0;
@@ -55,6 +59,10 @@
 
 .editor-topbar-actions .sidebar-topbar-actions {
   margin-left: 0;
+}
+
+.editor-topbar-actions .sidebar-topbar-actions-host {
+  padding-inline-start: 0;
 }
 
 .editor-toolbar {

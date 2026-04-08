@@ -101,6 +101,12 @@ export type EditorPartBaseProps = {
   showTopbarToolbar?: boolean;
   isEditorCollapsed?: boolean;
   onToggleEditorCollapse?: () => void;
+  isAgentSidebarVisible?: boolean;
+  showAgentSidebarToggle?: boolean;
+  agentSidebarToggleLabel?: string;
+  onToggleAgentSidebar?: () => void;
+  topbarAuxiliaryActionsElements?: readonly HTMLElement[];
+  hasLeadingWindowControlsInset?: boolean;
   onStatusChange?: (status: EditorStatusState) => void;
 };
 

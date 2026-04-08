@@ -5,13 +5,9 @@ import 'ls/workbench/browser/parts/sidebar/media/sidebarTopbarActions.css';
 
 export type SidebarTopbarActionsProps = {
   isPrimarySidebarVisible?: boolean;
-  isAgentSidebarVisible?: boolean;
   primarySidebarToggleLabel?: string;
-  agentSidebarToggleLabel?: string;
   addressBarLabel?: string;
-  showAgentSidebarToggle?: boolean;
   onTogglePrimarySidebar?: () => void;
-  onToggleAgentSidebar?: () => void;
   onFocusAddressBar?: () => void;
 };
 
@@ -58,22 +54,6 @@ export class SidebarTopbarActionsView {
             : 'layout-sidebar-left',
         ),
         onClick: () => props.onTogglePrimarySidebar?.(),
-      });
-    }
-    if (
-      props.showAgentSidebarToggle &&
-      props.onToggleAgentSidebar &&
-      props.agentSidebarToggleLabel
-    ) {
-      topbarItems.push({
-        label: props.agentSidebarToggleLabel,
-        title: props.agentSidebarToggleLabel,
-        mode: 'icon',
-        buttonClassName: 'sidebar-topbar-agent-btn',
-        content: createLxIcon(
-          props.isAgentSidebarVisible ? 'agent-filled' : 'agent',
-        ),
-        onClick: () => props.onToggleAgentSidebar?.(),
       });
     }
     if (props.addressBarLabel) {

@@ -18,6 +18,21 @@ import {
   setStatusbarCommandHandlers,
   updateStatusbarState,
 } from 'ls/workbench/browser/parts/statusbar/statusbarActions';
+import {
+  resolveTopbarActionRoute,
+  type TopbarActionRoute,
+} from 'ls/workbench/browser/topbarActionRouter';
+
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className?: string,
+) {
+  const element = document.createElement(tagName);
+  if (className) {
+    element.className = className;
+  }
+  return element;
+}
 
 export type WorkbenchContentPartViewsProps = {
   mode?: 'content' | 'settings';
@@ -36,8 +51,6 @@ export type WorkbenchContentPartViewsProps = {
 
 export type WorkbenchContentPartViewsLayoutState = {
   isEditorCollapsed: boolean;
-  mountPrimarySidebarActionsInAgentBar: boolean;
-  mountEditorActionsInAgentBar: boolean;
   onToggleEditorCollapse: () => void;
 };
 
@@ -48,16 +61,30 @@ export class WorkbenchContentPartViews {
   private agentBarView: AgentBarPartView | null = null;
   private editorView: ReturnType<typeof createEditorPartView> | null = null;
   private retiredEditorView: ReturnType<typeof createEditorPartView> | null = null;
+  private readonly primaryTopbarActionsHost = createElement(
+    'div',
+    'primarybar-topbar-actions-host',
+  );
+  private readonly primaryTopbarLeadingActionsHost = createElement(
+    'div',
+    'primarybar-topbar-leading',
+  );
+  private readonly primaryTopbarTrailingActionsHost = createElement(
+    'div',
+    'primarybar-topbar-trailing',
+  );
   private disposed = false;
 
   constructor(props: WorkbenchContentPartViewsProps) {
     this.props = props;
     this.layoutState = {
       isEditorCollapsed: false,
-      mountPrimarySidebarActionsInAgentBar: false,
-      mountEditorActionsInAgentBar: false,
       onToggleEditorCollapse: () => {},
     };
+    this.primaryTopbarActionsHost.append(
+      this.primaryTopbarLeadingActionsHost,
+      this.primaryTopbarTrailingActionsHost,
+    );
     this.render();
   }
 
@@ -136,13 +163,14 @@ export class WorkbenchContentPartViews {
   }
 
   private render() {
+    const topbarActionRoute = this.resolveTopbarActionRoute();
     initializeStatusbarState(this.props.editorPartProps.labels.status);
-    this.renderPrimarySidebar();
-    this.renderEditor();
-    this.renderAgentBar();
+    this.renderPrimarySidebar(topbarActionRoute);
+    this.renderEditor(topbarActionRoute);
+    this.renderAgentBar(topbarActionRoute);
   }
 
-  private renderPrimarySidebar() {
+  private renderPrimarySidebar(topbarActionRoute: TopbarActionRoute) {
     if (!this.props.isPrimarySidebarVisible) {
       this.primaryBarView?.dispose();
       this.primaryBarView = null;
@@ -152,9 +180,7 @@ export class WorkbenchContentPartViews {
     const topbarActionsElement =
       this.props.mode === 'settings'
         ? (this.props.settingsTopbarActionsElement ?? null)
-        : this.layoutState.mountPrimarySidebarActionsInAgentBar
-          ? null
-          : this.props.sidebarTopbarActionsElement;
+        : this.resolvePrimaryTopbarActionsElement(topbarActionRoute);
     const nextProps: PrimaryBarProps = {
       ...this.props.primaryBarProps,
       mode: this.props.mode === 'settings' ? 'settings' : 'content',
@@ -174,7 +200,42 @@ export class WorkbenchContentPartViews {
     this.primaryBarView.setProps(nextProps);
   }
 
-  private renderEditor() {
+  private resolvePrimaryTopbarActionsElement(
+    topbarActionRoute: TopbarActionRoute,
+  ): HTMLElement | null {
+    const leadingElement =
+      topbarActionRoute.sidebarTarget === 'primary'
+        ? this.props.sidebarTopbarActionsElement
+        : null;
+    const trailingElement =
+      topbarActionRoute.editorAuxiliaryTarget === 'primary'
+        ? (this.props.editorTopbarAuxiliaryActionsElement ?? null)
+        : null;
+
+    if (!leadingElement && !trailingElement) {
+      this.syncTopbarSlot(this.primaryTopbarLeadingActionsHost, null);
+      this.syncTopbarSlot(this.primaryTopbarTrailingActionsHost, null);
+      return null;
+    }
+
+    if (!trailingElement) {
+      this.syncTopbarSlot(this.primaryTopbarLeadingActionsHost, null);
+      this.syncTopbarSlot(this.primaryTopbarTrailingActionsHost, null);
+      return leadingElement;
+    }
+
+    if (!leadingElement || leadingElement === trailingElement) {
+      this.syncTopbarSlot(this.primaryTopbarLeadingActionsHost, null);
+      this.syncTopbarSlot(this.primaryTopbarTrailingActionsHost, null);
+      return trailingElement;
+    }
+
+    this.syncTopbarSlot(this.primaryTopbarLeadingActionsHost, leadingElement);
+    this.syncTopbarSlot(this.primaryTopbarTrailingActionsHost, trailingElement);
+    return this.primaryTopbarActionsHost;
+  }
+
+  private renderEditor(topbarActionRoute: TopbarActionRoute) {
     if (this.props.mode === 'settings') {
       this.retiredEditorView = this.editorView;
       this.retiredEditorView?.dispose();
@@ -183,12 +244,34 @@ export class WorkbenchContentPartViews {
       return;
     }
 
+    const topbarAuxiliaryActionsElements: HTMLElement[] = [];
+    const topbarActionSources = {
+      sidebar: this.props.sidebarTopbarActionsElement,
+      editorAuxiliary: this.props.editorTopbarAuxiliaryActionsElement ?? null,
+    } as const;
+    for (const source of topbarActionRoute.editorActionOrder) {
+      const target =
+        source === 'sidebar'
+          ? topbarActionRoute.sidebarTarget
+          : topbarActionRoute.editorAuxiliaryTarget;
+      if (target !== 'editor') {
+        continue;
+      }
+      const element = topbarActionSources[source];
+      if (element && !topbarAuxiliaryActionsElements.includes(element)) {
+        topbarAuxiliaryActionsElements.push(element);
+      }
+    }
+
     const nextProps: EditorPartProps = {
       ...this.props.editorPartProps,
       showTopbarActions: !this.layoutState.isEditorCollapsed,
       showTopbarToolbar: !this.layoutState.isEditorCollapsed,
       isEditorCollapsed: this.layoutState.isEditorCollapsed,
       onToggleEditorCollapse: this.layoutState.onToggleEditorCollapse,
+      topbarAuxiliaryActionsElements,
+      hasLeadingWindowControlsInset:
+        !this.props.isPrimarySidebarVisible && !this.props.isAgentSidebarVisible,
       onStatusChange: this.handleEditorStatusChange,
     };
 
@@ -201,7 +284,7 @@ export class WorkbenchContentPartViews {
     this.syncStatusbarCommandHandlers();
   }
 
-  private renderAgentBar() {
+  private renderAgentBar(topbarActionRoute: TopbarActionRoute) {
     if (this.props.mode === 'settings') {
       this.agentBarView?.dispose();
       this.agentBarView = null;
@@ -217,10 +300,10 @@ export class WorkbenchContentPartViews {
     const nextProps: AgentBarPartProps = {
       ...this.props.agentBarProps,
       isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
-      topbarActionsElement: this.layoutState.mountPrimarySidebarActionsInAgentBar
+      topbarActionsElement: topbarActionRoute.sidebarTarget === 'agent'
         ? this.props.sidebarTopbarActionsElement
         : null,
-      topbarTrailingActionsElement: this.layoutState.mountEditorActionsInAgentBar
+      topbarTrailingActionsElement: topbarActionRoute.editorAuxiliaryTarget === 'agent'
         ? (this.props.editorTopbarAuxiliaryActionsElement ?? null)
         : null,
     };
@@ -246,6 +329,29 @@ export class WorkbenchContentPartViews {
         this.editorView?.runActiveDraftEditorAction('redo');
       },
     });
+  }
+
+  private resolveTopbarActionRoute() {
+    return resolveTopbarActionRoute({
+      mode: this.props.mode,
+      isPrimarySidebarVisible: this.props.isPrimarySidebarVisible,
+      isAgentSidebarVisible: this.props.isAgentSidebarVisible,
+      isEditorCollapsed: this.layoutState.isEditorCollapsed,
+    });
+  }
+
+  private syncTopbarSlot(slotElement: HTMLElement, element: HTMLElement | null) {
+    const currentElement = slotElement.firstElementChild;
+    if (element) {
+      if (currentElement !== element) {
+        slotElement.replaceChildren(element);
+      }
+      return;
+    }
+
+    if (currentElement) {
+      slotElement.replaceChildren();
+    }
   }
 }
 

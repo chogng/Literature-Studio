@@ -190,7 +190,11 @@ function resolveOrientationFromWidth(width: number) {
 function normalizeEditorCollapseState(
   state: WorkbenchLayoutStateSnapshot,
 ) {
-  if (!state.isAgentSidebarVisible && state.isEditorCollapsed) {
+  if (
+    !state.isPrimarySidebarVisible &&
+    !state.isAgentSidebarVisible &&
+    state.isEditorCollapsed
+  ) {
     return {
       ...state,
       isEditorCollapsed: false,
@@ -230,17 +234,17 @@ function reduceWorkbenchLayoutState(
     }
     case 'SET_PRIMARY_SIDEBAR_VISIBLE':
       if (state.isPrimarySidebarVisible === event.visible) {
-        return state;
+        return normalizeEditorCollapseState(state);
       }
-      return {
+      return normalizeEditorCollapseState({
         ...state,
         isPrimarySidebarVisible: event.visible,
-      };
+      });
     case 'TOGGLE_PRIMARY_SIDEBAR_VISIBILITY':
-      return {
+      return normalizeEditorCollapseState({
         ...state,
         isPrimarySidebarVisible: !state.isPrimarySidebarVisible,
-      };
+      });
     case 'SET_PRIMARY_SIDEBAR_SIZE': {
       const nextSize = clampSidebarSize('primaryBar', event.size);
       if (state.primarySidebarSize === nextSize) {

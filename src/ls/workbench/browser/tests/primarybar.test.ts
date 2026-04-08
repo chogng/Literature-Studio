@@ -66,11 +66,8 @@ function createProps(): PrimaryBarProps {
 function createTopbarActionsProps(): SidebarTopbarActionsProps {
   return {
     isPrimarySidebarVisible: true,
-    isAgentSidebarVisible: false,
     primarySidebarToggleLabel: 'Hide primary sidebar',
-    agentSidebarToggleLabel: 'Show assistant',
     addressBarLabel: 'Address bar',
-    showAgentSidebarToggle: false,
   };
 }
 
@@ -135,49 +132,6 @@ test('primary bar topbar exposes an address bar action', () => {
     );
     assert(searchButton instanceof HTMLButtonElement);
     assert.equal(searchButton.getAttribute('aria-label'), 'Address bar');
-  } finally {
-    primaryBar.dispose();
-    topbarActionsView.dispose();
-  }
-});
-
-test('primary bar topbar can expose an agent sidebar toggle between primary toggle and address bar', () => {
-  let toggleAgentCount = 0;
-  const topbarActionsView = new SidebarTopbarActionsView({
-    ...createTopbarActionsProps(),
-    showAgentSidebarToggle: true,
-    onTogglePrimarySidebar: () => {},
-    onToggleAgentSidebar: () => {
-      toggleAgentCount += 1;
-    },
-  });
-  const primaryBar = createPrimaryBar({
-    ...createProps(),
-    topbarActionsElement: topbarActionsView.getElement(),
-  });
-  const element = primaryBar.getElement();
-  document.body.append(element);
-
-  try {
-    const topbarActions = Array.from(
-      element.querySelectorAll('.primarybar-topbar .actionbar-action'),
-    );
-    assert.equal(topbarActions.length, 3);
-    assert.equal(topbarActions[0]?.classList.contains('sidebar-topbar-toggle-btn'), true);
-    assert.equal(topbarActions[1]?.classList.contains('sidebar-topbar-agent-btn'), true);
-    assert.equal(topbarActions[2]?.classList.contains('sidebar-topbar-search-btn'), true);
-
-    const agentButton = element.querySelector(
-      '.primarybar-topbar .sidebar-topbar-agent-btn',
-    );
-    assert(agentButton instanceof HTMLButtonElement);
-    assert.equal(agentButton.getAttribute('aria-label'), 'Show assistant');
-    assert.equal(
-      agentButton.querySelector('.lx-icon')?.classList.contains('lx-icon-agent'),
-      true,
-    );
-    agentButton.click();
-    assert.equal(toggleAgentCount, 1);
   } finally {
     primaryBar.dispose();
     topbarActionsView.dispose();

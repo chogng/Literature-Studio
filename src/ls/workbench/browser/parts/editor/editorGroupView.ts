@@ -91,6 +91,11 @@ export type EditorGroupViewProps = {
   showTopbarToolbar?: boolean;
   isEditorCollapsed?: boolean;
   onToggleEditorCollapse?: () => void;
+  isAgentSidebarVisible?: boolean;
+  showAgentSidebarToggle?: boolean;
+  agentSidebarToggleLabel?: string;
+  onToggleAgentSidebar?: () => void;
+  topbarAuxiliaryActionsElements?: readonly HTMLElement[];
   hasLeadingWindowControlsInset?: boolean;
   onStatusChange?: (status: EditorStatusState) => void;
 };
@@ -360,6 +365,9 @@ export class EditorGroupView {
   private readonly actionsElement = createElement('div', 'editor-topbar-actions');
   private readonly topbarActionsView = createEditorTopbarActionsView({
     isEditorCollapsed: false,
+    isAgentSidebarVisible: false,
+    showAgentSidebarToggle: false,
+    agentSidebarToggleLabel: '',
     labels: {
       topbarAddAction: '',
       createDraft: '',
@@ -372,6 +380,7 @@ export class EditorGroupView {
     onCreateBrowserTab: () => {},
     onCreatePdfTab: () => {},
     onToggleEditorCollapse: () => {},
+    onToggleAgentSidebar: () => {},
   });
   private readonly modeToolbarHost: ReturnType<typeof createEditorModeToolbarHost>;
   private readonly titleAreaControl: TitleControl;
@@ -506,6 +515,9 @@ export class EditorGroupView {
     );
     this.topbarActionsView.setProps({
       isEditorCollapsed: Boolean(this.props.isEditorCollapsed),
+      isAgentSidebarVisible: Boolean(this.props.isAgentSidebarVisible),
+      showAgentSidebarToggle: Boolean(this.props.showAgentSidebarToggle),
+      agentSidebarToggleLabel: this.props.agentSidebarToggleLabel ?? '',
       labels: {
         topbarAddAction: this.props.labels.topbarAddAction,
         createDraft: this.props.labels.createDraft,
@@ -521,6 +533,7 @@ export class EditorGroupView {
       },
       onCreatePdfTab: this.props.onCreatePdfTab,
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
+      onToggleAgentSidebar: this.props.onToggleAgentSidebar,
     });
     this.browserLibraryPanel.setContext(this.createBrowserLibraryPanelContext(this.props));
     this.modeToolbarHost.setContext(createEditorModeToolbarContext({
@@ -530,6 +543,7 @@ export class EditorGroupView {
     this.syncToolbarMode(group.activeTab);
     this.syncTopbarActions(
       this.props.showTopbarActions ? this.topbarActionsView.getElement() : null,
+      this.props.topbarAuxiliaryActionsElements ?? [],
     );
 
     this.contentElement.className = 'editor-content';
@@ -638,18 +652,35 @@ export class EditorGroupView {
     this.focusPrimaryInput();
   }
 
-  private syncTopbarActions(topbarActionsElement: HTMLElement | null) {
-    const currentTopbarActionsElement = this.actionsElement.firstElementChild;
-    if (topbarActionsElement) {
-      if (currentTopbarActionsElement !== topbarActionsElement) {
-        this.actionsElement.replaceChildren(topbarActionsElement);
+  private syncTopbarActions(
+    topbarActionsElement: HTMLElement | null,
+    topbarAuxiliaryActionsElements: readonly HTMLElement[],
+  ) {
+    const nextTopbarActionsElements: HTMLElement[] = [];
+    for (const element of topbarAuxiliaryActionsElements) {
+      if (!element || nextTopbarActionsElements.includes(element)) {
+        continue;
       }
+      nextTopbarActionsElements.push(element);
+    }
+    if (
+      topbarActionsElement &&
+      !nextTopbarActionsElements.includes(topbarActionsElement)
+    ) {
+      nextTopbarActionsElements.push(topbarActionsElement);
+    }
+
+    const currentTopbarActionsElements = Array.from(this.actionsElement.children);
+    const hasSameOrder =
+      currentTopbarActionsElements.length === nextTopbarActionsElements.length &&
+      currentTopbarActionsElements.every(
+        (element, index) => element === nextTopbarActionsElements[index],
+      );
+    if (hasSameOrder) {
       return;
     }
 
-    if (currentTopbarActionsElement) {
-      this.actionsElement.replaceChildren();
-    }
+    this.actionsElement.replaceChildren(...nextTopbarActionsElements);
   }
 
   private syncTopbarToolbar(topbarToolbarElement: HTMLElement | null) {
