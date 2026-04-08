@@ -122,7 +122,7 @@ test('selectbox supports style() and setFocusable()', () => {
     assert.equal(selectBox.domNode.style.color, 'rgb(4, 5, 6)');
     assert.equal(selectBox.domNode.style.borderColor, 'rgb(7, 8, 9)');
     assert.equal(
-      selectBox.domNode.style.getPropertyValue('--monaco-select-focusBorder'),
+      selectBox.domNode.style.getPropertyValue('--ls-select-focusBorder'),
       'rgb(10, 11, 12)',
     );
 

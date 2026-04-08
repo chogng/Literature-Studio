@@ -19,7 +19,7 @@
 }
 
 .ls-select-box:focus {
-  outline: 2px solid var(--monaco-select-focusBorder, rgba(10, 95, 191, 0.22));
+  outline: 2px solid var(--ls-select-focusBorder, rgba(10, 95, 191, 0.22));
   border-color: var(--vscode-select-focusBorder, #0a5fbf);
 }
 
@@ -28,52 +28,10 @@
   opacity: 0.6;
 }
 
-.ls-select-box-custom {
-  cursor: default;
-}
-
 .actionbar .actionbar-item.ls-select-container {
   cursor: default;
 }
 
 .actionbar .actionbar-item .ls-select-box {
   min-width: 110px;
-}
-
-.ls-select-box-dropdown {
-  min-width: 100%;
-  max-height: min(280px, calc(100vh - 24px));
-  overflow: auto;
-  border: 1px solid var(--vscode-select-listBorder, var(--vscode-settings-inputBorder, #c9d7e6));
-  border-radius: 8px;
-  background: var(--vscode-select-listBackground, var(--vscode-settings-inputBackground, #fff));
-  color: var(--vscode-select-foreground, var(--vscode-settings-inputForeground, #203040));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  padding: 4px;
-  box-sizing: border-box;
-}
-
-.ls-select-box-option {
-  display: flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  font: inherit;
-  cursor: pointer;
-  user-select: none;
-}
-
-.ls-select-box-option.disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.ls-select-box-option.active:not(.disabled) {
-  background: var(--vscode-select-optionHoverBackground, rgba(10, 95, 191, 0.1));
-}
-
-.ls-select-box-option.selected:not(.disabled) {
-  background: var(--vscode-select-optionSelectedBackground, rgba(10, 95, 191, 0.16));
-  color: var(--vscode-select-optionSelectedForeground, var(--vscode-settings-inputForeground, #203040));
 }
