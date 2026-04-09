@@ -27,6 +27,7 @@ import {
 } from 'ls/workbench/services/document/documentActionService';
 import { syncLibraryMetadataFromArticle } from 'ls/workbench/services/knowledgeBase/libraryMetadataService';
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
+import type { EditorDraftStyleSettings } from 'ls/base/common/editorDraftStyle';
 
 export type DocumentActionsControllerContext = {
   desktopRuntime: boolean;
@@ -43,6 +44,7 @@ export type DocumentActionsControllerContext = {
   activeDraftExport: {
     title: string;
     document: WritingEditorDocument;
+    editorDraftStyle?: EditorDraftStyleSettings;
   } | null;
   onLibraryDocumentUpserted?: (document: LibraryDocumentSummary) => void;
   onLibraryUpdated?: () => void | Promise<void>;
@@ -311,6 +313,7 @@ export class DocumentActionsController {
       try {
         const result = await invokeDesktop('export_editor_docx', {
           document: activeDraftExport.document,
+          editorDraftStyle: activeDraftExport.editorDraftStyle,
           title: activeDraftExport.title,
           preferredDirectory: resolvePreferredDirectory(pdfDownloadDir),
           locale,

@@ -48,6 +48,8 @@ export class EditorDraftStyleService {
         fontFamilyValue: nextDefaultBodyStyle.fontFamilyValue,
         fontSizeValue: nextDefaultBodyStyle.fontSizeValue,
         lineHeight: nextDefaultBodyStyle.lineHeight,
+        paragraphSpacingBeforePt: nextDefaultBodyStyle.paragraphSpacingBeforePt,
+        paragraphSpacingAfterPt: nextDefaultBodyStyle.paragraphSpacingAfterPt,
         color: nextDefaultBodyStyle.color,
         inlineStyleDefaults: {
           bold: nextDefaultBodyStyle.inlineStyleDefaults.bold,

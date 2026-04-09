@@ -15,6 +15,10 @@ import {
   resolveEditorFontSize,
   resolvePrimaryFontFamily,
 } from 'ls/base/common/editorFormat';
+import {
+  normalizeEditorDraftStyleSettings,
+  type EditorDraftStyleSettings,
+} from 'ls/base/common/editorDraftStyle';
 import { buildDocxBuffer, escapeXml, type DocxContentTypeDefault, type DocxContentTypeOverride, type DocxRelationship, type ZipEntry } from 'ls/code/electron-main/document/docxPackage';
 import { defaultDocxExportConfig } from 'ls/code/electron-main/document/docxConfig';
 import { resolveDocxExportCopy } from 'ls/code/electron-main/document/docxCopy';
@@ -102,8 +106,15 @@ type ImageSourceData = {
 
 type BuildEditorDocxBufferOptions = {
   document: WritingEditorDocument;
+  editorDraftStyle?: EditorDraftStyleSettings;
   title?: string | null;
   locale?: SupportedLocale;
+};
+
+type ResolvedEditorDocxDraftStyle = {
+  paragraphLineSpacingTwips: number;
+  paragraphSpacingBeforeTwips: number;
+  paragraphSpacingAfterTwips: number;
 };
 
 const DOCX_RELATIONSHIP_TYPE_NUMBERING =
@@ -119,11 +130,42 @@ function pad(value: number) {
   return String(value).padStart(2, '0');
 }
 
-function createParagraphStyleDefaults(variant: EditorDocxParagraphBlock['variant']) {
+function ptToTwips(value: number) {
+  return Math.round(value * 20);
+}
+
+function resolveEditorDocxDraftStyle(
+  editorDraftStyle: EditorDraftStyleSettings | null | undefined,
+): ResolvedEditorDocxDraftStyle {
+  const normalizedStyle = normalizeEditorDraftStyleSettings(editorDraftStyle);
+  const paragraphSpec = getEditorTypographySpec('paragraph');
+  const paragraphFontSize =
+    resolveEditorFontSize(normalizedStyle.defaultBodyStyle.fontSizeValue)?.cssPx
+    ?? paragraphSpec.fontSizePx;
+
+  return {
+    paragraphLineSpacingTwips: cssPxToTwips(
+      paragraphFontSize * normalizedStyle.defaultBodyStyle.lineHeight,
+    ),
+    paragraphSpacingBeforeTwips: ptToTwips(
+      normalizedStyle.defaultBodyStyle.paragraphSpacingBeforePt,
+    ),
+    paragraphSpacingAfterTwips: ptToTwips(
+      normalizedStyle.defaultBodyStyle.paragraphSpacingAfterPt,
+    ),
+  };
+}
+
+function createParagraphStyleDefaults(
+  variant: EditorDocxParagraphBlock['variant'],
+  draftStyle?: ResolvedEditorDocxDraftStyle,
+) {
   const spec = getEditorTypographySpec(variant);
   return {
     fontSizeHalfPoints: cssPxToDocxHalfPoints(spec.fontSizePx),
-    lineSpacing: cssPxToTwips(spec.fontSizePx * spec.lineHeight),
+    lineSpacing: variant === 'paragraph' && draftStyle
+      ? draftStyle.paragraphLineSpacingTwips
+      : cssPxToTwips(spec.fontSizePx * spec.lineHeight),
     bold: spec.bold,
     color: spec.color,
   };
@@ -350,8 +392,11 @@ function buildParagraphPropertiesXml(
   return properties.length > 0 ? `<w:pPr>${properties.join('')}</w:pPr>` : '';
 }
 
-function buildParagraphBlockXml(block: EditorDocxParagraphBlock) {
-  const defaults = createParagraphStyleDefaults(block.variant);
+function buildParagraphBlockXml(
+  block: EditorDocxParagraphBlock,
+  draftStyle: ResolvedEditorDocxDraftStyle,
+) {
+  const defaults = createParagraphStyleDefaults(block.variant, draftStyle);
   const color = block.blockquoteDepth > 0 && block.variant === 'paragraph'
     ? EDITOR_LAYOUT_SPEC.blockquoteTextColor
     : defaults.color;
@@ -369,7 +414,10 @@ function buildParagraphBlockXml(block: EditorDocxParagraphBlock) {
     buildParagraphPropertiesXml(block, {
       spacingBefore: block.spacingBeforeTwips || undefined,
       lineSpacing: defaults.lineSpacing,
-      spacingAfter: 0,
+      spacingAfter:
+        block.variant === 'paragraph'
+          ? draftStyle.paragraphSpacingAfterTwips
+          : 0,
     }),
     paragraphRuns || '<w:r/>',
     '</w:p>',
@@ -446,6 +494,7 @@ function buildFigureTableXml(
   captionBlock: EditorDocxParagraphBlock | null,
   bookmarkName: string | null,
   bookmarkId: number | null,
+  draftStyle: ResolvedEditorDocxDraftStyle,
 ) {
   const borderSize = cssPxToBorderEighthPoints(EDITOR_LAYOUT_SPEC.figureBorderWidthPx);
   const cellPadding = cssPxToTwips(EDITOR_LAYOUT_SPEC.figurePaddingPx);
@@ -470,7 +519,7 @@ function buildFigureTableXml(
       bookmarkId,
       textAlign: 'left',
     }),
-    innerCaptionBlock ? buildParagraphBlockXml(innerCaptionBlock) : '',
+    innerCaptionBlock ? buildParagraphBlockXml(innerCaptionBlock, draftStyle) : '',
   ]
     .filter(Boolean)
     .join('');
@@ -658,9 +707,12 @@ function setBlockSpacingBefore(blocks: EditorDocxBlock[], spacingBeforeTwips: nu
   blocks[0].spacingBeforeTwips = spacingBeforeTwips;
 }
 
-function resolveSiblingSpacingBeforeTwips(containerKind: BlockContainerKind) {
+function resolveSiblingSpacingBeforeTwips(
+  containerKind: BlockContainerKind,
+  draftStyle: ResolvedEditorDocxDraftStyle,
+) {
   if (containerKind === 'doc') {
-    return cssPxToTwips(EDITOR_LAYOUT_SPEC.topLevelBlockGapPx);
+    return draftStyle.paragraphSpacingBeforeTwips;
   }
 
   if (containerKind === 'figure') {
@@ -675,15 +727,16 @@ function collectChildBlocks(
   derivedLabels: WritingEditorDerivedLabels,
   context: CollectBlocksContext,
   containerKind: BlockContainerKind,
+  draftStyle: ResolvedEditorDocxDraftStyle,
 ) {
   const blocks: EditorDocxBlock[] = [];
 
   parentNode.forEach((child, _offset, index) => {
-    const childBlocks = collectBlocks(child, derivedLabels, context);
+    const childBlocks = collectBlocks(child, derivedLabels, context, draftStyle);
     if (index > 0) {
       setBlockSpacingBefore(
         childBlocks,
-        resolveSiblingSpacingBeforeTwips(containerKind),
+        resolveSiblingSpacingBeforeTwips(containerKind, draftStyle),
       );
     }
     blocks.push(...childBlocks);
@@ -696,6 +749,7 @@ function collectBlocks(
   node: ProseMirrorNode,
   derivedLabels: WritingEditorDerivedLabels,
   context: CollectBlocksContext,
+  draftStyle: ResolvedEditorDocxDraftStyle,
 ): EditorDocxBlock[] {
   const variant = resolveParagraphVariant(node);
   if (variant) {
@@ -728,7 +782,13 @@ function collectBlocks(
         spacingBeforeTwips: 0,
       },
     ];
-    const figureChildBlocks = collectChildBlocks(node, derivedLabels, context, 'figure');
+    const figureChildBlocks = collectChildBlocks(
+      node,
+      derivedLabels,
+      context,
+      'figure',
+      draftStyle,
+    );
     setBlockSpacingBefore(
       figureChildBlocks,
       cssPxToTwips(EDITOR_LAYOUT_SPEC.figureContentGapPx),
@@ -746,6 +806,7 @@ function collectBlocks(
         blockquoteDepth: context.blockquoteDepth + 1,
       },
       'blockquote',
+      draftStyle,
     );
   }
 
@@ -756,10 +817,11 @@ function collectBlocks(
       context,
       node.type.name === 'bullet_list' ? 'bullet' : 'ordered',
       0,
+      draftStyle,
     );
   }
 
-  return collectChildBlocks(node, derivedLabels, context, 'doc');
+  return collectChildBlocks(node, derivedLabels, context, 'doc', draftStyle);
 }
 
 function applyListInfoToBlock(block: EditorDocxBlock, list: Omit<EditorDocxListInfo, 'continuation'>, continuation: boolean) {
@@ -777,6 +839,7 @@ function collectListBlocks(
   context: CollectBlocksContext,
   kind: EditorDocxListInfo['kind'],
   level: number,
+  draftStyle: ResolvedEditorDocxDraftStyle,
 ) {
   const blocks: EditorDocxBlock[] = [];
 
@@ -794,8 +857,9 @@ function collectListBlocks(
             context,
             child.type.name === 'bullet_list' ? 'bullet' : 'ordered',
             Math.min(level + 1, 8),
+            draftStyle,
           )
-        : collectBlocks(child, derivedLabels, context);
+        : collectBlocks(child, derivedLabels, context, draftStyle);
       for (const block of childBlocks) {
         if (block.kind === 'paragraph' || block.kind === 'image') {
           applyListInfoToBlock(
@@ -1124,7 +1188,11 @@ async function resolveEditorDocxImages(blocks: readonly EditorDocxBlock[]) {
   return images;
 }
 
-function buildDocumentXml(blocks: readonly EditorDocxBlock[], resolvedImages: readonly (ResolvedEditorDocxImage | null)[]) {
+function buildDocumentXml(
+  blocks: readonly EditorDocxBlock[],
+  resolvedImages: readonly (ResolvedEditorDocxImage | null)[],
+  draftStyle: ResolvedEditorDocxDraftStyle,
+) {
   const bodyParts: string[] = [];
   let docPrId = 1;
   let imageCursor = 0;
@@ -1133,7 +1201,7 @@ function buildDocumentXml(blocks: readonly EditorDocxBlock[], resolvedImages: re
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index];
     if (block.kind === 'paragraph') {
-      bodyParts.push(buildParagraphBlockXml(block));
+      bodyParts.push(buildParagraphBlockXml(block, draftStyle));
       continue;
     }
 
@@ -1152,6 +1220,7 @@ function buildDocumentXml(blocks: readonly EditorDocxBlock[], resolvedImages: re
         captionBlock,
         bookmarkName,
         bookmarkName ? bookmarkId : null,
+        draftStyle,
       ),
     );
     if (bookmarkName) {
@@ -1206,15 +1275,26 @@ export function buildEditorDocxFileName({
 
 export async function buildEditorDocxBuffer({
   document,
+  editorDraftStyle,
   title,
   locale = 'zh',
 }: BuildEditorDocxBufferOptions) {
   const normalizedDocument = normalizeWritingEditorDocument(document);
   const proseMirrorDocument = writingEditorSchema.nodeFromJSON(normalizedDocument);
   const derivedLabels = collectWritingEditorDerivedLabels(proseMirrorDocument);
-  const blocks = collectBlocks(proseMirrorDocument, derivedLabels, { blockquoteDepth: 0 });
+  const resolvedDraftStyle = resolveEditorDocxDraftStyle(editorDraftStyle);
+  const blocks = collectBlocks(
+    proseMirrorDocument,
+    derivedLabels,
+    { blockquoteDepth: 0 },
+    resolvedDraftStyle,
+  );
   const resolvedImages = await resolveEditorDocxImages(blocks);
-  const documentXml = buildDocumentXml(blocks, resolvedImages);
+  const documentXml = buildDocumentXml(
+    blocks,
+    resolvedImages,
+    resolvedDraftStyle,
+  );
   const copy = resolveDocxExportCopy(locale);
   const resolvedTitle = String(title ?? '').trim() || copy.untitled;
 

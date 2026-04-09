@@ -49,6 +49,8 @@ const en = {
   settingsTextEditorFontFamily: 'Font family',
   settingsTextEditorFontSize: 'Font size',
   settingsTextEditorLineHeight: 'Line height',
+  settingsTextEditorParagraphSpacingBefore: 'Paragraph before (pt)',
+  settingsTextEditorParagraphSpacingAfter: 'Paragraph after (pt)',
   settingsTextEditorColor: 'Text color',
   settingsTextEditorResetDefaultBodyStyle: 'Reset default body style',
   settingsPageUrl: 'Default batch fetch URLs',

@@ -1495,6 +1495,14 @@ class WorkbenchHost {
         ? {
             title: activeEditorTab.title,
             document: activeEditorTab.document,
+            editorDraftStyle: {
+              defaultBodyStyle: {
+                ...editorDraftStyleSnapshot.defaultBodyStyle,
+                inlineStyleDefaults: {
+                  ...editorDraftStyleSnapshot.defaultBodyStyle.inlineStyleDefaults,
+                },
+              },
+            },
           }
         : null;
 
@@ -2042,6 +2050,10 @@ class WorkbenchHost {
           settingsControllerInstance.setEditorDraftFontSize,
         onEditorDraftLineHeightChange:
           settingsControllerInstance.setEditorDraftLineHeightFromInput,
+        onEditorDraftParagraphSpacingBeforeChange:
+          settingsControllerInstance.setEditorDraftParagraphSpacingBeforePtFromInput,
+        onEditorDraftParagraphSpacingAfterChange:
+          settingsControllerInstance.setEditorDraftParagraphSpacingAfterPtFromInput,
         onEditorDraftColorChange: settingsControllerInstance.setEditorDraftColor,
         onResetEditorDraftStyle:
           settingsControllerInstance.handleResetEditorDraftStyle,

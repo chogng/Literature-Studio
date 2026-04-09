@@ -322,6 +322,7 @@ export type WritingEditorTextUnitPayload =
 
 export interface ExportEditorDocxPayload {
   document?: WritingEditorDocumentPayload;
+  editorDraftStyle?: EditorDraftStyleSettings;
   title?: string | null;
   preferredDirectory?: string | null;
   locale?: Locale;

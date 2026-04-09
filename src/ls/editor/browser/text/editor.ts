@@ -585,6 +585,14 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
 
   private applyDraftStyleSnapshot() {
     const styleSnapshot = editorDraftStyleService.getSnapshot();
+    const paragraphSpacingBeforePt =
+      styleSnapshot.defaultBodyStyle.paragraphSpacingBeforePt;
+    const paragraphSpacingAfterPt =
+      styleSnapshot.defaultBodyStyle.paragraphSpacingAfterPt;
+    const paragraphSpacingBetweenPt = Math.max(
+      paragraphSpacingBeforePt,
+      paragraphSpacingAfterPt,
+    );
     this.editorRootElement.style.setProperty(
       '--ls-editor-default-color',
       styleSnapshot.defaultBodyStyle.color,
@@ -600,6 +608,18 @@ export class ProseMirrorEditor implements WritingEditorSurfaceHandle {
     this.editorRootElement.style.setProperty(
       '--ls-editor-default-font-size',
       styleSnapshot.defaultBodyStyle.fontSizeValue,
+    );
+    this.editorRootElement.style.setProperty(
+      '--ls-editor-default-paragraph-spacing-before',
+      `${paragraphSpacingBeforePt}pt`,
+    );
+    this.editorRootElement.style.setProperty(
+      '--ls-editor-default-paragraph-spacing-after',
+      `${paragraphSpacingAfterPt}pt`,
+    );
+    this.editorRootElement.style.setProperty(
+      '--ls-editor-default-paragraph-spacing-between',
+      `${paragraphSpacingBetweenPt}pt`,
     );
   }
 

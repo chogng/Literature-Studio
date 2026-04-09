@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { EDITOR_LAYOUT_SPEC, cssPxToTwips } from 'ls/base/common/editorFormat';
+import { createDefaultEditorDraftStyleSettings } from 'ls/base/common/editorDraftStyle';
 import { buildEditorDocxBuffer, buildEditorDocxFileName } from 'ls/code/electron-main/document/editorDocxSerializer';
 import type { WritingEditorDocument } from 'ls/editor/common/writingEditorDocument';
 
@@ -261,4 +262,48 @@ test('buildEditorDocxBuffer keeps list numbering when a list item starts with a 
     ),
   );
   assert.match(zipText, /List figure caption/);
+});
+
+test('buildEditorDocxBuffer applies editor draft paragraph spacing overrides', async () => {
+  const document: WritingEditorDocument = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        attrs: {
+          blockId: 'block_paragraph_spacing_1',
+          textAlign: null,
+        },
+        content: [{ type: 'text', text: 'Paragraph 1' }],
+      },
+      {
+        type: 'paragraph',
+        attrs: {
+          blockId: 'block_paragraph_spacing_2',
+          textAlign: null,
+        },
+        content: [{ type: 'text', text: 'Paragraph 2' }],
+      },
+    ],
+  };
+
+  const baseStyle = createDefaultEditorDraftStyleSettings().defaultBodyStyle;
+  const buffer = await buildEditorDocxBuffer({
+    document,
+    title: 'Spacing Draft',
+    locale: 'en',
+    editorDraftStyle: {
+      defaultBodyStyle: {
+        ...baseStyle,
+        fontSizeValue: '16px',
+        lineHeight: 1.5,
+        paragraphSpacingBeforePt: 8,
+        paragraphSpacingAfterPt: 12,
+      },
+    },
+  });
+  const zipText = buffer.toString('utf8');
+
+  assert.match(zipText, /<w:spacing w:after="240" w:line="360" w:lineRule="auto"\/>/);
+  assert.match(zipText, /<w:spacing w:before="160" w:after="240" w:line="360" w:lineRule="auto"\/>/);
 });

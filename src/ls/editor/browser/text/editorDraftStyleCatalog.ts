@@ -47,6 +47,8 @@ function freezeEditorDraftDefaultBodyStyle(
     fontFamilyValue: defaultBodyStyle.fontFamilyValue,
     fontSizeValue: defaultBodyStyle.fontSizeValue,
     lineHeight: defaultBodyStyle.lineHeight,
+    paragraphSpacingBeforePt: defaultBodyStyle.paragraphSpacingBeforePt,
+    paragraphSpacingAfterPt: defaultBodyStyle.paragraphSpacingAfterPt,
     color: defaultBodyStyle.color,
     inlineStyleDefaults: Object.freeze({
       bold: defaultBodyStyle.inlineStyleDefaults.bold,
@@ -70,6 +72,8 @@ export function normalizeEditorDraftStyleCatalogSnapshot(
     fontFamilyValue: defaultBodyStyle.fontFamilyValue,
     fontSizeValue: defaultBodyStyle.fontSizeValue,
     lineHeight: defaultBodyStyle.lineHeight,
+    paragraphSpacingBeforePt: defaultBodyStyle.paragraphSpacingBeforePt,
+    paragraphSpacingAfterPt: defaultBodyStyle.paragraphSpacingAfterPt,
     color: defaultBodyStyle.color,
     inlineStyleDefaults: {
       bold: defaultBodyStyle.inlineStyleDefaults.bold,

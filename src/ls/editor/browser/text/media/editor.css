@@ -204,7 +204,7 @@
 }
 
 .pm-editor-root .ProseMirror > * + * {
-  margin-top: 0.9em;
+  margin-top: var(--ls-editor-default-paragraph-spacing-between, 0.9em);
 }
 
 .pm-editor-root .ProseMirror > :last-child {

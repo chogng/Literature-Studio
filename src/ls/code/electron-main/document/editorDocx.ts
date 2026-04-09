@@ -49,6 +49,7 @@ export async function exportEditorDocx(
 
   return exportEditorDocumentToDocxFile({
     document: normalizeWritingEditorDocument(payload.document),
+    editorDraftStyle: payload.editorDraftStyle,
     title,
     filePath: result.filePath,
     locale,
@@ -60,8 +61,10 @@ export async function exportEditorDocumentToDocxFile({
   title,
   filePath,
   locale,
+  editorDraftStyle,
 }: {
   document: ExportEditorDocxPayload['document'];
+  editorDraftStyle?: ExportEditorDocxPayload['editorDraftStyle'];
   title: string;
   filePath: string;
   locale: ReturnType<typeof resolveSupportedLocale>;
@@ -72,6 +75,7 @@ export async function exportEditorDocumentToDocxFile({
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, await buildEditorDocxBuffer({
       document: normalizeWritingEditorDocument(document),
+      editorDraftStyle,
       title,
       locale,
     }));

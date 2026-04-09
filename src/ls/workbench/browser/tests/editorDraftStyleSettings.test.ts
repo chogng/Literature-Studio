@@ -26,6 +26,8 @@ test('SettingsController syncs editorDraftStyleService through load and autosave
             fontFamilyValue: '"Times New Roman", Times, serif',
             fontSizeValue: '16px',
             lineHeight: 1.6,
+            paragraphSpacingBeforePt: 10,
+            paragraphSpacingAfterPt: 6,
             color: '#112233',
             inlineStyleDefaults: {
               bold: false,
@@ -70,6 +72,14 @@ test('SettingsController syncs editorDraftStyleService through load and autosave
       editorDraftStyleService.getSnapshot().defaultBodyStyle.fontSizeValue,
       '16px',
     );
+    assert.equal(
+      editorDraftStyleService.getSnapshot().defaultBodyStyle.paragraphSpacingBeforePt,
+      10,
+    );
+    assert.equal(
+      editorDraftStyleService.getSnapshot().defaultBodyStyle.paragraphSpacingAfterPt,
+      6,
+    );
     assert.deepEqual(
       editorDraftStyleService.getSnapshot().fontFamilyPresets,
       initialSnapshot.fontFamilyPresets,
@@ -87,6 +97,8 @@ test('SettingsController syncs editorDraftStyleService through load and autosave
         fontFamilyValue: initialSnapshot.defaultBodyStyle.fontFamilyValue,
         fontSizeValue: initialSnapshot.defaultBodyStyle.fontSizeValue,
         lineHeight: initialSnapshot.defaultBodyStyle.lineHeight,
+        paragraphSpacingBeforePt: initialSnapshot.defaultBodyStyle.paragraphSpacingBeforePt,
+        paragraphSpacingAfterPt: initialSnapshot.defaultBodyStyle.paragraphSpacingAfterPt,
         color: initialSnapshot.defaultBodyStyle.color,
       },
     });
@@ -188,8 +200,12 @@ test('SettingsController editorDraft style handlers update service snapshot and 
     controller.setEditorDraftFontFamily('"Times New Roman", Times, serif');
     controller.setEditorDraftFontSize('16px');
     controller.setEditorDraftLineHeight(1.6);
+    controller.setEditorDraftParagraphSpacingBeforePt(14);
+    controller.setEditorDraftParagraphSpacingAfterPt(9);
     controller.setEditorDraftColor('#112233');
     controller.setEditorDraftLineHeightFromInput('1.');
+    controller.setEditorDraftParagraphSpacingBeforePtFromInput('14.5');
+    controller.setEditorDraftParagraphSpacingAfterPtFromInput('9.5');
 
     assert.equal(
       editorDraftStyleService.getSnapshot().defaultBodyStyle.fontFamilyValue,
@@ -204,11 +220,23 @@ test('SettingsController editorDraft style handlers update service snapshot and 
       1,
     );
     assert.equal(
+      editorDraftStyleService.getSnapshot().defaultBodyStyle.paragraphSpacingBeforePt,
+      14.5,
+    );
+    assert.equal(
+      editorDraftStyleService.getSnapshot().defaultBodyStyle.paragraphSpacingAfterPt,
+      9.5,
+    );
+    assert.equal(
       editorDraftStyleService.getSnapshot().defaultBodyStyle.color,
       '#112233',
     );
     controller.setEditorDraftLineHeightFromInput('.');
+    controller.setEditorDraftParagraphSpacingBeforePtFromInput('.');
+    controller.setEditorDraftParagraphSpacingAfterPtFromInput('.');
     assert.equal(editorDraftStyleService.getSnapshot().defaultBodyStyle.lineHeight, 1);
+    assert.equal(editorDraftStyleService.getSnapshot().defaultBodyStyle.paragraphSpacingBeforePt, 14.5);
+    assert.equal(editorDraftStyleService.getSnapshot().defaultBodyStyle.paragraphSpacingAfterPt, 9.5);
 
     controller.handleResetEditorDraftStyle();
 
@@ -224,6 +252,14 @@ test('SettingsController editorDraft style handlers update service snapshot and 
     assert.equal(
       editorDraftStyleService.getSnapshot().defaultBodyStyle.lineHeight,
       resetDefaults.lineHeight,
+    );
+    assert.equal(
+      editorDraftStyleService.getSnapshot().defaultBodyStyle.paragraphSpacingBeforePt,
+      resetDefaults.paragraphSpacingBeforePt,
+    );
+    assert.equal(
+      editorDraftStyleService.getSnapshot().defaultBodyStyle.paragraphSpacingAfterPt,
+      resetDefaults.paragraphSpacingAfterPt,
     );
     assert.equal(
       editorDraftStyleService.getSnapshot().defaultBodyStyle.color,

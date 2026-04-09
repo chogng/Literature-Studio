@@ -245,6 +245,58 @@ export class SettingsController {
     this.setEditorDraftLineHeight(parsedLineHeight);
   };
 
+  readonly setEditorDraftParagraphSpacingBeforePt = (nextParagraphSpacingBeforePt: number) => {
+    if (!Number.isFinite(nextParagraphSpacingBeforePt)) {
+      return;
+    }
+
+    const clampedSpacing = Math.min(200, Math.max(0, nextParagraphSpacingBeforePt));
+    this.updateEditorDraftDefaultBodyStyle((defaultBodyStyle) => ({
+      ...defaultBodyStyle,
+      paragraphSpacingBeforePt: clampedSpacing,
+    }));
+  };
+
+  readonly setEditorDraftParagraphSpacingBeforePtFromInput = (value: string) => {
+    const normalizedValue = value.trim();
+    if (!normalizedValue || normalizedValue === '.') {
+      return;
+    }
+
+    const parsedValue = Number.parseFloat(normalizedValue);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    this.setEditorDraftParagraphSpacingBeforePt(parsedValue);
+  };
+
+  readonly setEditorDraftParagraphSpacingAfterPt = (nextParagraphSpacingAfterPt: number) => {
+    if (!Number.isFinite(nextParagraphSpacingAfterPt)) {
+      return;
+    }
+
+    const clampedSpacing = Math.min(200, Math.max(0, nextParagraphSpacingAfterPt));
+    this.updateEditorDraftDefaultBodyStyle((defaultBodyStyle) => ({
+      ...defaultBodyStyle,
+      paragraphSpacingAfterPt: clampedSpacing,
+    }));
+  };
+
+  readonly setEditorDraftParagraphSpacingAfterPtFromInput = (value: string) => {
+    const normalizedValue = value.trim();
+    if (!normalizedValue || normalizedValue === '.') {
+      return;
+    }
+
+    const parsedValue = Number.parseFloat(normalizedValue);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    this.setEditorDraftParagraphSpacingAfterPt(parsedValue);
+  };
+
   readonly setEditorDraftColor = (nextColor: string) => {
     this.updateEditorDraftDefaultBodyStyle((defaultBodyStyle) => ({
       ...defaultBodyStyle,
@@ -261,6 +313,8 @@ export class SettingsController {
         fontFamilyValue: defaultBodyStyle.fontFamilyValue,
         fontSizeValue: defaultBodyStyle.fontSizeValue,
         lineHeight: defaultBodyStyle.lineHeight,
+        paragraphSpacingBeforePt: defaultBodyStyle.paragraphSpacingBeforePt,
+        paragraphSpacingAfterPt: defaultBodyStyle.paragraphSpacingAfterPt,
         color: defaultBodyStyle.color,
         inlineStyleDefaults: {
           bold: currentInlineDefaults.bold,
@@ -619,6 +673,8 @@ export class SettingsController {
       fontFamilyValue: snapshot.defaultBodyStyle.fontFamilyValue,
       fontSizeValue: snapshot.defaultBodyStyle.fontSizeValue,
       lineHeight: snapshot.defaultBodyStyle.lineHeight,
+      paragraphSpacingBeforePt: snapshot.defaultBodyStyle.paragraphSpacingBeforePt,
+      paragraphSpacingAfterPt: snapshot.defaultBodyStyle.paragraphSpacingAfterPt,
       color: snapshot.defaultBodyStyle.color,
       inlineStyleDefaults: {
         ...snapshot.defaultBodyStyle.inlineStyleDefaults,

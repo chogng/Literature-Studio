@@ -1,5 +1,6 @@
 import {
   DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
+  EDITOR_LAYOUT_SPEC,
   getEditorTypographySpec,
   resolveEditorFontSize,
 } from 'ls/base/common/editorFormat';
@@ -14,6 +15,8 @@ export type EditorDraftDefaultBodyStyle = {
   fontFamilyValue: string;
   fontSizeValue: string;
   lineHeight: number;
+  paragraphSpacingBeforePt: number;
+  paragraphSpacingAfterPt: number;
   color: string;
   inlineStyleDefaults: EditorDraftInlineStyleDefaults;
 };
@@ -25,7 +28,11 @@ export type EditorDraftStyleSettings = {
 export const DEFAULT_EDITOR_DRAFT_FONT_FAMILY_VALUE =
   '"等线", "DengXian", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif';
 const DEFAULT_EDITOR_DRAFT_PARAGRAPH_TYPOGRAPHY = getEditorTypographySpec('paragraph');
+const CSS_PIXEL_TO_POINT = 72 / 96;
 export const DEFAULT_EDITOR_DRAFT_BODY_COLOR = `#${DEFAULT_EDITOR_DRAFT_PARAGRAPH_TYPOGRAPHY.color}`;
+export const DEFAULT_EDITOR_DRAFT_PARAGRAPH_SPACING_BEFORE_PT =
+  Math.round(EDITOR_LAYOUT_SPEC.topLevelBlockGapPx * CSS_PIXEL_TO_POINT * 100) / 100;
+export const DEFAULT_EDITOR_DRAFT_PARAGRAPH_SPACING_AFTER_PT = 0;
 
 function normalizeEditorDraftFontFamilyValue(value: string) {
   const normalized = typeof value === 'string' ? value.trim() : '';
@@ -49,6 +56,14 @@ function normalizeEditorDraftLineHeight(value: number) {
     : DEFAULT_EDITOR_DRAFT_PARAGRAPH_TYPOGRAPHY.lineHeight;
 }
 
+function normalizeEditorDraftParagraphSpacingPt(value: number, fallbackValue: number) {
+  if (!Number.isFinite(value)) {
+    return fallbackValue;
+  }
+
+  return Math.min(200, Math.max(0, value));
+}
+
 function normalizeEditorDraftColor(value: string) {
   const normalized = typeof value === 'string' ? value.trim() : '';
   return normalized || DEFAULT_EDITOR_DRAFT_BODY_COLOR;
@@ -60,6 +75,8 @@ export function createDefaultEditorDraftStyleSettings(): EditorDraftStyleSetting
       fontFamilyValue: DEFAULT_EDITOR_DRAFT_FONT_FAMILY_VALUE,
       fontSizeValue: DEFAULT_EDITOR_BODY_FONT_SIZE_VALUE,
       lineHeight: DEFAULT_EDITOR_DRAFT_PARAGRAPH_TYPOGRAPHY.lineHeight,
+      paragraphSpacingBeforePt: DEFAULT_EDITOR_DRAFT_PARAGRAPH_SPACING_BEFORE_PT,
+      paragraphSpacingAfterPt: DEFAULT_EDITOR_DRAFT_PARAGRAPH_SPACING_AFTER_PT,
       color: DEFAULT_EDITOR_DRAFT_BODY_COLOR,
       inlineStyleDefaults: {
         bold: false,
@@ -78,6 +95,8 @@ export function cloneEditorDraftStyleSettings(
       fontFamilyValue: settings.defaultBodyStyle.fontFamilyValue,
       fontSizeValue: settings.defaultBodyStyle.fontSizeValue,
       lineHeight: settings.defaultBodyStyle.lineHeight,
+      paragraphSpacingBeforePt: settings.defaultBodyStyle.paragraphSpacingBeforePt,
+      paragraphSpacingAfterPt: settings.defaultBodyStyle.paragraphSpacingAfterPt,
       color: settings.defaultBodyStyle.color,
       inlineStyleDefaults: {
         bold: settings.defaultBodyStyle.inlineStyleDefaults.bold,
@@ -107,6 +126,14 @@ export function normalizeEditorDraftStyleSettings(
       fontFamilyValue: normalizeEditorDraftFontFamilyValue(defaultBodyStyle.fontFamilyValue),
       fontSizeValue: normalizeEditorDraftFontSizeValue(defaultBodyStyle.fontSizeValue),
       lineHeight: normalizeEditorDraftLineHeight(defaultBodyStyle.lineHeight),
+      paragraphSpacingBeforePt: normalizeEditorDraftParagraphSpacingPt(
+        defaultBodyStyle.paragraphSpacingBeforePt,
+        DEFAULT_EDITOR_DRAFT_PARAGRAPH_SPACING_BEFORE_PT,
+      ),
+      paragraphSpacingAfterPt: normalizeEditorDraftParagraphSpacingPt(
+        defaultBodyStyle.paragraphSpacingAfterPt,
+        DEFAULT_EDITOR_DRAFT_PARAGRAPH_SPACING_AFTER_PT,
+      ),
       color: normalizeEditorDraftColor(defaultBodyStyle.color),
       inlineStyleDefaults: {
         bold: Boolean(inlineStyleDefaults?.bold),
@@ -125,6 +152,8 @@ export function areEditorDraftStyleSettingsEqual(
     previous.defaultBodyStyle.fontFamilyValue === next.defaultBodyStyle.fontFamilyValue &&
     previous.defaultBodyStyle.fontSizeValue === next.defaultBodyStyle.fontSizeValue &&
     previous.defaultBodyStyle.lineHeight === next.defaultBodyStyle.lineHeight &&
+    previous.defaultBodyStyle.paragraphSpacingBeforePt === next.defaultBodyStyle.paragraphSpacingBeforePt &&
+    previous.defaultBodyStyle.paragraphSpacingAfterPt === next.defaultBodyStyle.paragraphSpacingAfterPt &&
     previous.defaultBodyStyle.color === next.defaultBodyStyle.color &&
     previous.defaultBodyStyle.inlineStyleDefaults.bold === next.defaultBodyStyle.inlineStyleDefaults.bold &&
     previous.defaultBodyStyle.inlineStyleDefaults.italic === next.defaultBodyStyle.inlineStyleDefaults.italic &&

@@ -48,6 +48,8 @@ const zh = {
   settingsTextEditorFontFamily: '字体',
   settingsTextEditorFontSize: '字号',
   settingsTextEditorLineHeight: '行高',
+  settingsTextEditorParagraphSpacingBefore: '段前间距 (pt)',
+  settingsTextEditorParagraphSpacingAfter: '段后间距 (pt)',
   settingsTextEditorColor: '文字颜色',
   settingsTextEditorResetDefaultBodyStyle: '恢复默认正文样式',
   settingsPageUrl: '默认批量抓取 URL',

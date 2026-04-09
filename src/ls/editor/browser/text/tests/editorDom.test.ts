@@ -490,6 +490,8 @@ test('ProseMirrorEditor syncs default body style from editorDraftStyleService', 
       fontFamilyValue: '"Times New Roman", Times, serif',
       fontSizeValue: '16px',
       lineHeight: 1.6,
+      paragraphSpacingBeforePt: 12,
+      paragraphSpacingAfterPt: 8,
       color: '#112233',
     },
   };
@@ -514,6 +516,21 @@ test('ProseMirrorEditor syncs default body style from editorDraftStyleService', 
         editorRoot.style.getPropertyValue('--ls-editor-default-color').trim(),
         catalogSnapshot.defaultBodyStyle.color,
       );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-paragraph-spacing-before').trim(),
+        `${catalogSnapshot.defaultBodyStyle.paragraphSpacingBeforePt}pt`,
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-paragraph-spacing-after').trim(),
+        `${catalogSnapshot.defaultBodyStyle.paragraphSpacingAfterPt}pt`,
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-paragraph-spacing-between').trim(),
+        `${Math.max(
+          catalogSnapshot.defaultBodyStyle.paragraphSpacingBeforePt,
+          catalogSnapshot.defaultBodyStyle.paragraphSpacingAfterPt,
+        )}pt`,
+      );
 
       editorDraftStyleService.setSnapshot(updatedSnapshot);
 
@@ -532,6 +549,21 @@ test('ProseMirrorEditor syncs default body style from editorDraftStyleService', 
       assert.equal(
         editorRoot.style.getPropertyValue('--ls-editor-default-color').trim(),
         updatedSnapshot.defaultBodyStyle.color,
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-paragraph-spacing-before').trim(),
+        `${updatedSnapshot.defaultBodyStyle.paragraphSpacingBeforePt}pt`,
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-paragraph-spacing-after').trim(),
+        `${updatedSnapshot.defaultBodyStyle.paragraphSpacingAfterPt}pt`,
+      );
+      assert.equal(
+        editorRoot.style.getPropertyValue('--ls-editor-default-paragraph-spacing-between').trim(),
+        `${Math.max(
+          updatedSnapshot.defaultBodyStyle.paragraphSpacingBeforePt,
+          updatedSnapshot.defaultBodyStyle.paragraphSpacingAfterPt,
+        )}pt`,
       );
 
       const fontSizePrimary = Array.from(
