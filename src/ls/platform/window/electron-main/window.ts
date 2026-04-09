@@ -71,6 +71,22 @@ function resolveWindowBackgroundMaterial(useMica: boolean) {
   return useMica ? ('mica' as const) : ('none' as const);
 }
 
+function resolveWindowVibrancy(useMica: boolean) {
+  if (process.platform !== 'darwin' || !useMica) {
+    return null;
+  }
+
+  return 'sidebar' as const;
+}
+
+function resolveMainWindowBackgroundColor(useMica: boolean) {
+  if (process.platform === 'darwin' && useMica) {
+    return '#00000000';
+  }
+
+  return '#edf2f8';
+}
+
 function resolveFramelessTitleBarStyle() {
   return process.platform === 'darwin' || process.platform === 'win32'
     ? ('hidden' as const)
@@ -83,6 +99,9 @@ function applyWindowBackgroundMaterial(window: BrowserWindow, useMica: boolean) 
   }
 
   window.setBackgroundMaterial(resolveWindowBackgroundMaterial(useMica));
+  if (process.platform === 'darwin') {
+    window.setVibrancy(resolveWindowVibrancy(useMica));
+  }
 }
 
 function publishWindowState(window: BrowserWindow) {
@@ -116,6 +135,7 @@ export function applyMainWindowBackgroundMaterial(
     return;
   }
 
+  window.setBackgroundColor(resolveMainWindowBackgroundColor(useMica));
   applyWindowBackgroundMaterial(window, useMica);
 
   for (const auxiliaryWindow of auxiliaryWindows) {
@@ -370,7 +390,7 @@ export function createMainWindow(options: { useMica?: boolean } = {}) {
     titleBarStyle: resolveFramelessTitleBarStyle(),
     titleBarOverlay: false,
     ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 13, y: 11 } } : {}),
-    backgroundColor: '#edf2f8',
+    backgroundColor: resolveMainWindowBackgroundColor(useMica),
     backgroundMaterial: resolveWindowBackgroundMaterial(useMica),
     autoHideMenuBar: true,
     webPreferences: {

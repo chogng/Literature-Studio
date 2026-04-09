@@ -1,8 +1,11 @@
 import { WORKBENCH_PART_IDS, registerWorkbenchPartDomNode } from 'ls/workbench/browser/layout';
 import { PrimaryBar } from 'ls/workbench/browser/parts/primarybar/primarybar';
 import type { PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybar';
+import { getWindowChromeLayout } from 'ls/platform/window/common/window';
 
 export type { PrimaryBarLabels, PrimaryBarProps } from 'ls/workbench/browser/parts/primarybar/primarybar';
+
+const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
 
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
@@ -18,7 +21,12 @@ function createElement<K extends keyof HTMLElementTagNameMap>(
 export class PrimaryBarPartView {
   private readonly element = createElement(
     'section',
-    'panel sidebar-panel primarybar-panel',
+    [
+      'panel',
+      'sidebar-panel',
+      'primarybar-panel',
+      `primarybar-platform-${WINDOW_CHROME_LAYOUT.platform}`,
+    ].join(' '),
   );
   private readonly bar: PrimaryBar;
 
