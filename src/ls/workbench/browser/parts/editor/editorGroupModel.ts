@@ -46,10 +46,6 @@ export type EditorGroupModel = {
   activeTab: EditorWorkspaceTab | null;
 };
 
-// Topbar currently renders only supported pane modes.
-// Planned modes are kept in the type surface for future wiring.
-const FIXED_EDITOR_PANE_MODES = SUPPORTED_EDITOR_PANE_MODES;
-
 function getTabDisplayLabel(
   tab: EditorWorkspaceTab,
   labels: EditorPartLabels,
@@ -96,26 +92,6 @@ function getTabDisplayTitle(
     default:
       return label;
   }
-}
-
-function resolveRepresentativeTab(
-  tabs: Array<{
-    id: string;
-    kind: EditorWorkspaceTab['kind'];
-    paneMode: EditorGroupTabItem['paneMode'];
-    label: string;
-    title: string;
-    faviconUrl?: string;
-    state: EditorGroupTabState;
-  }>,
-) {
-  if (tabs.length === 0) {
-    return null;
-  }
-
-  // Fixed entries are stable anchors per pane mode. The first concrete tab
-  // keeps ownership of that anchor; additional tabs are rendered behind it.
-  return tabs[0] ?? null;
 }
 
 function getFallbackTitleForPaneMode(
@@ -226,6 +202,7 @@ export function createEditorGroupModel({
       label,
       title: getTabDisplayTitle(tab, labels, label),
       faviconUrl: resolveTabFaviconUrl(tab),
+      targetTabId: tab.id,
       state: {
         isActive: tab.id === activeTabId,
         isClosable,
@@ -237,54 +214,30 @@ export function createEditorGroupModel({
     };
   });
 
-  const representativeTabIdByPaneMode = new Map<
-    EditorGroupTabItem['paneMode'],
-    string
-  >();
-  const fixedTabs = FIXED_EDITOR_PANE_MODES.map((paneMode) => {
-    const matchingTabs = normalizedTabs.filter((tab) => tab.paneMode === paneMode);
-    const representativeTab = resolveRepresentativeTab(matchingTabs);
-    if (representativeTab?.id) {
-      representativeTabIdByPaneMode.set(paneMode, representativeTab.id);
-    }
-
-    return {
+  const presentPaneModes = new Set(normalizedTabs.map((tab) => tab.paneMode));
+  const placeholderTabs = SUPPORTED_EDITOR_PANE_MODES
+    .filter((paneMode) => !presentPaneModes.has(paneMode))
+    .map((paneMode) => ({
       id: `${paneMode}-entry`,
-      kind: representativeTab?.kind ?? getDefaultTabKindForPaneMode(paneMode),
-      paneMode: representativeTab?.paneMode ?? paneMode,
-      label: representativeTab?.label ?? getFallbackLabelForPaneMode(paneMode),
-      title: representativeTab?.title || getFallbackTitleForPaneMode(paneMode, labels),
-      faviconUrl: representativeTab?.faviconUrl ?? '',
-      targetTabId: representativeTab?.id ?? null,
+      kind: getDefaultTabKindForPaneMode(paneMode),
+      paneMode,
+      label: getFallbackLabelForPaneMode(paneMode),
+      title: getFallbackTitleForPaneMode(paneMode, labels),
+      faviconUrl: '',
+      targetTabId: null,
       state: {
-        isActive: representativeTab?.id === activeTabId,
-        isClosable: Boolean(
-          representativeTab?.id && representativeTab.state.isClosable,
-        ),
-        isDirty: representativeTab?.state.isDirty ?? false,
-        hasLocalHistory: representativeTab?.state.hasLocalHistory ?? false,
-        canUndo: representativeTab?.state.canUndo ?? false,
-        canRedo: representativeTab?.state.canRedo ?? false,
+        isActive: false,
+        isClosable: false,
+        isDirty: false,
+        hasLocalHistory: false,
+        canUndo: false,
+        canRedo: false,
       },
-    };
-  });
-
-  const extraTabs = normalizedTabs
-    .filter((tab) => representativeTabIdByPaneMode.get(tab.paneMode) !== tab.id)
-    .map((tab) => ({
-      id: tab.id,
-      kind: tab.kind,
-      paneMode: tab.paneMode,
-      label: tab.label,
-      title: tab.title,
-      faviconUrl: tab.faviconUrl ?? '',
-      targetTabId: tab.id,
-      state: tab.state,
     }));
 
   return {
-    // Keep fixed pane-mode anchors first, then append additional concrete tabs.
-    tabs: [...fixedTabs, ...extraTabs],
+    // Real tabs keep their workspace order. Missing pane modes append a placeholder entry.
+    tabs: [...normalizedTabs, ...placeholderTabs],
     activeTabId,
     activeTab,
   };

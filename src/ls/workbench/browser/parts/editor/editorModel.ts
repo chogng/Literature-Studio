@@ -283,6 +283,35 @@ function touchMruTab(mruTabIds: ReadonlyArray<string>, tabId: string) {
   return [tabId, ...mruTabIds.filter((value) => value !== tabId)];
 }
 
+function reorderTabsById<T extends { id: string }>(
+  tabs: T[],
+  tabId: string,
+  targetTabId: string,
+  position: 'before' | 'after',
+): T[] {
+  const sourceIndex = tabs.findIndex((tab) => tab.id === tabId);
+  const targetIndex = tabs.findIndex((tab) => tab.id === targetTabId);
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+    return tabs;
+  }
+
+  const nextTabs = [...tabs];
+  const [movedTab] = nextTabs.splice(sourceIndex, 1);
+  if (!movedTab) {
+    return tabs;
+  }
+
+  const nextTargetIndex = nextTabs.findIndex((tab) => tab.id === targetTabId);
+  if (nextTargetIndex < 0) {
+    return tabs;
+  }
+
+  const insertionIndex =
+    position === 'before' ? nextTargetIndex : nextTargetIndex + 1;
+  nextTabs.splice(insertionIndex, 0, movedTab);
+  return nextTabs;
+}
+
 function createEmptyEditorGroupState(groupId: string): EditorEditorGroupState {
   return {
     groupId: normalizeEditorGroupId(groupId),
@@ -739,6 +768,36 @@ export class EditorModel {
       activeTabId: tabId,
       mruTabIds: touchMruTab(group.mruTabIds, tabId),
     }));
+  };
+
+  readonly reorderTab = (
+    tabId: string,
+    targetTabId: string,
+    position: 'before' | 'after' = 'after',
+  ) => {
+    if (tabId === targetTabId) {
+      return;
+    }
+
+    this.updateActiveGroupState((group) => {
+      const nextTabs = reorderTabsById(
+        group.tabs,
+        tabId,
+        targetTabId,
+        position,
+      );
+      if (
+        nextTabs.length === group.tabs.length &&
+        nextTabs.every((tab, index) => tab === group.tabs[index])
+      ) {
+        return group;
+      }
+
+      return {
+        ...group,
+        tabs: nextTabs,
+      };
+    });
   };
 
   readonly closeTab = (tabId: string) => {

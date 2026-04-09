@@ -26,6 +26,11 @@
 
 .editor-tabs-scroll-host .horizontal-scrollbar-track {
   bottom: 0;
+  -webkit-app-region: no-drag;
+}
+
+.editor-tabs-scroll-host .horizontal-scrollbar-thumb {
+  -webkit-app-region: no-drag;
 }
 
 .editor-tab {
@@ -40,6 +45,8 @@
   border-radius: 6px;
   background: transparent;
   overflow: hidden;
+  -webkit-app-region: no-drag;
+  user-select: none;
 }
 
 .editor-tab[data-hovered='true'] {
@@ -66,6 +73,7 @@
   font: inherit;
   border-radius: inherit;
   transition: none;
+  -webkit-app-region: no-drag;
 }
 /* Tab actions container， the padding-right connects with the close button position*/
 .editor-tab-actions.actionbar {
@@ -105,6 +113,32 @@
   margin: 0;
   transition: none;
   gap: 0;
+}
+
+.editor-tab.is-dragging {
+  opacity: 0.72;
+}
+
+/* Show a vertical insertion marker on the hovered tab edge during drag reorder. */
+.editor-tab.is-drop-target-before::before,
+.editor-tab.is-drop-target-after::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--vscode-editor-tabDragBorder, #5b86b4);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.editor-tab.is-drop-target-before::before {
+  left: 0;
+}
+
+.editor-tab.is-drop-target-after::after {
+  right: 0;
 }
 
 .editor-tab-close-btn.actionbar-action .lx-icon {

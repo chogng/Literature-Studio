@@ -318,7 +318,7 @@ test('EditorGroupView schedules browser primary input focus when activating an e
   try {
     const browserButton = view
       .getElement()
-      .querySelector('[data-tab-id="browser-entry"] .editor-tab-main');
+      .querySelector('[data-tab-id="browser-a"] .editor-tab-main');
     assert(browserButton instanceof HTMLButtonElement);
 
     browserButton.click();
@@ -548,6 +548,7 @@ test('EditorGroupView captures and restores browser pane view state through the 
         throw new Error('Unexpected invoke in editorGroupView test.');
       }) as ElectronAPI['invoke'],
       webContent: {
+        dispose() {},
         activate() {},
         release() {},
         async navigate() {
@@ -713,6 +714,7 @@ test('EditorGroupView tracks pending browser view-state capture by tab id', asyn
         throw new Error('Unexpected invoke in editorGroupView test.');
       }) as ElectronAPI['invoke'],
       webContent: {
+        dispose() {},
         activate() {},
         release() {},
         async navigate() {

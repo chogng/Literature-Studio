@@ -469,6 +469,72 @@ test('editor model can close other tabs, rename a tab, preserve a custom title, 
   }
 });
 
+test('editor model can reorder tabs within the active group without disturbing active or mru state', () => {
+  const model = createEditorModel({
+    groups: [
+      {
+        groupId: 'editor-group-a',
+        tabs: [
+          {
+            id: 'draft-a',
+            kind: 'draft',
+            title: 'Draft A',
+            document: createWritingEditorDocumentFromPlainText('alpha'),
+            viewMode: 'draft',
+          },
+          {
+            id: 'browser-a',
+            kind: 'browser',
+            title: 'Browser A',
+            url: 'https://example.com/a',
+          },
+          {
+            id: 'pdf-a',
+            kind: 'pdf',
+            title: 'Paper A',
+            url: 'https://example.com/a.pdf',
+          },
+        ],
+        activeTabId: 'browser-a',
+        mruTabIds: ['browser-a', 'pdf-a', 'draft-a'],
+      },
+      {
+        groupId: 'editor-group-b',
+        tabs: [
+          {
+            id: 'browser-b',
+            kind: 'browser',
+            title: 'Browser B',
+            url: 'https://example.com/b',
+          },
+        ],
+        activeTabId: 'browser-b',
+        mruTabIds: ['browser-b'],
+      },
+    ],
+    activeGroupId: 'editor-group-a',
+    viewStateEntries: [],
+  });
+
+  try {
+    model.reorderTab('pdf-a', 'draft-a', 'before');
+
+    const snapshot = model.getSnapshot();
+    assert.deepEqual(
+      snapshot.tabs.map((tab) => tab.id),
+      ['pdf-a', 'draft-a', 'browser-a'],
+    );
+    assert.equal(snapshot.activeTabId, 'browser-a');
+    assert.deepEqual(snapshot.mruTabIds, ['browser-a', 'pdf-a', 'draft-a']);
+    assert.deepEqual(
+      snapshot.groups[1]?.tabs.map((tab) => tab.id),
+      ['browser-b'],
+    );
+  } finally {
+    model.dispose();
+  }
+});
+
 test('editor model updates active browser tab title from page title without overriding custom names', () => {
   const model = createEditorModel({
     groups: [

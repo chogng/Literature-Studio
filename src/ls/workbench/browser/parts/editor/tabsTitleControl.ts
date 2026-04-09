@@ -92,6 +92,18 @@ function normalizeTabFaviconUrl(value: string | undefined) {
   return String(value ?? '').trim();
 }
 
+function isDragEventLike(event: Event): event is DragEvent {
+  return 'dataTransfer' in event;
+}
+
+type DragState = {
+  sourceViewTabId: string;
+  sourceTabId: string;
+  targetViewTabId: string | null;
+  targetTabId: string | null;
+  position: 'before' | 'after' | null;
+};
+
 function createTabFaviconImageElement(
   faviconUrl: string,
   onError: () => void,
@@ -120,6 +132,7 @@ export class TabsTitleControl extends TitleControl {
   private lastRenderedTabIds: string[] = [];
   private lastRenderedActiveViewTabId: string | null = null;
   private readonly hoverService = getHoverService();
+  private dragState: DragState | null = null;
 
   constructor(
     props: TitleControlProps,
@@ -191,6 +204,7 @@ export class TabsTitleControl extends TitleControl {
   }
 
   override dispose() {
+    this.clearDragState();
     this.layoutAnimationFrame.dispose();
     this.resizeObserver.dispose();
     this.tabsScrollbar.dispose();
@@ -263,6 +277,10 @@ export class TabsTitleControl extends TitleControl {
     viewDisposables.add(addDisposableListener(tabElement, 'pointerleave', () => {
       delete tabElement.dataset.hovered;
     }));
+    viewDisposables.add(addDisposableListener(tabElement, 'dragstart', this.handleTabDragStart));
+    viewDisposables.add(addDisposableListener(tabElement, 'dragover', this.handleTabDragOver));
+    viewDisposables.add(addDisposableListener(tabElement, 'drop', this.handleTabDrop));
+    viewDisposables.add(addDisposableListener(tabElement, 'dragend', this.handleTabDragEnd));
 
     const label = createElement('span', 'editor-tab-label');
     const icon = createElement('span', 'editor-tab-icon');
@@ -306,6 +324,9 @@ export class TabsTitleControl extends TitleControl {
     tabView.element.classList.toggle('is-available', Boolean(tab.targetTabId));
     tabView.element.dataset.paneMode = tab.paneMode;
     tabView.element.dataset.tabId = tab.id;
+    tabView.element.dataset.targetTabId = tab.targetTabId ?? '';
+    const canReorder = Boolean(this.props.onReorderTab && tab.targetTabId);
+    tabView.mainButton.draggable = canReorder;
 
     tabView.mainButton.setAttribute('aria-selected', String(tab.state.isActive));
     tabView.mainButton.setAttribute('aria-posinset', String(index + 1));
@@ -366,6 +387,111 @@ export class TabsTitleControl extends TitleControl {
           ]
         : [],
     });
+  }
+
+  private getReorderableTabMetadata(element: HTMLElement) {
+    if (!this.props.onReorderTab) {
+      return null;
+    }
+
+    const viewTabId = element.dataset.tabId?.trim() ?? '';
+    const targetTabId = element.dataset.targetTabId?.trim() ?? '';
+    if (!viewTabId || !targetTabId) {
+      return null;
+    }
+
+    return {
+      viewTabId,
+      targetTabId,
+    };
+  }
+
+  private resolveDropPosition(
+    event: DragEvent,
+    tabElement: HTMLElement,
+  ): 'before' | 'after' {
+    const rect = tabElement.getBoundingClientRect();
+    if (rect.width <= 0) {
+      return 'after';
+    }
+
+    return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+  }
+
+  private syncDropTargetFromEvent(event: DragEvent) {
+    if (!this.dragState) {
+      return null;
+    }
+
+    const targetElement = event.currentTarget;
+    if (!(targetElement instanceof HTMLElement)) {
+      return null;
+    }
+
+    const targetMetadata = this.getReorderableTabMetadata(targetElement);
+    if (
+      !targetMetadata ||
+      targetMetadata.targetTabId === this.dragState.sourceTabId
+    ) {
+      this.setDropTarget(null, null, null);
+      return null;
+    }
+
+    const position = this.resolveDropPosition(event, targetElement);
+    this.setDropTarget(
+      targetMetadata.viewTabId,
+      targetMetadata.targetTabId,
+      position,
+    );
+    return {
+      targetElement,
+      targetMetadata,
+      position,
+    };
+  }
+
+  private setDropTarget(
+    viewTabId: string | null,
+    targetTabId: string | null,
+    position: 'before' | 'after' | null,
+  ) {
+    this.dragState = this.dragState
+      ? {
+          ...this.dragState,
+          targetViewTabId: viewTabId,
+          targetTabId,
+          position,
+        }
+      : null;
+
+    for (const tabView of this.tabViews.values()) {
+      const isDropTarget = tabView.element.dataset.tabId === viewTabId;
+      tabView.element.classList.toggle(
+        'is-drop-target-before',
+        isDropTarget && position === 'before',
+      );
+      tabView.element.classList.toggle(
+        'is-drop-target-after',
+        isDropTarget && position === 'after',
+      );
+    }
+  }
+
+  private clearDragState() {
+    if (this.dragState?.sourceViewTabId) {
+      this.tabViews
+        .get(this.dragState.sourceViewTabId)
+        ?.element.classList.remove('is-dragging');
+    }
+
+    this.dragState = null;
+    for (const tabView of this.tabViews.values()) {
+      tabView.element.classList.remove(
+        'is-dragging',
+        'is-drop-target-before',
+        'is-drop-target-after',
+      );
+    }
   }
 
   private openTabContextMenu(
@@ -591,5 +717,76 @@ export class TabsTitleControl extends TitleControl {
 
   private readonly handleWindowResize = () => {
     this.scheduleLayoutSync(false);
+  };
+
+  private readonly handleTabDragStart = (event: Event) => {
+    if (!isDragEventLike(event)) {
+      return;
+    }
+
+    const tabElement = event.currentTarget;
+    if (!(tabElement instanceof HTMLElement)) {
+      return;
+    }
+
+    const tabMetadata = this.getReorderableTabMetadata(tabElement);
+    if (!tabMetadata) {
+      return;
+    }
+
+    this.clearDragState();
+    this.dragState = {
+      sourceViewTabId: tabMetadata.viewTabId,
+      sourceTabId: tabMetadata.targetTabId,
+      targetViewTabId: null,
+      targetTabId: null,
+      position: null,
+    };
+    tabElement.classList.add('is-dragging');
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', tabMetadata.targetTabId);
+    }
+  };
+
+  private readonly handleTabDragOver = (event: Event) => {
+    if (!isDragEventLike(event) || !this.dragState) {
+      return;
+    }
+
+    const nextDropTarget = this.syncDropTargetFromEvent(event);
+    if (!nextDropTarget) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  private readonly handleTabDrop = (event: Event) => {
+    if (!isDragEventLike(event) || !this.dragState) {
+      return;
+    }
+
+    const nextDropTarget = this.syncDropTargetFromEvent(event);
+    if (!nextDropTarget || !this.props.onReorderTab) {
+      this.clearDragState();
+      return;
+    }
+
+    event.preventDefault();
+    const { sourceTabId } = this.dragState;
+    const {
+      targetMetadata: { targetTabId },
+      position,
+    } = nextDropTarget;
+    this.clearDragState();
+    void this.props.onReorderTab(sourceTabId, targetTabId, position);
+  };
+
+  private readonly handleTabDragEnd = () => {
+    this.clearDragState();
   };
 }

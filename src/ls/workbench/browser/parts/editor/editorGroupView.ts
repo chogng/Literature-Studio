@@ -64,6 +64,11 @@ export type EditorGroupViewProps = {
   activeTab: EditorWorkspaceTab | null;
   viewStateEntries: SerializedEditorViewStateEntry[];
   onActivateTab: (tabId: string) => void;
+  onReorderTab?: (
+    tabId: string,
+    targetTabId: string,
+    position: 'before' | 'after',
+  ) => void | Promise<void>;
   onCloseTab: (tabId: string) => Promise<boolean> | boolean | void;
   onCloseOtherTabs?: (tabId: string) => Promise<boolean> | boolean | void;
   onCloseAllTabs?: () => Promise<boolean> | boolean | void;
@@ -124,6 +129,7 @@ function createTitleControlProps(
     | 'activeTabId'
     | 'activeTab'
     | 'onActivateTab'
+    | 'onReorderTab'
     | 'onCloseTab'
     | 'onCloseOtherTabs'
     | 'onCloseAllTabs'
@@ -160,6 +166,7 @@ function createTitleControlProps(
         requestBrowserPrimaryInputFocus();
       }
     },
+    onReorderTab: props.onReorderTab,
     onCloseTab: props.onCloseTab,
     onCloseOtherTabs: props.onCloseOtherTabs,
     onCloseAllTabs: props.onCloseAllTabs,
@@ -195,6 +202,7 @@ function createTitleControl(
     | 'activeTabId'
     | 'activeTab'
     | 'onActivateTab'
+    | 'onReorderTab'
     | 'onCloseTab'
     | 'onCloseOtherTabs'
     | 'onCloseAllTabs'

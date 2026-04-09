@@ -38,6 +38,11 @@ export type EditorPartState = {
 
 export type EditorPartActions = {
   onActivateTab: (tabId: string) => void;
+  onReorderTab: (
+    tabId: string,
+    targetTabId: string,
+    position: 'before' | 'after',
+  ) => void;
   onCloseTab: (tabId: string) => Promise<boolean>;
   onCloseOtherTabs: (tabId: string) => Promise<boolean>;
   onCloseAllTabs: () => Promise<boolean>;
@@ -108,6 +113,7 @@ export function createEditorPartProps({
   },
   actions: {
     onActivateTab,
+    onReorderTab,
     onCloseTab,
     onCloseOtherTabs,
     onCloseAllTabs,
@@ -213,6 +219,7 @@ export function createEditorPartProps({
     activeTab,
     viewStateEntries,
     onActivateTab,
+    onReorderTab,
     onCloseTab,
     onCloseOtherTabs,
     onCloseAllTabs,
@@ -320,6 +327,7 @@ export class EditorPartController {
     this.context = context;
     this.actions = {
       onActivateTab: this.onActivateTab,
+      onReorderTab: this.onReorderTab,
       onCloseTab: this.onCloseTab,
       onCloseOtherTabs: this.onCloseOtherTabs,
       onCloseAllTabs: this.onCloseAllTabs,
@@ -459,6 +467,14 @@ export class EditorPartController {
 
   readonly onActivateTab = (tabId: string) => {
     this.editorModel.activateTab(tabId);
+  };
+
+  readonly onReorderTab = (
+    tabId: string,
+    targetTabId: string,
+    position: 'before' | 'after',
+  ) => {
+    this.editorModel.reorderTab(tabId, targetTabId, position);
   };
 
   readonly onCloseTab = (tabId: string) =>
