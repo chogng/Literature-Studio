@@ -90,6 +90,10 @@ export type EditorGroupTarget = {
   activateGroup?: boolean;
 };
 
+export type CreateContentTabOptions = {
+  reuseExisting?: boolean;
+};
+
 type EditorModelListener = () => void;
 
 type ResolvedEditorGroupTarget = {
@@ -854,19 +858,24 @@ export class EditorModel {
   readonly createBrowserTab = (
     url: string,
     target: EditorGroupTarget = {},
+    options: CreateContentTabOptions = {},
   ) => {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       return;
     }
 
+    const reuseExisting = options.reuseExisting ?? true;
+
     this.updateTargetGroupState(target, (group) => {
       // Mirror upstream open-editor behavior: the same web content resource re-activates its tab
       // instead of creating duplicate entries in the target group strip.
-      const existingTab = group.tabs.find(
-        (tab) => isEditorBrowserTabInput(tab) && tab.url === normalizedUrl,
-      );
-      if (existingTab) {
+      const existingTab = reuseExisting
+        ? group.tabs.find(
+            (tab) => isEditorBrowserTabInput(tab) && tab.url === normalizedUrl,
+          )
+        : null;
+      if (reuseExisting && existingTab) {
         return {
           ...group,
           activeTabId: existingTab.id,
@@ -887,19 +896,24 @@ export class EditorModel {
   readonly createPdfTab = (
     url: string,
     target: EditorGroupTarget = {},
+    options: CreateContentTabOptions = {},
   ) => {
     const normalizedUrl = url.trim();
     if (!normalizedUrl) {
       return;
     }
 
+    const reuseExisting = options.reuseExisting ?? true;
+
     this.updateTargetGroupState(target, (group) => {
       // Keep PDF tabs aligned with web tabs: one resource maps to one tab/input entry
       // inside the target group.
-      const existingTab = group.tabs.find(
-        (tab) => isEditorPdfTabInput(tab) && tab.url === normalizedUrl,
-      );
-      if (existingTab) {
+      const existingTab = reuseExisting
+        ? group.tabs.find(
+            (tab) => isEditorPdfTabInput(tab) && tab.url === normalizedUrl,
+          )
+        : null;
+      if (reuseExisting && existingTab) {
         return {
           ...group,
           activeTabId: existingTab.id,

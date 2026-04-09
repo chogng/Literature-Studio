@@ -4,6 +4,10 @@ import test, { after, beforeEach } from 'node:test';
 import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestUtils';
 import { createWritingEditorDocumentFromPlainText } from 'ls/editor/common/writingEditorDocument';
 import en from 'language/locales/en';
+import type {
+  EditorPartBaseProps,
+  EditorPartProps,
+} from 'ls/workbench/browser/parts/editor/editorPartView';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 
 const domEnvironment = installDomTestEnvironment();
@@ -23,6 +27,35 @@ beforeEach(() => {
   document.body.replaceChildren();
 });
 
+function waitForNextTask() {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+function withBrowserToolbarActions(
+  props: EditorPartBaseProps,
+  options: {
+    onNavigateToUrl?: (url: string) => void;
+  } = {},
+): EditorPartProps {
+  return {
+    ...props,
+    onOpenAddressBarSourceMenu: () => {},
+    onToolbarNavigateBack: () => {},
+    onToolbarNavigateForward: () => {},
+    onToolbarNavigateRefresh: () => {},
+    onToolbarHardReload: () => {},
+    onToolbarCopyCurrentUrl: () => {},
+    onToolbarClearBrowsingHistory: () => {},
+    onToolbarClearCookies: () => {},
+    onToolbarClearCache: () => {},
+    onToolbarAddressChange: () => {},
+    onToolbarAddressSubmit: () => {},
+    onToolbarNavigateToUrl: options.onNavigateToUrl ?? (() => {}),
+  };
+}
+
 after(() => {
   domEnvironment.cleanup();
 });
@@ -36,7 +69,10 @@ test('EditorPartController creates a new browser tab as an empty about:blank tab
     viewPartProps: defaultViewPartProps,
   });
 
-  await (controller.getSnapshot().editorPartProps.onCreateBrowserTab as unknown as () => Promise<void>)();
+  await Promise.resolve(controller.getSnapshot().editorPartProps.onOpenEditor({
+    kind: 'browser',
+    disposition: 'reveal-or-open',
+  }));
 
   const browserTab = controller
     .getSnapshot()
@@ -57,7 +93,10 @@ test('EditorPartController keeps browser tab creation empty even without an avai
     viewPartProps: defaultViewPartProps,
   });
 
-  await (controller.getSnapshot().editorPartProps.onCreateBrowserTab as unknown as () => Promise<void>)();
+  await Promise.resolve(controller.getSnapshot().editorPartProps.onOpenEditor({
+    kind: 'browser',
+    disposition: 'reveal-or-open',
+  }));
 
   const browserTab = controller
     .getSnapshot()
@@ -78,7 +117,10 @@ test('EditorPartController opens the browser pane as an empty about:blank tab', 
     viewPartProps: defaultViewPartProps,
   });
 
-  controller.getSnapshot().editorPartProps.onOpenBrowserPane();
+  controller.getSnapshot().editorPartProps.onOpenEditor({
+    kind: 'browser',
+    disposition: 'reveal-or-open',
+  });
 
   const browserTab = controller
     .getSnapshot()
@@ -100,7 +142,10 @@ test('EditorPartController reuses an existing empty draft tab for explicit draft
   });
 
   const initialDraftTabId = controller.getSnapshot().activeTab?.id ?? null;
-  controller.getSnapshot().editorPartProps.onCreateDraftTab();
+  controller.getSnapshot().editorPartProps.onOpenEditor({
+    kind: 'draft',
+    disposition: 'reveal-or-open',
+  });
 
   const draftTabs = controller
     .getSnapshot()
@@ -122,7 +167,10 @@ test('EditorPartController creates a new draft tab when the reusable draft is di
 
   const initialDraftTabId = controller.getSnapshot().activeTab?.id ?? null;
   controller.setDraftDocument(createWritingEditorDocumentFromPlainText('dirty'));
-  controller.getSnapshot().editorPartProps.onCreateDraftTab();
+  controller.getSnapshot().editorPartProps.onOpenEditor({
+    kind: 'draft',
+    disposition: 'reveal-or-open',
+  });
 
   const draftTabs = controller
     .getSnapshot()
@@ -142,8 +190,14 @@ test('EditorPartController reuses an existing empty browser tab for explicit bro
     viewPartProps: defaultViewPartProps,
   });
 
-  controller.getSnapshot().editorPartProps.onOpenBrowserPane();
-  await (controller.getSnapshot().editorPartProps.onCreateBrowserTab as unknown as () => Promise<void>)();
+  controller.getSnapshot().editorPartProps.onOpenEditor({
+    kind: 'browser',
+    disposition: 'reveal-or-open',
+  });
+  await Promise.resolve(controller.getSnapshot().editorPartProps.onOpenEditor({
+    kind: 'browser',
+    disposition: 'reveal-or-open',
+  }));
 
   const browserTabs = controller
     .getSnapshot()
@@ -181,6 +235,134 @@ test('EditorPartController keeps browser pane active as about:blank when closing
   assert.equal(snapshot.activeTab?.kind, 'browser');
 
   controller.dispose();
+});
+
+test('EditorPartController opens a browser favorite in a new tab without reusing the existing url tab', async () => {
+  const { EditorPartController } = await import('ls/workbench/browser/parts/editor/editorPart');
+  const controller = new EditorPartController({
+    ui: en,
+    browserUrl: '',
+    webUrl: '',
+    viewPartProps: defaultViewPartProps,
+  });
+
+  controller.createBrowserTab('https://example.com/article');
+  controller
+    .getSnapshot()
+    .editorPartProps
+    .onOpenEditor({
+      kind: 'browser',
+      disposition: 'new-tab',
+      url: 'https://example.com/article',
+    });
+
+  const browserTabs = controller
+    .getSnapshot()
+    .tabs
+    .filter((tab) => tab.kind === 'browser' && tab.url === 'https://example.com/article');
+  assert.equal(browserTabs.length, 2);
+  assert.equal(controller.getSnapshot().activeTab?.id, browserTabs[1]?.id);
+
+  controller.dispose();
+});
+
+test('EditorPartView favorite context menu opens a fresh browser tab instead of navigating the current tab', async () => {
+  const { EditorPartController } = await import('ls/workbench/browser/parts/editor/editorPart');
+  const { createEditorPartView } = await import(
+    'ls/workbench/browser/parts/editor/editorPartView'
+  );
+  const favoriteUrl = 'https://example.com/favorites/open-in-new-tab';
+  const navigateCalls: string[] = [];
+  const controller = new EditorPartController({
+    ui: en,
+    browserUrl: favoriteUrl,
+    webUrl: favoriteUrl,
+    viewPartProps: {
+      ...defaultViewPartProps,
+      browserUrl: favoriteUrl,
+      browserPageTitle: 'Favorite Open In New Tab',
+      browserFaviconUrl: 'https://example.com/favicon.ico',
+      electronRuntime: true,
+      webContentRuntime: true,
+    },
+  });
+
+  controller.createBrowserTab(favoriteUrl);
+  const view = createEditorPartView(withBrowserToolbarActions(
+    controller.getSnapshot().editorPartProps,
+    {
+      onNavigateToUrl: (url) => {
+        navigateCalls.push(url);
+      },
+    },
+  ));
+  const unsubscribe = controller.subscribe(() => {
+    view.setProps(withBrowserToolbarActions(
+      controller.getSnapshot().editorPartProps,
+      {
+        onNavigateToUrl: (url) => {
+          navigateCalls.push(url);
+        },
+      },
+    ));
+  });
+  document.body.append(view.getElement());
+
+  try {
+    const favoriteButton = view
+      .getElement()
+      .querySelector(`.editor-browser-toolbar-leading [aria-label="${en.agentbarToolbarFavorite}"]`);
+    assert(favoriteButton instanceof HTMLButtonElement);
+    favoriteButton.click();
+
+    const sourcesButton = view
+      .getElement()
+      .querySelector(`.editor-browser-toolbar-leading [aria-label="${en.agentbarToolbarSources}"]`);
+    assert(sourcesButton instanceof HTMLButtonElement);
+    sourcesButton.click();
+    await waitForNextTask();
+    await waitForNextTask();
+
+    const panel = document.body.querySelector('.editor-browser-library-panel');
+    assert(panel instanceof HTMLElement);
+    const favoriteItem = panel.querySelector(
+      `.editor-browser-library-item.is-favorite[title="${favoriteUrl}"]`,
+    );
+    assert(favoriteItem instanceof HTMLButtonElement);
+    favoriteItem.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 24,
+      clientY: 24,
+    }));
+    await waitForNextTask();
+
+    const menu = document.body.querySelector(
+      '.dropdown-menu[data-menu="editor-browser-library-favorite-item"]',
+    );
+    assert(menu instanceof HTMLElement);
+    const openInNewTabItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.trim() === en.editorFavoriteContextOpenInNewTab,
+    );
+    assert(openInNewTabItem instanceof HTMLElement);
+    openInNewTabItem.click();
+    await waitForNextTask();
+
+    const matchingBrowserTabs = controller
+      .getSnapshot()
+      .tabs
+      .filter((tab) => tab.kind === 'browser' && tab.url === favoriteUrl);
+    assert.equal(navigateCalls.length, 0);
+    assert.equal(matchingBrowserTabs.length, 2);
+    assert.equal(
+      controller.getSnapshot().activeTab?.id,
+      matchingBrowserTabs[1]?.id,
+    );
+  } finally {
+    unsubscribe();
+    view.dispose();
+    controller.dispose();
+  }
 });
 
 test('EditorPartController serializes close requests while unsaved confirm is open', async () => {

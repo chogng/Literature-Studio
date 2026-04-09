@@ -52,7 +52,6 @@ export type SidebarLabels = {
   libraryTitle: string;
   libraryAction: string;
   pdfDownloadAction: string;
-  writingAction: string;
   libraryEmpty: string;
   libraryDocuments: string;
   libraryFiles: string;
@@ -207,7 +206,6 @@ export function createSidebarPartLabels({
     libraryTitle: ui.sidebarLibraryAction,
     libraryAction: ui.sidebarLibraryAction,
     pdfDownloadAction: ui.sidebarPdfDownloadAction,
-    writingAction: ui.sidebarWritingAction,
     libraryEmpty: ui.knowledgeBaseSidebarEmpty,
     libraryDocuments: ui.settingsLibraryStatusDocuments,
     libraryFiles: ui.settingsLibraryStatusFiles,

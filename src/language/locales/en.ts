@@ -80,7 +80,7 @@ const en = {
     'Controls whether the bottom status bar is shown in the content workspace.',
   settingsBrowserTabKeepAliveLimit: 'Browser tab keep-alive',
   settingsBrowserTabKeepAliveLimitHint:
-    'Controls how many inactive browser tabs stay warm for quick return. Set 0 to disable keep-alive and reduce memory usage.',
+    'Keeps inactive browser tabs ready for quick return.',
   settingsNotificationsTitle: 'Notifications',
   settingsNotificationsHint:
     'Control how desktop notifications and tray indicators behave for key events.',
@@ -155,7 +155,6 @@ const en = {
     'This phase uses article metadata, abstracts, and descriptions as the retrieval corpus. PDF chunk retrieval can plug into the same route later.',
   sidebarLibraryAction: 'Library',
   sidebarPdfDownloadAction: 'PDF download',
-  sidebarWritingAction: 'Draft',
   knowledgeBaseSidebarEmpty:
     'No documents are in the knowledge base yet. Turn on knowledge base mode, then download PDFs to register them here.',
   assistantSidebarTitle: 'Assistant',
@@ -207,6 +206,15 @@ const en = {
   editorToolbarSourcesRecent: 'Today',
   editorToolbarSourcesFavorites: 'Favorites',
   editorToolbarSourcesEmpty: 'No favorites or history yet.',
+  editorFavoriteContextOpen: 'Open',
+  editorFavoriteContextOpenInNewTab: 'Open in New Tab',
+  editorFavoriteContextNewFolder: 'New Folder',
+  editorFavoriteContextRename: 'Rename',
+  editorFavoriteContextRemove: 'Remove Favorite',
+  editorFavoriteRenameTitle: 'Rename Favorite',
+  editorFavoriteRenameLabel: 'Favorite name',
+  editorFavoriteNewFolderTitle: 'New Folder',
+  editorFavoriteNewFolderLabel: 'Folder name',
   editorTitle: 'Writing Workspace',
   editorTopbarAddAction: 'Add',
   editorCreateDraft: 'Draft',

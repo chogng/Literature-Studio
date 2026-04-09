@@ -18,7 +18,6 @@ function createProps(): PrimaryBarProps {
   const labels = {
     libraryTitle: 'Library',
     fetchTitle: 'Fetch',
-    writingAction: 'Draft',
     selectionModeEnterMulti: 'Select multiple',
     selectionModeSelectAll: 'Select all',
     selectionModeExit: 'Exit selection',
@@ -135,6 +134,25 @@ test('primary bar topbar exposes an address bar action', () => {
   } finally {
     primaryBar.dispose();
     topbarActionsView.dispose();
+  }
+});
+
+test('primary bar library header no longer renders a draft action button', () => {
+  const primaryBar = createPrimaryBar(createProps());
+  const element = primaryBar.getElement();
+  document.body.append(element);
+
+  try {
+    assert.equal(
+      element.querySelector('.primarybar-library-pane-header .pane-header-actionbar'),
+      null,
+    );
+    assert.equal(
+      element.querySelector('.primarybar-library-pane-header .sidebar-action-btn'),
+      null,
+    );
+  } finally {
+    primaryBar.dispose();
   }
 });
 

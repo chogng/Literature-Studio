@@ -114,6 +114,7 @@ import { EventEmitter } from 'ls/base/common/event';
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import { applyWorkbenchTheme } from 'ls/workbench/services/themes/browser/workbenchThemeService';
 import { applyWorkbenchBrowserStyles } from 'ls/workbench/browser/style';
+import type { EditorOpenRequest } from 'ls/workbench/services/editor/common/editorOpenTypes';
 import 'ls/workbench/browser/media/workbench.css';
 
 export type WorkbenchPage = 'content' | 'settings';
@@ -588,9 +589,7 @@ class WorkbenchHost {
       expandEditor: '',
       collapseEditor: '',
     },
-    onCreateDraftTab: () => {},
-    onCreateBrowserTab: () => {},
-    onCreatePdfTab: () => {},
+    onOpenEditor: (_request: EditorOpenRequest) => {},
     onToggleEditorCollapse: toggleEditorCollapsed,
     onToggleAgentSidebar: () => {},
   });
@@ -1421,7 +1420,6 @@ class WorkbenchHost {
       tabs: editorTabs,
       activeTab: activeEditorTab,
       draftBody,
-      createDraftTab: handleCreateDraftTab,
       createBrowserTab: handleCreateBrowserTab,
       createPdfTab: handleCreatePdfTab,
       webContentSurfaceSnapshot,
@@ -1431,7 +1429,6 @@ class WorkbenchHost {
       editorPartProps,
     } = {
       ...editorPartSnapshot,
-      createDraftTab: editorPartControllerInstance.createDraftTab,
       createBrowserTab: editorPartControllerInstance.createBrowserTab,
       createPdfTab: editorPartControllerInstance.createPdfTab,
       updateActiveContentTabUrl:
@@ -1702,9 +1699,7 @@ class WorkbenchHost {
         expandEditor: contentAwareEditorPartProps.labels.expandEditor,
         collapseEditor: contentAwareEditorPartProps.labels.collapseEditor,
       },
-      onCreateDraftTab: contentAwareEditorPartProps.onCreateDraftTab,
-      onCreateBrowserTab: contentAwareEditorPartProps.onCreateBrowserTab,
-      onCreatePdfTab: contentAwareEditorPartProps.onCreatePdfTab,
+      onOpenEditor: contentAwareEditorPartProps.onOpenEditor,
       onToggleEditorCollapse: toggleEditorCollapsed,
       onToggleAgentSidebar: toggleAgentSidebarVisibility,
     });
@@ -1895,7 +1890,6 @@ class WorkbenchHost {
       isLibraryLoading,
       onRefreshLibrary: () => void refreshLibrary(),
       onDownloadPdf: handleSidebarPdfDownload,
-      onCreateDraftTab: handleCreateDraftTab,
       onDocumentOpen: handleLibraryDocumentOpen,
       onDocumentRename: (document: LibraryDocumentSummary) => {
         void handleLibraryDocumentRename(document);

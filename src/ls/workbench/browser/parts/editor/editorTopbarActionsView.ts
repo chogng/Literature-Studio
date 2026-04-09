@@ -7,6 +7,7 @@ import { createDropdownMenuActionViewItem } from 'ls/base/browser/ui/dropdown/dr
 import { createFilterMenuHeader } from 'ls/base/browser/ui/dropdown/dropdownSearchHeader';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
+import type { EditorOpenHandler } from 'ls/workbench/services/editor/common/editorOpenTypes';
 
 const EDITOR_TOPBAR_ADD_MENU_DATA = 'editor-topbar-add';
 const ADD_MENU_SEARCH_PLACEHOLDER = 'Search add actions';
@@ -27,9 +28,7 @@ export type EditorTopbarActionsViewProps = {
     | 'expandEditor'
     | 'collapseEditor'
   >;
-  onCreateDraftTab: () => void;
-  onCreateBrowserTab: () => void;
-  onCreatePdfTab: () => void;
+  onOpenEditor: EditorOpenHandler;
   onToggleEditorCollapse: () => void;
   onToggleAgentSidebar?: () => void;
 };
@@ -65,17 +64,32 @@ export class EditorTopbarActionsView {
       {
         label: this.props.labels.createDraft,
         icon: 'draft',
-        onClick: () => this.props.onCreateDraftTab(),
+        onClick: () => {
+          void this.props.onOpenEditor({
+            kind: 'draft',
+            disposition: 'reveal-or-open',
+          });
+        },
       },
       {
         label: this.props.labels.createBrowser,
         icon: 'link-external',
-        onClick: () => this.props.onCreateBrowserTab(),
+        onClick: () => {
+          void this.props.onOpenEditor({
+            kind: 'browser',
+            disposition: 'reveal-or-open',
+          });
+        },
       },
       {
         label: this.props.labels.createFile,
         icon: 'file',
-        onClick: () => this.props.onCreatePdfTab(),
+        onClick: () => {
+          void this.props.onOpenEditor({
+            kind: 'pdf',
+            disposition: 'reveal-or-open',
+          });
+        },
       },
     ];
     const filteredItems = normalizedQuery

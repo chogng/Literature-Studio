@@ -1,20 +1,21 @@
 import type { EditorPartLabels } from 'ls/workbench/browser/parts/editor/editorPartView';
 import { EditorPlaceholder } from 'ls/workbench/browser/parts/editor/editorPlaceholder';
+import type { EditorOpenHandler } from 'ls/workbench/services/editor/common/editorOpenTypes';
 
 export type EditorEmptyWorkspaceViewProps = {
   labels: Pick<
     EditorPartLabels,
     'emptyWorkspaceTitle' | 'emptyWorkspaceBody' | 'draftMode'
   >;
-  onCreateDraftTab: () => void;
+  onOpenEditor: EditorOpenHandler;
 };
 
 export class EditorEmptyWorkspaceView {
   private readonly placeholder: EditorPlaceholder;
-  private onCreateDraftTab: () => void;
+  private onOpenEditor: EditorOpenHandler;
 
   constructor(props: EditorEmptyWorkspaceViewProps) {
-    this.onCreateDraftTab = props.onCreateDraftTab;
+    this.onOpenEditor = props.onOpenEditor;
     this.placeholder = new EditorPlaceholder({
       className: 'editor-empty-workspace',
       title: props.labels.emptyWorkspaceTitle,
@@ -29,7 +30,7 @@ export class EditorEmptyWorkspaceView {
   }
 
   setProps(props: EditorEmptyWorkspaceViewProps) {
-    this.onCreateDraftTab = props.onCreateDraftTab;
+    this.onOpenEditor = props.onOpenEditor;
     this.placeholder.setProps({
       className: 'editor-empty-workspace',
       title: props.labels.emptyWorkspaceTitle,
@@ -38,7 +39,10 @@ export class EditorEmptyWorkspaceView {
         {
           label: props.labels.draftMode,
           onRun: () => {
-            this.onCreateDraftTab();
+            void this.onOpenEditor({
+              kind: 'draft',
+              disposition: 'reveal-or-open',
+            });
           },
           className: 'editor-workspace-action-btn btn-secondary btn-md',
         },

@@ -37,12 +37,21 @@ const labels = {
   browserLibraryPanelRecentTitle: 'Today',
   browserLibraryPanelFavoritesTitle: 'Favorites',
   browserLibraryPanelEmptyState: 'No links yet',
+  browserLibraryPanelContextOpen: 'Open',
+  browserLibraryPanelContextOpenInNewTab: 'Open in New Tab',
+  browserLibraryPanelContextNewFolder: 'New Folder',
+  browserLibraryPanelContextRename: 'Rename',
+  browserLibraryPanelContextRemoveFavorite: 'Remove Favorite',
   draftMode: 'Draft',
   sourceMode: 'Source',
   pdfMode: 'PDF',
   close: 'Close',
   expandEditor: 'Expand editor',
   collapseEditor: 'Collapse editor',
+  renameFavoriteTitle: 'Rename Favorite',
+  renameFavoriteLabel: 'Favorite name',
+  newFavoriteFolderTitle: 'New Folder',
+  newFavoriteFolderLabel: 'Folder name',
   emptyWorkspaceTitle: 'Empty workspace',
   emptyWorkspaceBody: 'Create a draft to start.',
   draftBodyPlaceholder: 'Start writing',
@@ -147,10 +156,7 @@ function createProps(
     viewStateEntries: [],
     onActivateTab: () => {},
     onCloseTab: () => {},
-    onCreateDraftTab: () => {},
-    onCreateBrowserTab: () => {},
-    onOpenBrowserPane: () => {},
-    onCreatePdfTab: () => {},
+    onOpenEditor: () => {},
     onOpenAddressBarSourceMenu: () => {},
     onToolbarNavigateBack: () => {},
     onToolbarNavigateForward: () => {},
@@ -271,11 +277,14 @@ test('EditorGroupView recreates draft pane instances and restores view state aft
 });
 
 test('EditorGroupView schedules browser primary input focus when opening browser mode from an empty pane entry', () => {
-  const openedPaneModes: string[] = [];
+  const openedRequests: Array<{ kind: string; disposition: string }> = [];
   const view = new EditorGroupView({
     ...createProps(null, null, []),
-    onOpenBrowserPane: () => {
-      openedPaneModes.push('browser');
+    onOpenEditor: (request) => {
+      openedRequests.push({
+        kind: request.kind,
+        disposition: request.disposition,
+      });
     },
   });
   document.body.append(view.getElement());
@@ -288,7 +297,10 @@ test('EditorGroupView schedules browser primary input focus when opening browser
 
     browserButton.click();
 
-    assert.deepEqual(openedPaneModes, ['browser']);
+    assert.deepEqual(openedRequests, [{
+      kind: 'browser',
+      disposition: 'reveal-or-open',
+    }]);
     assert.equal(
       (view as unknown as { shouldFocusBrowserPrimaryInput: boolean })
         .shouldFocusBrowserPrimaryInput,

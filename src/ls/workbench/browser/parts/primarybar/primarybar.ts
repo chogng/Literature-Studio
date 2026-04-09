@@ -41,7 +41,6 @@ export type PrimaryBarProps = {
   isLibraryLoading: boolean;
   onRefreshLibrary?: () => void;
   onDownloadPdf?: () => void;
-  onCreateDraftTab?: () => void;
   onDocumentDragStart?: (documentId: string) => void;
   onDocumentSelect?: (document: LibraryDocumentSummary | null) => void;
   onDocumentOpen?: (document: LibraryDocumentSummary) => void;
@@ -124,14 +123,6 @@ export class PrimaryBar {
     'div',
     'primarybar-pane-content primarybar-library-pane-content',
   );
-  private readonly libraryToolbar = createElement(
-    'div',
-    'primarybar-pane-toolbar',
-  );
-  private readonly actionsView = createActionBarView({
-    className: 'pane-header-actionbar',
-    ariaRole: 'group',
-  });
   private readonly fetchActionsView = createActionBarView({
     className: 'pane-header-actionbar fetch-pane-actionbar',
     ariaRole: 'group',
@@ -159,14 +150,13 @@ export class PrimaryBar {
       ...props.fetchPaneProps,
       labels: props.labels,
     });
-    this.libraryToolbar.append(this.actionsView.getElement());
     this.librarySection.append(this.libraryView.getElement());
     this.libraryPane = new ContentPane(
       props.labels.libraryTitle,
       this.librarySection,
       220,
       35,
-      this.libraryToolbar,
+      undefined,
       createPrimaryBarPaneClassNames('library'),
     );
     this.fetchPane = new ContentPane(
@@ -228,7 +218,6 @@ export class PrimaryBar {
 
     this.disposed = true;
     this.resizeObserver.dispose();
-    this.actionsView.dispose();
     this.fetchActionsView.dispose();
     this.libraryView.dispose();
     this.fetchContentView.dispose();
@@ -241,19 +230,6 @@ export class PrimaryBar {
     this.syncModeContent();
     this.syncTopbarActions(this.props.topbarActionsElement ?? null);
     this.syncFooterActions(this.props.footerActionsElement ?? null);
-    this.actionsView.setProps({
-      className: 'pane-header-actionbar',
-      ariaRole: 'group',
-      items: [
-        {
-          label: labels.writingAction,
-          content: createLxIcon(lxIconSemanticMap.library.createDraft),
-          disabled: !this.props.onCreateDraftTab,
-          buttonClassName: 'sidebar-action-btn',
-          onClick: () => this.props.onCreateDraftTab?.(),
-        },
-      ],
-    });
     const selectionButtonLabel =
       this.props.fetchPaneProps.selectionModePhase === 'off'
         ? labels.selectionModeEnterMulti

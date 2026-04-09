@@ -51,6 +51,7 @@ import type {
 import { TabsTitleControl } from 'ls/workbench/browser/parts/editor/tabsTitleControl';
 import type { TitleControl, TitleControlProps } from 'ls/workbench/browser/parts/editor/titleControl';
 import { getWindowChromeLayout } from 'ls/platform/window/common/window';
+import type { EditorOpenHandler } from 'ls/workbench/services/editor/common/editorOpenTypes';
 
 const WINDOW_CHROME_LAYOUT = getWindowChromeLayout();
 
@@ -73,10 +74,13 @@ export type EditorGroupViewProps = {
   onCloseOtherTabs?: (tabId: string) => Promise<boolean> | boolean | void;
   onCloseAllTabs?: () => Promise<boolean> | boolean | void;
   onRenameTab?: (tabId: string) => void | Promise<void>;
-  onCreateDraftTab: () => void;
-  onCreateBrowserTab: () => void;
-  onOpenBrowserPane: () => void;
-  onCreatePdfTab: () => void;
+  onOpenEditor: EditorOpenHandler;
+  onPromptRenameBrowserFavorite?: (
+    params: { url: string; title: string },
+  ) => Promise<string | null> | string | null;
+  onPromptCreateBrowserFavoriteFolder?: (
+    params: { url: string; title: string },
+  ) => Promise<string | null> | string | null;
   onOpenAddressBarSourceMenu: () => void;
   onToolbarNavigateBack: () => void;
   onToolbarNavigateForward: () => void;
@@ -134,9 +138,7 @@ function createTitleControlProps(
     | 'onCloseOtherTabs'
     | 'onCloseAllTabs'
     | 'onRenameTab'
-    | 'onCreateDraftTab'
-    | 'onOpenBrowserPane'
-    | 'onCreatePdfTab'
+    | 'onOpenEditor'
   >,
   group: EditorGroupModel,
   requestBrowserPrimaryInputFocus: () => void,
@@ -174,14 +176,23 @@ function createTitleControlProps(
     onOpenPaneMode: (paneMode) => {
       switch (paneMode) {
         case 'draft':
-          props.onCreateDraftTab();
+          void props.onOpenEditor({
+            kind: 'draft',
+            disposition: 'reveal-or-open',
+          });
           return;
         case 'browser':
-          props.onOpenBrowserPane();
+          void props.onOpenEditor({
+            kind: 'browser',
+            disposition: 'reveal-or-open',
+          });
           requestBrowserPrimaryInputFocus();
           return;
         case 'pdf':
-          props.onCreatePdfTab();
+          void props.onOpenEditor({
+            kind: 'pdf',
+            disposition: 'reveal-or-open',
+          });
           return;
         case 'file':
         case 'terminal':
@@ -207,9 +218,7 @@ function createTitleControl(
     | 'onCloseOtherTabs'
     | 'onCloseAllTabs'
     | 'onRenameTab'
-    | 'onCreateDraftTab'
-    | 'onOpenBrowserPane'
-    | 'onCreatePdfTab'
+    | 'onOpenEditor'
   >,
   group: EditorGroupModel,
   requestBrowserPrimaryInputFocus: () => void,
@@ -384,9 +393,7 @@ export class EditorGroupView {
       expandEditor: '',
       collapseEditor: '',
     },
-    onCreateDraftTab: () => {},
-    onCreateBrowserTab: () => {},
-    onCreatePdfTab: () => {},
+    onOpenEditor: () => {},
     onToggleEditorCollapse: () => {},
     onToggleAgentSidebar: () => {},
   });
@@ -438,7 +445,7 @@ export class EditorGroupView {
     );
     this.emptyWorkspaceView = new EditorEmptyWorkspaceView({
       labels: props.labels,
-      onCreateDraftTab: props.onCreateDraftTab,
+      onOpenEditor: props.onOpenEditor,
     });
     this.tabsElement.append(this.titleAreaControl.getElement());
     this.headerElement.append(this.tabsElement, this.actionsElement);
@@ -534,12 +541,16 @@ export class EditorGroupView {
         expandEditor: this.props.labels.expandEditor,
         collapseEditor: this.props.labels.collapseEditor,
       },
-      onCreateDraftTab: this.props.onCreateDraftTab,
-      onCreateBrowserTab: () => {
-        this.props.onCreateBrowserTab();
-        this.requestBrowserPrimaryInputFocus();
+      onOpenEditor: async (request) => {
+        await this.props.onOpenEditor(request);
+        if (
+          request.kind === 'browser' &&
+          request.disposition === 'reveal-or-open' &&
+          !request.url
+        ) {
+          this.requestBrowserPrimaryInputFocus();
+        }
       },
-      onCreatePdfTab: this.props.onCreatePdfTab,
       onToggleEditorCollapse: this.props.onToggleEditorCollapse ?? (() => {}),
       onToggleAgentSidebar: this.props.onToggleAgentSidebar,
     });
@@ -562,7 +573,7 @@ export class EditorGroupView {
       this.syncTopbarToolbar(null);
       this.emptyWorkspaceView.setProps({
         labels: this.props.labels,
-        onCreateDraftTab: this.props.onCreateDraftTab,
+        onOpenEditor: this.props.onOpenEditor,
       });
       this.contentElement.replaceChildren(this.emptyWorkspaceView.getElement());
       this.browserLibraryPanel.close();
@@ -651,8 +662,16 @@ export class EditorGroupView {
         recentTitle: props.labels.browserLibraryPanelRecentTitle,
         favoritesTitle: props.labels.browserLibraryPanelFavoritesTitle,
         emptyState: props.labels.browserLibraryPanelEmptyState,
+        contextOpen: props.labels.browserLibraryPanelContextOpen,
+        contextOpenInNewTab: props.labels.browserLibraryPanelContextOpenInNewTab,
+        contextNewFolder: props.labels.browserLibraryPanelContextNewFolder,
+        contextRename: props.labels.browserLibraryPanelContextRename,
+        contextRemoveFavorite: props.labels.browserLibraryPanelContextRemoveFavorite,
       },
       onNavigateToUrl: props.onToolbarNavigateToUrl,
+      onOpenEditor: props.onOpenEditor,
+      onRequestRenameFavorite: props.onPromptRenameBrowserFavorite,
+      onRequestCreateFavoriteFolder: props.onPromptCreateBrowserFavoriteFolder,
     };
   }
 

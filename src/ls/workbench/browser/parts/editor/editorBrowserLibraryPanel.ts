@@ -1,18 +1,29 @@
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { createContextMenuService } from 'ls/workbench/services/contextmenu/electron-sandbox/contextmenuService';
+import type { EditorOpenHandler } from 'ls/workbench/services/editor/common/editorOpenTypes';
 
 const EDITOR_BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
 const MAX_RECENT_BROWSER_LIBRARY_ENTRIES = 25;
 const MAX_FAVORITE_BROWSER_LIBRARY_ENTRIES = 25;
+const MAX_FAVORITE_BROWSER_LIBRARY_FOLDERS = 25;
 const EDITOR_BROWSER_LIBRARY_DESKTOP_OVERLAY_CLASS = 'is-desktop-overlay';
 const NATIVE_WEBCONTENT_ACTIVE_SELECTOR =
   '.browser-frame-placeholder[data-webcontent-active="true"]';
+
+type StoredBrowserLibraryFavoriteFolder = {
+  id: string;
+  name: string;
+};
 
 type StoredBrowserLibraryState = {
   recentUrls: string[];
   favoriteUrls: string[];
   faviconByUrl: Record<string, string>;
   pageTitleByUrl: Record<string, string>;
+  favoriteFolders: StoredBrowserLibraryFavoriteFolder[];
+  favoriteFolderByUrl: Record<string, string>;
+  favoriteCustomTitleByUrl: Record<string, string>;
 };
 
 type BrowserLibrarySectionKind = 'recent' | 'favorites';
@@ -22,6 +33,8 @@ type BrowserLibraryListItem = {
   title: string;
   faviconUrl: string;
   sectionKind: BrowserLibrarySectionKind;
+  favoriteFolderId: string;
+  favoriteFolderName: string;
 };
 
 export type EditorBrowserLibraryPanelLabels = {
@@ -29,6 +42,11 @@ export type EditorBrowserLibraryPanelLabels = {
   recentTitle: string;
   favoritesTitle: string;
   emptyState: string;
+  contextOpen?: string;
+  contextOpenInNewTab?: string;
+  contextNewFolder?: string;
+  contextRename?: string;
+  contextRemoveFavorite?: string;
   deleteHistoryEntry?: string;
 };
 
@@ -39,6 +57,13 @@ export type EditorBrowserLibraryPanelContext = {
   browserTabTitle?: string;
   labels: EditorBrowserLibraryPanelLabels;
   onNavigateToUrl: (url: string) => void;
+  onOpenEditor?: EditorOpenHandler;
+  onRequestRenameFavorite?: (
+    params: { url: string; title: string },
+  ) => Promise<string | null> | string | null;
+  onRequestCreateFavoriteFolder?: (
+    params: { url: string; title: string },
+  ) => Promise<string | null> | string | null;
 };
 
 type EditorBrowserLibraryPanelOptions = {
@@ -100,10 +125,21 @@ function createStoredBrowserLibraryState(): StoredBrowserLibraryState {
     favoriteUrls: [],
     faviconByUrl: {},
     pageTitleByUrl: {},
+    favoriteFolders: [],
+    favoriteFolderByUrl: {},
+    favoriteCustomTitleByUrl: {},
   };
 }
 
 function sanitizeBrowserLibraryFaviconUrl(value: unknown) {
+  return String(value ?? '').trim();
+}
+
+function sanitizeBrowserLibraryFavoriteFolderId(value: unknown) {
+  return String(value ?? '').trim();
+}
+
+function sanitizeBrowserLibraryFavoriteFolderName(value: unknown) {
   return String(value ?? '').trim();
 }
 
@@ -148,6 +184,38 @@ function sanitizeStoredBrowserLibraryFaviconByUrl(
   return faviconByUrl;
 }
 
+function sanitizeStoredBrowserLibraryFavoriteFolders(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const favoriteFolders: StoredBrowserLibraryFavoriteFolder[] = [];
+  const seenIds = new Set<string>();
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') {
+      continue;
+    }
+
+    const folderId = sanitizeBrowserLibraryFavoriteFolderId(
+      (entry as { id?: unknown }).id,
+    );
+    const folderName = sanitizeBrowserLibraryFavoriteFolderName(
+      (entry as { name?: unknown }).name,
+    );
+    if (!folderId || !folderName || seenIds.has(folderId)) {
+      continue;
+    }
+
+    seenIds.add(folderId);
+    favoriteFolders.push({
+      id: folderId,
+      name: folderName,
+    });
+  }
+
+  return favoriteFolders.slice(0, MAX_FAVORITE_BROWSER_LIBRARY_FOLDERS);
+}
+
 function sanitizeStoredBrowserLibraryPageTitleByUrl(
   value: unknown,
   validUrls: Set<string>,
@@ -173,6 +241,59 @@ function sanitizeStoredBrowserLibraryPageTitleByUrl(
   return pageTitleByUrl;
 }
 
+function sanitizeStoredBrowserLibraryFavoriteFolderByUrl(
+  value: unknown,
+  favoriteUrls: Set<string>,
+  validFolderIds: Set<string>,
+) {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const favoriteFolderByUrl: Record<string, string> = {};
+  for (const [url, folderId] of Object.entries(value)) {
+    const normalizedUrl = normalizeBrowserLibraryUrl(url);
+    if (!favoriteUrls.has(normalizedUrl)) {
+      continue;
+    }
+
+    const normalizedFolderId = sanitizeBrowserLibraryFavoriteFolderId(folderId);
+    if (!normalizedFolderId || !validFolderIds.has(normalizedFolderId)) {
+      continue;
+    }
+
+    favoriteFolderByUrl[normalizedUrl] = normalizedFolderId;
+  }
+
+  return favoriteFolderByUrl;
+}
+
+function sanitizeStoredBrowserLibraryFavoriteCustomTitleByUrl(
+  value: unknown,
+  favoriteUrls: Set<string>,
+) {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const favoriteCustomTitleByUrl: Record<string, string> = {};
+  for (const [url, title] of Object.entries(value)) {
+    const normalizedUrl = normalizeBrowserLibraryUrl(url);
+    if (!favoriteUrls.has(normalizedUrl)) {
+      continue;
+    }
+
+    const normalizedTitle = sanitizeBrowserLibraryPageTitle(title);
+    if (!normalizedTitle) {
+      continue;
+    }
+
+    favoriteCustomTitleByUrl[normalizedUrl] = normalizedTitle;
+  }
+
+  return favoriteCustomTitleByUrl;
+}
+
 function areStoredBrowserLibraryStringMapsEqual(
   left: Record<string, string>,
   right: Record<string, string>,
@@ -190,6 +311,26 @@ function areStoredBrowserLibraryStringMapsEqual(
   }
 
   return true;
+}
+
+function areStoredBrowserLibraryFavoriteFoldersEqual(
+  left: readonly StoredBrowserLibraryFavoriteFolder[],
+  right: readonly StoredBrowserLibraryFavoriteFolder[],
+) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((folder, index) =>
+    folder.id === right[index]?.id && folder.name === right[index]?.name);
+}
+
+function pruneStoredBrowserLibraryFavoriteFolders(
+  favoriteFolders: readonly StoredBrowserLibraryFavoriteFolder[],
+  favoriteFolderByUrl: Record<string, string>,
+) {
+  const usedFolderIds = new Set(Object.values(favoriteFolderByUrl));
+  return favoriteFolders.filter((folder) => usedFolderIds.has(folder.id));
 }
 
 function sanitizeStoredBrowserLibraryState(
@@ -213,10 +354,26 @@ function sanitizeStoredBrowserLibraryState(
     dedupeUrlList(favoriteUrls),
     MAX_FAVORITE_BROWSER_LIBRARY_ENTRIES,
   );
+  const favoriteFolders = sanitizeStoredBrowserLibraryFavoriteFolders(
+    (value as { favoriteFolders?: unknown }).favoriteFolders,
+  );
   const validUrls = new Set<string>([
     ...sanitizedRecentUrls,
     ...sanitizedFavoriteUrls,
   ]);
+  const favoriteUrlSet = new Set<string>(sanitizedFavoriteUrls);
+  const favoriteFolderIdSet = new Set<string>(
+    favoriteFolders.map((folder) => folder.id),
+  );
+  const favoriteFolderByUrl = sanitizeStoredBrowserLibraryFavoriteFolderByUrl(
+    (value as { favoriteFolderByUrl?: unknown }).favoriteFolderByUrl,
+    favoriteUrlSet,
+    favoriteFolderIdSet,
+  );
+  const sanitizedFavoriteFolders = pruneStoredBrowserLibraryFavoriteFolders(
+    favoriteFolders,
+    favoriteFolderByUrl,
+  );
 
   return {
     recentUrls: sanitizedRecentUrls,
@@ -228,6 +385,12 @@ function sanitizeStoredBrowserLibraryState(
     pageTitleByUrl: sanitizeStoredBrowserLibraryPageTitleByUrl(
       (value as { pageTitleByUrl?: unknown }).pageTitleByUrl,
       validUrls,
+    ),
+    favoriteFolders: sanitizedFavoriteFolders,
+    favoriteFolderByUrl,
+    favoriteCustomTitleByUrl: sanitizeStoredBrowserLibraryFavoriteCustomTitleByUrl(
+      (value as { favoriteCustomTitleByUrl?: unknown }).favoriteCustomTitleByUrl,
+      favoriteUrlSet,
     ),
   };
 }
@@ -290,6 +453,10 @@ function updateStoredBrowserLibraryState(
     nextState.favoriteUrls.length === storedBrowserLibraryState.favoriteUrls.length &&
     nextState.recentUrls.every((url, index) => url === storedBrowserLibraryState.recentUrls[index]) &&
     nextState.favoriteUrls.every((url, index) => url === storedBrowserLibraryState.favoriteUrls[index]) &&
+    areStoredBrowserLibraryFavoriteFoldersEqual(
+      nextState.favoriteFolders,
+      storedBrowserLibraryState.favoriteFolders,
+    ) &&
     areStoredBrowserLibraryStringMapsEqual(
       nextState.faviconByUrl,
       storedBrowserLibraryState.faviconByUrl,
@@ -297,6 +464,14 @@ function updateStoredBrowserLibraryState(
     areStoredBrowserLibraryStringMapsEqual(
       nextState.pageTitleByUrl,
       storedBrowserLibraryState.pageTitleByUrl,
+    ) &&
+    areStoredBrowserLibraryStringMapsEqual(
+      nextState.favoriteFolderByUrl,
+      storedBrowserLibraryState.favoriteFolderByUrl,
+    ) &&
+    areStoredBrowserLibraryStringMapsEqual(
+      nextState.favoriteCustomTitleByUrl,
+      storedBrowserLibraryState.favoriteCustomTitleByUrl,
     )
   ) {
     return false;
@@ -374,11 +549,121 @@ function toggleFavoriteBrowserLibraryEntry(url: string) {
       [normalizedUrl, ...state.recentUrls.filter((entry) => entry !== normalizedUrl)],
       MAX_RECENT_BROWSER_LIBRARY_ENTRIES,
     );
+    const favoriteFolderByUrl = { ...state.favoriteFolderByUrl };
+    const favoriteCustomTitleByUrl = { ...state.favoriteCustomTitleByUrl };
+    if (alreadyFavorite) {
+      delete favoriteFolderByUrl[normalizedUrl];
+      delete favoriteCustomTitleByUrl[normalizedUrl];
+    }
 
     return {
       ...state,
       recentUrls,
       favoriteUrls,
+      favoriteFolders: pruneStoredBrowserLibraryFavoriteFolders(
+        state.favoriteFolders,
+        favoriteFolderByUrl,
+      ),
+      favoriteFolderByUrl,
+      favoriteCustomTitleByUrl,
+    };
+  });
+}
+
+function createBrowserLibraryFavoriteFolderId() {
+  return `favorite-folder-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function removeFavoriteBrowserLibraryEntry(url: string) {
+  const normalizedUrl = toTrackableBrowserLibraryUrl(url);
+  if (!normalizedUrl) {
+    return false;
+  }
+
+  return updateStoredBrowserLibraryState((state) => {
+    if (!state.favoriteUrls.includes(normalizedUrl)) {
+      return state;
+    }
+
+    const favoriteUrls = state.favoriteUrls.filter((entry) => entry !== normalizedUrl);
+    const recentUrls = trimUrlList(
+      [normalizedUrl, ...state.recentUrls.filter((entry) => entry !== normalizedUrl)],
+      MAX_RECENT_BROWSER_LIBRARY_ENTRIES,
+    );
+    const favoriteFolderByUrl = { ...state.favoriteFolderByUrl };
+    const favoriteCustomTitleByUrl = { ...state.favoriteCustomTitleByUrl };
+    delete favoriteFolderByUrl[normalizedUrl];
+    delete favoriteCustomTitleByUrl[normalizedUrl];
+
+    return {
+      ...state,
+      recentUrls,
+      favoriteUrls,
+      favoriteFolders: pruneStoredBrowserLibraryFavoriteFolders(
+        state.favoriteFolders,
+        favoriteFolderByUrl,
+      ),
+      favoriteFolderByUrl,
+      favoriteCustomTitleByUrl,
+    };
+  });
+}
+
+function renameFavoriteBrowserLibraryEntry(url: string, title: string) {
+  const normalizedUrl = toTrackableBrowserLibraryUrl(url);
+  const normalizedTitle = sanitizeBrowserLibraryPageTitle(title);
+  if (!normalizedUrl || !normalizedTitle) {
+    return false;
+  }
+
+  return updateStoredBrowserLibraryState((state) => {
+    if (!state.favoriteUrls.includes(normalizedUrl)) {
+      return state;
+    }
+
+    const favoriteCustomTitleByUrl = {
+      ...state.favoriteCustomTitleByUrl,
+    };
+    favoriteCustomTitleByUrl[normalizedUrl] = normalizedTitle;
+
+    return {
+      ...state,
+      favoriteCustomTitleByUrl,
+    };
+  });
+}
+
+function createFavoriteBrowserLibraryFolder(url: string, folderName: string) {
+  const normalizedUrl = toTrackableBrowserLibraryUrl(url);
+  const normalizedFolderName = sanitizeBrowserLibraryFavoriteFolderName(folderName);
+  if (!normalizedUrl || !normalizedFolderName) {
+    return false;
+  }
+
+  return updateStoredBrowserLibraryState((state) => {
+    if (!state.favoriteUrls.includes(normalizedUrl)) {
+      return state;
+    }
+
+    const nextFolderId = createBrowserLibraryFavoriteFolderId();
+    const favoriteFolderByUrl = {
+      ...state.favoriteFolderByUrl,
+      [normalizedUrl]: nextFolderId,
+    };
+
+    return {
+      ...state,
+      favoriteFolders: pruneStoredBrowserLibraryFavoriteFolders(
+        [
+          ...state.favoriteFolders,
+          {
+            id: nextFolderId,
+            name: normalizedFolderName,
+          },
+        ],
+        favoriteFolderByUrl,
+      ),
+      favoriteFolderByUrl,
     };
   });
 }
@@ -458,12 +743,24 @@ function getFavoriteBrowserLibraryEntries() {
   return [...storedBrowserLibraryState.favoriteUrls];
 }
 
+function getFavoriteBrowserLibraryFolders() {
+  return storedBrowserLibraryState.favoriteFolders.map((folder) => ({ ...folder }));
+}
+
 function getBrowserLibraryEntryFavicon(url: string) {
   return storedBrowserLibraryState.faviconByUrl[url] ?? '';
 }
 
 function getBrowserLibraryEntryPageTitle(url: string) {
   return storedBrowserLibraryState.pageTitleByUrl[url] ?? '';
+}
+
+function getFavoriteBrowserLibraryEntryFolderId(url: string) {
+  return storedBrowserLibraryState.favoriteFolderByUrl[url] ?? '';
+}
+
+function getFavoriteBrowserLibraryEntryCustomTitle(url: string) {
+  return storedBrowserLibraryState.favoriteCustomTitleByUrl[url] ?? '';
 }
 
 function resolveBrowserLibraryTitle(url: string) {
@@ -487,6 +784,7 @@ export class EditorBrowserLibraryPanel {
   private context: EditorBrowserLibraryPanelContext;
   private isInteractionWithin?: (target: Node) => boolean;
   private onDidChangeOpenState?: (isOpen: boolean) => void;
+  private readonly contextMenuService = createContextMenuService();
   private readonly backdropElement = createElement(
     'div',
     'editor-browser-library-panel-backdrop',
@@ -610,6 +908,7 @@ export class EditorBrowserLibraryPanel {
         this.searchInput.focus();
       });
     } else {
+      this.contextMenuService.hideContextMenu();
       this.unbindGlobalListeners();
       this.resetSearchQuery();
     }
@@ -656,6 +955,7 @@ export class EditorBrowserLibraryPanel {
   }
 
   dispose() {
+    this.contextMenuService.dispose();
     this.unbindGlobalListeners();
     this.stopOverlayPositionSync();
     this.clearDesktopOverlayPosition();
@@ -774,6 +1074,71 @@ export class EditorBrowserLibraryPanel {
     this.renderLibraryList();
   };
 
+  private readonly handleFavoriteItemOpenInNewTab = (url: string) => {
+    if (!this.context.onOpenEditor) {
+      return;
+    }
+
+    void this.context.onOpenEditor({
+      kind: 'browser',
+      disposition: 'new-tab',
+      url,
+    });
+    this.setOpen(false);
+  };
+
+  private readonly handleFavoriteItemRemove = (url: string) => {
+    const changed = removeFavoriteBrowserLibraryEntry(url);
+    if (!changed) {
+      return;
+    }
+
+    this.renderLibraryList();
+  };
+
+  private readonly handleFavoriteItemRename = async (
+    itemState: BrowserLibraryListItem,
+  ) => {
+    const nextTitle =
+      (await this.context.onRequestRenameFavorite?.({
+        url: itemState.url,
+        title: itemState.title,
+      })) ?? '';
+    if (!nextTitle.trim()) {
+      return;
+    }
+
+    const changed = renameFavoriteBrowserLibraryEntry(itemState.url, nextTitle);
+    if (!changed) {
+      return;
+    }
+
+    this.renderLibraryList();
+  };
+
+  private readonly handleFavoriteItemCreateFolder = async (
+    itemState: BrowserLibraryListItem,
+  ) => {
+    const nextFolderName =
+      (await this.context.onRequestCreateFavoriteFolder?.({
+        url: itemState.url,
+        title: itemState.title,
+      })) ?? '';
+    if (!nextFolderName.trim()) {
+      return;
+    }
+
+    const changed = createFavoriteBrowserLibraryFolder(
+      itemState.url,
+      nextFolderName,
+    );
+    if (!changed) {
+      return;
+    }
+
+    this.renderLibraryList();
+  };
+
   private readonly handleSearchInputChange = (value: string) => {
     this.searchQuery = value;
     this.renderLibraryList();
@@ -795,6 +1160,9 @@ export class EditorBrowserLibraryPanel {
 
   private createLibraryListItems(): BrowserLibraryListItem[] {
     const favoriteUrls = getFavoriteBrowserLibraryEntries();
+    const favoriteFolderNamesById = new Map(
+      getFavoriteBrowserLibraryFolders().map((folder) => [folder.id, folder.name]),
+    );
     const recentUrls = getRecentBrowserLibraryEntries();
     const listItems: BrowserLibraryListItem[] = [];
     const seenUrls = new Set<string>();
@@ -808,11 +1176,23 @@ export class EditorBrowserLibraryPanel {
       const pageTitle = sanitizeBrowserLibraryPageTitle(
         getBrowserLibraryEntryPageTitle(url),
       );
+      const favoriteFolderId =
+        sectionKind === 'favorites'
+          ? getFavoriteBrowserLibraryEntryFolderId(url)
+          : '';
+      const favoriteFolderName =
+        favoriteFolderNamesById.get(favoriteFolderId) ?? '';
+      const favoriteCustomTitle =
+        sectionKind === 'favorites'
+          ? sanitizeBrowserLibraryPageTitle(getFavoriteBrowserLibraryEntryCustomTitle(url))
+          : '';
       listItems.push({
         url,
-        title: pageTitle || resolveBrowserLibraryTitle(url),
+        title: favoriteCustomTitle || pageTitle || resolveBrowserLibraryTitle(url),
         faviconUrl: getBrowserLibraryEntryFavicon(url),
         sectionKind,
+        favoriteFolderId,
+        favoriteFolderName,
       });
     };
 
@@ -837,9 +1217,11 @@ export class EditorBrowserLibraryPanel {
     return listItems.filter((item) => {
       const normalizedTitle = normalizeSearchQuery(item.title);
       const normalizedUrl = normalizeSearchQuery(item.url);
+      const normalizedFolderName = normalizeSearchQuery(item.favoriteFolderName);
       return (
         normalizedTitle.includes(normalizedQuery) ||
-        normalizedUrl.includes(normalizedQuery)
+        normalizedUrl.includes(normalizedQuery) ||
+        normalizedFolderName.includes(normalizedQuery)
       );
     });
   }
@@ -1035,53 +1417,12 @@ export class EditorBrowserLibraryPanel {
       const sectionListElement = createElement('div', 'editor-browser-library-section-list');
       sectionElement.append(sectionTitleElement, sectionListElement);
 
-      for (const itemState of sectionItems) {
-        const { url, title, faviconUrl, sectionKind } = itemState;
-        const canDeleteHistory = sectionKind === 'recent';
-        const itemRow = createElement('div', 'editor-browser-library-item-row');
-        itemRow.classList.toggle('is-deletable', canDeleteHistory);
-        const item = createElement('button', 'editor-browser-library-item');
-        item.type = 'button';
-        item.title = url;
-        if (sectionKind === 'favorites') {
-          item.classList.add('is-favorite');
+      if (section.kind === 'favorites') {
+        this.renderFavoriteSectionItems(sectionListElement, sectionItems);
+      } else {
+        for (const itemState of sectionItems) {
+          sectionListElement.append(this.createLibraryItemRow(itemState));
         }
-        item.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          this.handleLibraryItemClick(url);
-        });
-        const headerElement = createElement(
-          'span',
-          'editor-browser-library-item-header',
-        );
-        const faviconElement = this.createLibraryItemFaviconElement(faviconUrl);
-        const titleElement = createElement(
-          'span',
-          'editor-browser-library-item-title',
-          title,
-        );
-        headerElement.append(faviconElement, titleElement);
-        item.append(headerElement);
-        itemRow.append(item);
-        if (canDeleteHistory) {
-          const deleteButton = createElement(
-            'button',
-            'editor-browser-library-item-delete-btn btn-base btn-md',
-          ) as HTMLButtonElement;
-          const deleteLabel = this.getDeleteHistoryEntryLabel();
-          deleteButton.type = 'button';
-          deleteButton.title = deleteLabel;
-          deleteButton.setAttribute('aria-label', deleteLabel);
-          deleteButton.append(createLxIcon('trash'));
-          deleteButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            this.handleLibraryItemDelete(url);
-          });
-          itemRow.append(deleteButton);
-        }
-        sectionListElement.append(itemRow);
       }
 
       fragment.append(sectionElement);
@@ -1119,6 +1460,165 @@ export class EditorBrowserLibraryPanel {
       image.replaceWith(fallback);
     });
     return image;
+  }
+
+  private renderFavoriteSectionItems(
+    container: HTMLElement,
+    items: readonly BrowserLibraryListItem[],
+  ) {
+    const rootItems = items.filter((item) => !item.favoriteFolderId);
+    for (const itemState of rootItems) {
+      container.append(this.createLibraryItemRow(itemState));
+    }
+
+    const itemsByFolderId = new Map<string, BrowserLibraryListItem[]>();
+    for (const itemState of items) {
+      if (!itemState.favoriteFolderId) {
+        continue;
+      }
+
+      const existingItems = itemsByFolderId.get(itemState.favoriteFolderId) ?? [];
+      existingItems.push(itemState);
+      itemsByFolderId.set(itemState.favoriteFolderId, existingItems);
+    }
+
+    for (const folder of getFavoriteBrowserLibraryFolders()) {
+      const folderItems = itemsByFolderId.get(folder.id);
+      if (!folderItems || folderItems.length === 0) {
+        continue;
+      }
+
+      const folderGroup = createElement('div', 'editor-browser-library-folder-group');
+      const folderTitle = createElement(
+        'p',
+        'editor-browser-library-folder-title',
+        folder.name,
+      );
+      const folderList = createElement('div', 'editor-browser-library-folder-list');
+      for (const itemState of folderItems) {
+        folderList.append(this.createLibraryItemRow(itemState));
+      }
+      folderGroup.append(folderTitle, folderList);
+      container.append(folderGroup);
+    }
+  }
+
+  private createLibraryItemRow(itemState: BrowserLibraryListItem) {
+    const { url, title, faviconUrl, sectionKind } = itemState;
+    const canDeleteHistory = sectionKind === 'recent';
+    const itemRow = createElement('div', 'editor-browser-library-item-row');
+    itemRow.classList.toggle('is-deletable', canDeleteHistory);
+    const item = createElement('button', 'editor-browser-library-item');
+    item.type = 'button';
+    item.title = url;
+    if (sectionKind === 'favorites') {
+      item.classList.add('is-favorite');
+      item.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.openFavoriteItemContextMenu(event, itemState);
+      });
+    }
+    item.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.handleLibraryItemClick(url);
+    });
+    const headerElement = createElement(
+      'span',
+      'editor-browser-library-item-header',
+    );
+    const faviconElement = this.createLibraryItemFaviconElement(faviconUrl);
+    const titleElement = createElement(
+      'span',
+      'editor-browser-library-item-title',
+      title,
+    );
+    headerElement.append(faviconElement, titleElement);
+    item.append(headerElement);
+    itemRow.append(item);
+    if (canDeleteHistory) {
+      const deleteButton = createElement(
+        'button',
+        'editor-browser-library-item-delete-btn btn-base btn-md',
+      ) as HTMLButtonElement;
+      const deleteLabel = this.getDeleteHistoryEntryLabel();
+      deleteButton.type = 'button';
+      deleteButton.title = deleteLabel;
+      deleteButton.setAttribute('aria-label', deleteLabel);
+      deleteButton.append(createLxIcon('trash'));
+      deleteButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.handleLibraryItemDelete(url);
+      });
+      itemRow.append(deleteButton);
+    }
+    return itemRow;
+  }
+
+  private openFavoriteItemContextMenu(
+    event: MouseEvent,
+    itemState: BrowserLibraryListItem,
+  ) {
+    this.contextMenuService.showContextMenu({
+      backend: 'dom',
+      getAnchor: () => ({
+        x: event.clientX,
+        y: event.clientY,
+        width: 0,
+        height: 0,
+      }),
+      getActions: () => [
+        {
+          value: 'open',
+          label: String(this.context.labels.contextOpen ?? 'Open'),
+        },
+        {
+          value: 'open-in-new-tab',
+          label: String(this.context.labels.contextOpenInNewTab ?? 'Open in New Tab'),
+          disabled: !this.context.onOpenEditor,
+        },
+        {
+          value: 'new-folder',
+          label: String(this.context.labels.contextNewFolder ?? 'New Folder'),
+          disabled: !this.context.onRequestCreateFavoriteFolder,
+        },
+        {
+          value: 'rename',
+          label: String(this.context.labels.contextRename ?? 'Rename'),
+          disabled: !this.context.onRequestRenameFavorite,
+        },
+        {
+          value: 'remove-favorite',
+          label: String(
+            this.context.labels.contextRemoveFavorite ?? 'Remove Favorite',
+          ),
+        },
+      ],
+      getMenuData: () => 'editor-browser-library-favorite-item',
+      alignment: 'start',
+      requestIdPrefix: 'editor-browser-library-favorite-item-menu',
+      onSelect: (value) => {
+        switch (value) {
+          case 'open':
+            this.handleLibraryItemClick(itemState.url);
+            break;
+          case 'open-in-new-tab':
+            this.handleFavoriteItemOpenInNewTab(itemState.url);
+            break;
+          case 'new-folder':
+            void this.handleFavoriteItemCreateFolder(itemState);
+            break;
+          case 'rename':
+            void this.handleFavoriteItemRename(itemState);
+            break;
+          case 'remove-favorite':
+            this.handleFavoriteItemRemove(itemState.url);
+            break;
+        }
+      },
+    });
   }
 
   private getOrCreateListElement() {

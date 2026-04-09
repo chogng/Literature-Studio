@@ -1,20 +1,18 @@
 import type { LocaleMessages } from 'language/locales';
 import { normalizeUrl } from 'ls/workbench/common/url';
-import {
-  EMPTY_BROWSER_TAB_URL,
-  toEditorTabInput,
-} from 'ls/workbench/browser/parts/editor/editorInput';
+import { toEditorTabInput } from 'ls/workbench/browser/parts/editor/editorInput';
 import { createWebContentSurfaceSnapshot, resolveContentSourceUrl } from 'ls/workbench/browser/webContentSurfaceState';
 import type { WebContentSurfaceSnapshot } from 'ls/workbench/browser/webContentSurfaceState';
-import {
-  createDirtyDraftTabIdSet,
-  isReusableEmptyBrowserTab,
-  isReusableEmptyDraftTab,
-} from 'ls/workbench/browser/parts/editor/editorTabPolicy';
 
 import { preparePdfDownload } from 'ls/workbench/services/document/documentActionService';
 import { createEditorModel } from 'ls/workbench/browser/parts/editor/editorModel';
 import type { EditorModelSnapshot, EditorWorkspaceTab, WritingEditorDocument } from 'ls/workbench/browser/parts/editor/editorModel';
+import { createEditorOpenService } from 'ls/workbench/services/editor/browser/editorOpenService';
+import type { EditorOpenService } from 'ls/workbench/services/editor/common/editorOpenService';
+import type {
+  EditorOpenHandler,
+  EditorOpenRequest,
+} from 'ls/workbench/services/editor/common/editorOpenTypes';
 
 import {
   showWorkbenchSaveConfirmModal,
@@ -47,10 +45,13 @@ export type EditorPartActions = {
   onCloseOtherTabs: (tabId: string) => Promise<boolean>;
   onCloseAllTabs: () => Promise<boolean>;
   onRenameTab: (tabId: string) => void | Promise<void>;
-  onCreateDraftTab: () => void;
-  onCreateBrowserTab: () => void;
-  onOpenBrowserPane: () => void;
-  onCreatePdfTab: () => void;
+  onOpenEditor: EditorOpenHandler;
+  onPromptRenameBrowserFavorite: (
+    params: { url: string; title: string },
+  ) => Promise<string | null>;
+  onPromptCreateBrowserFavoriteFolder: (
+    params: { url: string; title: string },
+  ) => Promise<string | null>;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
   onDeleteEditorViewState: (key: EditorViewStateKey) => void;
@@ -118,10 +119,9 @@ export function createEditorPartProps({
     onCloseOtherTabs,
     onCloseAllTabs,
     onRenameTab,
-    onCreateDraftTab,
-    onCreateBrowserTab,
-    onOpenBrowserPane,
-    onCreatePdfTab,
+    onOpenEditor,
+    onPromptRenameBrowserFavorite,
+    onPromptCreateBrowserFavoriteFolder,
     onDraftDocumentChange,
     onSetEditorViewState,
     onDeleteEditorViewState,
@@ -150,6 +150,11 @@ export function createEditorPartProps({
       browserLibraryPanelRecentTitle: ui.editorToolbarSourcesRecent,
       browserLibraryPanelFavoritesTitle: ui.editorToolbarSourcesFavorites,
       browserLibraryPanelEmptyState: ui.editorToolbarSourcesEmpty,
+      browserLibraryPanelContextOpen: ui.editorFavoriteContextOpen,
+      browserLibraryPanelContextOpenInNewTab: ui.editorFavoriteContextOpenInNewTab,
+      browserLibraryPanelContextNewFolder: ui.editorFavoriteContextNewFolder,
+      browserLibraryPanelContextRename: ui.editorFavoriteContextRename,
+      browserLibraryPanelContextRemoveFavorite: ui.editorFavoriteContextRemove,
       draftMode: ui.editorDraftMode,
       sourceMode: ui.editorSourceMode,
       pdfMode: ui.editorPdfMode,
@@ -157,6 +162,10 @@ export function createEditorPartProps({
       closeOthers: ui.editorTabContextCloseOthers,
       closeAll: ui.editorTabContextCloseAll,
       rename: ui.editorTabContextRename,
+      renameFavoriteTitle: ui.editorFavoriteRenameTitle,
+      renameFavoriteLabel: ui.editorFavoriteRenameLabel,
+      newFavoriteFolderTitle: ui.editorFavoriteNewFolderTitle,
+      newFavoriteFolderLabel: ui.editorFavoriteNewFolderLabel,
       expandEditor: ui.editorExpand,
       collapseEditor: ui.editorCollapse,
       emptyWorkspaceTitle: ui.editorEmptyWorkspaceTitle,
@@ -224,10 +233,9 @@ export function createEditorPartProps({
     onCloseOtherTabs,
     onCloseAllTabs,
     onRenameTab,
-    onCreateDraftTab,
-    onCreateBrowserTab,
-    onOpenBrowserPane,
-    onCreatePdfTab,
+    onOpenEditor,
+    onPromptRenameBrowserFavorite,
+    onPromptCreateBrowserFavoriteFolder,
     onDraftDocumentChange,
     onSetEditorViewState,
     onDeleteEditorViewState,
@@ -315,6 +323,7 @@ function areEditorPartControllerContextsEqual(
 export class EditorPartController {
   private context: EditorPartControllerContext;
   private readonly editorModel = createEditorModel();
+  private readonly editorOpenService: EditorOpenService;
   private snapshot: EditorPartControllerSnapshot;
   private closeOperationQueue: Promise<void> = Promise.resolve();
   private readonly listeners = new Set<
@@ -325,6 +334,7 @@ export class EditorPartController {
 
   constructor(context: EditorPartControllerContext) {
     this.context = context;
+    this.editorOpenService = createEditorOpenService(this.editorModel);
     this.actions = {
       onActivateTab: this.onActivateTab,
       onReorderTab: this.onReorderTab,
@@ -332,10 +342,9 @@ export class EditorPartController {
       onCloseOtherTabs: this.onCloseOtherTabs,
       onCloseAllTabs: this.onCloseAllTabs,
       onRenameTab: this.onRenameTab,
-      onCreateDraftTab: this.createDraftTab,
-      onCreateBrowserTab: this.handleCreateBrowserTab,
-      onOpenBrowserPane: this.handleOpenBrowserPane,
-      onCreatePdfTab: this.handleCreatePdfTab,
+      onOpenEditor: this.openEditor,
+      onPromptRenameBrowserFavorite: this.promptRenameBrowserFavorite,
+      onPromptCreateBrowserFavoriteFolder: this.promptCreateBrowserFavoriteFolder,
       onDraftDocumentChange: this.setDraftDocument,
       onSetEditorViewState: this.setEditorViewState,
       onDeleteEditorViewState: this.deleteEditorViewState,
@@ -374,60 +383,70 @@ export class EditorPartController {
     this.listeners.clear();
   };
 
+  readonly openEditor = (request: EditorOpenRequest) => {
+    if (request.kind !== 'pdf' || request.url?.trim()) {
+      return this.editorOpenService.open(request);
+    }
+
+    return this.resolveOpenEditorRequest(request).then((resolvedRequest) => {
+      if (!resolvedRequest) {
+        return {
+          handled: false,
+          activeTabId: null,
+        };
+      }
+
+      return this.editorOpenService.open(resolvedRequest);
+    });
+  };
+
   readonly createDraftTab = () => {
-    this.createOrRevealEmptyDraftTab();
+    this.openEditor({
+      kind: 'draft',
+      disposition: 'reveal-or-open',
+    });
   };
 
   readonly createBrowserTab = (url: string) => {
-    this.editorModel.createBrowserTab(url);
+    if (!url.trim()) {
+      return;
+    }
+
+    this.openEditor({
+      kind: 'browser',
+      disposition: 'reveal-or-open',
+      url,
+    });
+  };
+
+  readonly openBrowserUrlInNewTab = (url: string) => {
+    if (!url.trim()) {
+      return;
+    }
+
+    this.openEditor({
+      kind: 'browser',
+      disposition: 'new-tab',
+      url,
+    });
   };
 
   readonly openBrowserPane = () => {
-    this.createOrRevealEmptyBrowserTab();
+    this.openEditor({
+      kind: 'browser',
+      disposition: 'reveal-or-open',
+    });
   };
-
-  private readonly createOrRevealEmptyDraftTab = () => {
-    const { activeTab, tabs, dirtyDraftTabIds } = this.editorModel.getSnapshot();
-    const dirtyDraftTabIdSet = createDirtyDraftTabIdSet(dirtyDraftTabIds);
-    // Keep the fixed draft entry lightweight: reuse the blank clean draft first.
-    const existingEmptyDraftTab = isReusableEmptyDraftTab(
-      activeTab,
-      dirtyDraftTabIdSet,
-    )
-      ? activeTab
-      : tabs.find((tab) =>
-          isReusableEmptyDraftTab(tab, dirtyDraftTabIdSet),
-        ) ?? null;
-    if (existingEmptyDraftTab) {
-      this.editorModel.activateTab(existingEmptyDraftTab.id);
-      return existingEmptyDraftTab.id;
-    }
-
-    this.editorModel.createDraftTab();
-    return this.editorModel.getSnapshot().activeTabId;
-  };
-
-  private readonly createOrRevealEmptyBrowserTab = () => {
-    const { activeTab, tabs } = this.editorModel.getSnapshot();
-    // Mirror draft behavior for browser mode: reveal the existing about:blank tab before creating one.
-    const existingEmptyBrowserTab = isReusableEmptyBrowserTab(activeTab)
-      ? activeTab
-      : tabs.find((tab) => isReusableEmptyBrowserTab(tab)) ?? null;
-    if (existingEmptyBrowserTab) {
-      this.editorModel.activateTab(existingEmptyBrowserTab.id);
-      return existingEmptyBrowserTab.id;
-    }
-
-    this.editorModel.createBrowserTab(EMPTY_BROWSER_TAB_URL);
-    return this.editorModel.getSnapshot().activeTabId;
-  };
-
-  private readonly handleOpenBrowserPane = () => {
-    this.openBrowserPane();
-  };
-
   readonly createPdfTab = (url: string) => {
-    this.editorModel.createPdfTab(url);
+    if (!url.trim()) {
+      return;
+    }
+
+    void this.openEditor({
+      kind: 'pdf',
+      disposition: 'reveal-or-open',
+      url,
+    });
   };
 
   readonly canSaveActiveDraft = () => this.editorModel.canSaveActiveDraft();
@@ -440,7 +459,12 @@ export class EditorPartController {
       isLoading?: boolean;
     } = {},
   ) => {
-    this.editorModel.updateActiveContentTabUrl(url, options);
+    this.openEditor({
+      kind: 'browser',
+      disposition: 'current',
+      url,
+      options,
+    });
   };
 
   readonly updateActiveBrowserTabPageTitle = (pageTitle: string) => {
@@ -491,7 +515,7 @@ export class EditorPartController {
       const shouldKeepBrowserPane = this.shouldKeepBrowserPaneAfterClosingTab(tabId);
       this.editorModel.closeTab(tabId);
       if (shouldKeepBrowserPane) {
-        this.createOrRevealEmptyBrowserTab();
+        this.openBrowserPane();
       }
       return true;
     });
@@ -550,38 +574,39 @@ export class EditorPartController {
     this.editorModel.renameTab(tabId, nextTitle);
   };
 
-  private readonly handleCreatePdfTab = async () => {
-    const { browserUrl, webUrl, ui } = this.context;
-    const { webContentSurfaceSnapshot } = this.snapshot;
-    const seedUrl = resolveContentSourceUrl(
-      webContentSurfaceSnapshot,
-      browserUrl,
-      webUrl,
-    );
-    const preparedPdfDownload = seedUrl ? preparePdfDownload(seedUrl) : null;
-    const defaultPdfUrl = preparedPdfDownload?.preferredPdfUrl ?? '';
-    const shouldPromptForUrl =
-      !defaultPdfUrl ||
-      (preparedPdfDownload?.normalizedSourceUrl === defaultPdfUrl &&
-        !looksLikePdfUrl(defaultPdfUrl));
-    const nextInput = shouldPromptForUrl
-      ? (await showWorkbenchTextInputModal({
-          title: ui.editorPdfTitle,
-          label: ui.editorPdfUrlPrompt,
-          defaultValue: defaultPdfUrl || 'https://',
-          ui,
-        })) ?? ''
-      : defaultPdfUrl;
-    const normalizedPdfUrl = normalizeUrl(nextInput);
-    if (!normalizedPdfUrl) {
-      return;
-    }
-
-    this.editorModel.createPdfTab(normalizedPdfUrl);
+  readonly promptRenameBrowserFavorite = async ({
+    title,
+  }: {
+    url: string;
+    title: string;
+  }) => {
+    const { ui } = this.context;
+    const nextTitle =
+      (await showWorkbenchTextInputModal({
+        title: ui.editorFavoriteRenameTitle,
+        label: ui.editorFavoriteRenameLabel,
+        defaultValue: title.trim(),
+        ui,
+      })) ?? '';
+    return nextTitle.trim() || null;
   };
 
-  private readonly handleCreateBrowserTab = () => {
-    this.createOrRevealEmptyBrowserTab();
+  readonly promptCreateBrowserFavoriteFolder = async ({
+    title,
+  }: {
+    url: string;
+    title: string;
+  }) => {
+    const { ui } = this.context;
+    const nextFolderName =
+      (await showWorkbenchTextInputModal({
+        title: ui.editorFavoriteNewFolderTitle,
+        label: ui.editorFavoriteNewFolderLabel,
+        defaultValue: '',
+        placeholder: title.trim(),
+        ui,
+      })) ?? '';
+    return nextFolderName.trim() || null;
   };
 
   private readonly confirmCloseForTabIds = async (tabIds: readonly string[]) => {
@@ -704,6 +729,45 @@ export class EditorPartController {
 
     this.emitChange(reason === 'context' ? 'context' : 'structure');
   }
+
+  private readonly resolveOpenEditorRequest = async (
+    request: EditorOpenRequest,
+  ): Promise<EditorOpenRequest | null> => {
+    if (request.kind !== 'pdf' || request.url?.trim()) {
+      return request;
+    }
+
+    const { browserUrl, webUrl, ui } = this.context;
+    const { webContentSurfaceSnapshot } = this.snapshot;
+    const seedUrl = resolveContentSourceUrl(
+      webContentSurfaceSnapshot,
+      browserUrl,
+      webUrl,
+    );
+    const preparedPdfDownload = seedUrl ? preparePdfDownload(seedUrl) : null;
+    const defaultPdfUrl = preparedPdfDownload?.preferredPdfUrl ?? '';
+    const shouldPromptForUrl =
+      !defaultPdfUrl ||
+      (preparedPdfDownload?.normalizedSourceUrl === defaultPdfUrl &&
+        !looksLikePdfUrl(defaultPdfUrl));
+    const nextInput = shouldPromptForUrl
+      ? (await showWorkbenchTextInputModal({
+          title: ui.editorPdfTitle,
+          label: ui.editorPdfUrlPrompt,
+          defaultValue: defaultPdfUrl || 'https://',
+          ui,
+        })) ?? ''
+      : defaultPdfUrl;
+    const normalizedPdfUrl = normalizeUrl(nextInput);
+    if (!normalizedPdfUrl) {
+      return null;
+    }
+
+    return {
+      ...request,
+      url: normalizedPdfUrl,
+    };
+  };
 }
 
 export function createEditorPartController(

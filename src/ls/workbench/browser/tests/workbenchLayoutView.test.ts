@@ -8,6 +8,7 @@ import {
   EDITOR_FRAME_SLOTS,
   getEditorFrameSlot,
 } from 'ls/workbench/browser/parts/editor/editorFrame';
+import type { EditorOpenRequest } from 'ls/workbench/services/editor/common/editorOpenTypes';
 
 let cleanupDomEnvironment: (() => void) | null = null;
 let createWorkbenchLayoutView: typeof import('ls/workbench/browser/workbench').createWorkbenchLayoutView;
@@ -77,6 +78,12 @@ function createSettingsTopbarActionsElement(backLabel: string) {
   actionbar.append(actions);
   host.append(actionbar);
   return host;
+}
+
+function waitForNextTask() {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
 }
 
 function materializeWorkbenchLayoutViewProps(
@@ -357,7 +364,6 @@ function createWorkbenchLayoutViewProps() {
     libraryTitle: 'Library',
     libraryAction: 'Refresh library',
     pdfDownloadAction: 'Download pdf',
-    writingAction: 'Create draft',
     libraryEmpty: 'No library data',
     libraryDocuments: 'Documents',
     libraryFiles: 'Files',
@@ -532,10 +538,19 @@ function createWorkbenchLayoutViewProps() {
         browserLibraryPanelRecentTitle: 'Today',
         browserLibraryPanelFavoritesTitle: 'Favorites',
         browserLibraryPanelEmptyState: 'No links yet',
+        browserLibraryPanelContextOpen: 'Open',
+        browserLibraryPanelContextOpenInNewTab: 'Open in New Tab',
+        browserLibraryPanelContextNewFolder: 'New Folder',
+        browserLibraryPanelContextRename: 'Rename',
+        browserLibraryPanelContextRemoveFavorite: 'Remove Favorite',
         draftMode: 'Draft',
         sourceMode: 'Source',
         pdfMode: 'PDF',
         close: 'Close',
+        renameFavoriteTitle: 'Rename Favorite',
+        renameFavoriteLabel: 'Favorite name',
+        newFavoriteFolderTitle: 'New Folder',
+        newFavoriteFolderLabel: 'Folder name',
         expandEditor: 'Expand editor',
         collapseEditor: 'Collapse editor',
         emptyWorkspaceTitle: 'Empty workspace',
@@ -605,9 +620,7 @@ function createWorkbenchLayoutViewProps() {
       viewStateEntries: [],
       onActivateTab: () => {},
       onCloseTab: () => {},
-      onCreateDraftTab: () => {},
-      onCreateBrowserTab: () => {},
-      onCreatePdfTab: () => {},
+      onOpenEditor: () => {},
       onOpenAddressBarSourceMenu: () => {},
       onToolbarNavigateBack: () => {},
       onToolbarNavigateForward: () => {},
@@ -1095,14 +1108,17 @@ test('WorkbenchLayoutView keeps primary width when switching back from settings 
   }
 });
 
-test('WorkbenchLayoutView renders an add dropdown before the collapse action and dispatches create handlers', async () => {
-  const calls: string[] = [];
+test('WorkbenchLayoutView renders an add dropdown before the collapse action and dispatches open requests', async () => {
+  const calls: Array<{ kind: string; disposition: string }> = [];
   const props = createWorkbenchLayoutViewProps();
   props.editorPartProps = {
     ...props.editorPartProps,
-    onCreateDraftTab: () => calls.push('draft'),
-    onCreateBrowserTab: () => calls.push('browser'),
-    onCreatePdfTab: () => calls.push('file'),
+    onOpenEditor: (request: EditorOpenRequest) => {
+      calls.push({
+        kind: request.kind,
+        disposition: request.disposition,
+      });
+    },
   };
 
   const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
@@ -1125,9 +1141,9 @@ test('WorkbenchLayoutView renders an add dropdown before the collapse action and
     assert.equal(addButton.getAttribute('aria-label'), 'Add');
 
     for (const [label, expectedCall] of [
-      ['Draft', 'draft'],
-      ['Browser', 'browser'],
-      ['File', 'file'],
+      ['Draft', { kind: 'draft', disposition: 'reveal-or-open' }],
+      ['Browser', { kind: 'browser', disposition: 'reveal-or-open' }],
+      ['File', { kind: 'pdf', disposition: 'reveal-or-open' }],
     ] as const) {
       addButton.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -1142,10 +1158,14 @@ test('WorkbenchLayoutView renders an add dropdown before the collapse action and
       menuItem.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      assert.equal(calls.at(-1), expectedCall);
+      assert.deepEqual(calls.at(-1), expectedCall);
     }
 
-    assert.deepEqual(calls, ['draft', 'browser', 'file']);
+    assert.deepEqual(calls, [
+      { kind: 'draft', disposition: 'reveal-or-open' },
+      { kind: 'browser', disposition: 'reveal-or-open' },
+      { kind: 'pdf', disposition: 'reveal-or-open' },
+    ]);
   } finally {
     view.dispose();
     document.body.replaceChildren();
@@ -1372,11 +1392,23 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
   document.body.append(view.getElement());
 
   try {
-    const favoriteButton = view
+    let favoriteButton = view
       .getElement()
       .querySelector('.editor-browser-toolbar-leading [aria-label="Favorite"]');
     assert(favoriteButton instanceof HTMLButtonElement);
+    assert.equal(favoriteButton.getAttribute('aria-pressed'), 'false');
+    assert(
+      favoriteButton.querySelector('.lx-icon-favorite') instanceof HTMLElement,
+    );
     favoriteButton.click();
+    favoriteButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Favorite"]');
+    assert(favoriteButton instanceof HTMLButtonElement);
+    assert.equal(favoriteButton.getAttribute('aria-pressed'), 'true');
+    assert(
+      favoriteButton.querySelector('.lx-icon-favorite-filled') instanceof HTMLElement,
+    );
 
     const sourcesButton = view
       .getElement()
@@ -1433,6 +1465,391 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
     assert.equal(panelBackdrop.classList.contains('is-open'), false);
   } finally {
     view.dispose();
+    document.body.replaceChildren();
+    window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+  }
+});
+
+test('WorkbenchLayoutView opens the favorite item context menu and dispatches Open', async () => {
+  const BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
+  const FAVORITE_URL = 'https://example.com/current-context-open';
+  const FAVORITE_TITLE = 'Example Context Open Page';
+  const addressChanges: string[] = [];
+  let navigateCount = 0;
+  window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+
+  const props = createWorkbenchLayoutViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-favorite-context-open',
+        kind: 'browser',
+        title: 'Example',
+        url: FAVORITE_URL,
+      },
+    ],
+    activeTabId: 'browser-tab-favorite-context-open',
+    activeTab: {
+      id: 'browser-tab-favorite-context-open',
+      kind: 'browser',
+      title: 'Example',
+      url: FAVORITE_URL,
+    },
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: FAVORITE_URL,
+      browserPageTitle: FAVORITE_TITLE,
+      browserFaviconUrl: 'https://example.com/favicon.ico',
+      electronRuntime: true,
+      webContentRuntime: true,
+    },
+    onToolbarNavigateToUrl: (value: string) => {
+      addressChanges.push(value);
+      navigateCount += 1;
+    },
+  };
+
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    const favoriteButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Favorite"]');
+    assert(favoriteButton instanceof HTMLButtonElement);
+    favoriteButton.click();
+
+    const sourcesButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Source menu"]');
+    assert(sourcesButton instanceof HTMLButtonElement);
+    sourcesButton.click();
+    await waitForNextTask();
+    await waitForNextTask();
+
+    const panel = document.body.querySelector('.editor-browser-library-panel');
+    assert(panel instanceof HTMLElement);
+    const favoriteItem = Array.from(
+      panel.querySelectorAll('.editor-browser-library-item.is-favorite'),
+    )[0];
+    assert(favoriteItem instanceof HTMLButtonElement);
+
+    favoriteItem.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 24,
+      clientY: 24,
+    }));
+    await waitForNextTask();
+
+    const menu = document.body.querySelector(
+      '.dropdown-menu[data-menu="editor-browser-library-favorite-item"]',
+    );
+    assert(menu instanceof HTMLElement);
+    const menuItems = Array.from(menu.querySelectorAll('.dropdown-menu-item'));
+    assert.deepEqual(
+      menuItems.map((node) => node.textContent?.trim()),
+      ['Open', 'Open in New Tab', 'New Folder', 'Rename', 'Remove Favorite'],
+    );
+
+    const openItem = menuItems.find((node) => node.textContent?.trim() === 'Open');
+    assert(openItem instanceof HTMLElement);
+    openItem.click();
+    await waitForNextTask();
+
+    assert.equal(addressChanges.at(-1), FAVORITE_URL);
+    assert.equal(navigateCount, 1);
+    assert.equal(panel.classList.contains('is-open'), false);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+    window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+  }
+});
+
+test('WorkbenchLayoutView keeps favorite context menu Open in New Tab enabled from the browser toolbar path', async () => {
+  const BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
+  const FAVORITE_URL = 'https://example.com/current-context-open-new-tab';
+  const FAVORITE_TITLE = 'Example Context Open New Tab Page';
+  const openedInNewTab: string[] = [];
+  window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+
+  const props = createWorkbenchLayoutViewProps();
+  props.editorPartProps = {
+    ...props.editorPartProps,
+    tabs: [
+      {
+        id: 'browser-tab-favorite-context-open-new-tab',
+        kind: 'browser',
+        title: 'Example',
+        url: FAVORITE_URL,
+      },
+    ],
+    activeTabId: 'browser-tab-favorite-context-open-new-tab',
+    activeTab: {
+      id: 'browser-tab-favorite-context-open-new-tab',
+      kind: 'browser',
+      title: 'Example',
+      url: FAVORITE_URL,
+    },
+    viewPartProps: {
+      ...props.editorPartProps.viewPartProps,
+      browserUrl: FAVORITE_URL,
+      browserPageTitle: FAVORITE_TITLE,
+      browserFaviconUrl: 'https://example.com/favicon.ico',
+      electronRuntime: true,
+      webContentRuntime: true,
+    },
+    onOpenEditor: (request: EditorOpenRequest) => {
+      if (
+        request.kind === 'browser' &&
+        request.disposition === 'new-tab' &&
+        request.url
+      ) {
+        openedInNewTab.push(request.url);
+      }
+    },
+  };
+
+  const view = createWorkbenchLayoutView(materializeWorkbenchLayoutViewProps(props));
+  document.body.append(view.getElement());
+
+  try {
+    const favoriteButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Favorite"]');
+    assert(favoriteButton instanceof HTMLButtonElement);
+    favoriteButton.click();
+
+    const sourcesButton = view
+      .getElement()
+      .querySelector('.editor-browser-toolbar-leading [aria-label="Source menu"]');
+    assert(sourcesButton instanceof HTMLButtonElement);
+    sourcesButton.click();
+    await waitForNextTask();
+    await waitForNextTask();
+
+    const panel = document.body.querySelector('.editor-browser-library-panel');
+    assert(panel instanceof HTMLElement);
+    const favoriteItem = Array.from(
+      panel.querySelectorAll('.editor-browser-library-item.is-favorite'),
+    )[0];
+    assert(favoriteItem instanceof HTMLButtonElement);
+
+    favoriteItem.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 30,
+      clientY: 30,
+    }));
+    await waitForNextTask();
+
+    const menu = document.body.querySelector(
+      '.dropdown-menu[data-menu="editor-browser-library-favorite-item"]',
+    );
+    assert(menu instanceof HTMLElement);
+    const openInNewTabItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.trim() === 'Open in New Tab',
+    );
+    assert(openInNewTabItem instanceof HTMLElement);
+    assert.equal(openInNewTabItem.getAttribute('aria-disabled'), 'false');
+
+    openInNewTabItem.click();
+    await waitForNextTask();
+
+    assert.deepEqual(openedInNewTab, [FAVORITE_URL]);
+    assert.equal(panel.classList.contains('is-open'), false);
+  } finally {
+    view.dispose();
+    document.body.replaceChildren();
+    window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+  }
+});
+
+test('EditorBrowserLibraryPanel favorite item context menu can rename, group, open in new tab, and remove the favorite', async () => {
+  const { EditorBrowserLibraryPanel } = await import(
+    'ls/workbench/browser/parts/editor/editorBrowserLibraryPanel'
+  );
+  const BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
+  const FAVORITE_URL = 'https://example.com/current-context-actions';
+  const FAVORITE_TITLE = 'Example Context Actions Page';
+  const openedInNewTab: string[] = [];
+  let renameRequestCount = 0;
+  window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const panel = new EditorBrowserLibraryPanel({
+    browserUrl: FAVORITE_URL,
+    browserPageTitle: FAVORITE_TITLE,
+    browserFaviconUrl: 'https://example.com/favicon.ico',
+    browserTabTitle: 'Example',
+    labels: {
+      title: 'Source menu',
+      recentTitle: 'Today',
+      favoritesTitle: 'Favorites',
+      emptyState: 'No links yet',
+      contextOpen: 'Open',
+      contextOpenInNewTab: 'Open in New Tab',
+      contextNewFolder: 'New Folder',
+      contextRename: 'Rename',
+      contextRemoveFavorite: 'Remove Favorite',
+    },
+    onNavigateToUrl: () => {},
+    onOpenEditor: (request) => {
+      if (
+        request.kind === 'browser' &&
+        request.disposition === 'new-tab' &&
+        request.url
+      ) {
+        openedInNewTab.push(request.url);
+      }
+    },
+    onRequestRenameFavorite: async () => {
+      renameRequestCount += 1;
+      return 'Pinned Example';
+    },
+    onRequestCreateFavoriteFolder: async () => 'Reading List',
+  });
+  panel.mountTo(host);
+  panel.toggleCurrentBrowserUrlFavorite();
+  panel.setOpen(true);
+
+  try {
+    await waitForNextTask();
+    await waitForNextTask();
+
+    const panelElement = panel.getElement();
+    const favoriteItemSelector = `.editor-browser-library-item.is-favorite[title="${FAVORITE_URL}"]`;
+    const anyItemSelector = `.editor-browser-library-item[title="${FAVORITE_URL}"]`;
+    let favoriteItem = panelElement.querySelector(favoriteItemSelector);
+    assert(favoriteItem instanceof HTMLButtonElement);
+    favoriteItem.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 28,
+      clientY: 28,
+    }));
+    await waitForNextTask();
+
+    let menu = document.body.querySelector(
+      '.dropdown-menu[data-menu="editor-browser-library-favorite-item"]',
+    );
+    assert(menu instanceof HTMLElement);
+    let renameItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.trim() === 'Rename',
+    );
+    assert(renameItem instanceof HTMLElement);
+    renameItem.click();
+    await waitForNextTask();
+    await waitForNextTask();
+
+    assert.equal(renameRequestCount, 1);
+
+    favoriteItem = panelElement.querySelector(favoriteItemSelector);
+    assert(favoriteItem instanceof HTMLButtonElement);
+    let favoriteTitle = favoriteItem.querySelector('.editor-browser-library-item-title');
+    assert(favoriteTitle instanceof HTMLElement);
+    assert.equal(favoriteTitle.textContent, 'Pinned Example');
+
+    favoriteItem = panelElement.querySelector(favoriteItemSelector);
+    assert(favoriteItem instanceof HTMLButtonElement);
+    favoriteItem.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 32,
+      clientY: 32,
+    }));
+    await waitForNextTask();
+
+    menu = document.body.querySelector(
+      '.dropdown-menu[data-menu="editor-browser-library-favorite-item"]',
+    );
+    assert(menu instanceof HTMLElement);
+    let newFolderItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.trim() === 'New Folder',
+    );
+    assert(newFolderItem instanceof HTMLElement);
+    newFolderItem.click();
+    await waitForNextTask();
+    await waitForNextTask();
+
+    const folderTitle = panelElement.querySelector('.editor-browser-library-folder-title');
+    assert(folderTitle instanceof HTMLElement);
+    assert.equal(folderTitle.textContent, 'Reading List');
+    favoriteItem = panelElement.querySelector(favoriteItemSelector);
+    assert(favoriteItem instanceof HTMLButtonElement);
+    favoriteTitle = favoriteItem.querySelector('.editor-browser-library-item-title');
+    assert(favoriteTitle instanceof HTMLElement);
+    assert.equal(favoriteTitle.textContent, 'Pinned Example');
+
+    favoriteItem = panelElement.querySelector(favoriteItemSelector);
+    assert(favoriteItem instanceof HTMLButtonElement);
+    favoriteItem.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 36,
+      clientY: 36,
+    }));
+    await waitForNextTask();
+
+    menu = document.body.querySelector(
+      '.dropdown-menu[data-menu="editor-browser-library-favorite-item"]',
+    );
+    assert(menu instanceof HTMLElement);
+    let openInNewTabItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.trim() === 'Open in New Tab',
+    );
+    assert(openInNewTabItem instanceof HTMLElement);
+    openInNewTabItem.click();
+    await waitForNextTask();
+
+    assert.deepEqual(openedInNewTab, [FAVORITE_URL]);
+    assert.equal(panelElement.classList.contains('is-open'), false);
+
+    panel.setOpen(true);
+    await waitForNextTask();
+    await waitForNextTask();
+
+    favoriteItem = panelElement.querySelector(favoriteItemSelector);
+    assert(favoriteItem instanceof HTMLButtonElement);
+    favoriteItem.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 40,
+      clientY: 40,
+    }));
+    await waitForNextTask();
+
+    menu = document.body.querySelector(
+      '.dropdown-menu[data-menu="editor-browser-library-favorite-item"]',
+    );
+    assert(menu instanceof HTMLElement);
+    let removeFavoriteItem = Array.from(menu.querySelectorAll('.dropdown-menu-item')).find(
+      (node) => node.textContent?.trim() === 'Remove Favorite',
+    );
+    assert(removeFavoriteItem instanceof HTMLElement);
+    removeFavoriteItem.click();
+    await waitForNextTask();
+    await waitForNextTask();
+
+    assert.equal(
+      panelElement.querySelector(favoriteItemSelector),
+      null,
+    );
+    const folderTitles = Array.from(
+      panelElement.querySelectorAll('.editor-browser-library-folder-title'),
+    ).map((node) => node.textContent);
+    assert.equal(folderTitles.includes('Reading List'), false);
+    const recentItem = panelElement.querySelector(anyItemSelector);
+    assert(recentItem instanceof HTMLButtonElement);
+    assert.equal(recentItem.classList.contains('is-favorite'), false);
+    const recentTitle = recentItem.querySelector('.editor-browser-library-item-title');
+    assert(recentTitle instanceof HTMLElement);
+    assert.equal(recentTitle.textContent, FAVORITE_TITLE);
+  } finally {
+    panel.dispose();
     document.body.replaceChildren();
     window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
   }

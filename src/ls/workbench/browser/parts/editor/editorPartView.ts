@@ -16,6 +16,7 @@ import type { DraftEditorSurfaceActionId } from 'ls/workbench/browser/parts/edit
 import type { DraftEditorCommandId } from 'ls/workbench/browser/parts/editor/panes/draftEditorCommands';
 import type { ViewPartProps } from 'ls/workbench/browser/parts/views/viewPartView';
 import { EditorGroupView } from 'ls/workbench/browser/parts/editor/editorGroupView';
+import type { EditorOpenHandler } from 'ls/workbench/services/editor/common/editorOpenTypes';
 import 'ls/workbench/browser/parts/editor/media/editor.css';
 import 'ls/workbench/browser/parts/editor/media/editorToolbar.css';
 import 'ls/workbench/browser/parts/editor/media/editorBrowserLibraryPanel.css';
@@ -43,6 +44,11 @@ export type EditorPartLabels = {
   browserLibraryPanelRecentTitle: string;
   browserLibraryPanelFavoritesTitle: string;
   browserLibraryPanelEmptyState: string;
+  browserLibraryPanelContextOpen: string;
+  browserLibraryPanelContextOpenInNewTab: string;
+  browserLibraryPanelContextNewFolder: string;
+  browserLibraryPanelContextRename: string;
+  browserLibraryPanelContextRemoveFavorite: string;
   draftMode: string;
   sourceMode: string;
   pdfMode: string;
@@ -50,6 +56,10 @@ export type EditorPartLabels = {
   closeOthers?: string;
   closeAll?: string;
   rename?: string;
+  renameFavoriteTitle?: string;
+  renameFavoriteLabel?: string;
+  newFavoriteFolderTitle?: string;
+  newFavoriteFolderLabel?: string;
   expandEditor: string;
   collapseEditor: string;
   emptyWorkspaceTitle: string;
@@ -95,10 +105,13 @@ export type EditorPartBaseProps = {
   onCloseOtherTabs?: (tabId: string) => Promise<boolean> | boolean | void;
   onCloseAllTabs?: () => Promise<boolean> | boolean | void;
   onRenameTab?: (tabId: string) => void | Promise<void>;
-  onCreateDraftTab: () => void;
-  onCreateBrowserTab: () => void;
-  onOpenBrowserPane: () => void;
-  onCreatePdfTab: () => void;
+  onOpenEditor: EditorOpenHandler;
+  onPromptRenameBrowserFavorite?: (
+    params: { url: string; title: string },
+  ) => Promise<string | null> | string | null;
+  onPromptCreateBrowserFavoriteFolder?: (
+    params: { url: string; title: string },
+  ) => Promise<string | null> | string | null;
   onDraftDocumentChange: (value: WritingEditorDocument) => void;
   onSetEditorViewState: (key: EditorViewStateKey, state: unknown) => void;
   onDeleteEditorViewState: (key: EditorViewStateKey) => void;

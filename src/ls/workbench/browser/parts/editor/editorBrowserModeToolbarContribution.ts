@@ -117,7 +117,6 @@ implements EditorModeToolbarContribution {
     }
 
     panel.setOnDidChangeOpenState(this.handleLibraryPanelOpenStateChange);
-    panel.setContext(this.createLibraryPanelContext());
   }
 
   private updateLeadingActions() {
@@ -136,22 +135,6 @@ implements EditorModeToolbarContribution {
     return this.getLibraryPanelView()?.getToggleButtonAttributes() ?? {
       'aria-haspopup': 'dialog',
       'aria-expanded': 'false',
-    };
-  }
-
-  private createLibraryPanelContext() {
-    return {
-      browserUrl: this.context.browserUrl,
-      browserPageTitle: this.context.browserPageTitle ?? '',
-      browserFaviconUrl: this.context.browserFaviconUrl ?? '',
-      browserTabTitle: this.context.browserTabTitle ?? '',
-      labels: {
-        title: this.context.labels.browserLibraryPanelTitle,
-        recentTitle: this.context.labels.browserLibraryPanelRecentTitle,
-        favoritesTitle: this.context.labels.browserLibraryPanelFavoritesTitle,
-        emptyState: this.context.labels.browserLibraryPanelEmptyState,
-      },
-      onNavigateToUrl: this.handleLibraryItemNavigate,
     };
   }
 
@@ -177,11 +160,6 @@ implements EditorModeToolbarContribution {
 
   private readonly handleLibraryPanelOpenStateChange = () => {
     this.updateLeadingActions();
-  };
-
-  private readonly handleLibraryItemNavigate = (url: string) => {
-    this.isAddressInputEdited = false;
-    this.context.onNavigateToUrl(url);
   };
 
   private syncAddressInputFromContext(force = false) {
@@ -267,7 +245,9 @@ implements EditorModeToolbarContribution {
         title: this.context.labels.toolbarFavorite,
         mode: 'icon',
         buttonClassName: 'editor-browser-toolbar-btn',
-        content: createLxIcon('favorite'),
+        content: createLxIcon(
+          isCurrentUrlFavorited ? 'favorite-filled' : 'favorite',
+        ),
         disabled: !(panel?.canToggleCurrentBrowserUrlFavorite() ?? false),
         checked: isCurrentUrlFavorited,
         active: isCurrentUrlFavorited,
