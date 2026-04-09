@@ -1165,14 +1165,11 @@ export class EditorBrowserLibraryPanel {
     );
     const recentUrls = getRecentBrowserLibraryEntries();
     const listItems: BrowserLibraryListItem[] = [];
-    const seenUrls = new Set<string>();
 
     const appendUrl = (url: string, sectionKind: BrowserLibrarySectionKind) => {
-      if (!url || seenUrls.has(url)) {
+      if (!url) {
         return;
       }
-
-      seenUrls.add(url);
       const pageTitle = sanitizeBrowserLibraryPageTitle(
         getBrowserLibraryEntryPageTitle(url),
       );

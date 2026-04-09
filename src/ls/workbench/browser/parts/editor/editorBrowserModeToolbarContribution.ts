@@ -249,8 +249,9 @@ implements EditorModeToolbarContribution {
           isCurrentUrlFavorited ? 'favorite-filled' : 'favorite',
         ),
         disabled: !(panel?.canToggleCurrentBrowserUrlFavorite() ?? false),
-        checked: isCurrentUrlFavorited,
-        active: isCurrentUrlFavorited,
+        buttonAttributes: {
+          'aria-pressed': String(isCurrentUrlFavorited),
+        },
         onClick: this.handleFavoriteButtonClick,
       },
     ];

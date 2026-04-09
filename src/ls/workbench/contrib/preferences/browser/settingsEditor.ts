@@ -168,6 +168,79 @@ function buildInput(config: {
   return inputBox;
 }
 
+function buildNumberStepperInput(config: {
+  value: string | number;
+  className: string;
+  focusKey: string;
+  min?: string;
+  max?: string;
+  inputMode?: HTMLInputElement['inputMode'];
+  step?: string;
+  onInput?: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const stepper = el('div', `settings-number-stepper ${config.className}`.trim());
+  const decrementButton = el('button', 'settings-number-stepper-button settings-number-stepper-button-decrement');
+  decrementButton.type = 'button';
+  decrementButton.append(createLxIcon(lxIconSemanticMap.settings.decrement, 'settings-number-stepper-button-icon'));
+  decrementButton.ariaLabel = 'Decrease value';
+  const inputBox = buildInput({
+    type: 'number',
+    value: config.value,
+    className: `${config.className} settings-number-stepper-input`,
+    focusKey: config.focusKey,
+    min: config.min,
+    max: config.max,
+    inputMode: config.inputMode ?? 'decimal',
+    onInput: config.onInput,
+  });
+  if (config.step !== undefined) {
+    inputBox.inputElement.step = config.step;
+  }
+  const incrementButton = el('button', 'settings-number-stepper-button settings-number-stepper-button-increment');
+  incrementButton.type = 'button';
+  incrementButton.append(createLxIcon(lxIconSemanticMap.settings.increment, 'settings-number-stepper-button-icon'));
+  incrementButton.ariaLabel = 'Increase value';
+  const syncButtonsDisabled = () => {
+    const disabled = inputBox.inputElement.disabled || inputBox.inputElement.readOnly;
+    decrementButton.disabled = disabled;
+    incrementButton.disabled = disabled;
+  };
+  const nudgeValue = (direction: 'up' | 'down') => {
+    const input = inputBox.inputElement;
+    if (input.disabled || input.readOnly) {
+      return;
+    }
+    const previous = input.value;
+    try {
+      if (direction === 'up') {
+        input.stepUp();
+      } else {
+        input.stepDown();
+      }
+    } catch {
+      return;
+    }
+    if (input.value !== previous) {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    input.focus();
+  };
+  decrementButton.addEventListener('click', () => nudgeValue('down'));
+  incrementButton.addEventListener('click', () => nudgeValue('up'));
+  stepper.append(decrementButton, inputBox.element, incrementButton);
+  const setDisabled = (disabled: boolean) => {
+    inputBox.inputElement.disabled = disabled;
+    syncButtonsDisabled();
+  };
+  setDisabled(Boolean(config.disabled));
+  return {
+    element: stepper,
+    inputElement: inputBox.inputElement,
+    setDisabled,
+  };
+}
+
 function buildCheckbox(config: {
   checked: boolean;
   className: string;
@@ -973,8 +1046,16 @@ export class SettingsPartView {
     const row = el('div', 'settings-batch-options');
     const limitLabel = el('div', 'inline-field');
     const wrap = el('div', 'settings-limit-input-wrap');
-    wrap.append(buildInput({
-      type: 'number', value: this.props.batchLimit, className: 'settings-limit-input', focusKey: 'settings.batch.limit', min: String(batchLimitMin), max: String(batchLimitMax), onInput: this.props.onBatchLimitChange,
+    wrap.append(buildNumberStepperInput({
+      value: this.props.batchLimit,
+      className: 'settings-limit-input',
+      focusKey: 'settings.batch.limit',
+      min: String(batchLimitMin),
+      max: String(batchLimitMax),
+      inputMode: 'numeric',
+      step: '1',
+      onInput: this.props.onBatchLimitChange,
+      disabled: this.props.isSettingsSaving,
     }).element);
     limitLabel.append(text(this.props.labels.batchCount), wrap);
     const checkboxLabel = el('label', 'inline-field checkbox-field');
@@ -1018,17 +1099,17 @@ export class SettingsPartView {
       panelClassName: 'settings-layout-panel',
       listClassName: 'settings-layout-list',
     });
-    const browserTabKeepAliveLimitInput = buildInput({
-      type: 'number',
+    const browserTabKeepAliveLimitInput = buildNumberStepperInput({
       value: this.props.browserTabKeepAliveLimit,
       className: 'settings-limit-input',
       focusKey: 'settings.general.layout.browserTabKeepAliveLimit',
       min: String(minBrowserTabKeepAliveLimit),
       max: String(maxBrowserTabKeepAliveLimit),
       inputMode: 'numeric',
+      step: '1',
       onInput: this.props.onBrowserTabKeepAliveLimitChange,
+      disabled: this.props.isSettingsSaving,
     });
-    browserTabKeepAliveLimitInput.inputElement.disabled = this.props.isSettingsSaving;
     layout.list.append(
       createSettingsRow({
         title: this.props.labels.settingsStatusbar,
@@ -1249,42 +1330,39 @@ export class SettingsPartView {
       'settings-text-editor-select',
     );
     setSelectHostDisabled(fontSizeSelect, isDisabled);
-    const lineHeightInput = buildInput({
-      type: 'number',
+    const lineHeightInput = buildNumberStepperInput({
       value: defaultBodyStyle.lineHeight,
       className: 'settings-text-editor-line-height-input',
       focusKey: 'settings.textEditor.lineHeight',
       min: '0.5',
       max: '4',
       inputMode: 'decimal',
+      step: '0.1',
       onInput: this.props.onEditorDraftLineHeightChange,
+      disabled: isDisabled,
     });
-    lineHeightInput.inputElement.step = '0.1';
-    lineHeightInput.inputElement.disabled = isDisabled;
-    const paragraphSpacingBeforeInput = buildInput({
-      type: 'number',
+    const paragraphSpacingBeforeInput = buildNumberStepperInput({
       value: defaultBodyStyle.paragraphSpacingBeforePt,
       className: 'settings-text-editor-spacing-input',
       focusKey: 'settings.textEditor.paragraphSpacingBefore',
       min: '0',
       max: '200',
       inputMode: 'decimal',
+      step: '0.5',
       onInput: this.props.onEditorDraftParagraphSpacingBeforeChange,
+      disabled: isDisabled,
     });
-    paragraphSpacingBeforeInput.inputElement.step = '0.5';
-    paragraphSpacingBeforeInput.inputElement.disabled = isDisabled;
-    const paragraphSpacingAfterInput = buildInput({
-      type: 'number',
+    const paragraphSpacingAfterInput = buildNumberStepperInput({
       value: defaultBodyStyle.paragraphSpacingAfterPt,
       className: 'settings-text-editor-spacing-input',
       focusKey: 'settings.textEditor.paragraphSpacingAfter',
       min: '0',
       max: '200',
       inputMode: 'decimal',
+      step: '0.5',
       onInput: this.props.onEditorDraftParagraphSpacingAfterChange,
+      disabled: isDisabled,
     });
-    paragraphSpacingAfterInput.inputElement.step = '0.5';
-    paragraphSpacingAfterInput.inputElement.disabled = isDisabled;
     const colorRow = el('div', 'settings-text-editor-color-row');
     const colorPickerInput = buildInput({
       type: 'color',

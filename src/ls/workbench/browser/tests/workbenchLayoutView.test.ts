@@ -1406,6 +1406,10 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
       .querySelector('.editor-browser-toolbar-leading [aria-label="Favorite"]');
     assert(favoriteButton instanceof HTMLButtonElement);
     assert.equal(favoriteButton.getAttribute('aria-pressed'), 'true');
+    const favoriteItem = favoriteButton.closest('.actionbar-item');
+    assert(favoriteItem instanceof HTMLElement);
+    assert.equal(favoriteItem.classList.contains('is-active'), false);
+    assert.equal(favoriteItem.classList.contains('is-checked'), false);
     assert(
       favoriteButton.querySelector('.lx-icon-favorite-filled') instanceof HTMLElement,
     );
@@ -1437,7 +1441,18 @@ test('WorkbenchLayoutView shows browser library panel entries and navigates when
     const sectionTitles = Array.from(
       panel.querySelectorAll('.editor-browser-library-section-title'),
     );
-    assert.deepEqual(sectionTitles.map((node) => node.textContent), ['Favorites']);
+    assert.equal(
+      sectionTitles.some((node) => node.textContent === 'Favorites'),
+      true,
+    );
+    assert.equal(
+      sectionTitles.some((node) => node.textContent === 'Today'),
+      true,
+    );
+    const matchingItems = panel.querySelectorAll(
+      '.editor-browser-library-item[title="https://example.com/current"]',
+    );
+    assert.equal(matchingItems.length, 2);
     const favoriteFavicon = favoriteItems[0]?.querySelector(
       '.editor-browser-library-item-favicon',
     );
@@ -1662,6 +1677,100 @@ test('WorkbenchLayoutView keeps favorite context menu Open in New Tab enabled fr
     assert.equal(panel.classList.contains('is-open'), false);
   } finally {
     view.dispose();
+    document.body.replaceChildren();
+    window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+  }
+});
+
+test('EditorBrowserLibraryPanel keeps the recent item and creates a separate favorite item when favorited', async () => {
+  const { EditorBrowserLibraryPanel } = await import(
+    'ls/workbench/browser/parts/editor/editorBrowserLibraryPanel'
+  );
+  const BROWSER_LIBRARY_STORAGE_KEY = 'ls.editor.browser.library.v1';
+  const FAVORITE_URL = 'https://example.com/current-duplicate-item';
+  window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
+
+  const host = document.createElement('div');
+  document.body.append(host);
+  const panel = new EditorBrowserLibraryPanel({
+    browserUrl: FAVORITE_URL,
+    browserPageTitle: 'Move Node',
+    browserFaviconUrl: 'https://example.com/favicon.ico',
+    browserTabTitle: 'Move Node',
+    labels: {
+      title: 'Source menu',
+      recentTitle: 'Today',
+      favoritesTitle: 'Favorites',
+      emptyState: 'No links yet',
+      contextOpen: 'Open',
+      contextOpenInNewTab: 'Open in New Tab',
+      contextNewFolder: 'New Folder',
+      contextRename: 'Rename',
+      contextRemoveFavorite: 'Remove Favorite',
+    },
+    onNavigateToUrl: () => {},
+  });
+  panel.mountTo(host);
+  panel.setOpen(true);
+
+  try {
+    await waitForNextTask();
+    await waitForNextTask();
+
+    const panelElement = panel.getElement();
+    const beforeItems = panelElement.querySelectorAll(
+      `.editor-browser-library-item[title="${FAVORITE_URL}"]`,
+    );
+    assert.equal(beforeItems.length, 1);
+
+    panel.toggleCurrentBrowserUrlFavorite();
+    await waitForNextTask();
+    await waitForNextTask();
+
+    const matchingItems = panelElement.querySelectorAll(
+      `.editor-browser-library-item[title="${FAVORITE_URL}"]`,
+    );
+    assert.equal(matchingItems.length, 2);
+    const favoriteItems = panelElement.querySelectorAll(
+      `.editor-browser-library-item.is-favorite[title="${FAVORITE_URL}"]`,
+    );
+    assert.equal(favoriteItems.length, 1);
+    const recentItems = panelElement.querySelectorAll(
+      `.editor-browser-library-item[title="${FAVORITE_URL}"]:not(.is-favorite)`,
+    );
+    assert.equal(recentItems.length, 1);
+    assert.notEqual(favoriteItems[0], recentItems[0]);
+
+    const favoriteItemRow = favoriteItems[0]?.closest('.editor-browser-library-item-row');
+    assert(favoriteItemRow instanceof HTMLElement);
+    assert.equal(favoriteItemRow.classList.contains('is-deletable'), false);
+    assert.equal(favoriteItemRow.querySelector('.editor-browser-library-item-delete-btn'), null);
+
+    const recentItemRow = recentItems[0]?.closest('.editor-browser-library-item-row');
+    assert(recentItemRow instanceof HTMLElement);
+    assert.equal(recentItemRow.classList.contains('is-deletable'), true);
+    assert(
+      recentItemRow.querySelector('.editor-browser-library-item-delete-btn')
+        instanceof HTMLButtonElement,
+    );
+
+    const sectionTitles = Array.from(
+      panelElement.querySelectorAll('.editor-browser-library-section-title'),
+    );
+    assert.equal(
+      sectionTitles.some((node) => node.textContent === 'Favorites'),
+      true,
+    );
+    assert.equal(
+      sectionTitles.some((node) => node.textContent === 'Today'),
+      true,
+    );
+    const sectionItemCount = panelElement.querySelectorAll(
+      `.editor-browser-library-item[title="${FAVORITE_URL}"]`,
+    );
+    assert.equal(sectionItemCount.length, 2);
+  } finally {
+    panel.dispose();
     document.body.replaceChildren();
     window.localStorage?.removeItem(BROWSER_LIBRARY_STORAGE_KEY);
   }

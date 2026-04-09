@@ -1,4 +1,6 @@
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
+import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
+import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { RagProviderId, RagProviderSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
 import { ApiKeyWidget } from 'ls/workbench/contrib/preferences/browser/apiKeyWidget';
@@ -54,6 +56,79 @@ function buildInput(config: {
     inputBox.onDidChange((value) => config.onInput?.(value));
   }
   return inputBox;
+}
+
+function buildNumberStepperInput(config: {
+  value: string | number;
+  className: string;
+  focusKey: string;
+  min?: string;
+  max?: string;
+  inputMode?: HTMLInputElement['inputMode'];
+  step?: string;
+  onInput?: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const stepper = el('div', `settings-number-stepper ${config.className}`.trim());
+  const decrementButton = el('button', 'settings-number-stepper-button settings-number-stepper-button-decrement');
+  decrementButton.type = 'button';
+  decrementButton.append(createLxIcon(lxIconSemanticMap.settings.decrement, 'settings-number-stepper-button-icon'));
+  decrementButton.ariaLabel = 'Decrease value';
+  const inputBox = buildInput({
+    type: 'number',
+    value: config.value,
+    className: `${config.className} settings-number-stepper-input`,
+    focusKey: config.focusKey,
+    min: config.min,
+    max: config.max,
+    inputMode: config.inputMode ?? 'decimal',
+    onInput: config.onInput,
+  });
+  if (config.step !== undefined) {
+    inputBox.inputElement.step = config.step;
+  }
+  const incrementButton = el('button', 'settings-number-stepper-button settings-number-stepper-button-increment');
+  incrementButton.type = 'button';
+  incrementButton.append(createLxIcon(lxIconSemanticMap.settings.increment, 'settings-number-stepper-button-icon'));
+  incrementButton.ariaLabel = 'Increase value';
+  const syncButtonsDisabled = () => {
+    const disabled = inputBox.inputElement.disabled || inputBox.inputElement.readOnly;
+    decrementButton.disabled = disabled;
+    incrementButton.disabled = disabled;
+  };
+  const nudgeValue = (direction: 'up' | 'down') => {
+    const input = inputBox.inputElement;
+    if (input.disabled || input.readOnly) {
+      return;
+    }
+    const previous = input.value;
+    try {
+      if (direction === 'up') {
+        input.stepUp();
+      } else {
+        input.stepDown();
+      }
+    } catch {
+      return;
+    }
+    if (input.value !== previous) {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    input.focus();
+  };
+  decrementButton.addEventListener('click', () => nudgeValue('down'));
+  incrementButton.addEventListener('click', () => nudgeValue('up'));
+  stepper.append(decrementButton, inputBox.element, incrementButton);
+  const setDisabled = (disabled: boolean) => {
+    inputBox.inputElement.disabled = disabled;
+    syncButtonsDisabled();
+  };
+  setDisabled(Boolean(config.disabled));
+  return {
+    element: stepper,
+    inputElement: inputBox.inputElement,
+    setDisabled,
+  };
 }
 
 export type RagWidgetProps = {
@@ -114,15 +189,16 @@ export class RagWidget {
   private renderNumberField(label: string, value: number, focusKey: string, min: string, max: string, onInput: (value: string) => void) {
     const field = el('div', 'settings-field');
     const wrap = el('div', 'settings-limit-input-wrap');
-    wrap.append(buildInput({
-      type: 'number',
+    wrap.append(buildNumberStepperInput({
       value,
       className: 'settings-limit-input',
       focusKey,
       min,
       max,
       inputMode: 'numeric',
+      step: '1',
       onInput,
+      disabled: this.props.isSettingsSaving,
     }).element);
     field.append(text(label), wrap);
     return field;

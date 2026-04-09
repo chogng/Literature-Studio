@@ -70,6 +70,79 @@ function buildInput(config: {
   return inputBox;
 }
 
+function buildNumberStepperInput(config: {
+  value: string | number;
+  className: string;
+  focusKey: string;
+  min?: string;
+  max?: string;
+  inputMode?: HTMLInputElement['inputMode'];
+  step?: string;
+  onInput?: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const stepper = el('div', `settings-number-stepper ${config.className}`.trim());
+  const decrementButton = el('button', 'settings-number-stepper-button settings-number-stepper-button-decrement');
+  decrementButton.type = 'button';
+  decrementButton.append(createLxIcon(lxIconSemanticMap.settings.decrement, 'settings-number-stepper-button-icon'));
+  decrementButton.ariaLabel = 'Decrease value';
+  const inputBox = buildInput({
+    type: 'number',
+    value: config.value,
+    className: `${config.className} settings-number-stepper-input`,
+    focusKey: config.focusKey,
+    min: config.min,
+    max: config.max,
+    inputMode: config.inputMode ?? 'decimal',
+    onInput: config.onInput,
+  });
+  if (config.step !== undefined) {
+    inputBox.inputElement.step = config.step;
+  }
+  const incrementButton = el('button', 'settings-number-stepper-button settings-number-stepper-button-increment');
+  incrementButton.type = 'button';
+  incrementButton.append(createLxIcon(lxIconSemanticMap.settings.increment, 'settings-number-stepper-button-icon'));
+  incrementButton.ariaLabel = 'Increase value';
+  const syncButtonsDisabled = () => {
+    const disabled = inputBox.inputElement.disabled || inputBox.inputElement.readOnly;
+    decrementButton.disabled = disabled;
+    incrementButton.disabled = disabled;
+  };
+  const nudgeValue = (direction: 'up' | 'down') => {
+    const input = inputBox.inputElement;
+    if (input.disabled || input.readOnly) {
+      return;
+    }
+    const previous = input.value;
+    try {
+      if (direction === 'up') {
+        input.stepUp();
+      } else {
+        input.stepDown();
+      }
+    } catch {
+      return;
+    }
+    if (input.value !== previous) {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    input.focus();
+  };
+  decrementButton.addEventListener('click', () => nudgeValue('down'));
+  incrementButton.addEventListener('click', () => nudgeValue('up'));
+  stepper.append(decrementButton, inputBox.element, incrementButton);
+  const setDisabled = (disabled: boolean) => {
+    inputBox.inputElement.disabled = disabled;
+    syncButtonsDisabled();
+  };
+  setDisabled(Boolean(config.disabled));
+  return {
+    element: stepper,
+    inputElement: inputBox.inputElement,
+    setDisabled,
+  };
+}
+
 function buildSelect(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
   const selectBox = new SelectBox(
     options.map((option) => ({
@@ -336,14 +409,16 @@ export class LibraryWidget {
   private renderMaxConcurrentJobsField() {
     const jobsField = el('div', 'settings-field');
     const jobsWrap = el('div', 'settings-limit-input-wrap');
-    jobsWrap.append(buildInput({
-      type: 'number',
+    jobsWrap.append(buildNumberStepperInput({
       value: this.props.maxConcurrentIndexJobs,
       className: 'settings-limit-input',
       focusKey: 'settings.library.maxJobs',
       min: '1',
       max: '4',
+      inputMode: 'numeric',
+      step: '1',
       onInput: this.props.onMaxConcurrentIndexJobsChange,
+      disabled: this.props.isSettingsSaving,
     }).element);
     jobsField.append(
       text(this.props.labels.settingsLibraryMaxConcurrentJobs),
