@@ -103,7 +103,7 @@ export class TranslationWidget {
     const title = el('span');
     title.textContent = this.props.labels.settingsTranslationTitle;
     const grid = el('div', 'settings-llm-grid');
-    const providerField = el('label', 'settings-field');
+    const providerField = el('div', 'settings-field');
     providerField.append(
       text(this.props.labels.settingsTranslationProvider),
       buildSelect([{ value: 'deepl', label: this.props.labels.settingsTranslationProviderDeepL }], this.props.activeTranslationProvider, 'settings.translation.provider', (value) => this.props.onActiveTranslationProviderChange(value as TranslationProviderId), 'settings-llm-provider'),

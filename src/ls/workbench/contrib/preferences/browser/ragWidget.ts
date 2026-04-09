@@ -1,3 +1,4 @@
+import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import type { RagProviderId, RagProviderSettings } from 'ls/base/parts/sandbox/common/desktopTypes';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
 import { ApiKeyWidget } from 'ls/workbench/contrib/preferences/browser/apiKeyWidget';
@@ -37,18 +38,22 @@ function buildInput(config: {
   inputMode?: HTMLInputElement['inputMode'];
   onInput?: (value: string) => void;
 }) {
-  const input = setFocusKey(el('input', `settings-native-input ${config.className}`.trim()), config.focusKey);
-  input.type = config.type ?? 'text';
-  input.value = String(config.value);
-  input.placeholder = config.placeholder ?? '';
+  const host = el('div');
+  const inputBox = new InputBox(host, undefined, {
+    className: `settings-inputbox ${config.className}`.trim(),
+    type: config.type ?? 'text',
+    value: String(config.value),
+    placeholder: config.placeholder ?? '',
+  });
+  const input = setFocusKey(inputBox.inputElement, config.focusKey);
   input.readOnly = Boolean(config.readOnly);
   if (config.min !== undefined) { input.min = config.min; }
   if (config.max !== undefined) { input.max = config.max; }
   if (config.inputMode) { input.inputMode = config.inputMode; }
   if (config.onInput) {
-    input.addEventListener('input', () => config.onInput?.(input.value));
+    inputBox.onDidChange((value) => config.onInput?.(value));
   }
-  return input;
+  return inputBox;
 }
 
 export type RagWidgetProps = {
@@ -107,16 +112,30 @@ export class RagWidget {
   }
 
   private renderNumberField(label: string, value: number, focusKey: string, min: string, max: string, onInput: (value: string) => void) {
-    const field = el('label', 'settings-field');
+    const field = el('div', 'settings-field');
     const wrap = el('div', 'settings-limit-input-wrap');
-    wrap.append(buildInput({ type: 'number', value, className: 'settings-limit-input', focusKey, min, max, inputMode: 'numeric', onInput }));
+    wrap.append(buildInput({
+      type: 'number',
+      value,
+      className: 'settings-limit-input',
+      focusKey,
+      min,
+      max,
+      inputMode: 'numeric',
+      onInput,
+    }).element);
     field.append(text(label), wrap);
     return field;
   }
 
   private renderTextField(label: string, value: string, focusKey: string, onInput: (value: string) => void, className = 'settings-field') {
-    const field = el('label', className);
-    field.append(text(label), buildInput({ value, className: 'settings-input-control', focusKey, onInput }));
+    const field = el('div', className);
+    field.append(text(label), buildInput({
+      value,
+      className: 'settings-input-control',
+      focusKey,
+      onInput,
+    }).element);
     return field;
   }
 
@@ -126,10 +145,15 @@ export class RagWidget {
     title.textContent = this.props.labels.settingsRagTitle;
     const provider = this.props.ragProviders[this.props.activeRagProvider];
     const grid = el('div', 'settings-llm-grid');
-    const providerField = el('label', 'settings-field');
+    const providerField = el('div', 'settings-field');
     providerField.append(
       text(this.props.labels.settingsRagProvider),
-      buildInput({ value: this.props.labels.settingsRagProviderMoark, className: 'settings-input-control', focusKey: 'settings.rag.provider', readOnly: true }),
+      buildInput({
+        value: this.props.labels.settingsRagProviderMoark,
+        className: 'settings-input-control',
+        focusKey: 'settings.rag.provider',
+        readOnly: true,
+      }).element,
       buildHint(this.props.labels.settingsRagProviderHint),
     );
     grid.append(providerField);

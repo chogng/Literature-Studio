@@ -1,4 +1,5 @@
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
+import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 
@@ -21,12 +22,20 @@ function buildInput(config: {
   className: string;
   focusKey: string;
   placeholder?: string;
+  onInput?: (value: string) => void;
 }) {
-  const input = setFocusKey(el('input', `settings-native-input ${config.className}`.trim()), config.focusKey);
-  input.type = config.type ?? 'text';
-  input.value = config.value;
-  input.placeholder = config.placeholder ?? '';
-  return input;
+  const host = el('div');
+  const inputBox = new InputBox(host, undefined, {
+    className: `settings-inputbox ${config.className}`.trim(),
+    type: config.type ?? 'text',
+    value: config.value,
+    placeholder: config.placeholder ?? '',
+  });
+  setFocusKey(inputBox.inputElement, config.focusKey);
+  if (config.onInput) {
+    inputBox.onDidChange((value) => config.onInput?.(value));
+  }
+  return inputBox;
 }
 
 function buildButton(config: {
@@ -83,18 +92,24 @@ export type ApiKeyWidgetProps = {
 
 export class ApiKeyWidget {
   private props: ApiKeyWidgetProps;
-  private readonly element = el('label', 'settings-field settings-llm-api-field settings-llm-span-2');
+  private readonly element = el('div', 'settings-field settings-llm-api-field settings-llm-span-2');
   private readonly titleNode = document.createTextNode('');
   private readonly row = el('div', 'settings-input-row settings-llm-api-row');
   private readonly inputWrap = el('div', 'settings-native-input-wrap settings-api-key-input');
-  private readonly input = buildInput({ value: '', className: 'settings-input-control', focusKey: '', placeholder: '' });
+  private readonly inputBox = buildInput({
+    value: '',
+    className: 'settings-input-control',
+    focusKey: '',
+    placeholder: '',
+    onInput: (value) => this.props.onInput(value),
+  });
+  private readonly input = this.inputBox.inputElement;
   private readonly toggle = buildButton({ label: '', className: 'settings-password-toggle', focusKey: '', onClick: () => this.props.onToggle() });
   private readonly testButton = buildButton({ label: '', className: 'settings-llm-test-btn', focusKey: '', onClick: () => this.props.onTest() });
 
   constructor(props: ApiKeyWidgetProps) {
     this.props = props;
-    this.input.addEventListener('input', () => this.props.onInput(this.input.value));
-    this.inputWrap.append(this.input, this.toggle);
+    this.inputWrap.append(this.inputBox.element, this.toggle);
     this.row.append(this.inputWrap, this.testButton);
     this.element.append(this.titleNode, this.row);
     this.setProps(props);
@@ -110,8 +125,8 @@ export class ApiKeyWidget {
     this.titleNode.textContent = props.title;
     setFocusKey(this.input, props.focusKey);
     this.input.type = props.show ? 'text' : 'password';
-    this.input.value = props.value;
-    this.input.placeholder = props.placeholder;
+    this.inputBox.value = props.value;
+    this.inputBox.setPlaceHolder(props.placeholder);
     setFocusKey(this.toggle, props.toggleKey);
     this.toggle.textContent = props.show ? props.toggleLabelHide : props.toggleLabelShow;
     applyHover(this.toggle, props.show ? props.toggleLabelHide : props.toggleLabelShow);

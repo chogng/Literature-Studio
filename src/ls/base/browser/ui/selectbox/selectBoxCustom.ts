@@ -51,7 +51,6 @@ export class SelectBoxCustom extends LifecycleOwner {
   private readonly onSelectIndex: (index: number) => void;
   private readonly contextView: ContextViewHandle;
   private readonly ownsContextView: boolean;
-  private menuView: HTMLElement | null = null;
   private menu: Menu | null = null;
   private isMenuVisible = false;
   private activeOptionIndex = -1;
@@ -178,7 +177,6 @@ export class SelectBoxCustom extends LifecycleOwner {
     this.isMenuVisible = false;
     this.menu?.dispose();
     this.menu = null;
-    this.menuView = null;
   };
 
   private toggleMenu() {
@@ -201,7 +199,6 @@ export class SelectBoxCustom extends LifecycleOwner {
     menuElement.addEventListener('mousedown', (event) => {
       event.preventDefault();
     });
-    this.menuView = menuElement;
     this.isMenuVisible = true;
     this.contextView.show({
       anchor: this.selectElement,

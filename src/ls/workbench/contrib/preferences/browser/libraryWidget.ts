@@ -3,6 +3,7 @@ import type {
   LibraryStorageMode,
 } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
+import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { SelectBox } from 'ls/base/browser/ui/selectbox/selectBox';
@@ -51,18 +52,22 @@ function buildInput(config: {
   inputMode?: HTMLInputElement['inputMode'];
   onInput?: (value: string) => void;
 }) {
-  const input = setFocusKey(el('input', `settings-native-input ${config.className}`.trim()), config.focusKey);
-  input.type = config.type ?? 'text';
-  input.value = String(config.value);
-  input.placeholder = config.placeholder ?? '';
+  const host = el('div');
+  const inputBox = new InputBox(host, undefined, {
+    className: `settings-inputbox ${config.className}`.trim(),
+    type: config.type ?? 'text',
+    value: String(config.value),
+    placeholder: config.placeholder ?? '',
+  });
+  const input = setFocusKey(inputBox.inputElement, config.focusKey);
   input.readOnly = Boolean(config.readOnly);
   if (config.min !== undefined) { input.min = config.min; }
   if (config.max !== undefined) { input.max = config.max; }
   if (config.inputMode) { input.inputMode = config.inputMode; }
   if (config.onInput) {
-    input.addEventListener('input', () => config.onInput?.(input.value));
+    inputBox.onDidChange((value) => config.onInput?.(value));
   }
-  return input;
+  return inputBox;
 }
 
 function buildSelect(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
@@ -234,10 +239,16 @@ export class LibraryWidget {
       }),
     );
 
-    const directoryField = el('label', 'settings-field');
+    const directoryField = el('div', 'settings-field');
     const directoryRow = el('div', 'settings-input-row');
     directoryRow.append(
-      buildInput({ value: this.props.libraryDirectory, className: 'settings-input-control', focusKey: 'settings.library.directory', placeholder: this.props.labels.settingsLibraryDirectoryPlaceholder, onInput: this.props.onLibraryDirectoryChange }),
+      buildInput({
+        value: this.props.libraryDirectory,
+        className: 'settings-input-control',
+        focusKey: 'settings.library.directory',
+        placeholder: this.props.labels.settingsLibraryDirectoryPlaceholder,
+        onInput: this.props.onLibraryDirectoryChange,
+      }).element,
       buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.library.chooseDirectory', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChooseLibraryDirectory }),
     );
     directoryField.append(
@@ -301,10 +312,16 @@ export class LibraryWidget {
   }
 
   private renderDownloadDirectoryField() {
-    const downloadDirectoryField = el('label', 'settings-field');
+    const downloadDirectoryField = el('div', 'settings-field');
     const downloadDirectoryRow = el('div', 'settings-input-row');
     downloadDirectoryRow.append(
-      buildInput({ value: this.props.knowledgeBasePdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.library.downloadDirectory', placeholder: this.props.labels.settingsKnowledgeBasePdfDownloadDirPlaceholder, onInput: this.props.onKnowledgeBasePdfDownloadDirChange }),
+      buildInput({
+        value: this.props.knowledgeBasePdfDownloadDir,
+        className: 'settings-input-control',
+        focusKey: 'settings.library.downloadDirectory',
+        placeholder: this.props.labels.settingsKnowledgeBasePdfDownloadDirPlaceholder,
+        onInput: this.props.onKnowledgeBasePdfDownloadDirChange,
+      }).element,
       buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.library.chooseDownloadDirectory', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChooseKnowledgeBasePdfDownloadDir }),
     );
     downloadDirectoryField.append(
@@ -317,9 +334,17 @@ export class LibraryWidget {
   }
 
   private renderMaxConcurrentJobsField() {
-    const jobsField = el('label', 'settings-field');
+    const jobsField = el('div', 'settings-field');
     const jobsWrap = el('div', 'settings-limit-input-wrap');
-    jobsWrap.append(buildInput({ type: 'number', value: this.props.maxConcurrentIndexJobs, className: 'settings-limit-input', focusKey: 'settings.library.maxJobs', min: '1', max: '4', onInput: this.props.onMaxConcurrentIndexJobsChange }));
+    jobsWrap.append(buildInput({
+      type: 'number',
+      value: this.props.maxConcurrentIndexJobs,
+      className: 'settings-limit-input',
+      focusKey: 'settings.library.maxJobs',
+      min: '1',
+      max: '4',
+      onInput: this.props.onMaxConcurrentIndexJobsChange,
+    }).element);
     jobsField.append(
       text(this.props.labels.settingsLibraryMaxConcurrentJobs),
       jobsWrap,
@@ -374,8 +399,13 @@ export class LibraryWidget {
   }
 
   private renderReadOnlyField(label: string, value: string, focusKey: string) {
-    const field = el('label', 'settings-field');
-    field.append(text(label), buildInput({ value, className: 'settings-input-control', focusKey, readOnly: true }));
+    const field = el('div', 'settings-field');
+    field.append(text(label), buildInput({
+      value,
+      className: 'settings-input-control',
+      focusKey,
+      readOnly: true,
+    }).element);
     return field;
   }
 }

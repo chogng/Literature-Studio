@@ -2,6 +2,7 @@ import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
+import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
 import { SelectBox } from 'ls/base/browser/ui/selectbox/selectBox';
@@ -52,7 +53,7 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
   return {
     settingsTitle: ui.settingsTitle, settingsLoading: ui.settingsLoading, settingsLanguage: ui.settingsLanguage, languageChinese: ui.languageChinese, languageEnglish: ui.languageEnglish, settingsLanguageHint: ui.settingsLanguageHint,
     settingsNavigationBack: ui.settingsNavigationBack, settingsNavigationGeneral: ui.settingsNavigationGeneral, settingsNavigationAppearance: ui.settingsNavigationAppearance, settingsNavigationTextEditor: ui.settingsNavigationTextEditor, settingsNavigationChat: ui.settingsNavigationChat, settingsNavigationKnowledgeBase: ui.settingsNavigationKnowledgeBase, settingsNavigationLiterature: ui.settingsNavigationLiterature, settingsTextEditorTitle: ui.settingsTextEditorTitle, settingsTextEditorHint: ui.settingsTextEditorHint,
-    settingsTextEditorDefaultBodyStyle: ui.settingsTextEditorDefaultBodyStyle, settingsTextEditorFontFamily: ui.settingsTextEditorFontFamily, settingsTextEditorFontSize: ui.settingsTextEditorFontSize, settingsTextEditorLineHeight: ui.settingsTextEditorLineHeight, settingsTextEditorColor: ui.settingsTextEditorColor, settingsTextEditorResetDefaultBodyStyle: ui.settingsTextEditorResetDefaultBodyStyle,
+    settingsTextEditorDefaultBodyStyle: ui.settingsTextEditorDefaultBodyStyle, settingsTextEditorFontFamily: ui.settingsTextEditorFontFamily, settingsTextEditorFontSize: ui.settingsTextEditorFontSize, settingsTextEditorLineHeight: ui.settingsTextEditorLineHeight, settingsTextEditorParagraphSpacingBefore: ui.settingsTextEditorParagraphSpacingBefore, settingsTextEditorParagraphSpacingAfter: ui.settingsTextEditorParagraphSpacingAfter, settingsTextEditorColor: ui.settingsTextEditorColor, settingsTextEditorResetDefaultBodyStyle: ui.settingsTextEditorResetDefaultBodyStyle,
     settingsPageUrl: ui.settingsPageUrl, settingsPageUrlHint: ui.settingsPageUrlHint, pageUrlPlaceholder: ui.pageUrlPlaceholder, settingsBatchJournalTitle: ui.settingsBatchJournalTitle, batchJournalTitlePlaceholder: ui.batchJournalTitlePlaceholder,
     addBatchUrl: ui.addBatchUrl, removeBatchUrl: ui.removeBatchUrl, moveBatchUrlUp: ui.moveBatchUrlUp, moveBatchUrlDown: ui.moveBatchUrlDown, settingsBatchOptions: ui.settingsBatchOptions, batchCount: ui.batchCount, sameDomainOnly: ui.sameDomainOnly, startDate: ui.startDate, endDate: ui.endDate,
     settingsAppearanceTitle: ui.settingsAppearanceTitle, settingsTheme: ui.settingsTheme, settingsThemeHint: ui.settingsThemeHint, settingsThemeLight: ui.settingsThemeLight, settingsThemeDark: ui.settingsThemeDark, settingsThemeSystem: ui.settingsThemeSystem, settingsUseMica: ui.settingsUseMica, settingsUseMicaHint: ui.settingsUseMicaHint, settingsLibraryTitle: ui.settingsLibraryTitle, settingsKnowledgeBaseTitle: ui.settingsKnowledgeBaseTitle, settingsKnowledgeBaseHint: ui.settingsKnowledgeBaseHint, settingsKnowledgeBaseMode: ui.settingsKnowledgeBaseMode,
@@ -145,18 +146,22 @@ function buildInput(config: {
   inputMode?: HTMLInputElement['inputMode'];
   onInput?: (value: string) => void;
 }) {
-  const input = setFocusKey(el('input', `settings-native-input ${config.className}`.trim()), config.focusKey);
-  input.type = config.type ?? 'text';
-  input.value = String(config.value);
-  input.placeholder = config.placeholder ?? '';
+  const host = el('div');
+  const inputBox = new InputBox(host, undefined, {
+    className: `settings-inputbox ${config.className}`.trim(),
+    type: config.type ?? 'text',
+    value: String(config.value),
+    placeholder: config.placeholder ?? '',
+  });
+  const input = setFocusKey(inputBox.inputElement, config.focusKey);
   input.readOnly = Boolean(config.readOnly);
   if (config.min !== undefined) { input.min = config.min; }
   if (config.max !== undefined) { input.max = config.max; }
   if (config.inputMode) { input.inputMode = config.inputMode; }
   if (config.onInput) {
-    input.addEventListener('input', () => config.onInput?.(input.value));
+    inputBox.onDidChange((value) => config.onInput?.(value));
   }
-  return input;
+  return inputBox;
 }
 
 function buildCheckbox(config: {
@@ -784,6 +789,8 @@ export class SettingsPartView {
       previousDefaultBodyStyle.fontFamilyValue !== currentDefaultBodyStyle.fontFamilyValue ||
       previousDefaultBodyStyle.fontSizeValue !== currentDefaultBodyStyle.fontSizeValue ||
       previousDefaultBodyStyle.lineHeight !== currentDefaultBodyStyle.lineHeight ||
+      previousDefaultBodyStyle.paragraphSpacingBeforePt !== currentDefaultBodyStyle.paragraphSpacingBeforePt ||
+      previousDefaultBodyStyle.paragraphSpacingAfterPt !== currentDefaultBodyStyle.paragraphSpacingAfterPt ||
       previousDefaultBodyStyle.color !== currentDefaultBodyStyle.color ||
       previousProps.editorDraftFontFamilyOptions !== this.props.editorDraftFontFamilyOptions ||
       previousProps.editorDraftFontSizeOptions !== this.props.editorDraftFontSizeOptions ||
@@ -794,6 +801,8 @@ export class SettingsPartView {
       previousProps.labels.settingsTextEditorFontFamily !== this.props.labels.settingsTextEditorFontFamily ||
       previousProps.labels.settingsTextEditorFontSize !== this.props.labels.settingsTextEditorFontSize ||
       previousProps.labels.settingsTextEditorLineHeight !== this.props.labels.settingsTextEditorLineHeight ||
+      previousProps.labels.settingsTextEditorParagraphSpacingBefore !== this.props.labels.settingsTextEditorParagraphSpacingBefore ||
+      previousProps.labels.settingsTextEditorParagraphSpacingAfter !== this.props.labels.settingsTextEditorParagraphSpacingAfter ||
       previousProps.labels.settingsTextEditorColor !== this.props.labels.settingsTextEditorColor ||
       previousProps.labels.settingsTextEditorResetDefaultBodyStyle !== this.props.labels.settingsTextEditorResetDefaultBodyStyle
     );
@@ -953,11 +962,11 @@ export class SettingsPartView {
     const field = el('div', 'settings-field');
     const title = el('span'); title.textContent = this.props.labels.settingsBatchOptions;
     const row = el('div', 'settings-batch-options');
-    const limitLabel = el('label', 'inline-field');
+    const limitLabel = el('div', 'inline-field');
     const wrap = el('div', 'settings-limit-input-wrap');
     wrap.append(buildInput({
       type: 'number', value: this.props.batchLimit, className: 'settings-limit-input', focusKey: 'settings.batch.limit', min: String(batchLimitMin), max: String(batchLimitMax), onInput: this.props.onBatchLimitChange,
-    }));
+    }).element);
     limitLabel.append(text(this.props.labels.batchCount), wrap);
     const checkboxLabel = el('label', 'inline-field checkbox-field');
     checkboxLabel.append(
@@ -965,7 +974,7 @@ export class SettingsPartView {
       text(this.props.labels.sameDomainOnly),
     );
     const dateRow = el('div', 'settings-batch-date-row');
-    const startDateField = el('label', 'settings-field settings-batch-date-field');
+    const startDateField = el('div', 'settings-field settings-batch-date-field');
     startDateField.append(
       text(this.props.labels.startDate),
       buildInput({
@@ -974,9 +983,9 @@ export class SettingsPartView {
         className: 'settings-input-control',
         focusKey: 'settings.batch.startDate',
         onInput: this.props.onFetchStartDateChange,
-      }),
+      }).element,
     );
-    const endDateField = el('label', 'settings-field settings-batch-date-field');
+    const endDateField = el('div', 'settings-field settings-batch-date-field');
     endDateField.append(
       text(this.props.labels.endDate),
       buildInput({
@@ -985,7 +994,7 @@ export class SettingsPartView {
         className: 'settings-input-control',
         focusKey: 'settings.batch.endDate',
         onInput: this.props.onFetchEndDateChange,
-      }),
+      }).element,
     );
     dateRow.append(startDateField, endDateField);
     row.append(limitLabel, checkboxLabel);
@@ -1134,7 +1143,13 @@ export class SettingsPartView {
     title.textContent = this.props.labels.defaultPdfDir;
     const row = el('div', 'settings-input-row');
     row.append(
-      buildInput({ value: this.props.pdfDownloadDir, className: 'settings-input-control', focusKey: 'settings.download.dir', placeholder: this.props.labels.downloadDirPlaceholder, onInput: this.props.onPdfDownloadDirChange }),
+      buildInput({
+        value: this.props.pdfDownloadDir,
+        className: 'settings-input-control',
+        focusKey: 'settings.download.dir',
+        placeholder: this.props.labels.downloadDirPlaceholder,
+        onInput: this.props.onPdfDownloadDirChange,
+      }).element,
       buildButton({ label: '...', icon: lxIconSemanticMap.settings.chooseDirectory, className: 'settings-native-icon-button', focusKey: 'settings.download.choose', title: this.props.labels.chooseDirectory, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving, onClick: this.props.onChoosePdfDownloadDir }),
     );
     const downloadOptions = createSettingsSection({
@@ -1160,10 +1175,15 @@ export class SettingsPartView {
   }
 
   private renderConfigPathField() {
-    const field = el('label', 'settings-field');
+    const field = el('div', 'settings-field');
     const row = el('div', 'settings-input-row');
     row.append(
-      buildInput({ value: this.props.configPath, className: 'settings-input-control', focusKey: 'settings.config.path', readOnly: true }),
+      buildInput({
+        value: this.props.configPath,
+        className: 'settings-input-control',
+        focusKey: 'settings.config.path',
+        readOnly: true,
+      }).element,
       buildButton({ label: '...', icon: lxIconSemanticMap.settings.openConfigLocation, className: 'settings-native-icon-button', focusKey: 'settings.config.open', title: this.props.labels.openConfigLocation, disabled: !this.props.desktopRuntime || this.props.isSettingsSaving || !this.props.configPath.trim(), onClick: this.props.onOpenConfigLocation }),
     );
     field.append(text(this.props.labels.settingsConfigPath), row);
@@ -1214,8 +1234,32 @@ export class SettingsPartView {
       inputMode: 'decimal',
       onInput: this.props.onEditorDraftLineHeightChange,
     });
-    lineHeightInput.step = '0.1';
-    lineHeightInput.disabled = isDisabled;
+    lineHeightInput.inputElement.step = '0.1';
+    lineHeightInput.inputElement.disabled = isDisabled;
+    const paragraphSpacingBeforeInput = buildInput({
+      type: 'number',
+      value: defaultBodyStyle.paragraphSpacingBeforePt,
+      className: 'settings-text-editor-spacing-input',
+      focusKey: 'settings.textEditor.paragraphSpacingBefore',
+      min: '0',
+      max: '200',
+      inputMode: 'decimal',
+      onInput: this.props.onEditorDraftParagraphSpacingBeforeChange,
+    });
+    paragraphSpacingBeforeInput.inputElement.step = '0.5';
+    paragraphSpacingBeforeInput.inputElement.disabled = isDisabled;
+    const paragraphSpacingAfterInput = buildInput({
+      type: 'number',
+      value: defaultBodyStyle.paragraphSpacingAfterPt,
+      className: 'settings-text-editor-spacing-input',
+      focusKey: 'settings.textEditor.paragraphSpacingAfter',
+      min: '0',
+      max: '200',
+      inputMode: 'decimal',
+      onInput: this.props.onEditorDraftParagraphSpacingAfterChange,
+    });
+    paragraphSpacingAfterInput.inputElement.step = '0.5';
+    paragraphSpacingAfterInput.inputElement.disabled = isDisabled;
     const colorRow = el('div', 'settings-text-editor-color-row');
     const colorPickerInput = buildInput({
       type: 'color',
@@ -1224,14 +1268,14 @@ export class SettingsPartView {
       focusKey: 'settings.textEditor.colorPicker',
       onInput: this.props.onEditorDraftColorChange,
     });
-    colorPickerInput.disabled = isDisabled;
+    colorPickerInput.inputElement.disabled = isDisabled;
     const colorValueInput = buildInput({
       value: defaultBodyStyle.color,
       className: 'settings-input-control settings-text-editor-color-value',
       focusKey: 'settings.textEditor.colorValue',
       readOnly: true,
     });
-    colorRow.append(colorPickerInput, colorValueInput);
+    colorRow.append(colorPickerInput.element, colorValueInput.element);
 
     const resetButton = buildButton({
       label: this.props.labels.settingsTextEditorResetDefaultBodyStyle,
@@ -1252,7 +1296,15 @@ export class SettingsPartView {
       }),
       createSettingsRow({
         title: this.props.labels.settingsTextEditorLineHeight,
-        control: lineHeightInput,
+        control: lineHeightInput.element,
+      }),
+      createSettingsRow({
+        title: this.props.labels.settingsTextEditorParagraphSpacingBefore,
+        control: paragraphSpacingBeforeInput.element,
+      }),
+      createSettingsRow({
+        title: this.props.labels.settingsTextEditorParagraphSpacingAfter,
+        control: paragraphSpacingAfterInput.element,
       }),
       createSettingsRow({
         title: this.props.labels.settingsTextEditorColor,

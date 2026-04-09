@@ -73,21 +73,30 @@
   min-width: 120px;
 }
 
+.settings-text-editor-spacing-input {
+  max-width: 140px;
+  min-width: 120px;
+}
+
 .settings-text-editor-color-row {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.settings-native-input.settings-text-editor-color-picker {
+.settings-inputbox.settings-text-editor-color-picker.inputbox {
   width: 48px;
   min-width: 48px;
   flex: 0 0 48px;
-  padding: 4px;
+  --inputbox-padding-y: 4px;
+  --inputbox-padding-x: 4px;
+}
+
+.settings-inputbox.settings-text-editor-color-picker.inputbox > .ibwrapper > .input {
   cursor: pointer;
 }
 
-.settings-native-input.settings-text-editor-color-value {
+.settings-inputbox.settings-text-editor-color-value.inputbox {
   max-width: 160px;
   min-width: 140px;
 }
@@ -155,7 +164,19 @@
   min-width: 280px;
 }
 
-.settings-native-input,
+.settings-inputbox.inputbox {
+  --inputbox-height: 34px;
+  --inputbox-border-radius: 8px;
+  --inputbox-border: 1px solid transparent;
+  --inputbox-background: var(--vscode-settings-inputBackground, #fff);
+  --inputbox-background-hover: var(--vscode-settings-inputBackground, #fff);
+  --inputbox-foreground: var(--vscode-settings-inputForeground, #203040);
+  --inputbox-placeholder-foreground: var(--vscode-settings-mutedForeground, #64748b);
+  --inputbox-padding-y: 6px;
+  --inputbox-padding-x: 10px;
+  --inputbox-font-size: inherit;
+}
+
 .settings-select-trigger {
   width: 100%;
   min-height: 34px;
@@ -175,10 +196,16 @@
   border-color: #d3d3d3;
 }
 
-.settings-native-input:focus,
-.settings-select-trigger:focus {
-  outline: 2px solid var(--vscode-settings-inputFocusOutline, rgba(10, 95, 191, 0.18));
-  border-color: var(--vscode-settings-inputFocusBorder, #0a5fbf);
+.settings-inputbox.inputbox.synthetic-focus,
+.settings-inputbox.inputbox:focus-within {
+  outline: none;
+  border-color: #cecece;
+  box-shadow: none;
+}
+
+.settings-select-trigger:focus,
+.settings-select-trigger:focus-visible {
+  outline: none;
 }
 
 .settings-native-button {
@@ -230,13 +257,13 @@
   min-width: 0;
 }
 
-.settings-limit-input .input-field {
+.settings-limit-input > .ibwrapper > .input {
   -moz-appearance: textfield;
   appearance: textfield;
 }
 
-.settings-limit-input .input-field::-webkit-outer-spin-button,
-.settings-limit-input .input-field::-webkit-inner-spin-button {
+.settings-limit-input > .ibwrapper > .input::-webkit-outer-spin-button,
+.settings-limit-input > .ibwrapper > .input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
