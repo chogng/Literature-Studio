@@ -207,6 +207,9 @@ export class SelectBoxCustom extends LifecycleOwner {
       onHide: this.handleMenuHide,
       alignment: 'start',
       offset: 4,
+      // Keep the popup on the same width contract as the trigger. Together with
+      // the root-menu 100% sizing in selectBoxCustom.css, the popup and trigger
+      // share the same content floor instead of drifting apart.
       matchAnchorWidth: true,
     });
     this.syncMenuState();

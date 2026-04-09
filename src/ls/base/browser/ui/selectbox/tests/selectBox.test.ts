@@ -6,6 +6,22 @@ import { installDomTestEnvironment } from 'ls/editor/browser/text/tests/domTestU
 let cleanupDomEnvironment: (() => void) | null = null;
 let SelectBox: typeof import('ls/base/browser/ui/selectbox/selectBox').SelectBox;
 
+function createDomRect(x: number, y: number, width: number, height: number) {
+  return {
+    x,
+    y,
+    width,
+    height,
+    top: y,
+    left: x,
+    right: x + width,
+    bottom: y + height,
+    toJSON() {
+      return this;
+    },
+  } as DOMRect;
+}
+
 before(async () => {
   const domEnvironment = installDomTestEnvironment();
   cleanupDomEnvironment = domEnvironment.cleanup;
@@ -175,6 +191,43 @@ test('selectbox custom drawn mode opens contextview menu and selects an option',
     assert.deepEqual(events, [{ index: 1, selected: 'en-US' }]);
   } finally {
     subscription.dispose();
+    selectBox.dispose();
+    document.body.replaceChildren();
+  }
+});
+
+test('selectbox custom drawn mode keeps the popup overlay matched to the trigger width', () => {
+  const container = document.createElement('div');
+  document.body.append(container);
+  const selectBox = new SelectBox(
+    [
+      { text: 'Very long font family label', value: 'font-a' },
+      { text: 'Short', value: 'font-b' },
+    ],
+    0,
+    undefined,
+    {},
+    { useCustomDrawn: true },
+  );
+
+  try {
+    selectBox.render(container);
+    selectBox.domNode.getBoundingClientRect = () => createDomRect(48, 96, 140, 24);
+
+    selectBox.domNode.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const contextViewContent = document.body.querySelector('.ls-context-view-content');
+    const menu = document.body.querySelector('.ls-menu[role="listbox"]');
+    if (!(contextViewContent instanceof HTMLElement)) {
+      throw new Error('Expected selectbox context view content.');
+    }
+    if (!(menu instanceof HTMLElement)) {
+      throw new Error('Expected selectbox listbox menu.');
+    }
+
+    assert.equal(contextViewContent.style.minWidth, '140px');
+    assert.equal(menu.classList.contains('ls-menu-root'), true);
+  } finally {
     selectBox.dispose();
     document.body.replaceChildren();
   }
