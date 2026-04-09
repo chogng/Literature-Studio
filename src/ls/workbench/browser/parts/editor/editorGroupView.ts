@@ -591,8 +591,17 @@ export class EditorGroupView {
         nextPaneViewStateKey,
       );
     } else {
+      const didSwitchActivePaneTab = this.activePaneTabId !== group.activeTab.id;
+      if (didSwitchActivePaneTab) {
+        this.saveActivePaneViewState();
+      }
+
       resolvedPane.updatePane(this.activePane);
+      this.activePaneTabId = group.activeTab.id;
       this.activePaneViewStateKey = nextPaneViewStateKey;
+      if (didSwitchActivePaneTab) {
+        this.restorePaneViewState(this.activePane, nextPaneViewStateKey);
+      }
       if (this.contentElement.firstChild !== this.activePane.getElement()) {
         this.contentElement.replaceChildren(this.activePane.getElement());
       }

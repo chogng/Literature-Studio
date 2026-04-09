@@ -348,6 +348,11 @@ export class SettingsController {
     this.scheduleImmediateAutoSave();
   };
 
+  readonly setBrowserTabKeepAliveLimit = (nextBrowserTabKeepAliveLimit: number) => {
+    this.settingsModel.setBrowserTabKeepAliveLimit(nextBrowserTabKeepAliveLimit);
+    this.scheduleImmediateAutoSave();
+  };
+
   readonly setKnowledgeBaseEnabled = (nextKnowledgeBaseEnabled: boolean) => {
     this.settingsModel.setKnowledgeBaseEnabled(nextKnowledgeBaseEnabled);
     this.scheduleImmediateAutoSave();

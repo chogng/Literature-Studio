@@ -114,6 +114,7 @@ export type DateRange = import('ls/base/common/date').DateRange;
 export interface StoredAppSettings {
   defaultDownloadDir: string | null;
   pdfFileNameUseSelectionOrder: boolean;
+  browserTabKeepAliveLimit: number;
   defaultBatchSources: BatchSource[];
   defaultBatchLimit: number;
   defaultSameDomainOnly: boolean;

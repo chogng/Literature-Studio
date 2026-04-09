@@ -12,6 +12,8 @@ let cleanupDomEnvironment: (() => void) | null = null;
 let createWorkbenchWebContentViewContribution: typeof import('ls/workbench/contrib/webContentView/webContentView.contribution').createWorkbenchWebContentViewContribution;
 let registerWorkbenchPartDomNode: typeof import('ls/workbench/browser/layout').registerWorkbenchPartDomNode;
 let WORKBENCH_PART_IDS: typeof import('ls/workbench/browser/layout').WORKBENCH_PART_IDS;
+let resetWorkbenchBrowserTabKeepAliveLimit: typeof import('ls/workbench/browser/webContentRetentionState').resetWorkbenchBrowserTabKeepAliveLimit;
+let setWorkbenchBrowserTabKeepAliveLimit: typeof import('ls/workbench/browser/webContentRetentionState').setWorkbenchBrowserTabKeepAliveLimit;
 
 function installResizeObserverSpy() {
   let activeObservers = 0;
@@ -321,6 +323,10 @@ before(async () => {
   ({ registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } = await import(
     'ls/workbench/browser/layout'
   ));
+  ({
+    resetWorkbenchBrowserTabKeepAliveLimit,
+    setWorkbenchBrowserTabKeepAliveLimit,
+  } = await import('ls/workbench/browser/webContentRetentionState'));
 });
 
 after(() => {
@@ -329,6 +335,7 @@ after(() => {
 });
 
 afterEach(() => {
+  resetWorkbenchBrowserTabKeepAliveLimit();
   registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, null);
   document.body.replaceChildren();
 });
@@ -782,6 +789,88 @@ test('web content contribution evicts retained targets by LRU and disposeTarget 
 
         await bridge.disposeTarget('target-2');
         assert.equal(second.isConnected, false);
+
+        contribution.dispose();
+      },
+    );
+  } finally {
+    webviewSpy.restore();
+    resizeObserverSpy.restore();
+    animationFrameSpy.restore();
+    host.remove();
+  }
+});
+
+test('web content contribution applies the configured browser tab keep-alive limit', async () => {
+  const resizeObserverSpy = installResizeObserverSpy();
+  const animationFrameSpy = installAnimationFrameSpy();
+  const webviewSpy = installWebviewSpy();
+  const host = document.createElement('div');
+
+  host.dataset.webcontentActive = 'true';
+  Object.defineProperty(host, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => createDomRect(0, 0, 480, 320),
+  });
+  document.body.append(host);
+  registerWorkbenchPartDomNode(WORKBENCH_PART_IDS.webContentViewHost, host);
+
+  try {
+    await withElectronApi(
+      createElectronApi({
+        webContent: {
+          async navigate() {
+            return {
+              targetId: null,
+              activeTargetId: null,
+              ownership: 'inactive',
+              layoutPhase: 'hidden',
+              url: '',
+              canGoBack: false,
+              canGoForward: false,
+              isLoading: false,
+              visible: false,
+            } satisfies DesktopWebContentState;
+          },
+          onBridgeCommand() {
+            return () => {};
+          },
+          respondToBridgeCommand() {},
+          reportBridgeReady() {},
+          reportState() {},
+        } as unknown as NonNullable<ElectronAPI['webContent']>,
+      }),
+      async () => {
+        const contribution = createWorkbenchWebContentViewContribution();
+        assert(contribution);
+        animationFrameSpy.flushUntilIdle();
+        setWorkbenchBrowserTabKeepAliveLimit(1);
+
+        const bridge = (window as typeof window & {
+          __lsWebContentBridge?: {
+            navigateTo: (
+              url: string,
+              targetId?: string | null,
+              mode?: 'browser' | 'strict',
+            ) => Promise<DesktopWebContentState>;
+            releaseTarget: (targetId?: string | null) => Promise<void>;
+          };
+        }).__lsWebContentBridge;
+        assert(bridge);
+
+        await bridge.navigateTo('https://example.com/one', 'target-1', 'browser');
+        await bridge.navigateTo('https://example.com/two', 'target-2', 'browser');
+        await bridge.navigateTo('https://example.com/three', 'target-3', 'browser');
+
+        const [first, second, third] = webviewSpy.getCreatedWebviews();
+        assert(first && second && third);
+        await bridge.releaseTarget('target-1');
+        await bridge.releaseTarget('target-2');
+        await bridge.releaseTarget('target-3');
+
+        assert.equal(first.isConnected, false);
+        assert.equal(second.isConnected, false);
+        assert.equal(third.isConnected, true);
 
         contribution.dispose();
       },

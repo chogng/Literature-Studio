@@ -78,6 +78,9 @@ const en = {
   settingsStatusbar: 'Status bar',
   settingsStatusbarHint:
     'Controls whether the bottom status bar is shown in the content workspace.',
+  settingsBrowserTabKeepAliveLimit: 'Browser tab keep-alive',
+  settingsBrowserTabKeepAliveLimitHint:
+    'Controls how many inactive browser tabs stay warm for quick return. Set 0 to disable keep-alive and reduce memory usage.',
   settingsNotificationsTitle: 'Notifications',
   settingsNotificationsHint:
     'Control how desktop notifications and tray indicators behave for key events.',

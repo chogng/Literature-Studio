@@ -168,7 +168,9 @@ const browserEditorPaneDescriptor = createEditorPaneDescriptor({
   paneId: 'browser',
   contentClassNames: ['is-mode-browser'] as const,
   acceptsInput: isBrowserWorkspaceTab,
-  createPaneKey: (tab) => `browser:${tab.id}`,
+  // Browser tabs share one native web-content surface, so the pane itself
+  // should stay mounted while only the active target changes.
+  createPaneKey: () => 'browser',
   createPaneProps: createContentPaneProps,
   createPane: (props) => new ContentEditorPane(props),
 });

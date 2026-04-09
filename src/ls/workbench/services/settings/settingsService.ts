@@ -26,6 +26,10 @@ import {
 import { cloneLlmSettings, createDefaultLlmSettings } from 'ls/workbench/services/llm/config';
 import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config';
 import { cloneTranslationSettings, createDefaultTranslationSettings } from 'ls/workbench/services/translation/config';
+import {
+  defaultBrowserTabKeepAliveLimit,
+  normalizeBrowserTabKeepAliveLimit,
+} from 'ls/workbench/services/webContent/webContentRetentionConfig';
 
 export type StoredAppSettingsPayload = DesktopStoredAppSettings;
 export type AppSettingsPayload = DesktopAppSettings;
@@ -34,6 +38,7 @@ export type ResolvedSettingsState = {
   pdfDownloadDir: string;
   knowledgeBasePdfDownloadDir: string;
   pdfFileNameUseSelectionOrder: boolean;
+  browserTabKeepAliveLimit: number;
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
@@ -58,6 +63,7 @@ export type SaveSettingsDraft = {
   pdfDownloadDir: string;
   knowledgeBasePdfDownloadDir: string;
   pdfFileNameUseSelectionOrder: boolean;
+  browserTabKeepAliveLimit: number;
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
@@ -107,6 +113,10 @@ export function resolveSettingsState(
       typeof loaded.pdfFileNameUseSelectionOrder === 'boolean'
         ? loaded.pdfFileNameUseSelectionOrder
         : false,
+    browserTabKeepAliveLimit: normalizeBrowserTabKeepAliveLimit(
+      loaded.browserTabKeepAliveLimit,
+      defaultBrowserTabKeepAliveLimit,
+    ),
     batchSources: resolvedBatchSources,
     batchLimit: normalizeBatchLimit(loaded.defaultBatchLimit, defaultBatchLimit),
     sameDomainOnly:
@@ -158,6 +168,10 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
   const nextKnowledgeBaseDir = draft.knowledgeBasePdfDownloadDir.trim();
   const nextBatchSources = resolveConfigBatchSources(draft.batchSources, configBatchSourceSeed);
   const nextBatchLimit = normalizeBatchLimit(draft.batchLimit, defaultBatchLimit);
+  const nextBrowserTabKeepAliveLimit = normalizeBrowserTabKeepAliveLimit(
+    draft.browserTabKeepAliveLimit,
+    defaultBrowserTabKeepAliveLimit,
+  );
 
   return {
     nextDir,
@@ -166,6 +180,7 @@ export function buildSaveSettingsPayload(draft: SaveSettingsDraft): SaveSettings
     payload: {
       defaultDownloadDir: nextDir || null,
       pdfFileNameUseSelectionOrder: draft.pdfFileNameUseSelectionOrder,
+      browserTabKeepAliveLimit: nextBrowserTabKeepAliveLimit,
       defaultBatchSources: nextBatchSources,
       defaultBatchLimit: nextBatchLimit,
       defaultSameDomainOnly: draft.sameDomainOnly,

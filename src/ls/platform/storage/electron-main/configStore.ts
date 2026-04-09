@@ -46,6 +46,10 @@ import {
   defaultRagRetrievalTopK,
 } from 'ls/workbench/services/rag/config';
 import { isRagProviderId } from 'ls/workbench/services/rag/registry';
+import {
+  defaultBrowserTabKeepAliveLimit,
+  normalizeBrowserTabKeepAliveLimit,
+} from 'ls/workbench/services/webContent/webContentRetentionConfig';
 
 type ConfigStore = Pick<StorageService, 'loadSettings' | 'saveSettings'>;
 const fallbackLocale: 'zh' | 'en' = 'zh';
@@ -253,6 +257,10 @@ function normalizeSettings(
       typeof payload.pdfFileNameUseSelectionOrder === 'boolean'
         ? payload.pdfFileNameUseSelectionOrder
         : false,
+    browserTabKeepAliveLimit: normalizeBrowserTabKeepAliveLimit(
+      payload.browserTabKeepAliveLimit,
+      defaultBrowserTabKeepAliveLimit,
+    ),
     defaultBatchSources: normalizedBatchSources,
     defaultBatchLimit: normalizedLimit,
     defaultSameDomainOnly:

@@ -7,6 +7,7 @@ import type { ElectronInvoke } from 'ls/base/parts/sandbox/common/desktopTypes';
 import { editorDraftStyleService } from 'ls/editor/browser/text/editorDraftStyleService';
 import { createSettingsController } from 'ls/workbench/contrib/preferences/browser/settingsController';
 import { locales } from 'language/locales';
+import { defaultBrowserTabKeepAliveLimit } from 'ls/workbench/services/webContent/webContentRetentionConfig';
 
 async function flushMicrotasks() {
   await Promise.resolve();
@@ -289,5 +290,71 @@ test('SettingsController editorDraft style handlers update service snapshot and 
   } finally {
     controller.dispose();
     editorDraftStyleService.resetToCatalog();
+  }
+});
+
+test('SettingsController loads and persists browser tab keep-alive limit', async () => {
+  const savePayloads: unknown[] = [];
+
+  const invokeDesktop = (async (command: string, args?: { settings?: unknown }) => {
+    if (command === 'load_settings') {
+      return {
+        browserTabKeepAliveLimit: 5,
+      };
+    }
+
+    if (command === 'save_settings') {
+      savePayloads.push(args?.settings ?? null);
+      return {
+        ...(args?.settings as Record<string, unknown>),
+        configPath: '/tmp/literature-studio.json',
+      };
+    }
+
+    throw new Error(`Unexpected desktop command in browser tab keep-alive test: ${command}`);
+  }) as ElectronInvoke;
+
+  const controller = createSettingsController({
+    desktopRuntime: true,
+    invokeDesktop,
+    ui: locales.en,
+    locale: 'en',
+    initialBatchSources: [],
+  });
+
+  try {
+    controller.start();
+    await flushMicrotasks();
+    await delay(0);
+    await flushMicrotasks();
+
+    assert.equal(controller.getSnapshot().browserTabKeepAliveLimit, 5);
+
+    controller.setBrowserTabKeepAliveLimit(0);
+    await delay(0);
+    await flushMicrotasks();
+
+    const lastPayload = savePayloads.at(-1) as
+      | {
+          browserTabKeepAliveLimit?: number;
+        }
+      | undefined;
+    assert.equal(lastPayload?.browserTabKeepAliveLimit, 0);
+
+    controller.setBrowserTabKeepAliveLimit(defaultBrowserTabKeepAliveLimit);
+    await delay(0);
+    await flushMicrotasks();
+
+    const restoredPayload = savePayloads.at(-1) as
+      | {
+          browserTabKeepAliveLimit?: number;
+        }
+      | undefined;
+    assert.equal(
+      restoredPayload?.browserTabKeepAliveLimit,
+      defaultBrowserTabKeepAliveLimit,
+    );
+  } finally {
+    controller.dispose();
   }
 });

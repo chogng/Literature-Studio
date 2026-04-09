@@ -51,11 +51,13 @@ import { resolveLlmRoute } from 'ls/workbench/services/llm/routing';
 import { cloneRagSettings, createDefaultRagSettings } from 'ls/workbench/services/rag/config';
 import { resolveRagRoute } from 'ls/workbench/services/rag/routing';
 import { cloneTranslationSettings, createDefaultTranslationSettings } from 'ls/workbench/services/translation/config';
+import { defaultBrowserTabKeepAliveLimit } from 'ls/workbench/services/webContent/webContentRetentionConfig';
 
 export type SettingsModelSnapshot = {
   pdfDownloadDir: string;
   knowledgeBasePdfDownloadDir: string;
   pdfFileNameUseSelectionOrder: boolean;
+  browserTabKeepAliveLimit: number;
   batchSources: BatchSource[];
   batchLimit: number;
   sameDomainOnly: boolean;
@@ -135,6 +137,7 @@ function areSettingsModelSnapshotsEqual(
     previous.pdfDownloadDir === next.pdfDownloadDir &&
     previous.knowledgeBasePdfDownloadDir === next.knowledgeBasePdfDownloadDir &&
     previous.pdfFileNameUseSelectionOrder === next.pdfFileNameUseSelectionOrder &&
+    previous.browserTabKeepAliveLimit === next.browserTabKeepAliveLimit &&
     previous.batchLimit === next.batchLimit &&
     previous.sameDomainOnly === next.sameDomainOnly &&
     previous.systemNotificationsEnabled === next.systemNotificationsEnabled &&
@@ -181,6 +184,7 @@ function createInitialSettingsModelSnapshot(
     pdfDownloadDir: '',
     knowledgeBasePdfDownloadDir: '',
     pdfFileNameUseSelectionOrder: false,
+    browserTabKeepAliveLimit: defaultBrowserTabKeepAliveLimit,
     batchSources: initialBatchSources,
     batchLimit: defaultBatchLimit,
     sameDomainOnly: defaultSameDomainOnly,
@@ -565,6 +569,17 @@ export class SettingsModel {
     }));
   };
 
+  readonly setBrowserTabKeepAliveLimit = (browserTabKeepAliveLimit: number) => {
+    if (this.snapshot.browserTabKeepAliveLimit === browserTabKeepAliveLimit) {
+      return;
+    }
+
+    this.updateSnapshot((snapshot) => ({
+      ...snapshot,
+      browserTabKeepAliveLimit,
+    }));
+  };
+
   readonly setActiveLlmProvider = (activeLlmProvider: LlmProviderId) => {
     if (this.snapshot.activeLlmProvider === activeLlmProvider) {
       return;
@@ -906,6 +921,7 @@ export class SettingsModel {
         pdfDownloadDir: resolved.pdfDownloadDir,
         knowledgeBasePdfDownloadDir: resolved.knowledgeBasePdfDownloadDir,
         pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
+        browserTabKeepAliveLimit: resolved.browserTabKeepAliveLimit,
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,
@@ -1035,6 +1051,7 @@ export class SettingsModel {
       pdfDownloadDir,
       knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
+      browserTabKeepAliveLimit,
       batchSources,
       batchLimit,
       sameDomainOnly,
@@ -1067,6 +1084,7 @@ export class SettingsModel {
       pdfDownloadDir,
       knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
+      browserTabKeepAliveLimit,
       batchSources,
       batchLimit,
       sameDomainOnly,
@@ -1126,6 +1144,7 @@ export class SettingsModel {
       pdfDownloadDir: resolved.pdfDownloadDir,
       knowledgeBasePdfDownloadDir: resolved.knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
+      browserTabKeepAliveLimit: resolved.browserTabKeepAliveLimit,
       batchSources: resolved.batchSources,
       batchLimit: resolved.batchLimit,
       sameDomainOnly: resolved.sameDomainOnly,
@@ -1169,6 +1188,7 @@ export class SettingsModel {
       pdfDownloadDir,
       knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
+      browserTabKeepAliveLimit,
       batchSources,
       batchLimit,
       sameDomainOnly,
@@ -1201,6 +1221,7 @@ export class SettingsModel {
       pdfDownloadDir,
       knowledgeBasePdfDownloadDir,
       pdfFileNameUseSelectionOrder,
+      browserTabKeepAliveLimit,
       batchSources,
       batchLimit,
       sameDomainOnly,
@@ -1262,6 +1283,7 @@ export class SettingsModel {
         pdfDownloadDir: resolved.pdfDownloadDir,
         knowledgeBasePdfDownloadDir: resolved.knowledgeBasePdfDownloadDir,
         pdfFileNameUseSelectionOrder: resolved.pdfFileNameUseSelectionOrder,
+        browserTabKeepAliveLimit: resolved.browserTabKeepAliveLimit,
         batchSources: resolved.batchSources,
         batchLimit: resolved.batchLimit,
         sameDomainOnly: resolved.sameDomainOnly,

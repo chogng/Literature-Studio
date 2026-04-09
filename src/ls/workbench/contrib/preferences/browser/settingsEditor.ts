@@ -40,6 +40,10 @@ import {
   requestSetDisplayLanguage,
 } from 'ls/workbench/contrib/localization/browser/localizationsActions';
 import { batchLimitMax, batchLimitMin } from 'ls/workbench/services/config/configSchema';
+import {
+  maxBrowserTabKeepAliveLimit,
+  minBrowserTabKeepAliveLimit,
+} from 'ls/workbench/services/webContent/webContentRetentionConfig';
 import { registerWorkbenchPartDomNode, WORKBENCH_PART_IDS } from 'ls/workbench/browser/layout';
 import 'ls/workbench/contrib/preferences/browser/media/settingsEditor.css';
 import 'ls/workbench/contrib/preferences/browser/media/settingsWidgets.css';
@@ -66,7 +70,7 @@ export function createSettingsPartLabels({ ui }: CreateSettingsPartLabelsParams)
     settingsLibraryMaxConcurrentJobs: ui.settingsLibraryMaxConcurrentJobs, settingsLibraryMaxConcurrentJobsHint: ui.settingsLibraryMaxConcurrentJobsHint, settingsRagTitle: ui.settingsRagTitle, settingsRagProvider: ui.settingsRagProvider, settingsRagProviderHint: ui.settingsRagProviderHint,
     settingsRagProviderMoark: ui.settingsRagProviderMoark, settingsRagApiKey: ui.settingsRagApiKey, settingsRagApiKeyPlaceholder: ui.settingsRagApiKeyPlaceholder, settingsRagBaseUrl: ui.settingsRagBaseUrl, settingsRagEmbeddingModel: ui.settingsRagEmbeddingModel,
     settingsRagRerankerModel: ui.settingsRagRerankerModel, settingsRagEmbeddingPath: ui.settingsRagEmbeddingPath, settingsRagRerankPath: ui.settingsRagRerankPath, settingsRagCandidateCount: ui.settingsRagCandidateCount, settingsRagTopK: ui.settingsRagTopK,
-    settingsRagTestConnection: ui.settingsRagTestConnection, settingsRagShowApiKey: ui.settingsRagShowApiKey, settingsRagHideApiKey: ui.settingsRagHideApiKey, settingsRagHint: ui.settingsRagHint, settingsBatchHint: ui.settingsBatchHint, defaultPdfDir: ui.defaultPdfDir, settingsLayoutTitle: ui.settingsLayoutTitle, settingsStatusbar: ui.settingsStatusbar, settingsStatusbarHint: ui.settingsStatusbarHint, settingsNotificationsTitle: ui.settingsNotificationsTitle, settingsNotificationsHint: ui.settingsNotificationsHint, settingsSystemNotifications: ui.settingsSystemNotifications, settingsSystemNotificationsHint: ui.settingsSystemNotificationsHint, settingsWarningNotifications: ui.settingsWarningNotifications, settingsWarningNotificationsHint: ui.settingsWarningNotificationsHint, settingsMenuBarIcon: ui.settingsMenuBarIcon, settingsMenuBarIconHint: ui.settingsMenuBarIconHint, settingsCompletionNotifications: ui.settingsCompletionNotifications, settingsCompletionNotificationsHint: ui.settingsCompletionNotificationsHint,
+    settingsRagTestConnection: ui.settingsRagTestConnection, settingsRagShowApiKey: ui.settingsRagShowApiKey, settingsRagHideApiKey: ui.settingsRagHideApiKey, settingsRagHint: ui.settingsRagHint, settingsBatchHint: ui.settingsBatchHint, defaultPdfDir: ui.defaultPdfDir, settingsLayoutTitle: ui.settingsLayoutTitle, settingsStatusbar: ui.settingsStatusbar, settingsStatusbarHint: ui.settingsStatusbarHint, settingsBrowserTabKeepAliveLimit: ui.settingsBrowserTabKeepAliveLimit, settingsBrowserTabKeepAliveLimitHint: ui.settingsBrowserTabKeepAliveLimitHint, settingsNotificationsTitle: ui.settingsNotificationsTitle, settingsNotificationsHint: ui.settingsNotificationsHint, settingsSystemNotifications: ui.settingsSystemNotifications, settingsSystemNotificationsHint: ui.settingsSystemNotificationsHint, settingsWarningNotifications: ui.settingsWarningNotifications, settingsWarningNotificationsHint: ui.settingsWarningNotificationsHint, settingsMenuBarIcon: ui.settingsMenuBarIcon, settingsMenuBarIconHint: ui.settingsMenuBarIconHint, settingsCompletionNotifications: ui.settingsCompletionNotifications, settingsCompletionNotificationsHint: ui.settingsCompletionNotificationsHint,
     pdfFileNameUseSelectionOrder: ui.pdfFileNameUseSelectionOrder, pdfFileNameUseSelectionOrderHint: ui.pdfFileNameUseSelectionOrderHint, downloadDirPlaceholder: ui.downloadDirPlaceholder, chooseDirectory: ui.chooseDirectory, openConfigLocation: ui.openConfigLocation,
     resetDefault: ui.resetDefault, settingsHintPath: ui.settingsHintPath, settingsConfigPath: ui.settingsConfigPath, currentDir: ui.currentDir, systemDownloads: ui.systemDownloads, settingsLlmTitle: ui.settingsLlmTitle, settingsLlmProvider: ui.settingsLlmProvider,
     settingsLlmProviderHint: ui.settingsLlmProviderHint, settingsLlmProviderGlm: ui.settingsLlmProviderGlm, settingsLlmProviderKimi: ui.settingsLlmProviderKimi, settingsLlmProviderDeepSeek: ui.settingsLlmProviderDeepSeek, settingsLlmProviderGemini: ui.settingsLlmProviderGemini, settingsLlmApiKey: ui.settingsLlmApiKey,
@@ -730,10 +734,15 @@ export class SettingsPartView {
     return (
       !previousProps ||
       previousProps.statusbarVisible !== this.props.statusbarVisible ||
+      previousProps.browserTabKeepAliveLimit !== this.props.browserTabKeepAliveLimit ||
       previousProps.isSettingsSaving !== this.props.isSettingsSaving ||
       previousProps.labels.settingsLayoutTitle !== this.props.labels.settingsLayoutTitle ||
       previousProps.labels.settingsStatusbar !== this.props.labels.settingsStatusbar ||
-      previousProps.labels.settingsStatusbarHint !== this.props.labels.settingsStatusbarHint
+      previousProps.labels.settingsStatusbarHint !== this.props.labels.settingsStatusbarHint ||
+      previousProps.labels.settingsBrowserTabKeepAliveLimit !==
+        this.props.labels.settingsBrowserTabKeepAliveLimit ||
+      previousProps.labels.settingsBrowserTabKeepAliveLimitHint !==
+        this.props.labels.settingsBrowserTabKeepAliveLimitHint
     );
   }
 
@@ -1009,6 +1018,17 @@ export class SettingsPartView {
       panelClassName: 'settings-layout-panel',
       listClassName: 'settings-layout-list',
     });
+    const browserTabKeepAliveLimitInput = buildInput({
+      type: 'number',
+      value: this.props.browserTabKeepAliveLimit,
+      className: 'settings-limit-input',
+      focusKey: 'settings.general.layout.browserTabKeepAliveLimit',
+      min: String(minBrowserTabKeepAliveLimit),
+      max: String(maxBrowserTabKeepAliveLimit),
+      inputMode: 'numeric',
+      onInput: this.props.onBrowserTabKeepAliveLimitChange,
+    });
+    browserTabKeepAliveLimitInput.inputElement.disabled = this.props.isSettingsSaving;
     layout.list.append(
       createSettingsRow({
         title: this.props.labels.settingsStatusbar,
@@ -1020,6 +1040,11 @@ export class SettingsPartView {
           title: this.props.labels.settingsStatusbar,
           onChange: this.props.onStatusbarVisibleChange,
         }),
+      }),
+      createSettingsRow({
+        title: this.props.labels.settingsBrowserTabKeepAliveLimit,
+        description: this.props.labels.settingsBrowserTabKeepAliveLimitHint,
+        control: browserTabKeepAliveLimitInput.element,
       }),
     );
     return layout.element;

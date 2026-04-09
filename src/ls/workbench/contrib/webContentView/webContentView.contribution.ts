@@ -1,4 +1,8 @@
 import {
+  getWorkbenchBrowserTabKeepAliveLimit,
+  subscribeWorkbenchWebContentRetention,
+} from 'ls/workbench/browser/webContentRetentionState';
+import {
   getWorkbenchPartDomSnapshot,
   subscribeWorkbenchPartDom,
   WORKBENCH_PART_IDS,
@@ -19,11 +23,14 @@ import type {
 import { nativeHostService } from 'ls/platform/native/electron-sandbox/nativeHostService';
 import { WORKBENCH_SHARED_WEB_PARTITION } from 'ls/platform/native/electron-main/sharedWebSession';
 import type { Disposable } from 'ls/workbench/contrib/workbench/workbench.contribution';
+import {
+  defaultBrowserTabKeepAliveLimit,
+  normalizeBrowserTabKeepAliveLimit,
+} from 'ls/workbench/services/webContent/webContentRetentionConfig';
 
 const DEFAULT_WEB_CONTENT_TARGET_ID = '__shared__';
 const WEB_CONTENT_BRIDGE_KEY = '__lsWebContentBridge';
 const WEB_CONTENT_ROOT_ID = 'ls-webcontent-root';
-const MAX_RETAINED_WEB_CONTENT_TARGETS = 2;
 const RETAINED_WEB_CONTENT_TARGET_TTL_MS = 3 * 60 * 1000;
 
 type WebContentLayoutSnapshot = {
@@ -422,6 +429,7 @@ class WebContentDomManager {
   private readonly targetEntries = new Map<string, ManagedWebviewEntry>();
   private readonly retainedTargetEntries = new Map<string, RetainedTargetEntry>();
   private retentionSweepTimer: number | null = null;
+  private browserTabKeepAliveLimit = defaultBrowserTabKeepAliveLimit;
   private readonly bridge: WebContentDomBridge;
 
   constructor() {
@@ -458,6 +466,19 @@ class WebContentDomManager {
     this.targetEntries.clear();
     this.rootElement?.remove();
     this.rootElement = null;
+  }
+
+  setBrowserTabKeepAliveLimit(limit: unknown) {
+    const nextLimit = normalizeBrowserTabKeepAliveLimit(
+      limit,
+      this.browserTabKeepAliveLimit,
+    );
+    if (nextLimit === this.browserTabKeepAliveLimit) {
+      return;
+    }
+
+    this.browserTabKeepAliveLimit = nextLimit;
+    this.sweepReleasedTargets(Date.now());
   }
 
   private clearRetentionSweepTimer() {
@@ -515,11 +536,11 @@ class WebContentDomManager {
       evictedTargetIds.push(targetId);
     }
 
-    if (this.retainedTargetEntries.size - evictedTargetIds.length > MAX_RETAINED_WEB_CONTENT_TARGETS) {
+    if (this.retainedTargetEntries.size - evictedTargetIds.length > this.browserTabKeepAliveLimit) {
       const overflowCount =
         this.retainedTargetEntries.size -
         evictedTargetIds.length -
-        MAX_RETAINED_WEB_CONTENT_TARGETS;
+        this.browserTabKeepAliveLimit;
       if (overflowCount > 0) {
         const overflowEvictions = [...this.retainedTargetEntries.entries()]
           .filter(([targetId]) => !evictedTargetIds.includes(targetId))
@@ -1232,6 +1253,7 @@ export function createWorkbenchWebContentViewContribution(): Disposable | void {
   }
 
   const manager = new WebContentDomManager();
+  manager.setBrowserTabKeepAliveLimit(getWorkbenchBrowserTabKeepAliveLimit());
   let webContentViewHostElement =
     getWorkbenchPartDomSnapshot()[WORKBENCH_PART_IDS.webContentViewHost];
   const contributionDisposables = new LifecycleStore();
@@ -1243,6 +1265,11 @@ export function createWorkbenchWebContentViewContribution(): Disposable | void {
 
   contributionDisposables.add(hostObservers);
   contributionDisposables.add(scheduledSync);
+  contributionDisposables.add(
+    subscribeWorkbenchWebContentRetention(() => {
+      manager.setBrowserTabKeepAliveLimit(getWorkbenchBrowserTabKeepAliveLimit());
+    }),
+  );
 
   if (
     typeof nativeHostService.webContent?.onBridgeCommand === 'function' &&

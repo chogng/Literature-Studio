@@ -77,6 +77,9 @@ const zh = {
   settingsStatusbar: '状态栏',
   settingsStatusbarHint:
     '用于控制内容工作区底部 status bar 的显示与隐藏。',
+  settingsBrowserTabKeepAliveLimit: '浏览器标签保活数量',
+  settingsBrowserTabKeepAliveLimitHint:
+    '控制失活的浏览器标签会保留多少个以便快速返回。设为 0 表示关闭保活并降低内存占用。',
   settingsNotificationsTitle: '通知',
   settingsNotificationsHint:
     '控制桌面通知和托盘图标在关键事件下的行为。',

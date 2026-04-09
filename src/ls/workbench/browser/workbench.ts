@@ -7,6 +7,7 @@ import type { DocumentActionsController, DocumentActionsControllerContext } from
 import { createLibraryModel } from 'ls/workbench/browser/libraryModel';
 import type { LibraryModel, LibraryModelContext } from 'ls/workbench/browser/libraryModel';
 
+import { setWorkbenchBrowserTabKeepAliveLimit } from 'ls/workbench/browser/webContentRetentionState';
 import { WebContentNavigationModel } from 'ls/workbench/browser/webContentNavigationModel';
 import {
   getWorkbenchLayoutStateSnapshot,
@@ -94,6 +95,7 @@ import type { LibraryDocumentSummary, LlmProviderId, LlmProviderSettings } from 
 import { getConfigBatchSourceSeed, normalizeBatchLimit } from 'ls/workbench/services/config/configSchema';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 import type { WebContentState } from 'ls/workbench/services/webContent/webContentNavigationService';
+import { normalizeBrowserTabKeepAliveLimit } from 'ls/workbench/services/webContent/webContentRetentionConfig';
 import {
   getLlmProviderDefinition,
   getLlmModelOptionsForProvider,
@@ -1300,6 +1302,7 @@ class WorkbenchHost {
       menuBarIconEnabled,
       completionNotificationsEnabled,
       statusbarVisible,
+      browserTabKeepAliveLimit,
       useMica,
       theme,
       workbenchColorCustomizations,
@@ -1326,6 +1329,7 @@ class WorkbenchHost {
       isTestingLlmConnection,
       isTestingTranslationConnection,
     } = settingsSnapshot;
+    setWorkbenchBrowserTabKeepAliveLimit(browserTabKeepAliveLimit);
     applyWorkbenchTheme(theme, workbenchColorCustomizations);
     applyWorkbenchBrowserStyles();
     const knowledgeBaseModeEnabled = knowledgeBaseEnabled;
@@ -1978,6 +1982,7 @@ class WorkbenchHost {
         completionNotificationsEnabled,
         useMica,
         statusbarVisible,
+        browserTabKeepAliveLimit,
         theme,
         editorDraftStyle: {
           defaultBodyStyle: {
@@ -2043,6 +2048,10 @@ class WorkbenchHost {
           settingsControllerInstance.setCompletionNotificationsEnabled,
         onUseMicaChange: settingsControllerInstance.setUseMica,
         onStatusbarVisibleChange: settingsControllerInstance.setStatusbarVisible,
+        onBrowserTabKeepAliveLimitChange: (value) =>
+          settingsControllerInstance.setBrowserTabKeepAliveLimit(
+            normalizeBrowserTabKeepAliveLimit(value, browserTabKeepAliveLimit),
+          ),
         onThemeChange: settingsControllerInstance.setTheme,
         onEditorDraftFontFamilyChange:
           settingsControllerInstance.setEditorDraftFontFamily,

@@ -403,7 +403,7 @@ test('editor pane registry resolves pane identity and content classes from descr
 
   const browserPane = resolveEditorPane(browserTab, createResolverContext());
   assert.equal(browserPane.paneId, 'browser');
-  assert.equal(browserPane.paneKey, 'browser:browser-a');
+  assert.equal(browserPane.paneKey, 'browser');
   assert.deepEqual(browserPane.contentClassNames, ['is-mode-browser']);
 
   const pdfPane = resolveEditorPane(pdfTab, createResolverContext());
@@ -669,6 +669,237 @@ test('EditorGroupView captures and restores browser pane view state through the 
         assert(restoredBrowserPane);
         assert.equal(scrollStateByTargetId.get(browserTab.id)?.scrollY, 96);
         assert.notEqual(restoredBrowserPane, initialBrowserPane);
+        assert(scriptMarkers.includes('capture'));
+        assert(scriptMarkers.includes('restore'));
+      } finally {
+        view.dispose();
+        document.body.replaceChildren();
+      }
+    },
+  );
+});
+
+test('EditorGroupView reuses the browser pane when switching between browser tabs', async () => {
+  const browserTabA = {
+    id: 'browser-a',
+    kind: 'browser' as const,
+    title: 'Browser A',
+    url: 'https://example.com/article-a',
+  };
+  const browserTabB = {
+    id: 'browser-b',
+    kind: 'browser' as const,
+    title: 'Browser B',
+    url: 'https://example.com/article-b',
+  };
+  const tabs = [browserTabA, browserTabB];
+  const persistedStates: Array<{
+    key: {
+      groupId: string;
+      paneId: string;
+      resourceKey: string;
+    };
+    state: unknown;
+  }> = [];
+  const scriptMarkers: string[] = [];
+  const scrollStateByTargetId = new Map([
+    [
+      browserTabA.id,
+      {
+        url: browserTabA.url,
+        scrollX: 0,
+        scrollY: 96,
+      },
+    ],
+    [
+      browserTabB.id,
+      {
+        url: browserTabB.url,
+        scrollX: 0,
+        scrollY: 0,
+      },
+    ],
+  ]);
+
+  await withElectronApi(
+    {
+      invoke: (async () => {
+        throw new Error('Unexpected invoke in editorGroupView test.');
+      }) as ElectronAPI['invoke'],
+      webContent: {
+        dispose() {},
+        activate() {},
+        release() {},
+        async navigate() {
+          return {
+            targetId: browserTabA.id,
+            activeTargetId: browserTabA.id,
+            ownership: 'active',
+            layoutPhase: 'visible',
+            url: scrollStateByTargetId.get(browserTabA.id)?.url ?? '',
+            canGoBack: false,
+            canGoForward: false,
+            isLoading: false,
+            visible: true,
+          };
+        },
+        async getState(targetId?: string | null) {
+          return {
+            targetId: targetId ?? null,
+            activeTargetId: targetId ?? null,
+            ownership: 'active',
+            layoutPhase: 'visible',
+            url: scrollStateByTargetId.get(targetId ?? '')?.url ?? '',
+            canGoBack: false,
+            canGoForward: false,
+            isLoading: false,
+            visible: true,
+          };
+        },
+        setBounds() {},
+        setVisible() {},
+        setLayoutPhase() {},
+        clearHistory() {},
+        hardReload() {},
+        reload() {},
+        goBack() {},
+        goForward() {},
+        async executeJavaScript<T = unknown>(
+          targetId: string | null | undefined,
+          script: string,
+        ) {
+          if (script.includes(WEB_CONTENT_VIEW_STATE_CAPTURE_SCRIPT_MARKER)) {
+            scriptMarkers.push('capture');
+            return (scrollStateByTargetId.get(targetId ?? '') ?? null) as T | null;
+          }
+
+          if (script.includes(WEB_CONTENT_VIEW_STATE_RESTORE_SCRIPT_MARKER)) {
+            scriptMarkers.push('restore');
+            if (!targetId) {
+              return false as T;
+            }
+
+            const viewStateMatch = script.match(/const viewState = (\{[\s\S]*?\});/);
+            if (!viewStateMatch) {
+              return false as T;
+            }
+
+            scrollStateByTargetId.set(
+              targetId,
+              JSON.parse(viewStateMatch[1]) as {
+                url: string;
+                scrollX: number;
+                scrollY: number;
+              },
+            );
+            return true as T;
+          }
+
+          return null as T | null;
+        },
+        async getSelection() {
+          return null;
+        },
+        onStateChange() {
+          return () => {};
+        },
+      },
+    },
+    async () => {
+      const view = new EditorGroupView({
+        ...createProps(browserTabA.id, browserTabA, tabs, {
+          onSetEditorViewState: (key, state) => {
+            persistedStates.push({ key, state });
+          },
+        }),
+        viewStateEntries: [
+          {
+            key: {
+              groupId: DEFAULT_EDITOR_GROUP_ID,
+              paneId: 'browser',
+              resourceKey: `browser:${browserTabB.url}`,
+            },
+            state: {
+              url: browserTabB.url,
+              scrollX: 0,
+              scrollY: 24,
+            },
+          },
+        ],
+        viewPartProps: {
+          browserUrl: browserTabA.url,
+          electronRuntime: true,
+          webContentRuntime: true,
+          labels: {
+            emptyState: 'Empty',
+            contentUnavailable: 'Unavailable',
+          },
+        },
+      });
+      document.body.append(view.getElement());
+
+      try {
+        const initialBrowserPane = (view as unknown as {
+          activePane: object | null;
+        }).activePane;
+        assert(initialBrowserPane);
+
+        view.setProps({
+          ...createProps(browserTabB.id, browserTabB, tabs, {
+            onSetEditorViewState: (key, state) => {
+              persistedStates.push({ key, state });
+            },
+          }),
+          viewStateEntries: [
+            {
+              key: {
+                groupId: DEFAULT_EDITOR_GROUP_ID,
+                paneId: 'browser',
+                resourceKey: `browser:${browserTabB.url}`,
+              },
+              state: {
+                url: browserTabB.url,
+                scrollX: 0,
+                scrollY: 24,
+              },
+            },
+          ],
+          viewPartProps: {
+            browserUrl: browserTabB.url,
+            electronRuntime: true,
+            webContentRuntime: true,
+            labels: {
+              emptyState: 'Empty',
+              contentUnavailable: 'Unavailable',
+            },
+          },
+        });
+
+        await view.whenTabViewStateSettled(browserTabA.id);
+        await waitForAsyncWork();
+        await waitForAsyncWork();
+
+        const switchedBrowserPane = (view as unknown as {
+          activePane: object | null;
+        }).activePane;
+        assert(switchedBrowserPane);
+        assert.equal(switchedBrowserPane, initialBrowserPane);
+        assert.equal(scrollStateByTargetId.get(browserTabB.id)?.scrollY, 24);
+        assert.deepEqual(
+          persistedStates[persistedStates.length - 1],
+          {
+            key: {
+              groupId: DEFAULT_EDITOR_GROUP_ID,
+              paneId: 'browser',
+              resourceKey: `browser:${browserTabA.url}`,
+            },
+            state: {
+              url: browserTabA.url,
+              scrollX: 0,
+              scrollY: 96,
+            },
+          },
+        );
         assert(scriptMarkers.includes('capture'));
         assert(scriptMarkers.includes('restore'));
       } finally {
