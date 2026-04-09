@@ -197,6 +197,11 @@
   border-color: #d3d3d3;
 }
 
+.settings-select-trigger.settings-language-toggle.ls-select-box.ls-select-box-custom {
+  --vscode-select-background: transparent;
+  background: transparent;
+}
+
 .settings-inputbox.inputbox.synthetic-focus,
 .settings-inputbox.inputbox:focus-within {
   outline: none;
