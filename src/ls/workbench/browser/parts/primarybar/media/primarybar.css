@@ -184,6 +184,10 @@
   background: var(--primarybar-surface-bg);
 }
 
+.primarybar-pane > .pane-header {
+  border-bottom: 0;
+}
+
 .primarybar-library-pane {
   --ls-pane-header-toggle-padding: 0 8px;
 }

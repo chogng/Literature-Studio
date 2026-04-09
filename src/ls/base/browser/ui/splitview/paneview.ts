@@ -252,10 +252,12 @@ export type PaneViewOptions = {
 };
 
 export class PaneView {
+  private static readonly RESIZE_ANIMATION_DURATION_MS = 540;
   readonly element = createElement('div', 'pane-view');
   private readonly splitView: SplitView;
   private readonly items: PaneItem[] = [];
   private readonly disposables = new LifecycleStore();
+  private resizeAnimationTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(options: PaneViewOptions = {}) {
     const orientation = options.orientation ?? Orientation.HORIZONTAL;
@@ -279,6 +281,7 @@ export class PaneView {
         return;
       }
 
+      this.triggerResizeAnimation();
       this.splitView.resizeView(paneIndex, event.preferredSize);
     });
 
@@ -297,6 +300,11 @@ export class PaneView {
   }
 
   dispose() {
+    if (this.resizeAnimationTimer) {
+      clearTimeout(this.resizeAnimationTimer);
+      this.resizeAnimationTimer = undefined;
+    }
+    this.splitView.element.classList.remove('pane-view-resize-animating');
     for (const item of this.items) {
       item.changeListener.dispose();
       item.pane.dispose();
@@ -304,6 +312,17 @@ export class PaneView {
     this.items.length = 0;
     this.disposables.dispose();
     this.element.replaceChildren();
+  }
+
+  private triggerResizeAnimation() {
+    this.splitView.element.classList.add('pane-view-resize-animating');
+    if (this.resizeAnimationTimer) {
+      clearTimeout(this.resizeAnimationTimer);
+    }
+    this.resizeAnimationTimer = setTimeout(() => {
+      this.resizeAnimationTimer = undefined;
+      this.splitView.element.classList.remove('pane-view-resize-animating');
+    }, PaneView.RESIZE_ANIMATION_DURATION_MS);
   }
 }
 
