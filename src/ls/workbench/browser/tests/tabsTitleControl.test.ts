@@ -861,6 +861,287 @@ test('TabsTitleControl reveals the active tab when the strip overflows', async (
   control.dispose();
 });
 
+test('TabsTitleControl keeps scroll position stable for metadata-only active tab updates', async () => {
+  const control = new TabsTitleControl({
+    group: createGroupModel('browser-a', [
+      createTabItem({
+        id: 'draft-a',
+        kind: 'draft',
+        label: 'Draft A',
+        title: 'Draft A',
+      }),
+      createTabItem({
+        id: 'pdf-a',
+        kind: 'pdf',
+        label: 'Paper.pdf',
+        title: 'Paper.pdf',
+      }),
+      createTabItem({
+        id: 'browser-a',
+        kind: 'browser',
+        label: '',
+        title: 'Browser',
+        isActive: true,
+        isClosable: false,
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
+
+  let scrollLeft = 106;
+  let scrollWidth = 266;
+  Object.defineProperty(container, 'clientWidth', {
+    configurable: true,
+    get: () => 160,
+  });
+  Object.defineProperty(container, 'scrollWidth', {
+    configurable: true,
+    get: () => scrollWidth,
+  });
+  Object.defineProperty(container, 'scrollLeft', {
+    configurable: true,
+    get: () => scrollLeft,
+    set: (value: number) => {
+      scrollLeft = value;
+    },
+  });
+
+  const [firstTab, secondTab, thirdTab] = Array.from(container.children);
+  const setTabMetrics = (
+    metrics: ReadonlyArray<readonly [Element, number, number]>,
+  ) => {
+    for (const [element, offsetLeft, offsetWidth] of metrics) {
+      Object.defineProperty(element, 'offsetLeft', {
+        configurable: true,
+        get: () => offsetLeft,
+      });
+      Object.defineProperty(element, 'offsetWidth', {
+        configurable: true,
+        get: () => offsetWidth,
+      });
+    }
+  };
+
+  setTabMetrics([
+    [firstTab, 0, 120],
+    [secondTab, 120, 120],
+    [thirdTab, 240, 26],
+  ]);
+
+  await waitForAnimationFrame();
+  assert.equal(scrollLeft, 106);
+
+  control.setProps({
+    group: createGroupModel('browser-a', [
+      createTabItem({
+        id: 'draft-a',
+        kind: 'draft',
+        label: 'Draft A',
+        title: 'Draft A',
+      }),
+      createTabItem({
+        id: 'pdf-a',
+        kind: 'pdf',
+        label: 'Paper.pdf',
+        title: 'Paper.pdf',
+      }),
+      createTabItem({
+        id: 'browser-a',
+        kind: 'browser',
+        label: 'example.com/article',
+        title: 'example.com/article',
+        isActive: true,
+        isClosable: true,
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+
+  scrollWidth = 420;
+  setTabMetrics([
+    [firstTab, 0, 120],
+    [secondTab, 120, 120],
+    [thirdTab, 240, 180],
+  ]);
+
+  await waitForAnimationFrame();
+
+  assert.equal(scrollLeft, 106);
+
+  control.dispose();
+});
+
+test('TabsTitleControl does not reveal a visible fixed browser entry during immediate navigation updates', async () => {
+  const control = new TabsTitleControl({
+    group: createGroupModel('draft-a', [
+      createTabItem({
+        id: 'draft-entry',
+        kind: 'draft',
+        label: 'Draft A',
+        title: 'Draft A',
+        isActive: true,
+        targetTabId: 'draft-a',
+      }),
+      createTabItem({
+        id: 'browser-entry',
+        kind: 'browser',
+        label: '',
+        title: 'Browser',
+        targetTabId: null,
+      }),
+      createTabItem({
+        id: 'pdf-entry',
+        kind: 'pdf',
+        label: 'Paper.pdf',
+        title: 'Paper.pdf',
+        targetTabId: 'pdf-a',
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+  const rootElement = control.getElement();
+  document.body.append(rootElement);
+  const container = getTabsContainer(rootElement);
+
+  let scrollLeft = 12;
+  let scrollWidth = 266;
+  Object.defineProperty(container, 'clientWidth', {
+    configurable: true,
+    get: () => 160,
+  });
+  Object.defineProperty(container, 'scrollWidth', {
+    configurable: true,
+    get: () => scrollWidth,
+  });
+  Object.defineProperty(container, 'scrollLeft', {
+    configurable: true,
+    get: () => scrollLeft,
+    set: (value: number) => {
+      scrollLeft = value;
+    },
+  });
+
+  const [draftTab, browserTab, pdfTab] = Array.from(container.children);
+  const setTabMetrics = (
+    metrics: ReadonlyArray<readonly [Element, number, number]>,
+  ) => {
+    for (const [element, offsetLeft, offsetWidth] of metrics) {
+      Object.defineProperty(element, 'offsetLeft', {
+        configurable: true,
+        get: () => offsetLeft,
+      });
+      Object.defineProperty(element, 'offsetWidth', {
+        configurable: true,
+        get: () => offsetWidth,
+      });
+    }
+  };
+
+  setTabMetrics([
+    [draftTab, 0, 120],
+    [browserTab, 120, 26],
+    [pdfTab, 146, 120],
+  ]);
+
+  control.setProps({
+    group: createGroupModel('browser-a', [
+      createTabItem({
+        id: 'draft-entry',
+        kind: 'draft',
+        label: 'Draft A',
+        title: 'Draft A',
+        targetTabId: 'draft-a',
+      }),
+      createTabItem({
+        id: 'browser-entry',
+        kind: 'browser',
+        label: '',
+        title: 'Browser',
+        isActive: true,
+        targetTabId: 'browser-a',
+      }),
+      createTabItem({
+        id: 'pdf-entry',
+        kind: 'pdf',
+        label: 'Paper.pdf',
+        title: 'Paper.pdf',
+        targetTabId: 'pdf-a',
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+
+  scrollWidth = 420;
+  setTabMetrics([
+    [draftTab, 0, 120],
+    [browserTab, 120, 180],
+    [pdfTab, 300, 120],
+  ]);
+
+  control.setProps({
+    group: createGroupModel('browser-a', [
+      createTabItem({
+        id: 'draft-entry',
+        kind: 'draft',
+        label: 'Draft A',
+        title: 'Draft A',
+        targetTabId: 'draft-a',
+      }),
+      createTabItem({
+        id: 'browser-entry',
+        kind: 'browser',
+        label: 'example.com/article',
+        title: 'example.com/article',
+        isActive: true,
+        isClosable: true,
+        targetTabId: 'browser-a',
+      }),
+      createTabItem({
+        id: 'pdf-entry',
+        kind: 'pdf',
+        label: 'Paper.pdf',
+        title: 'Paper.pdf',
+        targetTabId: 'pdf-a',
+      }),
+    ]),
+    labels: {
+      close: 'Close',
+    },
+    onActivateTab: () => {},
+    onCloseTab: () => {},
+    onOpenPaneMode: () => {},
+  });
+
+  await waitForAnimationFrame();
+
+  assert.equal(scrollLeft, 12);
+
+  control.dispose();
+});
+
 test('TabsTitleControl disconnects resize observers on dispose', () => {
   const resizeObserverSpy = installResizeObserverSpy();
 

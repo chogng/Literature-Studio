@@ -924,12 +924,17 @@ export class EditorModel {
             nextTitleSource === 'auto-url' &&
             Boolean(activeTab.title.trim()) &&
             (metadata.titleSource === 'auto-page' || isLoading);
+          const nextMetadataTitleSource = shouldKeepCurrentTitleDuringNavigation
+            ? metadata.titleSource
+            : nextTitleSource;
           const resolvedTitle = shouldKeepCurrentTitleDuringNavigation
             ? activeTab.title
             : resolveBrowserTabTitleFromSource(nextTab, nextTitleSource);
 
           this.browserTabMetadataById.set(activeTab.id, {
-            titleSource: nextTitleSource,
+            // Keep the prior source while we're intentionally pinning the visible
+            // title, so chained URL updates don't bounce the tab label.
+            titleSource: nextMetadataTitleSource,
             lastPageTitle: shouldKeepCurrentTitleDuringNavigation
               ? sanitizeBrowserTabPageTitle(activeTab.title, normalizedUrl)
               : '',

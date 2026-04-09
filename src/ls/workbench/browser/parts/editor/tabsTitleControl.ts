@@ -117,6 +117,8 @@ export class TabsTitleControl extends TitleControl {
   private scrollableRoot: HTMLDivElement | null = null;
   private readonly tabViews = new Map<string, TabView>();
   private shouldRevealActiveTab = false;
+  private lastRenderedTabIds: string[] = [];
+  private lastRenderedActiveViewTabId: string | null = null;
   private readonly hoverService = getHoverService();
 
   constructor(
@@ -235,7 +237,15 @@ export class TabsTitleControl extends TitleControl {
     }
 
     this.syncTabOrder(nextTabElements);
-    this.scheduleLayoutSync();
+    const nextRenderedTabIds = this.props.group.tabs.map((tab) => tab.id);
+    const nextActiveViewTabId = this.findActiveViewTabId(this.props.group.tabs);
+    const shouldRevealActiveTab = this.shouldRevealAfterRedraw(
+      nextRenderedTabIds,
+      nextActiveViewTabId,
+    );
+    this.lastRenderedTabIds = nextRenderedTabIds;
+    this.lastRenderedActiveViewTabId = nextActiveViewTabId;
+    this.scheduleLayoutSync(shouldRevealActiveTab);
   }
 
   private createTabView(): TabView {
@@ -535,6 +545,44 @@ export class TabsTitleControl extends TitleControl {
         activeRight - this.container.clientWidth,
       );
     }
+  }
+
+  private shouldRevealAfterRedraw(
+    tabIds: readonly string[],
+    activeViewTabId: string | null,
+  ) {
+    const activeViewChanged = this.lastRenderedActiveViewTabId !== activeViewTabId;
+    const tabOrderChanged =
+      this.lastRenderedTabIds.length !== tabIds.length ||
+      tabIds.some((tabId, index) => this.lastRenderedTabIds[index] !== tabId);
+
+    if ((!activeViewChanged && !tabOrderChanged) || !activeViewTabId) {
+      return false;
+    }
+
+    return !this.isViewTabFullyVisible(activeViewTabId);
+  }
+
+  private findActiveViewTabId(tabs: readonly EditorGroupTabItem[]) {
+    return tabs.find((tab) => tab.state.isActive)?.id ?? null;
+  }
+
+  private isViewTabFullyVisible(tabId: string) {
+    if (!this.container) {
+      return false;
+    }
+
+    const tabElement = this.tabViews.get(tabId)?.element;
+    if (!tabElement) {
+      return false;
+    }
+
+    const visibleLeft = this.container.scrollLeft;
+    const visibleRight = visibleLeft + this.container.clientWidth;
+    const tabLeft = tabElement.offsetLeft;
+    const tabRight = tabLeft + tabElement.offsetWidth;
+
+    return tabLeft >= visibleLeft && tabRight <= visibleRight;
   }
 
   private readonly handleContainerScroll = () => {

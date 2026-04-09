@@ -554,6 +554,48 @@ test('editor model keeps browser tab title stable while web content is loading r
   }
 });
 
+test('editor model keeps auto-page browser title stable across chained url updates', () => {
+  const model = createEditorModel({
+    groups: [
+      {
+        groupId: DEFAULT_EDITOR_GROUP_ID,
+        tabs: [
+          {
+            id: 'browser-a',
+            kind: 'browser',
+            title: 'example.com/start',
+            url: 'https://example.com/start',
+          },
+        ],
+        activeTabId: 'browser-a',
+        mruTabIds: ['browser-a'],
+      },
+    ],
+    activeGroupId: DEFAULT_EDITOR_GROUP_ID,
+    viewStateEntries: [],
+  });
+
+  try {
+    model.updateActiveBrowserTabPageTitle('Old Article Title');
+    let snapshot = model.getSnapshot();
+    assert.equal(snapshot.tabs[0]?.title, 'Old Article Title');
+
+    model.updateActiveContentTabUrl('https://example.com/redirect-a');
+    snapshot = model.getSnapshot();
+    assert.equal(snapshot.tabs[0]?.title, 'Old Article Title');
+
+    model.updateActiveContentTabUrl('https://example.com/final');
+    snapshot = model.getSnapshot();
+    assert.equal(snapshot.tabs[0]?.title, 'Old Article Title');
+
+    model.updateActiveBrowserTabPageTitle('New Article Title');
+    snapshot = model.getSnapshot();
+    assert.equal(snapshot.tabs[0]?.title, 'New Article Title');
+  } finally {
+    model.dispose();
+  }
+});
+
 test('editor model clears browser tab title for about:blank and ignores about:blank page titles', () => {
   const model = createEditorModel({
     groups: [

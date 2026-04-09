@@ -53,6 +53,7 @@
 .editor-tab-main {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
@@ -64,6 +65,7 @@
   cursor: pointer;
   font: inherit;
   border-radius: inherit;
+  transition: none;
 }
 /* Tab actions container， the padding-right connects with the close button position*/
 .editor-tab-actions.actionbar {
