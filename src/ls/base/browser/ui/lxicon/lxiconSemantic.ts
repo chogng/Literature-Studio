@@ -17,6 +17,8 @@ export const lxIconSemanticMap = {
     newConversation: 'add',
     history: 'history',
     more: 'more',
+    secondarySidebarOpen: 'layout-sidebar-right',
+    secondarySidebarClosed: 'layout-sidebar-right-off',
     voice: 'mic',
     image: 'image',
     send: 'enter',
