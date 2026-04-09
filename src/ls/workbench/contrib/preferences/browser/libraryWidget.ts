@@ -12,12 +12,12 @@ import {
   buildSettingsButton as buildButton,
   buildSettingsHint as buildHint,
   buildSettingsInput as buildInput,
-  buildSettingsNumberStepperInput as buildNumberStepperInput,
   buildSettingsSelect as buildSelect,
   buildSettingsSwitch as buildSwitch,
   createSettingsElement as el,
   createSettingsText as text,
 } from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
+import { buildSettingsNumberStepperInput as buildNumberStepperInput } from 'ls/workbench/contrib/preferences/browser/settingsNumberStepperInput';
 
 function resolveLibraryDocumentStatusLabel(labels: SettingsPartLabels, document: LibraryDocumentSummary) {
   if (document.latestJobStatus === 'failed' || document.ingestStatus === 'failed') { return labels.settingsLibraryDocumentFailed; }

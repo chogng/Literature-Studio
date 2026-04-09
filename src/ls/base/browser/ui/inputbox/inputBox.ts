@@ -9,6 +9,18 @@ export interface IInputBoxOptions {
   readonly type?: HTMLInputElement['type'];
   readonly value?: string;
   readonly className?: string;
+  readonly inputAttributes?: {
+    readonly readOnly?: boolean;
+    readonly disabled?: boolean;
+    readonly min?: string;
+    readonly max?: string;
+    readonly step?: string;
+    readonly inputMode?: HTMLInputElement['inputMode'];
+    readonly autocomplete?: HTMLInputElement['autocomplete'];
+    readonly spellcheck?: boolean;
+    readonly autocorrect?: string;
+    readonly autocapitalize?: string;
+  };
 }
 
 export type InputBoxSelectionRange = {
@@ -36,6 +48,7 @@ export class InputBox extends LifecycleOwner {
 
   constructor(container: HTMLElement, _contextViewProvider: unknown, options: IInputBoxOptions = {}) {
     super();
+    const inputAttributes = options.inputAttributes;
     this.element = document.createElement('div');
     this.element.className = ['inputbox', 'idle', options.className ?? '']
       .filter(Boolean)
@@ -48,10 +61,24 @@ export class InputBox extends LifecycleOwner {
     this.inputElement.className = 'input';
     this.inputElement.type = options.type ?? 'text';
     this.inputElement.value = options.value ?? '';
-    this.inputElement.autocomplete = 'off';
-    this.inputElement.spellcheck = false;
-    this.inputElement.setAttribute('autocorrect', 'off');
-    this.inputElement.setAttribute('autocapitalize', 'off');
+    this.inputElement.readOnly = Boolean(inputAttributes?.readOnly);
+    this.inputElement.disabled = Boolean(inputAttributes?.disabled);
+    this.inputElement.autocomplete = inputAttributes?.autocomplete ?? 'off';
+    this.inputElement.spellcheck = inputAttributes?.spellcheck ?? false;
+    this.inputElement.setAttribute('autocorrect', inputAttributes?.autocorrect ?? 'off');
+    this.inputElement.setAttribute('autocapitalize', inputAttributes?.autocapitalize ?? 'off');
+    if (inputAttributes?.min !== undefined) {
+      this.inputElement.min = inputAttributes.min;
+    }
+    if (inputAttributes?.max !== undefined) {
+      this.inputElement.max = inputAttributes.max;
+    }
+    if (inputAttributes?.step !== undefined) {
+      this.inputElement.step = inputAttributes.step;
+    }
+    if (inputAttributes?.inputMode !== undefined) {
+      this.inputElement.inputMode = inputAttributes.inputMode;
+    }
 
     wrapper.append(this.inputElement);
     this.element.append(wrapper);

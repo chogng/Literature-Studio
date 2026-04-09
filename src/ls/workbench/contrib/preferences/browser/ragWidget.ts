@@ -4,10 +4,10 @@ import { ApiKeyWidget } from 'ls/workbench/contrib/preferences/browser/apiKeyWid
 import {
   buildSettingsHint as buildHint,
   buildSettingsInput as buildInput,
-  buildSettingsNumberStepperInput as buildNumberStepperInput,
   createSettingsElement as el,
   createSettingsText as text,
 } from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
+import { buildSettingsNumberStepperInput as buildNumberStepperInput } from 'ls/workbench/contrib/preferences/browser/settingsNumberStepperInput';
 
 export type RagWidgetProps = {
   labels: SettingsPartLabels;

@@ -25,12 +25,12 @@ import {
   buildSettingsCheckbox as buildCheckbox,
   buildSettingsHint as buildHint,
   buildSettingsInput as buildInput,
-  buildSettingsNumberStepperInput as buildNumberStepperInput,
   buildSettingsSelect as buildSelect,
   buildSettingsSwitch as buildSwitch,
   createSettingsElement as el,
   createSettingsText as text,
 } from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
+import { buildSettingsNumberStepperInput as buildNumberStepperInput } from 'ls/workbench/contrib/preferences/browser/settingsNumberStepperInput';
 
 import type {
   SettingsPartActions,

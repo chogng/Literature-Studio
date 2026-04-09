@@ -2,7 +2,6 @@ import { applyHover } from 'ls/base/browser/ui/hover/hover';
 import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
 import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
 import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
-import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import { SelectBox } from 'ls/base/browser/ui/selectbox/selectBox';
 import { createSwitchView } from 'ls/base/browser/ui/switch/switch';
 
@@ -46,8 +45,10 @@ export function buildSettingsInput(config: {
   focusKey: string;
   placeholder?: string;
   readOnly?: boolean;
+  disabled?: boolean;
   min?: string;
   max?: string;
+  step?: string;
   inputMode?: HTMLInputElement['inputMode'];
   onInput?: (value: string) => void;
 }) {
@@ -57,109 +58,21 @@ export function buildSettingsInput(config: {
     type: config.type ?? 'text',
     value: String(config.value),
     placeholder: config.placeholder ?? '',
+    inputAttributes: {
+      readOnly: config.readOnly,
+      disabled: config.disabled,
+      min: config.min,
+      max: config.max,
+      step: config.step,
+      inputMode: config.inputMode,
+    },
   });
-  const input = setSettingsFocusKey(inputBox.inputElement, config.focusKey);
-  input.readOnly = Boolean(config.readOnly);
-  if (config.min !== undefined) { input.min = config.min; }
-  if (config.max !== undefined) { input.max = config.max; }
-  if (config.inputMode) { input.inputMode = config.inputMode; }
+  setSettingsFocusKey(inputBox.inputElement, config.focusKey);
   const onInput = config.onInput;
   if (onInput) {
     inputBox.onDidChange((value) => onInput(value));
   }
   return inputBox;
-}
-
-export function buildSettingsNumberStepperInput(config: {
-  value: string | number;
-  className: string;
-  focusKey: string;
-  min?: string;
-  max?: string;
-  inputMode?: HTMLInputElement['inputMode'];
-  step?: string;
-  onInput?: (value: string) => void;
-  disabled?: boolean;
-}) {
-  const stepper = createSettingsElement(
-    'div',
-    `settings-number-stepper ${config.className}`.trim(),
-  );
-  const decrementButton = createSettingsElement(
-    'button',
-    'settings-number-stepper-button settings-number-stepper-button-decrement',
-  );
-  decrementButton.type = 'button';
-  decrementButton.append(
-    createLxIcon(
-      lxIconSemanticMap.settings.decrement,
-      'settings-number-stepper-button-icon',
-    ),
-  );
-  decrementButton.ariaLabel = 'Decrease value';
-  const inputBox = buildSettingsInput({
-    type: 'number',
-    value: config.value,
-    className: `${config.className} settings-number-stepper-input`,
-    focusKey: config.focusKey,
-    min: config.min,
-    max: config.max,
-    inputMode: config.inputMode ?? 'decimal',
-    onInput: config.onInput,
-  });
-  if (config.step !== undefined) {
-    inputBox.inputElement.step = config.step;
-  }
-  const incrementButton = createSettingsElement(
-    'button',
-    'settings-number-stepper-button settings-number-stepper-button-increment',
-  );
-  incrementButton.type = 'button';
-  incrementButton.append(
-    createLxIcon(
-      lxIconSemanticMap.settings.increment,
-      'settings-number-stepper-button-icon',
-    ),
-  );
-  incrementButton.ariaLabel = 'Increase value';
-  const syncButtonsDisabled = () => {
-    const disabled = inputBox.inputElement.disabled || inputBox.inputElement.readOnly;
-    decrementButton.disabled = disabled;
-    incrementButton.disabled = disabled;
-  };
-  const nudgeValue = (direction: 'up' | 'down') => {
-    const input = inputBox.inputElement;
-    if (input.disabled || input.readOnly) {
-      return;
-    }
-    const previous = input.value;
-    try {
-      if (direction === 'up') {
-        input.stepUp();
-      } else {
-        input.stepDown();
-      }
-    } catch {
-      return;
-    }
-    if (input.value !== previous) {
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    input.focus();
-  };
-  decrementButton.addEventListener('click', () => nudgeValue('down'));
-  incrementButton.addEventListener('click', () => nudgeValue('up'));
-  stepper.append(decrementButton, inputBox.element, incrementButton);
-  const setDisabled = (disabled: boolean) => {
-    inputBox.inputElement.disabled = disabled;
-    syncButtonsDisabled();
-  };
-  setDisabled(Boolean(config.disabled));
-  return {
-    element: stepper,
-    inputElement: inputBox.inputElement,
-    setDisabled,
-  };
 }
 
 export function buildSettingsSelect(
