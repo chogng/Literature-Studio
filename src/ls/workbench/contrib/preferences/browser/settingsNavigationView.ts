@@ -5,6 +5,7 @@ import {
   type SettingsNavigationItemId,
   type SettingsPageId,
 } from 'ls/workbench/contrib/preferences/browser/settingsLayout';
+import { createSettingsElement as el } from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
 
 export type SettingsNavigationViewProps = {
@@ -14,14 +15,6 @@ export type SettingsNavigationViewProps = {
   onDidSelectPage: (pageId: SettingsPageId) => void;
   onDidNavigateBack: () => void;
 };
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
-  const node = document.createElement(tag);
-  if (className) {
-    node.className = className;
-  }
-  return node;
-}
 
 export class SettingsNavigationView {
   private props: SettingsNavigationViewProps;

@@ -1,85 +1,14 @@
 import { applyHover } from 'ls/base/browser/ui/hover/hover';
-import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
-
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
 import type { BatchSource } from 'ls/workbench/services/config/configSchema';
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
-  const node = document.createElement(tag);
-  if (className) {
-    node.className = className;
-  }
-  return node;
-}
-
-function setFocusKey<T extends HTMLElement>(node: T, key: string) {
-  node.dataset.focusKey = key;
-  return node;
-}
-
-function buildInput(config: {
-  value: string;
-  className: string;
-  focusKey: string;
-  placeholder?: string;
-  onInput?: (value: string) => void;
-}) {
-  const host = el('div');
-  const inputBox = new InputBox(host, undefined, {
-    className: `settings-inputbox ${config.className}`.trim(),
-    type: 'text',
-    value: config.value,
-    placeholder: config.placeholder ?? '',
-  });
-  setFocusKey(inputBox.inputElement, config.focusKey);
-  if (config.onInput) {
-    inputBox.onDidChange((value) => config.onInput?.(value));
-  }
-  return inputBox;
-}
-
-function buildButton(config: {
-  label: string;
-  icon?: LxIconName;
-  className?: string;
-  focusKey: string;
-  title?: string;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  const extraClasses = (config.className ?? '').trim();
-  const isIconButton = extraClasses.includes('settings-native-icon-button');
-  const buttonClassName = [
-    'settings-native-button',
-    'btn-base',
-    'btn-secondary',
-    isIconButton ? 'btn-mode-icon btn-sm' : 'btn-md',
-    extraClasses,
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const button = setFocusKey(el('button', buttonClassName), config.focusKey);
-  button.type = 'button';
-  if (config.icon) {
-    button.append(createLxIcon(config.icon));
-  } else {
-    button.textContent = config.label;
-  }
-  applyHover(button, config.title ?? config.label);
-  button.ariaLabel = config.title ?? config.label;
-  button.disabled = Boolean(config.disabled);
-  button.addEventListener('click', () => config.onClick());
-  return button;
-}
-
-function buildHint(value: string, className = 'settings-hint') {
-  const hint = el('p', className);
-  hint.textContent = value;
-  return hint;
-}
+import {
+  buildSettingsButton as buildButton,
+  buildSettingsHint as buildHint,
+  buildSettingsInput as buildInput,
+  createSettingsElement as el,
+  setSettingsFocusKey as setFocusKey,
+} from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
 
 export type BatchSourceRowViewProps = {
   source: BatchSource;

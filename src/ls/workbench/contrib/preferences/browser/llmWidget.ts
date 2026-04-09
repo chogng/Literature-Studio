@@ -9,6 +9,10 @@ import type { LlmProviderId, LlmProviderSettings } from 'ls/base/parts/sandbox/c
 import type { SettingsPartLabels } from 'ls/workbench/contrib/preferences/browser/settingsTypes';
 import { ApiKeyWidget } from 'ls/workbench/contrib/preferences/browser/apiKeyWidget';
 import {
+  createSettingsElement as el,
+  setSettingsFocusKey as setFocusKey,
+} from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
+import {
   getEffectiveInputTokenLimit,
   getEnabledLlmModelOptionValuesForProvider,
   hasLlmMaxContextWindow,
@@ -21,25 +25,8 @@ import {
   type LlmModelDefinition,
 } from 'ls/workbench/services/llm/registry';
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
-  const node = document.createElement(tag);
-  if (className) {
-    node.className = className;
-  }
-  return node;
-}
-
-function setFocusKey<T extends HTMLElement>(node: T, key: string) {
-  node.dataset.focusKey = key;
-  return node;
-}
-
 function normalizeModelLabel(value: string) {
   return value.replace(/[\u2010-\u2015\u2212]/g, '-');
-}
-
-function createHoverBadge(props: Parameters<typeof createBadge>[0]) {
-  return createBadge(props);
 }
 
 function formatTokenCount(value: number) {
@@ -413,7 +400,7 @@ export class LlmWidget {
     for (const badge of badges) {
       const meta = modelBadgeMeta[badge];
       row.append(
-        createHoverBadge({
+        createBadge({
           icon: meta.icon,
           title: meta.title,
           compact: true,
@@ -424,7 +411,7 @@ export class LlmWidget {
 
     if (model.context_window_tokens) {
       row.append(
-        createHoverBadge({
+        createBadge({
           label: `Ctx ${formatTokenCount(model.context_window_tokens)}`,
           title: `Official context window: ${formatTokenCount(model.context_window_tokens)}`,
           compact: true,
@@ -443,7 +430,7 @@ export class LlmWidget {
           ? `Default input token budget: ${formatTokenCount(effectiveInputTokenLimit)}. Enable Max Context to use ${formatTokenCount(model.input_token_limit!)}.`
           : `Input token budget: ${formatTokenCount(effectiveInputTokenLimit)}`;
       row.append(
-        createHoverBadge({
+        createBadge({
           label: `In ${formatTokenCount(effectiveInputTokenLimit)}`,
           title: inputTitle,
           compact: true,
@@ -454,7 +441,7 @@ export class LlmWidget {
 
     if (model.max_output_tokens) {
       row.append(
-        createHoverBadge({
+        createBadge({
           label: `Out ${formatTokenCount(model.max_output_tokens)}`,
           title: `Max output tokens: ${formatTokenCount(model.max_output_tokens)}`,
           compact: true,
@@ -465,7 +452,7 @@ export class LlmWidget {
 
     if (option?.serviceTier === 'priority') {
       row.append(
-        createHoverBadge({
+        createBadge({
           icon: modelBadgeMeta.fast.icon,
           label: 'Fast',
           title: 'Fast service tier (Priority)',

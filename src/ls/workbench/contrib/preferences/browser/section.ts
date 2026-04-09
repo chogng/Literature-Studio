@@ -1,10 +1,4 @@
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
-  const node = document.createElement(tag);
-  if (className) {
-    node.className = className;
-  }
-  return node;
-}
+import { createSettingsElement as el } from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
 
 function classNames(...names: Array<string | undefined>) {
   return names

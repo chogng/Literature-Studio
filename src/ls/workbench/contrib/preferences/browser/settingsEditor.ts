@@ -1,15 +1,9 @@
 import type { Locale } from 'language/i18n';
 import type { LocaleMessages } from 'language/locales';
 import { createActionBarView } from 'ls/base/browser/ui/actionbar/actionbar';
-import { applyHover } from 'ls/base/browser/ui/hover/hover';
-import { InputBox } from 'ls/base/browser/ui/inputbox/inputBox';
-import { createLxIcon } from 'ls/base/browser/ui/lxicon/lxicon';
-import type { LxIconName } from 'ls/base/browser/ui/lxicon/lxicon';
-import { SelectBox } from 'ls/base/browser/ui/selectbox/selectBox';
 
 import { DEFAULT_EDITOR_DRAFT_BODY_COLOR } from 'ls/base/common/editorDraftStyle';
 import { lxIconSemanticMap } from 'ls/base/browser/ui/lxicon/lxiconSemantic';
-import { createSwitchView } from 'ls/base/browser/ui/switch/switch';
 import { BatchSourcesWidget } from 'ls/workbench/contrib/preferences/browser/batchSourcesWidget';
 import { KnowledgeBaseWidget } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseWidget';
 import type { KnowledgeBaseWidgetProps } from 'ls/workbench/contrib/preferences/browser/knowledgeBaseWidget';
@@ -26,6 +20,17 @@ import {
   createSettingsSection,
   createSettingsRow,
 } from 'ls/workbench/contrib/preferences/browser/section';
+import {
+  buildSettingsButton as buildButton,
+  buildSettingsCheckbox as buildCheckbox,
+  buildSettingsHint as buildHint,
+  buildSettingsInput as buildInput,
+  buildSettingsNumberStepperInput as buildNumberStepperInput,
+  buildSettingsSelect as buildSelect,
+  buildSettingsSwitch as buildSwitch,
+  createSettingsElement as el,
+  createSettingsText as text,
+} from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
 
 import type {
   SettingsPartActions,
@@ -91,233 +96,11 @@ type FocusSnapshot = {
   selectionEnd: number | null;
 } | null;
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
-  const node = document.createElement(tag);
-  if (className) {
-    node.className = className;
-  }
-  return node;
-}
-
-function text(value: string | number) {
-  return document.createTextNode(String(value));
-}
-
-function setFocusKey<T extends HTMLElement>(node: T, key: string) {
-  node.dataset.focusKey = key;
-  return node;
-}
-
 function setSelectHostDisabled(host: HTMLElement, disabled: boolean) {
   const selectElement = host.querySelector<HTMLSelectElement>('.ls-select-box');
   if (selectElement) {
     selectElement.disabled = disabled;
   }
-}
-
-function buildSelect(options: readonly SelectOption[], value: string, focusKey: string, onChange: (value: string) => void, className: string) {
-  const selectBox = new SelectBox(
-    options.map((option) => ({
-      text: option.label,
-      value: option.value,
-      title: option.title ?? option.label,
-      isDisabled: option.isDisabled,
-    })),
-    Math.max(0, options.findIndex((option) => option.value === value)),
-    undefined,
-    {},
-    {
-      useCustomDrawn: true,
-      className: `settings-select-trigger ${className}`.trim(),
-    },
-  );
-  const host = el('div');
-  selectBox.render(host);
-  selectBox.onDidSelect(({ selected }) => onChange(selected));
-  setFocusKey(selectBox.domNode, focusKey);
-  return host;
-}
-
-function buildInput(config: {
-  type?: string;
-  value: string | number;
-  className: string;
-  focusKey: string;
-  placeholder?: string;
-  readOnly?: boolean;
-  min?: string;
-  max?: string;
-  inputMode?: HTMLInputElement['inputMode'];
-  onInput?: (value: string) => void;
-}) {
-  const host = el('div');
-  const inputBox = new InputBox(host, undefined, {
-    className: `settings-inputbox ${config.className}`.trim(),
-    type: config.type ?? 'text',
-    value: String(config.value),
-    placeholder: config.placeholder ?? '',
-  });
-  const input = setFocusKey(inputBox.inputElement, config.focusKey);
-  input.readOnly = Boolean(config.readOnly);
-  if (config.min !== undefined) { input.min = config.min; }
-  if (config.max !== undefined) { input.max = config.max; }
-  if (config.inputMode) { input.inputMode = config.inputMode; }
-  if (config.onInput) {
-    inputBox.onDidChange((value) => config.onInput?.(value));
-  }
-  return inputBox;
-}
-
-function buildNumberStepperInput(config: {
-  value: string | number;
-  className: string;
-  focusKey: string;
-  min?: string;
-  max?: string;
-  inputMode?: HTMLInputElement['inputMode'];
-  step?: string;
-  onInput?: (value: string) => void;
-  disabled?: boolean;
-}) {
-  const stepper = el('div', `settings-number-stepper ${config.className}`.trim());
-  const decrementButton = el('button', 'settings-number-stepper-button settings-number-stepper-button-decrement');
-  decrementButton.type = 'button';
-  decrementButton.append(createLxIcon(lxIconSemanticMap.settings.decrement, 'settings-number-stepper-button-icon'));
-  decrementButton.ariaLabel = 'Decrease value';
-  const inputBox = buildInput({
-    type: 'number',
-    value: config.value,
-    className: `${config.className} settings-number-stepper-input`,
-    focusKey: config.focusKey,
-    min: config.min,
-    max: config.max,
-    inputMode: config.inputMode ?? 'decimal',
-    onInput: config.onInput,
-  });
-  if (config.step !== undefined) {
-    inputBox.inputElement.step = config.step;
-  }
-  const incrementButton = el('button', 'settings-number-stepper-button settings-number-stepper-button-increment');
-  incrementButton.type = 'button';
-  incrementButton.append(createLxIcon(lxIconSemanticMap.settings.increment, 'settings-number-stepper-button-icon'));
-  incrementButton.ariaLabel = 'Increase value';
-  const syncButtonsDisabled = () => {
-    const disabled = inputBox.inputElement.disabled || inputBox.inputElement.readOnly;
-    decrementButton.disabled = disabled;
-    incrementButton.disabled = disabled;
-  };
-  const nudgeValue = (direction: 'up' | 'down') => {
-    const input = inputBox.inputElement;
-    if (input.disabled || input.readOnly) {
-      return;
-    }
-    const previous = input.value;
-    try {
-      if (direction === 'up') {
-        input.stepUp();
-      } else {
-        input.stepDown();
-      }
-    } catch {
-      return;
-    }
-    if (input.value !== previous) {
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    input.focus();
-  };
-  decrementButton.addEventListener('click', () => nudgeValue('down'));
-  incrementButton.addEventListener('click', () => nudgeValue('up'));
-  stepper.append(decrementButton, inputBox.element, incrementButton);
-  const setDisabled = (disabled: boolean) => {
-    inputBox.inputElement.disabled = disabled;
-    syncButtonsDisabled();
-  };
-  setDisabled(Boolean(config.disabled));
-  return {
-    element: stepper,
-    inputElement: inputBox.inputElement,
-    setDisabled,
-  };
-}
-
-function buildCheckbox(config: {
-  checked: boolean;
-  className: string;
-  focusKey: string;
-  disabled?: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  const input = setFocusKey(el('input', config.className), config.focusKey);
-  input.type = 'checkbox';
-  input.checked = config.checked;
-  input.disabled = Boolean(config.disabled);
-  input.addEventListener('change', () => config.onChange(input.checked));
-  return input;
-}
-
-function buildSwitch(config: {
-  checked: boolean;
-  focusKey: string;
-  disabled?: boolean;
-  title?: string;
-  onChange: (checked: boolean) => void;
-}) {
-  const view = createSwitchView({
-    checked: config.checked,
-    disabled: config.disabled,
-    className: 'settings-toggle-switch',
-    title: config.title,
-    onChange: config.onChange,
-  });
-  const element = view.getElement();
-  const input = element.querySelector<HTMLInputElement>('.switch-input');
-  if (input) {
-    setFocusKey(input, config.focusKey);
-  } else {
-    setFocusKey(element, config.focusKey);
-  }
-  return element;
-}
-
-function buildButton(config: {
-  label: string;
-  icon?: LxIconName;
-  className?: string;
-  focusKey: string;
-  title?: string;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  const extraClasses = (config.className ?? '').trim();
-  const isIconButton = extraClasses.includes('settings-native-icon-button');
-  const buttonClassName = [
-    'settings-native-button',
-    'btn-base',
-    'btn-secondary',
-    isIconButton ? 'btn-mode-icon btn-sm' : 'btn-md',
-    extraClasses,
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const button = setFocusKey(el('button', buttonClassName), config.focusKey);
-  button.type = 'button';
-  if (config.icon) {
-    button.append(createLxIcon(config.icon));
-  } else {
-    button.textContent = config.label;
-  }
-  applyHover(button, config.title ?? config.label);
-  button.ariaLabel = config.title ?? config.label;
-  button.disabled = Boolean(config.disabled);
-  button.addEventListener('click', () => config.onClick());
-  return button;
-}
-
-function buildHint(value: string, className = 'settings-hint') {
-  const hint = el('p', className);
-  hint.textContent = value;
-  return hint;
 }
 
 function createThemeOptions(labels: SettingsPartLabels): readonly SelectOption[] {

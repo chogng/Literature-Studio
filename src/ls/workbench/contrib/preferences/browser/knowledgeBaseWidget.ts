@@ -2,20 +2,10 @@ import { LibraryWidget } from 'ls/workbench/contrib/preferences/browser/libraryW
 import type { LibraryWidgetProps } from 'ls/workbench/contrib/preferences/browser/libraryWidget';
 import { RagWidget } from 'ls/workbench/contrib/preferences/browser/ragWidget';
 import type { RagWidgetProps } from 'ls/workbench/contrib/preferences/browser/ragWidget';
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string) {
-  const node = document.createElement(tag);
-  if (className) {
-    node.className = className;
-  }
-  return node;
-}
-
-function buildHint(value: string, className = 'settings-hint') {
-  const hint = el('p', className);
-  hint.textContent = value;
-  return hint;
-}
+import {
+  buildSettingsHint as buildHint,
+  createSettingsElement as el,
+} from 'ls/workbench/contrib/preferences/browser/settingsUiPrimitives';
 
 export type KnowledgeBaseWidgetProps = {
   title: string;
