@@ -191,6 +191,17 @@ export class AgentChatWidget {
       ),
       this.createTopbarHistoryActionItem(),
       this.createTopbarMoreActionItem(),
+      this.createTopbarActionItem(
+        this.props.isSecondarySidebarVisible
+          ? this.props.labels.assistantHideSecondarySidebar
+          : this.props.labels.assistantShowSecondarySidebar,
+        this.props.isSecondarySidebarVisible
+          ? lxIconSemanticMap.assistant.secondarySidebarOpen
+          : lxIconSemanticMap.assistant.secondarySidebarClosed,
+        this.props.onToggleSecondarySidebar,
+        this.props.isSecondarySidebarVisible,
+        true,
+      ),
     ];
 
     const actionsView = createActionBarView({

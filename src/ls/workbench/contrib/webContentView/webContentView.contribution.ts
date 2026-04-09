@@ -1244,6 +1244,18 @@ class WebContentDomManager {
   }
 }
 
+function addDisposableListener(
+  target: EventTarget,
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions,
+) {
+  target.addEventListener(type, listener, options);
+  return toDisposable(() => {
+    target.removeEventListener(type, listener, options);
+  });
+}
+
 export function createWorkbenchWebContentViewContribution(): Disposable | void {
   if (
     typeof window === 'undefined' ||

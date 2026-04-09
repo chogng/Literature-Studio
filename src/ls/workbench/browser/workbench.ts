@@ -1915,6 +1915,7 @@ class WorkbenchHost {
         activeConversationId: activeAssistantConversationId,
         llmModelOptions: agentLlmModelOptions,
         activeLlmModelOptionValue,
+        isSecondarySidebarVisible: isFetchSidebarVisible,
       },
       actions: {
         onQuestionChange: setAssistantQuestion,

@@ -288,6 +288,20 @@ const electronAPI: ElectronAPI = {
       });
     },
   },
+  nativePopupContextMenu: {
+    open(payload: ContextMenuPopupPayload) {
+      sendIpc('app:native-popup-context-menu-open', payload);
+    },
+    close(requestId: string) {
+      sendIpc('app:native-popup-context-menu-close', requestId);
+    },
+    onEvent(listener: (event: ContextMenuPopupEvent) => void) {
+      return subscribeIpc<ContextMenuPopupEvent>('app:native-popup-context-menu-event', listener, {
+        requestId: '',
+        type: 'close',
+      });
+    },
+  },
 };
 
 function exposeElectronApi() {

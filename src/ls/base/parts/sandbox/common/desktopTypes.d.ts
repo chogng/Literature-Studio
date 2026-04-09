@@ -769,6 +769,12 @@ export interface ContextMenuPopupApi {
   onEvent: (listener: (event: ContextMenuPopupEvent) => void) => () => void;
 }
 
+export interface ContextMenuPopupApi {
+  open: (payload: ContextMenuPopupPayload) => void;
+  close: (requestId: string) => void;
+  onEvent: (listener: (event: ContextMenuPopupEvent) => void) => () => void;
+}
+
 export interface ElectronAPI {
   invoke: ElectronInvoke;
   windowControls?: ElectronWindowControls;

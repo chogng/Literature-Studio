@@ -22,6 +22,8 @@ function createProps(): AgentChatWidgetProps {
       assistantNewConversation: 'New chat',
       assistantHistory: 'History',
       assistantMore: 'More',
+      assistantShowSecondarySidebar: 'Show secondary sidebar',
+      assistantHideSecondarySidebar: 'Hide secondary sidebar',
       assistantQuestion: 'Question',
       assistantQuestionPlaceholder: 'Ask something',
       assistantVoice: 'Voice',
@@ -89,10 +91,10 @@ test('agent bar action buttons expose labels and shared hover', async () => {
     const actionButtons = Array.from(
       element.querySelectorAll('.sidebar-action-bar .sidebar-action-btn'),
     );
-    assert.equal(actionButtons.length, 3);
+    assert.equal(actionButtons.length, 4);
     assert.deepEqual(
       actionButtons.map((button) => button.getAttribute('aria-label')),
-      ['New chat', 'History', 'More'],
+      ['New chat', 'History', 'More', 'Show secondary sidebar'],
     );
 
     const historyButton = actionButtons[1];
